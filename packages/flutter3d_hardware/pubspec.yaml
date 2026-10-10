@@ -1,6 +1,6 @@
 name: flutter3d_hardware
 description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API. No Flutter, no renderer."
-version: 0.8.0+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -25,7 +25,27 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
+  # `Flutter3dException` and its families, which `UnsupportedCapability` and
+  # `ShaderBundleException` extend. Plain Dart over `vector_math` alone, so
+  # the hardware layer still names no graphics API and no Flutter, and no
+  # longer needs the plugin contract to throw.
+  flutter3d_foundation: ^1.0.0-rc.1
+  # `@experimental` and `@immutable`. The first is how the 0.9 surface says
+  # which of its members may still change: a caller outside this package that
+  # uses one gets an `experimental_member_use` warning and opts in by name.
+  meta: ^1.15.0
   vector_math: ^2.2.0
 
 dev_dependencies:

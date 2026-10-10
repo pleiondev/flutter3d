@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('screenFractionForSize', () {
     test('a one-metre object ten metres away, through 45 degrees vertical', () {
-      const projection = PerspectiveProjection(fovYRadians: math.pi / 4);
+      const projection = PerspectiveProjection(fovY: math.pi / 4);
       final fraction = screenFractionForSize(
         diameterMeters: 1.0,
         distanceMeters: 10.0,
@@ -24,7 +24,7 @@ void main() {
     });
 
     test('caps at 1.0 once the camera sits inside the object', () {
-      const projection = PerspectiveProjection(fovYRadians: math.pi / 4);
+      const projection = PerspectiveProjection(fovY: math.pi / 4);
       expect(
         screenFractionForSize(
           diameterMeters: 4.0,
@@ -66,7 +66,7 @@ void main() {
 
   group('sizeForScreenFraction', () {
     test('inverts screenFractionForSize for a perspective camera', () {
-      const projection = PerspectiveProjection(fovYRadians: math.pi / 3);
+      const projection = PerspectiveProjection(fovY: math.pi / 3);
       const distance = 7.5;
       const diameter = 2.25;
 

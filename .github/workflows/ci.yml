@@ -175,11 +175,11 @@ jobs:
   # **A Dart SDK with no Flutter beside it, which is the machine six packages
   # promise to run on.**
   #
-  # `flutter3d_model_mcp` is started by a host with `dart run`, and `dart run`
-  # cannot resolve a package that depends on the Flutter SDK — so a single
-  # Flutter import anywhere under it is not a heavier process, it is a server
-  # that will not start. The same is true of `flutter3d_editor_mcp`, and of the
-  # document and geometry layers underneath both.
+  # `flutter3d_mcp`'s servers are started by a host with `dart run`, and
+  # `dart run` cannot resolve a package that depends on the Flutter SDK — so a
+  # single Flutter import anywhere under them is not a heavier process, it is
+  # a server that will not start. The same is true of the document and
+  # geometry layers underneath the level and model editors' servers.
   #
   # The check job cannot ask this. It installs Flutter, and one `flutter pub
   # get` at the root resolves the whole workspace against one lock file — so a
@@ -362,17 +362,35 @@ jobs:
   # this workflow has no way to drive. What a build proves is the half that
   # actually breaks: the CMake, the plugin registration, and every package in
   # the graph compiling for a platform none of them had been asked about.
+  #
+  # The level editor as well, for P11: it ships desktop downloads for both, so
+  # its runners are compiled here rather than first by whoever downloads one.
+  # Its graph brings `file_selector`'s own GTK and Win32 plugins, which the
+  # dungeon demo does not.
+  #
+  # And the other four games, whose runners are the dungeon's renamed. Every
+  # game reaches `pad_input` and `pointer_lock` through `flutter3d_game`, so
+  # this is also the only place their XInput, Raw Input, joystick and GDK
+  # sides are compiled at all.
   desktop:
     strategy:
-      # Both, whichever fails: a matrix that stops at the first failure hides
-      # whether the other one was ever going to work.
+      # Every cell, whichever fails: a matrix that stops at the first failure
+      # hides whether the others were ever going to work.
       fail-fast: false
       matrix:
+        target: [linux, windows]
+        app:
+          - flutter3d_demo_dungeon
+          - flutter3d_demo_platformer
+          - flutter3d_demo_racing
+          - flutter3d_demo_arcade
+          - flutter3d_demo_strategy
+          - flutter3d_editor
         include:
-          - os: ubuntu-latest
-            target: linux
-          - os: windows-latest
-            target: windows
+          - target: linux
+            os: ubuntu-latest
+          - target: windows
+            os: windows-latest
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -385,8 +403,8 @@ jobs:
           cache: true
 
       # libasound2-dev is not part of the Flutter desktop toolchain: it is what
-      # flutter_soloud's own ALSA backend compiles against, and the dungeon demo
-      # is the application that pulls the audio plugin in. Without it the build
+      # flutter_soloud's own ALSA backend compiles against, and both applications
+      # pull the audio plugin in, the editor through `flutter3d_game`. Without it the build
       # gets all the way to soloud_alsa.cpp and stops at a missing header.
       - name: linux desktop toolchain
         if: matrix.target == 'linux'
@@ -402,8 +420,33 @@ jobs:
       - run: flutter precache --${{ matrix.target }}
       - run: cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart
 
-      - name: build the dungeon demo
-        run: cd apps/flutter3d_demo_dungeon && flutter build ${{ matrix.target }} --debug
+      - name: build ${{ matrix.app }}
+        run: cd apps/${{ matrix.app }} && flutter build ${{ matrix.target }} --debug
+
+  # The native physics core on Windows, built by MSVC as the hook builds it
+  # there: its C tests, its digests — the bits every other platform steps
+  # to, written in csrc/tests/test_digest.c — the pool on Win32 threads, and
+  # the Dart side over the library the hook made. The check job runs the
+  # same package on Linux; nothing else here compiles the core with MSVC.
+  physics-native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # `cl` on the path, for test/c_unit_test.dart; the hook finds MSVC
+      # itself.
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter test
+        working-directory: packages/flutter3d_physics_native
 
   godot:
     runs-on: ubuntu-latest

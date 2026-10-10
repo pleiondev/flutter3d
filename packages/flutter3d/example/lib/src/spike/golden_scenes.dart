@@ -137,7 +137,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     shadows: false,
     bloom: false,
     ground: false,
-    debug: DebugDrawOptions(
+    debug: DebugDrawSettings(
       bounds: true,
       axes: true,
       lightGizmos: true,
@@ -565,7 +565,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // Until the allocator existed the rows went to the first four point lights in
   // scene order, so a level with five torches had one that could not cast a
   // shadow anywhere, ever. The scene was six casters against four rows then.
-  // Raising `Renderer.kShadowedLights` to six gave every one of them a row and
+  // Raising `Renderer.shadowedLights` to six gave every one of them a row and
   // left the ranking nothing to decide — a full atlas rather than a contended
   // one, passing whether the allocator ranked anything or not — so the count
   // went to eight and the contention came back.
@@ -598,10 +598,14 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // the disabled path emits nothing at all. Turning it on anywhere else would
   // re-baseline the lot in a commit about something else.
   //
-  // What it pins: the gradient, the sun's disc — which is analytic and half a
+  // What it pins: the sky a caller gets by switching it on and nothing else,
+  // which since `P5` is the physical one (`SkySettings.resolvedPhysical`) —
+  // the default air with the default sun a third of the way up, and the
+  // ambient taken from it; the sun's disc — which is analytic and half a
   // degree across, so it is the part most sensitive to the ray being built
   // wrongly — and the fact that the sky lands *behind* the teapot rather than
-  // over it.
+  // over it. It pinned the gradient until then; a coloured sky still draws
+  // one, held in `sky_physical_test.dart` and `sky_procedural_test.dart`.
   //
   // **Bloom off, and the disc kept modest.** The first recording of this scene
   // asked for intensity 40 with bloom on, and the result was a flat lilac wash:
@@ -609,14 +613,14 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // golden pinned a picture in which nothing about the sky could be read. A
   // reference nobody can read is a reference that cannot fail usefully.
   //
-  // The colours are the defaults, because `Vector3` has no const constructor
-  // and a scene that had to be built at runtime would be the only one here.
+  // No colours, because a sky given any is the gradient; and `Vector3` has no
+  // const constructor, so a scene that named them would be built at runtime.
   const GoldenScene(
     name: 'sky',
     source: 'Teapot',
     ground: false,
     bloom: false,
-    sky: SkySettings(enabled: true, sunIntensity: 6.0),
+    sky: SkySettings(enabled: true, sunIntensity: 6.0 * Photometric.legacyUnit),
   ),
 
   // A look the engine never shipped, drawn through a bundle loaded from
@@ -1072,6 +1076,33 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     configure: GoldenStages.easuHalf,
   ),
 
+  // P1. `shadow-teapot` with its edges smoothed by SMAA 1x.
+  const GoldenScene(
+    name: 'smaa-teapot',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.smaaTeapot,
+  ),
+
+  // P2. A bright panel's reflections thrown across the middle of the frame.
+  const GoldenScene(
+    name: 'lens-flare',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    ground: false,
+    stage: GoldenStages.lensFlare,
+    configure: GoldenStages.lensFlareSettings,
+  ),
+
+  // P2. `shadow-teapot` through a barrel lens.
+  const GoldenScene(
+    name: 'lens-distortion',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.lensDistortion,
+  ),
+
   // R6. A turning wheel blurred along its own motion.
   const GoldenScene(
     name: 'motion-blur-spin',
@@ -1139,6 +1170,189 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     bloom: false,
     ground: false,
     stage: GoldenStages.smokeSixWay,
+  ),
+
+  // P3. Decals on a floor: one in a shadow and against a box, one over it,
+  // one that glows.
+  const GoldenScene(
+    name: 'decal-floor',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.decalFloor,
+    configure: GoldenStages.decalFloorSettings,
+  ),
+
+  // P4. A mirror in the floor, and a monitor showing a second camera.
+  const GoldenScene(
+    name: 'planar-mirror',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.planarMirror,
+    configure: GoldenStages.planarMirrorSettings,
+  ),
+  const GoldenScene(
+    name: 'render-texture',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.renderTexture,
+  ),
+
+  // N9. The high-contrast look: a paved floor flattened, every edge drawn,
+  // and a box and a ball ringed in role colours beside a post that is not.
+  const GoldenScene(
+    name: 'high-contrast',
+    source: 'Cube',
+    lights: <String>{'none'},
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.highContrast,
+    configure: GoldenStages.highContrastSettings,
+  ),
+
+  // P5. The physical sky at dusk over blocks standing in ground fog, and the
+  // same sky after dark with its stars out.
+  const GoldenScene(
+    name: 'sky-physical-dusk',
+    source: 'Cube',
+    lights: <String>{'sun'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.skyPhysicalDusk,
+    configure: GoldenStages.skyPhysicalDuskSettings,
+  ),
+  const GoldenScene(
+    name: 'sky-physical-night',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.skyPhysicalNight,
+    configure: GoldenStages.skyPhysicalNightSettings,
+  ),
+
+  // P8. One source in the material language, drawn on all four backends: a
+  // GPU section each, and the software set compiling the source the bundle
+  // carries.
+  const GoldenScene(
+    name: 'material-language',
+    source: 'obj: Teapot',
+    lighting: GoldenExtras.rimGlow,
+    shaderBundle: GoldenExtras.rimGlowBundle,
+    // Orange over the source's blue: the value set on the material, through
+    // `MaterialParams`, on every backend.
+    materialParameters: <String, List<double>>{
+      'rimColor': <double>[1.0, 0.45, 0.1],
+    },
+    shadows: false,
+    bloom: false,
+    ground: false,
+  ),
+
+  // P8. Instance attributes: one batch of five spheres, each copy coloured and
+  // rimmed by the four numbers the game gave it, through a `.f3dmat` that
+  // reads them as `instance`.
+  const GoldenScene(
+    name: 'material-instance-data',
+    source: 'Cube',
+    shaderBundle: GoldenExtras.instanceTintBundle,
+    stage: GoldenStages.materialInstanceData,
+    shadows: false,
+    bloom: false,
+    ground: false,
+  ),
+
+  // P10. A scene written as widgets and mounted into the runner's scene:
+  // Material3D, Mirror3D, Decal3D and Particles3D beside Mesh3D.
+  const GoldenScene(
+    name: 'widget-scene',
+    source: 'Cube',
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.widgetScene,
+    configure: GoldenStages.widgetSceneSettings,
+  ),
+
+  // P8. A lighting hook: the teapot in a `.f3dmat` whose `light` block cuts
+  // n·l into three bands inside the engine's light loop, the sun's shadow on
+  // the ground beside it, and a rim the fragment body adds to `lit`. The
+  // bands, the shadow across the spout and the rim each show a part of the
+  // hook reached the backend.
+  const GoldenScene(
+    name: 'material-light-hook',
+    source: 'obj: Teapot',
+    lighting: GoldenExtras.toonHook,
+    shaderBundle: GoldenExtras.toonHookBundle,
+    materialParameters: <String, List<double>>{
+      'paint': <double>[0.25, 0.45, 0.85],
+      'rimColor': <double>[1.0, 0.85, 0.6],
+    },
+    // The sun alone, so the bands are one light's.
+    lights: <String>{'sun'},
+    bloom: false,
+  ),
+
+  // P7. Leaf cards cut from a soft alpha: a hard cutoff on Impeller and the
+  // software set, multisample coverage on WebGL2 and WebGPU.
+  const GoldenScene(
+    name: 'alpha-to-coverage',
+    source: 'Cube',
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.alphaToCoverage,
+  ),
+
+  // P7. Metal spheres on a floor under a sky in light fog, through an
+  // orthographic camera.
+  const GoldenScene(
+    name: 'orthographic-metal',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicMetal,
+    configure: GoldenStages.orthographicMetalSettings,
+  ),
+
+  // P7. Shadow cascades through an orthographic camera: slabs of the view
+  // along its axis rather than spheres round the eye.
+  const GoldenScene(
+    name: 'orthographic-shadows',
+    source: 'Cube',
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicShadows,
+    configure: GoldenStages.orthographicShadowsSettings,
+  ),
+
+  // P7. Billboards, splats and mesh particles through an orthographic camera
+  // in fog: fogged by depth from the eye's plane, every column alike.
+  const GoldenScene(
+    name: 'orthographic-particles',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    stage: GoldenStages.orthographicParticles,
+    configure: GoldenStages.orthographicParticlesSettings,
+  ),
+
+  // P6. `shadow-teapot` wiped at the middle: lit on the left, the shading
+  // normal on the right.
+  const GoldenScene(
+    name: 'debug-view-split',
+    source: 'obj: Teapot',
+    bloom: false,
+    configure: GoldenStages.debugViewSplit,
   ),
 ];
 

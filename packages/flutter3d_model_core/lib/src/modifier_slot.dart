@@ -5,6 +5,7 @@ library;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 
 import 'param_hint.dart';
+import 'project_wire.dart';
 
 /// One entry of [ModelObject.modifiers]: a [modifier] and whether the stack
 /// runs it.
@@ -111,9 +112,7 @@ Map<String, ParamHint> hintsForModifier(Modifier modifier) =>
       // rather than from the operand object's own transform directly — the
       // same reason `SetModifierField` has no case for it either.
       BooleanModifier() => <String, ParamHint>{
-        'operation': EnumHint([
-          ...CsgOperation.values.map((CsgOperation o) => o.name),
-        ]),
+        'operation': ChoiceHint([...CsgOperation.values.map(csgOperationWord)]),
         'operandId': const IntHint(min: 0),
       },
     };

@@ -2,14 +2,19 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
+import '../fmat/lighting_json.dart';
+import '../lighting_model.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
 import 'f3d_format.dart';
+import 'f3d_wire.dart';
+import 'f3d_writer.dart' show F3dExtraSection;
 
 // The header and section directory are parsed here; reading each section's
 // records is split into its own file by theme (geometry, scene, materials,
@@ -19,6 +24,7 @@ import 'f3d_format.dart';
 // cache each section's result stay on the class itself, because a field
 // (unlike a method) cannot be added to a class from an extension.
 part 'f3d_loader_animation.dart';
+part 'f3d_loader_bundle.dart';
 part 'f3d_loader_geometry.dart';
 part 'f3d_loader_materials.dart';
 part 'f3d_loader_scene.dart';
@@ -36,19 +42,30 @@ part 'f3d_loader_scene.dart';
 /// and no per-element work. That is what makes loading a converted teapot a
 /// different order of magnitude from parsing the OBJ it came from.
 final class F3dDocument extends ModelDocument {
-  F3dDocument._(this._bytes, this._view, this._sections);
+  F3dDocument._(this._bytes, this._view, this._sections, this.version);
 
   final Uint8List _bytes;
   final ByteData _view;
   final Map<int, _Section> _sections;
+
+  /// The version the file was written at, 1 to [f3dVersion].
+  final int version;
 
   /// Reads the header of [bytes]. The body is decoded lazily.
   ///
   /// Throws [F3dFormatException] rather than returning null: a caller that
   /// picked this decoder has already decided the bytes are a `.f3d`, and a
   /// silent null would surface later as an empty model.
-  factory F3dDocument.parse(Uint8List bytes) {
-    if (bytes.lengthInBytes < kF3dHeaderBytes) {
+  ///
+  /// [understands] names section kinds beyond the engine's own that the
+  /// caller reads with [section] — a tool's [f3dVendorKindStart] kinds. A
+  /// section flagged [F3dSectionFlags.mustUnderstand] whose kind is neither
+  /// the engine's nor in [understands] refuses the file.
+  factory F3dDocument.parse(
+    Uint8List bytes, {
+    Set<int> understands = const <int>{},
+  }) {
+    if (bytes.lengthInBytes < f3dHeaderBytes) {
       throw F3dFormatException(
         'File is ${bytes.lengthInBytes} bytes, too short for a header.',
       );
@@ -61,23 +78,51 @@ final class F3dDocument extends ModelDocument {
     );
 
     final magic = view.getUint32(0, Endian.little);
-    if (magic != kF3dMagic) {
+    if (magic == f3dWideMagic) {
+      throw const F3dFormatException(
+        'This is a wide .f3d (u64 offsets, for files past 4 GiB), a variant '
+        'this build does not read. Update flutter3d to open it.',
+      );
+    }
+    if (magic != f3dMagic) {
       throw F3dFormatException(
         'Not a .f3d file: magic is 0x${magic.toRadixString(16)}, expected '
-        '0x${kF3dMagic.toRadixString(16)}.',
+        '0x${f3dMagic.toRadixString(16)}.',
       );
     }
 
+    // **Every version up to this build's, and only the future refused.** A 1.x
+    // engine opens every file a 1.x converter wrote (decision 8 of
+    // `tasks/1.0-stability.md`): a record whose meaning changes in version
+    // N + 1 is read by the section reader branching on [version], which is the
+    // binary form of a migrator — the bytes stay views, and only the record
+    // that changed is read the old way. Version 2 changed no record, only the
+    // directory: its entries carry a flags word and a table's stride is its
+    // section's. Mutation: put back `!=`, and `test/fixtures/v1/box.f3d`
+    // stops opening.
     final version = view.getUint32(4, Endian.little);
-    if (version != kF3dVersion) {
+    if (version < 1 || version > f3dVersion) {
       throw F3dFormatException(
-        'File is version $version, this build reads $kF3dVersion. Re-run '
-        'dart run flutter3d_build:convert.',
+        version == 0
+            ? 'File claims version 0, which no converter has ever written.'
+            : 'File is version $version, written by a newer converter; this '
+                  'build reads up to $f3dVersion. Update flutter3d to open it.',
       );
     }
 
     final sectionCount = view.getUint32(8, Endian.little);
-    final directoryEnd = kF3dHeaderBytes + sectionCount * kF3dSectionEntryBytes;
+    // Version 1 left the fourth word zero; from version 2 it is the size of a
+    // directory entry, so the entry can grow at its tail as a record does.
+    final entryBytes = version == 1
+        ? f3dSectionEntryBytes
+        : view.getUint32(12, Endian.little);
+    if (entryBytes < (version == 1 ? 16 : f3dSectionEntryBytesV2)) {
+      throw F3dFormatException(
+        'Version $version directory entries are $entryBytes bytes, fewer '
+        'than the $f3dSectionEntryBytesV2 the version needs.',
+      );
+    }
+    final directoryEnd = f3dHeaderBytes + sectionCount * entryBytes;
     if (directoryEnd > bytes.lengthInBytes) {
       throw F3dFormatException(
         'Section directory claims $sectionCount entries, which runs past the '
@@ -87,11 +132,14 @@ final class F3dDocument extends ModelDocument {
 
     final sections = <int, _Section>{};
     for (var i = 0; i < sectionCount; i++) {
-      final entry = kF3dHeaderBytes + i * kF3dSectionEntryBytes;
+      final entry = f3dHeaderBytes + i * entryBytes;
       final kind = view.getUint32(entry, Endian.little);
       final offset = view.getUint32(entry + 4, Endian.little);
       final length = view.getUint32(entry + 8, Endian.little);
       final count = view.getUint32(entry + 12, Endian.little);
+      final flags = version == 1
+          ? 0
+          : view.getUint32(entry + 16, Endian.little);
 
       if (offset + length > bytes.lengthInBytes) {
         throw F3dFormatException(
@@ -99,16 +147,88 @@ final class F3dDocument extends ModelDocument {
           'a ${bytes.lengthInBytes}-byte file.',
         );
       }
+      if (flags & F3dSectionFlags.mustUnderstand != 0 &&
+          !F3dSection.known.contains(kind) &&
+          !understands.contains(kind)) {
+        throw F3dFormatException(
+          kind >= f3dVendorKindStart
+              ? 'Section 0x${kind.toRadixString(16)} is a tool\'s own and is '
+                    'marked must-understand; open the file with the tool that '
+                    'wrote it.'
+              : 'Section $kind is marked must-understand and this build does '
+                    'not know it: the file was written by a newer converter. '
+                    'Update flutter3d to open it.',
+        );
+      }
       // Later duplicates win, and unknown kinds are kept rather than rejected:
       // a newer writer may add a section this build has no idea about, and
       // ignoring it is exactly what the directory is for.
-      sections[kind] = _Section(offset, length, count);
+      sections[kind] = _Section(offset, length, count, flags: flags);
     }
 
-    return F3dDocument._(bytes, view, sections);
+    return F3dDocument._(bytes, view, sections, version);
   }
 
   _Section _section(int kind) => _sections[kind] ?? const _Section(0, 0, 0);
+
+  /// Section [kind] as the directory describes it, its bytes a view over the
+  /// file, or null when the file has none — how a tool reads back its own
+  /// [f3dVendorKindStart] sections. [F3dExtraSection.count] is the element
+  /// count the writer gave it, and [F3dExtraSection.flags] is 0 in a
+  /// version-1 file, whose directory has no flags.
+  ///
+  /// A class rather than a record, so a later version can say more about a
+  /// section without changing this signature.
+  F3dExtraSection? section(int kind) {
+    final found = _sections[kind];
+    if (found == null) return null;
+    return F3dExtraSection(
+      kind: kind,
+      bytes: Uint8List.view(
+        _bytes.buffer,
+        _bytes.offsetInBytes + found.offset,
+        found.length,
+      ),
+      count: found.count,
+      flags: found.flags,
+    );
+  }
+
+  /// Every section of a kind the engine does not write itself
+  /// ([F3dSection.known]), in file order: a tool's [f3dVendorKindStart]
+  /// sections, and a section a newer engine wrote that this build skips.
+  ///
+  /// Handed back to `F3dWriter.extraSections` as they are, so a file opened
+  /// and written again keeps what this build did not understand.
+  late final List<F3dExtraSection> extraSections =
+      List<F3dExtraSection>.unmodifiable(<F3dExtraSection>[
+        for (final kind in _sections.keys)
+          if (!F3dSection.known.contains(kind)) section(kind)!,
+      ]);
+
+  /// The distance between two records of [kind]'s table, [recordBytes] or
+  /// more.
+  ///
+  /// **The section's, from version 2**: `length ~/ count`, so a record a
+  /// later writer lengthened at its tail is stepped over whole, and this build
+  /// reads the head it knows. A version-1 file is read at [recordBytes], as it
+  /// always was.
+  int _stride(int kind, int recordBytes) {
+    final section = _section(kind);
+    if (version == 1 || section.count == 0) return recordBytes;
+    final stride = section.length ~/ section.count;
+    if (stride < recordBytes) {
+      throw F3dFormatException(
+        'Section $kind holds ${section.count} records in ${section.length} '
+        'bytes, $stride each, fewer than the $recordBytes a record needs.',
+      );
+    }
+    return stride;
+  }
+
+  /// Where record [index] of [table] starts, at the table's stride.
+  int _at(int kind, int index, int recordBytes) =>
+      _section(kind).offset + index * _stride(kind, recordBytes);
 
   /// [kind]'s section, checked to hold `count` records of [recordBytes] each.
   ///
@@ -118,7 +238,7 @@ final class F3dDocument extends ModelDocument {
   /// the writer happened to put next and decode its bytes as this one's.
   _Section _table(int kind, int recordBytes) {
     final section = _section(kind);
-    if (section.count * recordBytes > section.length) {
+    if (section.count * _stride(kind, recordBytes) > section.length) {
       throw F3dFormatException(
         'Section $kind claims ${section.count} records of $recordBytes bytes, '
         'more than its ${section.length} bytes hold.',
@@ -214,13 +334,14 @@ final class F3dDocument extends ModelDocument {
   /// whatever follows the mesh table.
   int _recordOffset(int kind, int index, int recordBytes) {
     final section = _section(kind);
-    if (index < 0 || (index + 1) * recordBytes > section.length) {
+    final stride = _stride(kind, recordBytes);
+    if (index < 0 || index * stride + recordBytes > section.length) {
       throw F3dFormatException(
         'Record $index of section $kind lies past the end of its '
         '${section.length} bytes.',
       );
     }
-    return section.offset + index * recordBytes;
+    return section.offset + index * stride;
   }
 
   // Each field below caches one section's decode, done lazily and once; the
@@ -263,22 +384,107 @@ final class F3dDocument extends ModelDocument {
   @override
   late final List<ModelSkin> skins = _readSkins();
 
+  /// The file's own warnings, then what reading it skipped: a pointer track
+  /// to a property this build does not animate.
   @override
-  late final List<String> warnings = _readWarnings();
+  late final List<String> warnings = List<String>.unmodifiable(<String>[
+    ..._readWarnings(),
+    // After the animations are read: reading them is what finds the tracks
+    // a later build's file points at and this one skips.
+    if (animations.isNotEmpty) ..._skippedPointers,
+  ]);
+
+  /// Filled by the pointer-track reader; read once, by [warnings].
+  final List<String> _skippedPointers = <String>[];
 
   @override
   late final DocumentAsset? asset = _readAsset();
+
+  @override
+  late final List<ModelLight> lights = _readLights();
+
+  @override
+  late final List<ModelCamera> cameras = _readCameras();
+
+  /// The material language (`.f3dmat`) sources the file carries, by name —
+  /// [F3dSection.programs]. A material draws with one when its
+  /// `lightingModel` names it; empty for a file that carries none.
+  late final Map<String, String> programs = Map<String, String>.unmodifiable(
+    _readNamedTexts(F3dSection.programs),
+  );
+
+  /// The level and prefab documents the file carries, by name —
+  /// [F3dSection.prefabs]. Each is a JSON object in the format envelope
+  /// (`"format": "f3d.level"`), read by `flutter3d_sim`'s `Level.fromJson`;
+  /// this package does not read levels, so it hands them over as they are.
+  /// A prefab names this file's own nodes by name, and the files it places
+  /// by the paths in [files] or by this file's own path.
+  late final Map<String, Map<String, Object?>> prefabs =
+      Map<String, Map<String, Object?>>.unmodifiable(_readPrefabs());
+
+  /// Files the bundle carries whole, by the path a prefab names them by —
+  /// [F3dSection.files]: models, `.fmat` materials and textures of a bundle
+  /// made from a scene. Views over the file's bytes, not copies.
+  late final Map<String, Uint8List> files = Map<String, Uint8List>.unmodifiable(
+    _readFiles(),
+  );
+
+  late final Map<int, (int?, int?)> _attachments = _readNodeAttachments();
+  late final Map<int, LightingModel> _lighting = _readMaterialLighting();
 
   /// The one `asset` record, or null when the section is empty — a file
   /// written before `fmt-04`, or one whose document genuinely said nothing.
   DocumentAsset? _readAsset() {
     final table = _table(F3dSection.asset, F3dRecord.asset);
-    if (table.count == 0) return null;
+    final extras = _extrasOf(F3dExtrasOwner.document, 0);
+    if (table.count == 0) {
+      return extras == null ? null : DocumentAsset(extras: extras);
+    }
     final generator = _string(
       _view.getUint32(table.offset, Endian.little),
       _view.getUint32(table.offset + 4, Endian.little),
     );
-    return DocumentAsset(generator: generator);
+    return DocumentAsset(generator: generator, extras: extras);
+  }
+
+  /// Every [F3dSection.extras] block, by owner and index.
+  late final Map<(int, int), Map<String, Object?>> _extras = _readExtras();
+
+  /// The `extras` of the [index]th of [owner]'s kind, or null.
+  Map<String, Object?>? _extrasOf(int owner, int index) =>
+      _extras[(owner, index)];
+
+  Map<(int, int), Map<String, Object?>> _readExtras() {
+    final table = _table(F3dSection.extras, F3dRecord.extras);
+    return <(int, int), Map<String, Object?>>{
+      for (var i = 0; i < table.count; i++)
+        if (_readExtrasAt(_at(F3dSection.extras, i, F3dRecord.extras)) case (
+          final key,
+          final extras,
+        ))
+          key: extras,
+    };
+  }
+
+  ((int, int), Map<String, Object?>)? _readExtrasAt(int o) {
+    final json = _string(
+      _view.getUint32(o + 8, Endian.little),
+      _view.getUint32(o + 12, Endian.little),
+    );
+    final Object? decoded;
+    try {
+      decoded = json == null ? null : jsonDecode(json);
+    } on FormatException catch (error) {
+      throw F3dFormatException('An extras block is not JSON: $error');
+    }
+    if (decoded is! Map<String, Object?>) return null;
+    return (
+      (
+        _view.getUint32(o, Endian.little),
+        _view.getUint32(o + 4, Endian.little),
+      ),
+      decoded,
+    );
   }
 
   // ----------------------------------------------------------------- warnings
@@ -289,11 +495,11 @@ final class F3dDocument extends ModelDocument {
       for (var i = 0; i < table.count; i++)
         _string(
               _view.getUint32(
-                table.offset + i * F3dRecord.warning,
+                _at(F3dSection.warnings, i, F3dRecord.warning),
                 Endian.little,
               ),
               _view.getUint32(
-                table.offset + i * F3dRecord.warning + 4,
+                _at(F3dSection.warnings, i, F3dRecord.warning) + 4,
                 Endian.little,
               ),
             ) ??
@@ -310,19 +516,22 @@ final class F3dDocument extends ModelDocument {
 
 /// Where one section lives.
 final class _Section {
-  const _Section(this.offset, this.length, this.count);
+  const _Section(this.offset, this.length, this.count, {this.flags = 0});
 
   final int offset;
   final int length;
 
   /// Elements, for the fixed-record tables; zero for raw byte sections.
   final int count;
+
+  /// The directory entry's flags word; 0 in a version-1 file.
+  final int flags;
 }
 
 /// `.f3d` through the same [ModelDecoder] boundary an application's own
 /// formats come through, so every built-in reader is one: see
 /// `builtInModelDecoder`.
-final class F3dDecoder implements ModelDecoder {
+final class F3dDecoder extends ModelDecoder {
   const F3dDecoder();
 
   @override

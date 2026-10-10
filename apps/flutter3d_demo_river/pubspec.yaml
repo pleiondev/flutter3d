@@ -17,42 +17,55 @@ dependencies:
 
   # The bridge: the 3D layer under Flame's, one clock, and a component whose
   # Flame position is written into a scene node every frame.
-  flame_flutter3d: ^0.8.3
+  flame_flutter3d: ^1.0.0-rc.1
 
   # The scene graph, the meshes and the renderer the 3D layer draws with.
-  flutter3d: ^0.8.3
+  flutter3d: ^1.0.0-rc.1
 
   # The game's sound as Flame components: silent until the first take-off,
   # loops held open by the state they stand for.
-  flame_flutter3d_audio: ^0.8.3
+  flame_flutter3d_audio: ^1.0.0-rc.1
 
   # The sound: a scene of voices, a silent backend for the tests and until
   # the player's first input, SoLoud behind it after that.
-  flutter3d_audio: ^0.8.1
+  flutter3d_audio: ^1.0.0-rc.1
 
   # `Bindings`, the key table `FlameInputBridge` translates through.
-  flutter3d_game: ^0.8.0
+  flutter3d_game: ^1.0.0-rc.1
 
   # The effects a blast is thrown with: emitters, gravity, colour and size
   # over a particle's life.
-  flutter3d_particles: ^0.8.1
+  flutter3d_particles: ^1.0.0-rc.1
+
+  # What a hit leaves burning: the physics core's fires, and how they are
+  # drawn.
+  flutter3d_physics_native: ^1.0.0-rc.1
+  flutter3d_effects: ^1.0.0-rc.1
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements: ^1.0.0-rc.1
 
   # `InputState`, `GameAction`, and `GameRandom`, the seeded generator the
   # river is laid out with, so every run flies the same river.
-  flutter3d_sim: ^0.8.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The game parts other games use too (`tasks/1.0-addons.md`): the burning
+  # wrecks a blast leaves.
+  flutter3d_game_physics:
+    path: ../../packages/flutter3d_game_physics
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^1.0.0-rc.1
 
   # A fake device that records what is handed back to it, for the release
   # test.
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # Flame's own harness, so a test can mount the game and step it.
   flame_test: ^2.3.1

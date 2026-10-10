@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 96;
@@ -46,9 +45,9 @@ Future<Uint8List> _draw(
           device,
           CuboidShape(size: Vector3(3.0, 3.0, 0.1)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'leaf',
-          baseColor: Vector4(1.0, 1.0, 1.0, alpha),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, alpha),
           lighting: LightingModel.unlit,
           alphaMode: mode,
           alphaCutoff: 0.5,
@@ -62,12 +61,12 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(shift, 0.0, 3.0),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: const RenderSettings(tonemap: false),
   );
-  return (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }
 
 /// What fraction of the quad's own area survived.
@@ -194,5 +193,67 @@ void main() {
         await _draw(0.5, MaterialAlphaMode.hashed),
       );
     });
+
+    test(
+      'a shift of the scene\'s origin leaves the pattern where it was',
+      () async {
+        // Readiness review §2.1.14. The hash was taken on the scene-space
+        // position, so `Scene.shiftOrigin` — which moves every node and the
+        // camera by the same amount and the world not at all — re-rolled the
+        // pattern of every hashed surface in the frame it happened.
+        //
+        // Mutation: drop the origin from the anchor (a cutoff of -2 for every
+        // hashed draw, as before) — about half the pixels change.
+        final here = await _drawAt(null);
+        final shifted = await _drawAt(const WorldPosition(3.0, -1.0, 2.5));
+        var differ = 0;
+        for (var at = 0; at < here.length; at += 4) {
+          if ((here[at + 1] > 128) != (shifted[at + 1] > 128)) differ++;
+        }
+        // A few pixels may sit on a cell's boundary that the float32 move of
+        // the nodes puts a hair either side; a re-rolled pattern is half.
+        expect(differ / (here.length ~/ 4), lessThan(0.02), reason: '$differ');
+        expect(_survivingFraction(here), greaterThan(0.1));
+      },
+    );
   });
+}
+
+/// [_draw]'s half-opaque hashed quad, with the camera in the scene, after
+/// moving the scene's origin to [origin] when one is given.
+Future<Uint8List> _drawAt(WorldPosition? origin) async {
+  final device = CpuDevice(
+    width: _width,
+    height: _height,
+    shaders: CpuShaderLibrary(builtinCpuShaders()),
+  );
+  final renderer = Renderer.create(device: device);
+  final camera = CameraNode()..setPosition(0.0, 0.0, 3.0);
+  final scene = Scene()
+    ..add(
+      MeshNode(
+        DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(3.0, 3.0, 0.1)).build(),
+        ),
+        RenderMaterial(
+          name: 'leaf',
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 0.5),
+          lighting: LightingModel.unlit,
+          alphaMode: MaterialAlphaMode.hashed,
+        ),
+      ),
+    )
+    ..add(camera);
+  if (origin != null) scene.shiftOrigin(origin);
+  final frame = renderer.render(
+    width: _width,
+    height: _height,
+    scene: scene,
+    views: <RenderView>[
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
+    ],
+    settings: const RenderSettings(tonemap: false),
+  );
+  return (await device.readback(frame.frame)).buffer.asUint8List();
 }

@@ -1,4 +1,5 @@
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 
 import 'surface_material.dart';
 
@@ -33,7 +34,7 @@ final class MaterialExtensions {
     this.ior = 1.5,
     this.specular = 1.0,
     this.specularTexture,
-    Vector3? specularColor,
+    this.specularColor = LinearColor.white,
     this.specularColorTexture,
     this.clearcoat = 0.0,
     this.clearcoatTexture,
@@ -41,7 +42,7 @@ final class MaterialExtensions {
     this.clearcoatRoughnessTexture,
     this.clearcoatNormalTexture,
     this.clearcoatNormalScale = 1.0,
-    Vector3? sheenColor,
+    this.sheenColor = LinearColor.black,
     this.sheenColorTexture,
     this.sheenRoughness = 0.0,
     this.sheenRoughnessTexture,
@@ -53,7 +54,8 @@ final class MaterialExtensions {
     this.thickness = 0.0,
     this.thicknessTexture,
     this.attenuationDistance = double.infinity,
-    Vector3? attenuationColor,
+    this.attenuationColor = LinearColor.white,
+    this.convexVolume = false,
     this.dispersion = 0.0,
     this.iridescence = 0.0,
     this.iridescenceTexture,
@@ -61,25 +63,25 @@ final class MaterialExtensions {
     this.iridescenceThicknessMinimum = 100.0,
     this.iridescenceThicknessMaximum = 400.0,
     this.iridescenceThicknessTexture,
-  }) : specularColor = specularColor ?? Vector3(1.0, 1.0, 1.0),
-       sheenColor = sheenColor ?? Vector3.zero(),
-       attenuationColor = attenuationColor ?? Vector3(1.0, 1.0, 1.0);
+  });
 
   /// `KHR_materials_ior`: the dielectric's index of refraction. 1.5 is the
   /// four per cent a plain metal-rough dielectric reflects head-on. Nought is
   /// the extension's own special case, an infinite index: the surface reflects
   /// fully at every angle, tinted and scaled by the specular, which is how a
   /// specular-glossiness material migrates to this model.
+  /// A unitless ratio of the speed of light in a vacuum to that in the medium.
   final double ior;
 
   /// `KHR_materials_specular`'s strength: scales the dielectric reflection,
   /// head-on and at grazing both. Its texture is read from alpha.
+  /// A unitless multiplier.
   final double specular;
   final TextureBinding? specularTexture;
 
   /// `KHR_materials_specular`'s colour, linear: tints the head-on reflection
   /// of the dielectric part only. Its texture is sRGB.
-  final Vector3 specularColor;
+  final LinearColor specularColor;
   final TextureBinding? specularColorTexture;
 
   /// `KHR_materials_clearcoat`: how much of a second, colourless GGX layer
@@ -88,21 +90,25 @@ final class MaterialExtensions {
   final TextureBinding? clearcoatTexture;
 
   /// The coat's own perceptual roughness. Its texture is read from green.
+  /// A 0..1 fraction.
   final double clearcoatRoughness;
   final TextureBinding? clearcoatRoughnessTexture;
 
   /// The coat's own normal map. Carried, not drawn: the coat is lit on the
   /// geometric normal, which is what a lacquer over a bumpy base looks like.
   final TextureBinding? clearcoatNormalTexture;
+
+  /// A unitless multiplier on the coat normal map's X and Y.
   final double clearcoatNormalScale;
 
   /// `KHR_materials_sheen`'s colour, linear: the back-scattering of fibres
   /// that makes velvet bright at its edges. Black is no sheen. Its texture is
   /// sRGB, read from red, green and blue — `M2`.
-  final Vector3 sheenColor;
+  final LinearColor sheenColor;
   final TextureBinding? sheenColorTexture;
 
   /// The sheen's own perceptual roughness. Its texture is read from alpha.
+  /// A 0..1 fraction.
   final double sheenRoughness;
   final TextureBinding? sheenRoughnessTexture;
 
@@ -126,13 +132,31 @@ final class MaterialExtensions {
 
   /// `KHR_materials_volume`'s thickness, in the mesh's own units, over which
   /// the light passing through is attenuated. Its texture is read from green.
+  /// The renderer scales it by the node's own scale (the geometric mean of
+  /// its axes), as glTF says a node's transform applies to it.
   final double thickness;
   final TextureBinding? thicknessTexture;
 
   /// How far light travels in the medium before it is [attenuationColor]:
   /// infinite, the default, is a medium that takes nothing away.
+  /// In metres.
   final double attenuationDistance;
-  final Vector3 attenuationColor;
+  final LinearColor attenuationColor;
+
+  /// Whether the volume is a closed, convex body — a ball of glass, a column
+  /// of liquid — rather than a slab. Not part of glTF, and not written to it.
+  ///
+  /// [thickness] is then taken as the body's depth through its middle, and
+  /// the path a ray travels inside is that depth times how squarely the bent
+  /// ray meets the surface, a solid-sphere model: the whole
+  /// [thickness] where the eye looks straight in, next to nothing at the
+  /// silhouette. Both the colour the volume gives and how far behind it the
+  /// refracted scene is read from follow that path, so a coloured liquid in
+  /// a tube is deep in the middle and pale at its edges, and the scene seen
+  /// through it bends most where it is thickest — which is most of what
+  /// tells a column of liquid from a painted cylinder. Off, the default, the
+  /// path is [thickness] everywhere, as glTF's volume means it.
+  final bool convexVolume;
 
   /// `KHR_materials_dispersion`: how far apart the index of refraction is
   /// spread over the spectrum, in the extension's own units (20 / Abbe
@@ -146,8 +170,16 @@ final class MaterialExtensions {
   /// extension says a film without a thickness texture is.
   final double iridescence;
   final TextureBinding? iridescenceTexture;
+
+  /// The thin film's index of refraction, a unitless ratio.
   final double iridescenceIor;
+
+  /// The film's thickness where its texture reads nought, in nanometres
+  /// (billionths of a metre).
   final double iridescenceThicknessMinimum;
+
+  /// The film's thickness where its texture reads one, in nanometres
+  /// (billionths of a metre).
   final double iridescenceThicknessMaximum;
   final TextureBinding? iridescenceThicknessTexture;
 
@@ -158,13 +190,13 @@ final class MaterialExtensions {
   bool get shades =>
       ior != 1.5 ||
       specular != 1.0 ||
-      specularColor.x != 1.0 ||
-      specularColor.y != 1.0 ||
-      specularColor.z != 1.0 ||
+      specularColor.r != 1.0 ||
+      specularColor.g != 1.0 ||
+      specularColor.b != 1.0 ||
       clearcoat != 0.0 ||
-      sheenColor.x != 0.0 ||
-      sheenColor.y != 0.0 ||
-      sheenColor.z != 0.0 ||
+      sheenColor.r != 0.0 ||
+      sheenColor.g != 0.0 ||
+      sheenColor.b != 0.0 ||
       anisotropyStrength != 0.0 ||
       transmission != 0.0 ||
       iridescence != 0.0;
@@ -227,7 +259,7 @@ final class MaterialExtensions {
       ior: ior,
       specular: specular,
       specularTexture: each(specularTexture),
-      specularColor: specularColor.clone(),
+      specularColor: specularColor,
       specularColorTexture: each(specularColorTexture),
       clearcoat: clearcoat,
       clearcoatTexture: each(clearcoatTexture),
@@ -235,7 +267,7 @@ final class MaterialExtensions {
       clearcoatRoughnessTexture: each(clearcoatRoughnessTexture),
       clearcoatNormalTexture: each(clearcoatNormalTexture),
       clearcoatNormalScale: clearcoatNormalScale,
-      sheenColor: sheenColor.clone(),
+      sheenColor: sheenColor,
       sheenColorTexture: each(sheenColorTexture),
       sheenRoughness: sheenRoughness,
       sheenRoughnessTexture: each(sheenRoughnessTexture),
@@ -247,7 +279,8 @@ final class MaterialExtensions {
       thickness: thickness,
       thicknessTexture: each(thicknessTexture),
       attenuationDistance: attenuationDistance,
-      attenuationColor: attenuationColor.clone(),
+      attenuationColor: attenuationColor,
+      convexVolume: convexVolume,
       dispersion: dispersion,
       iridescence: iridescence,
       iridescenceTexture: each(iridescenceTexture),
@@ -325,7 +358,8 @@ MaterialExtensions? materialExtensionsFromJson(
     ior: _number(ior?['ior'], 1.5),
     specular: _number(specular?['specularFactor'], 1.0),
     specularTexture: texture(specular?['specularTexture']),
-    specularColor: _vec3(specular?['specularColorFactor']),
+    specularColor:
+        _color(specular?['specularColorFactor']) ?? LinearColor.white,
     specularColorTexture: texture(specular?['specularColorTexture']),
     clearcoat: _number(clearcoat?['clearcoatFactor'], 0.0),
     clearcoatTexture: texture(clearcoat?['clearcoatTexture']),
@@ -337,8 +371,8 @@ MaterialExtensions? materialExtensionsFromJson(
       _ => 1.0,
     },
     sheenColor: switch (sheen?['sheenColorFactor']) {
-      final Object colour => _vec3(colour),
-      null => null,
+      final Object color => _color(color) ?? LinearColor.black,
+      null => LinearColor.black,
     },
     sheenColorTexture: texture(sheen?['sheenColorTexture']),
     sheenRoughness: _number(sheen?['sheenRoughnessFactor'], 0.0),
@@ -354,10 +388,7 @@ MaterialExtensions? materialExtensionsFromJson(
       volume?['attenuationDistance'],
       double.infinity,
     ),
-    attenuationColor: switch (volume?['attenuationColor']) {
-      final Object colour => _vec3(colour),
-      null => null,
-    },
+    attenuationColor: _color(volume?['attenuationColor']) ?? LinearColor.white,
     dispersion: _number(dispersion?['dispersion'], 0.0),
     iridescence: _number(iridescence?['iridescenceFactor'], 0.0),
     iridescenceTexture: texture(iridescence?['iridescenceTexture']),
@@ -421,13 +452,13 @@ Map<String, Object?> materialExtensionsToJson(
   final specular = <String, Object?>{
     if (e.specular != 1.0) 'specularFactor': e.specular,
     'specularTexture': ?slot(e.specularTexture),
-    if (specularColor.x != 1.0 ||
-        specularColor.y != 1.0 ||
-        specularColor.z != 1.0)
+    if (specularColor.r != 1.0 ||
+        specularColor.g != 1.0 ||
+        specularColor.b != 1.0)
       'specularColorFactor': <double>[
-        specularColor.x,
-        specularColor.y,
-        specularColor.z,
+        specularColor.r,
+        specularColor.g,
+        specularColor.b,
       ],
     'specularColorTexture': ?slot(e.specularColorTexture),
   };
@@ -446,8 +477,8 @@ Map<String, Object?> materialExtensionsToJson(
   };
   final sheenColor = e.sheenColor;
   final sheen = <String, Object?>{
-    if (sheenColor.x != 0.0 || sheenColor.y != 0.0 || sheenColor.z != 0.0)
-      'sheenColorFactor': <double>[sheenColor.x, sheenColor.y, sheenColor.z],
+    if (sheenColor.r != 0.0 || sheenColor.g != 0.0 || sheenColor.b != 0.0)
+      'sheenColorFactor': <double>[sheenColor.r, sheenColor.g, sheenColor.b],
     'sheenColorTexture': ?slot(e.sheenColorTexture),
     if (e.sheenRoughness != 0.0) 'sheenRoughnessFactor': e.sheenRoughness,
     'sheenRoughnessTexture': ?slot(e.sheenRoughnessTexture),
@@ -467,13 +498,13 @@ Map<String, Object?> materialExtensionsToJson(
     'thicknessTexture': ?slot(e.thicknessTexture),
     if (e.attenuationDistance.isFinite)
       'attenuationDistance': e.attenuationDistance,
-    if (attenuationColor.x != 1.0 ||
-        attenuationColor.y != 1.0 ||
-        attenuationColor.z != 1.0)
+    if (attenuationColor.r != 1.0 ||
+        attenuationColor.g != 1.0 ||
+        attenuationColor.b != 1.0)
       'attenuationColor': <double>[
-        attenuationColor.x,
-        attenuationColor.y,
-        attenuationColor.z,
+        attenuationColor.r,
+        attenuationColor.g,
+        attenuationColor.b,
       ],
   };
   final iridescence = <String, Object?>{
@@ -503,8 +534,9 @@ Map<String, Object?> materialExtensionsToJson(
 double _number(Object? value, double fallback) =>
     value is num ? value.toDouble() : fallback;
 
-Vector3? _vec3(Object? value) => value is List<Object?> && value.length >= 3
-    ? Vector3(
+LinearColor? _color(Object? value) =>
+    value is List<Object?> && value.length >= 3
+    ? LinearColor(
         _number(value[0], 1.0),
         _number(value[1], 1.0),
         _number(value[2], 1.0),

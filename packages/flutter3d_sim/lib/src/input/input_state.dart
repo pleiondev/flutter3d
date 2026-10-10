@@ -53,7 +53,16 @@ final class InputState {
   final Vector2 _moveAxis = Vector2.zero();
   final Vector2 _lookDelta = Vector2.zero();
 
+  /// Every [AxisAction] something has given a value to.
+  final Map<AxisAction, double> _axes = <AxisAction, double>{};
+
+  /// Every [DualAxisAction] other than [DualAxisAction.move] and
+  /// [DualAxisAction.look] something has given a value to — those two live in
+  /// [_moveAxis] and [_lookDelta], as they always did.
+  final Map<DualAxisAction, Vector2> _dualAxes = <DualAxisAction, Vector2>{};
+
   int? _slotRequest;
+  final Map<String, double> _tunes = <String, double>{};
 
   // MARK: - Reading, from inside a step
 
@@ -105,7 +114,7 @@ final class InputState {
   ///
   /// A trigger held half way is not a press and not a release, so a tape that
   /// recorded only transitions would replay a run with the accelerator off.
-  Map<GameAction, double> get analogueValues =>
+  Map<GameAction, double> get analogValues =>
       Map<GameAction, double>.unmodifiable(_values);
 
   /// How hard [action] is being asked for, from nought to one.
@@ -127,6 +136,44 @@ final class InputState {
   double value(GameAction action) =>
       _values[action] ?? (held(action) ? 1.0 : 0.0);
 
+  /// Where [action] stands, from minus one to one; nought when nothing has
+  /// said.
+  double axis(AxisAction action) => _axes[action] ?? 0.0;
+
+  /// Where [action] stands: [moveAxis] for [DualAxisAction.move], [lookDelta]
+  /// for [DualAxisAction.look], and the value a device gave for any other.
+  ///
+  /// A fresh vector for an action nothing has spoken for, so a caller that
+  /// writes into what it was handed cannot change the next answer.
+  Vector2 dualAxis(DualAxisAction action) {
+    if (action == DualAxisAction.move) return _moveAxis;
+    if (action == DualAxisAction.look) return _lookDelta;
+    return _dualAxes[action] ?? Vector2.zero();
+  }
+
+  /// What [action] asks for, typed by its kind: whether a button is held, an
+  /// axis's number, a dual axis's vector.
+  ///
+  /// For code that holds an [InputAction] without knowing which kind — a
+  /// rebinding screen showing live values, a debugger, a test. A game that
+  /// knows reads [held], [axis] or [dualAxis] and skips the switch.
+  T valueOf<T extends Object>(InputAction<T> action) =>
+      switch (action) {
+            final GameAction button => held(button),
+            final AxisAction one => axis(one),
+            final DualAxisAction two => dualAxis(two),
+          }
+          as T;
+
+  /// Every axis with a value, for a recorder that cannot ask by name.
+  Map<AxisAction, double> get axisValues =>
+      Map<AxisAction, double>.unmodifiable(_axes);
+
+  /// Every dual axis with a value other than [DualAxisAction.move] and
+  /// [DualAxisAction.look], which [moveAxis] and [lookDelta] already answer.
+  Map<DualAxisAction, Vector2> get dualAxisValues =>
+      Map<DualAxisAction, Vector2>.unmodifiable(_dualAxes);
+
   /// The numbered slot asked for since the last step, if any.
   ///
   /// A weapon in a shooter, an item in an adventure, an ability in a
@@ -136,6 +183,10 @@ final class InputState {
   /// Last request wins. Two slots chosen inside a single frame is a fumble, and
   /// arriving at the one the player pressed most recently is what they meant.
   int? get slotRequest => _slotRequest;
+
+  /// The tunables set for this step, by name — see [tune].
+  Map<String, double> get tunesThisStep =>
+      Map<String, double>.unmodifiable(_tunes);
 
   // MARK: - Writing, from a device
 
@@ -297,6 +348,77 @@ final class InputState {
     _recomputeMoveAxis();
   }
 
+  /// Sets [action] to [value], clamped to `[-1, 1]`.
+  ///
+  /// Authoritative until the next write: a band under a thumb, a composite
+  /// of two keys and a stick's one axis each say where the axis is, and the
+  /// last to speak is what the step reads. Mixing two devices on one axis is
+  /// the action map's business (`flutter3d_game`), which takes the larger.
+  void setAxis(AxisAction action, double value) {
+    if (muted) return;
+    _axes[action] = value.clamp(-1.0, 1.0);
+  }
+
+  /// Stops saying anything about [action], which then reads nought.
+  void clearAxis(AxisAction action) {
+    if (muted) return;
+    _axes.remove(action);
+  }
+
+  /// Writes a two-number action.
+  ///
+  /// * [DualAxisAction.move] is the stick part of [moveAxis] — the same as
+  ///   [setStickAxis], so held direction buttons still add to it;
+  /// * [DualAxisAction.look], and any other [DualAxisAction.isDelta] action,
+  ///   is **added** to what this step has gathered, as [addLook] adds;
+  /// * any other action is set, each number clamped to `[-1, 1]`.
+  void setDualAxis(DualAxisAction action, double x, double y) {
+    if (muted) return;
+    if (action == DualAxisAction.move) {
+      setStickAxis(x, y);
+      return;
+    }
+    if (action == DualAxisAction.look) {
+      addLook(x, y);
+      return;
+    }
+    final value = _dualAxes[action] ??= Vector2.zero();
+    if (action.isDelta) {
+      value.setValues(value.x + x, value.y + y);
+      return;
+    }
+    value.setValues(x.clamp(-1.0, 1.0), y.clamp(-1.0, 1.0));
+  }
+
+  /// Stops saying anything about [action]; for [DualAxisAction.move] that is
+  /// the stick at rest.
+  void clearDualAxis(DualAxisAction action) {
+    if (muted) return;
+    if (action == DualAxisAction.move) {
+      setStickAxis(0.0, 0.0);
+      return;
+    }
+    if (action == DualAxisAction.look) {
+      _lookDelta.setZero();
+      return;
+    }
+    _dualAxes.remove(action);
+  }
+
+  /// Puts [moveAxis] at exactly ([x], [y]) for this step, whatever the stick
+  /// and the held directions would add up to.
+  ///
+  /// **For a tape, which recorded the answer rather than the sum.** A tape
+  /// holds the move action's value — what the step read — and also presses
+  /// the direction buttons that were held. Played back through
+  /// [setStickAxis], the two were added again: forward on the keys with the
+  /// stick half right came back as a different angle than was walked. This
+  /// sets the answer, and the next device write sums the axis afresh.
+  void replayMoveAxis(double x, double y) {
+    if (muted) return;
+    _moveAxis.setValues(x, y);
+  }
+
   /// Adds view movement. Called once per mouse event or once per drag update;
   /// the values pile up until a step takes them.
   void addLook(double dx, double dy) {
@@ -307,6 +429,22 @@ final class InputState {
   void requestSlot(int slot) {
     if (muted) return;
     _slotRequest = slot;
+  }
+
+  /// Sets the tunable called [name] to [value] from the next step on.
+  ///
+  /// **Through the input, because the tape is where a run is reproduced
+  /// from.** A jump height dragged in an inspector while the game runs
+  /// changes what the simulation does; set on the simulation directly, it
+  /// would change the run and leave the tape describing a run with the old
+  /// height, and every replay of it would disagree with what was played. As
+  /// an input it is recorded with the step that took it, replayed with that
+  /// step, and muted with the devices during a replay — so a drag arriving
+  /// while the timeline replays does not land in the past. `Tunables.take`
+  /// is the step's side of it.
+  void tune(String name, double value) {
+    if (muted) return;
+    _tunes[name] = value;
   }
 
   /// Drops everything, held state included.
@@ -323,7 +461,10 @@ final class InputState {
     _lookDelta.setZero();
     _moveAxis.setZero();
     _values.clear();
+    _axes.clear();
+    _dualAxes.clear();
     _slotRequest = null;
+    _tunes.clear();
   }
 
   // MARK: - Step boundaries
@@ -340,7 +481,10 @@ final class InputState {
     _pressedLatch.clear();
     _releasedLatch.clear();
     _lookDelta.setZero();
+    // A delta is movement since the last step, and this step has taken it.
+    _dualAxes.removeWhere((action, _) => action.isDelta);
     _slotRequest = null;
+    _tunes.clear();
   }
 
   void _recomputeMoveAxis() {

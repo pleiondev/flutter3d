@@ -52,10 +52,10 @@ final class JournalStep {
 /// Reading is a plain array read — no chunk arithmetic, no indirection — which
 /// is the other half of why this won the measurement: every operation on a mesh
 /// reads far more than it writes.
-final class JournalledFloats {
-  JournalledFloats(int length) : _values = Float32List(length);
+final class JournaledFloats {
+  JournaledFloats(int length) : _values = Float32List(length);
 
-  JournalledFloats.of(Float32List values) : _values = values;
+  JournaledFloats.of(Float32List values) : _values = values;
 
   Float32List _values;
 
@@ -331,14 +331,14 @@ final class JournalledFloats {
 /// no common supertype that can be indexed, and the alternative — `TypedData`
 /// plus a cast per element — is a bounds check and a virtual call in the
 /// hottest loop in the package.
-final class JournalledInts {
-  JournalledInts(int length) : _values = Int32List(length);
+final class JournaledInts {
+  JournaledInts(int length) : _values = Int32List(length);
 
-  JournalledInts.of(Int32List values) : _values = values;
+  JournaledInts.of(Int32List values) : _values = values;
 
   Int32List _values;
 
-  /// The values as they are now. See [JournalledFloats.values] for why this is
+  /// The values as they are now. See [JournaledFloats.values] for why this is
   /// handed out rather than copied.
   Int32List get values => _values;
 
@@ -374,7 +374,7 @@ final class JournalledInts {
     _openBefore = <int>[];
   }
 
-  /// See [JournalledFloats.endStep] for what [keepEmpty] is for.
+  /// See [JournaledFloats.endStep] for what [keepEmpty] is for.
   bool endStep({bool keepEmpty = false}) {
     final indices = _openIndices;
     final before = _openBefore;
@@ -397,7 +397,7 @@ final class JournalledInts {
     return true;
   }
 
-  /// See [JournalledFloats.abandonStep].
+  /// See [JournaledFloats.abandonStep].
   void abandonStep() {
     final indices = _openIndices;
     final before = _openBefore;
@@ -439,7 +439,7 @@ final class JournalledInts {
     return true;
   }
 
-  /// See [JournalledFloats._backwards] for why the two directions differ.
+  /// See [JournaledFloats._backwards] for why the two directions differ.
   JournalStep _backwards(JournalStep step) {
     final before = step.before as Int32List;
     final after = Int32List(step.indices.length);
@@ -476,7 +476,7 @@ final class JournalledInts {
     return dropped;
   }
 
-  /// See [JournalledFloats.dropOldestStep].
+  /// See [JournaledFloats.dropOldestStep].
   int dropOldestStep() => _undo.isEmpty ? 0 : _undo.removeAt(0).byteCount;
 
   void grow(int length, {int fill = 0}) {
@@ -494,7 +494,7 @@ final class JournalledInts {
     _redo.clear();
   }
 
-  /// See [JournalledFloats.padSteps].
+  /// See [JournaledFloats.padSteps].
   void padSteps(int count) {
     for (var i = 0; i < count; i++) {
       _undo.add(JournalStep(Int32List(0), Int32List(0)));

@@ -9,7 +9,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
 final class CollisionShapesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
@@ -87,7 +87,7 @@ final class CollisionShapesDemo extends ShowcaseDemo {
   MeshNode _node(
     DemoContext context,
     MeshData mesh,
-    Material material,
+    RenderMaterial material,
     Vector3 position,
   ) => MeshNode(
     DeviceMesh.upload(context.device, mesh),
@@ -98,7 +98,7 @@ final class CollisionShapesDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region shapes
-    _world = CollisionWorld();
+    _world = onRunPhysics(CollisionWorld());
     final Collider box = _world.add(
       Collider(
         shape: CollisionBox(Vector3(0.5, 0.5, 0.5)),
@@ -156,7 +156,10 @@ final class CollisionShapesDemo extends ShowcaseDemo {
         _node(
           context,
           CuboidShape(size: Vector3(1, 1, 1)).build(),
-          Material(name: 'box', baseColor: Vector4(0.8, 0.4, 0.3, 1.0)),
+          RenderMaterial(
+            name: 'box',
+            baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.3, 1.0),
+          ),
           box.position,
         ),
       )
@@ -164,7 +167,10 @@ final class CollisionShapesDemo extends ShowcaseDemo {
         _node(
           context,
           SphereShape(segments: 24, rings: 12).build(),
-          Material(name: 'sphere', baseColor: Vector4(0.3, 0.6, 0.8, 1.0)),
+          RenderMaterial(
+            name: 'sphere',
+            baseColor: LinearColor.fromSrgb(0.3, 0.6, 0.8, 1.0),
+          ),
           _sphereCollider.position,
         ),
       )
@@ -172,7 +178,10 @@ final class CollisionShapesDemo extends ShowcaseDemo {
         _node(
           context,
           const CapsuleShape(radius: 0.35, height: 0.8).build(),
-          Material(name: 'capsule', baseColor: Vector4(0.5, 0.8, 0.4, 1.0)),
+          RenderMaterial(
+            name: 'capsule',
+            baseColor: LinearColor.fromSrgb(0.5, 0.8, 0.4, 1.0),
+          ),
           capsule.position,
         ),
       )
@@ -180,7 +189,10 @@ final class CollisionShapesDemo extends ShowcaseDemo {
         _node(
           context,
           _wedgeMesh(Vector3(0.6, 0.5, 0.5)),
-          Material(name: 'wedge', baseColor: Vector4(0.8, 0.7, 0.3, 1.0)),
+          RenderMaterial(
+            name: 'wedge',
+            baseColor: LinearColor.fromSrgb(0.8, 0.7, 0.3, 1.0),
+          ),
           wedge.position,
         ),
       )
@@ -188,12 +200,15 @@ final class CollisionShapesDemo extends ShowcaseDemo {
         _node(
           context,
           _terrainMesh(4, 4, 0.5, heights),
-          Material(name: 'field', baseColor: Vector4(0.6, 0.55, 0.4, 1.0)),
+          RenderMaterial(
+            name: 'field',
+            baseColor: LinearColor.fromSrgb(0.6, 0.55, 0.4, 1.0),
+          ),
           field.position,
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
     return scene;

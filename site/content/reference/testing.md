@@ -1,46 +1,50 @@
 ---
-description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 10789 tests need a GPU.
+description: Four independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 13463 tests need a GPU.
 ---
 
 # Testing
 
-10789 tests across 42 packages and nine applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+13463 tests across 57 packages and 17 applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer. The README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 1616 | | | |
-| | | | `flutter3d_mesh` | 599 |
-| | | | `apps/flutter3d_modeler` | 1750 |
-| `flutter3d_sim` | 579 | | `pad_input` | 67 |
-| `flutter3d_lab` | 15 | | `flutter3d_core` | 735 |
-| `flutter3d_lti` | 26 | | `apps/flutter3d_lab_pendulum` | 7 |
-| | | | `apps/flutter3d_lab_incident` | 13 |
-| `flutter3d_game_shooter` | 340 | | `flutter3d_audio_core` | 55 |
-| | | | `flutter3d_audio` | 4 |
-| `flutter3d_game_racing` | 223 | | `flutter3d_webgl` | 62 |
-| `flutter3d_game_platformer` | 221 | | `flutter3d_hardware` | 63 |
-| `apps/flutter3d_demo_platformer` | 199 | | `flutter3d_impeller` | 64 |
-| `flutter3d_cpu` | 328 | | `apps/flutter3d_demo_strategy` | 50 |
-| `apps/flutter3d_editor` | 215 | | `apps/flutter3d_demo_arcade` | 20 |
-| `apps/flutter3d_demo_racing` | 162 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 187 | | `flutter3d_webgpu` | 193 |
-| `flutter3d_game_strategy` | 133 | | `flutter3d_editor_mcp` | 28 |
-| `apps/flutter3d_demo_river` | 53 | | `flutter3d_testing` | 27 |
-| `flutter3d_editor_core` | 141 | | `flutter3d_editor_widgets` | 90 |
-| `apps/flutter3d_demo_dungeon` | 115 | | `flutter3d_app` | 118 |
-| `flutter3d_game` | 255 | | `flutter3d_shaders` | 5 |
-| `flutter3d_particles` | 97 | | `flutter3d_stereo` | 50 |
-| `flutter3d_model_core` | 1172 | | `flutter3d_model_mcp` | 196 |
-| | | | `flutter3d_net` | 15 |
-| | | | `flutter3d_net_webrtc` | 2 |
-| | | | `flutter3d_sim_mcp` | 25 |
-| `flutter3d_mcp_kit` | 2 | | `flutter3d_build` | 127 |
-| | | | `apps/flutter3d_lesson_viewer` | 48 |
-| | | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
-| `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 85 |
-| `flame_multiplayer` | 9 | | `flame_multiplayer_dashwire` | 3 |
+| `flutter3d` | 1743 | | `apps/flutter3d_demo_sandbox` | 18 |
+| `flutter3d_voxel` | 34 | | `flutter3d_mesh` | 600 |
+| `apps/flutter3d_modeler` | 1753 | | `flutter3d_sim` | 912 |
+| `pad_input` | 72 | | `flutter3d_core` | 898 |
+| `apps/flutter3d_lab_pendulum` | 7 | | `apps/flutter3d_demo_reef` | 4 |
+| `apps/flutter3d_lab_incident` | 13 | | `flutter3d_game_shooter` | 82 |
+| `flutter3d_audio_core` | 91 | | `flutter3d_plugin_api` | 26 |
+| `flutter3d_audio` | 4 | | `flutter3d_game_racing` | 242 |
+| `flutter3d_webgl` | 78 | | `flutter3d_game_platformer` | 236 |
+| `flutter3d_hardware` | 96 | | `apps/flutter3d_demo_platformer` | 227 |
+| `flutter3d_impeller` | 71 | | `flutter3d_cpu` | 447 |
+| `apps/flutter3d_demo_strategy` | 64 | | `apps/flutter3d_editor` | 304 |
+| `apps/flutter3d_demo_arcade` | 23 | | `apps/flutter3d_demo_racing` | 165 |
+| `pointer_lock` | 29 | | `flutter3d_physics` | 284 |
+| `flutter3d_webgpu` | 235 | | `flutter3d_physics_native` | 218 |
+| `flutter3d_effects` | 38 | | `flutter3d_game_strategy` | 145 |
+| `apps/flutter3d_demo_river` | 57 | | `flutter3d_testing` | 49 |
+| `flutter3d_editor_core` | 179 | | `flutter3d_editor_widgets` | 109 |
+| `apps/flutter3d_demo_dungeon` | 174 | | `flutter3d_app` | 197 |
+| `flutter3d_game` | 328 | | `flutter3d_shaders` | 5 |
+| `flutter3d_particles` | 129 | | `flutter3d_stereo` | 50 |
+| `flutter3d_model_core` | 1183 | | `flutter3d_editor_play` | 40 |
+| `flutter3d_net` | 27 | | `flutter3d_net_webrtc` | 2 |
+| `flutter3d_sim_mcp` | 13 | | `flutter3d_build` | 294 |
+| `apps/flutter3d_lesson_viewer` | 49 | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
+| `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 90 |
+| `flame_multiplayer` | 23 | | `flame_multiplayer_dashwire` | 6 |
+| `flutter3d_plugin_runtime` | 84 | | `flutter3d_lints` | 13 |
+| `flutter3d_conformance` | 12 | | `flutter3d_camera` | 31 |
+| `flutter3d_education` | 46 | | `flutter3d_game_kit` | 38 |
+| `flutter3d_foundation` | 33 | | `flutter3d_matter` | 17 |
+| `flutter3d_game_ui` | 139 | | `flutter3d_mcp` | 283 |
+| `flutter3d_post` | 40 | | `flutter3d_demo_content` | 314 |
+| `flutter3d_game_physics` | 33 | | `flutter3d_build_hooks` | 3 |
+| `flutter3d_elements` | 6 | | `flutter3d_level_scene` | 2 |
 
-The rows sum to 10763 rather than 10789: the remaining 26 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`.
+The rows sum to 13403 rather than 13463: the remaining 60 live in `packages/*/example/test`, which the count includes and this table does not, among them the two seeds a new project starts from, `packages/flutter3d_app/example` and `packages/flutter3d_game/example`, and the chemistry bench, `packages/flutter3d_education/example`.
 
 `flutter3d_samples` is not in the table and has no `test/` at all: it is test data with two path constants over it, and other packages' decoder tests are what exercise it. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -52,7 +56,7 @@ tool/ci.sh                                   # shaders, analyze, every test
 
 ## Four independent golden sets, not one
 
-Seventy-eight scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+96 scenes are rendered four times: through Impeller, through the software rasteriser in `flutter3d_cpu`, through WebGL2, and through WebGPU, the last two in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 The browser sets are recorded when a branch lands, not beside it (`golden_web.sh` holds one fixed port for the whole of its run), so a new scene is in the other sets for as long as that takes. Which scenes, and what they are waiting for, is `_provisional` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment a reference lands and the name is still there.
 
@@ -65,7 +69,7 @@ The browser sets are recorded when a branch lands, not beside it (`golden_web.sh
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
 <div class="why">
-<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps seventy-eight scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps 96 scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.
@@ -153,6 +157,22 @@ What this settles: a run submitted to a server can be replayed bit for bit on a 
 <p><code>why:</code> a digest and not a comparison. Two machines cannot compare their worlds by sending each other their worlds: a snapshot is tens of kilobytes and a run is thousands of steps. <code>StateDigest</code> is 32-bit FNV-1a taken over bits rather than text, with the multiply done in halves so that no intermediate passes 2^53 and a browser gets the same number. <code>DigestTrace</code> takes a checkpoint every so many steps and names the first one two runs disagree at, which turns "the replay diverged" into an interval to bisect.</p>
 </div>
 
+## A replay test for your game
+
+The same tape is also the cheapest regression test a game can have. Play a level once with the recorder on, commit the `.f3drun`, and `testReplay` in `flutter3d_testing` plays it back on the software backend in CI:
+
+```dart
+void main() {
+  testReplay(
+    'test/tapes/ascent.f3drun',
+    start: Ascent.open,
+    goldensAt: <int>[120, 600],
+  );
+}
+```
+
+`start` builds the game against the device and the input it is handed, and returns a `ReplaySubject`: the `EngineLoop` the run is stepped in (built on that input, the genre installed and its run set), the `genre` whose run the tape recorded, `frame`, and the level's hash. The replay goes through the loop's snapshots, the one path a rollback takes: the tape's start is restored as the genre's part (`loop.rewindTo(0, state: genre.loopStateOf(start))`), each step is `loop.runSteps(1)` with the tape as the loop's playback, and at every checkpoint the tape holds (or only those named in `digestAt`) the digest of the genre's part of `loop.capture()` has to equal the recorded one, and a mismatch names the step and the last one that still agreed. At each step in `goldensAt` the frame is compared with `test/goldens/<tape>-<step>.png`, recorded on the first local run. A level edited since the recording fails as exactly that, before a step is taken, rather than as a divergence at step 25 that sends somebody into the physics. That check found its first stale tape the day it was written: the platformer's sample on this site had been recorded before the level was last changed. `apps/flutter3d_demo_platformer/test/replay_test.dart` is the whole example, about a hundred lines with the comments.
+
 ## What can be tested without a device
 
 Everything except the Impeller goldens. In practice that means:
@@ -170,14 +190,14 @@ Everything except the Impeller goldens. In practice that means:
 
 ## Test doubles ship with the package they double
 
-Four packages carry a `lib/testing.dart`. It is a separate library, so nothing a consumer builds pulls it in, and it is importable, which a `test/` directory is not:
+Two packages carry a `lib/testing.dart`. It is a separate library, so nothing a consumer builds pulls it in, and it is importable, which a `test/` directory is not:
 
 ```dart
 import 'package:flutter3d_hardware/testing.dart';  // FakeBackend
 import 'package:flutter3d_cpu/testing.dart';       // cpuTestDevice
-import 'package:flutter3d_audio/testing.dart';     // soundTableIn
-import 'package:flutter3d_game/testing.dart';      // creditGaps
 ```
+
+The repository's own hygiene checks, `soundTableIn` (a sound bank against its source) and `creditGaps` (credits against the shipped models), were in `flutter3d_audio` and `flutter3d_game` until 1.0. They check this repository's demo games rather than anything a game of yours needs, so they moved to `package:flutter3d_demo_content/repo_checks.dart`, which is not published.
 
 `FakeBackend` is a `GraphicsDevice` that draws nothing and records everything: which passes were opened, what they were attached to, what was bound, how many times it drew. `cpuTestDevice` is a `CpuDevice` with the builtin shaders and the two fallback textures a `Renderer` asks for.
 
@@ -186,7 +206,7 @@ import 'package:flutter3d_game/testing.dart';      // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the thirty-five checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the 74 checks it.
 
 ## Play the game in a test
 
@@ -238,7 +258,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Thirty-five rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+74 rules. All but two read source text in under a second and need no `pub get`, shader bundle or device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one. The exceptions are the two snapshots, the API and the tools for agents, which parse every published package with the analyzer (and build the plain Dart MCP servers) and run again once CI has resolved the workspace.
 
 | Rule | What it refuses |
 |---|---|
@@ -256,7 +276,7 @@ Thirty-five rules, under a second. Nothing they read needs `pub get`, a shader b
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 | `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
 
-Twenty-two more check the lists against the workspace, a plain Dart package for a dependency (its own, or a sibling's) that would resolve the Flutter SDK, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the hardware layer for one of its own, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners (conformance and the surface probe) for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, a public member nothing calls for a sentence saying who it is for, the shader table on the backends page for a stage a bundle must answer to, a vertex stage for a `texelFetch` that aborts impellerc with no diagnostic, the surface buffer for the depth-in-metres channel four passes read and no upstream filing may tempt anybody to drop, every package's agent skills for a directory the skills CLI would install for nobody without saying so, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename, each compared against the tree; plus one rule that refuses an enum in a published package unless a table says why it is machinery. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
+61 more check the lists against the workspace, a plain Dart package for a dependency (its own, or a sibling's) that would resolve the Flutter SDK, every pubspec's floors and sibling constraints, a package for a dependency on an application, a simulation package for an import of Flutter, the hardware layer for one of its own, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners (conformance and the surface probe) for rot, every picture this site shows for a golden that is actually recorded, the publishing order for a package it forgot, every package for a dependency outside the layers below it, for a re-export of another package's API that the list of facades does not name, for a dependency held only to re-export it, and for a type its code names from a package its pubspec does not, the runtime (the application, the game packages, the elements, their views and the audio) for a run-time dependency on an editor, the build tool, an agent server or the modeller's core, the simulation stack (the simulation, both physics, the elements, the matter and the foundation) for an import of the core, the hardware layer, the shaders or the particles, the plugin API for a type its contract does not name, a type over its budget or a loop phase named after one package, a public member nothing calls for a sentence saying who it is for, the shader table on the backends page for a stage a bundle must answer to, a vertex stage for a `texelFetch` that aborts impellerc with no diagnostic, the surface buffer for the depth-in-metres channel four passes read and no upstream filing may tempt anybody to drop, every package's agent skills for a directory the skills CLI would install for nobody without saying so, a package that says it runs on the web for a `dart:io`, `dart:isolate` or `dart:ffi` its browser build would still reach — which is how pub.dev decides, every published package for a `platforms:` block that SUPPORT.md lists the same way, a library outside the simulation stack for a read of a run's live world rather than what it publishes, every library for a gravity, an air or a sea written as a number rather than read from its world or a substance's preset, every light for an intensity literal small enough to be the pre-1.0 unit rather than lux or candela, and five numbers that go stale on their own: the test count, the golden scene count, the structure-rule count, the number of checks the conformance suite says it runs, and the number of enums the hardware layer promises not to rename, each compared against the tree; plus one rule that refuses an enum in a published package unless a table says why it is machinery, and three about the public API: every published package's `api/<package>.api` is what its source makes, a break since the last release tag is labelled `**Breaking:**` in the CHANGELOG and released as a major, and every `@Deprecated` says the version it was deprecated in, the one it goes in, and what to use instead; and two about the tools for agents: every published package's `api/<package>.mcp` (its MCP servers' tools and input schemas) and `api/<package>.vm` (its VM service extensions and game events) are what its source makes, and a break in either since the last release tag is labelled, released as a major, and moves the schema version the server announces; and one about the command line: `packages/flutter3d_build/api/flutter3d_build.cli` is what `flutter3d help --surface` prints, and a subcommand or flag gone since the last release tag is labelled `**Breaking:**`; and one about the files the engine reads: every format a published package declares with a `FormatSpec` has a fixture minted at each version its reader opens, every format version constant is declared or listed, and no reader refuses an older file by comparing its version for equality; and four about the people upgrading: every break since the last release tag has an entry in the migration table that `dart fix`, the `flutter3d_lints` migrator and `flutter3d_build:migrate` carry out, or that says what a person does instead; the table leaves no more to be done by hand than its ceiling; and every count of it a person reads is the table's own; and a table is closed once its release is tagged; and a table is closed once its release is tagged; and two about the shape of the 1.0 contract: no published type is an `interface class` unless it is a marker or a value shape that can never grow (or is still on wave 3's list of interfaces to convert), and every published exception extends `Flutter3dException` and none is named `…Error`; and seven about the names in it (`docs/CONTRACTS.md`, "Names"): identifiers spell in American, a type has one teardown verb and creation has its own verbs, no public name carries a unit the engine does not use, a boolean reads as a question and none is positional, no constant is named with `k`, a settings class is `final`, `const` and copies every field, and every public number says its unit in its doc, held to a per-package count of the ones that do not yet, which only shrinks. A number in prose is a number nobody recounts, so the counting rules read this site's pages too, and the sentence you are reading is one of them: the rule counts the table above and requires the rest to be the rest.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>
@@ -302,7 +322,7 @@ tool/pacing.sh --run path/to/run.f3drun --repeats 5 --budget 2000
 
 The script plays a recorded run through the renderer in `apps/flutter3d_demo_dungeon` with `flutter drive --profile`, because `flutter test` on a device builds debug and a JIT frame time is not a frame time. It writes the report to `doc/pacing/<label>.md` (the device's id when there is no `--label`; `--no-report` keeps it out of the tree) and exits non-zero on any frame over the line. `--repeats` plays the tape that many times, three by default. `--budget` sets `RenderSettings.frameWorkBudget` in microseconds, and 0, the default, leaves it unlimited. The report keeps the median, the 99th percentile, the worst frame and where on the tape it fell, so a spike can be found again by replaying to it; the macOS report is committed, and the same command runs on the release phone by hand before a release.
 
-Underneath is `replayPacing` in `flutter3d_testing`. A frame is one step of the tape through `onStep` and one `drawFrame`, back to back and not on a display's clock, and a GPU device's `drawFrame` finishes with `gpuSettled`, which closes the frame and waits for the device's `onFrameComplete` so the GPU's share is counted. The result is a `FramePacing`: median, 99th percentile, the worst frame and its index, and every frame over `limitMillis` (50 by default). `repeats`, `rewind` and `warmUpFrames` play a tape several times from its start, or skip a level's first frames.
+Underneath is `replayPacing` in `flutter3d_testing`. A frame is one step of the tape through `onStep` and one `drawFrame`, back to back and not on a display's clock, and a GPU device's `drawFrame` finishes with `gpuSettled`, which closes the frame and waits for the device's `onFrameComplete` so the GPU's share is counted. The result is a `PacingReport`: median, 99th percentile, the worst frame and its index, and every frame over `limitMillis` (50 by default). `repeats`, `rewind` and `warmUpFrames` play a tape several times from its start, or skip a level's first frames.
 
 <div class="why">
 <p>The CPU and GPU halves of each frame are serialised, which makes a frame look longer than it would in a game, where the GPU draws one frame while the CPU prepares the next. That is the right side to err on for a check that fails on spikes, and it puts each spike on the frame that caused it.</p>

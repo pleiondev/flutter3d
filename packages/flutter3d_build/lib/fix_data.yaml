@@ -1,0 +1,64 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-recognisedExtensions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'recognisedExtensions'
+    changes:
+      - kind: 'rename'
+        newName: 'recognizedExtensions'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kDefaultChunkThreshold'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kDefaultChunkThreshold'
+    changes:
+      - kind: 'rename'
+        newName: 'defaultChunkThreshold'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kGitignoreEntry'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kGitignoreEntry'
+    changes:
+      - kind: 'rename'
+        newName: 'gitignoreEntry'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kHookBuildContent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kHookBuildContent'
+    changes:
+      - kind: 'rename'
+        newName: 'hookBuildContent'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kAssetPipelineVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kAssetPipelineVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'assetPipelineVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-kFlutter3dBuildVersionConstraint'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      variable: 'kFlutter3dBuildVersionConstraint'
+    changes:
+      - kind: 'rename'
+        newName: 'flutter3dBuildVersionConstraint'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-build-ConvertOptions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      class: 'ConvertOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'ConvertSettings'

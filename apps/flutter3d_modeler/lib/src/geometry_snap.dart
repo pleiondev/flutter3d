@@ -28,9 +28,9 @@
 /// entirely.
 library;
 
-import 'package:flutter3d_core/geometry.dart' show Ray;
+import 'package:flutter3d_core/geometry.dart' show LocalRay;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'element_picking.dart' show PickingView;
 
@@ -248,10 +248,13 @@ SnapTarget? findSnapTarget({
 /// shorter world lengths are there — the same conversion `element_picking.dart`
 /// makes to trace a click into a mesh's own space, needed again here because
 /// [MeshPicker] answers in whatever space its mesh's own positions are in.
-({Ray ray, double shrink}) _intoLocal(Ray world, Matrix4? objectToWorld) {
+({LocalRay ray, double shrink}) _intoLocal(
+  LocalRay world,
+  Matrix4? objectToWorld,
+) {
   if (objectToWorld == null) return (ray: world, shrink: 1.0);
   final inverse = Matrix4.copy(objectToWorld)..invert();
-  final local = world.transformInto(inverse, Ray.zero());
+  final local = world.transformInto(inverse, LocalRay.zero());
   final shrink = local.direction.length;
   return (ray: local.normalizeDirection(), shrink: shrink);
 }

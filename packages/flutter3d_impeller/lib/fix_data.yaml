@@ -1,0 +1,26 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-impeller-GpuRenderBackend-create'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_impeller/flutter3d_impeller.dart']
+      method: 'create'
+      inClass: 'GpuRenderBackend'
+    changes:
+      - kind: 'rename'
+        newName: 'open'
+  - title: 'flutter3d 1.0.0-rc.1: f2-impeller-GpuRenderBackend-readPixels'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_impeller/flutter3d_impeller.dart']
+      method: 'readPixels'
+      inClass: 'GpuRenderBackend'
+    changes:
+      - kind: 'rename'
+        newName: 'readback'

@@ -23,11 +23,11 @@ import 'status_line.dart' show grouped;
 
 /// One level, as a card shows it.
 typedef LodLevelRow = ({
-  /// `LodSpec.ratio`: the share of the base mesh's triangles this level
+  /// `LodSettings.ratio`: the share of the base mesh's triangles this level
   /// keeps, from just above nought to one.
   double ratio,
 
-  /// `LodSpec.maxScreenFraction`: the share of the screen's height below
+  /// `LodSettings.maxScreenFraction`: the share of the screen's height below
   /// which this level is drawn.
   double maxScreenFraction,
 

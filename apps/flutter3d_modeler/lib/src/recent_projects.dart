@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter3d_app/flutter3d_app.dart' show Storage, defaultStorage;
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Storage, StorageException, defaultStorage;
 
 /// The model files this application has had open, most recent first —
 /// `ui-15`'s own "недавние" half of the start screen.
@@ -54,8 +55,8 @@ final class RecentModels {
   /// [exists] is injected so this can be answered without a disk — the same
   /// seam `apps/flutter3d_editor`'s own `RecentProjects.read` uses, and for
   /// the same reason.
-  List<String> read({required bool Function(String) exists}) =>
-      remaining(storage.read(name), exists: exists);
+  Future<List<String>> read({required bool Function(String) exists}) async =>
+      remaining(await storage.read(name), exists: exists);
 
   /// Puts [path] at the front, writes the list back, and answers with it.
   ///
@@ -63,19 +64,26 @@ final class RecentModels {
   /// could not be saved costs somebody one extra trip through the open panel,
   /// and a modeller that refused to open a file because it could not write a
   /// convenience list would be trading the work for the shortcut.
-  List<String> remember(String path, {required bool Function(String) exists}) {
-    final paths = after(read(exists: exists), path);
-    storage.write(
-      name,
-      const JsonEncoder.withIndent(
-        '  ',
-      ).convert(<String, Object?>{'recent': paths}),
-    );
+  Future<List<String>> remember(
+    String path, {
+    required bool Function(String) exists,
+  }) async {
+    final paths = after(await read(exists: exists), path);
+    try {
+      await storage.write(
+        name,
+        const JsonEncoder.withIndent(
+          '  ',
+        ).convert(<String, Object?>{'recent': paths}),
+      );
+    } on StorageException {
+      // Not reported — see above.
+    }
     return paths;
   }
 
   /// Forgets every model, which is what a person clearing the list means.
-  void clear() => storage.remove(name);
+  Future<void> clear() => storage.remove(name);
 
   /// What a stored path still means, which is never quite what it says.
   ///

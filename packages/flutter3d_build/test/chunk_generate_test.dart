@@ -118,7 +118,7 @@ rules:
   - glob: "*.obj"
     chunks: $value
 ''').rules.single;
-    expect(rule('true').chunks, kDefaultChunkThreshold);
+    expect(rule('true').chunks, defaultChunkThreshold);
     expect(rule('false').chunks, isNull);
     expect(rule('200000').chunks, 200000);
     expect(

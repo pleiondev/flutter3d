@@ -12,6 +12,8 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'frame_graph.dart' show PassSkip, SkippedPass;
+import 'frame_pacing.dart' show PipelineStall;
+import 'physical_camera.dart' show PhysicalCamera;
 import 'render_settings.dart' show RenderSettings;
 
 /// What one node of the frame graph cost — `gfx-01n`'s own row.
@@ -94,7 +96,7 @@ final class EffectiveAntiAliasing {
   final String? msaaDeclined;
 
   /// Whether the frame got no anti-aliasing at all.
-  bool get none => msaaSamples <= 1 && !fxaa && !temporal;
+  bool get isNone => msaaSamples <= 1 && !fxaa && !temporal;
 
   @override
   String toString() =>
@@ -123,6 +125,8 @@ final class FrameResult {
     this.shadowsDenied = 0,
     this.batchedDraws = 0,
     this.wireframeDeclined = false,
+    this.alphaToCoverageDeclined = false,
+    this.targetBytes = 0,
     this.exposure = RenderSettings.defaultExposure,
     this.passes = const <FramePass>[],
     this.skipped = const <SkippedPass>[],
@@ -131,7 +135,57 @@ final class FrameResult {
       fxaa: false,
       msaaDeclined: null,
     ),
+    this.pipelineStalls = const <PipelineStall>[],
+    this.held = false,
   });
+
+  /// Pipelines this frame built that took longer than
+  /// `FramePacing.stallThreshold`, each with the material and geometry that
+  /// asked for it — `A1.7`. Empty on almost every frame, and on every frame
+  /// drawn inside `Renderer.warmUp`, which is where builds are meant to be.
+  final List<PipelineStall> pipelineStalls;
+
+  /// Whether this is the previous frame handed back again because the GPU
+  /// was `FramePacing.framesInFlight` frames behind — `A1.4`.
+  ///
+  /// A held result is the last drawn one with this set: the same [frame] to
+  /// present, the same counters. Nothing was drawn and no time was spent on
+  /// the GPU's behalf; `Renderer.heldFrames` counts these.
+  final bool held;
+
+  /// [exposure] as an exposure value at ISO 100, in `PhysicalCamera`'s
+  /// units — what a camera's dial would read for the exposure this frame
+  /// used, whether a camera, a multiplier or the auto exposure meter set it.
+  double get ev100 => PhysicalCamera.ev100ForExposure(exposure);
+
+  /// This result again, marked [held]: what `Renderer.render` answers while
+  /// the GPU is behind.
+  FrameResult toHeld() => FrameResult(
+    frame: frame,
+    cpuMicros: cpuMicros,
+    submitMicros: submitMicros,
+    drawCalls: drawCalls,
+    triangles: triangles,
+    instances: instances,
+    culled: culled,
+    pipelineSwitches: pipelineSwitches,
+    debugLines: debugLines,
+    lights: lights,
+    lightsDropped: lightsDropped,
+    pipelines: pipelines,
+    shadowCasters: shadowCasters,
+    skinnedDraws: skinnedDraws,
+    shadowsDenied: shadowsDenied,
+    batchedDraws: batchedDraws,
+    wireframeDeclined: wireframeDeclined,
+    alphaToCoverageDeclined: alphaToCoverageDeclined,
+    targetBytes: targetBytes,
+    exposure: exposure,
+    passes: passes,
+    skipped: skipped,
+    antiAliasing: antiAliasing,
+    held: true,
+  );
 
   /// How many individual draws the automatic batcher replaced — `gfx-67n`.
   ///
@@ -160,7 +214,43 @@ final class FrameResult {
   /// something and here is what you actually got" three times, and those three
   /// each needed their own field because there was no general form. This is
   /// the general form.
+  ///
+  /// Two kinds of entry are not passes. A step switched off through
+  /// `RenderSettings.without` is named here under its own name with
+  /// [PassSkip.switchedOff], whether or not it has a pass — the tone curve
+  /// does not. And a request the frame declined is named under one of
+  /// [declinedNames] with [PassSkip.declined]; the fields that report the
+  /// same facts stay beside it.
   final List<SkippedPass> skipped;
+
+  /// The names [skipped] reports a declined request under, each with
+  /// [PassSkip.declined] — none of them a pass:
+  ///
+  ///  * `wireframe` — [wireframeDeclined];
+  ///  * `alpha to coverage` — [alphaToCoverageDeclined];
+  ///  * `multisampling` — [EffectiveAntiAliasing.msaaDeclined] was set;
+  ///  * `point shadow rows` — [shadowsDenied] above nought.
+  static const List<String> declinedNames = <String>[
+    'wireframe',
+    'alpha to coverage',
+    'multisampling',
+    'point shadow rows',
+  ];
+
+  /// The [PassSkip.declined] entries for the four requests a frame can
+  /// decline, in [declinedNames]' order — what the renderer appends to
+  /// [skipped].
+  static List<SkippedPass> declinedSkips({
+    required bool wireframe,
+    required bool alphaToCoverage,
+    required bool multisampling,
+    required int shadowsDenied,
+  }) => <SkippedPass>[
+    if (wireframe) (name: declinedNames[0], reason: PassSkip.declined),
+    if (alphaToCoverage) (name: declinedNames[1], reason: PassSkip.declined),
+    if (multisampling) (name: declinedNames[2], reason: PassSkip.declined),
+    if (shadowsDenied > 0) (name: declinedNames[3], reason: PassSkip.declined),
+  ];
 
   /// Why [name] did not run this frame, or null if it ran or was never
   /// registered.
@@ -259,6 +349,20 @@ final class FrameResult {
   /// [lightsDropped] is: a setting that did nothing should say so.
   final bool wireframeDeclined;
 
+  /// Whether a material asked for `RenderMaterial.alphaToCoverage` and was drawn
+  /// with its hard cutoff instead — `P7`: the device has none (Impeller, the
+  /// software rasteriser), or the scene pass gave its multisampling up.
+  final bool alphaToCoverageDeclined;
+
+  /// What the targets this frame drew into or read from hold, in bytes —
+  /// `P6`. Each texture once, its base level, every slice and sample: the
+  /// scene's colour and depth, the surface buffer, the glow's chain, the
+  /// shadow atlas, every scratch target a pass took from the pool. What a
+  /// frame costs in memory before a driver's padding, and what grows when a
+  /// render scale or an effect is turned up — `textureBytes` says how one is
+  /// counted.
+  final int targetBytes;
+
   /// Pipelines the renderer has built so far.
   ///
   /// Reported per frame because it is the number that has to stay put: light
@@ -273,7 +377,7 @@ final class FrameResult {
 
   /// Point and spot lights that asked for a cube shadow and got no atlas row.
   ///
-  /// The atlas has `kShadowedLights` rows, and a light past them shades
+  /// The atlas has `shadowedLights` rows, and a light past them shades
   /// unshadowed — which one, decided by relevance and hysteresis rather than
   /// by scene order, so the count can change as the player walks. Reported for the same reason [lightsDropped] is: a
   /// `castsShadow` that did nothing should say so, rather than leave the

@@ -4,12 +4,13 @@
 ///     flutter test test/color_target_test.dart
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
-  final texture = TextureHandle(
+  final texture = wrapTexture(
     backend: const Object(),
     width: 8,
     height: 8,
@@ -78,8 +79,7 @@ void main() {
       format: TextureFormat.r16g16b16a16Float,
       mipLevels: 3,
     );
-    expect(cube, isNotNull);
-    expect(cube!.type, TextureType.textureCube);
+    expect(cube.type, TextureType.textureCube);
     expect(cube.sliceCount, 6);
     expect(cube.width, 16);
     expect(device.createdCubeRenderTargets.single.mipLevels, 3);
@@ -88,9 +88,11 @@ void main() {
   test('the fake device answers render-to-mip either way', () {
     // The interesting device is the one that says no, and a test has to be
     // able to be it.
-    expect(FakeBackend().supportsRenderToMip, isTrue);
+    expect(FakeBackend().features.has(DeviceFeature.renderToMipLevel), isTrue);
     expect(
-      FakeBackend(supportsRenderToMip: false).supportsRenderToMip,
+      FakeBackend(
+        supportsRenderToMip: false,
+      ).features.has(DeviceFeature.renderToMipLevel),
       isFalse,
     );
   });

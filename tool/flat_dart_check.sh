@@ -8,8 +8,8 @@
 # walks their pubspecs for a dependency that would drag the Flutter SDK in. What
 # it cannot do is *resolve* anything — and resolution is where this fails in
 # practice, on a machine that has `dart` and no `flutter`, several months after
-# the import that caused it. A host starting `flutter3d_model_mcp` with `dart
-# run` is exactly that machine.
+# the import that caused it. A host starting `flutter3d_mcp:model_mcp` with
+# `dart run` is exactly that machine.
 #
 # The workspace hides it. One `flutter pub get` at the root resolves all
 # thirty-three packages against one lock file, using the Flutter SDK it has, so
@@ -37,6 +37,9 @@ FAILED=()
 # which is not there is a different failure with the same colour.
 for package in packages/*/; do
   name="$(basename "$package")"
+  # A directory that groups packages rather than being one — see
+  # `publish_check.sh`.
+  [ -f "$package/pubspec.yaml" ] || continue
   mkdir -p "$WORK/packages/$name"
   # `lib`, `bin` and the pubspec are what a resolve and a `--help` need. Tests
   # and examples are not copied: they carry `flutter_test` on purpose in the
@@ -121,19 +124,17 @@ while read -r name; do
     FAILED+=("$name: dart pub get")
     continue
   fi
-  # The one that has an entry point is also asked to start. A package that
-  # resolves and then cannot run is the same problem one step later.
-  if [ "$name" = "flutter3d_model_mcp" ]; then
-    if ! (cd "$WORK/packages/$name" && dart run flutter3d_model_mcp:model_mcp --help); then
-      FAILED+=("$name: --help")
+  # The servers are also asked to start. A package that resolves and then
+  # cannot run is the same problem one step later.
+  if [ "$name" = "flutter3d_mcp" ]; then
+    if ! (cd "$WORK/packages/$name" && dart run flutter3d_mcp:model_mcp --help); then
+      FAILED+=("$name: model_mcp --help")
     fi
-  fi
-  if [ "$name" = "flutter3d_editor_mcp" ]; then
-    # It takes a level and prints usage to stderr with exit 64 when given none,
-    # which is a server that started far enough to refuse.
-    (cd "$WORK/packages/$name" && dart run flutter3d_editor_mcp:editor_mcp)
+    # The level editor takes a level and prints usage to stderr with exit 64
+    # when given none, which is a server that started far enough to refuse.
+    (cd "$WORK/packages/$name" && dart run flutter3d_mcp:editor_mcp)
     if [ $? -ne 64 ]; then
-      FAILED+=("$name: usage")
+      FAILED+=("$name: editor_mcp usage")
     fi
   fi
 done < <(dart run "$ROOT/tool/structure.dart" --flat-dart)

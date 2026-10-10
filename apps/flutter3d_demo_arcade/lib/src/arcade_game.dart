@@ -12,12 +12,17 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart'
     show Color, EdgeInsets, KeyEventResult, Paint;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'bot_brain.dart';
+import 'meteors.dart';
 
 part 'crafts.dart';
 part 'levels.dart';
@@ -36,6 +41,32 @@ const double cameraHeight = 20.0;
 /// How many metres of the yard the orthographic camera shows top to bottom:
 /// the whole of its 18-metre depth and a margin.
 const double viewHeight = 22.0;
+
+/// What every frame of the yard is drawn with: SMAA 1x on the finished
+/// picture (`P1`).
+///
+/// **Seen from straight above, every edge here is a long straight one** —
+/// the walls, the crates, the ship's hull — and the ones that run nearly
+/// along a row or a column of pixels are the shallow staircases SMAA is
+/// built for: it rebuilds the line behind each step from where its run ends,
+/// where FXAA guesses from a few neighbours. On the finished picture rather
+/// than left to multisampling, which a frame gives up whenever a pass reads
+/// its surface buffer (`FrameResult.antiAliasing.msaaDeclined` says when),
+/// so the edges are smooth whatever else the frame draws.
+const RenderSettings arcadeRenderSettings = RenderSettings(
+  antiAlias: AntiAliasSettings(enabled: true, method: EdgeSmoothing.smaa),
+);
+
+/// The arcade's world: no gravity, as the yard is seen from straight above
+/// and the ship and the bots fly over it. Everything in the yard — the
+/// ship's body, the bots, the meteors' sparks — reads this one.
+final WorldProperties arcadeWorld = WorldProperties(gravity: Vector3.zero());
+
+/// The dynamics the run's backend gives [world] — see `usePhysics` — in
+/// [world]'s own gravity, [arcadeWorld]'s none. On the core the bots are
+/// walked through the yard it mirrors as well.
+RigidDynamics arcadeDynamics(CollisionWorld world) =>
+    usePhysics().dynamics(world);
 
 /// A ship over a floating meteor yard, and the bots patrolling it.
 ///
@@ -57,15 +88,16 @@ const double viewHeight = 22.0;
 /// *everything* in [ArcadeGame.collisionWorld] it does not itself own — the
 /// same "against the level" contact a crate or a wall gets.
 ///
-/// **Why a bot never falls.** Its [MovementTuning.gravity] is zero and it
+/// **Why a bot never falls.** Its world ([arcadeWorld]) has no gravity and it
 /// floats far enough above the ground plane that [CharacterController]'s own
 /// ground probe never reaches it, so [CharacterController.isGrounded] stays
 /// false forever and nothing ever sets its vertical velocity. A flying
 /// enemy in a game built on a walking controller is exactly this: a body
 /// that is airborne on purpose, for good.
-final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
+final class ArcadeGame extends TransparentFlameGame
+    with KeyboardEvents, HasFixedStep {
   ArcadeGame()
-    : collisionWorld = CollisionWorld(),
+    : collisionWorld = CollisionWorld(properties: arcadeWorld),
       inputState = InputState(),
       bindings = Bindings(<InputSource, GameAction>{
         InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
@@ -81,9 +113,21 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
             GameAction.moveRight,
         InputSource.key(LogicalKeyboardKey.keyD.keyId): GameAction.moveRight,
       }) {
-    dynamics = Dynamics(world: collisionWorld, gravity: Vector3.zero());
+    dynamics = arcadeDynamics(collisionWorld);
     actorSystem = ActorSystem(world: collisionWorld, random: GameRandom(7));
-    inputBridge = FlameInputBridge(bindings: bindings, inputState: inputState);
+    inputBridge = FlameInputBridge(
+      actions: ActionMap(actions: ActionSet.common, buttons: bindings),
+      inputState: inputState,
+    );
+  }
+
+  /// The core's world, let go with the game rather than whenever the
+  /// collector gets to it.
+  @override
+  void onRemove() {
+    if (dynamics case final NativeDynamics native) native.dispose();
+    meteors?.dispose();
+    super.onRemove();
   }
 
   /// Metres per second the ship flies at full stick deflection.
@@ -126,7 +170,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// Every collider the player's or a bot's body owns, one world for both
   /// bridges — see this class's own doc comment.
   final CollisionWorld collisionWorld;
-  late final Dynamics dynamics;
+  late final RigidDynamics dynamics;
   late final ActorSystem actorSystem;
 
   /// What every input device — here, just [inputBridge] — writes into, and
@@ -157,6 +201,11 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// reported, exactly as [CollisionBridge]'s own doc says a bridge with
   /// nothing to hand over should behave.
   final ColliderRegistry _colliderComponents = ColliderRegistry();
+
+  /// Meteors coming down on the yard, from when [ArcadeGameStaging.rainMeteors]
+  /// starts them: stones that burst where their shadows grow and set the
+  /// yard alight. Null before then, and in a test that never calls it.
+  MeteorShower? meteors;
 
   /// The bots still in play. Shrinks as the ship rams them.
   final List<ActorComponent> bots = <ActorComponent>[];
@@ -274,7 +323,7 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   /// Clears the yard of bots and starts [index] of [arcadeLevels]: the
   /// ship back at [shipStart], no hits, this level's bots in their lanes.
   ///
-  /// Called from [update], between two frames, for the reason
+  /// Called from [fixedUpdate], at the top of a step, for the reason
   /// [_drainHits] gives.
   void startLevel(int index) {
     for (final bot in <ActorComponent>[...bots, ..._pendingRemovals]) {
@@ -307,22 +356,22 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
   }
 
   /// Actually removes every bot [_onShipHitBot] queued last step, and
-  /// stops the world once the run is over — called from [update], before
-  /// [super.update] starts this frame's own pass over [children].
+  /// stops the world once the run is over — called from [fixedUpdate], at
+  /// the top of the next step, before the actors and the bodies step.
   ///
   /// **Why none of this can happen from inside the collision callback
   /// itself.** [_onShipHitBot] is called *from inside*
   /// [CollisionWorld.update]'s own overlap dispatch — itself called from
-  /// inside [PhysicsStepComponent.update], itself called from inside this
-  /// same frame's [Component.updateTree] pass over [children]. Calling
-  /// [ActorSystem.remove] there would call [CollisionWorld.remove] while the
-  /// world is mid-iteration over the very list that lives in — the class of
-  /// bug [CollisionWorld.removeLater]'s own doc describes for a pickup that
-  /// collects itself — and calling a component's own [Component.removeFromParent]
-  /// there mutates [children] while [updateTree] is still iterating it.
-  /// Draining the queue here, one frame later and strictly before that
-  /// frame's own pass begins, means every removal in this method runs
-  /// between two frames rather than inside one.
+  /// inside [PhysicsStepComponent.fixedUpdate]. Calling [ActorSystem.remove]
+  /// there would call [CollisionWorld.remove] while the world is
+  /// mid-iteration over the very list that lives in — the class of bug
+  /// [CollisionWorld.removeLater]'s own doc describes for a pickup that
+  /// collects itself. Draining the queue at the top of the next step, where
+  /// nothing is iterating the world, keeps that out, and does it on the
+  /// step rather than the frame: a bot rammed in the first step of a frame
+  /// of three was stepped twice more when the queue waited for the frame.
+  /// A component's removal is Flame's to carry out at the frame; until then
+  /// the game's steps pass a component on its way out by.
   void _drainHits() {
     _pendingRemovals
       ..forEach(_removeBot)
@@ -335,22 +384,40 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
     }
   }
 
+  /// Once a frame: the stick read for the frame's steps, the steps
+  /// themselves ([HasFixedStep]), then the crafts turned to face the way
+  /// they fly. Everything that decides anything is in [fixedUpdate].
   @override
   void update(double dt) {
+    // The stick's deflection, screen-down as positive, into the forward-up
+    // convention of the axis the keys feed. Before the steps, which read it.
+    final stick = joystick;
+    if (stick != null) {
+      inputState.setStickAxis(stick.relativeDelta.x, -stick.relativeDelta.y);
+    }
+    super.update(dt);
+    _turnCrafts();
+  }
+
+  /// One step of the yard, of [step] seconds: the rams of the last step
+  /// taken out, a retry or the next level started, the ship flown, the
+  /// meteors moved and the hits they make counted.
+  ///
+  /// **In the steps, not the frame.** This was Flame's `update`, given the
+  /// frame's time: the meteors' world stepped by whatever the frame took,
+  /// the pause before the next level counted down by it, and the steppers
+  /// counting steps of their own against it. Now one clock, the game's
+  /// loop, cuts the time, and the yard plays the same at any frame rate.
+  @override
+  void fixedUpdate(double step) {
     _drainHits();
     if (_retryRequested) {
       _retryRequested = false;
       if (gameOver) startLevel(levelIndex);
     }
     if (levelCleared && !cleared) {
-      _nextLevelIn -= dt;
+      _nextLevelIn -= step;
       if (_nextLevelIn <= 0.0) startLevel(levelIndex + 1);
-    }
-    // The stick's deflection, screen-down as positive, into the forward-up
-    // convention of the axis the keys feed.
-    final stick = joystick;
-    if (stick != null) {
-      inputState.setStickAxis(stick.relativeDelta.x, -stick.relativeDelta.y);
     }
     if (!gameOver && !levelCleared) {
       final axis = inputState.moveAxis;
@@ -360,13 +427,20 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
       // the ship down the screen on W.
       shipHeading.setValues(axis.x * shipSpeed, 0.0, -axis.y * shipSpeed);
       _shipBody.velocity.setFrom(shipHeading);
-      elapsed += dt;
+      elapsed += step;
+      final shower = meteors;
+      if (shower != null) {
+        shower.step(step);
+        // A stone landing on the ship, or a fire under it, is a hit.
+        if (shower.hurts(_shipBody.position) && !ship.isFlashing) {
+          hits++;
+          ship.flash();
+        }
+      }
     } else {
       shipHeading.setZero();
       _shipBody.velocity.setZero();
     }
-    super.update(dt);
-    _turnCrafts();
   }
 
   @override
@@ -388,7 +462,10 @@ final class ArcadeGame extends TransparentFlameGame with KeyboardEvents {
 /// The player's ship: a [RigidBodyComponent] that blinks for half a second
 /// after a contact, proving the physics bridge's [CollisionBridge] actually
 /// reached Flame rather than only flutter3d's own [CollisionListener].
-final class ShipComponent extends RigidBodyComponent {
+///
+/// The blink is counted down in the game's steps, since whether the ship can
+/// be hit again depends on it, and only shown in its frames.
+final class ShipComponent extends RigidBodyComponent with FixedStepUpdate {
   ShipComponent({
     required super.body,
     required super.node,
@@ -407,13 +484,16 @@ final class ShipComponent extends RigidBodyComponent {
   bool get isFlashing => _flashRemaining > 0.0;
 
   @override
+  void fixedUpdate(double step) {
+    if (_flashRemaining > 0.0) {
+      _flashRemaining = (_flashRemaining - step).clamp(0.0, _flashDuration);
+    }
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
-    if (_flashRemaining > 0.0) {
-      _flashRemaining = (_flashRemaining - dt).clamp(0.0, _flashDuration);
-      node.visible = (_flashRemaining * _blinkRate).floor().isEven;
-    } else {
-      node.visible = true;
-    }
+    node.isVisible =
+        _flashRemaining <= 0.0 || (_flashRemaining * _blinkRate).floor().isEven;
   }
 }

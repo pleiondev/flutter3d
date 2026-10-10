@@ -11,6 +11,7 @@
 /// is, and where it was told to go.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -94,9 +95,11 @@ final class UnitType {
   final double sight;
 
   /// How much punishment one of these starts with.
+  /// In hit points (unitless).
   final double health;
 
   /// How much it takes off whatever it hits, per shot.
+  /// In hit points (unitless).
   final double damage;
 
   /// How far it can reach, in metres, measured centre to centre.
@@ -211,7 +214,9 @@ final class UnitOrder {
   const UnitOrder.moveTo(Vector3 this.goal, {this.slot}) : target = null;
 
   /// An order to go for [target] and keep shooting it.
-  UnitOrder.attack(Unit this.target) : goal = target.position, slot = null;
+  UnitOrder.attack(StrategyUnit this.target)
+    : goal = target.position,
+      slot = null;
 
   /// Where the order points, or null for one that points nowhere.
   final Vector3? goal;
@@ -229,7 +234,7 @@ final class UnitOrder {
   /// every step and a lookup per shot would be a map read in the hottest loop
   /// this genre has. The index is what [save] writes; the object is what the
   /// step holds.
-  final Unit? target;
+  final StrategyUnit? target;
 
   /// The points, written down, and nothing else — there is nothing else.
   ///
@@ -245,7 +250,7 @@ final class UnitOrder {
   /// crowd restored with orders to walk there is a crowd that empties its own
   /// camp.
   Map<String, Object?> save() => switch (target) {
-    final Unit mark => <String, Object?>{'target': mark.entity.index},
+    final StrategyUnit mark => <String, Object?>{'target': mark.entity.index},
     null => <String, Object?>{
       if (goal case final Vector3 at) 'goal': vectorOf(at),
       if (slot case final Vector3 at) 'slot': vectorOf(at),
@@ -271,10 +276,13 @@ final class UnitOrder {
 }
 
 /// One unit on the map.
-final class Unit {
+///
+/// **Named for the genre** since 1.0: `Unit` is the foundation's unit of
+/// measurement, and a public name has one home.
+final class StrategyUnit {
   /// Builds a unit of [type] standing at [position], at full health unless
   /// [health] says otherwise.
-  Unit({
+  StrategyUnit({
     required this.position,
     this.type = UnitType.worker,
     this.side = 0,
@@ -323,7 +331,7 @@ final class Unit {
   /// How fast it walks, in metres a second. Its kind's.
   double get speed => type.speed;
 
-  /// How far it uncovers the map around itself. Its kind's.
+  /// How far it uncovers the map around itself, in metres. Its kind's.
   double get sight => type.sight;
 
   /// What it is doing. Assigning a new one is how a game gives an order.
@@ -380,14 +388,14 @@ final class Unit {
   /// A factory rather than a `restore` on an existing unit, for the reason the
   /// note on [entity] gives: the crowd a snapshot describes is not the crowd
   /// the fresh map was staged with.
-  factory Unit.fromSnapshot(Map<String, Object?> from) {
+  factory StrategyUnit.fromSnapshot(Map<String, Object?> from) {
     final Vector3 at = Vector3.zero();
     from.vectorInto('at', at);
     final UnitType type = switch (from.object('type')) {
       final Map<String, Object?> row => UnitType.fromJson(row),
       null => UnitType.worker,
     };
-    return Unit(
+    return StrategyUnit(
       position: at,
       type: type,
       side: from.integer('side'),

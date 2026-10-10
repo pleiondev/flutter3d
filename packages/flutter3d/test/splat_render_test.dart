@@ -20,35 +20,34 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
 
-/// A cloud of round, opaque splats at [at], each [colour].
+/// A cloud of round, opaque splats at [at], each [color].
 SplatCloud _cloud(List<(Vector3, Vector4)> splats, {double sigma = 0.35}) {
   final n = splats.length;
-  final centres = Float32List(n * 3);
-  final colours = Float32List(n * 4);
+  final centers = Float32List(n * 3);
+  final colors = Float32List(n * 4);
   final scales = Float32List(n * 3);
   final rotations = Float32List(n * 4);
   for (var i = 0; i < n; i++) {
-    final (where, colour) = splats[i];
-    centres[i * 3] = where.x;
-    centres[i * 3 + 1] = where.y;
-    centres[i * 3 + 2] = where.z;
-    colours[i * 4] = colour.x;
-    colours[i * 4 + 1] = colour.y;
-    colours[i * 4 + 2] = colour.z;
-    colours[i * 4 + 3] = colour.w;
+    final (where, color) = splats[i];
+    centers[i * 3] = where.x;
+    centers[i * 3 + 1] = where.y;
+    centers[i * 3 + 2] = where.z;
+    colors[i * 4] = color.x;
+    colors[i * 4 + 1] = color.y;
+    colors[i * 4 + 2] = color.z;
+    colors[i * 4 + 3] = color.w;
     scales[i * 3] = sigma;
     scales[i * 3 + 1] = sigma;
     scales[i * 3 + 2] = sigma;
     rotations[i * 4 + 3] = 1.0;
   }
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
   );
@@ -61,7 +60,7 @@ Future<Uint8List> _draw(SplatCloud cloud) async {
     fallbackAlbedo: it.albedo,
     fallbackNormal: it.normal,
   );
-  renderer.addContributor(SplatContributor(cloud));
+  renderer.renderSteps.addContributor(SplatContributor(cloud));
 
   final scene = Scene()..ambientIntensity = 0.0;
   final camera = CameraNode()
@@ -75,9 +74,9 @@ Future<Uint8List> _draw(SplatCloud cloud) async {
     views: <RenderView>[RenderView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await it.device.readPixels(frame.frame);
+  final pixels = await it.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 ({int r, int g, int b}) _middle(Uint8List rgba) {
@@ -109,9 +108,9 @@ void main() {
         (Vector3.zero(), Vector4(1.0, 1.0, 1.0, 1.0)),
       ], sigma: 0.5),
     );
-    final centre = _middle(pixels);
+    final center = _middle(pixels);
     final offIndex = ((_height ~/ 2) * _width + _width ~/ 2 + 9) * 4;
-    expect(centre.r, greaterThan(pixels[offIndex] + 10));
+    expect(center.r, greaterThan(pixels[offIndex] + 10));
   });
 
   test('the near splat wins where two overlap', () async {
@@ -133,6 +132,44 @@ void main() {
       reason: 'the far splat covered the near one: $at',
     );
   });
+
+  test(
+    'the software rasteriser computes, and still sorts on the CPU',
+    () async {
+      // `H11`: the GPU sort is for a device with compute *and* the `SplatSort`
+      // stages, and this one has only the first. So its clouds stay on the
+      // sort the GPU's order is held to, and draw through the identity
+      // indices. Mutation: answer `availableOn` from `supportsCompute` alone —
+      // this device is offered the sort, and `createComputePipeline` refuses a
+      // stage it does not have.
+      final it = cpuTestDevice(width: _width, height: _height);
+      expect(it.device.features.has(DeviceFeature.compute), isTrue);
+      expect(SplatGpuSort.availableOn(it.device), isFalse);
+
+      final renderer = Renderer.create(
+        device: it.device,
+        fallbackAlbedo: it.albedo,
+        fallbackNormal: it.normal,
+      );
+      final contributor = SplatContributor(
+        _cloud(<(Vector3, Vector4)>[
+          (Vector3.zero(), Vector4(1.0, 0.0, 0.0, 1.0)),
+        ]),
+      );
+      renderer
+        ..renderSteps.addContributor(contributor)
+        ..render(
+          width: _width,
+          height: _height,
+          scene: Scene(),
+          views: <RenderView>[
+            RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 4.0)),
+          ],
+        );
+      expect(contributor.quads.sorts, 1);
+      expect(contributor.didDrawGpuOrder, isFalse);
+    },
+  );
 
   test('an empty cloud costs no draw call', () async {
     // `isActive` is asked before the pass is set up, so a cloud with nothing in
@@ -193,6 +230,6 @@ void main() {
       lessThan(2000000),
       reason: 'rebuilding 20k splats took $micros microseconds',
     );
-    expect(quads.vertexCount, cloud.count * kSplatVerticesPerSplat);
+    expect(quads.vertexCount, cloud.count * splatVerticesPerSplat);
   });
 }

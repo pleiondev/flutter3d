@@ -1,6 +1,6 @@
 /// `AnimationPlayer.rootMotionDelta`: `anim-16`'s own runtime half, reading
 /// back what `root_motion_commands.dart`'s own `ExtractRootMotion` saved
-/// under `kRootMotionExtra` — the row's own worked example, "корень стоит,
+/// under `rootMotionExtra` — the row's own worked example, "корень стоит,
 /// сумма delta за цикл = 2 м".
 ///
 ///     flutter test test/root_motion_test.dart
@@ -32,7 +32,7 @@ AnimationClip _extractedWalkCycle({
   return AnimationClip(
     name: 'walk',
     extras: <String, Object?>{
-      kRootMotionExtra: <Object?>[
+      rootMotionExtra: <Object?>[
         for (final v in realValues) List<double>.of(v),
       ],
     },
@@ -171,7 +171,7 @@ void main() {
         final cubic = AnimationClip(
           name: 'walk',
           extras: <String, Object?>{
-            kRootMotionExtra: <Object?>[
+            rootMotionExtra: <Object?>[
               <double>[0, 0, 0, 0, 0, 0, 0, 0, 0],
               <double>[0, 0, 0, 2, 0, 0, 0, 0, 0],
             ],

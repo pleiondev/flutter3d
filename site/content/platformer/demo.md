@@ -50,7 +50,7 @@ A conditional import instead of a runtime branch, because the two backends pull 
 ```dart
 // lib/src/backend_web.dart
 Future<GraphicsDevice> openDevice({required int width, required int height}) async {
-  final device = WebGlDevice.create(
+  final device = WebGlDevice.open(
     width: width,
     height: height,
     // GLSL ES 3.00, translated from `flutter3d_shaders` by

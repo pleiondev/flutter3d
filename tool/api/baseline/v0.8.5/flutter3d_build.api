@@ -1,0 +1,183 @@
+# The public API of flutter3d_build.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_build/flutter3d_build.dart
+
+final class AssetBuildReport
+  const AssetBuildReport({required this.converted, required this.skipped, required this.dependencies})
+  final List<String> converted
+  final List<String> dependencies
+  final List<String> skipped
+
+final class AssetLayout
+  AssetLayout({required this.projectRoot, AssetManifest? manifest})
+  Directory get generatedDir
+  Directory get sourcesDir
+  List<AssetPlan> plan()
+  final AssetManifest manifest
+  final Directory projectRoot
+
+final class AssetManifest
+  AssetRule? ruleFor(String relativePath)
+  const AssetManifest([this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[]])
+  factory AssetManifest.parse(String yamlText)
+  final List<AssetRule> rules
+  final List<DeviceClassBudget> classes
+  static AssetManifest readFrom(Directory projectRoot)
+  static const AssetManifest empty = AssetManifest()
+
+final class AssetPlan
+  const AssetPlan({required this.source, required this.destination, this.rule})
+  final AssetRule? rule
+  final String destination
+  final String source
+
+final class AssetRule
+  AssetRule({required this.glob, this.textures, this.mips, this.objNormals, this.lods, this.impostor = false, this.chunks, this.exclude = false})
+  final Glob glob
+  final List<double>? lods
+  final ObjNormals? objNormals
+  final TextureFamily? textures
+  final bool exclude
+  final bool impostor
+  final bool? mips
+  final int? chunks
+
+final class ConvertOptions
+  const ConvertOptions({required this.input, this.output, this.textures = TextureFamily.auto, this.mips = true, this.lods = const <double>[], this.impostor = false, this.chunks, this.classes = const <DeviceClass>[]})
+  final List<DeviceClass> classes
+  final List<double> lods
+  final String input
+  final String? output
+  final TextureFamily textures
+  final bool impostor
+  final bool mips
+  final int? chunks
+  static ConvertOptions? parse(List<String> arguments)
+
+final class DeviceClassBudget
+  DeviceClassBudget copyWith({List<double>? lods, bool? impostor, int? impostorCell, int? maxTextureSide, double? lightDifference})
+  String get stamp
+  const DeviceClassBudget({required this.deviceClass, required this.textures, this.lods, this.impostor, this.impostorCell = 64, this.lightDifference = 0.01})
+  final DeviceClass deviceClass
+  final List<double>? lods
+  final TextureBudget textures
+  final bool? impostor
+  final double lightDifference
+  final int impostorCell
+  static DeviceClassBudget presetFor(DeviceClass deviceClass)
+  static const DeviceClassBudget desktop = DeviceClassBudget(deviceClass: DeviceClass.desktop, textures: TextureBudget.desktop)
+  static const DeviceClassBudget phone = …
+  static const DeviceClassBudget web = DeviceClassBudget(deviceClass: DeviceClass.web, lods: <double>[0.5, 0.25], impostor: true, textures: TextureBudget.web, lightDifference: 0.02)
+
+final class InitStep
+  const InitStep({required this.description, this.blocked = false, this.apply})
+  final String description
+  final bool blocked
+  final void Function()? apply
+
+final class LodLevelReport
+  String toString()
+  const LodLevelReport({required this.ratio, required this.targetTriangles, required this.triangles, required this.error})
+  final double error
+  final double ratio
+  final int targetTriangles
+  final int triangles
+
+final class ManifestFormatException implements Exception
+  String toString()
+  const ManifestFormatException(this.message, this.line)
+  final String message
+  final int line
+
+typedef SixWayField = double Function(double x, double y, double z, double t);
+
+final class SixWaySheet
+  const SixWaySheet({required this.columns, required this.rows, required this.cell, required this.positive, required this.negative})
+  final Uint8List negative
+  final Uint8List positive
+  final int cell
+  final int columns
+  final int rows
+  int get height
+  int get width
+
+final class TextureFamily
+  String toString()
+  final String name
+  static TextureFamily? parse(String text)
+  static const List<TextureFamily> values = <TextureFamily>[auto, bc, etc2, universal, none]
+  static const TextureFamily auto = TextureFamily._('auto')
+  static const TextureFamily bc = TextureFamily._('bc')
+  static const TextureFamily etc2 = TextureFamily._('etc2')
+  static const TextureFamily none = TextureFamily._('none')
+  static const TextureFamily universal = TextureFamily._('universal')
+
+Future<ModelDocument> bakeImpostors(ModelDocument document, {int cell = 64, void Function(String message)? report, GraphicsDevice? device})
+
+SixWaySheet bakeSixWay({required SixWayField density, SixWayField? emission, int frames = 16, int columns = 4, int cell = 64, double extinction = 6.0})
+
+Future<void> buildAssets(BuildInput input, BuildOutputBuilder output)
+
+Future<bool> convertOne(String inputPath, String outputPath, IOSink out, IOSink err, {TextureFamily textures = TextureFamily.auto, bool mips = true, List<double> lods = const <double>[], bool impostor = false, int? chunks, int impostorCell = 64, int? maxTextureSide, List<ModelDecoder> decoders = const <ModelDecoder>[]})
+
+Future<bool> convertSplat(String inputPath, String outputPath, IOSink out, IOSink err, {int leafCapacity = 512, int grid = 8})
+
+String deviceClassDestination(String destination, DeviceClass deviceClass)
+
+List<DeviceClass> deviceClassesForTargetOS(OS? targetOS)
+
+Future<ModelDocument> encodeDocumentTextures(ModelDocument document, TextureFamily family, {bool mips = true, void Function(String message)? report})
+
+TextureFamily familyForTargetOS(OS? targetOS)
+
+AssetUriResolver fileUriResolverFor(String modelPath)
+
+ModelDocument fitDocumentTextures(ModelDocument document, int maxSide, {void Function(String message)? report})
+
+ModelDocument generateLods(ModelDocument document, List<double> ratios, {void Function(LodLevelReport level)? report})
+
+double impostorScreenFraction(List<ModelLod> lods)
+
+const String initUsage = …
+
+const int kAssetPipelineVersion = 2
+
+const int kDefaultChunkThreshold = 65536
+
+const String kFlutter3dBuildVersionConstraint = '^0.8.0'
+
+const String kGitignoreEntry = '/flutter3d_generated/'
+
+const String kHookBuildContent = …
+
+double lodScreenFraction(double ratio)
+
+int? parseChunkThreshold(String text)
+
+List<DeviceClass>? parseDeviceClasses(Object? value)
+
+List<double>? parseLodRatios(String text)
+
+List<InitStep> planInit(Directory projectRoot, {bool force = false})
+
+final Set<String> recognisedExtensions
+
+Future<AssetBuildReport> runAssetBuild(Directory projectRoot, {IOSink? log, TextureFamily textures = TextureFamily.auto, List<DeviceClass>? deviceClasses})
+
+Future<int> runConvert(List<String> arguments, {IOSink? out, IOSink? err, List<ModelDecoder> decoders = const <ModelDecoder>[]})
+
+Future<int> runInit(List<String> arguments, {IOSink? out, IOSink? err, Directory? projectRoot})
+
+SixWayField smokePuff({int seed = 1})
+
+const Set<String> splatExtensions = <String>{'.ply', '.spz'}
+
+(ModelDocument, int) splitLargeMeshes(ModelDocument document, {int threshold = kDefaultChunkThreshold})
+
+const String usage = …
+
+export package:flutter3d_core/flutter3d_core.dart show DeviceClass, deviceClassPath
+  DeviceClass
+  deviceClassPath

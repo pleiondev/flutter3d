@@ -10,7 +10,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AudioOcclusionDemo extends ShowcaseDemo {
   late final String _report;
@@ -19,7 +18,7 @@ final class AudioOcclusionDemo extends ShowcaseDemo {
   bool walking = true;
 
   late final AudioScene _audio;
-  late final SoundEmitter _bell;
+  late final AudioEmitter _bell;
   late final AudioListener _listener;
   late final MeshNode _source;
   late final MeshNode _head;
@@ -103,7 +102,7 @@ final class AudioOcclusionDemo extends ShowcaseDemo {
     _gain.set(_bell.audibleGain);
     _muffle.set(_bell.muffle);
     // A muffled bell goes dull.
-    _source.material.baseColor.setValues(
+    _source.material.baseColor = LinearColor.fromSrgb(
       0.9 - 0.45 * _bell.muffle,
       0.75 - 0.3 * _bell.muffle,
       0.3 + 0.2 * _bell.muffle,

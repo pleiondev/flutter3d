@@ -28,10 +28,12 @@
 /// lead is a draw wherever in the list it happens to fall.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'bot.dart';
 import 'economy.dart';
+import 'events.dart';
 import 'simulation.dart';
 import 'unit.dart';
 
@@ -41,6 +43,7 @@ final class MatchGoal {
   const MatchGoal({this.delivered = 400.0});
 
   /// How much a side must have brought home, in total, to win outright.
+  /// In units of resource, a count of what workers carry.
   final double delivered;
 }
 
@@ -113,6 +116,10 @@ final class Match {
   Standing _standing = const Standing.running();
 
   /// Moves the match on by [dt] seconds, and does nothing once it is over.
+  ///
+  /// What the step did goes onto the bus [publishTo] named, from inside the
+  /// step: a [UnitFired] for each of the step's shots, in the order they were
+  /// fired, and a [MatchDecided] on the step the match is decided.
   void step(double dt) {
     if (_standing.isOver) return;
     for (final Bot bot in bots) {
@@ -120,6 +127,25 @@ final class Match {
     }
     simulation.step(dt);
     _standing = _judge();
+    final bus = _bus;
+    if (bus == null) return;
+    for (final shot in simulation.shots) {
+      bus.publish(UnitFired.of(shot));
+    }
+    if (_standing.isOver) bus.publish(MatchDecided(_standing.winner));
+  }
+
+  EventRegistry? _bus;
+
+  /// Publishes what each step does onto [bus] — [UnitFired] and
+  /// [MatchDecided] — until the registration is cancelled: the run's
+  /// `publishTo`, as every genre's run has. One bus at a time; a second call
+  /// moves the events to the new one.
+  Registration publishTo(EventRegistry bus) {
+    _bus = bus;
+    return Registration(() {
+      if (identical(_bus, bus)) _bus = null;
+    });
   }
 
   /// Which of the three endings this is, asked in the order they beat each
@@ -171,7 +197,7 @@ final class Match {
 
     for (final int mortal in standing) {
       if (_makesUnits(simulation, mortal)) continue;
-      for (final Unit unit in simulation.units) {
+      for (final StrategyUnit unit in simulation.units) {
         if (unit.side != mortal && unit.type.isArmed) return true;
       }
     }
@@ -215,7 +241,7 @@ final class Match {
 
   /// Whether [side] has anything left to act with in [simulation].
   static bool _canAct(StrategySimulation simulation, int side) {
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (unit.side == side) return true;
     }
     return _makesUnits(simulation, side);
@@ -288,7 +314,7 @@ final class Match {
     for (final ResourceNode node in simulation.resources) {
       if (!node.isEmpty) return true;
     }
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if ((unit.job?.carried ?? 0.0) > 0.0) return true;
     }
     return false;

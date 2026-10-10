@@ -17,6 +17,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -40,16 +42,20 @@ const int _size = 32;
 Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
   final (:pass, :target, :draw) = _oneTriangle(device);
 
-  if (!device.supportsWireframe) {
+  if (!device.features.has(DeviceFeature.wireframe)) {
     var refused = false;
     try {
       pass.setPolygonMode(PolygonMode.line);
       draw();
       pass.submit();
-    } on UnsupportedError {
+    } on UnsupportedCapability {
       // Deliberately not submitted, for the reason
       // `checkUniformMemberMismatchIsRefused` gives: a backend is entitled to
       // release the pass on the way out.
+      refused = true;
+    } on UnsupportedError {
+      // The same, from a backend that refuses with a bare UnsupportedError
+      // rather than the UnsupportedCapability the contract asks for.
       refused = true;
     }
     require(
@@ -57,7 +63,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
       'supportsWireframe is false and PolygonMode.line was accepted anyway. A '
       'backend that cannot draw edges must throw an UnsupportedError rather '
       'than fill the triangles, which looks exactly like the wireframe '
-      'setting having no effect. See GraphicsDevice.supportsWireframe.',
+      'setting having no effect. See DeviceFeature.wireframe.',
     );
     return;
   }
@@ -83,7 +89,7 @@ Future<void> checkWireframeIsDrawnOrRefused(GraphicsDevice device) async {
     'supportsWireframe is true and PolygonMode.line filled the triangle: '
     '$painted pixels came back where an outline is about ninety. A backend '
     'that answers true must draw edges; one that cannot must answer false and '
-    'throw. See GraphicsDevice.supportsWireframe.',
+    'throw. See DeviceFeature.wireframe.',
   );
 }
 
@@ -112,13 +118,16 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
       pass.setPrimitiveType(type);
       draw();
       pass.submit();
+    } on UnsupportedCapability {
+      refused = true;
     } on UnsupportedError {
       refused = true;
     } on Object catch (error) {
-      throw ConformanceFailure(
+      throw ConformanceFailureException(
         'drawing PrimitiveType.${type.name} failed with '
         '${error.runtimeType}: $error. A backend that cannot assemble a '
-        'primitive type refuses with an UnsupportedError — a caller deciding '
+        'primitive type refuses with an UnsupportedCapability (or at least an '
+        'UnsupportedError) — a caller deciding '
         'between two ways of drawing cannot act on anything else. See '
         'PassEncoder.setPrimitiveType.',
       );
@@ -186,7 +195,7 @@ _oneTriangle(GraphicsDevice device) {
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: _size,
       height: _size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -234,9 +243,8 @@ _oneTriangle(GraphicsDevice device) {
 /// whichever end of the target a backend calls row zero — and these two checks
 /// are about how much was drawn, never about where.
 Future<int> _paintedPixels(GraphicsDevice device, TextureHandle target) async {
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   return <int>[
     for (var i = 0; i < bytes.length; i += 4)
       if (bytes[i] > 64 || bytes[i + 1] > 64 || bytes[i + 2] > 64) i,

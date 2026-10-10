@@ -12,46 +12,70 @@
 library;
 
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
 
+import 'webgl_buffers.dart';
 import 'webgl_device.dart';
 import 'webgl_formats.dart';
 import 'webgl_framebuffer.dart';
 import 'webgl_shaders.dart';
 
 /// One pass, recorded straight into the context. See the library note above.
-final class WebGlEncoder implements CommandEncoder {
+final class WebGlEncoder extends PassEncoder with CommandEncoder {
   WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
-    : _targetHeight = descriptor.colors.isNotEmpty
+    : _descriptor = descriptor,
+      _targetHeight = descriptor.colors.isNotEmpty
           ? _levelSize(
               descriptor.colors.first.texture.height,
               descriptor.colors.first.mipLevel,
             )
-          : (descriptor.depth?.texture.height ?? 0),
+          : _levelSize(
+              descriptor.depth?.texture.height ?? 0,
+              descriptor.depth?.mipLevel ?? 0,
+            ),
       _targetWidth = descriptor.colors.isNotEmpty
           ? _levelSize(
               descriptor.colors.first.texture.width,
               descriptor.colors.first.mipLevel,
             )
-          : (descriptor.depth?.texture.width ?? 0) {
+          : _levelSize(
+              descriptor.depth?.texture.width ?? 0,
+              descriptor.depth?.mipLevel ?? 0,
+            ),
+      _depthReadOnly = descriptor.depth?.depthReadOnly ?? false,
+      _stencilReadOnly = descriptor.depth?.stencilReadOnly ?? false {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
+
+    // The 1.0 pass state starts where the contract says, before any clear —
+    // `clearBufferfv` writes through the colour mask, so a mask the last
+    // pass left would clear only some channels. Context state, all three,
+    // like the blend constant below.
+    _gl
+      ..colorMask(true, true, true, true)
+      ..disable(web.WebGLRenderingContext.POLYGON_OFFSET_FILL)
+      ..polygonOffset(0, 0);
+    if (_device.features.has(DeviceFeature.depthClamp)) {
+      _gl.disable(webglDepthClamp);
+    }
 
     final buffers = _attachments;
     for (var i = 0; i < descriptor.colors.length; i++) {
       final color = descriptor.colors[i];
       final attachment = web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i;
-      attachToFramebuffer(
-        _gl,
-        web.WebGLRenderingContext.FRAMEBUFFER,
+      _attachOrFail(
         attachment,
         color.texture,
         face: color.face,
         mipLevel: color.mipLevel,
+        layer: color.layer,
       );
       buffers.add(attachment);
       _resolves.add(color.resolveTexture);
@@ -86,20 +110,31 @@ final class WebGlEncoder implements CommandEncoder {
 
     final depth = descriptor.depth;
     if (depth != null) {
-      attachToFramebuffer(
-        _gl,
-        web.WebGLRenderingContext.FRAMEBUFFER,
-        web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT,
+      // A depth-only format — `d16UNormInt`, `d32Float` — attaches as depth
+      // alone. On the combined point it is an incomplete framebuffer, which
+      // is every draw dropped.
+      final point = depth.texture.format.hasStencil
+          ? web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT
+          : web.WebGLRenderingContext.DEPTH_ATTACHMENT;
+      _attachOrFail(
+        point,
         depth.texture,
+        face: depth.face,
+        mipLevel: depth.mipLevel,
+        layer: depth.layer,
       );
       if (depth.texture.storageMode == StorageMode.deviceTransient) {
-        _invalidated.add(web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT);
+        _invalidated.add(point);
       }
       // Depth must be writable for a clear to land, whatever the pass sets
       // afterwards. Not cleared at all when the pass loads it — `R8`: a
       // texture keeps what was drawn into it, so loading is doing nothing.
-      _gl.depthMask(true);
-      if (depth.loadAction == LoadAction.clear) {
+      //
+      // **Read-only depth is honoured, not ignored**: no clear (the contract
+      // ignores the load action then) and a mask that stays off whatever
+      // `setDepthWrite` asks, so the pass may sample the same texture.
+      _gl.depthMask(!_depthReadOnly);
+      if (!_depthReadOnly && depth.loadAction == LoadAction.clear) {
         _gl.clearDepth(depth.clearValue);
         _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
       }
@@ -108,16 +143,17 @@ final class WebGlEncoder implements CommandEncoder {
       // left — the contract says so, and here the setters are context state
       // that would otherwise carry straight over. The mask goes back to every
       // bit *before* the clear, for the same reason `depthMask(true)` is
-      // above it: a clear lands only through the write mask.
+      // above it: a clear lands only through the write mask. A read-only
+      // stencil gets a mask of nothing instead, and keeps it.
       if (depth.texture.format.hasStencil) {
-        _gl.stencilMask(0xFF);
+        _gl.stencilMask(_stencilReadOnly ? 0 : 0xFF);
         _gl.stencilFunc(web.WebGLRenderingContext.ALWAYS, 0, 0xFF);
         _gl.stencilOp(
           web.WebGLRenderingContext.KEEP,
           web.WebGLRenderingContext.KEEP,
           web.WebGLRenderingContext.KEEP,
         );
-        if (depth.stencilLoadAction == LoadAction.clear) {
+        if (!_stencilReadOnly && depth.stencilLoadAction == LoadAction.clear) {
           _gl.clearStencil(depth.stencilClearValue);
           _gl.clear(web.WebGLRenderingContext.STENCIL_BUFFER_BIT);
         }
@@ -135,7 +171,8 @@ final class WebGlEncoder implements CommandEncoder {
       _fail(
         'render pass target is not drawable: $status. '
         '${descriptor.colors.length} colour attachment(s)'
-        '${descriptor.depth != null ? ' and a depth attachment' : ''}. '
+        '${descriptor.depth != null ? ' and a depth attachment' : ''}'
+        '${_attachmentLabels(descriptor)}. '
         'A format the engine renders to may not be colour-renderable here — '
         'RGBA16F needs EXT_color_buffer_float.',
       );
@@ -187,6 +224,10 @@ final class WebGlEncoder implements CommandEncoder {
     // scissor per tile.
     _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
 
+    // Off at every pass's start, as `setAlphaToCoverage` promises: it is
+    // global state, and a pass of leaves left it on for the bloom after it.
+    _gl.disable(web.WebGLRenderingContext.SAMPLE_ALPHA_TO_COVERAGE);
+
     // Depth testing follows the attachment rather than being switched on for
     // every pass. Without a depth buffer GL specifies the test as passing
     // always, so leaving it enabled was harmless and dishonest; a pass that has
@@ -205,6 +246,58 @@ final class WebGlEncoder implements CommandEncoder {
     } else {
       _gl.disable(web.WebGLRenderingContext.STENCIL_TEST);
     }
+
+    // The pass's first timestamp, last of all its setup: what it times is
+    // the pass's own work, as WebGPU's beginning-of-pass write does.
+    _writeTimestamp(descriptor.timestampWrites?.beginningOfPassIndex);
+  }
+
+  /// What the pass was opened with: the formats `executeBundles` holds a
+  /// bundle to, the query sets the queries write.
+  final RenderPassDescriptor _descriptor;
+
+  /// `DepthTarget.depthReadOnly` and `stencilReadOnly`, held for the whole
+  /// pass: every later write mask is ANDed with them.
+  final bool _depthReadOnly;
+  final bool _stencilReadOnly;
+
+  /// Attaches through [attachToFramebuffer], tearing the pass down if the
+  /// attachment names a layer the texture does not have.
+  void _attachOrFail(
+    int attachment,
+    TextureHandle texture, {
+    int face = 0,
+    int mipLevel = 0,
+    int layer = 0,
+  }) {
+    try {
+      attachToFramebuffer(
+        _gl,
+        web.WebGLRenderingContext.FRAMEBUFFER,
+        attachment,
+        texture,
+        face: face,
+        mipLevel: mipLevel,
+        layer: layer,
+      );
+    } on ArgumentError {
+      _release();
+      rethrow;
+    }
+  }
+
+  /// `queryCounterEXT` into query [index] of the pass's timestamp set, when
+  /// the descriptor named one.
+  void _writeTimestamp(int? index) {
+    final writes = _descriptor.timestampWrites;
+    final timer = _device.timerQuery;
+    if (writes == null || index == null || timer == null) return;
+    final queries = webglQueriesOf(writes.querySet);
+    if (index < 0 || index >= queries.queries.length) {
+      _fail('timestamp index $index is outside ${writes.querySet}');
+    }
+    timer.queryCounterEXT(queries.queries[index]!, webglTimestampTarget);
+    queries.written.add(index);
   }
 
   StencilState _stencilFront = StencilState.disabled;
@@ -255,7 +348,7 @@ final class WebGlEncoder implements CommandEncoder {
       stencilOperationToGl(state.depthFailOp),
       stencilOperationToGl(state.passOp),
     );
-    _gl.stencilMaskSeparate(target, state.writeMask);
+    _gl.stencilMaskSeparate(target, _stencilReadOnly ? 0 : state.writeMask);
   }
 
   final WebGlDevice _device;
@@ -389,20 +482,14 @@ final class WebGlEncoder implements CommandEncoder {
   /// says so; quietly filling would show a solid model to somebody who asked
   /// for a wireframe and left them to wonder.
   ///
-  /// An [UnsupportedError] and not the [StateError] every other refusal here
-  /// raises, because this is the one that a caller asked about first: it is the
-  /// answer to `supportsWireframe` being false, and the type is what lets a
-  /// caller catch this and draw lines instead without also swallowing a broken
-  /// frame. See `GraphicsDevice.supportsWireframe`.
+  /// An [UnsupportedCapability] naming `DeviceFeature.wireframe`, and not
+  /// the [StateError] a fault raises, because this is the one that a caller
+  /// asked about first: the type is what lets a caller catch this and draw
+  /// lines instead without also swallowing a broken frame. Since 1.0 the pass
+  /// survives it, as it survives every capability refusal: nothing reached
+  /// the driver, and the caller may go on and submit.
   @override
-  void setPolygonMode(PolygonMode mode) {
-    if (canDrawPolygonMode(mode)) return;
-    _refuse(
-      'WebGL2 cannot draw PolygonMode.line: OpenGL ES has no glPolygonMode. '
-      'Wireframe needs line primitives and an index buffer to match, which is '
-      'a decision for the renderer.',
-    );
-  }
+  void setPolygonMode(PolygonMode mode) => webglGatePolygonMode(mode);
 
   @override
   void setCullMode(CullMode mode) {
@@ -420,7 +507,15 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.frontFace(windingOrderToGl(order));
 
   @override
-  void setDepthWrite(bool enabled) => _gl.depthMask(enabled);
+  void setDepthWrite({required bool enabled}) =>
+      _gl.depthMask(enabled && !_depthReadOnly);
+
+  /// `SAMPLE_ALPHA_TO_COVERAGE` — `P7`: in a pass of one sample GL turns
+  /// coverage into nothing, which is what the interface promises.
+  @override
+  void setAlphaToCoverage({required bool enabled}) => enabled
+      ? _gl.enable(web.WebGLRenderingContext.SAMPLE_ALPHA_TO_COVERAGE)
+      : _gl.disable(web.WebGLRenderingContext.SAMPLE_ALPHA_TO_COVERAGE);
 
   @override
   void setDepthCompare(CompareFunction compare) =>
@@ -438,8 +533,13 @@ final class WebGlEncoder implements CommandEncoder {
   /// pass after weighted blended transparency would otherwise inherit the
   /// revealage target's equation on draw buffer one, since here the state
   /// belongs to the context rather than to the pass.
+  ///
+  /// Min and max are core here; a dual-source factor needs
+  /// `WEBGL_blend_func_extended` and is refused without it, before anything
+  /// reaches the context.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
+    webglGateBlend(_device, state);
     final indexed = _device.drawBuffersIndexed;
     if (attachment != 0 && indexed != null) {
       if (state == null) {
@@ -674,6 +774,7 @@ final class WebGlEncoder implements CommandEncoder {
     VertexFormat.float32x2 ||
     VertexFormat.float32x3 ||
     VertexFormat.float32x4 => null,
+    _ => null,
   };
 
   /// Attribute locations carrying a non-zero divisor, wherever they were set.
@@ -716,23 +817,8 @@ final class WebGlEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
-    // `gfx-92n`: a block the compiled stage dropped is refused here, before
-    // anything reaches the driver — binding one is a native crash on Metal.
-    if (!shader.mayBindBlock(blockName)) return false;
-    final program = _program;
-    if (program == null) return false;
-    final block = program.blocks[blockName];
-    // False rather than throwing, exactly as the contract says: a block the
-    // compiler dropped because nothing read it is not an error. And false for
-    // a block this stage does not declare, even when the other one does: the
-    // contract asks of the stage, and Impeller and WebGPU answer so.
-    if (block == null ||
-        !(shader.backend as WebGlShader)
-            .declaredIn(_gl)
-            .blocks
-            .contains(blockName)) {
-      return false;
-    }
+    final block = _declaredBlock(shader, blockName);
+    if (block == null) return false;
 
     final data = Float32List(block.sizeInBytes ~/ 4);
     members.forEach((String name, Float32List values) {
@@ -763,19 +849,45 @@ final class WebGlEncoder implements CommandEncoder {
       }
       data.setRange(offset ~/ 4, offset ~/ 4 + values.length, values);
     });
+    _uploadBlock(block, blockName, data.toJS);
+    return true;
+  }
 
+  /// The block [blockName] of the bound program when [shader] declares it,
+  /// or null for the answer the contract makes false.
+  WebGlBlock? _declaredBlock(ShaderHandle shader, String blockName) {
+    // `gfx-92n`: a block the compiled stage dropped is refused here, before
+    // anything reaches the driver — binding one is a native crash on Metal.
+    if (!shader.mayBindBlock(blockName)) return null;
+    final block = _program?.blocks[blockName];
+    // False rather than throwing, exactly as the contract says: a block the
+    // compiler dropped because nothing read it is not an error. And false for
+    // a block this stage does not declare, even when the other one does: the
+    // contract asks of the stage, and Impeller and WebGPU answer so.
+    if (block == null ||
+        !(shader.backend as WebGlShader)
+            .declaredIn(_gl)
+            .blocks
+            .contains(blockName)) {
+      return null;
+    }
+    return block;
+  }
+
+  /// A fresh UBO holding [data], on [block]'s own binding point.
+  void _uploadBlock(WebGlBlock block, String blockName, JSAny data) {
     final ubo = _gl.createBuffer();
     _gl.bindBuffer(web.WebGL2RenderingContext.UNIFORM_BUFFER, ubo);
     _gl.bufferData(
       web.WebGL2RenderingContext.UNIFORM_BUFFER,
-      data.toJS,
+      data,
       web.WebGLRenderingContext.STREAM_DRAW,
     );
     // **The block's own index as its binding point**, not the next number in
     // this draw. The program keeps a block's binding until told otherwise, so
     // numbering per draw let a block this draw did not bind read the buffer
     // another block had been handed at its old number.
-    _gl.uniformBlockBinding(program.program, block.index, block.index);
+    _gl.uniformBlockBinding(_program!.program, block.index, block.index);
     _gl.bindBufferBase(
       web.WebGL2RenderingContext.UNIFORM_BUFFER,
       block.index,
@@ -783,6 +895,33 @@ final class WebGlEncoder implements CommandEncoder {
     );
     _uniformBuffers.add(ubo);
     _boundBlocks.add(blockName);
+  }
+
+  /// [bytes] as the block's whole contents, laid out as the linked program
+  /// reports it (std140 for the engine's bundles), zero-padded to the
+  /// block's size. Longer than the block is a mistake about its layout and
+  /// throws, as a member past the end does in [bindUniformBlock].
+  @override
+  bool bindUniformBytes(ShaderHandle shader, String blockName, ByteData bytes) {
+    _device.features.require(
+      DeviceFeature.uniformBytes,
+      backend: webglBackendName,
+    );
+    final block = _declaredBlock(shader, blockName);
+    if (block == null) return false;
+    if (bytes.lengthInBytes > block.sizeInBytes) {
+      _fail(
+        'uniform block "$blockName" is ${block.sizeInBytes} bytes and was '
+        'handed ${bytes.lengthInBytes}',
+      );
+    }
+    final data = Uint8List(block.sizeInBytes)
+      ..setRange(
+        0,
+        bytes.lengthInBytes,
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      );
+    _uploadBlock(block, blockName, data.toJS);
     return true;
   }
 
@@ -793,8 +932,11 @@ final class WebGlEncoder implements CommandEncoder {
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
-    SamplerOptions? sampler,
+    SamplerDescriptor? sampler,
   }) {
+    // Gated before the slot is looked at: a refusal names the sampler's
+    // feature whatever slot it was aimed at.
+    webglGateSampler(_device, sampler);
     if (!shader.mayBindSampler(slot)) return false;
     final program = _program;
     if (program == null) return false;
@@ -818,7 +960,7 @@ final class WebGlEncoder implements CommandEncoder {
     _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + declared.unit);
     _gl.bindTexture(backend.target, backend.texture);
 
-    final options = sampler ?? SamplerOptions.linearRepeat;
+    final options = sampler ?? SamplerDescriptor.linearRepeat;
     void set(int name, int value) =>
         _gl.texParameteri(backend.target, name, value);
     set(
@@ -843,13 +985,52 @@ final class WebGlEncoder implements CommandEncoder {
     // taps the first one asked for. Skipped entirely where the extension is
     // absent — the enum is unknown to the context then, and setting it would
     // be INVALID_ENUM on every draw.
-    final maxAnisotropy = _device.maxAnisotropy;
+    final maxAnisotropy = _device.limits.maxSamplerAnisotropy;
     if (maxAnisotropy > 1) {
       _gl.texParameterf(
         backend.target,
         web.EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT,
         options.anisotropy.clamp(1, maxAnisotropy).toDouble(),
       );
+    }
+    // The third axis, for the one target that has one.
+    if (backend.target == web.WebGL2RenderingContext.TEXTURE_3D) {
+      set(
+        web.WebGL2RenderingContext.TEXTURE_WRAP_R,
+        addressModeToGl(options.depthAddressMode),
+      );
+    }
+    // Comparison and level clamps: texture state too, so set when asked for
+    // and put back to GL's defaults by the next plain bind — only then, so
+    // every sampler bound before 1.0 issues exactly the calls it always did.
+    if (options.usesExtendedState || backend.extendedSampling) {
+      final compare = options.compare;
+      set(
+        web.WebGL2RenderingContext.TEXTURE_COMPARE_MODE,
+        compare == null
+            ? web.WebGLRenderingContext.NONE
+            : web.WebGL2RenderingContext.COMPARE_REF_TO_TEXTURE,
+      );
+      if (compare != null) {
+        set(
+          web.WebGL2RenderingContext.TEXTURE_COMPARE_FUNC,
+          compareFunctionToGl(compare),
+        );
+      }
+      _gl
+        ..texParameterf(
+          backend.target,
+          web.WebGL2RenderingContext.TEXTURE_MIN_LOD,
+          options.lodMinClamp,
+        )
+        ..texParameterf(
+          backend.target,
+          web.WebGL2RenderingContext.TEXTURE_MAX_LOD,
+          // GL's own default is 1000; thirty-two, the contract's "no clamp",
+          // is past every chain a texture can have, so the two agree.
+          options.lodMaxClamp,
+        );
+      backend.extendedSampling = options.usesExtendedState;
     }
 
     _boundSamplers.add(slot);
@@ -890,8 +1071,17 @@ final class WebGlEncoder implements CommandEncoder {
   }
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
     if (instanceCount <= 0) return;
+    // WebGL2 says where a window starts as a byte offset into the bound
+    // buffer, so the start is added to the one the binding already carries.
+    final offset =
+        _indexOffset + window.first * (_indexType == IndexType.int16 ? 2 : 4);
     _clearWhatWasNotBound();
     if (instanceCount == 1) {
       // Not `drawElementsInstanced` with a count of one. They are specified to
@@ -901,19 +1091,25 @@ final class WebGlEncoder implements CommandEncoder {
       // driver disagrees with the specification.
       _gl.drawElements(
         _primitive,
-        _indexCount,
+        window.count,
         indexTypeToGl(_indexType),
-        _indexOffset,
+        offset,
       );
     } else {
       _gl.drawElementsInstanced(
         _primitive,
-        _indexCount,
+        window.count,
         indexTypeToGl(_indexType),
-        _indexOffset,
+        offset,
         instanceCount,
       );
     }
+    _afterDraw();
+  }
+
+  /// What every draw ends with: the divisors and the per-instance arrays put
+  /// back. See the note inside.
+  void _afterDraw() {
     // **Divisors go back here, not in `clearBindings`.** They are state of an
     // attribute location: they survive the draw, the buffer, the program and
     // the pass, so an ordinary draw that follows an instanced one reads one
@@ -965,7 +1161,7 @@ final class WebGlEncoder implements CommandEncoder {
     if (program == null) return;
     for (final MapEntry(key: name, value: block) in program.blocks.entries) {
       if (_boundBlocks.contains(name)) continue;
-      _device.reportUnbound('uniform block "$name"');
+      _device.reportUnbound(_placed('uniform block "$name"'));
       final zero = _gl.createBuffer();
       _gl.bindBuffer(web.WebGL2RenderingContext.UNIFORM_BUFFER, zero);
       _gl.bufferData(
@@ -984,20 +1180,15 @@ final class WebGlEncoder implements CommandEncoder {
     for (final MapEntry(key: name, value: sampler)
         in program.samplers.entries) {
       if (_boundSamplers.contains(name)) continue;
-      _device.reportUnbound('sampler "$name"');
+      _device.reportUnbound(_placed('sampler "$name"'));
       _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + sampler.unit);
-      _gl.bindTexture(
-        sampler.cube
-            ? web.WebGLRenderingContext.TEXTURE_CUBE_MAP
-            : web.WebGLRenderingContext.TEXTURE_2D,
-        null,
-      );
+      _gl.bindTexture(sampler.target, null);
     }
     final layout = program.layout;
     if (layout != null) {
       for (var slot = 0; slot < layout.buffers.length; slot++) {
         if (!_boundSlots.contains(slot)) {
-          _device.reportUnbound('vertex slot $slot');
+          _device.reportUnbound(_placed('vertex slot $slot'));
         }
       }
     }
@@ -1015,6 +1206,10 @@ final class WebGlEncoder implements CommandEncoder {
         'a WebGlEncoder is one pass, not a reusable object',
       );
     }
+    // A query left open ends with the pass, as GL would otherwise carry it
+    // into the next one; then the pass's closing timestamp.
+    if (_occlusionOpen) endOcclusionQuery();
+    _writeTimestamp(_descriptor.timestampWrites?.endOfPassIndex);
     // Resolve any multisampled attachment into the texture that was named for
     // it. On flutter_gpu this is `StoreAction.multisampleResolve` and the
     // driver does it at pass end; here it is an explicit blit, which is the
@@ -1112,6 +1307,19 @@ final class WebGlEncoder implements CommandEncoder {
     _framebuffer = null;
   }
 
+  /// The labels `GraphicsDevice.setLabel` gave [descriptor]'s attachments,
+  /// as a clause for a message, or nothing when none has one.
+  String _attachmentLabels(RenderPassDescriptor descriptor) {
+    final labels = <String>[
+      for (final color in descriptor.colors)
+        if (_device.labelOf(color.texture) case final String label) '"$label"',
+      if (descriptor.depth case final depth?)
+        if (_device.labelOf(depth.texture) case final String label)
+          '"$label" (depth)',
+    ];
+    return labels.isEmpty ? '' : ' (${labels.join(', ')})';
+  }
+
   /// Tears the pass down, then throws.
   ///
   /// Every throw out of an encoder ends the pass — nothing resumes one — but
@@ -1120,22 +1328,544 @@ final class WebGlEncoder implements CommandEncoder {
   /// made, once per retry. Routing the encoder's own throw sites through here
   /// makes the cleanup a property of failing rather than a thing each site
   /// remembers.
+  ///
+  /// The message says where in the pass it happened ([_where]), since WebGL2
+  /// has no debug output of its own to say it.
   Never _fail(String message) {
     _release();
-    throw StateError(message);
+    final where = _where;
+    throw StateError(where == null ? message : '$message ($where)');
   }
 
-  /// [_fail] for the one kind of failure that is not a fault: something this
-  /// backend does not have.
-  ///
-  /// `UnsupportedError` rather than `StateError`, because the caller that meets
-  /// this asked `supportsWireframe` first and is choosing between two ways of
-  /// drawing. A `catch` that cannot tell "this backend will not" from "this
-  /// frame went wrong" is not a decision anybody can act on, which is why
-  /// `GraphicsDevice.supportsWireframe` names the type and the conformance
-  /// check `wireframe is drawn as edges or refused, never filled` catches it.
-  Never _refuse(String message) {
-    _release();
-    throw UnsupportedError(message);
+  // ------------------------------------------------------------------------
+  // 1.0: debug groups and markers.
+  //
+  // **WebGL2 has no `KHR_debug`**, so no browser tool and no frame capture
+  // sees these: there is no call to hand them to. They are kept for this
+  // backend's own words instead — a pass that fails, and a slot a draw left
+  // unbound, say which group was open and which marker came last — and a
+  // `RecordingDevice` over this device writes them into its trace, as it does
+  // for every backend.
+  // ------------------------------------------------------------------------
+
+  /// The groups open now, outermost first.
+  final List<String> _groups = <String>[];
+
+  /// The last marker [insertDebugMarker] set, since the last group opened or
+  /// closed.
+  String? _marker;
+
+  @override
+  void pushDebugGroup(String label) {
+    _groups.add(label);
+    _marker = null;
   }
+
+  /// Closes the innermost group. One more pop than pushes does nothing, as
+  /// the backends with a debug API forgive it too.
+  @override
+  void popDebugGroup() {
+    if (_groups.isNotEmpty) _groups.removeLast();
+    _marker = null;
+  }
+
+  @override
+  void insertDebugMarker(String label) => _marker = label;
+
+  /// Where in the pass this is, for a message — the pass's label, the open
+  /// groups and the last marker, joined — or null when none of them is set.
+  String? get _where {
+    final parts = <String>[
+      if (_descriptor.label case final String label) 'pass "$label"',
+      if (_groups.isNotEmpty) 'in ${_groups.map((g) => '"$g"').join(' > ')}',
+      if (_marker case final String marker) 'after "$marker"',
+    ];
+    return parts.isEmpty ? null : parts.join(', ');
+  }
+
+  /// [what], with where in the pass it happened when anything says so.
+  String _placed(String what) => switch (_where) {
+    null => what,
+    final where => '$what ($where)',
+  };
+
+  // ------------------------------------------------------------------------
+  // 1.0. Every member gates on its feature before it looks at anything it was
+  // handed, and a refusal leaves the pass as it was: nothing reached the
+  // context, and the caller may go on drawing and submit. That is the one
+  // way these differ from [_fail], which is for a pass that went wrong.
+  // ------------------------------------------------------------------------
+
+  /// A byte offset into the bound index buffer for the window's first index.
+  int _windowOffset(int first) =>
+      _indexOffset + first * (_indexType == IndexType.int16 ? 2 : 4);
+
+  /// [draw] itself with a zero base vertex and first instance; otherwise
+  /// `WEBGL_draw_instanced_base_vertex_base_instance`, called by name since
+  /// `package:web` has no binding for it.
+  @override
+  void drawIndexed(IndexedDraw draw) {
+    webglGateIndexedDraw(_device, draw);
+    if (!draw.usesBaseVertexOrInstance) {
+      this.draw(
+        instanceCount: draw.instanceCount,
+        firstIndex: draw.firstIndex,
+        indexCount: draw.indexCount,
+      );
+      return;
+    }
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: draw.firstIndex,
+      indexCount: draw.indexCount,
+    );
+    if (draw.instanceCount <= 0) return;
+    _clearWhatWasNotBound();
+    _device.baseVertexBaseInstanceExtension!.callMethodVarArgs<JSAny?>(
+      'drawElementsInstancedBaseVertexBaseInstanceWEBGL'.toJS,
+      <JSAny?>[
+        _primitive.toJS,
+        window.count.toJS,
+        indexTypeToGl(_indexType).toJS,
+        _windowOffset(window.first).toJS,
+        draw.instanceCount.toJS,
+        draw.baseVertex.toJS,
+        draw.firstInstance.toJS,
+      ],
+    );
+    _afterDraw();
+  }
+
+  /// One `multiDrawElementsInstancedWEBGL` where `WEBGL_multi_draw` was
+  /// granted and no draw needs a base vertex or instance; a loop of
+  /// [drawIndexed] otherwise, which the contract allows.
+  @override
+  void multiDraw(List<IndexedDraw> draws) {
+    _device.features.require(
+      DeviceFeature.multiDraw,
+      backend: webglBackendName,
+    );
+    for (final draw in draws) {
+      webglGateIndexedDraw(_device, draw);
+    }
+    if (draws.isEmpty) return;
+    final extension = _device.multiDrawExtension;
+    if (extension == null ||
+        draws.any((IndexedDraw d) => d.usesBaseVertexOrInstance)) {
+      draws.forEach(drawIndexed);
+      return;
+    }
+    final windows = <({int first, int count})>[
+      for (final draw in draws)
+        indexWindow(
+          _indexCount,
+          firstIndex: draw.firstIndex,
+          indexCount: draw.indexCount,
+        ),
+    ];
+    _clearWhatWasNotBound();
+    extension.multiDrawElementsInstancedWEBGL(
+      _primitive,
+      Int32List.fromList(<int>[for (final w in windows) w.count]).toJS,
+      0,
+      indexTypeToGl(_indexType),
+      Int32List.fromList(<int>[
+        for (final w in windows) _windowOffset(w.first),
+      ]).toJS,
+      0,
+      Int32List.fromList(<int>[
+        for (final draw in draws)
+          draw.instanceCount < 0 ? 0 : draw.instanceCount,
+      ]).toJS,
+      0,
+      draws.length,
+    );
+    _afterDraw();
+  }
+
+  @override
+  void multiDrawIndirect(
+    StorageBuffer arguments,
+    int drawCount, {
+    int offsetInBytes = 0,
+    StorageBuffer? countBuffer,
+    int countOffsetInBytes = 0,
+  }) => webglRefuseIndirect(DeviceFeature.multiDrawIndirect);
+
+  @override
+  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) =>
+      webglRefuseIndirect(DeviceFeature.indirectDraw);
+
+  /// `drawArrays`, `drawArraysInstanced`, or — for a first instance — the
+  /// base-instance extension's `drawArraysInstancedBaseInstanceWEBGL`.
+  @override
+  void drawNonIndexed({
+    required int vertexCount,
+    int firstVertex = 0,
+    int instanceCount = 1,
+    int firstInstance = 0,
+  }) {
+    webglGateNonIndexed(_device, firstInstance);
+    if (vertexCount < 0 || firstVertex < 0) {
+      throw RangeError(
+        'a draw of $vertexCount vertices from $firstVertex counts backwards',
+      );
+    }
+    if (instanceCount <= 0 || vertexCount == 0) return;
+    _clearWhatWasNotBound();
+    if (firstInstance != 0) {
+      _device.baseVertexBaseInstanceExtension!.callMethodVarArgs<JSAny?>(
+        'drawArraysInstancedBaseInstanceWEBGL'.toJS,
+        <JSAny?>[
+          _primitive.toJS,
+          firstVertex.toJS,
+          vertexCount.toJS,
+          instanceCount.toJS,
+          firstInstance.toJS,
+        ],
+      );
+    } else if (instanceCount == 1) {
+      _gl.drawArrays(_primitive, firstVertex, vertexCount);
+    } else {
+      _gl.drawArraysInstanced(
+        _primitive,
+        firstVertex,
+        vertexCount,
+        instanceCount,
+      );
+    }
+    _afterDraw();
+  }
+
+  /// Replays each bundle's recorded calls into this pass, each from no
+  /// pipeline and no bindings, and forgets both afterwards — WebGPU's rule,
+  /// which a replay has to keep by hand.
+  @override
+  void executeBundles(List<RenderBundle> bundles) {
+    _device.features.require(
+      DeviceFeature.renderBundles,
+      backend: webglBackendName,
+    );
+    final colors = <TextureFormat>[
+      for (final color in _descriptor.colors) color.texture.format,
+    ];
+    final depth = _descriptor.depth?.texture.format;
+    final samples = _descriptor.colors.isNotEmpty
+        ? _descriptor.colors.first.texture.sampleCount
+        : (_descriptor.depth?.texture.sampleCount ?? 1);
+    final recorded = <WebGlBundle>[
+      for (final bundle in bundles)
+        if (bundle.backend case final WebGlBundle backend)
+          backend
+        else
+          throw ArgumentError.value(
+            bundle,
+            'bundles',
+            'is not a WebGL2 bundle',
+          ),
+    ];
+    for (final bundle in bundles) {
+      final made = bundle.descriptor;
+      final matches =
+          made.colorFormats.length == colors.length &&
+          <bool>[
+            for (var i = 0; i < colors.length; i++)
+              made.colorFormats[i] == colors[i],
+          ].every((bool same) => same) &&
+          made.depthStencilFormat == depth &&
+          made.sampleCount == samples;
+      if (!matches) {
+        throw ArgumentError.value(
+          bundle,
+          'bundles',
+          'was recorded for other attachments than this pass has',
+        );
+      }
+    }
+    for (final bundle in recorded) {
+      _program = null;
+      clearBindings();
+      for (final call in bundle.calls) {
+        call(this);
+      }
+    }
+    _program = null;
+    clearBindings();
+  }
+
+  /// Whether [beginOcclusionQuery] has a query open.
+  bool _occlusionOpen = false;
+
+  /// `ANY_SAMPLES_PASSED`, which answers whether any sample passed: zero
+  /// means nothing was visible, as the contract promises, and one stands
+  /// for any other count, which is all the contract says a count means.
+  @override
+  void beginOcclusionQuery(int queryIndex) {
+    _device.features.require(
+      DeviceFeature.occlusionQuery,
+      backend: webglBackendName,
+    );
+    final set = _descriptor.occlusionQuerySet;
+    if (set == null) {
+      throw StateError('this pass was opened without an occlusionQuerySet');
+    }
+    if (_occlusionOpen) {
+      throw StateError('one occlusion query at a time: end the open one');
+    }
+    final queries = webglQueriesOf(set);
+    RangeError.checkValidIndex(queryIndex, queries.queries, 'queryIndex');
+    _gl.beginQuery(
+      web.WebGL2RenderingContext.ANY_SAMPLES_PASSED,
+      queries.queries[queryIndex] ??
+          (throw StateError('this query set was released')),
+    );
+    queries.written.add(queryIndex);
+    _occlusionOpen = true;
+  }
+
+  @override
+  void endOcclusionQuery() {
+    _device.features.require(
+      DeviceFeature.occlusionQuery,
+      backend: webglBackendName,
+    );
+    if (!_occlusionOpen) throw StateError('no occlusion query is open');
+    _gl.endQuery(web.WebGL2RenderingContext.ANY_SAMPLES_PASSED);
+    _occlusionOpen = false;
+  }
+
+  @override
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) =>
+      webglRefusePipelineStatistics();
+
+  @override
+  void endPipelineStatisticsQuery() => webglRefusePipelineStatistics();
+
+  /// `polygonOffset(slopeScale, constant)` — GL's factor and units, in that
+  /// order. A clamp is refused: see [webglGateDepthBias].
+  @override
+  void setDepthBias(DepthBias bias) {
+    webglGateDepthBias(_device, bias);
+    if (bias == DepthBias.none) {
+      _gl
+        ..disable(web.WebGLRenderingContext.POLYGON_OFFSET_FILL)
+        ..polygonOffset(0, 0);
+      return;
+    }
+    _gl
+      ..enable(web.WebGLRenderingContext.POLYGON_OFFSET_FILL)
+      ..polygonOffset(bias.slopeScale, bias.constant.toDouble());
+  }
+
+  /// `colorMask` for attachment zero, which sets every draw buffer at once;
+  /// `colorMaskiOES` for any other where `OES_draw_buffers_indexed` was
+  /// granted — [setBlend]'s rule, for the reason it gives.
+  @override
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) {
+    _device.features.require(
+      DeviceFeature.colorWriteMask,
+      backend: webglBackendName,
+    );
+    final indexed = _device.drawBuffersIndexed;
+    if (attachment != 0 && indexed != null) {
+      indexed.colorMaskiOES(
+        attachment,
+        mask.writesRed,
+        mask.writesGreen,
+        mask.writesBlue,
+        mask.writesAlpha,
+      );
+      return;
+    }
+    _gl.colorMask(
+      mask.writesRed,
+      mask.writesGreen,
+      mask.writesBlue,
+      mask.writesAlpha,
+    );
+  }
+
+  /// `EXT_depth_clamp`'s `DEPTH_CLAMP_EXT`, where the extension was granted.
+  @override
+  void setDepthClamp({required bool enabled}) {
+    webglGateDepthClamp(_device);
+    enabled ? _gl.enable(webglDepthClamp) : _gl.disable(webglDepthClamp);
+  }
+
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle shader,
+    String name,
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) => webglRefuseRenderStageStorage();
+
+  @override
+  bool bindStorageTexture(
+    ShaderHandle shader,
+    String name,
+    TextureHandle texture, {
+    int mipLevel = 0,
+    StorageTextureAccess access = StorageTextureAccess.writeOnly,
+  }) => webglRefuseRenderStageStorage();
+}
+
+/// `EXT_depth_clamp`'s `DEPTH_CLAMP_EXT`, which `package:web` does not name.
+const int webglDepthClamp = 0x864F;
+
+// --------------------------------------------------------------------------
+// The gates both the pass and the bundle encoder ask, so the two refuse the
+// same calls in the same words.
+// --------------------------------------------------------------------------
+
+/// [PolygonMode.line] is refused: OpenGL ES has no `glPolygonMode`.
+/// Wireframe on this backend means drawing line primitives from an index
+/// buffer built for them, which is the renderer's decision and not a
+/// substitution a backend may make on its own; quietly filling would show a
+/// solid model to somebody who asked for a wireframe.
+void webglGatePolygonMode(PolygonMode mode) {
+  if (canDrawPolygonMode(mode)) return;
+  throw UnsupportedCapability(
+    DeviceFeature.wireframe,
+    backend: webglBackendName,
+    reason:
+        'OpenGL ES has no glPolygonMode; wireframe needs line primitives and '
+        'an index buffer to match, which is a decision for the renderer',
+  );
+}
+
+/// The blend features a state names: the constant, min and max (all three
+/// WebGL2 core) and the dual-source factors (`WEBGL_blend_func_extended`).
+void webglGateBlend(WebGlDevice device, BlendState? state) {
+  if (state == null) return;
+  if (state.usesBlendColor) {
+    device.features.require(
+      DeviceFeature.blendConstant,
+      backend: webglBackendName,
+    );
+  }
+  if (state.usesMinMax) {
+    device.features.require(
+      DeviceFeature.minMaxBlend,
+      backend: webglBackendName,
+    );
+  }
+  if (state.usesDualSource) {
+    device.features.require(
+      DeviceFeature.dualSourceBlending,
+      backend: webglBackendName,
+      reason: 'WEBGL_blend_func_extended was not granted',
+    );
+  }
+}
+
+/// The sampler features a bind names. A border colour is refused always.
+void webglGateSampler(WebGlDevice device, SamplerDescriptor? sampler) {
+  if (sampler == null || !sampler.usesExtendedState) return;
+  if (sampler.compare != null) {
+    device.features.require(
+      DeviceFeature.samplerCompare,
+      backend: webglBackendName,
+    );
+  }
+  if (sampler.lodMinClamp != 0 || sampler.lodMaxClamp != 32) {
+    device.features.require(
+      DeviceFeature.samplerLodClamp,
+      backend: webglBackendName,
+    );
+  }
+  if (sampler.borderColor != null) {
+    // TODO(webgl): border colours — WebGL2 has no CLAMP_TO_BORDER (it is
+    // OpenGL ES 3.2, and no WebGL extension exposes it).
+    throw UnsupportedCapability(
+      DeviceFeature.samplerBorderColor,
+      backend: webglBackendName,
+      reason: 'WebGL2 has no CLAMP_TO_BORDER',
+    );
+  }
+}
+
+/// Depth bias, and a refusal of the one part of it GL cannot do: a clamp.
+///
+/// `glPolygonOffsetClamp` is desktop GL 4.6 and an ES extension WebGL does
+/// not expose, so a non-zero [DepthBias.clamp] would be silently unclamped.
+/// Refused by name instead — an [UnsupportedError] rather than an
+/// [UnsupportedCapability], since the device does have depth bias, and a
+/// caller wanting the clamp keeps the slope small instead.
+void webglGateDepthBias(WebGlDevice device, DepthBias bias) {
+  device.features.require(DeviceFeature.depthBias, backend: webglBackendName);
+  if (bias.clamp != 0) {
+    // TODO(webgl): depth-bias clamp — needs EXT_polygon_offset_clamp exposed
+    // to WebGL; until then no non-zero clamp can be honoured.
+    throw UnsupportedError(
+      'WebGL2 cannot clamp a depth bias (DepthBias.clamp ${bias.clamp}): it '
+      'has no polygonOffsetClamp. Pass a clamp of zero.',
+    );
+  }
+}
+
+/// `EXT_depth_clamp`, granted or not.
+void webglGateDepthClamp(WebGlDevice device) => device.features.require(
+  DeviceFeature.depthClamp,
+  backend: webglBackendName,
+  reason: 'EXT_depth_clamp was not granted',
+);
+
+/// A base vertex or first instance needs the base-vertex extension.
+void webglGateIndexedDraw(WebGlDevice device, IndexedDraw draw) {
+  if (!draw.usesBaseVertexOrInstance) return;
+  device.features.require(
+    DeviceFeature.baseVertexBaseInstance,
+    backend: webglBackendName,
+    reason: 'WEBGL_draw_instanced_base_vertex_base_instance was not granted',
+  );
+}
+
+/// A non-indexed draw is core; a first instance needs the same extension a
+/// base instance does.
+void webglGateNonIndexed(WebGlDevice device, int firstInstance) {
+  device.features.require(
+    DeviceFeature.nonIndexedDraw,
+    backend: webglBackendName,
+  );
+  if (firstInstance == 0) return;
+  device.features.require(
+    DeviceFeature.baseVertexBaseInstance,
+    backend: webglBackendName,
+    reason: 'WEBGL_draw_instanced_base_vertex_base_instance was not granted',
+  );
+}
+
+/// Storage bound to a render stage.
+Never webglRefuseRenderStageStorage() {
+  // TODO(webgl): render-stage storage — WebGL2 has no shader storage blocks
+  // or image load/store (both OpenGL ES 3.1); the WebGPU backend has them.
+  throw UnsupportedCapability(
+    DeviceFeature.renderStageStorage,
+    backend: webglBackendName,
+    reason: 'WebGL2 has no storage buffers or images; that is OpenGL ES 3.1',
+  );
+}
+
+/// An indirect draw of either kind.
+Never webglRefuseIndirect(DeviceFeature feature) {
+  // TODO(webgl): indirect draws — WebGL2 has no DRAW_INDIRECT_BUFFER (it is
+  // OpenGL ES 3.1), so no draw can read its counts from a buffer.
+  throw UnsupportedCapability(
+    feature,
+    backend: webglBackendName,
+    reason: 'WebGL2 has no indirect draws; that is OpenGL ES 3.1',
+  );
+}
+
+/// A pipeline-statistics query.
+Never webglRefusePipelineStatistics() {
+  // TODO(webgl): pipeline statistics — no WebGL2 query or extension counts
+  // shader invocations or primitives.
+  throw UnsupportedCapability(
+    DeviceFeature.pipelineStatisticsQuery,
+    backend: webglBackendName,
+    reason: 'WebGL2 has no pipeline statistics query',
+  );
 }

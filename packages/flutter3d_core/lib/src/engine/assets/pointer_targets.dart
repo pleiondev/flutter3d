@@ -1,4 +1,5 @@
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import '../render/material.dart';
 import '../scene/light_node.dart';
@@ -15,15 +16,17 @@ import '../scene/light_node.dart';
 ///
 /// Values arrive in the file's own units and spaces and are converted here,
 /// at the one seam between the two: glTF's base colour is linear and
-/// [Material.baseColor] is the authored sRGB tint; a light's intensity is
-/// candela or lux and [LightNode.intensity] is the engine's own unit — see
-/// [Photometric].
-final class PointerTargets implements AnimationPointerSink {
-  PointerTargets({Map<int, Material>? materials, Map<int, LightNode>? lights})
-    : materials = materials ?? <int, Material>{},
-      lights = lights ?? <int, LightNode>{};
+/// [RenderMaterial.baseColor] is the authored sRGB tint. A light's intensity
+/// is candela, or lux for a directional light, in the file and in
+/// [LightNode.intensity] alike since 1.0, so it passes through unchanged.
+final class PointerTargets with AnimationPointerSink {
+  PointerTargets({
+    Map<int, RenderMaterial>? materials,
+    Map<int, LightNode>? lights,
+  }) : materials = materials ?? <int, RenderMaterial>{},
+       lights = lights ?? <int, LightNode>{};
 
-  final Map<int, Material> materials;
+  final Map<int, RenderMaterial> materials;
   final Map<int, LightNode> lights;
 
   @override
@@ -41,25 +44,26 @@ final class PointerTargets implements AnimationPointerSink {
   /// Writes [values] to [material]'s property named by [pointer].
   ///
   /// [AnimationPointerProperty.textureOffset] moves the offset of the map
-  /// the pointer names in [Material.textureTransforms] — `C8`. A loader keeps
+  /// the pointer names in [RenderMaterial.textureTransforms] — `C8`. A loader keeps
   /// such a material's transforms there, at the sampler, rather than baking
   /// them into the mesh, so the offset a clip moves is the one drawn; a map
   /// that named no transform gains one, the identity with this offset.
   static void applyToMaterial(
-    Material material,
+    RenderMaterial material,
     AnimationPointer pointer,
     List<double> values,
   ) {
     switch (pointer.property) {
       case AnimationPointerProperty.baseColor:
-        material.baseColor.setValues(
-          linearToSrgb(values[0]),
-          linearToSrgb(values[1]),
-          linearToSrgb(values[2]),
+        material.baseColor = LinearColor(
+          values[0],
+          values[1],
+          values[2],
           values[3],
         );
       case AnimationPointerProperty.emissiveStrength:
-        material.emissiveStrength = values[0];
+        // glTF animates a multiple of the factor; the material holds nits.
+        material.emissiveStrength = values[0] * Photometric.legacyNits;
       case AnimationPointerProperty.roughness:
         material.roughness = values[0];
       case AnimationPointerProperty.metallic:
@@ -105,11 +109,11 @@ final class PointerTargets implements AnimationPointerSink {
   ) {
     switch (pointer.property) {
       case AnimationPointerProperty.lightColor:
-        light.color.setValues(values[0], values[1], values[2]);
+        light.color = LinearColor(values[0], values[1], values[2]);
       case AnimationPointerProperty.lightIntensity:
-        // Candela for a point or spot, lux for a directional light: the two
-        // share one exchange rate, so one conversion serves every type.
-        light.intensity = Photometric.fromCandela(values[0]);
+        // Candela for a point or spot, lux for a directional light — what
+        // glTF animates and, since 1.0, what `LightNode.intensity` holds.
+        light.intensity = values[0];
       case AnimationPointerProperty.baseColor:
       case AnimationPointerProperty.emissiveStrength:
       case AnimationPointerProperty.roughness:

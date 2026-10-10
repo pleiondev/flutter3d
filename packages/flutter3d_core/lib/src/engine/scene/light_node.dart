@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
+import 'light_buffer.dart';
 import 'scene.dart';
 import 'scene_node.dart';
 
@@ -14,7 +17,63 @@ import 'scene_node.dart';
 /// integral over the rectangle rather than a value at a point, and that is what
 /// makes an interior read as lit by a window instead of by a bright dot with a
 /// window painted behind it.
-enum LightType { directional, point, spot, area }
+///
+/// **An open set.** [LightType.custom] names a kind of one's own — a torch a
+/// plugin flickers, a lamp a level editor files apart — lit as its [base], a
+/// built-in shape the renderer integrates. The engine reads [base] wherever
+/// it decides how a light is drawn, so a custom kind is drawn exactly as its
+/// base is; whoever made it tells it apart by identity, and a format writes
+/// its base.
+final class LightType {
+  const LightType._(this._index, this.name) : _base = null;
+
+  /// A kind called [name], lit as [_base] — one of [values].
+  const LightType.custom(this.name, {required LightType base})
+    : _base = base, // ignore: prefer_initializing_formals
+      _index = -1;
+
+  static const LightType directional = LightType._(0, 'directional');
+
+  static const LightType point = LightType._(1, 'point');
+
+  static const LightType spot = LightType._(2, 'spot');
+
+  static const LightType area = LightType._(3, 'area');
+
+  /// Every built-in value this version names, in the order of [index].
+  static const List<LightType> values = <LightType>[
+    directional,
+    point,
+    spot,
+    area,
+  ];
+
+  /// The value whose [name] is [wireName], or null when this version names
+  /// none (absent) — how a file that names a value is read.
+  static LightType? byName(String wireName) {
+    for (final value in values) {
+      if (value.name == wireName) return value;
+    }
+    return null;
+  }
+
+  /// The position of [base] in [values]: stable within a major, appended
+  /// only.
+  int get index => _base?.index ?? _index;
+  final int _index;
+
+  final LightType? _base;
+
+  /// The built-in shape this kind is lit as: itself for each of [values].
+  LightType get base => _base?.base ?? this;
+
+  /// The stable name, and the wire name: what a file, a report or a
+  /// snapshot writes for this value. Never renamed within a major.
+  final String name;
+
+  @override
+  String toString() => 'LightType.$name';
+}
 
 /// The bit masks [LightNode.channels] and [SceneNode.lightChannels] meet on.
 ///
@@ -41,22 +100,67 @@ abstract final class LightChannels {
 /// Direction comes from the node's local -Z, the same forward axis cameras use,
 /// so [SceneNode.lookAt] aims a spot light exactly as it aims a camera.
 final class LightNode extends SceneNode {
+  /// How many lights one draw is lit by in the forward pass: 8. A light past
+  /// this is carried by the extra slots, then dropped — see
+  /// `Scene.overflowingLights`.
+  ///
+  /// **A getter, not a constant**, since 1.0: the number is the shaders'
+  /// array length, which a later minor may raise, and a constant's value is
+  /// copied into whoever read it at compile time.
+  static int get maxLights => LightBuffer.maxLights;
+
+  /// How many lights past [maxLights] a frame can still carry, in the slots
+  /// the clustered path reads: 24. A getter for the reason [maxLights] is.
+  static int get maxExtraLights => LightBuffer.maxExtraLights;
+
+  /// Whether this light reaches a mesh on [lightChannels] (a mesh's
+  /// `lightChannels` mask): the test every pass applies before lighting it.
+  bool reaches(int lightChannels) => LightBuffer.reaches(this, lightChannels);
+
   LightNode({
     this.type = LightType.directional,
-    Vector3? color,
-    this.intensity = 1.0,
+    this.color = LinearColor.white,
+    this.intensity = Photometric.legacyUnit,
     this.range = 0.0,
     bool? castsShadow,
     this.innerConeAngle = 0.0,
     this.outerConeAngle = math.pi / 4.0,
     super.name,
-  }) : castsShadow = castsShadow ?? type == LightType.directional,
-       color = color ?? Vector3(1.0, 1.0, 1.0);
+  }) : castsShadow = castsShadow ?? type.base == LightType.directional;
+
+  /// A light of [type] rated at [lumens] of luminous flux, converted once to
+  /// the candela [intensity] holds — [Photometric.fromLumens] over the light's
+  /// own cone.
+  LightNode.lumens(
+    double lumens, {
+    LightType type = LightType.point,
+    LinearColor color = LinearColor.white,
+    double range = 0.0,
+    bool? castsShadow,
+    double innerConeAngle = 0.0,
+    double outerConeAngle = math.pi / 4.0,
+    String? name,
+  }) : this(
+         type: type,
+         color: color,
+         intensity: Photometric.fromLumens(
+           lumens,
+           type: type,
+           outerConeAngle: outerConeAngle,
+         ),
+         range: range,
+         castsShadow: castsShadow,
+         innerConeAngle: innerConeAngle,
+         outerConeAngle: outerConeAngle,
+         name: name,
+       );
 
   LightType type;
 
-  /// Linear RGB.
-  final Vector3 color;
+  /// The light's colour, in linear light — `LinearColor` since 1.0 (it was a
+  /// mutable `Vector3`). Its alpha is ignored. Replaced whole:
+  /// `light.color = const LinearColor(1.0, 0.8, 0.6)`.
+  LinearColor color;
 
   /// Whether this light wants a shadow map.
   ///
@@ -92,22 +196,27 @@ final class LightNode extends SceneNode {
   /// is the difference between a channel and a check in the shader.
   int channels = LightChannels.all;
 
-  /// How bright this light is, in the engine's own unit — see [Photometric]
-  /// for what that unit is worth in lumens, candela and lux.
+  /// How bright this light is: **lux** for a directional light, **candela**
+  /// for a point, spot or area light — see [Photometric] (since 1.0; the
+  /// engine's own unit before it, which [Photometric.legacyUnit] converts).
   ///
-  /// Dimensionless on purpose, and it stays that way: the shaders multiply
-  /// it by an attenuation and a tone curve maps the result, so putting a
-  /// physical unit *in* here would mean every existing scene's numbers
-  /// changing meaning. [Photometric] converts into it instead, which leaves
-  /// a hand-tuned lamp and a lamp off a datasheet side by side in the same
-  /// field.
+  /// The default is [Photometric.legacyUnit], the light a default-made node
+  /// always was, kept so a scene of default lights draws as it did: about
+  /// 5 790.6 lux, a bright overcast day, for a sun, and for a lamp about
+  /// 5 790.6 cd — some 73 000 lumens, a stadium floodlight rather than a
+  /// bulb. Say what a lamp is: [LightNode.lumens] makes one from what its box
+  /// says, and about 100 cd is a household bulb.
   double intensity;
 
   /// Distance at which a point or spot light stops contributing. Zero means
   /// unbounded, matching glTF's default.
+  /// In metres.
   double range;
 
+  /// Half-angle from the spot axis to where the falloff starts, in radians.
   double innerConeAngle;
+
+  /// Half-angle from the spot axis to where the light ends, in radians.
   double outerConeAngle;
 
   /// How wide the rectangle is, in world metres, along the node's local +X —
@@ -119,6 +228,7 @@ final class LightNode extends SceneNode {
   /// The rectangle faces the node's local −Z, the same forward axis a spot
   /// light aims down and a camera looks along, so [SceneNode.lookAt] aims a
   /// window at what it should be lighting exactly as it aims everything else.
+  /// In metres.
   double height = 1.0;
 
   /// The rectangle's half-width vector in world space, i.e. local +X scaled by
@@ -175,102 +285,82 @@ final class LightNode extends SceneNode {
   void onDetachedFromScene(Scene scene) => scene.unregisterLight(this);
 }
 
-/// Lumens, candela and lux, into [LightNode.intensity] — `gfx-13n`.
+/// Lumens, candela and lux — the units [LightNode.intensity] is in since 1.0
+/// (decision 8 of the API review, `docs/CONTRACTS.md` "Light").
 ///
-/// **What the engine's own unit is worth, stated once so it can be argued
-/// with.** [LightNode.intensity] is a plain number the shaders multiply by an
-/// attenuation; nothing in the renderer has ever said what one of it *means*,
-/// so a lamp off a datasheet could only be tuned by eye. This fixes the
-/// exchange rate at one place, and the place the row itself names:
+/// **What a light is rated in.** A directional light in lux, the illuminance
+/// on a surface facing it: about 100 000 for direct sun, 1 000 to 10 000 for
+/// an overcast day, 500 for a bright office. A point, spot or area light in candela, its
+/// luminous intensity along its axis: about 100 for a 1 200 lm bulb. A box's
+/// lumens are converted once, by [fromLumens], into what the light holds.
+/// The camera's exposure (`PhysicalCamera`, EV100) turns these absolute
+/// values into a picture.
 ///
-/// > an 800-lumen lamp gives the same illuminance as today's tuned number
-///
-/// Eight hundred lumens is the ordinary bulb — what a sixty-watt incandescent
-/// was replaced by — and today's tuned number is one. So: **an 800 lm point
-/// lamp is [LightNode.intensity] 1.0 at a metre**, and every other conversion
-/// follows from that by arithmetic rather than by taste.
-///
-/// Reading it out: a point lamp spreads its flux over the whole sphere, so
-/// 800 lm is `800 / 4π` = 63.66 candela, and a source of *I* candela lights a
-/// surface a metre away with *I* lux. [referenceIlluminance] is therefore
-/// 63.66 lux, and it is the one number here anybody should want to change —
-/// changing it rescales every physically-specified light in a scene together,
-/// which is what an exposure control is for and why this is not one.
-///
-/// **Nothing is applied automatically.** A scene built by hand keeps the
-/// numbers it was tuned with, because these are functions a caller reaches
-/// for rather than a mode the renderer enters.
+/// **The unit before 1.0, and why a picture does not change.** Until 1.0
+/// [LightNode.intensity] was the engine's own number, and the physical
+/// camera fixed what it was worth: one unit of illuminance is about
+/// 5 790.6 lux (one unit of luminance is 1 843.2 cd/m², [legacyNits], and a
+/// white Lambertian surface shows `E/π`). That is [legacyUnit]. A light written before 1.0 with intensity `x` is the same
+/// light at `x * Photometric.legacyUnit` now — what `migrate` writes — and
+/// the renderer divides by it on the way to the shaders, so the picture is
+/// the picture it was. (`gfx-13n`'s own exchange rate, 800 lm to one unit,
+/// went with the old unit: it was a matter of taste, and the physical
+/// camera's is a matter of arithmetic.)
 abstract final class Photometric {
-  /// The illuminance one unit of [LightNode.intensity] stands for, in lux.
-  ///
-  /// `800 / 4π`, which is what makes an 800-lumen point lamp come out at one.
-  static const double referenceIlluminance = 63.66197723675813;
+  /// Lux (for a directional light) or candela (for the others) in one unit
+  /// of the engine's pre-1.0 intensity: `π × 1.6 × 1.2 × 960`, about 5 790.6.
+  /// Multiply a pre-1.0 intensity by it to keep a light as bright as it was;
+  /// the same for a pre-1.0 `Scene.ambientIntensity`,
+  /// `Atmosphere.ambientIntensity` or `SkySettings.sunIntensity`, which are
+  /// lux since 1.0.
+  static const double legacyUnit = 5790.583578; // π × 1843.2
 
-  /// Illuminance in lux — what a *directional* light is rated in.
-  ///
-  /// A directional light has no position and so no falloff: its intensity is
-  /// the illuminance on a surface facing it, anywhere in the scene. Overcast
-  /// daylight is about 10 000 lux, a bright office 500, a living room 150.
-  static double fromLux(double lux) => lux / referenceIlluminance;
+  /// Nits (cd/m²) in one unit of the engine's pre-1.0 luminance:
+  /// `1.6 × 1.2 × 960`, 1 843.2. The reference camera draws it at 1.6, past
+  /// white: its white, the brightest luminance it records, is `1.2 × 960`,
+  /// 1 152 nits. Multiply a pre-1.0 `RenderMaterial.emissiveStrength` by it
+  /// to keep a surface glowing as it did; it is nits since 1.0.
+  static const double legacyNits = 1843.2;
 
-  /// Luminous intensity in candela — what a *point or spot* light's own
-  /// datasheet gives when it gives a direction rather than a total.
-  ///
-  /// A source of one candela lights a surface a metre away with one lux, and
-  /// the shaders' inverse square does the rest, so this is [fromLux] with the
-  /// metre already in it.
-  static double fromCandela(double candela) => candela / referenceIlluminance;
+  /// The illuminance an 800-lumen lamp — an ordinary bulb — gives a surface
+  /// a metre away: `800 / 4π`, about 63.66 lux. A yardstick for scaling an
+  /// emissive colour by a brightness someone stated in lux or nits; it was
+  /// the engine's exchange rate for `Photometric.fromLux` before 1.0.
+  static const double bulbAtOneMeter = 63.66197723675813;
 
-  /// Luminous flux in lumens — what a bulb's box says.
-  ///
-  /// Spread over the solid angle the light actually covers: the whole sphere
-  /// for a point lamp, and the cone for a spot, which is why the same eight
-  /// hundred lumens are far brighter through a spot. [outerConeAngle] is the
-  /// half-angle from the axis, the same one [LightNode.outerConeAngle] holds,
-  /// and is ignored for the two types that do not have one.
-  ///
-  /// A directional light is not rated in lumens at all — the sun's flux is
-  /// not a useful number for lighting a room — so asking for one here gives
-  /// back what [fromLux] would, treating the flux as an illuminance and
-  /// leaving the caller to have meant it.
+  /// What [LightNode.intensity] holds for [lumens] of luminous flux, for a
+  /// light of [type]: candela for a point, spot or area light, spread over
+  /// the solid angle it covers — the whole sphere for a point lamp, the cone
+  /// (of half-angle [outerConeAngle]) for a spot, `π` for a one-sided
+  /// Lambertian panel — and, for a directional light, which has no flux worth
+  /// rating, the number itself as lux.
   static double fromLumens(
     double lumens, {
     LightType type = LightType.point,
     double outerConeAngle = math.pi / 4.0,
-  }) => switch (type) {
-    LightType.directional => fromLux(lumens),
-    LightType.point => fromCandela(lumens / (4.0 * math.pi)),
-    LightType.spot => fromCandela(lumens / _coneSteradians(outerConeAngle)),
-    // A rectangle emits from one face, and as a Lambertian surface: the
-    // shader gives it one radiance, `intensity / area`, in every direction,
-    // so its intensity falls off as `cos θ` from the axis and the flux into
-    // the hemisphere is `π` times the axial candela, not `2π` — the figure
-    // for a source equally bright at every angle, which a panel seen edge-on
-    // is not. `2π` rated every panel at half the light its lumens promised.
-    // The panel's own area does not appear here and should not:
-    // [LightNode.intensity] means the same thing for every kind, and the
-    // shader divides by the area itself so that a window enlarged at a fixed
-    // lumen rating gets dimmer per square metre rather than brighter overall.
-    LightType.area => fromCandela(lumens / math.pi),
+  }) => switch (type.base) {
+    LightType.directional => lumens,
+    LightType.point => lumens / (4.0 * math.pi),
+    LightType.spot => lumens / _coneSteradians(outerConeAngle),
+    // A rectangle emits from one face, as a Lambertian surface: its
+    // intensity falls off as `cos θ` from the axis, and the flux into the
+    // hemisphere is `π` times the axial candela, not `2π`.
+    LightType.area => lumens / math.pi,
+    _ => throw ArgumentError.value(type, 'type', 'has no lumens rating here'),
   };
 
-  /// [intensity] back in lux, for a panel that shows what a light is set to.
-  static double toLux(double intensity) => intensity * referenceIlluminance;
-
-  /// [intensity] back in candela.
-  static double toCandela(double intensity) => intensity * referenceIlluminance;
-
-  /// [intensity] back in lumens, inverting [fromLumens] for the same type and
-  /// cone.
+  /// The lumens a light of [type] at [intensity] (candela, or lux for a
+  /// directional light) puts out: [fromLumens] the other way.
   static double toLumens(
     double intensity, {
     LightType type = LightType.point,
     double outerConeAngle = math.pi / 4.0,
-  }) => switch (type) {
-    LightType.directional => toLux(intensity),
-    LightType.point => toCandela(intensity) * 4.0 * math.pi,
-    LightType.spot => toCandela(intensity) * _coneSteradians(outerConeAngle),
-    LightType.area => toCandela(intensity) * math.pi,
+  }) => switch (type.base) {
+    LightType.directional => intensity,
+    LightType.point => intensity * 4.0 * math.pi,
+    LightType.spot => intensity * _coneSteradians(outerConeAngle),
+    LightType.area => intensity * math.pi,
+    _ => throw ArgumentError.value(type, 'type', 'has no lumens rating here'),
   };
 
   /// The solid angle of a cone of half-angle [outerConeAngle], in steradians.

@@ -1,4 +1,5 @@
-import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
+import 'package:flutter3d_game_kit/soundtrack.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -25,7 +26,45 @@ import 'sounds.dart';
 /// gap is worth less than no sentence, because it stops the next person from
 /// looking.
 final class Soundtrack {
-  Soundtrack({this.stride = 2.2});
+  Soundtrack({this.stride = 2.2}) : _feet = Footsteps(stride: stride) {
+    // One sound per event, which is what the flags could not do: two coins
+    // swept up in one step were one `takenThisStep` entry each and two enemies
+    // stomped were a single bool.
+    _moments
+      ..on<EnemyStomped>(
+        (EnemyStomped event, List<Heard> out) =>
+            out.add(Heard(Sounds.land, _at)),
+      )
+      ..on<CheckpointReached>(
+        (CheckpointReached event, List<Heard> out) =>
+            out.add(Heard(Sounds.checkpoint, _at)),
+      )
+      ..on<RunnerDied>(
+        (RunnerDied event, List<Heard> out) =>
+            out.add(Heard(Sounds.death, _at)),
+      );
+    // **The level's own machinery, which had particles and no sound**, and the
+    // coins: each placed by the event itself. A pad that throws you and a
+    // shelf that gives way under you are the two loudest things that can
+    // happen in this game, and both were silent.
+    placed
+      ..on<CollectibleTaken>(
+        (CollectibleTaken event, List<Heard> out) =>
+            out.add(Heard(Sounds.coin, event.collectible.origin)),
+      )
+      ..on<SpringFired>(
+        (SpringFired event, List<Heard> out) =>
+            out.add(Heard(Sounds.spring, event.at)),
+      )
+      ..on<BlockCrumbled>(
+        (BlockCrumbled event, List<Heard> out) =>
+            out.add(Heard(Sounds.crumble, event.at)),
+      )
+      ..on<BlockBroke>(
+        (BlockBroke event, List<Heard> out) =>
+            out.add(Heard(Sounds.crumble, event.at)),
+      );
+  }
 
   /// How far the runner walks between footsteps, in metres.
   ///
@@ -35,68 +74,74 @@ final class Soundtrack {
   /// second, which is about right for something 1.8 m tall.
   final double stride;
 
-  double _sinceStep = 0.0;
+  final Footsteps _feet;
   bool _wasFinished = false;
 
-  final Vector3 _wasAt = Vector3.zero();
-  bool _placed = false;
+  /// The moments heard where the runner stands on the step they happen in:
+  /// a stomp, a checkpoint, a death.
+  final CueSheet _moments = CueSheet();
 
-  /// Everything this step made a noise about.
+  /// The sounds an event places by itself — a coin where it lay, a spring, a
+  /// shelf giving way — and so need nothing of the step but the event.
+  ///
+  /// **What the game hands a `SoundtrackPlugin`**, which plays them off the
+  /// bus's frame channel once a frame, after the frame's steps. That is the
+  /// frame they were always played in, from the same places, and a step run
+  /// again on a rollback no longer plays them twice. Everything else here
+  /// reads the runner as one step left it, which the frame channel cannot
+  /// give back on a frame of two steps, and stays in [heardOnStep].
+  final CueSheet placed = CueSheet();
+
+  /// Where the runner is on the step being heard.
+  Vector3 _at = Vector3.zero();
+
+  /// Everything this step made a noise about: [heardOnStep], then [placed].
   ///
   /// Called once per simulation step, in order, and the list is what to play.
+  /// What a test asks; the game plays [placed] through its plugin.
   List<Heard> listen(
+    PlatformerSimulation sim,
+    Runner runner,
+    List<GameEvent> events,
+  ) => heardOnStep(sim, runner, events)..addAll(placed.listen(events));
+
+  /// What this step made a noise about that needs the runner as the step left
+  /// it: the jumps, the landing, the footsteps, the end of the level, and the
+  /// moments heard where the runner stands. Not [placed].
+  ///
+  /// Called once per simulation step, in order, and the list is what to play.
+  List<Heard> heardOnStep(
     PlatformerSimulation sim,
     Runner runner,
     List<GameEvent> events,
   ) {
     final out = <Heard>[];
     final at = runner.position;
+    _at = at;
 
-    if (events.has<Jumped>()) {
+    if (events.whereType<Jumped>().isNotEmpty) {
       out.add(
         Heard(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at),
       );
     }
-    if (events.has<Dashed>()) out.add(Heard(Sounds.dash, at));
+    if (events.whereType<Dashed>().isNotEmpty) out.add(Heard(Sounds.dash, at));
     // A long jump is the slide it came out of, launched: it gets the dash's
     // sound because it is the same commitment at a different angle.
-    if (events.has<LongJumped>()) out.add(Heard(Sounds.dash, at));
-    if (events.has<Grabbed>()) out.add(Heard(Sounds.checkpoint, at));
-
-    // One sound per event, which is what the flags could not do: two coins
-    // swept up in one step were one `takenThisStep` entry each and two enemies
-    // stomped were a single bool.
-    for (final GameEvent event in events) {
-      switch (event) {
-        case CollectibleTaken():
-          out.add(Heard(Sounds.coin, event.collectible.origin));
-        case EnemyStomped():
-          out.add(Heard(Sounds.land, at));
-        case CheckpointReached():
-          out.add(Heard(Sounds.checkpoint, at));
-        case RunnerDied():
-          out.add(Heard(Sounds.death, at));
-      }
+    if (events.whereType<LongJumped>().isNotEmpty) {
+      out.add(Heard(Sounds.dash, at));
     }
+    if (events.whereType<Grabbed>().isNotEmpty) {
+      out.add(Heard(Sounds.checkpoint, at));
+    }
+
+    _moments.hear(events, out);
 
     // **Decided here, and it was the one sound that was not.** The application
     // played this itself, beside the camera kick that goes with it, which left
     // two homes for "what does this step sound like" — and the second one was
     // in a widget, so the landing was the one sound in the game no test could
     // ask about. The camera's half stays where it is; only the decision moved.
-    if (events.has<Landed>()) out.add(Heard(Sounds.land, at));
-
-    // **The level's own machinery, which had particles and no sound.** A pad
-    // that throws you and a shelf that gives way under you are the two loudest
-    // things that can happen in this game, and both were silent.
-    for (final GameEvent event in events) {
-      switch (event) {
-        case SpringFired():
-          out.add(Heard(Sounds.spring, event.at));
-        case BlockCrumbled() || BlockBroke():
-          out.add(Heard(Sounds.crumble, (event as FurnitureEvent).at));
-      }
-    }
+    if (events.whereType<Landed>().isNotEmpty) out.add(Heard(Sounds.land, at));
 
     // Once, on the step the run ends. `RunState.finished` stays true for every
     // frame afterwards, and a fanfare restarted sixty times a second is a
@@ -105,39 +150,19 @@ final class Soundtrack {
     if (finished && !_wasFinished) out.add(Heard(Sounds.exit, at));
     _wasFinished = finished;
 
-    _step(runner, at, out);
+    // Footsteps, only while the feet are down and off the ladder.
+    if (_feet.walked(
+      at,
+      grounded: runner.isGrounded && runner.climbing == null,
+    )) {
+      out.add(Heard(Sounds.stepOn(runner.standingOn), at));
+    }
     return out;
-  }
-
-  /// Footsteps, paid for in metres travelled on the ground.
-  void _step(Runner runner, Vector3 at, List<Heard> out) {
-    if (!_placed) {
-      _wasAt.setFrom(at);
-      _placed = true;
-      return;
-    }
-
-    final moved = Vector3(at.x - _wasAt.x, 0.0, at.z - _wasAt.z).length;
-    _wasAt.setFrom(at);
-
-    // Only while the feet are down. A runner crossing a gap covers ground and
-    // takes no steps, and hearing footsteps in mid-air is the sort of thing
-    // nobody reports and everybody notices.
-    if (!runner.isGrounded || runner.climbing != null) {
-      _sinceStep = stride * 0.6;
-      return;
-    }
-
-    _sinceStep += moved;
-    if (_sinceStep < stride) return;
-    _sinceStep = 0.0;
-    out.add(Heard(Sounds.stepOn(runner.standingOn), at));
   }
 
   /// For a level change or a restart: a fresh run makes its own noises.
   void reset() {
-    _sinceStep = 0.0;
+    _feet.reset();
     _wasFinished = false;
-    _placed = false;
   }
 }

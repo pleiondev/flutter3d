@@ -1,0 +1,47 @@
+// The `Unlit` lighting model, for `lighting/unlit.frag` and its opaque variant
+// `lighting/unlit_opaque.frag` — `A1.2`. A header rather than the stage itself
+// so both stages are this text: the opaque one defines `F3D_OPAQUE` first,
+// which takes the alpha cut's `discard` out of `ReadSurface`.
+
+#ifndef UNLIT_GLSL_
+#define UNLIT_GLSL_
+
+// Albedo only. Useful as a baseline: whatever this shows is purely texture and
+// tint, with no lighting term involved.
+// This model has no shadow term, and `LightingModel.unlit` says so with
+// `usesMaterialMaps: false` — so the engine binds no `PointShadow` block. The
+// header must therefore not declare one: a block declared and unbound is a
+// dropped draw on WebGL2 and a phantom bind on Impeller. See surface.glsl.
+#define F3D_NO_POINT_SHADOW
+// The light list too, for the same reason, and that one was not caught before
+// 0.7.0 shipped: see surface.glsl.
+#define F3D_NO_LIGHT_LIST
+#include <lib/surface.glsl>
+
+// Never called — nothing here accumulates lights — but the prototype in
+// surface.glsl has to be satisfied, and an unlit surface responding with its
+// albedo is the honest answer to "what would this look like lit".
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+// Never called either, and deliberately not routed through shadow.glsl: an
+// unlit shader that declared the shadow sampler would lose it to the optimizer
+// and leave the engine binding a slot Metal does not have.
+float LightVisibility(Surface s, LightSample light, int index) {
+  return 1.0;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  // `L5`: an unlit surface shows its colour and reflects no light, so the
+  // albedo buffer holds black for it.
+  g_albedo = vec3(0.0);
+  // The albedo is already linear, and an unlit surface is best
+  // understood as emitting exactly it, so it goes into the HDR
+  // target as light like everything else.
+  if (WriteDebugView(s, s.albedo)) return;
+  WriteSurface(s.albedo, s.alpha);
+}
+
+#endif  // UNLIT_GLSL_

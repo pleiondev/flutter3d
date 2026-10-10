@@ -94,7 +94,7 @@ class GridMover extends Component with FixedStepUpdate {
     final (column, row) = grid.cellAt(_body.absolutePosition);
     _column = column;
     _row = row;
-    _body.position.setFrom(grid.centreOf(column, row));
+    _body.position.setFrom(grid.centerOf(column, row));
   }
 
   @override
@@ -133,7 +133,7 @@ class GridMover extends Component with FixedStepUpdate {
       heading = wanted;
     }
     for (var guard = 0; guard < 64 && left > 0.0; guard++) {
-      final middle = grid.centreOf(_column, _row);
+      final middle = grid.centerOf(_column, _row);
       if (at.x == middle.x && at.y == middle.y) {
         if (wanted != GridHeading.none && _open(wanted)) {
           heading = wanted;
@@ -142,7 +142,7 @@ class GridMover extends Component with FixedStepUpdate {
         }
         if (heading == GridHeading.none) return;
       }
-      final target = grid.centreOf(_column + heading.dx, _row + heading.dy);
+      final target = grid.centerOf(_column + heading.dx, _row + heading.dy);
       final gap = at.distanceTo(target);
       if (gap > left) {
         at.add((target - at)..scale(left / gap));
@@ -152,7 +152,7 @@ class GridMover extends Component with FixedStepUpdate {
       final (c, r) = _wrapped(_column + heading.dx, _row + heading.dy)!;
       _column = c;
       _row = r;
-      at.setFrom(grid.centreOf(c, r));
+      at.setFrom(grid.centerOf(c, r));
       onArrive?.call(c, r);
     }
   }

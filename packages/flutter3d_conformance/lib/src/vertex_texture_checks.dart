@@ -51,10 +51,9 @@ Future<void> checkVertexTextureSampling(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: pixels,
   );
-  require(texture != null, 'a one-texel texture could not be uploaded');
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -92,16 +91,15 @@ Future<void> checkVertexTextureSampling(GraphicsDevice device) async {
       'at': Float32List.fromList(<double>[0.5, 0.5, 0.0, 0.0]),
     })
     // **The whole check is this line**: a texture bound to the *vertex* stage.
-    ..bindTexture(vertex, 'probe_texture', texture!)
+    ..bindTexture(vertex, 'probe_texture', texture)
     ..bindVertexData(ByteData.sublistView(triangle), 3)
     ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
     ..draw()
     ..submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
+  final read = await device.readback(target);
 
-  final bytes = read!.buffer.asUint8List();
+  final bytes = read.buffer.asUint8List();
   final red = bytes[0];
   final green = bytes[1];
 
@@ -167,15 +165,9 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
     format: TextureFormat.r32g32b32a32Float,
     pixels: pixels,
   );
-  require(
-    texture != null,
-    'a one-texel r32g32b32a32Float texture could not be uploaded. Sixteen '
-    'bytes were offered for one texel, which is what the format is; a backend '
-    'measuring every format at four bytes a texel refuses exactly here.',
-  );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -211,18 +203,17 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
     ..bindTexture(
       vertex,
       'probe_texture',
-      texture!,
-      sampler: SamplerOptions.nearestClamp,
+      texture,
+      sampler: SamplerDescriptor.nearestClamp,
     )
     ..bindVertexData(ByteData.sublistView(triangle), 3)
     ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
     ..draw()
     ..submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the target could not be read back');
+  final read = await device.readback(target);
 
-  final bytes = read!.buffer.asUint8List();
+  final bytes = read.buffer.asUint8List();
   final green = bytes[1];
   require(
     green < 32,
@@ -252,8 +243,9 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
 /// Declines on a device answering false, which is a legitimate answer: the
 /// filter is refused there by name and the fixed kernel draws instead.
 Future<void> checkFloat32Filtering(GraphicsDevice device) async {
-  if (!device.supportsFloat32Filtering) {
-    throw const ConformanceDeclined(
+  if (!(device.features.has(DeviceFeature.float32Filterable) &&
+      device.features.has(DeviceFeature.float32Renderable))) {
+    throw const ConformanceDeclinedException(
       'this device answers false to supportsFloat32Filtering, which is a '
       'legitimate answer: the evsm shadow filter is refused there and the '
       'fixed kernel draws instead',
@@ -270,7 +262,7 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
   /// probe [checkFloatTextureUpload] uses, as the red byte of the frame.
   Future<int> sampled(TextureHandle texture, double u) async {
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -303,15 +295,14 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
         vertex,
         'probe_texture',
         texture,
-        sampler: SamplerOptions.linearClamp,
+        sampler: SamplerDescriptor.linearClamp,
       )
       ..bindVertexData(ByteData.sublistView(triangle), 3)
       ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
       ..draw()
       ..submit();
-    final read = await device.readPixels(target);
-    require(read != null, 'the target could not be read back');
-    final bytes = read!.buffer.asUint8List();
+    final read = await device.readback(target);
+    final bytes = read.buffer.asUint8List();
     require(
       bytes[1] < 32,
       'the frame came back the clear colour, so the draw never landed',
@@ -330,8 +321,7 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
     format: TextureFormat.r32g32b32a32Float,
     pixels: pixels,
   );
-  require(pair != null, 'a two-texel r32g32b32a32Float texture was refused');
-  final between = await sampled(pair!, 0.5);
+  final between = await sampled(pair, 0.5);
   require(
     (between - 128).abs() <= 3,
     'texels of 0 and 1 sampled halfway between with a linear sampler came '
@@ -341,7 +331,7 @@ Future<void> checkFloat32Filtering(GraphicsDevice device) async {
   );
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: 2,
       height: 2,
       format: TextureFormat.r32g32b32a32Float,

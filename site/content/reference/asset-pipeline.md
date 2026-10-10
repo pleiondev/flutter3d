@@ -68,6 +68,29 @@ rules:
 
 The **last** matching rule wins, not the first, so a broad rule and a narrower exception below it read the way a person writes them. A bad glob or an unknown key names the line it is on, in `flutter3d_assets.yaml:N: ...` form, because the manifest's own author reads that error, not a player of the finished game.
 
+## What a `.f3d` holds {#f3d}
+
+A `.f3d` is a header, a directory of sections and the sections themselves,
+little-endian throughout. A reader skips a section it does not know unless
+the directory marks it must-understand, and from version 2 a table's record
+size comes from its section, so records can grow at the end. Kinds from
+`0x80000000` up belong to tools, not to the engine.
+
+| Sections | What they hold | Read back as |
+|---|---|---|
+| 1–18, 21–28 | Geometry, materials and their layers, images, nodes, clips, skins, morph targets, levels of detail, impostors, clusters, variants, `extras` | `ModelDocument` |
+| 29–31 | Lights (lux or candela), cameras, the nodes that carry them | `lights`, `cameras`, `ModelNode.lightIndex`/`cameraIndex` |
+| 32 | Each material's lighting model, in the JSON `.fmat` uses | `SurfaceMaterial.lightingModel` |
+| 33 | Material language programs (`.f3dmat` source) by name | `F3dDocument.programs` |
+| 34 | Level and prefab documents (`"format": "f3d.level"`) by name | `F3dDocument.prefabs` |
+| 35 | Files carried whole (models, `.fmat`, textures) by path | `F3dDocument.files` |
+
+Sections 29–35 make a `.f3d` a whole asset, which is what `flutter3d convert`
+writes by default (see [Bringing assets in](/reference/bringing-assets-in/#bundle)).
+None of them is must-understand, and a model without them is the same bytes
+it always was. `F3dWriter` takes `programs`, `prefabs`, `files` and
+`extraSections` for a tool's own data.
+
 ## Levels of detail, impostors and chunks {#lods}
 
 Three things the converter can add to a model, each off until a rule or a flag asks for it. They are the same options on the command line and in the manifest:
@@ -90,7 +113,7 @@ rules:
 
 **`impostor`** ends the chain in a card that turns to face the eye. Every node that draws something is drawn by the software rasteriser from 8×8 directions laid out on an octahedral map, into an albedo atlas and a normal-depth atlas, and the bytes come out the same on every machine. At run time the node's `LodGroup` ends in an `ImpostorNode`: one draw, receiving shadows and casting none. At the default cell of 64 texels that is two 512×512 atlases per node. A texture the bake cannot decode is baked as its material's base colour, and the report names it. On five trees at the switch distance, 11% of the silhouette differs from the mesh and the mean colour error is under 13 steps a channel. `bakeImpostors` is the Dart entry.
 
-**`chunks`** is for scans and CAD exports, one mesh of hundreds of thousands of triangles where most of it is off screen or behind the rest. Every static mesh above the threshold (65536 triangles for `true` and a bare `--chunks`, `kDefaultChunkThreshold`) is split into runs of up to 4096 triangles, each with a box and a cone of normals, and the scene pass tests each run against the view, its facing and the occlusion test. No vertex moves, and a skinned or morphing mesh stays whole. The table goes in a `.f3d` section of its own, written only when a mesh has one, so a reader from before 0.8.0 loads the same file and draws the whole mesh. `splitLargeMeshes` is the Dart entry.
+**`chunks`** is for scans and CAD exports, one mesh of hundreds of thousands of triangles where most of it is off screen or behind the rest. Every static mesh above the threshold (65536 triangles for `true` and a bare `--chunks`, `defaultChunkThreshold`) is split into runs of up to 4096 triangles, each with a box and a cone of normals, and the scene pass tests each run against the view, its facing and the occlusion test. No vertex moves, and a skinned or morphing mesh stays whole. The table goes in a `.f3d` section of its own, written only when a mesh has one, so a reader from before 0.8.0 loads the same file and draws the whole mesh. `splitLargeMeshes` is the Dart entry.
 
 ## One file per device class {#classes}
 
@@ -154,7 +177,7 @@ assetDeviceClass = await picker.pick(
 
 ## Upgrading from 0.7: one full conversion
 
-`kAssetPipelineVersion` is 2. A rule can now ask for levels of detail, an impostor or chunks, and an output cached by 0.7 may be missing them, so the first build after the upgrade converts every source once. After that a source is skipped when its bytes, the pipeline version, the texture family and what its rule asks for are all unchanged, as before.
+`assetPipelineVersion` is 2. A rule can now ask for levels of detail, an impostor or chunks, and an output cached by 0.7 may be missing them, so the first build after the upgrade converts every source once. After that a source is skipped when its bytes, the pipeline version, the texture family and what its rule asks for are all unchanged, as before.
 
 ## Texture families {#texture-families}
 
@@ -194,7 +217,7 @@ final document = await loadModelAsset('assets_src/models/chair.glb');
 Reads the converted `flutter3d_generated/models/chair.f3d`. Missing it means two different things on purpose:
 
 - **In debug**, decodes `assets_src/models/chair.glb` directly instead, and prints one warning the first time, not one per frame. A project with no build yet still draws something.
-- **Outside debug**, throws a `StateError` naming `flutter3d_build:init`. A release build that shipped without its own hook ever running is a real problem, and paying the decode cost on every load without a word would hide it.
+- **Outside debug**, throws an `AssetNotFoundException` whose `key` is the generated path, naming `flutter3d_build:init`. A release build that shipped without its own hook ever running is a real problem, and paying the decode cost on every load without a word would hide it.
 
 The debug fallback reads the source straight off disk, which only exists during `flutter run`/`flutter test` from a checkout: never in a shipped build, and never on the web, which has no `dart:io`. There, a missing generated file is the release error in every build mode.
 

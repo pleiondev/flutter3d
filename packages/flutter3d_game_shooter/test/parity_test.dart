@@ -19,6 +19,8 @@
 library;
 
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -59,12 +61,15 @@ void main() {
 /// play in, kept identical rather than reinvented — see the note at the top of
 /// this file for why.
 CollisionWorld _room() {
-  final world = CollisionWorld()
-    ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
-    ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
-    ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
-    ..addBox(Vector3(-20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0))
-    ..addBox(Vector3(20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0));
+  // The world the digests below were recorded in: falling at 24 m/s², the
+  // gravity the characters had before they fell by their world's.
+  final world =
+      CollisionWorld(properties: WorldProperties(gravity: Vector3(0, -24, 0)))
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+        ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
+        ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
+        ..addBox(Vector3(-20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0))
+        ..addBox(Vector3(20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0));
   for (var x = -3; x <= 3; x++) {
     for (var z = -3; z <= 3; z++) {
       if ((x + z) % 2 == 0) continue;
@@ -164,45 +169,53 @@ DigestTrace _play(
 }
 
 /// Recorded on macOS-arm64 under the VM, 2026-09-12.
+///
+/// **Re-recorded on 2026-10-09, macOS-arm64, the VM and Chrome agreeing on
+/// all forty.** The tape crouches from its first step, and the crouched
+/// capsule is swept as a capsule since the controller's sweep went by shape
+/// rather than by its box: the crawl moved from step one, which is why the
+/// first checkpoint is the first that differs. Not this package's change;
+/// `flutter3d_sim/test/parity_test.dart` was re-recorded for the same sweep
+/// the same day.
 const List<String> _recorded = <String>[
-  '16e3d7e9',
-  '6d76e27b',
-  '228ceea1',
-  '5c3e0a83',
-  'e96f0f28',
-  'e4ed09fc',
-  '56cfc973',
-  'de356577',
-  '696f7bce',
-  '7c3b90c0',
-  'db637ac8',
-  'f924106e',
-  '0d4f5cc1',
-  '2c8d858a',
-  'b4e21424',
-  '17bb021d',
-  '95cabe54',
-  '3d6da1fd',
-  'b84f77e2',
-  'a1fcf215',
-  'a996d8c8',
-  'ce9b018d',
-  'ee524b7e',
-  'b67c000d',
-  '81226920',
-  'bdc870a3',
-  '04137c6a',
-  '297280d1',
-  '118aa31c',
-  'c3561b6d',
-  '7407924d',
-  'fb010bba',
-  '4162c08e',
-  '68a0eb89',
-  '5ebe10a6',
-  'b871fdeb',
-  'f68ed393',
-  '87a93c6e',
-  'da39d439',
-  '059ecd2d',
+  '9611c4d2',
+  '6bbdd900',
+  '441c4e82',
+  'a0ca7af8',
+  'd614b4af',
+  '743450cf',
+  'bf3ec38c',
+  '23c33398',
+  '7852f8c1',
+  '54b8053f',
+  '7bcc8697',
+  '08e22f9d',
+  '18c90dca',
+  '76748ab5',
+  '2837f693',
+  '20dfd462',
+  '1d767217',
+  '5091ca1a',
+  'fb5439ed',
+  'c6d8d956',
+  '1e3e327b',
+  'a828ad52',
+  '9cd8b689',
+  'b1e14d9a',
+  '9a7af7fb',
+  '8479dd74',
+  'c4780c85',
+  '6d52c79e',
+  'f29990b7',
+  'd56fb552',
+  'c7bec162',
+  '4b162779',
+  'f895d711',
+  'e1e5d286',
+  '3f4da4f9',
+  '8d89963c',
+  'd7ff40d8',
+  'e8d062a9',
+  '81fd62f6',
+  '33e9a536',
 ];

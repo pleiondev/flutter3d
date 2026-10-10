@@ -12,12 +12,11 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -37,11 +36,11 @@ const int _height = 72;
 /// Blue above, dark below, and a red glow at the sun so that "which way is the
 /// camera looking" is answerable from the pixels.
 SkyGradient _gradient() => SkyGradient(
-  zenith: Vector3(0.05, 0.10, 0.60),
-  horizon: Vector3(0.30, 0.36, 0.45),
-  nadir: Vector3(0.02, 0.02, 0.03),
+  zenith: LinearColor(0.05, 0.10, 0.60),
+  horizon: LinearColor(0.30, 0.36, 0.45),
+  nadir: LinearColor(0.02, 0.02, 0.03),
   directionToSun: Vector3(1.0, 0.2, 0.0),
-  sunColour: Vector3(1.0, 0.1, 0.1),
+  sunColor: LinearColor(1.0, 0.1, 0.1),
   glowStrength: 0.9,
   glowExponent: 8.0,
 );
@@ -65,9 +64,9 @@ SkyGradient _gradient() => SkyGradient(
           device,
           CuboidShape(size: Vector3(30.0, 30.0, 1.0)).build(),
         ),
-        engine.Material(
+        engine.RenderMaterial(
           name: 'wall',
-          baseColor: Vector4(0.0, 1.0, 0.0, 1.0),
+          baseColor: LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'wall',
@@ -76,17 +75,13 @@ SkyGradient _gradient() => SkyGradient(
   }
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.2,
-      near: 0.3,
-      far: 500.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.2, near: 0.3, far: 500.0),
   )..lookAt(Vector3(0.0, 0.0, 1.0));
   scene.add(camera);
 
   if (sky) {
     final mesh = const SkyDome(rings: 24, segments: 32).build();
-    paintSky(mesh, _gradient().colour);
+    paintSky(mesh, _gradient().color);
     final node = skyNode(DeviceMesh.upload(device, mesh));
     scene.add(node);
     followCamera(node, camera);
@@ -109,7 +104,7 @@ Future<Uint8List> _draw(
       RenderView(
         camera: world.camera,
         // Black, so that anything not black in the frame was drawn.
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -119,9 +114,9 @@ Future<Uint8List> _draw(
       tonemap: false,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 int _count(Uint8List rgba, bool Function(int r, int g, int b) test) {
@@ -292,9 +287,9 @@ void main() {
 
   MeshNode block(Vector3 size, Vector3 at, String name) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    engine.Material(
+    engine.RenderMaterial(
       name: name,
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       lighting: LightingModel.pbr,
     ),
     name: name,
@@ -305,7 +300,7 @@ void main() {
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 1.1,
+      intensity: 1.1 * Photometric.legacyUnit,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.2, -0.95, 0.25)),
@@ -318,7 +313,7 @@ void main() {
 
   if (sky) {
     final mesh = const SkyDome(rings: 16, segments: 24).build();
-    paintSky(mesh, _gradient().colour);
+    paintSky(mesh, _gradient().color);
     final node = skyNode(DeviceMesh.upload(device, mesh));
     scene.add(node);
     followCamera(node, camera);

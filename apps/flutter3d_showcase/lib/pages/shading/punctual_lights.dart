@@ -8,7 +8,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PunctualLightsDemo extends ShowcaseDemo {
   double pointRange = 4.0;
@@ -34,21 +33,21 @@ final class PunctualLightsDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           sphere,
-          Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
           name: 'sun ball',
         )..setPosition(-2.2, 0.0, 0.0),
       )
       ..add(
         MeshNode(
           sphere,
-          Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
           name: 'point ball',
         )..setPosition(0.0, 0.0, 0.0),
       )
       ..add(
         MeshNode(
           sphere,
-          Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
           name: 'spot ball',
         )..setPosition(2.2, 0.0, 0.0),
       );
@@ -57,7 +56,7 @@ final class PunctualLightsDemo extends ShowcaseDemo {
     final LightNode sun = LightNode(
       name: 'sun',
       type: LightType.directional,
-      intensity: 2.0,
+      intensity: 2.0 * Photometric.legacyUnit,
     )..setLocalForward(Vector3(-0.3, -0.6, -0.7));
     // #endregion directional
 
@@ -65,7 +64,7 @@ final class PunctualLightsDemo extends ShowcaseDemo {
     _point = LightNode(
       name: 'lamp',
       type: LightType.point,
-      intensity: 6.0,
+      intensity: 6.0 * Photometric.legacyUnit,
       range: pointRange,
     )..setPosition(0.0, 1.6, 1.2);
     // #endregion point
@@ -74,7 +73,7 @@ final class PunctualLightsDemo extends ShowcaseDemo {
     _spot = LightNode(
       name: 'torch',
       type: LightType.spot,
-      intensity: 10.0,
+      intensity: 10.0 * Photometric.legacyUnit,
       range: 6.0,
       innerConeAngle: 0.0,
       outerConeAngle: spotOuterDegrees * math.pi / 180.0,

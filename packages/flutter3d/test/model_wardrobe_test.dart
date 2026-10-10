@@ -5,7 +5,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 enum _Part { jet, ship }
 
@@ -23,7 +22,7 @@ SceneNode _wearer(Scene scene, String name) {
           cpuTestDevice(width: 4, height: 4).device,
           CuboidShape(size: Vector3.all(0.5)).build(),
         ),
-        Material(),
+        RenderMaterial(),
       ),
     );
   scene.add(visual);

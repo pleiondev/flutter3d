@@ -7,7 +7,7 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_flutter3d_audio/flame_flutter3d_audio.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter_test/flutter_test.dart';
@@ -26,16 +26,16 @@ const SoundDef _boom = SoundDef(
 );
 
 /// Speakers that make no sound and remember what they were asked, and
-/// whether they were closed.
+/// whether they were disposed.
 final class _Speakers {
   final SilentBackend backend = SilentBackend();
   late final AudioScene scene = AudioScene(backend: backend);
   int opened = 0;
-  bool closed = false;
+  bool get closed => backend.isDisposed;
 
-  Future<OpenedSpeakers?> open() async {
+  Future<Speakers> open() async {
     opened++;
-    return (scene: scene, close: () async => closed = true);
+    return Speakers(backend: backend, scene: scene);
   }
 }
 
@@ -96,11 +96,11 @@ void main() {
       game.update(1 / 60);
       expect(speakers.backend.live, hasLength(1));
 
-      engine.playing = false;
+      engine.isPlaying = false;
       game.update(1 / 60);
       expect(speakers.backend.live, isEmpty);
 
-      engine.playing = true;
+      engine.isPlaying = true;
       game.update(1 / 60);
       expect(speakers.backend.live, hasLength(1));
 
@@ -112,7 +112,7 @@ void main() {
   );
 
   testWithGame<FlameGame>(
-    'one-shots play into the scene, and closing goes back to silence',
+    'one-shots play into the scene, and disposing goes back to silence',
     FlameGame.new,
     (game) async {
       final speakers = _Speakers();
@@ -128,9 +128,11 @@ void main() {
       game.update(1 / 60);
       expect(speakers.backend.started.single.asset, 'boom.wav');
 
-      await audio.close();
+      await audio.dispose();
       expect(speakers.closed, isTrue);
       expect(audio.isOpen, isFalse);
+      await audio.open();
+      expect(speakers.opened, 1, reason: 'nothing opens after dispose');
     },
   );
 
@@ -222,7 +224,9 @@ void main() {
       var refuse = true;
       final audio = AudioSceneComponent(
         bank: SoundBank(const <SoundDef>[_engine]),
-        opener: () async => refuse ? null : speakers.open(),
+        opener: () async => refuse
+            ? throw const AudioDeviceException('refused before a touch')
+            : speakers.open(),
       );
       await game.add(audio);
       await game.ready();
@@ -236,7 +240,7 @@ void main() {
   );
 
   testWithGame<FlameGame>(
-    'closed while the device is opening, it stays closed',
+    'disposed while the device is opening, it stays silent',
     FlameGame.new,
     (game) async {
       // Mutation: install whatever arrives.
@@ -252,7 +256,7 @@ void main() {
       await game.ready();
 
       final opening = audio.open();
-      await audio.close();
+      await audio.dispose();
       await opening;
       expect(audio.isOpen, isFalse);
       expect(speakers.closed, isTrue, reason: 'the late device is let go');
@@ -260,13 +264,14 @@ void main() {
   );
 
   testWithGame<FlameGame>(
-    'paused, every loop falls silent at once, and comes back on resume',
+    'paused, every loop is held at once, and goes on at resume',
     FlameGame.new,
     (game) async {
       // A paused game is not updated, and the engine droned on under the
-      // pause menu at its last loudness.
+      // pause menu at its last loudness. The backend holds the voices; the
+      // player's master volume is left as it was.
       //
-      // Mutation: turn the mix down and wait for an update to apply it.
+      // Mutation: turn the master bus down instead of pausing the backend.
       final speakers = _Speakers();
       final audio = AudioSceneComponent(
         bank: SoundBank(const <SoundDef>[_engine]),
@@ -281,10 +286,12 @@ void main() {
       expect(loud, greaterThan(0.0));
 
       audio.pause();
-      expect(voice.gain, 0.0);
-      expect(voice.alive, isTrue, reason: 'held, not stopped');
+      expect(speakers.backend.isPaused, isTrue);
+      expect(voice.isAlive, isTrue, reason: 'held, not stopped');
+      expect(audio.scene.mixer.volumeOf(AudioBus.master), 1.0);
 
       audio.resume();
+      expect(speakers.backend.isPaused, isFalse);
       expect(voice.gain, closeTo(loud, 1e-9));
     },
   );

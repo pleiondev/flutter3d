@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ToneMappingDemo extends ShowcaseDemo {
   int curve = 0;
@@ -36,20 +35,20 @@ final class ToneMappingDemo extends ShowcaseDemo {
       context.device,
       const SphereShape(radius: 0.28, segments: 24, rings: 12).build(),
     );
-    const List<List<double>> colours = <List<double>>[
+    const List<List<double>> colors = <List<double>>[
       <double>[1.0, 0.1, 0.05],
       <double>[0.1, 0.9, 0.2],
       <double>[0.1, 0.25, 1.0],
     ];
-    for (var i = 0; i < colours.length; i++) {
+    for (var i = 0; i < colors.length; i++) {
       stage.scene.add(
         MeshNode(
           ball,
-          Material(
+          RenderMaterial(
             name: 'lamp $i',
-            baseColor: Vector4(0.05, 0.05, 0.05, 1.0),
-            emissive: Vector3(colours[i][0], colours[i][1], colours[i][2]),
-            emissiveStrength: 6.0,
+            baseColor: LinearColor.fromSrgb(0.05, 0.05, 0.05, 1.0),
+            emissive: LinearColor(colors[i][0], colors[i][1], colors[i][2]),
+            emissiveStrength: 6.0 * Photometric.legacyNits,
           ),
           name: 'lamp $i',
         )..setPosition((i - 1) * 1.1 + 0.5, 2.3, 0.8),
@@ -63,7 +62,7 @@ final class ToneMappingDemo extends ShowcaseDemo {
       height: _size,
       format: TextureFormat.r16g16b16a16Float,
       pixels: _bake(),
-    )!;
+    );
     // #endregion upload
 
     return stage.scene;
@@ -87,16 +86,12 @@ final class ToneMappingDemo extends ShowcaseDemo {
     for (var b = 0; b < _size; b++) {
       for (var g = 0; g < _size; g++) {
         for (var r = 0; r < _size; r++) {
-          final List<double> colour = <double>[input(r), input(g), input(b)];
-          final double peak = colour.reduce(math.max);
+          final List<double> color = <double>[input(r), input(g), input(b)];
+          final double peak = color.reduce(math.max);
           final double scale = 1.0 / (1.0 + peak);
           final int at = (g * _size * _size + b * _size + r) * 8;
           for (var c = 0; c < 3; c++) {
-            strip.setUint16(
-              at + c * 2,
-              _half(colour[c] * scale),
-              Endian.little,
-            );
+            strip.setUint16(at + c * 2, _half(color[c] * scale), Endian.little);
           }
           strip.setUint16(at + 6, _half(1.0), Endian.little);
         }

@@ -47,29 +47,137 @@ library;
 /// Every value flutter_gpu has. Its own header notes the absent ones —
 /// normalized, packed, half-float, BGRA-swizzled and 64-bit — as a thing to add
 /// later; when they arrive there, they arrive here.
-enum VertexFormat {
-  float32(bytesPerElement: 4, componentCount: 1),
-  float32x2(bytesPerElement: 8, componentCount: 2),
-  float32x3(bytesPerElement: 12, componentCount: 3),
-  float32x4(bytesPerElement: 16, componentCount: 4),
-  uint32(bytesPerElement: 4, componentCount: 1),
-  uint32x2(bytesPerElement: 8, componentCount: 2),
-  uint32x3(bytesPerElement: 12, componentCount: 3),
-  uint32x4(bytesPerElement: 16, componentCount: 4),
-  sint32(bytesPerElement: 4, componentCount: 1),
-  sint32x2(bytesPerElement: 8, componentCount: 2),
-  sint32x3(bytesPerElement: 12, componentCount: 3),
-  sint32x4(bytesPerElement: 16, componentCount: 4);
-
-  const VertexFormat({
+final class VertexFormat {
+  const VertexFormat._(
+    this.index,
+    this.name, {
     required this.bytesPerElement,
     required this.componentCount,
   });
+
+  static const VertexFormat float32 = VertexFormat._(
+    0,
+    'float32',
+    bytesPerElement: 4,
+    componentCount: 1,
+  );
+
+  static const VertexFormat float32x2 = VertexFormat._(
+    1,
+    'float32x2',
+    bytesPerElement: 8,
+    componentCount: 2,
+  );
+
+  static const VertexFormat float32x3 = VertexFormat._(
+    2,
+    'float32x3',
+    bytesPerElement: 12,
+    componentCount: 3,
+  );
+
+  static const VertexFormat float32x4 = VertexFormat._(
+    3,
+    'float32x4',
+    bytesPerElement: 16,
+    componentCount: 4,
+  );
+
+  static const VertexFormat uint32 = VertexFormat._(
+    4,
+    'uint32',
+    bytesPerElement: 4,
+    componentCount: 1,
+  );
+
+  static const VertexFormat uint32x2 = VertexFormat._(
+    5,
+    'uint32x2',
+    bytesPerElement: 8,
+    componentCount: 2,
+  );
+
+  static const VertexFormat uint32x3 = VertexFormat._(
+    6,
+    'uint32x3',
+    bytesPerElement: 12,
+    componentCount: 3,
+  );
+
+  static const VertexFormat uint32x4 = VertexFormat._(
+    7,
+    'uint32x4',
+    bytesPerElement: 16,
+    componentCount: 4,
+  );
+
+  static const VertexFormat sint32 = VertexFormat._(
+    8,
+    'sint32',
+    bytesPerElement: 4,
+    componentCount: 1,
+  );
+
+  static const VertexFormat sint32x2 = VertexFormat._(
+    9,
+    'sint32x2',
+    bytesPerElement: 8,
+    componentCount: 2,
+  );
+
+  static const VertexFormat sint32x3 = VertexFormat._(
+    10,
+    'sint32x3',
+    bytesPerElement: 12,
+    componentCount: 3,
+  );
+
+  static const VertexFormat sint32x4 = VertexFormat._(
+    11,
+    'sint32x4',
+    bytesPerElement: 16,
+    componentCount: 4,
+  );
+
+  /// Every value this version names, in the order of [index].
+  static const List<VertexFormat> values = <VertexFormat>[
+    float32,
+    float32x2,
+    float32x3,
+    float32x4,
+    uint32,
+    uint32x2,
+    uint32x3,
+    uint32x4,
+    sint32,
+    sint32x2,
+    sint32x3,
+    sint32x4,
+  ];
+
+  /// The value whose [name] is [wireName], or null when this version names
+  /// none (absent) — how a file that names a value is read.
+  static VertexFormat? byName(String wireName) {
+    for (final value in values) {
+      if (value.name == wireName) return value;
+    }
+    return null;
+  }
+
+  /// The position in [values]: stable within a major, appended only.
+  final int index;
+
+  /// The stable name, and the wire name: what a file, a report or a
+  /// snapshot writes for this value. Never renamed within a major.
+  final String name;
 
   /// Size of one whole attribute, not of one component.
   final int bytesPerElement;
 
   final int componentCount;
+
+  @override
+  String toString() => 'VertexFormat.$name';
 }
 
 /// Whether a buffer advances once per vertex or once per instance.
@@ -125,8 +233,8 @@ final class BufferLayout {
 }
 
 /// Every buffer a pipeline reads vertices from, in slot order.
-final class VertexLayoutSpec {
-  const VertexLayoutSpec(this.buffers);
+final class VertexLayoutDescriptor {
+  const VertexLayoutDescriptor(this.buffers);
 
   /// Slot *n* is `buffers[n]`, and there are no gaps — see the library comment.
   final List<BufferLayout> buffers;

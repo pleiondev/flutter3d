@@ -1,0 +1,8 @@
+# What stays out of the published archive — and, by its last line, what
+# comes back in. The repository's .gitignore excludes *.f3dshaders (built,
+# tied to the Flutter SDK); a .pubignore replaces only its own directory's
+# .gitignore, so the root's rule still applies from above and only the
+# negation here wins the compiled material back. Build before publishing.
+!*.f3dshaders
+.dart_tool/
+build/

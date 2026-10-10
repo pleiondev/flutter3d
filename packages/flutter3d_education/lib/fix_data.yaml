@@ -1,0 +1,24 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-lti-LtiPlatformConfig'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education/lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'LtiPlatformConfig'
+    changes:
+      - kind: 'rename'
+        newName: 'LtiPlatformSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-lti-XapiLrsConfig'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_education/lti.dart', 'package:flutter3d_lti/flutter3d_lti.dart']
+      class: 'XapiLrsConfig'
+    changes:
+      - kind: 'rename'
+        newName: 'XapiLrsSettings'

@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -25,7 +26,7 @@ final class _AoProbe extends RenderNode {
   String get name => 'ao probe';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -37,7 +38,7 @@ final class _AoProbe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final ao = frame.resources.texture(FrameResourceIds.ao);
     last = _device.readHdrPixels(ao);
     width = ao.width;
@@ -60,7 +61,7 @@ final class _AoProbe extends RenderNode {
     maxColorAttachments: attachments,
   );
   final cube = DeviceMesh.upload(device, CuboidShape().build());
-  MeshNode slab(Vector3 at, Vector3 scale) => MeshNode(cube, Material())
+  MeshNode slab(Vector3 at, Vector3 scale) => MeshNode(cube, RenderMaterial())
     ..setPosition(at.x, at.y, at.z)
     ..setScale(scale.x, scale.y, scale.z);
   final camera = CameraNode()
@@ -71,7 +72,7 @@ final class _AoProbe extends RenderNode {
     ..add(slab(Vector3(0.0, 1.0, -1.0), Vector3(8.0, 2.0, 0.2)))
     ..add(camera);
   final probe = _AoProbe(device);
-  (Renderer.create(device: device)..addNode(probe)).render(
+  (Renderer.create(device: device)..renderSteps.addNode(probe)).render(
     width: _width,
     height: _height,
     scene: scene,

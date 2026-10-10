@@ -147,9 +147,9 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
         device,
         CuboidShape(size: vm.Vector3(0.6, 1.2, 0.6)).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: vm.Vector4(0.72, 0.68, 0.6, 1.0),
+        baseColor: LinearColor.fromSrgb(0.72, 0.68, 0.6, 1.0),
         roughness: 0.6,
       ),
       capacity: _ladder.last,
@@ -164,8 +164,8 @@ class _InstancingScaleProbeState extends State<InstancingScaleProbe> {
     _scene.add(
       LightNode(
         type: LightType.directional,
-        color: vm.Vector3(1.0, 0.97, 0.9),
-        intensity: 3.0,
+        color: LinearColor(1.0, 0.97, 0.9),
+        intensity: 3.0 * Photometric.legacyUnit,
         name: 'sun',
       )..lookAt(vm.Vector3(0.3, -1.0, 0.4)),
     );

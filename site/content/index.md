@@ -28,7 +28,7 @@ flutter3d is a renderer, a game layer, and six games built on them: a shooter, a
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes: all 38 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Thirty-six carry 0.8.0, so any `^0.8.0` resolves against every other; `pad_input` and `pointer_lock` keep their own line at 0.4.2 |
+| Published | Yes: all 45 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Forty-two carry the release candidate 1.0.0-rc.1, so any `^1.0.0-rc.1` resolves against every other and admits 1.0.0 when it follows; from 1.0.0 they follow strict semver, and the candidate already does; `flutter3d_plugin_api` is on the candidate too, on a line of its own; `pad_input` and `pointer_lock` keep their own line at 0.5.0, `flame_multiplayer` at 0.2.0 and `flame_multiplayer_dashwire` at 0.1.1 |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
@@ -90,7 +90,7 @@ All six run in a browser on the WebGL2 backend and are embedded on their demo pa
 
 ## The package split
 
-Thirty-eight packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
+57 packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
 
 ```mermaid
 flowchart TB
@@ -143,7 +143,7 @@ flowchart TB
   simp --> physics
 ```
 
-Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: thirty-five checks that read source text and run before a build.
+Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 74 checks that read source text and run before a build.
 
 Three of those rules hold the picture up:
 

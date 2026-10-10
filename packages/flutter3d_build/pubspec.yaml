@@ -1,6 +1,6 @@
 name: flutter3d_build
 description: "The build hook behind `dart run flutter3d_build:init`: converts model and texture sources into what the engine loads, on every build rather than as a step somebody remembers to run."
-version: 0.8.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,36 +13,67 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: a build hook and a command
+# line, which run where a game is built, so the desktops. A game for any
+# platform still depends on it; the hook never ships inside one.
+platforms:
+  linux:
+  macos:
+  windows:
+
+# `dart pub global activate flutter3d_build` puts `flutter3d` on PATH: one
+# command for convert, create, init, plugins, migrate, lights and doctor.
+# Every one of them still runs as `dart run flutter3d_build:<name>`.
+executables:
+  flutter3d: flutter3d
+
 dependencies:
   # The decoders a hook converts through — glTF/OBJ/`.f3d` in, `.f3d` out
   # (`ap-03`) — and neither needs the Flutter SDK to read a source file, which
   # is the whole reason this package can be a hook in the first place: `dart
   # pub get` inside a `hook/build.dart` process has no window to ask for.
-  flutter3d_core: ^0.8.0
+  flutter3d_core: ^1.0.0-rc.1
 
   # `C5`'s automatic levels of detail: `simplifyMeshWithAttributesMeasured`
   # cuts each level from the base and says how far it bent it. Plain Dart,
   # like everything else here.
-  flutter3d_mesh: ^0.8.0
+  flutter3d_mesh: ^1.0.0-rc.1
 
   # `C4`'s impostor bake: the software rasteriser draws every view, so the
   # atlases a model carries are the same bytes on every machine that converts
   # it — the device is plain Dart, which is what a build hook needs.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^1.0.0-rc.1
   vector_math: ^2.2.0
 
   # `N7`'s per-class texture budgets: the same `TextureBudget` presets and
   # box resize `makeGameReady` fits a project with, so a phone's file carries
   # the textures the editor would have fitted it to. Plain Dart, and already
   # under `flutter3d_cpu` above.
-  flutter3d_model_core: ^0.8.0
+  flutter3d_model_core: ^1.0.0-rc.1
 
   # `bin/lights.dart`: the light optimizer (`flutter3d_editor_core`'s
   # `light_opt/`) and the level and pose documents it reads
   # (`flutter3d_sim`). Both plain Dart, and reached only from that command —
   # `lib/flutter3d_build.dart`, which the hook imports, does not export it.
-  flutter3d_editor_core: ^0.8.0
-  flutter3d_sim: ^0.8.0
+  flutter3d_editor_core: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # `migrate --data` and `doctor`: the packages that own a data format a
+  # project keeps (effects, data plugins, physical materials, voxel worlds),
+  # for their `FormatSpec`s. All plain Dart; the formats of the packages
+  # that name Flutter are listed in `lib/src/migrate/data.dart` instead.
+  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_plugin_runtime: ^1.0.0-rc.1
+  flutter3d_matter: ^1.0.0-rc.1
+  flutter3d_voxel: ^1.0.0-rc.1
+
+  # P8's material step: `ShaderBundle`, the container it writes, and
+  # `flutter3d_shaders`' `compile.dart` — the engine's headers a material
+  # includes, the WebGL2 and WebGPU translators, and the WGSL compile. Both
+  # flat; the translators moved out of the two web backends for exactly this
+  # line, since a package declaring the Flutter SDK cannot be listed here.
+  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_shaders: ^1.0.0-rc.1
 
   # `hook/build.dart`'s own contract — `ap-00`'s spike proved this is the half
   # of the build-hook feature that is stable on Flutter 3.47/Dart 3.13; the
@@ -51,6 +82,17 @@ dependencies:
   # package writes ordinary files into an ordinary `assets:` directory rather
   # than the data-asset API that formalises that same act).
   hooks: ^2.0.0
+
+  # The material compiler and the typed accessors, a light package of their
+  # own so a package's hook can compile its materials without everything
+  # here; exported from `material_build.dart` under the same names.
+  flutter3d_build_hooks: ^1.0.0-rc.1
+
+  # The build steps' scheduler: `orderByConstraints` puts a project's own
+  # steps among the engine's three by their `after` and `before`, the way the
+  # loop orders its systems and a cycle names its members. Plain Dart with no
+  # dependencies of its own, so a hook gains nothing beneath it.
+  flutter3d_plugin_api: ^1.0.0-rc.1
 
   # **Only to read which platform is being built for** — `gfx-69n`. A
   # compression family is not a taste: block formats are guaranteed by the
@@ -78,10 +120,23 @@ dependencies:
   # same as every other dependency here.
   image: ^4.10.1
 
+  # The server a plugin's author drives through an agent
+  # (`dart run flutter3d_build:plugin_mcp`): a table of tools over one
+  # session, as every server here is. Plain Dart, started by `dart run`.
+  flutter3d_mcp: ^1.0.0-rc.1
+
+  # The protocol under that table, pinned to one minor for the reason every
+  # server here gives: its own README calls it experimental.
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+  # The channel the author server is built on: stdio for the process, an
+  # in-memory pair for its suite.
+  stream_channel: ^2.1.4
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
 dev_dependencies:
-  # `RecordingDevice`, which a test wraps round the impostor bake's device to
-  # count what the bake uploads against what it releases.
-  flutter3d_hardware: ^0.8.0
   test: ^1.25.0
   flutter_lints: ^6.0.0
 

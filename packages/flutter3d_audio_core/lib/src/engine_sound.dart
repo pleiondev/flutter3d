@@ -7,22 +7,24 @@ import 'sound.dart';
 
 /// One recording in a set that covers a range of some value.
 ///
-/// [centre] is what the recording *is*: a loop of an engine at three quarters
+/// [center] is what the recording *is*: a loop of an engine at three quarters
 /// of its revs has a centre of `0.75`. That is what makes the speed correction
 /// below meaningful rather than arbitrary — asked for a value the band is not
 /// centred on, it is played at the ratio between the two, which is exactly what
 /// running an engine faster sounds like.
 final class LoopBand {
-  const LoopBand({required this.sound, required this.centre, this.width = 0.35})
-    : assert(centre > 0.0),
+  const LoopBand({required this.sound, required this.center, this.width = 0.35})
+    : assert(center > 0.0),
       assert(width > 0.0);
 
   final SoundDef sound;
 
-  /// The value this band was recorded at.
-  final double centre;
+  /// The value this band was recorded at, in whatever unit the driving value
+  /// is in: a fraction of the revs, for an engine.
+  final double center;
 
-  /// How far either side of [centre] it still contributes.
+  /// How far either side of [center] it still contributes, in the same unit
+  /// as [center].
   ///
   /// Overlap is the point: two bands whose widths do not reach each other leave
   /// a hole where neither is heard, and two that meet exactly leave a seam
@@ -68,7 +70,7 @@ final class BlendedLoop {
   final List<LoopBand> bands;
 
   final Vector3 _position;
-  final List<SoundEmitter> _emitters = <SoundEmitter>[];
+  final List<AudioEmitter> _emitters = <AudioEmitter>[];
   late final List<double> _weights;
 
   /// Where the sound is coming from, for anything that moves.
@@ -88,7 +90,7 @@ final class BlendedLoop {
     var total = 0.0;
     for (var i = 0; i < bands.length; i++) {
       final band = bands[i];
-      final distance = (value - band.centre).abs() / band.width;
+      final distance = (value - band.center).abs() / band.width;
       // A raised cosine rather than a straight ramp: the derivative is zero at
       // both ends, so a band arrives and leaves without a corner, and a corner
       // in a gain curve is a click.
@@ -105,8 +107,8 @@ final class BlendedLoop {
       // an over-rev, a stall — would otherwise sound like.
       var nearest = 0;
       for (var i = 1; i < bands.length; i++) {
-        if ((value - bands[i].centre).abs() <
-            (value - bands[nearest].centre).abs()) {
+        if ((value - bands[i].center).abs() <
+            (value - bands[nearest].center).abs()) {
           nearest = i;
         }
       }
@@ -123,7 +125,7 @@ final class BlendedLoop {
         // The ratio between what is wanted and what the band holds. An engine
         // recorded at half revs, asked for three quarters, is that recording
         // run half again as fast — which is what the real thing does.
-        ..rate = (value / band.centre).clamp(0.25, 4.0);
+        ..rate = (value / band.center).clamp(0.25, 4.0);
     }
   }
 

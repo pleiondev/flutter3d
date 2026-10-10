@@ -5,7 +5,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -24,25 +23,28 @@ const int _size = 64;
     ..add(
       MeshNode(
           floor,
-          Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+          ),
         )
         ..setPosition(0.0, -1.0, 0.0)
         ..shadowCasting = ShadowCastingMode.off,
     )
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
   for (var i = 0; i < 5; i++) {
     scene.add(
-      MeshNode(block, Material(name: 'wall $i'))
+      MeshNode(block, RenderMaterial(name: 'wall $i'))
         ..setPosition(-4.0 + i * 2.0, 0.0, -2.0)
         ..shadowIsStatic = static,
     );
   }
   final mover = scene.add(
-    MeshNode(block, Material(name: 'mover'), name: 'mover')
+    MeshNode(block, RenderMaterial(name: 'mover'), name: 'mover')
       ..setPosition(-1.0, 0.0, 1.0),
   );
   final camera = scene.add(CameraNode())
@@ -64,19 +66,22 @@ const int _size = 64;
   );
   final scene = Scene()
     ..add(
-      MeshNode(floor, Material(baseColor: Vector4(0.9, 0.9, 0.9, 1.0)))
+      MeshNode(
+          floor,
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0)),
+        )
         ..setPosition(0.0, -0.45, 0.0)
         ..shadowCasting = ShadowCastingMode.off,
     )
     ..add(
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     );
   for (var i = 0; i < 12; i++) {
     for (var j = 0; j < 5; j++) {
       scene.add(
-        MeshNode(block, Material())
+        MeshNode(block, RenderMaterial())
           ..setPosition(-6.0 + i * 1.1, 0.0, -3.0 + j * 1.2)
           ..shadowIsStatic = true,
       );
@@ -129,9 +134,9 @@ void main() {
   test('the split draws what drawing everything draws', () async {
     final gpu = device();
     Future<List<int>> pixels(FrameResult result) async {
-      final bytes = await gpu.readPixels(result.frame);
+      final bytes = await gpu.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 
@@ -153,9 +158,9 @@ void main() {
   test('a camera walking over static walls scrolls their tiles', () async {
     final gpu = device();
     Future<List<int>> pixels(FrameResult result) async {
-      final bytes = await gpu.readPixels(result.frame);
+      final bytes = await gpu.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 

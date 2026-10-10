@@ -11,6 +11,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -164,7 +165,7 @@ void main() {
         for (var face = 0; face < mesh.faceSlotCount; face++) {
           mesh.setFaceFlag(face, FaceFlags.smooth, on: true);
           mesh.forEachHalfEdge(face, (int half) {
-            mesh.setColour(half, Vector4(face.toDouble(), 0, 0, 1));
+            mesh.setColor(half, LinearColor(face.toDouble(), 0, 0));
           });
         }
       });
@@ -206,7 +207,7 @@ void main() {
       ];
       expect(faces.where((int face) => face == 0), hasLength(4));
       expect(faces.where((int face) => face == 1), hasLength(1));
-      expect(plan.fannedAnyFace, isFalse);
+      expect(plan.didFanAnyFace, isFalse);
     });
 
     test('a face that could not be cut is reported', () {
@@ -224,7 +225,7 @@ void main() {
 
       final plan = MeshLayoutPlan()..build(mesh);
 
-      expect(plan.fannedAnyFace, isTrue);
+      expect(plan.didFanAnyFace, isTrue);
       expect(plan.triangleCount, 2);
     });
   });

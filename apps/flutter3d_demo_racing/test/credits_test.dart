@@ -16,10 +16,10 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_demo_content/repo_checks.dart'; // creditGaps
 import 'package:flutter3d_demo_racing/src/credits.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game/testing.dart'; // creditGaps
 // creditGaps — test-only, not in the barrel
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -29,7 +29,10 @@ void main() {
     //
     // The comparison is `flutter3d_game`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
-    final gaps = creditGaps(Credits.models, shippedFrom: 'assets_src/models');
+    final gaps = creditGaps(
+      credits.models.map((c) => c.file),
+      shippedFrom: 'assets_src/models',
+    );
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
     expect(
@@ -46,32 +49,30 @@ void main() {
 
   test('and nothing it ships is untraceable', () {
     expect(
-      Credits.untraced,
+      credits.untraced,
       isEmpty,
       reason: 'this game cannot be released while anything is in this list',
     );
   });
 
-  test('and what is owed is owed, which is the point here', () {
-    // **Not empty.** This game ships a CC BY model, so the screen is a
-    // condition of shipping rather than a courtesy.
-    //
-    // This used to say "unlike the other two games", and half of that was
-    // never true: the crypt's ten entries are all CC0 or generated, but the
-    // platformer ships `penguin.glb` and `coin.glb` under CC BY 4.0 and owes
-    // exactly what this game owes. Two of three, not one — and a comment that
-    // says a sister game has no obligation is the kind that gets believed.
+  test('and what is owed is nothing, now that the car is CC0', () {
+    // The car was CC BY until 0.9.0, and the credits screen was a condition
+    // of shipping it. Everything here is CC0 now; a model that comes in
+    // under a licence that asks for its author makes this fail, and the
+    // screens below have to name them again.
     expect(
-      Credits.owed,
-      isNotEmpty,
-      reason: 'nothing here needs attribution, so this file is a formality',
+      credits.owed,
+      isEmpty,
+      reason:
+          'a model asks to be credited: the title card and the ending '
+          'must name its author',
     );
-    for (final credit in Credits.owed) {
+    for (final credit in credits.owed) {
       expect(credit.author, isNotNull);
       expect(
-        credit.licenceUrl,
+        credit.licenseUrl,
         isNotNull,
-        reason: '${credit.file} names ${credit.licence} and no URL',
+        reason: '${credit.file} names ${credit.license} and no URL',
       );
       expect(
         credit.line,
@@ -82,27 +83,24 @@ void main() {
   });
 
   test('and the car says it was changed, because it was', () {
-    // CC BY asks that modifications be stated. `tool/prepare_models.py` resizes
-    // its maps, drops two extensions and turns its root half a turn, and a
-    // credit that said otherwise would describe a file this game does not ship.
-    final car = Credits.models.firstWhere((Credit c) => c.file.contains('car'));
+    // CC0 asks for nothing, but `tool/prepare_models.py` embeds its atlas,
+    // gives its paint a material of its own and scales it to the wheel base,
+    // and a credit that said otherwise would describe a file this game does
+    // not ship.
+    final car = credits.models.firstWhere((Credit c) => c.file.contains('car'));
 
     expect(car.modified, isTrue);
     expect(car.line, contains('modified'));
   });
 
-  test('and the licence table on disk covers the same files', () {
+  test('and the licence table on disk says the same', () {
     // Two records of the same fact, which is one too many — so they are checked
     // against each other. `LICENSES.md` is the long version a person reads; the
-    // list above is the half a player sees.
-    final table = File('assets_src/models/LICENSES.md').readAsStringSync();
-
-    for (final credit in Credits.models) {
-      expect(
-        table,
-        contains(credit.file.split('/').last),
-        reason: 'LICENSES.md does not mention ${credit.file}',
-      );
-    }
+    // list above is the half a player sees. Read rather than searched: where a
+    // section names an author and a licence, the list has to name the same.
+    final record = LicenseRecord.parse(
+      File('assets_src/models/LICENSES.md').readAsStringSync(),
+    );
+    expect(credits.disagreementsWith(record), isEmpty);
   });
 }

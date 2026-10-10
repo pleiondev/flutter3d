@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -28,12 +29,18 @@ Float32List _render({required bool local}) {
     ..setPosition(0.0, 0.5, 5.0)
     ..lookAt(Vector3.zero());
   final scene = Scene()
-    ..add(MeshNode(cube, Material())..setPosition(-1.6, 0.0, 0.0))
-    ..add(MeshNode(cube, Material())..setPosition(1.6, 0.0, 0.0))
-    ..add(LightNode(intensity: 0.08)..setRotationYawPitchRoll(0.3, -0.5, 0.0))
+    ..add(MeshNode(cube, RenderMaterial())..setPosition(-1.6, 0.0, 0.0))
+    ..add(MeshNode(cube, RenderMaterial())..setPosition(1.6, 0.0, 0.0))
     ..add(
-      LightNode(type: LightType.point, intensity: 60.0, range: 3.0)
-        ..setPosition(1.6, 0.8, 1.4),
+      LightNode(intensity: 0.08 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.3, -0.5, 0.0),
+    )
+    ..add(
+      LightNode(
+        type: LightType.point,
+        intensity: 60.0 * Photometric.legacyUnit,
+        range: 3.0,
+      )..setPosition(1.6, 0.8, 1.4),
     )
     ..add(camera);
   final result = Renderer.create(device: device).render(
@@ -41,7 +48,7 @@ Float32List _render({required bool local}) {
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     // Exposure one, so the fusion judges the scene's own light: the weights
     // follow the frame's exposure, and at the default 1.6 the dark block is
@@ -69,9 +76,9 @@ double _card({required double exposure, required bool local}) {
   final card =
       MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(authored, authored, authored, 1.0),
+            baseColor: LinearColor.fromSrgb(authored, authored, authored, 1.0),
           ),
         )
         ..setPosition(0.0, 0.0, -1.0)
@@ -91,8 +98,8 @@ double _card({required double exposure, required bool local}) {
       localExposure: LocalExposureSettings(enabled: local, strength: 1.0),
     ),
   );
-  final centre = (size ~/ 2 * size + size ~/ 2) * 4;
-  return device.readHdrPixels(result.frame)[centre];
+  final center = (size ~/ 2 * size + size ~/ 2) * 4;
+  return device.readHdrPixels(result.frame)[center];
 }
 
 /// The mean of red, green and blue over the pixels of [pixels] between

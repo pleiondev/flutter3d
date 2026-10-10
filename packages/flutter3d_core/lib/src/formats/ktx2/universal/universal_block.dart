@@ -90,13 +90,13 @@ const int _kAlphaWeights = 14;
 /// A universal file's `vkFormat` is `VK_FORMAT_UNDEFINED`, which is also what
 /// Basis Universal writes, so the header alone cannot tell them apart — Basis
 /// is then distinguished by its supercompression scheme and this by the key.
-const String kUniversalBlockKey = 'f3dBlockFormat';
+const String universalBlockKey = 'f3dBlockFormat';
 
 /// The key's value for a texture whose alpha is opaque throughout.
-const String kUniversalBlockRgb = 'endpoint-weight-4x4-v1/rgb';
+const String universalBlockRgb = 'endpoint-weight-4x4-v1/rgb';
 
 /// The key's value for a texture that carries alpha.
-const String kUniversalBlockRgba = 'endpoint-weight-4x4-v1/rgba';
+const String universalBlockRgba = 'endpoint-weight-4x4-v1/rgba';
 
 /// What a universal level can be turned into at load.
 ///

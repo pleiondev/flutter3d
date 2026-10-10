@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -31,44 +35,94 @@ import 'water.dart';
 /// hook, no callback and no subclass.
 ///
 /// **It has since cost exactly one line, which is the honest version of that
-/// claim.** `MovementTuning.floorSnapLength` keeps a grounded body's feet on
+/// claim.** `MovementSettings.floorSnapLength` keeps a grounded body's feet on
 /// the floor they had, and a grounded body whose `velocity.y` somebody else
 /// wrote looks precisely like one walking off a stair edge. So every place in
 /// here that throws the runner upward also calls
 /// `CharacterController.suppressFloorSnap` — still no hook and no subclass,
 /// but no longer *nothing*: writing a public field is not by itself a way to
 /// state an intention.
+/// The platformer's world: the standard one, falling at [Runner.runGravity].
+///
+/// **Set where the game stages a run** ([stagePlatformer]), with the level's
+/// own laid over it (`Level.worldOver`), so the runner, the crates, the
+/// chasers' jump arcs and every spark fall by one gravity. A test that stands
+/// a runner in a world of its own makes the world with this.
+final WorldProperties platformerWorld = WorldProperties(
+  gravity: Vector3(0.0, -Runner.runGravity, 0.0),
+);
+
 final class Runner
-    with KeyHolder
-    implements Damageable, Rider, Gatherer, KeyTaker, Launchable {
+    with KeyHolder, Damageable, Rider, Gatherer, KeyTaker, Launchable {
   Runner({
     required this.body,
     Health? health,
     Purse? purse,
-    this.tuning = const RunnerTuning(),
+    this.tuning = const RunnerSettings(),
     this.surfaces = const Surfaces.plain(),
-  }) : health = health ?? Health(100.0),
+    double? gravity,
+  }) : gravity = gravity ?? body.world.properties.gravityMagnitude,
+       health = health ?? Health(100.0),
        purse = purse ?? Purse() {
     body.collider.userData = this;
     // What this body counts as solid is a policy, and a platformer's policy is
     // that some platforms are floors from above and nothing at all from below.
     // The engine holds the mechanism and this holds the opinion.
-    body.solidFilter = _countsAsSolid;
+    // One-way platforms, said to the body as a rule it keeps on either
+    // backend: floors from above, passed through from below and the side,
+    // nothing while dropping. [_countsAsSolid] asks the same of the runner's
+    // own probes. The two backends part on one case — a jump that does not
+    // clear the platform: the core lets the body fall back through, the
+    // reference pushes it up out of the overlap onto the top.
+    body.fromAboveLayers = PlatformerLayers.oneWay;
     _standing = body.shape;
     _crouching = CollisionBox(
       Vector3(body.halfExtents.x, tuning.crouchHeight, body.halfExtents.z),
     );
-    _ground = body.tuning;
+    _ground = body.tuning = _inWorld(body.tuning);
     _land();
   }
 
+  /// The gravity the platformer's world falls by when its level does not
+  /// say, m/s²: 2.4 g — [platformerWorld]'s.
+  ///
+  /// **A design choice, not the Earth's**, and the world's rather than the
+  /// legs': a jump in this genre is meant to be short and snappy, and at
+  /// [standardGravity] a jump of [MovementSettings.jumpSpeed]'s 8 m/s hangs
+  /// for 1.6 s, and at this for two-thirds of one. It is the value
+  /// `MovementSettings` defaulted to, so a run that names no gravity is the
+  /// run it was — and now the crates beside the runner fall by it too.
+  static const double runGravity = 24.0;
+
+  /// How hard the run's world pulls the runner down, m/s² — the world's
+  /// (`CollisionWorld.properties`) when it was made: [platformerWorld]'s
+  /// [runGravity] laid under the level's own (`Level.worldOver`), unless a
+  /// caller handed one over.
+  ///
+  /// **The world's, and the runner only reads it.** Every set of movement
+  /// numbers the runner hands its body — the ground's, a surface's, a
+  /// crouch's — is given this gravity, so ice in a low-gravity level is low
+  /// gravity ice rather than a floor that quietly puts the Earth back. The
+  /// soles' grip ([RunnerSettings.grip]) is μ times this, and a wading runner
+  /// is held up by a share of it.
+  final double gravity;
+
+  /// [moving] under this run's [gravity]: itself when it already falls by it
+  /// — its own number, or the world's when it has none — so the tuning a
+  /// body is handed keeps its identity and a run in its own world is bit for
+  /// bit the run it was.
+  MovementSettings _inWorld(MovementSettings moving) =>
+      (moving.gravity ?? body.world.properties.gravityMagnitude) == gravity
+      ? moving
+      : moving.copyWith(gravity: gravity);
+
   final CharacterController body;
-  final RunnerTuning tuning;
+  final RunnerSettings tuning;
 
   /// What the floors of this game are made of, and what each does.
   ///
   /// Read every step from whatever the feet are on. A game that names no
-  /// surfaces gets `MovementTuning` unchanged and pays one map lookup.
+  /// surfaces gets `MovementSettings` unchanged and pays one map lookup.
   final Surfaces surfaces;
 
   final Health health;
@@ -142,6 +196,8 @@ final class Runner
     // to a default and answer wrongly for ever.
     CollisionWedge(:final Vector3 halfExtents) => halfExtents.y,
     CollisionHeightfield() => _standing.boundsHalfExtents.y,
+    // A shape of a game's own stands as tall as its bounds.
+    CustomShape() => _standing.boundsHalfExtents.y,
   };
 
   /// Whether the runner is sliding, which is a crouch with speed in it.
@@ -150,14 +206,14 @@ final class Runner
   /// Whether a ground pound is in the air on its way down.
   bool get isPounding => _pounding;
 
-  /// Where this body reports what it did, or null for a caller that does not
-  /// listen.
+  /// The bus this body publishes what it did onto, or null for a caller that
+  /// does not listen.
   ///
-  /// Set by whoever owns the step — [PlatformerSimulation] hands down its own
-  /// buffer — so that a landing and the block it broke arrive one after the
-  /// other rather than as two flags on two objects with nothing saying which
-  /// came first.
-  GameEvents? events;
+  /// Set by whoever owns the step — [PlatformerSimulation.publishTo] hands
+  /// down its own bus — so that a landing and the block it broke arrive one
+  /// after the other rather than as two flags on two objects with nothing
+  /// saying which came first.
+  EventRegistry? events;
 
   /// How hard this game is being. One axis is read — what the runner is hurt
   /// by; the others describe things this genre does not have a number for.
@@ -183,7 +239,7 @@ final class Runner
   bool _wasGrounded = false;
 
   /// The numbers for ordinary ground, kept so a surface can be left again.
-  late MovementTuning _ground;
+  late MovementSettings _ground;
 
   /// What the feet were on last step, so the tuning is looked up when it
   /// changes rather than on every one of the sixty.
@@ -265,6 +321,8 @@ final class Runner
   /// a headless test passes zero and gets world axes.
   void step(double dt, InputState input, {double cameraYaw = 0.0}) {
     _jumpHeld = input.held(GameAction.jump);
+    _lifted = lift;
+    lift = 0.0;
 
     _climbCooldown = math.max(0.0, _climbCooldown - dt);
     if (_readClimb(input)) {
@@ -289,7 +347,11 @@ final class Runner
     // Read before the step, because the step is where a landing turns downward
     // speed into zero and the number is gone.
     final falling = math.max(0.0, -body.velocity.y);
-    body.step(dt, wishDirection: _wish, sprint: sprinting);
+    final pushing = _pushBefore(dt, sprinting);
+    body
+      ..dropThrough = _dropping > 0.0
+      ..step(dt, wishDirection: _wish, sprint: sprinting);
+    _measureRamp(dt, pushing);
     _readLanding(falling);
     _face(dt);
 
@@ -354,12 +416,14 @@ final class Runner
     final name = surfaceUnder(body.ground);
     if (name == _standingOn) return;
     _standingOn = name;
-    _surfaceTuning = name == null ? _ground : surfaces.tuningFor(name);
+    _surfaceTuning = name == null
+        ? _ground
+        : _inWorld(surfaces.tuningFor(name));
     body.tuning = _surfaceTuning;
   }
 
   /// What the floor alone says, before crouching has its word.
-  late MovementTuning _surfaceTuning = body.tuning;
+  late MovementSettings _surfaceTuning = body.tuning;
 
   void _readWish(InputState input, double cameraYaw) {
     final axis = input.moveAxis;
@@ -415,7 +479,7 @@ final class Runner
       return false;
     }
     if (_climbing == null) {
-      events?.add(const Grabbed());
+      events?.publish(const Grabbed());
     }
     _climbing = found;
     return true;
@@ -447,7 +511,7 @@ final class Runner
       // grabbed the ladder from.
       body.suppressFloorSnap();
       _airJumpsLeft = tuning.airJumps;
-      events?.add(const Jumped());
+      events?.publish(const Jumped());
       _ownRise = true;
       return;
     }
@@ -509,7 +573,7 @@ final class Runner
         // shuffle never does.
         if (speed > body.tuning.walkSpeed * 0.8) {
           _sliding = tuning.slideTime;
-          events?.add(const Slid());
+          events?.publish(const Slid());
           _shoveInto(tuning.slideSpeed);
         }
       }
@@ -542,26 +606,110 @@ final class Runner
   /// A crouched runner is a slow one, and a sliding one keeps what it has.
   ///
   /// Derived from whatever the floor said rather than replacing it, which is
-  /// what `MovementTuning.copyWith` is for: ice one is crouching on is still
+  /// what `MovementSettings.copyWith` is for: ice one is crouching on is still
   /// ice.
   void _applyCrouchTuning() {
     final floor = _surfaceTuning;
     if (!_crouched) {
-      body.tuning = floor;
+      body.tuning = _gripped(floor);
       return;
     }
-    body.tuning = floor.copyWith(
-      walkSpeed: tuning.crouchSpeed,
-      sprintSpeed: tuning.crouchSpeed,
-      // A slide keeps its speed; a crouch-walk does not slither.
-      groundFriction: _sliding > 0.0
-          ? tuning.slideFriction
-          : floor.groundFriction,
-      groundAcceleration: _sliding > 0.0
-          ? floor.groundAcceleration * 0.2
-          : floor.groundAcceleration,
+    body.tuning = _gripped(
+      floor.copyWith(
+        walkSpeed: tuning.crouchSpeed,
+        sprintSpeed: tuning.crouchSpeed,
+        // A slide keeps its speed; a crouch-walk does not slither.
+        groundFriction: _sliding > 0.0
+            ? tuning.slideFriction
+            : floor.groundFriction,
+        groundAcceleration: _sliding > 0.0
+            ? floor.groundAcceleration * 0.2
+            : floor.groundAcceleration,
+      ),
     );
   }
+
+  /// [moving] with its ground acceleration held to what the soles can push
+  /// against the floor: Coulomb's μ N over the runner's mass, N the weight
+  /// less what the water bears, so μ g (1 − [lift]). See
+  /// [RunnerSettings.grip].
+  ///
+  /// Kept from step to step while neither the numbers nor the lift change,
+  /// which on a level floor is every step.
+  ///
+  /// **Plus what the ramp took back last step.** The controller climbs a
+  /// ramp by sliding the step's motion along it, and the slide strips the
+  /// speed going into the ramp — its own downward press against the floor
+  /// with it — off the speed along the ground: on the 14° ramp of the
+  /// slope tests a quarter of a metre a second each step, 14 m/s², which
+  /// under the controller's 70 m/s² nobody noticed and against a grip of 16
+  /// left a runner crawling up at 0.35 m/s. What a slope costs a runner is
+  /// [RunnerSettings.slopeSpeed]'s to say, so the grip is the legs' push
+  /// along the ground and what the ramp's geometry stripped is given back:
+  /// measured, rather than worked out from either backend's sliding, and
+  /// never past the controller's own acceleration.
+  MovementSettings _gripped(MovementSettings moving) {
+    if (tuning.grip <= 0.0) return moving;
+    final most =
+        tuning.grip * gravity * (1.0 - _lifted.clamp(0.0, 1.0)) + _rampLoss;
+    if (moving.groundAcceleration <= most) return moving;
+    final kept = _grippedTuning;
+    if (kept != null && identical(_grippedFrom, moving) && _grippedAt == most) {
+      return kept;
+    }
+    _grippedFrom = moving;
+    _grippedAt = most;
+    return _grippedTuning = moving.copyWith(groundAcceleration: most);
+  }
+
+  MovementSettings? _grippedFrom, _grippedTuning;
+  double _grippedAt = 0.0;
+
+  /// What the ramp underfoot stripped off the speed along the ground last
+  /// step, m/s², for [_gripped] to give back. Nought off a ramp.
+  double _rampLoss = 0.0;
+
+  /// The speed along the wish the controller is about to reach on a ramp,
+  /// for [_measureRamp] to compare with what it reached: null when there is
+  /// nothing to measure — off the ground, on the level, asking for nothing,
+  /// or already as fast as asked, where the controller's own clamp is what
+  /// takes speed off.
+  double? _pushBefore(double dt, bool sprinting) {
+    final wish = math.sqrt(_wish.x * _wish.x + _wish.z * _wish.z);
+    if (!body.isGrounded || wish < 1e-6) return null;
+    if (body.groundNormal.y >= 1.0 - 1e-6) return null;
+    final t = body.tuning;
+    final asked =
+        (sprinting ? t.sprintSpeed : t.walkSpeed) * math.min(1.0, wish);
+    final v = body.velocity;
+    final along = (v.x * _wish.x + v.z * _wish.z) / wish;
+    final reached = along + math.min(t.groundAcceleration * dt, asked - along);
+    return reached < asked ? reached : null;
+  }
+
+  void _measureRamp(double dt, double? reached) {
+    if (reached == null || !body.isGrounded || dt <= 0.0) {
+      _rampLoss = 0.0;
+      return;
+    }
+    final wish = math.sqrt(_wish.x * _wish.x + _wish.z * _wish.z);
+    final v = body.velocity;
+    final along = (v.x * _wish.x + v.z * _wish.z) / wish;
+    _rampLoss = math.max(0.0, reached - along) / dt;
+  }
+
+  /// The share of the runner's weight something other than the floor bears
+  /// this step, nought to one: the water about the legs, by Archimedes.
+  ///
+  /// **Written by whoever owns the water, before the step, and read once.**
+  /// The runner does not know what a level's water is, as it does not know
+  /// its pools ([inWater]); a game that puts water at the feet says how much
+  /// of the weight it takes, and the step reads it into the grip and sets it
+  /// back to nought, so a step nobody wrote it for is a step on dry ground.
+  double lift = 0.0;
+
+  /// [lift] as this step read it.
+  double _lifted = 0.0;
 
   /// Drives the runner at the floor. The landing is read in [_land].
   void _startPound() {
@@ -590,7 +738,7 @@ final class Runner
     body.suppressFloorSnap();
     _airJumpsLeft = tuning.airJumps;
     _coyote = 0.0;
-    events?.add(const Bounced());
+    events?.publish(const Bounced());
   }
 
   /// Whether the jump button was down as of this step's input.
@@ -766,7 +914,7 @@ final class Runner
       ..teleport(_mantleAt)
       ..velocity.setZero();
     _land();
-    events?.add(const Mantled());
+    events?.publish(const Mantled());
   }
 
   void _tryJump() {
@@ -781,7 +929,7 @@ final class Runner
         _shoveInto(tuning.longJumpPush);
         body.velocity.y = tuning.longJumpUp;
         _sliding = 0.0;
-        events?.add(const LongJumped());
+        events?.publish(const LongJumped());
       } else {
         body.velocity.y = tuning.jumpSpeed;
       }
@@ -812,9 +960,9 @@ final class Runner
       // climbable; one wall and a spare jump is the same move twice.
       _airJumpsLeft = tuning.airJumps;
       _buffer = 0.0;
-      events?.add(const Jumped());
+      events?.publish(const Jumped());
       _ownRise = true;
-      events?.add(const WallJumped());
+      events?.publish(const WallJumped());
       return;
     } else if (_airJumpsLeft > 0) {
       // The second jump replaces downward speed rather than adding to it, or a
@@ -826,7 +974,7 @@ final class Runner
     }
 
     _buffer = 0.0;
-    events?.add(const Jumped());
+    events?.publish(const Jumped());
     _ownRise = true;
   }
 
@@ -868,7 +1016,7 @@ final class Runner
     // but the one the rest of this file reads.
     _pounding = false;
     _dashCooldown = tuning.dashCooldown;
-    events?.add(const Dashed());
+    events?.publish(const Dashed());
   }
 
   /// Slows a fall to a drift while the jump button is held.
@@ -929,7 +1077,7 @@ final class Runner
       // reads as a bug the first time somebody wants to reach the bottom.
       velocity.y = math.max(
         -tuning.sinkSpeed,
-        velocity.y + tuning.buoyancy * dt,
+        velocity.y + tuning.buoyancyRatio * gravity * dt,
       );
     }
 
@@ -1054,7 +1202,7 @@ final class Runner
       _pounding = false;
       // One event carrying both, rather than two flags a caller had to read
       // together and in the right order.
-      events?.add(Landed(pounded: poundedThisStep));
+      events?.publish(Landed(pounded: poundedThisStep));
     }
     _wasGrounded = grounded;
   }
@@ -1078,6 +1226,8 @@ final class Runner
     'dashCooldown': _dashCooldown,
     'wallCoyote': _wallCoyote,
     'wallAway': <double>[_wallAway.x, _wallAway.y, _wallAway.z],
+    // What the ramp took back last step, which this step's grip gives back.
+    'rampLoss': _rampLoss,
   };
 
   void restore(Map<String, Object?> from) {
@@ -1095,5 +1245,6 @@ final class Runner
     _dashCooldown = from.number('dashCooldown');
     _wallCoyote = from.number('wallCoyote');
     from.vectorInto('wallAway', _wallAway);
+    _rampLoss = from.number('rampLoss');
   }
 }

@@ -10,9 +10,14 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -51,11 +56,15 @@ void main() {
     // answer every device gives is the one that makes a caller take its
     // fallback, and a creator that is asked anyway says so by name.
     final device = FakeBackend();
-    expect(device.supportsGpuTimestamps, isFalse);
-    expect(device.supportsCompute, isFalse);
-    expect(device.supportsFloat32Filtering, isFalse);
-    expect(device.supportsIndependentBlend, isFalse);
+    expect(device.features.has(DeviceFeature.gpuTimestamps), isFalse);
+    expect(device.features.has(DeviceFeature.compute), isFalse);
+    expect(
+      device.features.has(DeviceFeature.float32Filterable) &&
+          device.features.has(DeviceFeature.float32Renderable),
+      isFalse,
+    );
+    expect(device.features.has(DeviceFeature.independentBlend), isFalse);
     expect(device.hdrOutputFormats, isEmpty);
-    expect(device.beginComputePass, throwsUnsupportedError);
+    expect(device.beginComputePass, throwsA(isA<UnsupportedCapability>()));
   });
 }

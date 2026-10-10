@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 
 /// A texture generated in code.
 ///
@@ -36,27 +37,48 @@ abstract base class ProceduralTexture {
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: encode(),
-    )!;
+    );
   }
 }
 
-/// A single flat colour.
+/// A single flat colour, or a single flat value.
 ///
 /// A 1x1 white instance stands in for a missing base-colour texture: a shader
 /// that declares a sampler must have something bound to it, so "no texture" has
 /// to be expressed as a neutral texture rather than an absent binding.
+///
+/// **A colour is linear; a texel is what is stored.** A base-colour texture's
+/// texels are sRGB-encoded, as an image a person painted is, and the shader
+/// decodes them; so a [LinearColor] is encoded on the way in
+/// (`SolidColorTexture(LinearColor.fromSrgb(0.8, 0.2, 0.1))` stores the
+/// bytes of `#CC331A`). A texture of data rather than colour — a normal map,
+/// a mask — is written exactly with [SolidColorTexture.texel].
 final class SolidColorTexture extends ProceduralTexture {
-  const SolidColorTexture(this.color, {this.size = 1});
+  /// [color], in linear light, stored sRGB-encoded as a base-colour
+  /// texture's texels are.
+  SolidColorTexture(LinearColor color, {this.size = 1})
+    : texel = color.toSrgb();
 
-  /// Non-linear (sRGB-encoded) RGBA in the 0..1 range, matching how texture
-  /// pixels are authored.
-  final Vector4 color;
+  /// Texels holding [r], [g], [b] and [a] exactly as given, each 0..1: for a
+  /// texture of data rather than colour (a normal map's, a mask's), or for
+  /// bytes already encoded.
+  const SolidColorTexture.texel(
+    double r,
+    double g,
+    double b, {
+    double a = 1,
+    this.size = 1,
+  }) : texel = (r: r, g: g, b: b, a: a);
+
+  /// What every texel stores, each channel 0..1 before it is quantised to a
+  /// byte: sRGB-encoded for a colour, the value itself for data.
+  final ({double r, double g, double b, double a}) texel;
 
   @override
   final int size;
 
-  static SolidColorTexture get white =>
-      SolidColorTexture(Vector4(1.0, 1.0, 1.0, 1.0));
+  /// Opaque white, the base colour that changes nothing.
+  static const SolidColorTexture white = SolidColorTexture.texel(1, 1, 1);
 
   /// The neutral tangent-space normal, `(0, 0, 1)` encoded into 0..1.
   ///
@@ -65,16 +87,19 @@ final class SolidColorTexture extends ProceduralTexture {
   /// stored as byte 128, which decodes to 0.0039, not 0. The renderer sends
   /// a normal scale of zero alongside it, and that is what makes sampling it
   /// perturb nothing.
-  static SolidColorTexture get flatNormal =>
-      SolidColorTexture(Vector4(0.5, 0.5, 1.0, 1.0));
+  static const SolidColorTexture flatNormal = SolidColorTexture.texel(
+    0.5,
+    0.5,
+    1.0,
+  );
 
   @override
   ByteData encode() {
     final bytes = Uint8List(size * size * 4);
-    final r = (color.x.clamp(0.0, 1.0) * 255).round();
-    final g = (color.y.clamp(0.0, 1.0) * 255).round();
-    final b = (color.z.clamp(0.0, 1.0) * 255).round();
-    final a = (color.w.clamp(0.0, 1.0) * 255).round();
+    final r = (texel.r.clamp(0.0, 1.0) * 255).round();
+    final g = (texel.g.clamp(0.0, 1.0) * 255).round();
+    final b = (texel.b.clamp(0.0, 1.0) * 255).round();
+    final a = (texel.a.clamp(0.0, 1.0) * 255).round();
     for (var i = 0; i < bytes.length; i += 4) {
       bytes[i] = r;
       bytes[i + 1] = g;

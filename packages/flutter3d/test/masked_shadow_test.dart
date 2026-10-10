@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -39,7 +38,7 @@ TextureHandle _halfMask(CpuDevice device) {
     height: 2,
     pixels: ByteData.sublistView(pixels),
     format: TextureFormat.r8g8b8a8UNormInt,
-  )!;
+  );
 }
 
 /// A floor with a quad hanging over it, lit from straight above, with the
@@ -57,9 +56,9 @@ Future<List<int>> _frame({
   );
   final renderer = Renderer.create(device: device);
 
-  final caster = Material(
+  final caster = RenderMaterial(
     name: 'card',
-    baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+    baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     alphaMode: masked ? MaterialAlphaMode.mask : MaterialAlphaMode.opaque,
     alphaCutoff: cutoff,
   );
@@ -72,7 +71,10 @@ Future<List<int>> _frame({
           device,
           CuboidShape(size: Vector3(6, 0.1, 6)).build(),
         ),
-        Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+        RenderMaterial(
+          name: 'floor',
+          baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+        ),
       )..setPosition(0.0, -1.0, 0.0),
     )
     ..add(
@@ -93,7 +95,7 @@ Future<List<int>> _frame({
       // the shadow underneath the card and the camera never sees it: the
       // caster is between the two. At forty-five degrees the shadow lands
       // clear of the card's own footprint.
-      LightNode(intensity: 6.0, castsShadow: true)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(4.0, 5.0, 0.01)
         ..lookAt(Vector3.zero()),
     )
@@ -110,7 +112,7 @@ Future<List<int>> _frame({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Undithered: the frames are compared byte for byte, a caster discarded
@@ -122,8 +124,8 @@ Future<List<int>> _frame({
       look: LookSettings(dither: 0),
     ),
   );
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 /// How many pixels differ in any colour channel.
@@ -223,7 +225,7 @@ void main() {
   test('a caster with no map keeps the shadow it always cast', () async {
     // **The half that lets this land.** A material that is not cut out goes
     // through the stage it has always gone through, with no sampler in the
-    // pipeline and no texture bound per draw, so the seventy-eight goldens
+    // pipeline and no texture bound per draw, so the 96 goldens
     // recorded against that stage cannot move. Asking for MASK with no map to
     // read is the same case: there is nothing to cut out.
     final plain = await _frame(masked: false, withTexture: false);
@@ -233,7 +235,7 @@ void main() {
   });
 
   test('a cutoff nothing reaches removes the caster entirely', () async {
-    // The threshold is `Material.alphaCutoff` and the comparison is glTF's
+    // The threshold is `RenderMaterial.alphaCutoff` and the comparison is glTF's
     // MASK rule, so a cutoff above every alpha in the map discards every
     // fragment and the floor comes back as though nothing were above it.
     final lit = await _frame(masked: false, casting: false);

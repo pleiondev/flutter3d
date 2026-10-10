@@ -96,7 +96,11 @@ final class _NewQuad {
   );
 
   final int face;
+
+  /// A unitless crease weight; 1 or more holds the edge.
   final double creaseAfterVertex;
+
+  /// A unitless crease weight; 1 or more holds the edge.
   final double creaseBeforeVertex;
   final Vector2 uvVertex;
   final Vector2 uvEdgeAfter;
@@ -116,14 +120,14 @@ EditMesh _subdivideOnce(EditMesh mesh, {required bool smooth}) {
     if (!mesh.isFaceAlive(face)) continue;
     final loop = <int>[];
     mesh.forEachVertex(face, loop.add);
-    final centre = Vector3.zero();
+    final center = Vector3.zero();
     for (final v in loop) {
-      centre.add(mesh.positionOf(v));
+      center.add(mesh.positionOf(v));
     }
-    centre.scale(1 / loop.length);
-    facePoint[face] = centre;
+    center.scale(1 / loop.length);
+    facePoint[face] = center;
     for (final v in loop) {
-      faceSum[v] = (faceSum[v] ?? Vector3.zero())..add(centre);
+      faceSum[v] = (faceSum[v] ?? Vector3.zero())..add(center);
       faceCount[v] = (faceCount[v] ?? 0) + 1;
     }
   }

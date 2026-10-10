@@ -15,7 +15,7 @@
 ///
 /// **The turn is read and written as X then Y then Z**, meaning the rotation
 /// part is `Rx · Ry · Rz`, so a point is turned about Z first and about X last.
-/// That is the default order in Blender and in three.js, and it is worth
+/// That is Blender's default order, and it is worth
 /// matching because a person who reads 30, 0, 45 here and types the same three
 /// numbers there has to get the same object. There is no field for the order
 /// and no plan for one: an order picker is a control that six people understand
@@ -26,7 +26,7 @@
 /// axis of its own: flipping Z is the very same matrix as flipping X and
 /// turning half a circle about Y, and no decomposition can tell which of the
 /// two somebody meant. This one puts the sign on X, the way `Matrix4.decompose`
-/// and every engine that follows three.js does, so the panel and the scene
+/// does, so the panel and the scene
 /// graph agree about which axis carries the mirror. What a person sees is that
 /// typing -1 into Z and looking again shows a scale of -1, 1, 1 and a turn of
 /// 180, 0, -180 — two half turns that put back the two axes the sign moved.

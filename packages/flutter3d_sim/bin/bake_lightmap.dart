@@ -58,7 +58,7 @@ void main(List<String> arguments) {
   }
 
   final baker = LightmapBaker(
-    texelsPerMetre: density,
+    texelsPerMeter: density,
     bounces: bounces,
     samples: samples,
     includeDirect: direct,

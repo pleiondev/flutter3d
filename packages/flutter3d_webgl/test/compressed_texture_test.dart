@@ -27,12 +27,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 
 WebGlDevice _makeDevice({int width = 8, int height = 8}) {
-  final device = WebGlDevice.create(
+  final device = WebGlDevice.open(
     width: width,
     height: height,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -58,7 +57,7 @@ void main() {
     );
 
     expect(handle, isNotNull);
-    expect(handle!.format, TextureFormat.etc2RGB8UNormInt);
+    expect(handle.format, TextureFormat.etc2RGB8UNormInt);
     expect(device.debugDrainErrors('after ETC2 upload'), isNull);
     device.dispose();
   });
@@ -90,14 +89,16 @@ void main() {
     final short = ByteData(
       _levelBytes(TextureFormat.etc2RGB8UNormInt, 4, 4).lengthInBytes - 1,
     );
-    final handle = device.createTextureFromPixels(
-      width: 4,
-      height: 4,
-      format: TextureFormat.etc2RGB8UNormInt,
-      pixels: short,
+    // Thrown rather than answered with null since 1.0.
+    expect(
+      () => device.createTextureFromPixels(
+        width: 4,
+        height: 4,
+        format: TextureFormat.etc2RGB8UNormInt,
+        pixels: short,
+      ),
+      throwsA(isA<DeviceResourceException>()),
     );
-
-    expect(handle, isNull);
     // Refused in Dart, before `createTexture`/`compressedTexSubImage2D` ever
     // ran — a texture this device never made would otherwise leave nothing to
     // blame the missing byte on.

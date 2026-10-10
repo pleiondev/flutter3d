@@ -13,7 +13,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LightmapBakeDemo extends ShowcaseDemo {
   late final String _report;
@@ -31,9 +30,9 @@ final class LightmapBakeDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _report = _run();
-    final material = Material(
+    final material = RenderMaterial(
       name: 'closet',
-      baseColor: Vector4(0.8, 0.8, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.7, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -42,7 +41,7 @@ final class LightmapBakeDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -64,8 +63,8 @@ final class LightmapBakeDemo extends ShowcaseDemo {
     final Level level = Level(
       name: 'closet',
       brushes: <Brush>[
-        Brush(centre: Vector3(2, 0, 2), size: Vector3(4, 0.2, 4)),
-        Brush(centre: Vector3(2, 2, 0), size: Vector3(4, 4, 0.2)),
+        Brush(center: Vector3(2, 0, 2), size: Vector3(4, 0.2, 4)),
+        Brush(center: Vector3(2, 2, 0), size: Vector3(4, 4, 0.2)),
       ],
       lights: <LevelLight>[
         LevelLight(position: Vector3(lightX, 3, 2), intensity: 6.0),
@@ -73,7 +72,7 @@ final class LightmapBakeDemo extends ShowcaseDemo {
     );
     final LightmapLayout layout = LightmapLayout.plan(
       level,
-      texelsPerMetre: texels,
+      texelsPerMeter: texels,
     );
     final Lightmap lightmap = LightmapBaker(
       bounces: bounces.round(),
@@ -209,8 +208,8 @@ final class LightmapBakeDemo extends ShowcaseDemo {
     final level = Level(
       name: 'closet',
       brushes: <Brush>[
-        Brush(centre: Vector3(2, 0, 2), size: Vector3(4, 0.2, 4)),
-        Brush(centre: Vector3(2, 2, 0), size: Vector3(4, 4, 0.2)),
+        Brush(center: Vector3(2, 0, 2), size: Vector3(4, 0.2, 4)),
+        Brush(center: Vector3(2, 2, 0), size: Vector3(4, 4, 0.2)),
       ],
       lights: <LevelLight>[
         LevelLight(position: Vector3(2, 3, 2), intensity: 6.0),
@@ -219,7 +218,7 @@ final class LightmapBakeDemo extends ShowcaseDemo {
     // #endregion level
 
     // #region layout
-    final layout = LightmapLayout.plan(level, texelsPerMetre: 2.0);
+    final layout = LightmapLayout.plan(level, texelsPerMeter: 2.0);
     // #endregion layout
 
     // #region bake

@@ -10,12 +10,11 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A straight three-joint chain along +Y: root(0) at the origin, mid(1) one
 /// unit above it, tip(2) one more unit above that. Both bones length 1, so
 /// `maxReach` is exactly 2.
-Pose _twoBoneChain() => Pose(
+AnimationPose _twoBoneChain() => AnimationPose(
   parents: <int>[-1, 0, 1],
   restTranslations: Float32List.fromList(<double>[
     0, 0, 0, // root
@@ -37,7 +36,7 @@ Pose _twoBoneChain() => Pose(
 /// A four-joint (three-bone) chain along +Y, each bone length 1 — long
 /// enough that `TwoBoneIk` cannot solve it, which is the point of testing
 /// `FabrikIk` on it instead.
-Pose _fabrikChain() => Pose(
+AnimationPose _fabrikChain() => AnimationPose(
   parents: <int>[-1, 0, 1, 2],
   restTranslations: Float32List.fromList(<double>[
     0, 0, 0, //
@@ -162,7 +161,7 @@ void main() {
         Vector3(0.0, 0.0, 1.0),
         1.5707963267948966,
       );
-      final pose = Pose(
+      final pose = AnimationPose(
         parents: <int>[-1, 0, 1],
         restTranslations: Float32List.fromList(<double>[
           0, 0, 0, //
@@ -212,7 +211,7 @@ void main() {
       'a target inside the two bones cannot fold to is clamped, not NaN',
       () {
         // Unequal lengths: upper 2, lower 1 (tip local translation shortened).
-        final pose = Pose(
+        final pose = AnimationPose(
           parents: <int>[-1, 0, 1],
           restTranslations: Float32List.fromList(<double>[
             0, 0, 0, //

@@ -10,7 +10,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TerrainTilesDemo extends ShowcaseDemo {
   late final String _report;
@@ -24,7 +23,7 @@ final class TerrainTilesDemo extends ShowcaseDemo {
   late final DemoContext _context;
   final List<MeshNode> _nodes = <MeshNode>[];
   final List<int?> _levels = <int?>[];
-  late final List<Material> _paint;
+  late final List<RenderMaterial> _paint;
   double _clock = 0.0;
 
   static const int _side = 33;
@@ -64,10 +63,19 @@ final class TerrainTilesDemo extends ShowcaseDemo {
     // #endregion live
 
     // One colour a level, so the choice can be seen.
-    _paint = <Material>[
-      Material(name: 'fine', baseColor: Vector4(0.45, 0.75, 0.4, 1.0)),
-      Material(name: 'middle', baseColor: Vector4(0.85, 0.8, 0.35, 1.0)),
-      Material(name: 'coarse', baseColor: Vector4(0.85, 0.5, 0.35, 1.0)),
+    _paint = <RenderMaterial>[
+      RenderMaterial(
+        name: 'fine',
+        baseColor: LinearColor.fromSrgb(0.45, 0.75, 0.4, 1.0),
+      ),
+      RenderMaterial(
+        name: 'middle',
+        baseColor: LinearColor.fromSrgb(0.85, 0.8, 0.35, 1.0),
+      ),
+      RenderMaterial(
+        name: 'coarse',
+        baseColor: LinearColor.fromSrgb(0.85, 0.5, 0.35, 1.0),
+      ),
     ];
     for (var i = 0; i < _tiles.tilesX * _tiles.tilesZ; i++) {
       _levels.add(null);
@@ -87,18 +95,21 @@ final class TerrainTilesDemo extends ShowcaseDemo {
         context.device,
         SphereShape(segments: 16, radius: 0.6).build(),
       ),
-      Material(name: 'eye', baseColor: Vector4(0.45, 0.65, 0.95, 1.0)),
+      RenderMaterial(
+        name: 'eye',
+        baseColor: LinearColor.fromSrgb(0.45, 0.65, 0.95, 1.0),
+      ),
       name: 'eye',
     );
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.35
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.35 * Photometric.legacyUnit
       ..add(_eye);
     for (final MeshNode node in _nodes) {
       scene.add(node);
     }
     return scene..add(
-      LightNode(name: 'sun', intensity: 2.6)
+      LightNode(name: 'sun', intensity: 2.6 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.35, -1.0, -0.45)),
     );
   }

@@ -11,10 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # **Desktop only, and there is no web half.** The other three applications
-  # pick a backend at compile time because they ship to a browser; this one
-  # exists to write a file back to the disk it came from, which a browser will
-  # not do. One backend, named here, and no `backend_web.dart`.
+  # **Impeller by name on a desktop; whatever `flutter3d_app` opens in a
+  # browser.** The desktop build names this backend rather than asking the
+  # registry, so an editor never quietly falls back to the software
+  # rasteriser — see `src/backend.dart`. The web build (P11) takes the games'
+  # choice instead, WebGPU first and WebGL2 after it, through
+  # `src/backend_web.dart`; nothing there reaches this package.
   flutter3d_impeller:
     path: ../../packages/flutter3d_impeller
 
@@ -46,6 +48,21 @@ dependencies:
   flutter3d_editor_widgets:
     path: ../../packages/flutter3d_editor_widgets
 
+  # The plugins this editor installs: `lib/plugins.g.dart` names them through
+  # the plugin API, and their MCP tools land in an `McpTools` the editor
+  # keeps beside its `EditorPieces` and its decoders. See `src/editor_plugins.dart`.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+  flutter3d_mcp:
+    path: ../../packages/flutter3d_mcp
+
+  # Play: the project run with `flutter run --machine`, its devices, and a
+  # saved level sent to it. Shared with `flutter3d_mcp/editor.dart`, so an agent's
+  # Play is this toolbar's. Its `attach.dart` is the Play a web build has: a
+  # running game attached to by address, imported by `src/play/play_screen.dart`.
+  flutter3d_editor_play:
+    path: ../../packages/flutter3d_editor_play
+
   # Level geometry to mesh nodes. `LevelLoader.build` is what an editor needs
   # and what a game never did: a level drawn from a document in memory rather
   # than from an asset. And `writeFileAtomically` through `native.dart`: this
@@ -59,7 +76,7 @@ dependencies:
   # The surface a frame reaches Flutter through, the screens no game owns, and
 
   # `rp-04`: `Demo.fromJson` — reading a `.f3drun` a player sent back, not
-  # just writing one from a live game (`flutter3d_editor_mcp`/`ai-00` write
+  # just writing one from a live game (`flutter3d_mcp/editor.dart`/`ai-00` write
   # them; nothing here read one until now).
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
@@ -71,8 +88,9 @@ dependencies:
   # thing no amount of Dart can produce: the system's own open panel, which is
   # how a person says which document they mean.
   #
-  # It is called from exactly one function — `askForLevel` in
-  # `src/editor_chooser.dart` — so everything that can be wrong without a
+  # It is called from the two disks — `choose` and `saveAs` in
+  # `src/disk/disk_io.dart`, and `choose` in `src/disk/memory_disk.dart`, where
+  # a browser's panel answers with bytes — so everything that can be wrong without a
   # window stays somewhere a test can reach: which path a spelling means is
   # `src/documents.dart`, which projects are still worth offering is
   # `src/recent_projects.dart`, and both are tested with no plugin registered.
@@ -84,8 +102,8 @@ dependencies:
   # its `RunTimeline` — `rp-02`'s answer to "the editor runs the project",
   # over the same channel DevTools and `flutter attach` use, per
   # `doc/tooling-plan.md`. Not a plugin: this package speaks the VM service
-  # protocol over a plain WebSocket, which this application already has
-  # through `dart:io` on every platform it ships to.
+  # protocol over a plain WebSocket, opened by `flutter3d_editor_play`'s
+  # `connectVmService` so the same code reaches a game from a browser.
   vm_service: ^15.3.0
 
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
@@ -95,6 +113,18 @@ dependencies:
   # state object per frame is an allocation and a rebuild sixty times a
   # second, which is the whole reason `EditorCubit` stops where it does.
   flutter_bloc: ^9.1.1
+
+  # **The browser's half of the disk** — see `src/disk/disk_web.dart`. `web`
+  # for the anchor a save is downloaded through and the session storage the
+  # documents survive a reload in; `archive` for the one download a new
+  # project becomes, since a browser asked to download a dozen files at once
+  # asks the person whether to allow it, file by file.
+  web: ^1.1.0
+  archive: ^4.0.0
+
+  # One GET to a telemetry server (`src/telemetry_fetch.dart`), the same
+  # lines on a desktop and in a browser where `dart:io`'s client is absent.
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
@@ -136,6 +166,10 @@ dev_dependencies:
     path: ../../packages/flutter3d_game_racing
   flutter3d_game_strategy:
     path: ../../packages/flutter3d_game_strategy
+
+  # The shooter's sample roster the shooter template is checked against.
+  flutter3d_demo_content:
+    path: ../../packages/flutter3d_demo_content
 
 flutter:
   uses-material-design: true

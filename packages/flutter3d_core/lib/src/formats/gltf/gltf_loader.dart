@@ -2,16 +2,18 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation_clip.dart';
 import '../animation/animation_track.dart';
 import '../asset_resolver.dart';
 import '../draco/draco.dart';
+import '../format_exceptions.dart';
 import '../model_document.dart';
 import '../model_loader.dart';
 import '../splat/splat_cloud.dart';
-import '../srgb.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
@@ -59,7 +61,7 @@ part 'gltf_loader_splats.dart';
 /// through [GltfAsset.warnings] with the decoder's reason rather than thrown,
 /// so one bad primitive — or a file that merely *offers* a compressed variant
 /// beside an uncompressed one — still loads.
-final class GltfLoader implements ModelDecoder {
+final class GltfLoader extends ModelDecoder {
   GltfLoader({
     this.layout = VertexLayout.standard,
     this.skinnedLayout = VertexLayout.skinned,
@@ -268,7 +270,7 @@ final class GltfLoader implements ModelDecoder {
       (e) => !supported.contains(e),
     );
     if (unsupported.isNotEmpty) {
-      throw FormatException(
+      throw GltfFormatException(
         'This file requires extensions that are not implemented: '
         '${unsupported.join(', ')}. extensionsRequired means the asset cannot '
         'be rendered correctly without them.',
@@ -351,17 +353,11 @@ Vector3? _vec3(Object? value) {
   );
 }
 
-/// glTF's `baseColorFactor`, which is linear, as the authored tint
-/// [SurfaceMaterial.baseColor] holds — see `srgb.dart`. Alpha is not a colour
-/// and passes through.
-Vector4? _authoredTint(Vector4? linear) => linear == null
-    ? null
-    : Vector4(
-        linearToSrgb(linear.x),
-        linearToSrgb(linear.y),
-        linearToSrgb(linear.z),
-        linear.w,
-      );
+/// glTF's `baseColorFactor`, which is linear, as the [LinearColor]
+/// [SurfaceMaterial.baseColor] holds; white where the file has none.
+LinearColor _linearTint(Vector4? linear) => linear == null
+    ? LinearColor.white
+    : LinearColor(linear.x, linear.y, linear.z, linear.w);
 
 Vector4? _vec4(Object? value) {
   if (value is! List || value.length < 4) return null;

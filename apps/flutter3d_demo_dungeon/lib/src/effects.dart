@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -31,7 +33,7 @@ abstract final class Effects {
     size: const Range(0.10, 0.19),
     color: Vector4(1.0, 0.62, 0.22, 1.0),
     emitter: const ConeEmitter(
-      halfAngleDegrees: 10.0,
+      halfAngle: 10.0 * math.pi / 180.0,
       speed: Range(0.22, 0.55),
     ),
     affectors: <ParticleAffector>[
@@ -138,7 +140,9 @@ abstract final class Effects {
     size: const Range(0.05, 0.14),
     color: Vector4(2.6, 1.1, 0.3, 1.0),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-11.0),
+      // Ballistic debris: falls by the world's gravity, as everything
+      // thrown in this game does (once a fixed -11 of its own).
+      const ParticleGravity(),
       const ParticleDrag(1.2),
       const ParticleFade(startsAt: 0.5),
     ],
@@ -147,12 +151,17 @@ abstract final class Effects {
   /// Sparks where a bullet met stone.
   static final ParticleEffect impactSparks = ParticleEffect(
     count: 14,
-    emitter: const ConeEmitter(speed: Range(2.5, 7.0), halfAngleDegrees: 42.0),
+    emitter: const ConeEmitter(
+      speed: Range(2.5, 7.0),
+      halfAngle: 42.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.12, 0.35),
     size: const Range(0.03, 0.08),
     color: Vector4(2.4, 1.6, 0.7, 1.0),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-14.0),
+      // Ballistic: falls by the world's gravity, as everything
+      // thrown in this game does (once a fixed -14 of its own).
+      const ParticleGravity(),
       const ParticleFade(startsAt: 0.4),
     ],
   );
@@ -161,7 +170,10 @@ abstract final class Effects {
   /// rather than as decoration.
   static final ParticleEffect impactDust = ParticleEffect(
     count: 6,
-    emitter: const ConeEmitter(speed: Range(0.4, 1.6), halfAngleDegrees: 60.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.4, 1.6),
+      halfAngle: 60.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.4, 0.9),
     size: const Range(0.12, 0.3),
     color: Vector4(0.30, 0.26, 0.22, 1.0),
@@ -175,7 +187,10 @@ abstract final class Effects {
   /// A brief flare at the muzzle.
   static final ParticleEffect muzzleFlash = ParticleEffect(
     count: 5,
-    emitter: const ConeEmitter(speed: Range(0.5, 2.0), halfAngleDegrees: 18.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.5, 2.0),
+      halfAngle: 18.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.04, 0.09),
     size: const Range(0.10, 0.22),
     color: Vector4(4.0, 2.6, 1.1, 1.0),

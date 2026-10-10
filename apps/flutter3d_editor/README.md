@@ -348,11 +348,21 @@ so. `⌘S` refuses and says who owns the file. `⇧⌘S` writes `crypt.edited.js
 beside it and takes ownership of the copy, because a copy still naming the
 generator invites the same accident.
 
-The editor is desktop only, with no web half. The other three applications
-choose between Impeller and WebGL at compile time because they ship to a
-browser as well. This one exists to write a file back over itself, which a
-browser will not do, so there is no backend to choose and no
-`backend_web.dart`.
+The editor runs on the desktop: there are runners for macOS, Windows and
+Linux, and CI builds the last two. It also builds for a browser
+(`flutter build web`), with less, and the page says so on its first screen.
+A browser gives a page no disk, so the documents live in the page
+(`lib/src/disk/`): a level is opened by reading the file somebody picks, on its
+own and without its game's textures; saving downloads it under the name it was
+opened with; a new project from a template is made in the page and downloaded
+once as `<name>.zip`. What a tab opened or wrote is kept in its
+`sessionStorage`, so a reload keeps the "where you were" list working. Play
+cannot start a game, since that is a process; the Play button says to run the
+game yourself and attach to the VM service address it prints, which works
+from a page over the same socket the desktop uses. A watched shader bundle
+(`--dart-define=shaders=`) is desktop-only. On the desktop the editor names
+Impeller and nothing else; in a browser it takes the games' backend, WebGPU
+first and WebGL2 where WebGPU will not start (`lib/src/backend.dart`).
 
 The editor has no vocabulary of its own. A level says `monster` or `coin` or
 `checkpoint`, and what those are worth belongs to the game. The engine's own
@@ -396,7 +406,39 @@ What is left here is the half that reaches a device:
   function, because it is the one screen whose whole subject is choosing a
   document.
 * `src/shader_watch.dart` reloads the shader bundle while somebody edits it.
+* `src/editor_panels.dart` lists the docked panels (see below), and
+  `src/layout_memory.dart` keeps where they were.
 * `main.dart` holds the window, the keys and the mouse.
+
+## The window
+
+The picture sits in the middle with panels docked around it, each side
+resizable by its edge, foldable to a row of icons, and remembered per person
+in `layout.json` beside the recent projects. Down the left are the outliner
+and the palette, down the right the inspector, the material panel and the
+step panel, and along the bottom the console and the render graph. A tab can
+be moved to another side from the menu at the end of its strip. Before this
+the panels were a `Stack` of overlays on top of the level, every one of them
+hiding part of what was being edited, and two of the toolbar's buttons once
+landed on top of each other.
+
+* **The outliner** lists everything in the level: brushes, lights, and the
+  entities by type. Clicking a row selects it and the viewport shows the
+  selection; clicking in the viewport selects the row. `⌘`-click adds to the
+  selection or takes a row out, in either place, and the arrow keys and
+  Delete then act on all of it. A double-click flies the camera there.
+* **The inspector** groups the selected thing's fields into components
+  (where it is, how it draws, how it collides, what a light does, an
+  entity's own properties), and an entity can be given a property or lose
+  one. Every edit is one step of undo.
+* **The console** keeps everything the strip along the top has said, and,
+  while a game is being played or is attached, that game's own console and
+  the events it posted, read from the same place the Play screen reads them.
+* **The render graph** is the last frame the viewport drew, pass by pass:
+  what ran, in order, what each cost, and what did not run and why.
+* **⌘K** (or `⇧⌘P`) opens the command palette: every command the keys,
+  the toolbar and the panels have, found by typing a few letters of its
+  name, with its shortcut beside it.
 
 ## Getting about
 

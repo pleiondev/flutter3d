@@ -6,11 +6,10 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class SceneSurfaceDemo extends ShowcaseDemo {
   late Scene _scene;
@@ -18,9 +17,9 @@ final class SceneSurfaceDemo extends ShowcaseDemo {
   // #region scene
   @override
   Scene build(DemoContext context) {
-    final material = f3d.Material(
+    final material = f3d.RenderMaterial(
       name: 'ball',
-      baseColor: Vector4(0.6, 0.7, 0.9, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.7, 0.9, 1.0),
     );
     final ball = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),
@@ -29,7 +28,7 @@ final class SceneSurfaceDemo extends ShowcaseDemo {
     _scene = Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
     return _scene;

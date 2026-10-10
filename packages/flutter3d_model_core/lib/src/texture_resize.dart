@@ -147,7 +147,7 @@ int toPowerOfTwo(int n) {
 ///
 /// [budget] defaults to [project]'s own [ProjectProfile.textures] — a
 /// caller with a profile already set on the project, the ordinary case.
-/// `mcp-09n`'s own `makeGameReady(profile)` is the one that passes a
+/// `mcp-09n`'s own `prepareForGame(profile)` is the one that passes a
 /// different [TextureBudget] explicitly: an agent asking for "mobile"
 /// textures on a project whose own profile is still "desktop" is not
 /// asking to change the project's profile, only to fit its images to a
@@ -181,6 +181,8 @@ ModelProject FitTexturesToProfile(
     skeletons: project.skeletons,
     clips: project.clips,
     lighting: project.lighting,
+    animationGraphs: project.animationGraphs,
+    unknown: project.unknown,
   );
 }
 
@@ -195,8 +197,10 @@ EncodedImage _fitOne(
     mark(false);
     return image;
   }
-  final decoded = decodePng(image.bytes);
-  if (decoded == null) {
+  final DecodedImage decoded;
+  try {
+    decoded = decodePng(image.bytes);
+  } on ImageFormatException {
     mark(false); // not a format this package can decode — carried over as-is
     return image;
   }

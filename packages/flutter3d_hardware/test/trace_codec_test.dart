@@ -32,7 +32,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
   const TraceReleaseGeometry(0),
   const TraceCreateTexture(
     id: 1,
-    spec: RenderTargetSpec(
+    spec: RenderTargetDescriptor(
       width: 8,
       height: 4,
       format: TextureFormat.r16g16b16a16Float,
@@ -81,7 +81,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     id: 5,
     vertex: 'MeshVertex',
     fragment: 'Pbr',
-    layout: VertexLayoutSpec(<BufferLayout>[
+    layout: VertexLayoutDescriptor(<BufferLayout>[
       BufferLayout(
         strideInBytes: 12,
         stepMode: VertexStepMode.instance,
@@ -126,6 +126,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
   const TraceSetCullMode(0, CullMode.frontFace),
   const TraceSetWindingOrder(0, WindingOrder.clockwise),
   const TraceSetDepthWrite(0, false),
+  const TraceSetAlphaToCoverage(0, true),
   const TraceSetDepthCompare(0, CompareFunction.greaterEqual),
   const TraceSetStencil(
     0,
@@ -148,6 +149,14 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     1,
   ),
   TraceSetBlendColor(0, Vector4(1.0, 0.5, 0.25, 0.125)),
+  const TracePushDebugGroup(0, 'opaque'),
+  const TraceInsertDebugMarker(0, 'floor'),
+  const TracePopDebugGroup(0),
+  const TraceSetLabel(
+    resource: TraceLabeled.texture,
+    id: 1,
+    label: 'scene colour',
+  ),
   const TraceBindPipeline(0, 5),
   const TraceBindVertexBuffer(pass: 0, buffer: _range, vertexCount: 3, slot: 1),
   TraceBindVertexData(
@@ -181,10 +190,10 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     shader: 'Pbr',
     slot: 'base_color_texture',
     texture: 2,
-    sampler: SamplerOptions.nearestClamp,
+    sampler: SamplerDescriptor.nearestClamp,
   ),
   const TraceClearBindings(0),
-  const TraceDraw(0, 4),
+  const TraceDraw(0, 4, 3, 6),
   const TraceSubmit(0),
   const TraceReadPixels(1),
   const TraceReadback(texture: 1, region: _rect),
@@ -192,6 +201,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     id: 6,
     bytes: _bytes(<int>[1, 2, 3, 4]),
     hostReadable: true,
+    indices: 9,
   ),
   const TraceCreateComputePipeline(7, 'PrefixSum'),
   const TraceBeginComputePass(1, 'sum'),
@@ -222,7 +232,7 @@ void main() {
     // round trip below never tries.
     final kinds = _everyEvent().map((e) => e.kind).toList();
     expect(kinds.toSet(), hasLength(kinds.length));
-    expect(kinds, hasLength(47));
+    expect(kinds, hasLength(52));
   });
 
   test('a file read back writes the same file', () {
@@ -236,13 +246,25 @@ void main() {
     expect(Trace(read.events, metadata: read.metadata).encode(), first);
   });
 
-  test('a trace from another format version is refused by name', () {
+  test('a draw of the whole binding reads back as the whole binding', () {
+    // A trace recorded before windows existed has neither key, and has to
+    // read as the draw it was without a new format version.
+    final read = Trace.decode(
+      Trace(const <TraceEvent>[TraceDraw(0, 2)]).encode(),
+    );
+    final draw = read.events.single as TraceDraw;
+    expect(draw.instanceCount, 2);
+    expect(draw.firstIndex, 0);
+    expect(draw.indexCount, isNull);
+  });
+
+  test('a trace from a newer format version is refused by name', () {
     final bytes = Trace(const <TraceEvent>[]).encode();
     ByteData.sublistView(bytes).setUint32(8, 99, Endian.little);
     expect(
       () => Trace.decode(bytes),
       throwsA(
-        isA<FormatException>().having(
+        isA<TraceFormatException>().having(
           (e) => e.message,
           'message',
           contains('format 99'),

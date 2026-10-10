@@ -1,0 +1,201 @@
+{
+  "format": "f3d.plugin-catalogue",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d site/tool/plugins.mjs",
+  "fetched": "2026-10-08T12:38:58.227Z",
+  "community": [],
+  "ours": [
+    {
+      "name": "flutter3d_audio_core",
+      "version": "1.0.0-rc.1",
+      "description": "Positional audio for flutter3d without a backend: attenuation, panning, occlusion, voice limiting and the mixer's buses.",
+      "url": "https://pub.dev/packages/flutter3d_audio_core",
+      "plugins": [
+        "AudioPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "view",
+      "kind": "other",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_camera",
+      "version": "1.0.0-rc.1",
+      "description": "Virtual cameras for flutter3d games: priorities and blends between them (cut, ease, a curve of your own), framing by targets with dead zones and damping, group shots, keeping clear of walls, and impulse shake seeded by the step. A director, and a plugin that places it in the frame phase `camera`.",
+      "url": "https://pub.dev/packages/flutter3d_camera",
+      "plugins": [
+        "CameraPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "view",
+      "kind": "addon",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_effects",
+      "version": "1.0.0-rc.1",
+      "description": ">-",
+      "url": "https://pub.dev/packages/flutter3d_effects",
+      "plugins": [
+        "ElementPlugin",
+        "ElementsSimulationPlugin",
+        "ElementsViewPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation, view",
+      "kind": "other",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_game_kit",
+      "version": "1.0.0-rc.1",
+      "description": "Gameplay parts for flutter3d games, one library each: reactions, a soundtrack, ghosts of past runs, seeded levels, the world past the simulated square, ragdolls, burning wrecks and party sessions.",
+      "url": "https://pub.dev/packages/flutter3d_game_kit",
+      "plugins": [
+        "ReactionsPlugin",
+        "SoundtrackPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "view",
+      "kind": "addon",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_game_platformer",
+      "version": "1.0.0-rc.1",
+      "description": "A second genre: a runner who jumps twice and dashes, things to collect, hazards to fall into, and checkpoints to come back at.",
+      "url": "https://pub.dev/packages/flutter3d_game_platformer",
+      "plugins": [
+        "PlatformerPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation",
+      "kind": "genre",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_game_racing",
+      "version": "1.0.0-rc.1",
+      "description": "A third genre: a car with grip it can lose, a track measured in metres, and the lap that comes of going round it.",
+      "url": "https://pub.dev/packages/flutter3d_game_racing",
+      "plugins": [
+        "RacingPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation",
+      "kind": "genre",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_game_shooter",
+      "version": "1.0.0-rc.1",
+      "description": "The parts of a first-person shooter that are not parts of an engine: monsters, weapons, an inventory, and the step order that ties them together.",
+      "url": "https://pub.dev/packages/flutter3d_game_shooter",
+      "plugins": [
+        "ShooterPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation",
+      "kind": "genre",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_game_strategy",
+      "version": "1.0.0-rc.1",
+      "description": "A fourth genre: ground made of samples, units that move as a crowd rather than one at a time, and orders given to a selection instead of to a body.",
+      "url": "https://pub.dev/packages/flutter3d_game_strategy",
+      "plugins": [
+        "StrategyPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation",
+      "kind": "genre",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_game_ui",
+      "version": "1.0.0-rc.1",
+      "description": "The widgets around a flutter3d game, one library each: the HUD, touch controls, accessibility, title and credits screens, photo mode, and recording and sharing a run.",
+      "url": "https://pub.dev/packages/flutter3d_game_ui",
+      "plugins": [
+        "SpokenEvents"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "view",
+      "kind": "addon",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_plugin_runtime",
+      "version": "1.0.0-rc.1",
+      "description": "Plugins loaded while a game runs: data plugins read from a .f3dplugin document, sandboxed Wasm modules stepped by a deterministic interpreter, and the interface an interpreted script runs behind, each held to the permissions its manifest declares and the application grants.",
+      "url": "https://pub.dev/packages/flutter3d_plugin_runtime",
+      "plugins": [
+        "DataPlugin",
+        "WasmPlugin"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation",
+      "kind": "other",
+      "demo": "",
+      "conformance": false
+    },
+    {
+      "name": "flutter3d_post",
+      "version": "1.0.0-rc.1",
+      "description": "Post-processing for flutter3d, one library per family: light, shading, reflections, atmosphere, motion and style, and the standard preset of all six. Each effect is a plugin and the switch of its own render step.",
+      "url": "https://pub.dev/packages/flutter3d_post",
+      "plugins": [
+        "AmbientOcclusionAddon",
+        "AutoExposureAddon",
+        "BloomAddon",
+        "ColorGradeAddon",
+        "ContactShadowsAddon",
+        "DepthOfFieldAddon",
+        "FogAddon",
+        "HighContrastAddon",
+        "LensDistortionAddon",
+        "LensFlareAddon",
+        "LightShaftsAddon",
+        "LocalExposureAddon",
+        "MotionBlurAddon",
+        "OutlinesAddon",
+        "PlanarReflectionsAddon",
+        "ReflectionProbesAddon",
+        "ScreenSpaceReflectionsAddon",
+        "SkyAddon",
+        "TemporalAntiAliasingAddon",
+        "ToonLightingAddon",
+        "ViewportShadingAddon",
+        "VignetteAndGrainAddon",
+        "VolumetricFogAddon"
+      ],
+      "api": "1.0",
+      "backends": [],
+      "touches": "simulation, view",
+      "kind": "addon",
+      "demo": "",
+      "conformance": false
+    }
+  ]
+}

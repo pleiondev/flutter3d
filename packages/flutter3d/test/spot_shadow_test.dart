@@ -24,11 +24,12 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -76,9 +77,9 @@ const double _coneAngle = 0.45;
 
   MeshNode block(Vector3 size, Vector3 at, {String name = 'block'}) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       lighting: LightingModel.pbr,
     ),
     name: name,
@@ -107,7 +108,7 @@ const double _coneAngle = 0.45;
   final light =
       LightNode(
           type: LightType.spot,
-          intensity: 60.0,
+          intensity: 60.0 * Photometric.legacyUnit,
           range: 20.0,
           outerConeAngle: coneAngle,
           innerConeAngle: coneAngle * 0.5,
@@ -137,9 +138,9 @@ Future<List<int>> _grid(
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return parityGrid(pixels!.buffer.asUint8List(), _width, _height);
+  return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 
 /// Cells the shadow took light away from, comparing lit against shadowed.
@@ -295,9 +296,9 @@ void main() {
             ),
             CuboidShape(size: Vector3(0.15, 0.15, 6.0)).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'beam',
-            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
             lighting: LightingModel.pbr,
           ),
           name: 'beam',
@@ -311,8 +312,8 @@ void main() {
           views: <RenderView>[RenderView(camera: room.camera)],
           settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
         );
-        final pixels = await engine.device.readPixels(result.frame);
-        return pixels!.buffer.asUint8List();
+        final pixels = await engine.device.readback(result.frame);
+        return pixels.buffer.asUint8List();
       }
 
       final lit = await frame(shadows: false);

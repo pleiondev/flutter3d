@@ -17,7 +17,7 @@ Nothing in this section is genre knowledge. That property is what made the secon
 | [`flutter3d_sim`](/core/simulation/) | Fixed step, input, levels and holes in them, mechanisms, actors, navigation and the automap, ECS, snapshots, demos, rewind | `flutter3d_physics`, `vector_math`. Plain Dart, no Flutter |
 | [`flutter3d_app`](/core/session/) | The backend choice, the surface a frame reaches Flutter through, a level loaded into a scene, storage | `flutter3d`, `flutter3d_sim` and Flutter |
 | `flutter3d_game` | The devices, the run, the settings and save screens, actor and fixture visuals | `flutter3d_app`, `flutter3d_sim` and Flutter |
-| [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies | nothing. Plain Dart |
+| [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies, [liquids](/core/liquids/) | nothing. Plain Dart |
 
 **Four backends implement the HAL**, and an application names exactly one of them in its pubspec:
 
@@ -25,7 +25,7 @@ Nothing in this section is genre knowledge. That property is what made the secon
 |---|---|
 | `flutter3d_impeller` | `flutter_gpu`, over Metal and Vulkan. The production one |
 | `flutter3d_webgl` | WebGL2 in the browser. Runs all three games at a fixed resolution and a lower frame rate, and is what an ordinary web build opens |
-| `flutter3d_cpu` | Nothing: it rasterises in Dart, so 78 golden scenes stay checkable with no GPU in the room |
+| `flutter3d_cpu` | Nothing: it rasterises in Dart, so 96 golden scenes stay checkable with no GPU in the room |
 | `flutter3d_webgpu` | WebGPU in a browser that has an adapter. Reached by `--dart-define=FLUTTER3D_WEBGPU=true`, because a build that can try it ships it |
 
 `flutter3d_conformance` is the suite each of them passed before it belonged in that table, and [Writing a HAL backend](/core/backends/) is the guide for writing the fifth.

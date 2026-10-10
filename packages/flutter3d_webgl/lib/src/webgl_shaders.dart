@@ -14,9 +14,17 @@ library;
 
 import 'dart:js_interop';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ShaderCompileException, ShaderDiagnostic;
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
 import 'package:web/web.dart' as web;
 
 import 'webgl_device.dart';
@@ -120,12 +128,18 @@ final RegExp _samplerDeclaration = RegExp(
   r'\buniform\s+(?:(?:lowp|mediump|highp)\s+)?\w*sampler\w*\s+(\w+)\s*;',
 );
 
-/// Compiles one stage, or throws naming it and quoting the driver's log.
+/// Every `mediump` a stage spells, for [WebGlShaderLibrary.highpMaterials].
+final RegExp _mediump = RegExp(r'\bmediump\b');
+
+/// Compiles one stage, or throws a [ShaderCompileException] naming it and
+/// quoting the driver's log.
 ///
 /// Shared by the engine's library and a loaded one, because a stage that
 /// failed to compile and came back null would look exactly like a stage the
 /// bundle never had, and the two need different fixes — so both refuse the
-/// same way, loudly.
+/// same way, loudly. A [ShaderCompileException] rather than the `StateError`
+/// it was before 1.0: the root's type, which every backend that compiles at
+/// run time throws, so `on Flutter3dException` catches it.
 ///
 /// The info log is read before the shader is deleted, and deleted it must be:
 /// nothing caches a failure, so every retry would otherwise leak one more GL
@@ -146,9 +160,17 @@ web.WebGLShader compileWebGlShader(
       gl.getShaderParameter(shader, web.WebGLRenderingContext.COMPILE_STATUS)!
           as JSBoolean;
   if (!ok.toDart) {
-    final log = gl.getShaderInfoLog(shader);
+    final log = gl.getShaderInfoLog(shader)?.trim() ?? '';
     gl.deleteShader(shader);
-    throw StateError('the "$name" shader did not compile:\n$log');
+    final stage = isVertex ? 'vertex' : 'fragment';
+    throw ShaderCompileException(
+      shader: name,
+      backend: webglBackendName,
+      log: log,
+      stage: stage,
+      target: ShaderBundle.webglSection,
+      diagnostics: ShaderDiagnostic.parseLog(log, stage: stage, source: source),
+    );
   }
   return shader;
 }
@@ -158,11 +180,23 @@ web.WebGLShader compileWebGlShader(
 /// Compiled lazily and cached, because a scene uses a handful of the bundle's
 /// stages and compiling all of them at startup would cost a visible pause for
 /// shaders the frame never binds.
-final class WebGlShaderLibrary implements ShaderLibrary {
-  WebGlShaderLibrary(this._gl, this._sources);
+final class WebGlShaderLibrary with ShaderLibrary {
+  WebGlShaderLibrary(this._gl, this._sources, {this.highpMaterials = false});
 
   final web.WebGL2RenderingContext _gl;
   final ShaderSources _sources;
+
+  /// Whether the material stages are compiled at highp throughout — the
+  /// picture before `A1.1`.
+  ///
+  /// The lit models run their colour arithmetic at mediump where
+  /// `flutter3d_shaders/shaders/PRECISION.md` allows it: a stretch opened by
+  /// `precision mediump float;` and a few locals qualified `mediump`. True
+  /// turns every `mediump` in a stage's source to `highp` before it is
+  /// compiled, which is the arithmetic every earlier release ran. A desktop
+  /// browser computes both at full precision and draws the same picture
+  /// either way; a phone is where the two differ.
+  final bool highpMaterials;
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
 
   /// Linked programs, by the *handles* of the pair and not their names.
@@ -191,13 +225,28 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     // while a contributor merely draws nothing.
     if (source == null) return null;
     // A failed compile throws out of `putIfAbsent`, so it is never cached.
-    final shader = compileWebGlShader(_gl, name, source, isVertex: isVertex);
-    return ShaderHandle(
+    final shader = compileWebGlShader(
+      _gl,
+      name,
+      highpMaterials ? source.replaceAll(_mediump, 'highp') : source,
+      isVertex: isVertex,
+    );
+    return wrapShader(
       backend: WebGlShader(shader, isVertex),
       name: name,
       kept: stageBindings[name],
       layouts: uniformBlocks[name],
+      release: _release,
     );
+  }
+
+  /// A disposed handle's release: forgotten, and its shader object deleted.
+  /// A program already linked from it keeps the object alive until the
+  /// program goes, which is GL's rule for a shader deleted while attached.
+  void _release(ShaderHandle handle) {
+    if (!identical(_handles[handle.name], handle)) return;
+    _handles.remove(handle.name);
+    _gl.deleteShader((handle.backend as WebGlShader).shader);
   }
 
   /// Links a pair of stages and reflects what the engine will need to bind.
@@ -218,13 +267,13 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   PipelineHandle link(
     ShaderHandle vertex,
     ShaderHandle fragment, {
-    VertexLayoutSpec? layout,
+    VertexLayoutDescriptor? layout,
   }) {
     final key = '${vertex.name}+${fragment.name}';
     final linked = _programs
         .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
         .putIfAbsent(fragment, () => _link(vertex, fragment));
-    return PipelineHandle(
+    return wrapPipeline(
       backend: WebGlProgram(
         linked.program,
         linked.attributes,
@@ -301,8 +350,11 @@ final class WebGlShaderLibrary implements ShaderLibrary {
       // if this path kept the object.
       final log = _gl.getProgramInfoLog(program);
       _gl.deleteProgram(program);
-      throw StateError(
-        'linking ${vertex.name} with ${fragment.name} failed:\n$log',
+      throw ShaderCompileException(
+        shader: '${vertex.name} with ${fragment.name}',
+        backend: webglBackendName,
+        log: log?.trim() ?? '',
+        target: ShaderBundle.webglSection,
       );
     }
 
@@ -480,32 +532,34 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     return blocks;
   }
 
-  /// Sampler uniforms, by name.
+  /// The texture target a GL sampler uniform type samples, or null for a
+  /// uniform that is not a sampler.
   ///
-  /// Only their presence matters here; the texture unit is assigned per bind,
-  /// because the engine binds a slot when its material declares one and the set
-  /// differs between draws.
-  /// Whether a GL uniform type is one of the sampler types.
-  ///
-  /// The list is the WebGL2 set. Named by value rather than by constant because
-  /// `package:web` exposes only the two this backend uses.
-  static bool _isSampler(int type) => const <int>[
-    0x8B5E, // SAMPLER_2D
-    0x8B60, // SAMPLER_CUBE
-    0x8DC1, // SAMPLER_2D_ARRAY
-    0x8B62, // SAMPLER_2D_SHADOW
-    0x8DC4, // SAMPLER_2D_ARRAY_SHADOW
-    0x8DC5, // SAMPLER_CUBE_SHADOW
-    0x8DCA, // INT_SAMPLER_2D
-    0x8DCF, // INT_SAMPLER_2D_ARRAY
-    0x8DD2, // UNSIGNED_INT_SAMPLER_2D
-    0x8DD7, // UNSIGNED_INT_SAMPLER_2D_ARRAY
-    0x8B5F, // SAMPLER_3D
-    0x8DCB, // INT_SAMPLER_3D
-    0x8DD3, // UNSIGNED_INT_SAMPLER_3D
-    0x8DCC, // INT_SAMPLER_CUBE
-    0x8DD4, // UNSIGNED_INT_SAMPLER_CUBE
-  ].contains(type);
+  /// The whole WebGL2 set. Named by value rather than by constant because
+  /// `package:web` exposes only a few of them. Until 1.0 only `SAMPLER_2D`
+  /// and `SAMPLER_CUBE` were accepted and the rest threw at link: array, 3D
+  /// and comparison samplers are what `DeviceFeature.textureArrays`,
+  /// `texture3D` and `samplerCompare` need a shader to declare.
+  static int? _samplerTarget(int type) => switch (type) {
+    0x8B5E || // SAMPLER_2D
+    0x8B62 || // SAMPLER_2D_SHADOW
+    0x8DCA || // INT_SAMPLER_2D
+    0x8DD2 => web.WebGLRenderingContext.TEXTURE_2D, // UNSIGNED_INT_SAMPLER_2D
+    0x8B60 || // SAMPLER_CUBE
+    0x8DC5 || // SAMPLER_CUBE_SHADOW
+    0x8DCC || // INT_SAMPLER_CUBE
+    0x8DD4 => // UNSIGNED_INT_SAMPLER_CUBE
+    web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
+    0x8DC1 || // SAMPLER_2D_ARRAY
+    0x8DC4 || // SAMPLER_2D_ARRAY_SHADOW
+    0x8DCF || // INT_SAMPLER_2D_ARRAY
+    0x8DD7 => // UNSIGNED_INT_SAMPLER_2D_ARRAY
+    web.WebGL2RenderingContext.TEXTURE_2D_ARRAY,
+    0x8B5F || // SAMPLER_3D
+    0x8DCB || // INT_SAMPLER_3D
+    0x8DD3 => web.WebGL2RenderingContext.TEXTURE_3D, // UNSIGNED_INT_SAMPLER_3D
+    _ => null,
+  };
 
   Map<String, WebGlSampler> _reflectSamplers(web.WebGLProgram program) {
     final count =
@@ -519,38 +573,21 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     for (var i = 0; i < count; i++) {
       final info = _gl.getActiveUniform(program, i);
       if (info == null) continue;
-      final type = info.type;
-      if (type == web.WebGLRenderingContext.SAMPLER_2D ||
-          type == web.WebGLRenderingContext.SAMPLER_CUBE) {
-        // **Its own texture unit, for the life of the program.** Units used to
-        // be handed out per draw in bind order, while the sampler's `uniform1i`
-        // kept whatever number it was last given, so a sampler a draw did not
-        // bind read the unit another slot now held: a morph texture sampling
-        // the base colour, or a cube and a 2D texture on one unit and the draw
-        // dropped. The ordinal among the program's samplers never collides.
-        samplers[info.name] = (
-          unit: samplers.length,
-          cube: type == web.WebGLRenderingContext.SAMPLER_CUBE,
-        );
-        continue;
-      }
-      // Anything else is not something this reflection knows how to bind, and
-      // dropping it silently is how a sampler stops working with nothing said.
-      //
-      // That is not hypothetical: this line read `!= SAMPLER_2D` and skipped
-      // the rest, so a `samplerCube` never reached `samplers`, `bindTexture`
-      // then found no location and returned, and the draw sampled whatever was
-      // left in texture unit zero. Impeller and the software rasteriser drew
-      // the right picture; the web drew rubbish and logged nothing. Throwing
-      // means the next non-2D sampler is a message rather than a mystery.
-      if (_isSampler(type)) {
-        throw StateError(
-          'The shader declares "${info.name}", a sampler of GL type 0x'
-          '${type.toRadixString(16)} that this backend cannot bind. Teach '
-          '_reflectSamplers and bindTexture about it, or the draw will sample '
-          'whatever was in the texture unit.',
-        );
-      }
+      // Every sampler type WebGL2 has, each with the target it samples. This
+      // used to accept two and throw for the rest, after a version that
+      // skipped the rest silently — so a `samplerCube` never reached
+      // `samplers`, `bindTexture` found no location, and the draw sampled
+      // whatever was left in unit zero. The table in [_samplerTarget] is
+      // complete, so nothing a shader can declare is dropped any more.
+      final target = _samplerTarget(info.type);
+      if (target == null) continue;
+      // **Its own texture unit, for the life of the program.** Units used to
+      // be handed out per draw in bind order, while the sampler's `uniform1i`
+      // kept whatever number it was last given, so a sampler a draw did not
+      // bind read the unit another slot now held: a morph texture sampling
+      // the base colour, or a cube and a 2D texture on one unit and the draw
+      // dropped. The ordinal among the program's samplers never collides.
+      samplers[info.name] = (unit: samplers.length, target: target);
     }
     return samplers;
   }

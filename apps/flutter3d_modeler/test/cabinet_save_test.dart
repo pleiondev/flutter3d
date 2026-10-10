@@ -30,7 +30,7 @@ import 'support/fake_graphics_backend.dart';
 /// Answers every read with nothing and every write as if it landed —
 /// `file_drop_io_test.dart`'s own `_NullBinaryStorage`, repeated here since
 /// it is private to that file.
-final class _NullBinaryStorage implements BinaryStorage {
+final class _NullBinaryStorage extends BinaryStorage {
   @override
   Future<Uint8List?> read(String name) async => null;
 

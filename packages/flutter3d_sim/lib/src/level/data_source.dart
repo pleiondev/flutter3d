@@ -13,7 +13,10 @@ import 'entity_def.dart';
 /// `WebSocketDataSource` are therefore adapters a caller writes against this
 /// interface, in whatever package can afford to know about sockets; this
 /// package ships the one implementation it can prove without one.
-abstract class EduDataSource {
+///
+/// **A base class**, extended rather than implemented, so a member added in
+/// a minor arrives with a default and an adapter keeps compiling.
+abstract base class EduDataSource {
   const EduDataSource();
 
   /// The payload this source held at [step] — whatever shape the real sensor

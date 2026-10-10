@@ -16,7 +16,7 @@
 /// translation and the signature to their answers without a browser; the device,
 /// the encoder and the bindings import `dart:js_interop`, which the VM does not
 /// have, and a barrel re-exporting one of those cannot be imported at all off
-/// the web. An application imports the other file and calls `openWebGpu`.
+/// the web. An application imports the other file and calls `WebGpuDevice.open`.
 ///
 /// **No status line here, deliberately.** `flutter3d_webgl`'s barrel carries a
 /// paragraph saying what that backend can and cannot draw yet, and warns in its
@@ -26,34 +26,25 @@
 /// where it can be wrong out loud — in `CHANGELOG.md`, and in the tests.
 library;
 
-/// The WGSL sources and the reflection a bundle carries for this backend, as
-/// one document a packer writes and a device reads. Exported because a device
-/// is opened over it — `WebGpuDevice.create` takes the stages — and because a
-/// tool that packs a bundle for this backend needs the encoder.
-export 'src/webgpu_bundle_section.dart';
+/// The engine's compiled stage a material loaded at run time is spliced
+/// into, for `RuntimeShaders`' `webGpuHost`. Pure Dart, as the table it reads
+/// is.
+export 'src/runtime_material_host.dart';
 
-/// The translation between the contract's vocabulary and WebGPU's own
-/// enumeration strings. Pure Dart: nothing in it reaches for `dart:js_interop`
-/// or `package:web`, so every answer is asserted on the VM rather than only in
-/// a browser with a GPU.
+/// The stages a bundle carries for this backend, as a device reads them.
+/// Exported because a device is opened over them — `WebGpuDevice.open` takes
+/// the stages — and a page with a bundle of its own decodes them.
 ///
-/// **`webgpu_interop.dart` is deliberately not exported beside it, and the
-/// reason is this file's own platform.** A barrel that re-exports a library
-/// importing `dart:js_interop` cannot be imported on the VM at all, and the
-/// table's tests are the ones that run in a second and catch a typo in
-/// `"less-equal"` without a GPU. So the bindings are reached through
-/// `flutter3d_webgpu_web.dart`, by whoever is opening a device, and this barrel
-/// stays importable everywhere.
-export 'src/webgpu_formats.dart';
+/// **The reflection classes are not** (`WebGpuStage`, `WebGpuBlock`,
+/// `WebGpuBlockMember`, `WebGpuSampler`, `WebGpuAttribute`, and the encoder,
+/// `encodeWebGpuSection`), since 1.0: they mirror what WGSL reflection
+/// cannot say and change with it. The packing tools are this package's own and
+/// import them from `src/`.
+export 'src/webgpu_bundle_section.dart'
+    show WebGpuSectionStages, decodeWebGpuSection;
 
-/// What a draw looks a pipeline up by, and the map it looks it up in. Pure Dart
-/// for the same reason the table is, and asserted the same way: which two
-/// states are one pipeline and which are two is a question about this file
-/// rather than about a browser.
-export 'src/webgpu_pipeline_cache.dart';
-
-/// A compiled stage, a pipeline over a pair of them, and the library that
-/// resolves a name into the first. Everything but turning text into a module,
-/// which is the device's through `WgslModuleCompiler` — so the vertex layout
-/// arithmetic and the refusals load and are asserted on the VM.
-export 'src/webgpu_shaders.dart';
+// Everything else under `lib/src` — the translation tables (`gpu*`), the
+// pipeline signature and cache, the shader library — is this backend's own
+// business since 1.0, imported by its tests from `src/` and by nobody else:
+// a WebGPU detail in this package's API would be a major release every time
+// the browser's API moved.

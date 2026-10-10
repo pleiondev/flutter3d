@@ -8,13 +8,17 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 
-BakeClothJobRequest bake({int frameCount = 120}) => BakeClothJobRequest(
+BakeClothJobRequest bake({
+  int frameCount = 120,
+  PhysicsBackend physics = const DartPhysics(),
+}) => BakeClothJobRequest(
   objectId: 1,
   baseVersion: 1,
   mesh: ClothMesh.grid(cols: 20, rows: 20, spacing: 0.03, mass: 0.01),
   settings: const ClothSettings(),
   dt: 1 / 60,
   frameCount: frameCount,
+  physics: physics,
 );
 
 void main() {
@@ -140,6 +144,50 @@ void main() {
       expect(command.cache.frameCount, 1);
     });
   });
+
+  test('a bake steps its cloth on the backend it was given', () async {
+    final backend = _Counting();
+    final job = bake(frameCount: 3, physics: backend);
+    await job.bake();
+    // Mutation: the bake calling stepCloth itself, past the backend.
+    expect(backend.steps, 3);
+    expect(job.buildCache().frameCount, 3);
+  });
+}
+
+/// A backend with a cloth of its own, the reference's, that counts its
+/// steps.
+final class _Counting extends PhysicsBackend {
+  int steps = 0;
+
+  @override
+  String get name => 'counting';
+
+  @override
+  ClothSimulation cloth(ClothMesh mesh) => _CountedCloth(this, DartCloth(mesh));
+}
+
+final class _CountedCloth extends ClothSimulation {
+  _CountedCloth(this._backend, this._cloth);
+
+  final _Counting _backend;
+  final DartCloth _cloth;
+
+  @override
+  ClothMesh get mesh => _cloth.mesh;
+
+  @override
+  void step(
+    ClothSettings settings,
+    double dt, {
+    List<ClothObstacle> obstacles = const <ClothObstacle>[],
+  }) {
+    _backend.steps++;
+    _cloth.step(settings, dt, obstacles: obstacles);
+  }
+
+  @override
+  void dispose() {}
 }
 
 bool _assertionsEnabled() {

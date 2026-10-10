@@ -24,10 +24,11 @@
 /// package's own tests, so [GpuBufferUsage] and its siblings hold them. Nothing
 /// in this file imports anything but `dart:js_interop`.
 ///
-/// **What is deliberately absent:** query sets, render bundles, indirect draws
-/// and external textures. `flutter3d_hardware` asks for none of them, and a
-/// declaration nobody calls is a declaration nobody has checked against a
-/// browser. Compute pipelines arrived with `H6`, when the contract did ask.
+/// **What is deliberately absent:** external textures. `flutter3d_hardware`
+/// does not ask for them, and a declaration nobody calls is a declaration
+/// nobody has checked against a browser. Compute pipelines arrived with `H6`,
+/// and query sets, render bundles, indirect draws and storage textures with
+/// 1.0, each when the contract did ask.
 @JS()
 library;
 
@@ -38,6 +39,9 @@ import 'dart:js_interop';
 // a record has no Dart spelling past `JSObject`. See [gpuRequiredLimits], which
 // is the whole of this import's use.
 import 'dart:js_interop_unsafe';
+
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ResourceException;
 
 // ------------------------------------------------------------ getting a device
 
@@ -114,20 +118,35 @@ extension type GPUSupportedFeatures._(JSObject _) implements JSObject {
 
 /// The numbers a device will not go past.
 ///
-/// A small slice of a long list: the ones a renderer actually plans around.
-/// Everything else is a limit no scene in this repository comes near, and a
-/// declaration nobody reads is a declaration nobody has checked.
+/// Every limit `DeviceLimits` reports, which since 1.0 is what
+/// `GraphicsDevice.limits` reads off the device that was granted.
 extension type GPUSupportedLimits._(JSObject _) implements JSObject {
+  external int get maxTextureDimension1D;
   external int get maxTextureDimension2D;
+  external int get maxTextureDimension3D;
   external int get maxTextureArrayLayers;
   external int get maxBindGroups;
   external int get maxSamplersPerShaderStage;
   external int get maxSampledTexturesPerShaderStage;
+  external int get maxStorageBuffersPerShaderStage;
+  external int get maxStorageTexturesPerShaderStage;
+  external int get maxUniformBuffersPerShaderStage;
   external int get maxUniformBufferBindingSize;
+  external int get maxStorageBufferBindingSize;
   external int get maxBufferSize;
   external int get maxVertexBuffers;
   external int get maxVertexAttributes;
+  external int get maxVertexBufferArrayStride;
+  external int get maxInterStageShaderVariables;
   external int get maxColorAttachments;
+  external int get maxColorAttachmentBytesPerSample;
+  external int get minStorageBufferOffsetAlignment;
+  external int get maxComputeWorkgroupStorageSize;
+  external int get maxComputeInvocationsPerWorkgroup;
+  external int get maxComputeWorkgroupSizeX;
+  external int get maxComputeWorkgroupSizeY;
+  external int get maxComputeWorkgroupSizeZ;
+  external int get maxComputeWorkgroupsPerDimension;
 
   /// The alignment a dynamic uniform offset has to satisfy — 256 on every
   /// implementation so far, and the reason a per-object uniform block is padded
@@ -162,6 +181,13 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   external GPURenderPipeline createRenderPipeline(
     GPURenderPipelineDescriptor d,
   );
+
+  /// [createRenderPipeline], compiled off the calling turn. The promise
+  /// rejects with a `GPUPipelineError` where the descriptor is refused,
+  /// rather than handing back an invalid pipeline.
+  external JSPromise<GPURenderPipeline> createRenderPipelineAsync(
+    GPURenderPipelineDescriptor d,
+  );
   external GPUBuffer createBuffer(GPUBufferDescriptor d);
   external GPUTexture createTexture(GPUTextureDescriptor d);
   external GPUSampler createSampler(GPUSamplerDescriptor d);
@@ -180,6 +206,17 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   /// A compute pipeline — `H6`.
   external GPUComputePipeline createComputePipeline(
     GPUComputePipelineDescriptor d,
+  );
+
+  /// [createComputePipeline], compiled off the calling turn; see
+  /// [createRenderPipelineAsync].
+  external JSPromise<GPUComputePipeline> createComputePipelineAsync(
+    GPUComputePipelineDescriptor d,
+  );
+
+  /// An encoder whose draws are kept as a bundle and replayed into passes.
+  external GPURenderBundleEncoder createRenderBundleEncoder(
+    GPURenderBundleEncoderDescriptor d,
   );
 
   /// Starts catching errors of one kind instead of letting them reach the
@@ -201,7 +238,18 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   /// belong in one function and not at two ends of a method.
   external JSPromise<GPUError?> popErrorScope();
 
+  /// `GPUDevice` is an `EventTarget`; the one event it fires is
+  /// `uncapturederror`, a [GPUUncapturedErrorEvent] for every error no scope
+  /// caught — which, unheard, goes to the console and nowhere else.
+  external void addEventListener(String type, JSFunction listener);
+
   external void destroy();
+}
+
+/// An error no error scope caught, as `GPUDevice` fires it.
+extension type GPUUncapturedErrorEvent._(JSObject _) implements JSObject {
+  /// A `GPUValidationError`, `GPUOutOfMemoryError` or `GPUInternalError`.
+  external GPUError get error;
 }
 
 extension type GPUDeviceLostInfo._(JSObject _) implements JSObject {
@@ -249,6 +297,15 @@ extension type GPUQueue._(JSObject _) implements JSObject {
     GPUExtent3DDict size,
   );
 
+  /// A browser-decoded image into a texture — `A4.16`. [source]'s `source`
+  /// is an `ImageBitmap`; the destination texture needs `COPY_DST` and
+  /// `RENDER_ATTACHMENT`, the second because the browser may draw the copy.
+  external void copyExternalImageToTexture(
+    GPUCopyExternalImageSourceInfo source,
+    GPUCopyExternalImageDestInfo destination,
+    GPUExtent3DDict copySize,
+  );
+
   external void submit(JSArray<GPUCommandBuffer> buffers);
 
   /// Resolves when everything submitted before the call has finished, which is
@@ -282,6 +339,10 @@ extension type GPUCompilationMessage._(JSObject _) implements JSObject {
 }
 
 extension type GPURenderPipeline._(JSObject _) implements JSObject {
+  /// The name a GPU debugger and the browser's errors show for it —
+  /// `GraphicsDevice.setLabel`.
+  external set label(String value);
+
   /// The layout of one bind group, as the pipeline understood it.
   ///
   /// Only useful where the pipeline was built with `layout: "auto"`, and then
@@ -305,12 +366,22 @@ extension type GPUCommandBuffer._(JSObject _) implements JSObject {}
 extension type GPUTextureView._(JSObject _) implements JSObject {}
 
 extension type GPUTexture._(JSObject _) implements JSObject {
+  /// The name a GPU debugger and the browser's errors show for it —
+  /// `GraphicsDevice.setLabel`.
+  external set label(String value);
   external int get width;
   external int get height;
   external int get depthOrArrayLayers;
   external int get mipLevelCount;
   external int get sampleCount;
   external String get format;
+
+  /// `"1d"`, `"2d"` or `"3d"`.
+  external String get dimension;
+
+  /// The `GpuTextureUsage` bits it was made with — what a write or a copy
+  /// asks before the browser would refuse it.
+  external int get usage;
 
   /// A view of the whole texture, or of the slice [descriptor] names.
   ///
@@ -325,7 +396,13 @@ extension type GPUTexture._(JSObject _) implements JSObject {
 }
 
 extension type GPUBuffer._(JSObject _) implements JSObject {
+  /// The name a GPU debugger and the browser's errors show for it —
+  /// `GraphicsDevice.setLabel`.
+  external set label(String value);
   external int get size;
+
+  /// The `GpuBufferUsage` bits it was made with.
+  external int get usage;
 
   /// Maps a range for reading or writing, which is how a readback gets at its
   /// staging buffer.
@@ -343,6 +420,11 @@ extension type GPUBuffer._(JSObject _) implements JSObject {
 }
 
 extension type GPUCommandEncoder._(JSObject _) implements JSObject {
+  /// The debug group a GPU debugger shows around the commands until the
+  /// matching pop — `PassEncoder.pushDebugGroup`.
+  external void pushDebugGroup(String groupLabel);
+  external void popDebugGroup();
+  external void insertDebugMarker(String markerLabel);
   external GPURenderPassEncoder beginRenderPass(GPURenderPassDescriptor d);
 
   /// Opens a compute pass — `H6`.
@@ -375,6 +457,17 @@ extension type GPUCommandEncoder._(JSObject _) implements JSObject {
     GPUExtent3DDict copySize,
   );
 
+  /// Buffer rows into a texture — the encoded twin of `writeTexture`, with
+  /// `copyTextureToBuffer`'s 256-byte row rule.
+  external void copyBufferToTexture(
+    GPUTexelCopyBufferInfo source,
+    GPUTexelCopyTextureInfo destination,
+    GPUExtent3DDict copySize,
+  );
+
+  /// Zeroes [size] bytes of [buffer] from [offset]; both multiples of four.
+  external void clearBuffer(GPUBuffer buffer, [int offset, int size]);
+
   /// Writes [queryCount] query results from [querySet] into [destination] —
   /// `H2`. Timestamps come out as 64-bit nanoseconds.
   external void resolveQuerySet(
@@ -388,7 +481,18 @@ extension type GPUCommandEncoder._(JSObject _) implements JSObject {
   external GPUCommandBuffer finish();
 }
 
-extension type GPURenderPassEncoder._(JSObject _) implements JSObject {
+/// What a render pass and a render bundle can both record: the pipeline, the
+/// bindings and the draws.
+///
+/// WebGPU's `GPURenderCommandsMixin`. One extension type that both encoders
+/// implement, so the encoder in `webgpu_encoder.dart` resolves a draw once and
+/// records it into whichever of the two it is filling.
+extension type GPURenderCommands._(JSObject _) implements JSObject {
+  /// The debug group a GPU debugger shows around the commands until the
+  /// matching pop — `PassEncoder.pushDebugGroup`.
+  external void pushDebugGroup(String groupLabel);
+  external void popDebugGroup();
+  external void insertDebugMarker(String markerLabel);
   external void setPipeline(GPURenderPipeline pipeline);
 
   /// One bind group into a slot, with its dynamic offsets if it has any.
@@ -427,18 +531,6 @@ extension type GPURenderPassEncoder._(JSObject _) implements JSObject {
     int size,
   ]);
 
-  external void setViewport(
-    double x,
-    double y,
-    double width,
-    double height,
-    double minDepth,
-    double maxDepth,
-  );
-  external void setScissorRect(int x, int y, int width, int height);
-  external void setBlendConstant(GPUColorDict color);
-  external void setStencilReference(int reference);
-
   /// A non-indexed draw.
   ///
   /// [firstVertex] and [firstInstance] are the other half of the window
@@ -466,7 +558,82 @@ extension type GPURenderPassEncoder._(JSObject _) implements JSObject {
     int firstInstance,
   ]);
 
+  /// A non-indexed draw whose four counts [indirectBuffer] holds.
+  external void drawIndirect(GPUBuffer indirectBuffer, int indirectOffset);
+
+  /// An indexed draw whose five counts [indirectBuffer] holds.
+  external void drawIndexedIndirect(
+    GPUBuffer indirectBuffer,
+    int indirectOffset,
+  );
+}
+
+extension type GPURenderPassEncoder._(JSObject _) implements GPURenderCommands {
+  external void setViewport(
+    double x,
+    double y,
+    double width,
+    double height,
+    double minDepth,
+    double maxDepth,
+  );
+  external void setScissorRect(int x, int y, int width, int height);
+  external void setBlendConstant(GPUColorDict color);
+  external void setStencilReference(int reference);
+
+  /// Counts the samples the next draws pass into query [queryIndex] of the
+  /// pass descriptor's `occlusionQuerySet`.
+  external void beginOcclusionQuery(int queryIndex);
+  external void endOcclusionQuery();
+
+  /// Replays recorded bundles. Afterwards the pass's pipeline and bindings
+  /// are unset, as the specification says.
+  external void executeBundles(JSArray<GPURenderBundle> bundles);
+
+  /// [maxDrawCount] indexed indirect draws, twenty bytes apart, the count
+  /// read from [drawCountBuffer] where one is given. Only on a device
+  /// granted [GpuFeature.multiDrawIndirect] or its experimental spelling.
+  external void multiDrawIndexedIndirect(
+    GPUBuffer indirectBuffer,
+    int indirectOffset,
+    int maxDrawCount, [
+    GPUBuffer? drawCountBuffer,
+    int drawCountBufferOffset,
+  ]);
+
   external void end();
+}
+
+/// Records draws into a bundle — `GraphicsDevice.createRenderBundleEncoder`.
+extension type GPURenderBundleEncoder._(JSObject _)
+    implements GPURenderCommands {
+  external GPURenderBundle finish([GPURenderBundleDescriptor descriptor]);
+}
+
+extension type GPURenderBundle._(JSObject _) implements JSObject {}
+
+extension type GPURenderBundleDescriptor._(JSObject _) implements JSObject {
+  external factory GPURenderBundleDescriptor({String label});
+}
+
+extension type GPURenderBundleEncoderDescriptor._(JSObject _)
+    implements JSObject {
+  /// A bundle replayed into passes with no depth attachment.
+  external factory GPURenderBundleEncoderDescriptor({
+    JSArray<JSString> colorFormats,
+    int sampleCount,
+    String label,
+  });
+
+  /// A bundle replayed into passes with a depth attachment of
+  /// [depthStencilFormat]. Separate for the reason every pair in this file
+  /// is: a null format is refused, an absent one is not.
+  external factory GPURenderBundleEncoderDescriptor.withDepth({
+    JSArray<JSString> colorFormats,
+    String depthStencilFormat,
+    int sampleCount,
+    String label,
+  });
 }
 
 /// A canvas, reduced to the one call a backend makes on it.
@@ -621,6 +788,9 @@ extension type GPUSamplerDescriptor._(JSObject _) implements JSObject {
     String minFilter,
     String mipmapFilter,
     String compare,
+    double lodMinClamp,
+    double lodMaxClamp,
+    int maxAnisotropy,
     String label,
   });
 }
@@ -676,6 +846,25 @@ extension type GPUBindGroupLayoutEntry._(JSObject _) implements JSObject {
     int binding,
     int visibility,
     GPUTextureBindingLayout texture,
+  });
+
+  /// A storage texture at [binding]. See the buffer constructor for why these
+  /// are separate.
+  external factory GPUBindGroupLayoutEntry.storageTexture({
+    int binding,
+    int visibility,
+    GPUStorageTextureBindingLayout storageTexture,
+  });
+}
+
+extension type GPUStorageTextureBindingLayout._(JSObject _)
+    implements JSObject {
+  /// [access] is `"write-only"`, `"read-only"` or `"read-write"`; [format] is
+  /// the texture format the stage declared, which the bound view must match.
+  external factory GPUStorageTextureBindingLayout({
+    String access,
+    String format,
+    String viewDimension,
   });
 }
 
@@ -796,6 +985,17 @@ extension type GPURenderPassColorAttachment._(JSObject _) implements JSObject {
     String loadOp,
     String storeOp,
   });
+
+  /// One slice of a 3D texture: [view] is a `"3d"` view of one level and
+  /// [depthSlice] picks the slice. Required for a 3D view and refused for any
+  /// other, so it is a constructor of its own.
+  external factory GPURenderPassColorAttachment.slice({
+    GPUTextureView view,
+    int depthSlice,
+    GPUColorDict clearValue,
+    String loadOp,
+    String storeOp,
+  });
 }
 
 extension type GPURenderPassDepthStencilAttachment._(JSObject _)
@@ -824,6 +1024,32 @@ extension type GPURenderPassDepthStencilAttachment._(JSObject _)
     String stencilLoadOp,
     String stencilStoreOp,
   });
+
+  /// Every aspect the format has read-only: no load or store operation may
+  /// be named for a read-only aspect, so this states none.
+  external factory GPURenderPassDepthStencilAttachment.readOnly({
+    GPUTextureView view,
+    bool depthReadOnly,
+    bool stencilReadOnly,
+  });
+
+  /// Depth read-only, the stencil loaded and stored as usual.
+  external factory GPURenderPassDepthStencilAttachment.depthReadOnly({
+    GPUTextureView view,
+    bool depthReadOnly,
+    int stencilClearValue,
+    String stencilLoadOp,
+    String stencilStoreOp,
+  });
+
+  /// The stencil read-only, depth loaded and stored as usual.
+  external factory GPURenderPassDepthStencilAttachment.stencilReadOnly({
+    GPUTextureView view,
+    double depthClearValue,
+    String depthLoadOp,
+    String depthStoreOp,
+    bool stencilReadOnly,
+  });
 }
 
 extension type GPURenderPassDescriptor._(JSObject _) implements JSObject {
@@ -849,19 +1075,64 @@ extension type GPURenderPassDescriptor._(JSObject _) implements JSObject {
   /// descriptor is built, only when there is one: the member left out means
   /// "none", and `null` is refused.
   external set timestampWrites(GPURenderPassTimestampWrites value);
+
+  /// The occlusion query set `beginOcclusionQuery` writes into. Set only when
+  /// there is one, for the reason [timestampWrites] is.
+  external set occlusionQuerySet(GPUQuerySet value);
 }
 
-/// The two queries a pass writes its start and end times into.
+/// The two queries a pass writes its start and end times into. The same
+/// dictionary serves a compute pass, whose IDL name differs and whose members
+/// do not.
 extension type GPURenderPassTimestampWrites._(JSObject _) implements JSObject {
   external factory GPURenderPassTimestampWrites({
     GPUQuerySet querySet,
     int beginningOfPassWriteIndex,
     int endOfPassWriteIndex,
   });
+
+  /// Only the start written: an absent index means "not written", and null is
+  /// refused.
+  external factory GPURenderPassTimestampWrites.beginning({
+    GPUQuerySet querySet,
+    int beginningOfPassWriteIndex,
+  });
+
+  /// Only the end written.
+  external factory GPURenderPassTimestampWrites.end({
+    GPUQuerySet querySet,
+    int endOfPassWriteIndex,
+  });
 }
+
+/// [set]'s writes at [beginning] and [end], each left out where null — the
+/// one spelling `PassTimestampWrites` turns into. Null when neither is named.
+GPURenderPassTimestampWrites? gpuTimestampWrites(
+  GPUQuerySet set,
+  int? beginning,
+  int? end,
+) => switch ((beginning, end)) {
+  (final int b, final int e) => GPURenderPassTimestampWrites(
+    querySet: set,
+    beginningOfPassWriteIndex: b,
+    endOfPassWriteIndex: e,
+  ),
+  (final int b, null) => GPURenderPassTimestampWrites.beginning(
+    querySet: set,
+    beginningOfPassWriteIndex: b,
+  ),
+  (null, final int e) => GPURenderPassTimestampWrites.end(
+    querySet: set,
+    endOfPassWriteIndex: e,
+  ),
+  (null, null) => null,
+};
 
 /// A set of queries — here only ever timestamps — `H2`.
 extension type GPUQuerySet._(JSObject _) implements JSObject {
+  /// The name a GPU debugger and the browser's errors show for it —
+  /// `GraphicsDevice.setLabel`.
+  external set label(String value);
   external void destroy();
 }
 
@@ -945,10 +1216,14 @@ extension type GPUFragmentState._(JSObject _) implements JSObject {
 
 extension type GPUPrimitiveState._(JSObject _) implements JSObject {
   /// A list topology — triangles, lines or points.
+  ///
+  /// [unclippedDepth] true needs `depth-clip-control`; false is legal on
+  /// every device.
   external factory GPUPrimitiveState({
     String topology,
     String cullMode,
     String frontFace,
+    bool unclippedDepth,
   });
 
   /// A strip topology, which needs the index format stated in the pipeline.
@@ -964,6 +1239,7 @@ extension type GPUPrimitiveState._(JSObject _) implements JSObject {
     String cullMode,
     String frontFace,
     String stripIndexFormat,
+    bool unclippedDepth,
   });
 }
 
@@ -1073,6 +1349,26 @@ extension type GPUTexelCopyBufferLayout._(JSObject _) implements JSObject {
   });
 }
 
+/// Where `copyExternalImageToTexture` reads from: an `ImageBitmap` (typed as
+/// the object it is, since nothing else in this file names a DOM type).
+extension type GPUCopyExternalImageSourceInfo._(JSObject _)
+    implements JSObject {
+  external factory GPUCopyExternalImageSourceInfo({
+    JSObject source,
+    bool flipY,
+  });
+}
+
+/// Where `copyExternalImageToTexture` writes. [premultipliedAlpha] false keeps
+/// the straight alpha the bitmap was decoded with.
+extension type GPUCopyExternalImageDestInfo._(JSObject _) implements JSObject {
+  external factory GPUCopyExternalImageDestInfo({
+    GPUTexture texture,
+    int mipLevel,
+    bool premultipliedAlpha,
+  });
+}
+
 extension type GPUTexelCopyBufferInfo._(JSObject _) implements JSObject {
   external factory GPUTexelCopyBufferInfo({
     GPUBuffer buffer,
@@ -1120,8 +1416,8 @@ abstract final class GpuErrorFilter {
 
 /// A WebGPU error that reached Dart, which without [gpuChecked] none of them
 /// do.
-final class GpuDeviceError implements Exception {
-  const GpuDeviceError(this.what, this.message);
+final class GpuDeviceException extends ResourceException {
+  const GpuDeviceException(this.what, this.message);
 
   /// What was being attempted — a caller's own words, since the browser's
   /// message names a dictionary member and not the pipeline it belonged to.
@@ -1129,6 +1425,7 @@ final class GpuDeviceError implements Exception {
 
   /// The browser's own text, which is usually precise about which member was
   /// wrong and never says where in Dart it came from.
+  @override
   final String message;
 
   @override
@@ -1172,7 +1469,7 @@ Future<T> gpuChecked<T>(
     rethrow;
   }
   final error = await device.popErrorScope().toDart;
-  if (error != null) throw GpuDeviceError(what, error.message);
+  if (error != null) throw GpuDeviceException(what, error.message);
   return result;
 }
 
@@ -1296,12 +1593,68 @@ abstract final class GpuFeature {
 
   /// Timestamps written at the start and end of a pass — `H2`.
   static const String timestampQuery = 'timestamp-query';
+
+  /// `unclippedDepth` on a pipeline — `DeviceFeature.depthClamp`.
+  static const String depthClipControl = 'depth-clip-control';
+
+  /// A non-zero first instance in an indirect draw's arguments.
+  static const String indirectFirstInstance = 'indirect-first-instance';
+
+  /// The four `src1` blend factors.
+  static const String dualSourceBlending = 'dual-source-blending';
+
+  /// Blending into a 32-bit float attachment.
+  static const String float32Blendable = 'float32-blendable';
+
+  /// `rg11b10ufloat` as a colour attachment.
+  static const String rg11b10Renderable = 'rg11b10ufloat-renderable';
+
+  /// `f16` in WGSL.
+  static const String shaderF16 = 'shader-f16';
+
+  /// Subgroup built-ins in WGSL.
+  static const String subgroups = 'subgroups';
+
+  /// `clip_distances` in a vertex stage.
+  static const String clipDistances = 'clip-distances';
+
+  /// `multiDrawIndexedIndirect`, under the name the proposal gives it.
+  static const String multiDrawIndirect = 'multi-draw-indirect';
+
+  /// The same call, under the name Chromium ships it behind while the
+  /// proposal settles. Either one granted is the feature.
+  static const String multiDrawIndirectExperimental =
+      'chromium-experimental-multi-draw-indirect';
+
+  /// Every name this backend asks an adapter for, so the request and the
+  /// test that holds the spellings read one list.
+  static const List<String> requested = <String>[
+    float32Filterable,
+    depth32FloatStencil8,
+    textureCompressionBc,
+    textureCompressionEtc2,
+    textureCompressionAstc,
+    timestampQuery,
+    depthClipControl,
+    indirectFirstInstance,
+    dualSourceBlending,
+    float32Blendable,
+    rg11b10Renderable,
+    shaderF16,
+    subgroups,
+    clipDistances,
+    multiDrawIndirect,
+    multiDrawIndirectExperimental,
+  ];
 }
 
 // ------------------------------------------------------------------ compute
 
 /// A compiled compute pipeline — `H6`.
 extension type GPUComputePipeline._(JSObject _) implements JSObject {
+  /// The name a GPU debugger and the browser's errors show for it —
+  /// `GraphicsDevice.setLabel`.
+  external set label(String value);
   external GPUBindGroupLayout getBindGroupLayout(int index);
 }
 
@@ -1323,11 +1676,26 @@ extension type GPUComputePipelineDescriptor._(JSObject _) implements JSObject {
 
 extension type GPUComputePassDescriptor._(JSObject _) implements JSObject {
   external factory GPUComputePassDescriptor({String label});
+
+  /// Where the pass writes its start and end times; set only when there is
+  /// one, as on a render pass.
+  external set timestampWrites(GPURenderPassTimestampWrites value);
 }
 
 extension type GPUComputePassEncoder._(JSObject _) implements JSObject {
+  /// The debug group a GPU debugger shows around the commands until the
+  /// matching pop — `PassEncoder.pushDebugGroup`.
+  external void pushDebugGroup(String groupLabel);
+  external void popDebugGroup();
+  external void insertDebugMarker(String markerLabel);
   external void setPipeline(GPUComputePipeline pipeline);
   external void setBindGroup(int index, GPUBindGroup group);
   external void dispatchWorkgroups(int x, [int y, int z]);
+
+  /// A dispatch whose grid [indirectBuffer] holds at [indirectOffset].
+  external void dispatchWorkgroupsIndirect(
+    GPUBuffer indirectBuffer,
+    int indirectOffset,
+  );
   external void end();
 }

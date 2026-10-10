@@ -31,6 +31,7 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'scene_lighting.dart';
 
@@ -70,8 +71,8 @@ final class LightingSync {
           // fourth kind this file has not been taught yet.
           _ => LightType.directional,
         },
-        color: light.color,
-        intensity: light.intensity,
+        color: light.color.toLinearColor(),
+        intensity: light.intensity * Photometric.legacyUnit,
         range: light.range,
         // A directional light casts whatever the project says, as it always
         // drew. The renderer reads the flag on the sun since 0.7.1, and every
@@ -140,5 +141,5 @@ final class LightingSync {
 int lightOverflowOf(SceneLighting lighting) {
   final scene = Scene();
   LightingSync().sync(scene, lighting);
-  return (LightBuffer()..gather(scene.lights)).overflow;
+  return scene.overflowingLights;
 }

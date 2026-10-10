@@ -25,10 +25,10 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/parity_scene.dart';
-import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_demo_platformer/src/runner_looks.dart';
@@ -37,7 +37,8 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'heard_events.dart';
 
 const int _width = 240;
 const int _height = 160;
@@ -56,7 +57,12 @@ final class _Shown {
     this.runnerNode,
     this.camera,
     this._input,
-  );
+  ) {
+    staged.sim.publishTo(_heard.bus);
+  }
+
+  /// What the run publishes, step by step.
+  final HeardEvents _heard = HeardEvents();
 
   static Future<_Shown> build({
     String level = 'assets/levels/ascent.json',
@@ -71,7 +77,7 @@ final class _Shown {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -106,9 +112,9 @@ final class _Shown {
     // A box, which is what the real game draws until the model arrives.
     final runnerNode = MeshNode(
       SharedMeshes(device).box(runner.body.halfExtents * 2.0),
-      engine.Material(
+      engine.RenderMaterial(
         name: 'runner',
-        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
+        baseColor: LinearColor.fromSrgb(0.90, 0.42, 0.28, 1.0),
         lighting: LightingModel.pbr,
       )..roughness = 0.5,
       name: 'runner box',
@@ -140,7 +146,7 @@ final class _Shown {
   final CameraNode camera;
 
   MechanismWorld get mechanisms => staged.mechanisms;
-  Dynamics get dynamics => staged.dynamics;
+  RigidDynamics get dynamics => staged.dynamics;
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
   PlatformerSimulation get sim => staged.sim;
@@ -149,7 +155,7 @@ final class _Shown {
   double _elapsed = 0.0;
   bool _forward = false;
 
-  /// What the last step reported, drained as a game drains it.
+  /// What the last step published, as a game hears a step.
   List<GameEvent> lastStep = const <GameEvent>[];
 
   void step({bool forward = false, bool pound = false}) {
@@ -167,8 +173,8 @@ final class _Shown {
       ..press(GameAction.moveForward);
     if (!forward) sim.input.release(GameAction.moveForward);
     if (pound) sim.input.press(PlatformerActions.dropThrough);
-    sim.step(_dt);
-    lastStep = sim.events.drain();
+    staged.step(_dt);
+    lastStep = _heard.take();
     sim.input.endStep();
     _input.endStep();
     pose.advance(runner, _dt, lastStep);
@@ -243,9 +249,9 @@ final class _Shown {
       views: <RenderView>[RenderView(camera: camera)],
       settings: const RenderSettings(),
     );
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    return pixels!.buffer.asUint8List();
+    return pixels.buffer.asUint8List();
   }
 
   /// The drawn piece nearest [at], which is how a fixture's node is found
@@ -274,9 +280,9 @@ final class _Shown {
       views: <RenderView>[RenderView(camera: camera)],
       settings: RenderSettings(shadows: ShadowSettings(enabled: !shadows)),
     );
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    return pixels!.buffer.asUint8List();
+    return pixels.buffer.asUint8List();
   }
 
   Future<Uint8List> draw({String? hiding, MeshNode? hidingPiece}) async {
@@ -286,10 +292,10 @@ final class _Shown {
     runnerNode
       ..setPosition(p.x, p.y, p.z)
       ..setScale(scale.x, scale.y, scale.z);
-    hidingPiece?.visible = false;
+    hidingPiece?.isVisible = false;
     if (hiding != null) {
       for (final MeshNode piece in scene.meshes) {
-        if (piece.name == hiding) piece.visible = false;
+        if (piece.name == hiding) piece.isVisible = false;
       }
     }
     final result = renderer.render(
@@ -299,9 +305,9 @@ final class _Shown {
       views: <RenderView>[RenderView(camera: camera)],
       settings: const RenderSettings(),
     );
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    return pixels!.buffer.asUint8List();
+    return pixels.buffer.asUint8List();
   }
 }
 
@@ -387,7 +393,7 @@ void main() {
     it.look(from: at + Vector3(0.0, 1.6, -5.0), at: at);
 
     final withRunner = await it.draw();
-    it.runnerNode.visible = false;
+    it.runnerNode.isVisible = false;
     final without = await it.draw();
 
     expect(
@@ -470,7 +476,7 @@ void main() {
       it.runner.body.teleport(Vector3(0.0, 20.0, -22.0));
       for (var i = 0; i < 200; i++) {
         it.step();
-        if (it.lastStep.has<Landed>()) break;
+        if (it.lastStep.whereType<Landed>().isNotEmpty) break;
       }
       final landed = await it.draw();
 
@@ -553,7 +559,7 @@ void main() {
 
       final piece = it.pieceNear(over);
       if (piece == null) fail('no drawn piece near the shelf');
-      piece.visible = true;
+      piece.isVisible = true;
       final forced = await it.drawAsIs();
 
       expect(
@@ -598,7 +604,7 @@ void main() {
 
       final piece = it.pieceNear(over);
       if (piece == null) fail('no drawn piece near the cap');
-      piece.visible = true;
+      piece.isVisible = true;
       final forced = await it.drawAsIs();
 
       expect(
@@ -635,7 +641,7 @@ void main() {
 
       final piece = it.pieceNear(at);
       if (piece == null) fail('nothing is drawn at the way out');
-      piece.visible = false;
+      piece.isVisible = false;
       final without = await it.drawAsIs();
 
       expect(

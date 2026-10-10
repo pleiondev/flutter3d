@@ -53,7 +53,7 @@ StereoSurface(
   scene: scene,
   rig: rig,
   viewer: StereoViewer.cardboardV2,
-  screen: const StereoScreen(width: 0.147, height: 0.068),   // metres
+  screen: const StereoScreen(width: 0.147, height: 0.068),   // meters
   onBeforeFrame: () => rig.applyHead(tracker.pose.value),
   settings: () => const RenderSettings(exposure: 1.2),
 );

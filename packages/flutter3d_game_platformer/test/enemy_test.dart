@@ -12,9 +12,12 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -30,7 +33,7 @@ final class _Run {
       materials: <String, LevelMaterial>{'rock': LevelMaterial()},
       brushes: <Brush>[
         Brush(
-          centre: Vector3(0.0, -0.5, 0.0),
+          center: Vector3(0.0, -0.5, 0.0),
           size: Vector3(floorWidth, 1.0, 24.0),
           material: 'rock',
         ),
@@ -68,15 +71,19 @@ final class _Run {
       random: dice,
       actors: actors,
     );
+    sim.publishTo(heard.bus);
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final GameRandom dice = GameRandom(1);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final ActorSystem actors;
   late final Runner runner;
   late final PlatformerSimulation sim;
+
+  /// What [sim] publishes, step by step.
+  final Heard heard = Heard();
 
   final Set<GameAction> _held = <GameAction>{};
 
@@ -290,7 +297,7 @@ void main() {
       // becomes a patrol.
       final gap = <Brush>[
         Brush(
-          centre: Vector3(9.0, -0.5, 0.0),
+          center: Vector3(9.0, -0.5, 0.0),
           size: Vector3(6.0, 1.0, 24.0),
           material: 'rock',
         ),
@@ -298,7 +305,7 @@ void main() {
       // The floor above stops at x = 3 (60 wide about the origin is -30..30, so
       // a hole has to be cut instead): use a narrow floor and a far island.
       final near = Brush(
-        centre: Vector3(-3.0, -0.5, 0.0),
+        center: Vector3(-3.0, -0.5, 0.0),
         size: Vector3(12.0, 1.0, 24.0),
         material: 'rock',
       );
@@ -373,7 +380,7 @@ void main() {
       var bounced = false;
       for (var i = 0; i < 200 && !bounced; i++) {
         run.step();
-        bounced = run.sim.events.drain().whereType<EnemyStomped>().isNotEmpty;
+        bounced = run.heard.take().whereType<EnemyStomped>().isNotEmpty;
       }
 
       expect(bounced, isTrue, reason: 'it landed on nothing');
@@ -398,7 +405,7 @@ void main() {
           run.step(
             holding: holding ? <GameAction>{GameAction.jump} : <GameAction>{},
           );
-          if (run.sim.events.drain().whereType<EnemyStomped>().isNotEmpty) {
+          if (run.heard.take().whereType<EnemyStomped>().isNotEmpty) {
             return run.runner.body.velocity.y;
           }
         }
@@ -515,7 +522,7 @@ void main() {
       var bounced = false;
       for (var i = 0; i < 200 && !bounced; i++) {
         run.step();
-        bounced = run.sim.events.drain().whereType<EnemyStomped>().isNotEmpty;
+        bounced = run.heard.take().whereType<EnemyStomped>().isNotEmpty;
       }
       expect(bounced, isTrue, reason: 'it landed on nothing');
       expect(run.enemy.isAlive, isFalse, reason: 'the stomp did not kill it');
@@ -546,7 +553,7 @@ void main() {
       double leftAfter(Difficulty difficulty) {
         final runner = Runner(
           body: CharacterController(
-            world: CollisionWorld()..update(),
+            world: CollisionWorld(properties: platformerWorld)..update(),
             position: Vector3.zero(),
           ),
         )..difficulty = difficulty;

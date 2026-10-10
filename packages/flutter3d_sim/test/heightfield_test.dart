@@ -447,7 +447,7 @@ void _documentTests() {
 
       expect(
         () => Heightfield.fromJson(section),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<LevelFormatException>()),
       );
     });
 
@@ -458,7 +458,7 @@ void _documentTests() {
           'rows': 9,
           'heights': base64Encode(Float32List(9).buffer.asUint8List()),
         }),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<LevelFormatException>()),
       );
     });
   });

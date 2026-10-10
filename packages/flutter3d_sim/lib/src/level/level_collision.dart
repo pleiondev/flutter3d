@@ -43,7 +43,7 @@ extension LevelCollision on Level {
           shape: ramp == null
               ? CollisionBox(brush.halfExtents)
               : CollisionWedge(brush.halfExtents, uphill: ramp),
-          position: brush.centre,
+          position: brush.center,
           // The document's own bit when it names one. A one-way platform, a
           // grate, a wall only some bodies respect: all of them are a brush on
           // a layer of its own, and the level format was the one place that
@@ -101,6 +101,7 @@ extension LevelCollision on Level {
   /// repair it should still see everything it can.
   void spawnInto(SpawnContext context, {required EntityRegistry registry}) {
     final kinds = registry;
+    context.level = this;
     for (final entity in entities) {
       kinds[entity.type]?.spawn(entity, context);
     }

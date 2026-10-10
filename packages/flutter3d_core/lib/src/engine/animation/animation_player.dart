@@ -11,13 +11,13 @@ import 'morph_sink.dart';
 /// The key a clip's own extracted root motion sits under in
 /// [AnimationClip.extras] — `anim-16`'s own `flutter3dRootMotion`.
 ///
-/// **Matched by value to `flutter3d_model_core`'s own `kRootMotionExtra`,
+/// **Matched by value to `flutter3d_model_core`'s own `rootMotionExtra`,
 /// not by importing it.** This engine package cannot depend on an
 /// editor-specific one, the same boundary every other cross-package
 /// convention in this repository holds by agreeing on a value rather than
 /// sharing a declaration — `mat-02`'s own `_VkFormat` numbers are the same
 /// choice for the same reason.
-const String kRootMotionExtra = 'flutter3dRootMotion';
+const String rootMotionExtra = 'flutter3dRootMotion';
 
 /// Plays [AnimationClip]s onto animation targets.
 ///
@@ -116,6 +116,7 @@ final class AnimationPlayer {
   bool _reversing = false;
 
   /// Playback rate. Negative values run the clip backwards.
+  /// A unitless multiplier on clip time.
   double speed = 1.0;
 
   AnimationWrap wrap = AnimationWrap.loop;
@@ -187,6 +188,7 @@ final class AnimationPlayer {
 
   /// How far the crossfade has come, from 0 (all the old clip) to 1 (all the
   /// new one).
+  /// A 0..1 fraction.
   double get fadeWeight {
     if (_fadingFrom < 0 || _fadeDuration <= 0.0) return 1.0;
     final done = 1.0 - _fadeRemaining / _fadeDuration;
@@ -241,41 +243,6 @@ final class AnimationPlayer {
   static double _mix(double from, double to, double t) =>
       from + (to - from) * t;
 
-  /// Shortest-arc interpolation between two rotations.
-  ///
-  /// The sign flip is the part that matters: a quaternion and its negation are
-  /// the same rotation, so without choosing the closer of the two, half of all
-  /// blends spin the long way.
-  static Quaternion _slerp(Quaternion from, Quaternion to, double t) {
-    var dot = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
-    var sign = 1.0;
-    if (dot < 0.0) {
-      dot = -dot;
-      sign = -1.0;
-    }
-
-    double scaleFrom;
-    double scaleTo;
-    if (dot > 0.9995) {
-      // Nearly identical: the arc is so short that a straight line is closer
-      // than the trigonometry's own error.
-      scaleFrom = 1.0 - t;
-      scaleTo = t;
-    } else {
-      final theta = math.acos(dot);
-      final sinTheta = math.sin(theta);
-      scaleFrom = math.sin((1.0 - t) * theta) / sinTheta;
-      scaleTo = math.sin(t * theta) / sinTheta;
-    }
-
-    return Quaternion(
-      scaleFrom * from.x + scaleTo * sign * to.x,
-      scaleFrom * from.y + scaleTo * sign * to.y,
-      scaleFrom * from.z + scaleTo * sign * to.z,
-      scaleFrom * from.w + scaleTo * sign * to.w,
-    )..normalize();
-  }
-
   /// [q] scaled by [t]: a quarter of a turn, not a quarter of four numbers.
   ///
   /// The slerp from no rotation, written out — the identity end collapses most
@@ -285,8 +252,8 @@ final class AnimationPlayer {
   /// nowhere else — which is why the fixture for it uses a quarter.
   static Quaternion _scaledRotation(Quaternion q, double t) {
     // A quaternion and its negation are the same rotation, and the one with a
-    // positive w is the short way round — the same choice [_slerp] makes, and
-    // for the same reason.
+    // positive w is the short way round — the same choice [shortestArcSlerp]
+    // makes, and for the same reason.
     final sign = q.w < 0.0 ? -1.0 : 1.0;
     final w = sign * q.w;
     if (w > 0.9995) {
@@ -319,6 +286,7 @@ final class AnimationPlayer {
   /// Current playhead position in seconds.
   double get time => _time;
 
+  /// The current clip's length, in seconds.
   double get duration => clip?.duration ?? 0.0;
 
   /// The current clip's own extracted root motion, replayed from [fromTime]
@@ -326,7 +294,7 @@ final class AnimationPlayer {
   /// `root_motion_commands.dart` names as a separate, later piece: that file
   /// flattens a root joint's translation track to its first key so the
   /// engine sees a root that stands still, saving what it overwrote under
-  /// [kRootMotionExtra]; this reads that back and hands a character
+  /// [rootMotionExtra]; this reads that back and hands a character
   /// controller the delta the clip would have moved the root by, so a walk
   /// cycle can drive the object it belongs to instead of dragging it across
   /// the level by itself.
@@ -351,7 +319,7 @@ final class AnimationPlayer {
   }) {
     final active = clip;
     if (active == null) return null;
-    final extra = active.extras?[kRootMotionExtra];
+    final extra = active.extras?[rootMotionExtra];
     if (extra is! List) return null;
 
     AnimationTrack? track;
@@ -790,7 +758,7 @@ final class AnimationPlayer {
         // Slerp, not a component lerp: blending quaternions linearly and
         // renormalising takes the long way round whenever the two are more than
         // a quarter turn apart, which is exactly what a hurt reaction is.
-        final mixed = _slerp(_fadeQuaternion, _quaternion, weight);
+        final mixed = shortestArcSlerp(_fadeQuaternion, _quaternion, weight);
         into[0] = mixed.x;
         into[1] = mixed.y;
         into[2] = mixed.z;

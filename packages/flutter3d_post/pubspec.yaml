@@ -1,0 +1,84 @@
+name: flutter3d_post
+description: "Post-processing for flutter3d, one library per family: light, shading, reflections, atmosphere, motion and style, and the standard preset of all six. Each effect is a plugin and the switch of its own render step."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - game-engine
+  - plugins
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Plain Dart over `flutter3d_core`, which declares the same six.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **Seven packages until 1.0.0-rc.1**: `flutter3d_addon_light`, `_shading`,
+# `_reflections`, `_atmosphere`, `_motion`, `_style` and
+# `flutter3d_addons_standard`. One library each now:
+# `package:flutter3d_post/<family>.dart`, and `standard.dart` for the preset.
+#
+# `flutter3d_plugins:` marks the package as one the build hook installs from
+# `plugins.g.dart`; see `flutter3d_plugin_api`'s README. One marker per
+# library, each naming the classes that library declares: installing them
+# changes nothing about the frame, it makes every effect a switch. The
+# preset has no marker of its own, since it is the six in one list and a
+# marker there would name every plugin twice; an application that passes
+# `standardAddons` in code overrides discovery instead.
+flutter3d_plugins:
+  plugin:
+    light.dart:
+      - AutoExposureAddon
+      - LocalExposureAddon
+      - BloomAddon
+      - LensFlareAddon
+      - ColorGradeAddon
+      - LensDistortionAddon
+      - VignetteAndGrainAddon
+    shading.dart:
+      - AmbientOcclusionAddon
+      - ContactShadowsAddon
+    reflections.dart:
+      - ReflectionProbesAddon
+      - PlanarReflectionsAddon
+      - ScreenSpaceReflectionsAddon
+    atmosphere.dart:
+      - SkyAddon
+      - FogAddon
+      - VolumetricFogAddon
+      - LightShaftsAddon
+    motion.dart:
+      - DepthOfFieldAddon
+      - MotionBlurAddon
+      - TemporalAntiAliasingAddon
+    style.dart:
+      - HighContrastAddon
+      - OutlinesAddon
+      - ViewportShadingAddon
+      - ToonLightingAddon
+
+dependencies:
+  # `RenderStepAddon`, `RendererSteps.provide` and the settings this package
+  # re-exports. The passes themselves are still drawn there.
+  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+  # A renderer to install the plugins into and plan frames with, on the
+  # software device.
+  flutter3d_cpu: ^1.0.0-rc.1
+  vector_math: ^2.2.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1

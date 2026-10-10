@@ -48,6 +48,9 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 import 'game_random.dart' show GameRandom;
 import 'snapshot.dart' show Snapshot;
 
@@ -257,9 +260,10 @@ String contentDigestHex(Map<String, Object?> json) =>
     StateDigest.of(json).toRadixString(16).padLeft(8, '0');
 
 /// Thrown when a [DigestTrace] cannot be read back at all.
-final class DigestTraceFormatException implements Exception {
+final class DigestTraceFormatException extends Flutter3dFormatException {
   const DigestTraceFormatException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -406,6 +410,20 @@ final class DigestTrace {
     if (step % every != 0) return;
     _steps.add(step);
     _digests.add(StateDigest.of(state));
+  }
+
+  /// Drops the checkpoints taken after [step].
+  ///
+  /// For a run that was lived again from [step] — a level swapped under it:
+  /// what was observed after [step] is a run that no longer happened, and a
+  /// replay checked against it would be checked against the wrong world. The
+  /// steps between [step] and the next [observe] stay unchecked, which is a
+  /// gap and not a false answer.
+  void forgetAfter(int step) {
+    final keep = _steps.indexWhere((s) => s > step);
+    if (keep < 0) return;
+    _steps.removeRange(keep, _steps.length);
+    _digests.removeRange(keep, _digests.length);
   }
 
   /// The first checkpoint at which this trace and [expected] disagree.

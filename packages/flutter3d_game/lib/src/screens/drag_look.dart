@@ -42,7 +42,7 @@ final class DragLook {
   }
 
   /// The same, for a caller that has nowhere to put it.
-  Vector2 take() {
+  Vector2 drain() {
     final taken = _pending.clone();
     _pending.setZero();
     return taken;

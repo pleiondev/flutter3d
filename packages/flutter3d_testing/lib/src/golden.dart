@@ -43,6 +43,8 @@ import 'render_frame.dart';
 Future<void> expectMatchesGolden(
   RenderedFrame frame,
   String path, {
+
+  /// The share of pixels allowed to differ, as a percentage.
   double tolerance = 0.0,
   int channel = 8,
   bool alpha = false,

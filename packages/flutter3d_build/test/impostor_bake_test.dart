@@ -10,6 +10,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -53,9 +55,18 @@ PlainModelDocument tree() {
       ),
     ],
     materials: <SurfaceMaterial>[
-      SurfaceMaterial(name: 'bark', baseColor: Vector4(0.45, 0.3, 0.18, 1)),
-      SurfaceMaterial(name: 'leaves', baseColor: Vector4(0.25, 0.6, 0.2, 1)),
-      SurfaceMaterial(name: 'fruit', baseColor: Vector4(0.85, 0.15, 0.1, 1)),
+      SurfaceMaterial(
+        name: 'bark',
+        baseColor: LinearColor.fromSrgb(0.45, 0.3, 0.18, 1),
+      ),
+      SurfaceMaterial(
+        name: 'leaves',
+        baseColor: LinearColor.fromSrgb(0.25, 0.6, 0.2, 1),
+      ),
+      SurfaceMaterial(
+        name: 'fruit',
+        baseColor: LinearColor.fromSrgb(0.85, 0.15, 0.1, 1),
+      ),
     ],
     nodes: <ModelNode>[
       ModelNode(name: 'tree', surfaces: <int>[0, 1, 2]),
@@ -90,7 +101,7 @@ Future<Uint8List> forest(
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, castsShadow: false)
-        ..intensity = 2.5
+        ..intensity = 2.5 * Photometric.legacyUnit
         ..setLocalForward(Vector3(-0.4, -1.0, -0.5)),
     );
   for (final (x, z, yaw) in kForest) {
@@ -99,7 +110,7 @@ Future<Uint8List> forest(
   final camera = CameraNode(
     name: 'forest',
     projection: PerspectiveProjection(
-      fovYRadians: 40 * math.pi / 180,
+      fovY: 40 * math.pi / 180,
       near: 0.5,
       far: distance * 4,
     ),
@@ -111,22 +122,22 @@ Future<Uint8List> forest(
     height: device.height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.6, 0.7, 0.9, 1)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.6, 0.7, 0.9, 1)),
     ],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await device.readPixels(result.frame);
-  return Uint8List.fromList(pixels!.buffer.asUint8List());
+  final pixels = await device.readback(result.frame);
+  return Uint8List.fromList(pixels.buffer.asUint8List());
 }
 
 TextureHandle upload(CpuDevice device, EncodedImage image) {
-  final decoded = decodePng(image.bytes)!;
+  final decoded = decodePng(image.bytes);
   return device.createTextureFromPixels(
     width: decoded.width,
     height: decoded.height,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(decoded.rgba),
-  )!;
+  );
 }
 
 void main() {
@@ -143,18 +154,18 @@ void main() {
 
   test('the bake adds two atlases and an impostor level', () {
     expect(baked.images, hasLength(2));
-    expect(impostor.grid, kImpostorGrid);
+    expect(impostor.grid, impostorGrid);
     expect(impostor.radius, greaterThan(1.5));
     expect(impostor.radius, lessThan(2.5));
 
-    final albedo = decodePng(baked.images[impostor.albedoImage].bytes)!;
-    final normals = decodePng(baked.images[impostor.normalDepthImage].bytes)!;
-    expect(albedo.width, 32 * kImpostorGrid);
-    expect(normals.width, 32 * kImpostorGrid);
+    final albedo = decodePng(baked.images[impostor.albedoImage].bytes);
+    final normals = decodePng(baked.images[impostor.normalDepthImage].bytes);
+    expect(albedo.width, 32 * impostorGrid);
+    expect(normals.width, 32 * impostorGrid);
 
     // Every view drew the tree, and none of them filled its cell.
-    for (var row = 0; row < kImpostorGrid; row++) {
-      for (var column = 0; column < kImpostorGrid; column++) {
+    for (var row = 0; row < impostorGrid; row++) {
+      for (var column = 0; column < impostorGrid; column++) {
         var covered = 0;
         for (var y = 0; y < 32; y++) {
           for (var x = 0; x < 32; x++) {
@@ -171,8 +182,8 @@ void main() {
     // right of its picture and the ball hung on +X shows there, and up is up.
     var front = (0, 0);
     var best = -2.0;
-    for (var row = 0; row < kImpostorGrid; row++) {
-      for (var column = 0; column < kImpostorGrid; column++) {
+    for (var row = 0; row < impostorGrid; row++) {
+      for (var column = 0; column < impostorGrid; column++) {
         final along = impostorViewDirection(column, row).z;
         if (along > best) (best, front) = (along, (column, row));
       }
@@ -201,7 +212,7 @@ void main() {
     expect(back.normalDepthImage, impostor.normalDepthImage);
     expect(back.grid, impostor.grid);
     expect(back.radius, closeTo(impostor.radius, 1e-5));
-    expect((back.centre - impostor.centre).length, lessThan(1e-5));
+    expect((back.center - impostor.center).length, lessThan(1e-5));
   });
 
   test('a placed node bakes its card where its surface draws', () async {
@@ -231,7 +242,7 @@ void main() {
         ),
       ],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(baseColor: Vector4(0.8, 0.2, 0.2, 1)),
+        SurfaceMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.2, 0.2, 1)),
       ],
       nodes: <ModelNode>[
         ModelNode(
@@ -251,11 +262,11 @@ void main() {
     // Mutation: build the sphere from `surface.transform`-ed vertices. The
     // centre lands at the placement's image of the ball, (4, 2, -4), and the
     // node then carries it there a second time.
-    expect((card.centre - Vector3(0.5, 1, 0)).length, lessThan(1e-3));
+    expect((card.center - Vector3(0.5, 1, 0)).length, lessThan(1e-3));
     expect(card.radius, closeTo(0.3, 1e-3));
     // And in the model's space that is where the surface draws.
     expect(
-      (placement.transformed3(card.centre) - Vector3(4, 2, -4)).length,
+      (placement.transformed3(card.center) - Vector3(4, 2, -4)).length,
       lessThan(1e-3),
     );
   });
@@ -289,7 +300,7 @@ void main() {
         ),
       ],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(baseColor: Vector4(0.8, 0.2, 0.2, 1)),
+        SurfaceMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.2, 0.2, 1)),
       ],
       nodes: <ModelNode>[
         ModelNode(name: 'rock', surfaces: <int>[0]),
@@ -350,7 +361,7 @@ void main() {
       materials: <SurfaceMaterial>[
         SurfaceMaterial(
           name: 'bark',
-          baseColor: Vector4(1, 1, 1, 1),
+          baseColor: LinearColor.fromSrgb(1, 1, 1, 1),
           baseColorTexture: const TextureBinding(imageIndex: 0),
         ),
         ...source.materials.skip(1),
@@ -421,9 +432,9 @@ void main() {
         holder.add(
           MeshNode(
             meshes[i],
-            Material(
+            RenderMaterial(
               lighting: LightingModel.lambert,
-              baseColor: baked.materials[i].baseColor.clone(),
+              baseColor: baked.materials[i].baseColor,
             ),
           ),
         );
@@ -443,7 +454,7 @@ void main() {
           cardDevice,
           albedo: albedo,
           normalDepth: normalDepth,
-          centre: impostor.centre,
+          center: impostor.center,
           radius: impostor.radius,
         )..setLocalMatrix(placement),
       );

@@ -58,7 +58,7 @@ void main() {
   });
 
   test('the card mesh stands in the sphere it is measured by', () {
-    final card = impostorCard(centre: Vector3(1, 2, 3), radius: 0.5);
+    final card = impostorCard(center: Vector3(1, 2, 3), radius: 0.5);
     expect(card.vertexCount, 4);
     expect(card.triangleCount, 2);
     final bounds = card.computeBounds();

@@ -12,7 +12,7 @@ import 'mechanism.dart';
 /// reason". A thing three files agree about, and one of them explains, is a
 /// thing that should be somewhere none of them is.
 ///
-/// This exists for the reason [GameLoop] gives about itself: small enough to
+/// This exists for the reason `EngineLoop` gives about the frame: small enough to
 /// inline at the call site and deliberately not inlined, because the order is
 /// the part that is easy to get wrong and every place that steps a world would
 /// otherwise have to get it right again.
@@ -64,7 +64,7 @@ final class WorldStep {
 
   final CollisionWorld collision;
   final MechanismWorld? mechanisms;
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// Whether a step has run [movers] and not yet reached [publish].
   ///

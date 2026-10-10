@@ -14,6 +14,8 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_game_ui/hud.dart'
+    show HudBanner, HudTally, HudTallyStyle;
 
 import 'hud_readout.dart';
 
@@ -45,20 +47,33 @@ class StrategyHud extends StatelessWidget {
               spacing: 22,
               runSpacing: 8,
               children: <Widget>[
-                _Tally(label: 'stock', value: amountText(readout.stock)),
-                _Tally(
+                HudTally(
+                  style: _tallyStyle,
+                  label: 'stock',
+                  value: amountText(readout.stock),
+                ),
+                HudTally(
+                  style: _tallyStyle,
                   label: 'delivered',
                   value: progressText(readout.delivered, readout.goal),
                 ),
-                _Tally(label: 'selected', value: '${readout.selected}'),
+                HudTally(
+                  style: _tallyStyle,
+                  label: 'selected',
+                  value: '${readout.selected}',
+                ),
                 // Everybody else's total. Your own is the `delivered` row
                 // above, against the line; a second one beside it would be the
                 // same number twice.
                 for (final tally in tallyBySide(readout))
                   if (tally.side != readout.side)
-                    _Tally(label: tally.label, value: tally.amount),
+                    HudTally(
+                      style: _tallyStyle,
+                      label: tally.label,
+                      value: tally.amount,
+                    ),
                 if (readout.under case final String under)
-                  _Tally(label: 'under', value: under),
+                  HudTally(style: _tallyStyle, label: 'under', value: under),
               ],
             ),
           ),
@@ -82,8 +97,10 @@ class StrategyHud extends StatelessWidget {
           // player stops seeing, and this one has to be noticed the once.
           if (readout.standing.isOver)
             Center(
-              child: _Banner(
+              child: HudBanner(
                 standingText(readout.standing, side: readout.side),
+                color: _ink,
+                fontSize: 22,
               ),
             ),
         ],
@@ -92,66 +109,13 @@ class StrategyHud extends StatelessWidget {
   }
 }
 
-class _Tally extends StatelessWidget {
-  const _Tally({required this.label, required this.value});
+/// The tallies in this game's pale ink, smaller than a platform game's, and in
+/// tabular figures: stockpiles change while they are being read.
+const HudTallyStyle _tallyStyle = HudTallyStyle(
+  color: _ink,
+  valueSize: 24,
+  labelSize: 11,
+  tabular: true,
+);
 
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    // Read as one thing — "selected 6" — rather than as two unrelated numbers
-    // in a row of numbers. Not how a blind player would play this game, and
-    // that is not who it is for: it is for the reader that is already on.
-    return Semantics(
-      label: '$label $value',
-      excludeSemantics: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFFE8ECF4),
-              fontSize: 24,
-              fontWeight: FontWeight.w600,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              shadows: <Shadow>[Shadow(blurRadius: 8, color: Colors.black87)],
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: const Color(0xFFE8ECF4).withValues(alpha: 0.7),
-              fontSize: 11,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Banner extends StatelessWidget {
-  const _Banner(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-        child: Text(
-          text,
-          style: const TextStyle(color: Color(0xFFE8ECF4), fontSize: 22),
-        ),
-      ),
-    );
-  }
-}
+const Color _ink = Color(0xFFE8ECF4);

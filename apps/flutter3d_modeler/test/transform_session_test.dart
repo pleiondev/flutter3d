@@ -205,7 +205,7 @@ void main() {
     PickingView fixedView() => PickingView(
       camera: CameraNode(
         projection: PerspectiveProjection(
-          fovYRadians: math.pi / 4,
+          fovY: math.pi / 4,
           near: 0.1,
           far: 100.0,
         ),

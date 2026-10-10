@@ -1,7 +1,11 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
+
 /// Thrown when a [DataSourceTrace] cannot be read back at all.
-final class DataSourceTraceFormatException implements Exception {
+final class DataSourceTraceFormatException extends Flutter3dFormatException {
   const DataSourceTraceFormatException(this.message);
 
+  @override
   final String message;
 
   @override

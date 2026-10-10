@@ -9,6 +9,7 @@ import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
 
@@ -57,6 +58,12 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
 
   late final DemoContext _context;
   late final Scene _scene;
+
+  /// The live fall's core, let go with the page.
+  NativeDynamics? _native;
+
+  @override
+  void dispose() => _native?.dispose();
   late final MeshNode _pad;
   late final TransparentFlameGame _game;
   late final Widget _body = flameOrbit(
@@ -93,7 +100,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
 
     MeshNode cuboid(String name, Vector3 size, Vector4 color) => MeshNode(
       DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-      Material(name: name, baseColor: color),
+      RenderMaterial(name: name, baseColor: _fromSrgb(color)),
       name: name,
     );
     _pad = cuboid('landing pad', Vector3(6.0, 0.1, 6.0), _padIdle)
@@ -104,8 +111,8 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
       Vector4(0.7, 0.5, 0.3, 1.0),
     );
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         cuboid('floor', Vector3(6.0, 1.0, 6.0), Vector4(0.36, 0.4, 0.38, 1.0))
           ..setPosition(0.0, -0.5, 0.0),
@@ -113,7 +120,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
       ..add(_pad)
       ..add(crate)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -130,7 +137,8 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final Dynamics dynamics = Dynamics(world: world);
+    final RigidDynamics dynamics = usePhysics().dynamics(world);
+    if (dynamics case final NativeDynamics core) _native = core;
     final RigidBody body = dynamics.add(
       RigidBody(
         world: world,
@@ -155,7 +163,9 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
           // The Flame side reacts to the collision it was handed.
           onTouch: (bool touching) {
             landing.paint.color = touching ? _touching : _idle;
-            _pad.material.baseColor.setFrom(touching ? _padTouching : _padIdle);
+            _pad.material.baseColor = _fromSrgb(
+              touching ? _padTouching : _padIdle,
+            );
           },
         )..add(
           RectangleComponent(
@@ -201,11 +211,10 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     final world = CollisionWorld();
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 1.0, 6.0));
     // A thin trigger embedded just above the floor, so the crate's fall
-    // genuinely overlaps something: `Dynamics` stops a falling body exactly
-    // at the surface it lands on, never inside it, so the floor itself never
-    // reports an overlap to relay. `Dynamics.step` ignores triggers entirely
-    // (`includeTriggers: false` in its own contact queries), so this sensor
-    // never affects how or where the crate actually lands.
+    // overlaps something there is an overlap to relay for — the floor is not
+    // one: its contacts are the solver's, not the world's overlaps. Triggers
+    // stand nowhere in the core, so this sensor never affects how or where
+    // the crate actually lands.
     final landingSensor = world.add(
       Collider(
         shape: CollisionBox(Vector3(3.0, 0.05, 3.0)),
@@ -213,7 +222,7 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         kind: ColliderKind.trigger,
       ),
     );
-    final dynamics = Dynamics(world: world);
+    final dynamics = usePhysics().dynamics(world);
     // #endregion world
 
     // #region body
@@ -234,7 +243,10 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
         device,
         CuboidShape(size: Vector3(0.6, 0.6, 0.6)).build(),
       ),
-      Material(name: 'bridged-crate', baseColor: Vector4(0.7, 0.5, 0.3, 1.0)),
+      RenderMaterial(
+        name: 'bridged-crate',
+        baseColor: LinearColor.fromSrgb(0.7, 0.5, 0.3, 1.0),
+      ),
     );
     scene.add(node);
     final component = _TrackingRigidBodyComponent(
@@ -269,10 +281,12 @@ final class FlamePhysicsBridgeDemo extends ShowcaseDemo {
     component.update(step);
     // #endregion fall
 
+    final settled = body.position.y;
+    usePhysics().release(world);
     return (
-      'settled at y=${body.position.y.toStringAsFixed(2)}; the bridge heard '
+      'settled at y=${settled.toStringAsFixed(2)}; the bridge heard '
           'the landing: ${component.collided}',
-      body.position.y,
+      settled,
       component.collided,
     );
   }
@@ -329,7 +343,7 @@ final class _Fall extends Component {
   _Fall(this._world, this._dynamics, this._body, this._start, this._height);
 
   final CollisionWorld _world;
-  final Dynamics _dynamics;
+  final RigidDynamics _dynamics;
   final RigidBody _body;
   final Map<String, Object?> _start;
   final double Function() _height;
@@ -348,3 +362,6 @@ final class _Fall extends Component {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

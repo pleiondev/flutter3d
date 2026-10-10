@@ -1,0 +1,71 @@
+name: flutter3d_plugin_runtime
+description: "Plugins loaded while a game runs: data plugins read from a .f3dplugin document, sandboxed Wasm modules stepped by a deterministic interpreter, and the interface an interpreted script runs behind, each held to the permissions its manifest declares and the application grants."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - plugins
+  - webassembly
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches no
+# `dart:io`, `dart:isolate` or `dart:ffi` from its libraries. The browser's
+# own WebAssembly is reached through `dart:js_interop` behind a conditional
+# import, and the interpreter every other platform uses is plain Dart.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dependencies:
+  # What a run-time plugin is: a `Flutter3dPlugin` with a manifest, installed
+  # through the same host as a compiled one.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # `EntityKinds`, the slot a data plugin's entity kinds go into, and
+  # `EntityKind` itself. Plain Dart, as is everything below.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The material language (`parseMaterial`, the GLSL emitter), the
+  # renderer's `RendererSteps` and the full-screen node a data render step
+  # becomes.
+  flutter3d_core: ^1.0.0-rc.1
+
+  # `ShaderBundle`, the container a material compiled at run time travels
+  # in to `GraphicsDevice.loadShaders`.
+  flutter3d_hardware: ^1.0.0-rc.1
+
+  # GLSL ES 3.00 for WebGL2, translated at run time from what the emitter
+  # wrote: `translate.dart` is text in, text out, with no `dart:io`.
+  flutter3d_shaders: ^1.0.0-rc.1
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # No subsystem's section is read here: `effects` and `physicalMaterials`
+  # are read by the packages that own them, through the plugin API's
+  # `DataSectionRegistry`, so this package depends on none of them.
+
+dev_dependencies:
+  test: ^1.25.0
+  # The sections the tests read a document with: `effects` from the
+  # particles, `physicalMaterials` and `materialPairs` from the matter.
+  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_matter: ^1.0.0-rc.1
+  flutter_lints: ^6.0.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+# **A plain Dart package.** A Wasm module that touches the simulation is
+# replayed on a server with the rest of the run, so the interpreter that
+# steps it has to resolve in a container with no Flutter SDK in it.

@@ -16,6 +16,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'project.dart';
 
@@ -27,10 +28,10 @@ import 'project.dart';
 /// mirror. `EnvironmentMap`'s own doc comment gives the cost as
 /// O(faces × texels × taps), which at 32 is a fraction of a millisecond and
 /// at 512 is not something to do while a viewport is on screen.
-const int kPanoramaCubeSize = 32;
+const int panoramaCubeSize = 32;
 
 /// How many convolved levels follow the base.
-const int kPanoramaCubeLevels = 4;
+const int panoramaCubeLevels = 4;
 
 /// Keeps [Scene.environment] in step with [SceneLighting.panorama].
 final class PanoramaSync {
@@ -41,7 +42,7 @@ final class PanoramaSync {
 
   /// Whether the last [sync] actually rebuilt the cube — for a test, and for
   /// anything that wants to say what a frame cost.
-  bool get rebuiltLast => _rebuiltLast;
+  bool get didRebuildLast => _rebuiltLast;
   bool _rebuiltLast = false;
 
   /// Puts [project]'s own panorama on [scene], or takes one off.
@@ -73,15 +74,15 @@ final class PanoramaSync {
     final ({int width, int height})? size = hdrSizeOf(image.bytes);
     if (size == null) return;
 
+    if (!EnvironmentMap.isSupportedOn(device)) return;
     final built = EnvironmentMap.fromPanorama(
       device,
       pixels,
       width: size.width,
       height: size.height,
-      size: kPanoramaCubeSize,
-      levels: kPanoramaCubeLevels,
+      size: panoramaCubeSize,
+      levels: panoramaCubeLevels,
     );
-    if (built == null) return;
     scene
       ..environment = built.texture
       ..environmentLevels = built.levels;
@@ -92,31 +93,12 @@ final class PanoramaSync {
 }
 
 /// A Radiance file as the RGBA8 `EnvironmentMap.fromPanorama` reads, or null
-/// when it is not one.
-///
-/// **Clamped rather than tone-mapped.** The cube is eight bits a channel —
-/// `EnvironmentMap`'s own doc comment says why, and that this is a real
-/// limitation — so a sun four hundred times brighter than the sky around it
-/// becomes white either way. Rolling the highlights off first would darken
-/// everything else to buy detail in a region the cube cannot hold anyway,
-/// and would make the indirect light a panorama gives differ from the
-/// indirect light the same picture gives as a PNG.
+/// when it is not one — clamped, for the reason `EnvironmentMap.hdrToRgba8`
+/// gives.
 ByteData? panoramaPixels(Uint8List bytes) {
-  final HdrImage image;
   try {
-    image = readHdr(bytes);
+    return EnvironmentMap.hdrToRgba8(readHdr(bytes));
   } on HdrFormatException {
     return null;
   }
-  final ByteData out = ByteData(image.width * image.height * 4);
-  for (var i = 0; i < image.width * image.height; i++) {
-    out
-      ..setUint8(i * 4, _byte(image.rgb[i * 3]))
-      ..setUint8(i * 4 + 1, _byte(image.rgb[i * 3 + 1]))
-      ..setUint8(i * 4 + 2, _byte(image.rgb[i * 3 + 2]))
-      ..setUint8(i * 4 + 3, 255);
-  }
-  return out;
 }
-
-int _byte(double value) => (value * 255.0).round().clamp(0, 255);

@@ -8,6 +8,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,10 +34,13 @@ const int _size = 48;
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape().build()),
-        Material(baseColor: Vector4(1.0, 1.0, 1.0, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0)),
       ),
     )
-    ..add(LightNode(intensity: 12.0)..setRotationYawPitchRoll(0.0, -0.2, 0.0))
+    ..add(
+      LightNode(intensity: 12.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.0, -0.2, 0.0),
+    )
     ..add(camera);
   final result = Renderer.create(device: device).render(
     width: _size,

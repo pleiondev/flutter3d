@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../format_exceptions.dart';
 
 /// glTF `componentType` values.
 ///
@@ -22,7 +23,7 @@ enum GltfComponentType {
     for (final value in values) {
       if (value.code == code) return value;
     }
-    throw FormatException('Unknown glTF componentType $code.');
+    throw GltfFormatException('Unknown glTF componentType $code.');
   }
 
   /// Reads one component as a double, applying the normalization rule when asked.
@@ -89,6 +90,6 @@ enum GltfAccessorType {
     for (final value in values) {
       if (value.name == name) return value;
     }
-    throw FormatException('Unknown glTF accessor type "$name".');
+    throw GltfFormatException('Unknown glTF accessor type "$name".');
   }
 }

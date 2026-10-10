@@ -16,6 +16,7 @@ final class Tape {
 
   final List<Pose> poses;
 
+  /// What the recorded thing took, in seconds.
   final double seconds;
 
   bool get isEmpty => poses.isEmpty;

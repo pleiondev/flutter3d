@@ -53,6 +53,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 /// [joint] as an index into `joint_matrices`, kept inside the array.
 ///
@@ -117,6 +120,7 @@ void main() {
   v_texcoord = texcoord;
   v_color = color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 
   gl_Position = frame_info.mvp * (skin * vec4(morphed_position, 1.0));
 }

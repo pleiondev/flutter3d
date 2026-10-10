@@ -5,7 +5,7 @@
 /// through here — the name a refusal carries, the SDK token the compiled
 /// backends compare, the stage list the software backend answers from, and
 /// the sections — and every way the bytes can be wrong comes back as a
-/// `ShaderBundleRefused` that names the bundle when the name was readable.
+/// `ShaderBundleException` that names the bundle when the name was readable.
 library;
 
 import 'dart:typed_data';
@@ -126,7 +126,7 @@ void main() {
       expect(
         () => ShaderBundle.decode(bytes),
         throwsA(
-          isA<ShaderBundleRefused>()
+          isA<ShaderBundleException>()
               .having((r) => r.name, 'name', isEmpty)
               .having((r) => r.reason, 'reason', contains('F3SB')),
         ),
@@ -144,7 +144,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(cut),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'effects')
             .having((r) => r.reason, 'reason', contains('ends before')),
       ),
@@ -168,7 +168,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(badName),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', isEmpty)
             .having((r) => r.reason, 'reason', contains('UTF-8')),
       ),
@@ -182,7 +182,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(badSdk),
       throwsA(
-        isA<ShaderBundleRefused>()
+        isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'effects')
             .having((r) => r.reason, 'reason', contains('UTF-8')),
       ),
@@ -195,7 +195,7 @@ void main() {
     expect(
       () => ShaderBundle.decode(bytes),
       throwsA(
-        isA<ShaderBundleRefused>().having(
+        isA<ShaderBundleException>().having(
           (r) => r.reason,
           'reason',
           contains('format version 99'),
@@ -228,14 +228,14 @@ void main() {
 
   test('a refusal reads as a sentence, with the name when there is one', () {
     expect(
-      const ShaderBundleRefused(
+      const ShaderBundleException(
         name: 'effects',
         reason: 'no such SDK',
       ).toString(),
       'the shader bundle "effects" was refused: no such SDK',
     );
     expect(
-      const ShaderBundleRefused(name: '', reason: 'not a bundle').toString(),
+      const ShaderBundleException(name: '', reason: 'not a bundle').toString(),
       'a shader bundle was refused: not a bundle',
     );
   });
@@ -269,7 +269,7 @@ void main() {
           ).encode(),
         ),
         throwsA(
-          isA<ShaderBundleRefused>()
+          isA<ShaderBundleException>()
               .having((r) => r.name, 'name', 'v2')
               .having((r) => r.reason, 'reason', contains('"Stripes"')),
         ),
@@ -279,7 +279,7 @@ void main() {
 
       expect(
         () => device.loadShaders(ByteData(16)),
-        throwsA(isA<ShaderBundleRefused>()),
+        throwsA(isA<ShaderBundleException>()),
       );
     },
   );

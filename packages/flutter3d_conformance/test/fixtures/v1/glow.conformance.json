@@ -1,0 +1,16 @@
+{
+  "format": "f3d.conformance",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d_conformance",
+  "plugin": "glow",
+  "suite": "1.0",
+  "badge": "conformant@1.0",
+  "outcomes": [
+    {"check": "manifest", "passed": true, "declined": false, "says": "the manifest reads, writes back and installs"},
+    {"check": "switch", "passed": true, "declined": false, "says": "switched off and on at a step boundary"},
+    {"check": "determinism", "passed": true, "declined": false, "says": "every step gave one answer"},
+    {"check": "backends", "backend": "cpu", "passed": true, "declined": false, "says": "installed and stepped on cpu"},
+    {"check": "budget", "passed": true, "declined": false, "says": "within its budget"}
+  ]
+}

@@ -149,7 +149,7 @@ void main() {
   group('sampling', () {
     test('a point in a uniformly lit field reads that colour', () {
       final field = _field();
-      final colour = Vector3(0.2, 0.4, 0.6);
+      final color = Vector3(0.2, 0.4, 0.6);
       for (var p = 0; p < field.probeCount; p++) {
         for (var i = 0; i < 64; i++) {
           final z = 1.0 - 2.0 * (i + 0.5) / 64;
@@ -161,16 +161,16 @@ void main() {
             z,
           );
           field
-            ..writeIrradiance(p, d, colour)
+            ..writeIrradiance(p, d, color)
             ..writeDepth(p, d, 100.0);
         }
       }
       field.fillGutters();
 
       final got = field.sample(Vector3(0.5, 0.5, 0.5), Vector3(0.0, 1.0, 0.0));
-      expect(got.x, closeTo(colour.x, 1e-5));
-      expect(got.y, closeTo(colour.y, 1e-5));
-      expect(got.z, closeTo(colour.z, 1e-5));
+      expect(got.x, closeTo(color.x, 1e-5));
+      expect(got.y, closeTo(color.y, 1e-5));
+      expect(got.z, closeTo(color.z, 1e-5));
     });
 
     test('a probe that cannot see the point does not light it', () {
@@ -214,7 +214,7 @@ void main() {
       // the visibility. The weights fall under 1e-18 and the point reads
       // black.
       final field = _field();
-      final colour = Vector3(0.2, 0.4, 0.6);
+      final color = Vector3(0.2, 0.4, 0.6);
       for (var p = 0; p < field.probeCount; p++) {
         for (var i = 0; i < 64; i++) {
           final z = 1.0 - 2.0 * (i + 0.5) / 64;
@@ -226,16 +226,16 @@ void main() {
             z,
           );
           field
-            ..writeIrradiance(p, d, colour)
+            ..writeIrradiance(p, d, color)
             ..writeDepth(p, d, 0.1);
         }
       }
       field.fillGutters();
 
       final got = field.sample(Vector3(0.5, 0.5, 0.5), Vector3(0.0, 1.0, 0.0));
-      expect(got.x, closeTo(colour.x, 1e-5));
-      expect(got.y, closeTo(colour.y, 1e-5));
-      expect(got.z, closeTo(colour.z, 1e-5));
+      expect(got.x, closeTo(color.x, 1e-5));
+      expect(got.y, closeTo(color.y, 1e-5));
+      expect(got.z, closeTo(color.z, 1e-5));
     });
   });
 }

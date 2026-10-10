@@ -10,6 +10,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
@@ -18,9 +20,9 @@ const int _size = 48;
 /// The HDR frame of a sphere drawn with [material], lit from the camera's
 /// side, and the device it was drawn on.
 ({Float32List hdr, CpuDevice device}) _render(
-  Material Function(CpuDevice device) material, {
+  RenderMaterial Function(CpuDevice device) material, {
   bool environment = false,
-  Set<String> disabledPasses = const <String>{},
+  Set<RenderStep> stepsOff = const <RenderStep>{},
 }) {
   final device = CpuDevice(
     width: _size,
@@ -32,7 +34,7 @@ const int _size = 48;
     DeviceMesh.upload(device, const SphereShape().build()),
     material(device),
   );
-  final light = LightNode(intensity: 3.0)
+  final light = LightNode(intensity: 3.0 * Photometric.legacyUnit)
     ..setRotationYawPitchRoll(0.3, -0.4, 0.0);
   final scene = Scene()
     ..add(sphere)
@@ -65,35 +67,34 @@ const int _size = 48;
         mipLevels: EnvironmentMap.prefilter(faces, size: cube, levels: levels),
       )
       ..environmentLevels = levels
-      ..ambientIntensity = 1.0;
+      ..ambientIntensity = 1.0 * Photometric.legacyUnit;
   }
   final result = Renderer.create(device: device).render(
     width: _size,
     height: _size,
     scene: scene,
     views: <RenderView>[RenderView(camera: camera)],
-    settings: RenderSettings(
+    settings: const RenderSettings(
       tonemap: false,
-      bloom: const BloomSettings(enabled: false),
-      disabledPasses: disabledPasses,
-    ),
+      bloom: BloomSettings(enabled: false),
+    ).without(stepsOff),
   );
   return (hdr: device.readHdrPixels(result.frame), device: device);
 }
 
-Float32List _hdr(Material Function(CpuDevice device) material) =>
+Float32List _hdr(RenderMaterial Function(CpuDevice device) material) =>
     _render(material).hdr;
 
 /// A dielectric sphere: red, rough enough that its own highlight is broad.
-Material _paint({
+RenderMaterial _paint({
   LightingModel lighting = LightingModel.pbrLayered,
   MaterialExtensions? layers,
   TextureHandle? coatMap,
   TextureHandle? sheenMap,
   double roughness = 0.6,
-}) => Material(
+}) => RenderMaterial(
   lighting: lighting,
-  baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+  baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
   roughness: roughness,
   extensions: layers,
   coatMap: coatMap,
@@ -106,14 +107,14 @@ Material _paint({
 double _rimBlue(Float32List hdr) {
   var sum = 0.0;
   var count = 0;
-  const centre = _size / 2.0;
+  const center = _size / 2.0;
   // The sphere's radius on screen at this camera distance, a little inside.
   const radius = _size * 0.28;
   for (var y = 0; y < _size; y++) {
     for (var x = 0; x < _size; x++) {
       final d = math.sqrt(
-        (x + 0.5 - centre) * (x + 0.5 - centre) +
-            (y + 0.5 - centre) * (y + 0.5 - centre),
+        (x + 0.5 - center) * (x + 0.5 - center) +
+            (y + 0.5 - center) * (y + 0.5 - center),
       );
       if (d < radius * 0.8 || d > radius) continue;
       sum += hdr[(y * _size + x) * 4 + 2];
@@ -212,13 +213,14 @@ void main() {
       // Fresnel is one at every angle. A black dielectric has no diffuse, so
       // what is left is a reflection of one head-on and at grazing — exactly a
       // white metal's, under the light and the environment both.
-      Material sphere(double metallic, Vector4 colour, double ior) => Material(
-        lighting: LightingModel.pbrLayered,
-        baseColor: colour,
-        metallic: metallic,
-        roughness: 0.4,
-        extensions: MaterialExtensions(ior: ior),
-      );
+      RenderMaterial sphere(double metallic, Vector4 color, double ior) =>
+          RenderMaterial(
+            lighting: LightingModel.pbrLayered,
+            baseColor: _fromSrgb(color),
+            metallic: metallic,
+            roughness: 0.4,
+            extensions: MaterialExtensions(ior: ior),
+          );
       final infinite = _render(
         (_) => sphere(0.0, Vector4(0.0, 0.0, 0.0, 1.0), 0.0),
         environment: true,
@@ -245,7 +247,7 @@ void main() {
     final tinted = _meanGreen(
       _hdr(
         (_) => _paint(
-          layers: MaterialExtensions(specularColor: Vector3(1.0, 0.0, 1.0)),
+          layers: MaterialExtensions(specularColor: LinearColor(1.0, 0.0, 1.0)),
         ),
       ),
     );
@@ -260,7 +262,7 @@ void main() {
     final velvet = _hdr(
       (_) => _paint(
         layers: MaterialExtensions(
-          sheenColor: Vector3(0.2, 0.4, 1.0),
+          sheenColor: LinearColor(0.2, 0.4, 1.0),
           sheenRoughness: 0.5,
         ),
       ),
@@ -278,7 +280,7 @@ void main() {
     final velvet = _hdr(
       (_) => _paint(
         layers: MaterialExtensions(
-          sheenColor: Vector3(0.0, 0.0, 1.0),
+          sheenColor: LinearColor(0.0, 0.0, 1.0),
           sheenRoughness: 0.5,
         ),
       ),
@@ -298,7 +300,7 @@ void main() {
     final bare = _hdr((_) => _paint());
     final masked = _hdr(
       (device) => _paint(
-        layers: MaterialExtensions(sheenColor: Vector3(1.0, 1.0, 1.0)),
+        layers: MaterialExtensions(sheenColor: LinearColor(1.0, 1.0, 1.0)),
         // Black colour: no sheen, whatever the factor says.
         sheenMap: device.createTextureFromPixels(
           width: 1,
@@ -350,25 +352,25 @@ void main() {
     /// reads the copy of the scene, whose backdrop here is the clear colour
     /// rather than the cube — `M3`, held in `transmission_glass_test.dart`.
     Float32List glass(MaterialExtensions? layers) => _render(
-      (_) => Material(
+      (_) => RenderMaterial(
         lighting: LightingModel.pbrLayered,
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
         roughness: 0.05,
         extensions: layers,
       ),
       environment: true,
-      disabledPasses: const <String>{'transparent'},
+      stepsOff: const <RenderStep>{RenderStep.transparent},
     ).hdr;
 
     /// The centre pixel's colour.
-    Vector3 centre(Float32List hdr) {
+    Vector3 center(Float32List hdr) {
       final i = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
       return Vector3(hdr[i], hdr[i + 1], hdr[i + 2]);
     }
 
     test('transmission-glass: the environment behind shows through', () {
-      final white = centre(glass(null));
-      final clear = centre(glass(MaterialExtensions(transmission: 1.0)));
+      final white = center(glass(null));
+      final clear = center(glass(MaterialExtensions(transmission: 1.0)));
       // White scatters the room's light back, all colours alike; clear
       // glass shows what is behind it, which has no red in it.
       //
@@ -379,16 +381,16 @@ void main() {
     });
 
     test('a volume takes away the colours its attenuation says', () {
-      final clear = centre(
+      final clear = center(
         glass(MaterialExtensions(transmission: 1.0, thickness: 1.0)),
       );
-      final tinted = centre(
+      final tinted = center(
         glass(
           MaterialExtensions(
             transmission: 1.0,
             thickness: 1.0,
             attenuationDistance: 0.5,
-            attenuationColor: Vector3(1.0, 0.2, 0.2),
+            attenuationColor: LinearColor(1.0, 0.2, 0.2),
           ),
         ),
       );
@@ -454,3 +456,6 @@ void main() {
     expect(singles.where((s) => s.contains('g_irid_fresnel')), hasLength(1));
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

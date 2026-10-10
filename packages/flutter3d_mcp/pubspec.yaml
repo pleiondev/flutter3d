@@ -1,0 +1,109 @@
+name: flutter3d_mcp
+description: "MCP servers for flutter3d over stdio: a level editor and a model editor an agent can drive, the project server, and the kit every flutter3d server is built on."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - mcp
+  - level-editor
+  - modelling
+  - tooling
+  - ai
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: stdio, files, processes
+# and a loopback HTTP server through `dart:io`. The two editors run on the
+# desktop a level or a model is made on; the kit's loopback server is what a
+# running application offers a session over, on any platform but the browser.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
+
+# **Three packages until 1.0.0-rc.1**: `flutter3d_mcp_kit`,
+# `flutter3d_editor_mcp` and `flutter3d_model_mcp`. One library each now —
+# `kit.dart` (and `project_tools.dart`), `editor.dart`, `model.dart` — and
+# the commands a host starts keep their names.
+#
+# `flutter3d_sim_mcp` stays a package of its own: it plays a game, which
+# takes the Flutter SDK, and nothing here may.
+executables:
+  editor_mcp:
+  model_mcp:
+  project_mcp:
+
+dependencies:
+  # The protocol, and nothing else it brings: `async`, `collection`,
+  # `json_rpc_2`, `meta`, `stream_channel`, `stream_transform`. No Flutter
+  # anywhere in that graph, which is what lets this run under `dart run`.
+  #
+  # **Pinned to one minor, because the package says to.** Its own README opens
+  # with "this package is still experimental and is likely to evolve quickly",
+  # and a caret on a pre-1.0 version already means that in pub's arithmetic —
+  # written out here so the narrowness reads as a decision rather than as the
+  # default somebody accepted.
+  dart_mcp: ">=0.5.2 <0.6.0"
+
+  # The channel a server is built on — `stdioChannel` for a process, a pair of
+  # controllers fed by HTTP requests for `LoopbackMcpServer` and the model
+  # server's HTTP transport, an in-memory pair for a suite. One type for all.
+  stream_channel: ^2.1.4
+
+  # The slot `McpTools` fills: `McpToolRegistry`, the registration a plugin
+  # gets back, and the scope that files a tool under the plugin's id.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The level document and everything you can do to one. `EditorCommand` is
+  # what keeps the editor server small: the things an editor does are already
+  # values with a name, a `toJson` and a `fromJson`.
+  flutter3d_editor_core: ^1.0.0-rc.1
+
+  # `LevelScene`, which draws the level the editor server shows an agent
+  # on the software renderer, one draw per brush.
+  flutter3d_level_scene: ^1.0.0-rc.1
+
+  # Play: the game the level belongs to, run with `flutter run --machine`
+  # and sent the level when it is saved — the editor application's own.
+  flutter3d_editor_play: ^1.0.0-rc.1
+
+  # `Level`, `LevelIssue` and `LevelValidator`, which `validate` reports.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The model project and its commands, as values the same way.
+  flutter3d_model_core: ^1.0.0-rc.1
+
+  # The renderer both editors' screenshots draw with, and the formats the
+  # model server imports and exports through. `flutter3d_core` is the engine
+  # with the Flutter seams taken out.
+  flutter3d_core: ^1.0.0-rc.1
+
+  # `ElementLevel`, for the `select` verb's mesh-mode argument.
+  flutter3d_mesh: ^1.0.0-rc.1
+
+  # `CpuDevice`, the device every `render` and `screenshot` draws on, and
+  # `GraphicsDevice`, the type its factory returns. No GPU and no display.
+  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_hardware: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A host starts this with `dart run`, and that is the whole of why every
+# package under it is plain Dart.** `dart run` cannot resolve a package that
+# depends on the Flutter SDK, so a single Flutter import anywhere in this graph
+# is not a heavier process — it is a server that will not start on a machine
+# without the Flutter tool. `a flat Dart package resolves without the Flutter
+# SDK` in `tool/structure.dart` walks the graph and says so before anybody
+# tries.

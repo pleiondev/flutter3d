@@ -1,4 +1,4 @@
-/// Writes `flutter3d_shaders/lib/stage_bindings.dart`: what every compiled
+/// Writes `flutter3d_shaders/lib/src/stage_bindings.dart`: what every compiled
 /// stage in the bundle keeps, by name.
 ///
 ///     dart run tool/stage_bindings.dart
@@ -185,8 +185,17 @@ String typedBlocksSource(
       }
     }
   }
+  // A shader's names are its own and stay as written (`scene_colour`); the
+  // Dart identifier made from one spells in American, as every identifier
+  // in the API does (the structure rule `public identifiers spell in
+  // American` holds the rest).
+  String american(String word) => switch (word) {
+    'colour' => 'color',
+    'centre' => 'center',
+    _ => word,
+  };
   String camel(String snake) {
-    final parts = snake.split('_');
+    final parts = snake.split('_').map(american).toList();
     return parts.first +
         parts.skip(1).map((p) => p[0].toUpperCase() + p.substring(1)).join();
   }
@@ -278,13 +287,13 @@ String stageBindingsSource(
 
 void main() {
   final shaders = Directory('../flutter3d_shaders/shaders').absolute.path;
-  final target = File('../flutter3d_shaders/lib/stage_bindings.dart');
+  final target = File('../flutter3d_shaders/lib/src/stage_bindings.dart');
   target.writeAsStringSync(
     stageBindingsSource(reflectStages(shadersRoot: shaders)),
   );
-  final blocks = File('../flutter3d_shaders/lib/uniform_blocks.dart');
+  final blocks = File('../flutter3d_shaders/lib/src/uniform_blocks.dart');
   blocks.writeAsStringSync(uniformBlocksSource(reflectedBlocks));
-  final typed = File('../flutter3d_shaders/lib/typed_blocks.dart');
+  final typed = File('../flutter3d_shaders/lib/src/typed_blocks.dart');
   typed.writeAsStringSync(typedBlocksSource(reflectedBlocks));
   Process.runSync('dart', <String>[
     'format',

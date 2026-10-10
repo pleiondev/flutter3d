@@ -1,0 +1,34 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-webgl-WebGlDevice-create'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgl/flutter3d_webgl.dart']
+      method: 'create'
+      inClass: 'WebGlDevice'
+    changes:
+      - kind: 'rename'
+        newName: 'open'
+  - title: 'flutter3d 1.0.0-rc.1: f2-webgl-WebGlDevice-readPixels'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgl/flutter3d_webgl.dart']
+      method: 'readPixels'
+      inClass: 'WebGlDevice'
+    changes:
+      - kind: 'rename'
+        newName: 'readback'
+  - title: 'flutter3d 1.0.0-rc.1: b1-webgl-engineShaders'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgl/engine_shaders.dart', 'package:flutter3d_webgpu/engine_shaders.dart']
+      variable: 'engineShaders'
+    changes:
+      - kind: 'rename'
+        newName: 'webGlEngineShaders'

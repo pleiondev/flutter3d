@@ -27,7 +27,6 @@
 /// document instead of against the save.
 library;
 
-import 'package:flutter3d/flutter3d.dart' show GraphicsDevice;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -43,16 +42,15 @@ import 'staging.dart';
 /// distance per step, so the size of the step is the speed of the match.
 const double strategyStep = 1.0 / 60.0;
 
-/// The clock a frame is spent through.
+/// The world's timing the match is stepped at by the `EngineLoop`: sixty
+/// steps a second, whose step is [strategyStep] to the bit — the loop hands
+/// its systems `1 / stepRate`, the same division [strategyStep] is.
 ///
-/// A builder rather than one shared instance, because a [FixedStep] carries an
-/// accumulator: two loops handed the same one would spend each other's time.
-/// The ceiling on steps per frame is the class's own, and it earns its keep
-/// here more than anywhere else in this repository — a step over a crowd of
-/// hundreds is the most expensive step any of these games runs, so a frame that
-/// fell behind and then tried to catch up is exactly the spiral that class was
-/// written to refuse.
-FixedStep strategyClock() => FixedStep(stepSeconds: strategyStep);
+/// The loop's catch-up is left at its default, five steps a frame and the
+/// rest announced: a step over a crowd of hundreds is the most expensive
+/// step any of these games runs, and a frame that fell behind and then tried
+/// to catch up all at once is the spiral that ceiling refuses.
+const WorldTiming strategyWorld = WorldTiming(stepRate: 60.0);
 
 /// How a match reads to the side watching it, in the words every genre shares.
 ///
@@ -103,7 +101,7 @@ final class StrategyRun extends RunSession<Staged> {
   ///
   /// [asset] and [levelHash] are `rp-01`/`rp-04`'s own reason for being here
   /// at all: `_beginDemo` needs the map's own name and digest to write a
-  /// demo down, and neither survives past [open] — [Staged] holds the match
+  /// demo down, and neither survives past [loadLevel] — [Staged] holds the match
   /// this staged, not the [StrategyMap] it was staged from.
   final void Function(String asset, String levelHash, Staged staged)
   onLevelBuilt;
@@ -121,7 +119,7 @@ final class StrategyRun extends RunSession<Staged> {
   /// `RunSession`, which puts the filename on the screen instead of leaving a
   /// black one.
   @override
-  Future<Staged> open(String asset) async {
+  Future<Staged> loadLevel(String asset) async {
     final StrategyMap map = await StrategyMap.load(asset: asset);
     final Staged staged = await stage(device: await openDevice(), map: map);
     onLevelBuilt(asset, map.level.digestHex, staged);

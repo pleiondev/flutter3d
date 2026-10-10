@@ -25,12 +25,16 @@ import 'dart:io';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
-/// Every use of a named bit in this package's own source.
+/// Every use of a named bit in this package's own source, and in the camera
+/// package's: the rig that keeps the camera out of walls moved there with the
+/// rest of the cameras, and still reads these names.
 List<String> _readers() {
   final found = <String>[];
   for (final file
-      in Directory('lib')
-          .listSync(recursive: true)
+      in <String>['lib', '../flutter3d_camera/lib']
+          .map(Directory.new)
+          .where((Directory it) => it.existsSync())
+          .expand((Directory it) => it.listSync(recursive: true))
           .whereType<File>()
           .where((File it) => it.path.endsWith('.dart'))) {
     for (final line in file.readAsLinesSync()) {

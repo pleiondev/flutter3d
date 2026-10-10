@@ -18,7 +18,7 @@
 ///     writes, at the moment they write it, and names the file. It cannot tell
 ///     whether a simulation actually diverges.
 ///   * **the behavioural tests**, which live with each game because a step is a
-///     game's — see `flutter3d_game_shooter/test/snapshot_test.dart` and its
+///     game's — see `flutter3d_demo_content/test/shooter/snapshot_test.dart` and its
 ///     siblings. They cannot say *where* a leak is.
 ///   * **this file**, which is about the one piece the other two rest on: a
 ///     generator whose state is a number you can write down. If [GameRandom]

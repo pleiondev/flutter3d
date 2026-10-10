@@ -6,9 +6,13 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 /// Called every frame with the monster's current state, so a game is free to
 /// answer with a shared material per kind, a brightened one for a monster that
 /// was just hit, or something built on the spot.
-abstract interface class ActorAppearance {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ActorAppearance {
   /// The material to draw `monster` with right now.
-  Material materialFor(Actor actor);
+  RenderMaterial materialFor(Actor actor);
 
   /// A key that two actors share exactly when they should share one capsule
   /// mesh. The game's own answer, because the engine has no idea what makes
@@ -41,4 +45,16 @@ abstract interface class ActorAppearance {
   /// Named rather than indexed on purpose: an index is a promise about the
   /// order inside somebody else's export.
   List<String> clipsFor(Actor actor);
+
+  /// [clipsFor], asked with what the simulation published of [actor] — where
+  /// it is, whether it lives, the stair it climbed — when the view reads
+  /// published state (`ActorVisuals.published`).
+  ///
+  /// **The form that keeps working when the simulation runs elsewhere.** A
+  /// game whose clips follow what is published (a dead actor's death clip,
+  /// a falling one's fall) answers from [published] and reads nothing live
+  /// off the actor. [clipsFor] by default, so a game that has not moved yet
+  /// plays what it played.
+  List<String> clipsFrom(Actor actor, PublishedActor published) =>
+      clipsFor(actor);
 }

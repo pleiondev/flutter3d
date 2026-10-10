@@ -89,7 +89,7 @@ bool _jsonEquals(Object? a, Object? b) {
 /// The seam between decoders and the rest of the engine: glTF and OBJ both
 /// produce one of these, so uploading, instancing and material conversion are
 /// written once instead of per format.
-abstract class ModelDocument {
+abstract base class ModelDocument {
   const ModelDocument();
 
   List<ModelSurface> get surfaces;

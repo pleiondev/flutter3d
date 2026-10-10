@@ -1,0 +1,368 @@
+# The public API of flutter3d_physics.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_physics/flutter3d_physics.dart
+
+final class CharacterController
+  CharacterController({required this.world, CollisionShape? shape, Vector3? position, this.tuning = const MovementTuning(), int layer = 1 << 1})
+  Collider? get ground
+  Collider? get groundBody
+  CollisionShape get shape
+  ContactFilter? solidFilter
+  Map<String, Object?> save()
+  MovementTuning tuning
+  Vector3 get groundNormal
+  Vector3 get halfExtents
+  bool get isGrounded
+  bool tryResize(CollisionShape to, {bool keepFeet = true})
+  double get steppedUp
+  final CollisionWorld world
+  final Vector3 position
+  final Vector3 velocity
+  int get contactsLastStep
+  late final Collider collider
+  void requestJump()
+  void restore(Map<String, Object?> from)
+  void step(double dt, {required Vector3 wishDirection, bool sprint = false})
+  void suppressFloorSnap()
+  void teleport(Vector3 to)
+
+final class ClothMesh
+  ClothMesh({required this.cols, required this.rows, required this.positions, required this.velocities, required this.invMass, required this.structuralPairs, required this.structuralRestLength, required this.bendPairs, required this.bendRestLength, required this.triangles, Int32List? shearPairs, Float64List? shearRestLength, Float64List? restPositions})
+  factory ClothMesh.grid({required int cols, required int rows, double spacing = 0.1, double height = 0, double mass = 0.05, bool pinCorners = false})
+  final Float64List bendRestLength
+  final Float64List invMass
+  final Float64List positions
+  final Float64List restPositions
+  final Float64List shearRestLength
+  final Float64List structuralRestLength
+  final Float64List velocities
+  final Int32List bendPairs
+  final Int32List shearPairs
+  final Int32List structuralPairs
+  final Int32List triangles
+  final int cols
+  final int particleCount
+  final int rows
+  late final double meanRestEdge
+
+final class ClothObstacle
+  const ClothObstacle(this.shape, this.position)
+  final CollisionShape shape
+  final Vector3 position
+
+final class ClothSettings
+  const ClothSettings({this.gravity = 9.81, this.substeps = 8, this.iterations = 2, this.distanceCompliance = 0.0, this.bendCompliance = 1e-3, this.shearCompliance = 5e-2, this.damping = 0.02, this.wind = const WindSettings(), this.collisionThickness = 0.01, this.friction = 0.0, this.selfCollision = true, this.selfCollisionThickness, this.selfCollisionFriction = 0.1})
+  final WindSettings wind
+  final bool selfCollision
+  final double bendCompliance
+  final double collisionThickness
+  final double damping
+  final double distanceCompliance
+  final double friction
+  final double gravity
+  final double selfCollisionFriction
+  final double shearCompliance
+  final double? selfCollisionThickness
+  final int iterations
+  final int substeps
+
+final class Collider
+  Collider({required this.shape, Vector3? position, this.kind = ColliderKind.static, this.layer = 1 << 0, this.mask = Layers.all, CollisionListener? listener, this.userData})
+  ColliderKind kind
+  CollisionListener? get listener
+  CollisionShape shape
+  CollisionWorld? world
+  Object? userData
+  bool get isSolid
+  bool interactsWith(Collider other)
+  final Aabb3 bounds
+  final Vector3 delta
+  final Vector3 indexedAt
+  final Vector3 position
+  final Vector3 surfaceVelocity
+  int layer
+  int mask
+  set listener(CollisionListener? value)
+  void clearDelta()
+  void moveTo(Vector3 to)
+  void refreshBounds()
+
+enum ColliderKind
+  values: static, kinematic, trigger
+
+final class CollisionBox extends CollisionShape
+  CollisionBox(this.halfExtents)
+  CollisionBox.size(Vector3 size)
+  Vector3 get boundsHalfExtents
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
+  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
+  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
+  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
+  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
+  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  final Vector3 halfExtents
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int get expandedPlaneCount
+
+final class CollisionCapsule extends CollisionShape
+  CollisionCapsule({required this.radius, required this.halfHeight})
+  Vector3 get boundsHalfExtents
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
+  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
+  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
+  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
+  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
+  double get totalHalfHeight
+  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  double supportAlong(double nx, double ny, double nz)
+  final double halfHeight
+  final double radius
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int get expandedPlaneCount
+
+final class CollisionHeightfield extends CollisionShape
+  CollisionHeightfield({required this.columns, required this.rows, required this.cellSize, required Float32List heights, double? thickness})
+  Vector3 get boundsHalfExtents
+  bool containsPoint(Vector3 position, Vector3 point, {double margin = 0.0})
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
+  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
+  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
+  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
+  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
+  double get depth
+  double get width
+  double heightAt(Vector3 position, double x, double z)
+  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  double sample(int column, int row)
+  final double cellSize
+  final double highest
+  final double lowest
+  final double thickness
+  final int columns
+  final int rows
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int get expandedPlaneCount
+  int get partPlaneCount
+  int partPlanes(int part, Vector3 position, CollisionShape mover, Float64List out)
+  int partSeams(int part)
+  int partsIn(Vector3 position, Vector3 min, Vector3 max, Int32List out)
+
+abstract mixin class CollisionListener
+  void onCollision(Collider self, Collider other)
+  void onCollisionEnd(Collider self, Collider other)
+  void onCollisionStart(Collider self, Collider other)
+
+sealed class CollisionShape
+  Vector3 get boundsHalfExtents
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
+  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
+  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
+  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
+  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
+  const CollisionShape()
+  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  double raycastBounds(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  double supportAlong(double nx, double ny, double nz)
+  int boundsExpandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int get expandedPlaneCount
+  int get partPlaneCount
+  int partPlanes(int part, Vector3 position, CollisionShape mover, Float64List out)
+  int partSeams(int part)
+  int partsIn(Vector3 position, Vector3 min, Vector3 max, Int32List out)
+  static const int boundsPlaneCount = 6
+  void computeBounds(Vector3 centre, Aabb3 out)
+
+final class CollisionSphere extends CollisionShape
+  CollisionSphere(this.radius)
+  Vector3 get boundsHalfExtents
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
+  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
+  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
+  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
+  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
+  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  double supportAlong(double nx, double ny, double nz)
+  final double radius
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int get expandedPlaneCount
+
+final class CollisionWedge extends CollisionShape
+  CollisionWedge(this.halfExtents, {this.uphill = WedgeUphill.positiveX})
+  CollisionWedge.size(Vector3 size, {WedgeUphill uphill = WedgeUphill.positiveX})
+  Vector3 get boundsHalfExtents
+  Vector3 get slopeNormal
+  bool containsPoint(Vector3 position, Vector3 point, {double margin = 0.0})
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
+  bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition)
+  bool overlapsCapsule(Vector3 position, CollisionCapsule capsule, Vector3 capsulePosition)
+  bool overlapsHeightfield(Vector3 position, CollisionHeightfield field, Vector3 fieldPosition)
+  bool overlapsSphere(Vector3 position, CollisionSphere sphere, Vector3 spherePosition)
+  bool overlapsWedge(Vector3 position, CollisionWedge wedge, Vector3 wedgePosition)
+  double get gradient
+  double raycast(Vector3 position, Vector3 origin, Vector3 direction, double maxDistance, Vector3 outNormal)
+  final Vector3 halfExtents
+  final WedgeUphill uphill
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out)
+  int get expandedPlaneCount
+  int partPlanes(int part, Vector3 position, CollisionShape mover, Float64List out)
+
+final class CollisionWorld
+  Collider add(Collider collider)
+  Collider addBox(Vector3 centre, Vector3 size, {Object? userData})
+  CollisionWorld({double cellSize = 4.0})
+  Iterable<Collider> get statics
+  bool depenetrate(Vector3 centre, Vector3 halfExtents, Vector3 out, {int mask = Layers.all, Collider? ignore, ContactFilter? allow})
+  bool raycast(Vector3 origin, Vector3 direction, double maxDistance, RayHit out, {int mask = Layers.all, Collider? ignore, bool includeTriggers = false})
+  bool sweep(CollisionShape shape, Vector3 origin, Vector3 delta, SweepHit out, {int mask = Layers.all, Collider? ignore, ContactFilter? allow})
+  int get colliderCount
+  int get moverCount
+  int get staticCount
+  int? idOf(Collider collider)
+  void clear()
+  void clearKinematicDeltas()
+  void overlap(CollisionShape shape, Vector3 position, List<Collider> out, {int mask = Layers.all, Collider? ignore, bool includeTriggers = true})
+  void refreshReporter(Collider collider)
+  void reindex()
+  void remove(Collider collider)
+  void removeLater(Collider collider)
+  void update()
+
+final class Contact
+  Contact()
+  bool touching
+  double depth
+  double margin
+  final Vector3 normal
+
+typedef ContactFilter = bool Function(SweptContact contact);
+
+final class Dynamics
+  Dynamics({required this.world, Vector3? gravity, this.iterations = 20})
+  RigidBody add(RigidBody body)
+  RigidBody? bodyOf(Collider collider)
+  double correction
+  double margin
+  double restitutionThreshold
+  double sleepAfter
+  double sleepSpeed
+  double slop
+  final CollisionWorld world
+  final List<RigidBody> bodies
+  final Vector3 gravity
+  final int iterations
+  int get bodyLookupsLastStep
+  int positionIterations
+  void push(Collider by, Vector3 velocity, {double strength = 1.0})
+  void remove(RigidBody body)
+  void step(double dt)
+
+abstract final class Layers
+  static const int all = 0xFFFFFFFF
+
+final class MovementTuning
+  MovementTuning copyWith({double? walkSpeed, double? sprintSpeed, double? groundAcceleration, double? groundFriction, double? airAcceleration, double? gravity, double? terminalVelocity, double? jumpSpeed, double? stepHeight, double? coyoteTime, double? jumpBufferTime, double? groundProbe, double? floorSnapLength})
+  const MovementTuning({this.walkSpeed = 6.0, this.sprintSpeed = 10.0, this.groundAcceleration = 70.0, this.groundFriction = 55.0, this.airAcceleration = 14.0, this.gravity = 24.0, this.terminalVelocity = 55.0, this.jumpSpeed = 8.0, this.stepHeight = 0.4, this.coyoteTime = 0.1, this.jumpBufferTime = 0.1, this.groundProbe = 0.08, this.floorSnapLength = 0.0})
+  final double airAcceleration
+  final double coyoteTime
+  final double floorSnapLength
+  final double gravity
+  final double groundAcceleration
+  final double groundFriction
+  final double groundProbe
+  final double jumpBufferTime
+  final double jumpSpeed
+  final double sprintSpeed
+  final double stepHeight
+  final double terminalVelocity
+  final double walkSpeed
+
+abstract final class Nearly
+  static const double moving = 1e-4
+  static const double parallel = 1e-12
+  static const double same = 1e-9
+  static const double still = 1e-6
+
+final class RayHit
+  Collider? collider
+  bool get hit
+  double distance
+  final Vector3 normal
+  final Vector3 point
+  void reset()
+
+final class RigidBody
+  Map<String, Object?> save()
+  RigidBody({required CollisionWorld world, required CollisionShape shape, required Vector3 position, this.mass = 1.0, this.restitution = 0.0, this.friction = 0.6, int layer = 1 << 0, int mask = Layers.all, Object? userData})
+  Vector3 get position
+  bool get isAsleep
+  bool get isMovable
+  double friction
+  double restitution
+  final Vector3 velocity
+  final double inverseMass
+  final double mass
+  late final Collider collider
+  void applyImpulse(Vector3 impulse)
+  void restore(Map<String, Object?> from)
+  void sleep()
+  void updateSleep(double dt, double speedThreshold, double after)
+  void wake()
+
+final class SpatialGrid
+  SpatialGrid({this.cellSize = 4.0})
+  final double cellSize
+  int get cellCount
+  void clear()
+  void clearEntries()
+  void forEachAlongRay(Vector3 origin, Vector3 direction, double maxDistance, void Function(int) visit)
+  void forEachInBox(Vector3 min, Vector3 max, void Function(int) visit)
+  void insert(int handle, Aabb3 bounds)
+
+final class SweepHit
+  Collider? collider
+  bool get hit
+  double fraction
+  final Vector3 normal
+  void reset()
+
+final class SweptContact
+  Collider get other
+  SweptContact()
+  final Vector3 normal
+  void set(Collider other, Vector3 normal)
+
+enum WedgeUphill
+  values: positiveX, negativeX, positiveZ, negativeZ
+  const WedgeUphill(this.x, this.z)
+  double get sign
+  final double x
+  final double z
+  int get axis
+
+final class WindSettings
+  bool get isNone
+  const WindSettings({this.velocityX = 0, this.velocityY = 0, this.velocityZ = 0, this.drag = 0.3})
+  final double drag
+  final double velocityX
+  final double velocityY
+  final double velocityZ
+
+void contactBetween(CollisionShape a, Vector3 aAt, CollisionShape b, Vector3 bAt, Contact out, {double margin = 0.02})
+
+bool pushOutsideObstacle(Vector3 point, ClothObstacle obstacle, double thickness, {double span = 0.0})
+
+bool pushParticleOutside(Float64List xyz, int i, ClothObstacle obstacle, double thickness, Float64List push, {double span = 0.0})
+
+double readNumber(Object? value)
+
+bool readVector(Object? value, Vector3 out)
+
+void stepCloth(ClothMesh mesh, ClothSettings settings, double dt, {List<ClothObstacle> obstacles = const []})

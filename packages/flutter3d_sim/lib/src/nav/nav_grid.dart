@@ -1,21 +1,31 @@
 /// Where an agent can stand, baked once from the level's brushes.
 ///
-/// ## Why a grid and not a navigation mesh
+/// ## A grid, and a navigation mesh beside it
 ///
-/// A navmesh earns its complexity by representing *arbitrary* walkable
-/// surfaces. Brushes are not that: a `Brush` is a centre and a size, and
-/// `level.dart` says so outright — there are no slopes. A navmesh over
-/// axis-aligned boxes is a voxelise → region → contour → triangulate pipeline
-/// whose output is the rectangles you could have rasterised directly. The most
-/// code, the hardest to test, and it buys a representation the format cannot
-/// express.
+/// This grid was the whole of navigation for as long as a level was boxes:
+/// over axis-aligned brushes a navmesh is a voxelise → region → contour →
+/// triangulate pipeline whose output is the rectangles a grid rasterises
+/// directly. The level stopped being only boxes. A brush can be a ramp, which
+/// this grid reads as the top of its box and so as a riser as tall as the ramp;
+/// ground can be a `Heightfield`; and a walkway over a floor is a level this
+/// grid can only warn about (see below). `NavMesh` in `navmesh/` is the
+/// pipeline, baked from the same brushes on the same lattice, and it is
+/// beside this grid rather than instead of it.
 ///
-/// **Ground made of samples arrived later and did not change the answer.**
-/// [bakeHeightfield] walks a `Heightfield`, which is terrain and does have
-/// slopes — and a height field is already a lattice, so rasterising it into
-/// this one is a resample rather than a pipeline. The argument against a
-/// navmesh got stronger rather than weaker: the surface it would triangulate
-/// is a grid to begin with.
+/// **What the mesh is for.** It keeps every floor in a column, so a walkway
+/// and the floor under it are both there to walk on. It follows a ramp's
+/// surface. And it is a few dozen convex polygons where this is thousands of
+/// cells, which is what a single agent's search wants: across a convex polygon
+/// the way is a straight line, so a path over the mesh comes out as the few
+/// corners it turns at rather than as a staircase of cell centres.
+///
+/// **What the grid stays for.** A flow field answers every agent at once from
+/// one sweep, which is what a horde wants and a search per agent cannot match,
+/// and its clearance and headroom filters let one bake serve every size of
+/// body. The two agree where they overlap, and a test holds them to it: the
+/// mesh is eroded by this grid's own rule — [clearanceForRadius] over the same
+/// eight-neighbour edges — so it covers exactly the cells a field for a body
+/// of the same radius accepts.
 ///
 /// ## Why it is baked from brushes and not from the collision world
 ///
@@ -46,12 +56,12 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../level/heightfield.dart';
 import '../level/level.dart';
 import '../level/level_issue.dart';
-import '../math/portable_math.dart';
 import '../math/tolerances.dart';
 import 'jump_links.dart';
 
@@ -74,10 +84,13 @@ final class NavGrid {
        _headroom = headroom,
        _clearance = clearance;
 
-  /// The world position of the corner of cell `(0, 0)`.
+  /// The world position of the corner of cell `(0, 0)`: its X, in metres.
   final double originX;
+
+  /// The corner of cell `(0, 0)`'s Z, in metres.
   final double originZ;
 
+  /// A cell's side, in metres.
   final double cellSize;
   final int columns;
   final int rows;
@@ -164,15 +177,15 @@ final class NavGrid {
   bool isWalkable(int index) => _headroom[index] > 0.0;
 
   /// The centre of a cell, at its floor height, as a fresh vector. For a
-  /// test or a bake; a step uses [centreOf] and its own scratch.
-  Vector3 centreOfCell(int index) {
+  /// test or a bake; a step uses [centerOf] and its own scratch.
+  Vector3 centerOfCell(int index) {
     final out = Vector3.zero();
-    centreOf(index, out);
+    centerOf(index, out);
     return out;
   }
 
   /// The centre of a cell, at its floor height.
-  void centreOf(int index, Vector3 out) {
+  void centerOf(int index, Vector3 out) {
     final cx = index % columns;
     final cz = index ~/ columns;
     out.setValues(
@@ -201,7 +214,7 @@ final class NavGrid {
     return true;
   }
 
-  /// Open sky, and the largest number [headroomAt] will report.
+  /// Open sky, and the largest number [headroomAt] will report, in metres.
   static const double maxHeadroom = 8.0;
 
   /// Rasterises a [Heightfield] into a lattice of standing places.
@@ -320,6 +333,160 @@ final class NavGrid {
     return grid;
   }
 
+  /// The cells [brush] may matter to, on a grid of [columns] by [rows] from
+  /// ([minX], [minZ]): what [bake] stamps it into and what [rebake] asks.
+  static ({int x0, int x1, int z0, int z1}) _cellsUnder(
+    Brush brush,
+    double minX,
+    double minZ,
+    double cellSize,
+    int columns,
+    int rows,
+  ) => (
+    // A boundary hit exactly is a zero-width overlap, which is not one.
+    x0: _clampInt(
+      (((brush.min.x - minX) / cellSize) + Tolerance.gridBias).floor(),
+      0,
+      columns - 1,
+    ),
+    x1: _clampInt(
+      (((brush.max.x - minX) / cellSize) - Tolerance.gridBias).floor(),
+      0,
+      columns - 1,
+    ),
+    z0: _clampInt(
+      (((brush.min.z - minZ) / cellSize) + Tolerance.gridBias).floor(),
+      0,
+      rows - 1,
+    ),
+    z1: _clampInt(
+      (((brush.max.z - minZ) / cellSize) - Tolerance.gridBias).floor(),
+      0,
+      rows - 1,
+    ),
+  );
+
+  /// The grid [bake] would make of [brushes], made by baking again only the
+  /// columns over the box from ([minX], [minZ]) to ([maxX], [maxZ]) — where
+  /// a wall was broken — and measuring the room around every cell again,
+  /// which is two sweeps and cheap: a level's whole bake is the columns.
+  ///
+  /// **The same grid, not a close one.** A column is [_column] of the same
+  /// brushes in either, and a cell outside the box has the same brushes
+  /// over it before and after a hole, which only takes solid away inside it.
+  /// Where the hole changes the level's extent — a wall at its edge gone —
+  /// the lattice itself moves, and this bakes the whole level instead.
+  ///
+  /// [jumps] as [bake] takes it: the links are found again over the whole
+  /// grid, since a hole can open a gap anywhere along a ledge.
+  NavGrid rebake(
+    Iterable<Brush> brushes, {
+    required double minX,
+    required double minZ,
+    required double maxX,
+    required double maxZ,
+    JumpReach? jumps,
+  }) {
+    NavGrid whole() => bake(
+      brushes,
+      cellSize: cellSize,
+      agentHeight: agentHeight,
+      stepHeight: stepHeight,
+      maxFall: maxFall,
+      jumps: jumps,
+    );
+    final solid = <Brush>[
+      for (final brush in brushes)
+        if (brush.solid) brush,
+    ];
+    if (solid.isEmpty || columns == 0) return whole();
+    final (lowX, lowZ, highX, highZ) = solid.fold(
+      (
+        double.infinity,
+        double.infinity,
+        double.negativeInfinity,
+        double.negativeInfinity,
+      ),
+      (box, Brush b) => (
+        math.min(box.$1, b.min.x),
+        math.min(box.$2, b.min.z),
+        math.max(box.$3, b.max.x),
+        math.max(box.$4, b.max.z),
+      ),
+    );
+    if (lowX != originX ||
+        lowZ != originZ ||
+        math.max(1, ((highX - lowX) / cellSize).ceil()) != columns ||
+        math.max(1, ((highZ - lowZ) / cellSize).ceil()) != rows) {
+      return whole();
+    }
+
+    // A cell's bucket reaches a cell past what its centre covers, so the
+    // box grows by one each way.
+    int cell(double at, double origin, int count) =>
+        _clampInt(((at - origin) / cellSize).floor(), 0, count - 1);
+    final x0 = math.max(0, cell(minX, originX, columns) - 1);
+    final x1 = math.min(columns - 1, cell(maxX, originX, columns) + 1);
+    final z0 = math.max(0, cell(minZ, originZ, rows) - 1);
+    final z1 = math.min(rows - 1, cell(maxZ, originZ, rows) + 1);
+
+    final floor = Float32List.fromList(_floor);
+    final headroom = Float32List.fromList(_headroom);
+    final under = <({int b, int x0, int x1, int z0, int z1})>[
+      for (var b = 0; b < solid.length; b++)
+        if (_cellsUnder(solid[b], originX, originZ, cellSize, columns, rows)
+            case final c
+            when c.x1 >= x0 && c.x0 <= x1 && c.z1 >= z0 && c.z0 <= z1)
+          (b: b, x0: c.x0, x1: c.x1, z0: c.z0, z1: c.z1),
+    ];
+    final tops = <double>[];
+    for (var cz = z0; cz <= z1; cz++) {
+      for (var cx = x0; cx <= x1; cx++) {
+        final index = cz * columns + cx;
+        // In the order a whole bake stamps them: by brush.
+        final bucket = <int>[
+          for (final u in under)
+            if (cx >= u.x0 && cx <= u.x1 && cz >= u.z0 && cz <= u.z1) u.b,
+        ];
+        final column = bucket.isEmpty
+            ? null
+            : _column(
+                solid,
+                bucket,
+                originX + (cx + 0.5) * cellSize,
+                originZ + (cz + 0.5) * cellSize,
+                agentHeight,
+                tops,
+              );
+        floor[index] = column?.floor ?? 0.0;
+        headroom[index] = column?.room ?? 0.0;
+      }
+    }
+
+    final grid = NavGrid._(
+      originX: originX,
+      originZ: originZ,
+      cellSize: cellSize,
+      columns: columns,
+      rows: rows,
+      agentHeight: agentHeight,
+      stepHeight: stepHeight,
+      maxFall: maxFall,
+      floor: floor,
+      headroom: headroom,
+      clearance: _clearances(
+        floor,
+        headroom,
+        columns,
+        rows,
+        stepHeight,
+        maxFall,
+      ),
+    );
+    if (jumps != null) grid._jumpLinks.addAll(bakeJumpLinks(grid, jumps));
+    return grid;
+  }
+
   static NavGrid _bakeCells(
     Iterable<Brush> brushes, {
     required double cellSize,
@@ -368,27 +535,13 @@ final class NavGrid {
     // than to the whole level.
     final buckets = List<List<int>>.generate(count, (_) => <int>[]);
     for (var b = 0; b < solid.length; b++) {
-      final brush = solid[b];
-      // A boundary hit exactly is a zero-width overlap, which is not one.
-      final x0 = _clampInt(
-        (((brush.min.x - minX) / cellSize) + Tolerance.gridBias).floor(),
-        0,
-        columns - 1,
-      );
-      final x1 = _clampInt(
-        (((brush.max.x - minX) / cellSize) - Tolerance.gridBias).floor(),
-        0,
-        columns - 1,
-      );
-      final z0 = _clampInt(
-        (((brush.min.z - minZ) / cellSize) + Tolerance.gridBias).floor(),
-        0,
-        rows - 1,
-      );
-      final z1 = _clampInt(
-        (((brush.max.z - minZ) / cellSize) - Tolerance.gridBias).floor(),
-        0,
-        rows - 1,
+      final (:x0, :x1, :z0, :z1) = _cellsUnder(
+        solid[b],
+        minX,
+        minZ,
+        cellSize,
+        columns,
+        rows,
       );
       for (var cz = z0; cz <= z1; cz++) {
         final row = cz * columns;
@@ -410,71 +563,15 @@ final class NavGrid {
 
       final px = minX + (index % columns + 0.5) * cellSize;
       final pz = minZ + (index ~/ columns + 0.5) * cellSize;
-
-      // The surfaces directly underfoot. A brush that merely clips the corner
-      // of this cell is not something you stand on — but it may still be in
-      // the way, which is why the headroom pass below looks at the whole
-      // bucket. Conservative in the direction that matters: a thin wall
-      // crossing a cell blocks it even when no cell centre lands inside it.
-      tops.clear();
-      for (final b in bucket) {
-        final brush = solid[b];
-        if (px < brush.min.x || px >= brush.max.x) continue;
-        if (pz < brush.min.z || pz >= brush.max.z) continue;
-        tops.add(brush.max.y);
-      }
-      if (tops.isEmpty) continue;
-      tops.sort();
-
-      // **Nothing chosen yet is null, not a negative number.** It was −1.0,
-      // and −1.0 is a height: a room whose floor is under the origin — a
-      // sunken basin, a cellar — answered "nothing chosen" at every cell in
-      // it, so the next surface up won instead, and in a room with a ceiling
-      // that is the top of the roof. The grid then said the whole room was
-      // eight metres above where anybody stands, which reads as a level with
-      // no floor in it and nothing else at all.
-      double? chosen;
-      var chosenRoom = 0.0;
-      var enclosed = 0;
-      var previous = double.negativeInfinity;
-
-      for (final top in tops) {
-        if ((top - previous).abs() < Tolerance.sameSurface) continue;
-        previous = top;
-
-        var ceiling = top + maxHeadroom;
-        var blocked = false;
-        for (final b in bucket) {
-          final other = solid[b];
-          // Entirely at or below the surface, including the brush whose top
-          // this is.
-          if (other.max.y <= top + Tolerance.sameSurface) continue;
-          if (other.min.y <= top + Tolerance.sameSurface) {
-            blocked = true;
-            break;
-          }
-          ceiling = math.min(ceiling, other.min.y);
-        }
-        if (blocked) continue;
-
-        final room = ceiling - top;
-        if (room < agentHeight) continue;
-
-        if (room < maxHeadroom) enclosed++;
-        if (chosen == null) {
-          chosen = top;
-          chosenRoom = room;
-        }
-      }
-
-      if (chosen == null) continue;
-      floor[index] = chosen;
-      headroom[index] = chosenRoom;
+      final column = _column(solid, bucket, px, pz, agentHeight, tops);
+      if (column == null) continue;
+      floor[index] = column.floor;
+      headroom[index] = column.room;
 
       // Two *enclosed* surfaces is the case a single height cannot express: a
       // walkway over a floor, both under a ceiling. One enclosed surface plus
       // open sky is just a room with a roof, and there is nothing to report.
-      if (enclosed >= 2) {
+      if (column.enclosed >= 2) {
         ambiguous++;
         firstAmbiguous ??=
             '(${px.toStringAsFixed(2)}, '
@@ -515,6 +612,79 @@ final class NavGrid {
         maxFall,
       ),
     );
+  }
+
+  /// The standing place of the column at ([px], [pz]): its floor, the room
+  /// above it and how many enclosed surfaces it has, or null when nothing
+  /// there can be stood on. [bucket] is the brushes of [solid] that may
+  /// matter to it, and [tops] scratch. One function for [bake] and
+  /// [rebake], so a column rebaked is the column a whole bake makes.
+  static ({double floor, double room, int enclosed})? _column(
+    List<Brush> solid,
+    List<int> bucket,
+    double px,
+    double pz,
+    double agentHeight,
+    List<double> tops,
+  ) {
+    // The surfaces directly underfoot. A brush that merely clips the corner
+    // of this cell is not something you stand on — but it may still be in
+    // the way, which is why the headroom pass below looks at the whole
+    // bucket. Conservative in the direction that matters: a thin wall
+    // crossing a cell blocks it even when no cell centre lands inside it.
+    tops.clear();
+    for (final b in bucket) {
+      final brush = solid[b];
+      if (px < brush.min.x || px >= brush.max.x) continue;
+      if (pz < brush.min.z || pz >= brush.max.z) continue;
+      tops.add(brush.max.y);
+    }
+    if (tops.isEmpty) return null;
+    tops.sort();
+
+    // **Nothing chosen yet is null, not a negative number.** It was −1.0,
+    // and −1.0 is a height: a room whose floor is under the origin — a
+    // sunken basin, a cellar — answered "nothing chosen" at every cell in
+    // it, so the next surface up won instead, and in a room with a ceiling
+    // that is the top of the roof. The grid then said the whole room was
+    // eight metres above where anybody stands, which reads as a level with
+    // no floor in it and nothing else at all.
+    double? chosen;
+    var chosenRoom = 0.0;
+    var enclosed = 0;
+    var previous = double.negativeInfinity;
+
+    for (final top in tops) {
+      if ((top - previous).abs() < Tolerance.sameSurface) continue;
+      previous = top;
+
+      var ceiling = top + maxHeadroom;
+      var blocked = false;
+      for (final b in bucket) {
+        final other = solid[b];
+        // Entirely at or below the surface, including the brush whose top
+        // this is.
+        if (other.max.y <= top + Tolerance.sameSurface) continue;
+        if (other.min.y <= top + Tolerance.sameSurface) {
+          blocked = true;
+          break;
+        }
+        ceiling = math.min(ceiling, other.min.y);
+      }
+      if (blocked) continue;
+
+      final room = ceiling - top;
+      if (room < agentHeight) continue;
+
+      if (room < maxHeadroom) enclosed++;
+      if (chosen == null) {
+        chosen = top;
+        chosenRoom = room;
+      }
+    }
+
+    if (chosen == null) return null;
+    return (floor: chosen, room: chosenRoom, enclosed: enclosed);
   }
 
   /// How much room each cell has around it, as a Chebyshev radius in cells.

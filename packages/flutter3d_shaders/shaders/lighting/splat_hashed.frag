@@ -52,15 +52,7 @@ in vec3 v_world_position;
 
 out vec4 frag_color;
 
-/// The block `splat.frag` declares, for the fog mix it makes.
-uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
-  vec4 fog;
-
-  /// xyz: camera position in world space.
-  vec4 eye;
-}
-fog_info;
+#include <lib/contributor_eye.glsl>
 
 /// `EngineTables.blueNoise`: 32 slices of 64 × 64 in an 8 × 4 atlas.
 uniform sampler2D blue_noise_texture;
@@ -131,7 +123,7 @@ void main() {
   vec3 colour = v_color.rgb;
   if (fog_info.fog.w > 0.0) {
     float visibility = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
     colour = mix(fog_info.fog.rgb, colour, visibility);

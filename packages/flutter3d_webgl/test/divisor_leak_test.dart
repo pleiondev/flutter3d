@@ -59,30 +59,31 @@ final Float32List _perInstance = Float32List.fromList(<double>[
 final Uint16List _indices = Uint16List.fromList(<int>[0, 1, 2]);
 
 /// Position per vertex, colour per instance — the shape mesh particles need.
-final VertexLayoutSpec _instanced = const VertexLayoutSpec(<BufferLayout>[
-  BufferLayout(
-    strideInBytes: 12,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'position', format: VertexFormat.float32x3),
-    ],
-  ),
-  BufferLayout(
-    strideInBytes: 16,
-    stepMode: VertexStepMode.instance,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'color', format: VertexFormat.float32x4),
-    ],
-  ),
-]);
+final VertexLayoutDescriptor _instanced = const VertexLayoutDescriptor(
+  <BufferLayout>[
+    BufferLayout(
+      strideInBytes: 12,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'position', format: VertexFormat.float32x3),
+      ],
+    ),
+    BufferLayout(
+      strideInBytes: 16,
+      stepMode: VertexStepMode.instance,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'color', format: VertexFormat.float32x4),
+      ],
+    ),
+  ],
+);
 
 void main() {
   test('an ordinary draw after an instanced one draws the same picture', () async {
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: 32,
       height: 32,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
 
     final vertex = device.shaders['DebugLineVertex']!;
     final fragment = device.shaders['DebugLine']!;
@@ -109,7 +110,7 @@ void main() {
       bool clearBetween = true,
     }) async {
       final target = device.createTexture(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: 32,
           height: 32,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -160,8 +161,8 @@ void main() {
         ..draw()
         ..submit();
 
-      final pixels = await device.readPixels(target);
-      return pixels!.buffer.asUint8List();
+      final pixels = await device.readback(target);
+      return pixels.buffer.asUint8List();
     }
 
     final alone = await run(precededByInstanced: false);

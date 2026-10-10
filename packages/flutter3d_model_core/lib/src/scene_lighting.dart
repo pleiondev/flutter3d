@@ -4,7 +4,7 @@
 /// **A document value, not a runtime one.** [ProjectLight] mirrors
 /// `LightNode`'s own fields (type, colour, intensity, range, a shadow
 /// request, the two cone angles) but knows nothing about a scene graph — the
-/// same split [ProjectMaterial] keeps from `Material`, and the same reason:
+/// same split [ProjectMaterial] keeps from `RenderMaterial`, and the same reason:
 /// this file has to serialize, journal and undo without a `GraphicsDevice`
 /// anywhere nearby. Pushing a value here onto the actual `LightNode`s and
 /// `RenderSettings` a viewport draws is `LightingSync`'s job
@@ -68,10 +68,13 @@ final class ProjectLight {
   /// Linear RGB, the same space `LightNode.color` is in.
   final Vector3 color;
 
+  /// In the pre-1.0 engine unit: times `Photometric.legacyUnit` it is lux for a
+  /// directional light and candela for a point or spot light.
   final double intensity;
 
   /// Distance at which a point or spot light stops contributing. Zero means
   /// unbounded, matching `LightNode`'s own default.
+  /// In metres.
   final double range;
 
   /// A request, not a promise — see `LightNode.castsShadow`'s own doc
@@ -79,7 +82,10 @@ final class ProjectLight {
   /// that asks.
   final bool castsShadow;
 
+  /// In radians.
   final double innerConeAngle;
+
+  /// In radians.
   final double outerConeAngle;
 
   /// Where the light sits and which way it points, local to the scene's
@@ -114,7 +120,7 @@ final class ProjectLight {
 
 /// Which built-in sky a project's viewport is lit against, as a value rather
 /// than a texture — the project file has no room to carry six cube faces of
-/// its own, and `mat-15`'s own `Material Studio` already established the
+/// its own, and `mat-15`'s own `RenderMaterial Studio` already established the
 /// vocabulary these three names come from.
 ///
 /// **Deliberately three fixed presets and not a general environment
@@ -202,6 +208,7 @@ final class SceneLighting {
 
   /// Matches `RenderSettings.exposure`'s own default, so a project that has
   /// never touched this field draws exactly what it always drew.
+  /// A unitless linear multiplier applied before tone mapping.
   final double exposure;
 
   final ScenePostSettings post;

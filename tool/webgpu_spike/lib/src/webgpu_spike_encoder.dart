@@ -13,6 +13,8 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
@@ -37,7 +39,7 @@ const Map<String, int> spikeAttributeLocations = <String, int>{
 };
 
 /// A pass, recorded and submitted.
-final class WebGpuSpikeEncoder implements CommandEncoder {
+final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   WebGpuSpikeEncoder(this._device, RenderPassDescriptor descriptor)
     : _colorFormats = <String>[
         for (final target in descriptor.colors)
@@ -69,11 +71,11 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
     );
   }
 
-  static GPUColorDict _clearOf(Vector4? colour) => GPUColorDict(
-    r: colour?.x ?? 0.0,
-    g: colour?.y ?? 0.0,
-    b: colour?.z ?? 0.0,
-    a: colour?.w ?? 0.0,
+  static GPUColorDict _clearOf(Vector4? color) => GPUColorDict(
+    r: color?.x ?? 0.0,
+    g: color?.y ?? 0.0,
+    b: color?.z ?? 0.0,
+    a: color?.w ?? 0.0,
   );
 
   final WebGpuSpikeDevice _device;
@@ -139,11 +141,13 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   /// have no WebGPU spelling, and the contract says a backend that answers false
   /// throws from here rather than drawing the term as zero.
   @override
-  void setBlendColor(Vector4 color) => throw UnsupportedError(
-    'this backend answers false to supportsBlendColor: WebGPU has "constant" '
-    'and "one-minus-constant" and no equivalent of CONSTANT_ALPHA, so two of '
-    'the four factors BlendFactor names cannot be formed. See '
-    'webgpuContractGaps.',
+  void setBlendColor(Vector4 color) => throw UnsupportedCapability(
+    DeviceFeature.blendConstant,
+    backend: spikeBackendName,
+    reason:
+        'WebGPU has "constant" and "one-minus-constant" and no equivalent of '
+        'CONSTANT_ALPHA, so two of the four factors BlendFactor names cannot '
+        'be formed. See webgpuContractGaps',
   );
 
   // -------------------------------------------------- accumulated for later
@@ -158,7 +162,11 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   void setWindingOrder(WindingOrder order) => _winding = order;
 
   @override
-  void setDepthWrite(bool enabled) => _depthWrite = enabled;
+  void setDepthWrite({required bool enabled}) => _depthWrite = enabled;
+
+  /// Nothing — `P7`: the spike's device answers false to `supportsAlphaToCoverage`.
+  @override
+  void setAlphaToCoverage({required bool enabled}) {}
 
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
@@ -174,11 +182,19 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
     if (state != null && state.usesBlendColor) {
-      throw UnsupportedError(
-        'this backend answers false to supportsBlendColor, and the state names '
-        'one of the four factors that read the constant. See '
-        'webgpuContractGaps.',
+      throw UnsupportedCapability(
+        DeviceFeature.blendConstant,
+        backend: spikeBackendName,
+        reason:
+            'the state names one of the four factors that read the constant. '
+            'See webgpuContractGaps',
       );
+    }
+    if (state != null && state.usesDualSource) {
+      spikeRefuses(DeviceFeature.dualSourceBlending);
+    }
+    if (state != null && state.usesMinMax) {
+      spikeRefuses(DeviceFeature.minMaxBlend);
     }
     _blend = state;
   }
@@ -188,10 +204,13 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   @override
   void setPolygonMode(PolygonMode mode) {
     if (mode == PolygonMode.fill) return;
-    throw UnsupportedError(
-      'WebGPU cannot draw PolygonMode.line: there is no polygon fill mode in '
-      'the API. Wireframe means line primitives and an index buffer to match, '
-      'which is a decision for the renderer.',
+    throw UnsupportedCapability(
+      DeviceFeature.wireframe,
+      backend: spikeBackendName,
+      reason:
+          'there is no polygon fill mode in WebGPU. Wireframe means line '
+          'primitives and an index buffer to match, which is a decision for '
+          'the renderer',
     );
   }
 
@@ -274,8 +293,31 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
     ShaderHandle shader,
     String slot,
     TextureHandle texture, {
-    SamplerOptions? sampler,
-  }) => throw UnimplementedError(
+    SamplerDescriptor? sampler,
+  }) => switch (sampler) {
+    // Gated first, before anything about the slot: the features a sampler
+    // needs beyond the pre-1.0 ones are refused as such.
+    SamplerDescriptor(compare: final CompareFunction _) =>
+      throw UnsupportedCapability(
+        DeviceFeature.samplerCompare,
+        backend: spikeBackendName,
+        reason: 'a spike, not a backend',
+      ),
+    SamplerDescriptor(borderColor: final SamplerBorderColor _) =>
+      throw UnsupportedCapability(
+        DeviceFeature.samplerBorderColor,
+        backend: spikeBackendName,
+        reason: 'a spike, not a backend',
+      ),
+    SamplerDescriptor(usesExtendedState: true) => throw UnsupportedCapability(
+      DeviceFeature.samplerLodClamp,
+      backend: spikeBackendName,
+      reason: 'a spike, not a backend',
+    ),
+    _ => throw _noSamplerSlot,
+  };
+
+  static UnimplementedError get _noSamplerSlot => UnimplementedError(
     'a sampler slot is a name, and WGSL keeps none: the same gap as '
     'bindUniformBlock, reached from the other side. A null sampler would mean '
     'SamplerOptions.linearRepeat here as everywhere. See webgpuContractGaps.',
@@ -291,7 +333,12 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
   // ------------------------------------------------------------- the draw
 
   @override
-  void draw({int instanceCount = 1}) {
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    final window = indexWindow(
+      _indexCount,
+      firstIndex: firstIndex,
+      indexCount: indexCount,
+    );
     if (instanceCount == 0) return;
     final pipeline = _pipeline;
     if (pipeline == null) {
@@ -309,7 +356,7 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
     }
     _pass
       ..setIndexBuffer(_indexBuffer!, gpuIndexFormat(_indexType))
-      ..drawIndexed(_indexCount, instanceCount);
+      ..drawIndexed(window.count, instanceCount, window.first);
   }
 
   /// The key this draw's state makes, which is also what the pipeline cache is
@@ -405,6 +452,103 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
     return location;
   }
 
+  // ------------------------------------------- the 1.0 surface, refused
+
+  /// [draw], when the base vertex and first instance are zero. WebGPU takes
+  /// both on `drawIndexed`; the spike lists no `baseVertexBaseInstance`, so
+  /// it refuses them rather than dropping them.
+  @override
+  void drawIndexed(IndexedDraw draw) {
+    if (draw.usesBaseVertexOrInstance) {
+      spikeRefuses(DeviceFeature.baseVertexBaseInstance);
+    }
+    this.draw(
+      instanceCount: draw.instanceCount,
+      firstIndex: draw.firstIndex,
+      indexCount: draw.indexCount,
+    );
+  }
+
+  @override
+  void multiDraw(List<IndexedDraw> draws) =>
+      spikeRefuses(DeviceFeature.multiDraw);
+
+  @override
+  void multiDrawIndirect(
+    StorageBuffer arguments,
+    int drawCount, {
+    int offsetInBytes = 0,
+    StorageBuffer? countBuffer,
+    int countOffsetInBytes = 0,
+  }) => spikeRefuses(DeviceFeature.multiDrawIndirect);
+
+  @override
+  void executeBundles(List<RenderBundle> bundles) =>
+      spikeRefuses(DeviceFeature.renderBundles);
+
+  @override
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) =>
+      spikeRefuses(DeviceFeature.pipelineStatisticsQuery);
+
+  @override
+  void endPipelineStatisticsQuery() =>
+      spikeRefuses(DeviceFeature.pipelineStatisticsQuery);
+
+  @override
+  void setDepthBias(DepthBias bias) => spikeRefuses(DeviceFeature.depthBias);
+
+  @override
+  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) =>
+      spikeRefuses(DeviceFeature.colorWriteMask);
+
+  @override
+  void setDepthClamp({required bool enabled}) =>
+      spikeRefuses(DeviceFeature.depthClamp);
+
+  @override
+  bool bindStorageBuffer(
+    ShaderHandle shader,
+    String name,
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) => spikeRefuses(DeviceFeature.renderStageStorage);
+
+  @override
+  bool bindStorageTexture(
+    ShaderHandle shader,
+    String name,
+    TextureHandle texture, {
+    int mipLevel = 0,
+    StorageTextureAccess access = StorageTextureAccess.writeOnly,
+  }) => spikeRefuses(DeviceFeature.renderStageStorage);
+
+  @override
+  bool bindUniformBytes(
+    ShaderHandle shader,
+    String blockName,
+    ByteData bytes,
+  ) => spikeRefuses(DeviceFeature.uniformBytes);
+
+  @override
+  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) =>
+      spikeRefuses(DeviceFeature.indirectDraw);
+
+  @override
+  void drawNonIndexed({
+    required int vertexCount,
+    int firstVertex = 0,
+    int instanceCount = 1,
+    int firstInstance = 0,
+  }) => spikeRefuses(DeviceFeature.nonIndexedDraw);
+
+  @override
+  void beginOcclusionQuery(int queryIndex) =>
+      spikeRefuses(DeviceFeature.occlusionQuery);
+
+  @override
+  void endOcclusionQuery() => spikeRefuses(DeviceFeature.occlusionQuery);
+
   @override
   void submit() {
     if (_submitted) throw StateError('this pass has already been submitted');
@@ -416,4 +560,71 @@ final class WebGpuSpikeEncoder implements CommandEncoder {
     }
     _transient.clear();
   }
+}
+
+/// A transfer pass that opens, as the contract says every one does, and
+/// refuses every copy in it: each is one `GPUCommandEncoder` call a backend
+/// makes, and work the spike was never asked to do.
+final class WebGpuSpikeTransferEncoder extends TransferEncoder {
+  @override
+  void copyBufferToBuffer(
+    StorageBuffer source,
+    int sourceOffset,
+    StorageBuffer destination,
+    int destinationOffset,
+    int size,
+  ) => spikeRefuses(DeviceFeature.bufferCopy);
+
+  @override
+  void clearBuffer(
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) => spikeRefuses(DeviceFeature.bufferCopy);
+
+  @override
+  void copyTextureToTexture(
+    TextureCopyLocation source,
+    TextureCopyLocation destination, {
+    required int width,
+    required int height,
+    int depthOrArrayLayers = 1,
+  }) => spikeRefuses(DeviceFeature.textureCopy);
+
+  @override
+  void copyBufferToTexture(
+    StorageBuffer source,
+    BufferTextureLayout layout,
+    TextureCopyLocation destination, {
+    required int width,
+    required int height,
+    int depthOrArrayLayers = 1,
+  }) => spikeRefuses(DeviceFeature.bufferTextureCopy);
+
+  @override
+  void copyTextureToBuffer(
+    TextureCopyLocation source,
+    StorageBuffer destination,
+    BufferTextureLayout layout, {
+    required int width,
+    required int height,
+    int depthOrArrayLayers = 1,
+  }) => spikeRefuses(DeviceFeature.bufferTextureCopy);
+
+  /// Refused although the spike lists `offscreenMultisample`: a resolve is
+  /// an empty render pass with a `resolveTarget`, and the spike's passes
+  /// resolve nothing. Not a `UnsupportedCapability` for that reason — the
+  /// feature is listed, so this is the spike's own unfinished work.
+  @override
+  void resolveTexture(
+    TextureCopyLocation source,
+    TextureCopyLocation destination,
+  ) => throw UnimplementedError(
+    'ordinary work this spike did not do: an empty pass whose colour '
+    'attachment resolves into the destination.',
+  );
+
+  /// Nothing was recorded, so there is nothing to hand over.
+  @override
+  void submit() {}
 }

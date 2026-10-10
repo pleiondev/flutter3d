@@ -15,7 +15,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'stereo_rig.dart';
 
@@ -54,7 +53,7 @@ void applyLessonStep(
   void showEach(Object? raw, bool visible) {
     if (raw is! List) return;
     for (final name in raw) {
-      if (name is String) nodes[name]?.visible = visible;
+      if (name is String) nodes[name]?.isVisible = visible;
     }
   }
 

@@ -143,7 +143,7 @@ EncodedImage _encodeOne(
 /// The `universal` family — `gfx-83n`.
 ///
 /// The header carries no format, because the blocks are not one: `vkFormat`
-/// is undefined and [kUniversalBlockKey] says which layout they are and
+/// is undefined and [universalBlockKey] says which layout they are and
 /// whether alpha is meaningful in them. The alpha question is answered on the
 /// base level here the same way it is for BC, and for the same reason: a
 /// chain is one thing, and a level whose downsample happened to lose the last
@@ -169,7 +169,7 @@ EncodedImage _encodeUniversal(
       pixelHeight: source.height,
       levels: levels,
       keyValues: <String, String>{
-        kUniversalBlockKey: hasAlpha ? kUniversalBlockRgba : kUniversalBlockRgb,
+        universalBlockKey: hasAlpha ? universalBlockRgba : universalBlockRgb,
       },
     ),
     name: image.name,

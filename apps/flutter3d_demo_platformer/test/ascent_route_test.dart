@@ -54,13 +54,15 @@ void main() {
   test('both keys can be fetched and the summit reached', () {
     final climb = Climb(_ascent);
 
-    // Places worth being, in order. Three of them are not on the walked line
+    // Places worth being, in order. Four of them are not on the walked line
     // and that is the point: the green key is a detour west, and the blue one
-    // is reached over the blocks beside its slot rather than up it.
+    // is reached over the blocks beside its slot and the wall above them
+    // rather than up it.
     final route = <(String, Vector3)>[
       ('the green key', climb.named('the green key')),
       ('the quarry pad', Vector3(-14.0, 6.5, 40.0)),
       ('the blocks beside the slot', Vector3(-7.0, 8.5, 44.0)),
+      ("the top of the slot's wall", Vector3(-3.5, 12.9, 46.0)),
       ('the blue key', climb.named('the blue key')),
       ('the forecourt', Vector3(0.0, 1.0, 72.0)),
       ("the blue gate's plate", climb.named("the blue gate's plate")),
@@ -74,7 +76,20 @@ void main() {
 
     // The summit is not a place to stand near, it is an event: the exit is a
     // volume, and what ends the level is touching it.
-    climb.walkThrough(route, finishAt: 'the summit');
+    //
+    // **The blue key is fetched, not arrived at, and from over the slot.**
+    // The autopilot gets into the slot by wall-jumping up the twelve-metre
+    // wall beside the blocks and dropping over its top, and where it drops is
+    // wherever the jumps' rhythm leaves it. While the legs pushed at 70 m/s²
+    // that happened to be through the key; once they were held to their grip
+    // it was 1.1 m to one side, the runner stood on the slot's floor a metre
+    // and a half under the key, and the route counted that as arriving and
+    // walked on keyless — the mistake `Climb.walkThrough`'s `fetching` was
+    // written for. So the key is fetched, and from the top of that wall,
+    // where a player standing over the slot drops onto it from: a point in
+    // the air over the key was tried first, and the autopilot sailed past it
+    // into the slot just the same.
+    climb.walkThrough(route, finishAt: 'the summit', fetching: 'the blue key');
 
     expect(
       climb.runner.keys,
@@ -117,16 +132,16 @@ void main() {
       final level = _shipped();
       final walls = <Brush>[
         for (final brush in level.brushes)
-          if ((brush.centre.z - 180.0).abs() < 5.0 &&
-              brush.centre.y > 2.0 &&
-              brush.centre.x.abs() > 1.0 &&
-              brush.centre.x.abs() < 12.0)
+          if ((brush.center.z - 180.0).abs() < 5.0 &&
+              brush.center.y > 2.0 &&
+              brush.center.x.abs() > 1.0 &&
+              brush.center.x.abs() < 12.0)
             brush,
       ];
       expect(walls, hasLength(2), reason: 'the chimney is not two walls');
 
       final inner = walls
-          .map((Brush b) => b.centre.x.abs() - b.size.x / 2.0)
+          .map((Brush b) => b.center.x.abs() - b.size.x / 2.0)
           .reduce(math.min);
       expect(
         inner * 2.0,
@@ -143,20 +158,20 @@ void main() {
       final level = _shipped();
       final tops = <Brush>[
         for (final brush in level.brushes)
-          if (brush.centre.x.abs() < 1.0 &&
-              brush.centre.z > 178.0 &&
-              brush.centre.z < 200.0 &&
-              brush.centre.y > 3.0)
+          if (brush.center.x.abs() < 1.0 &&
+              brush.center.z > 178.0 &&
+              brush.center.z < 200.0 &&
+              brush.center.y > 3.0)
             brush,
       ];
       expect(tops, isNotEmpty, reason: 'nothing to jump from or to');
 
       final near = tops
-          .map((Brush b) => b.centre.z + b.size.z / 2.0)
+          .map((Brush b) => b.center.z + b.size.z / 2.0)
           .where((double z) => z < 190.0)
           .reduce(math.max);
       final far = tops
-          .map((Brush b) => b.centre.z - b.size.z / 2.0)
+          .map((Brush b) => b.center.z - b.size.z / 2.0)
           .where((double z) => z > 190.0)
           .reduce(math.min);
 
@@ -230,10 +245,10 @@ void main() {
       0.0,
       for (final brush in climb.level.brushes)
         if (brush.material == 'ice' &&
-            brush.centre.z > 143.0 &&
-            brush.centre.z < 154.0 &&
+            brush.center.z > 143.0 &&
+            brush.center.z < 154.0 &&
             brush.size.x > 6.0)
-          brush.centre.y + brush.size.y / 2,
+          brush.center.y + brush.size.y / 2,
     ]..sort();
 
     expect(tops.length, greaterThan(2), reason: 'the staircase is not there');

@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _lightmapSize = 4;
 
@@ -18,7 +17,7 @@ final class LightmapsDemo extends ShowcaseDemo {
   late final MeshData _floorMesh;
   late final ByteData _lightmapPixels;
   late final TextureHandle _lightmap;
-  late final Material _floor;
+  late final RenderMaterial _floor;
 
   @override
   void configureView(DemoContext context) {
@@ -43,10 +42,10 @@ final class LightmapsDemo extends ShowcaseDemo {
       height: _lightmapSize,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: _lightmapPixels,
-    )!;
-    _floor = Material(
+    );
+    _floor = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       doubleSided: true,
     )..lightmap = _lightmap;
     // #endregion bake

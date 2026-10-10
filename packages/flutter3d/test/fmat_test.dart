@@ -43,7 +43,8 @@ void main() {
       expect(surface.name, 'brushed-steel');
       expect(surface.metallic, 1.0);
       expect(surface.roughness, 0.35);
-      expect(surface.baseColor.r, closeTo(0.6, 1e-6));
+      // `.fmat` writes the colour as authored, sRGB; it is held linear.
+      expect(surface.baseColor.toSrgb().r, closeTo(0.6, 1e-6));
       expect(document.lighting, same(LightingModel.pbr));
 
       final normal = surface.normalTexture!;
@@ -467,14 +468,14 @@ void main() {
       // Mutation: read it anyway — fails here.
       expect(
         () => readFmat(_bytes('{"fmat": 99, "metallic": 1.0}')),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<FmatFormatException>()),
       );
     });
 
     test('and one that never said it was a material', () {
       expect(
         () => readFmat(_bytes('{"metallic": 1.0}')),
-        throwsA(isA<FormatException>()),
+        throwsA(isA<FmatFormatException>()),
       );
       expect(
         isFmat(_bytes('{"metallic": 1.0}')),

@@ -8,7 +8,7 @@
 // byte — and a handful of values written out to the last bit, which a change
 // to the method has to move on purpose.
 
-import 'package:flutter3d_cpu/src/cpu_shaders_color.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/src/portable_root.dart';
 import 'package:test/test.dart';
 

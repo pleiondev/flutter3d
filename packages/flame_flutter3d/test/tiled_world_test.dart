@@ -6,7 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tiled/tiled.dart';
@@ -65,7 +65,7 @@ void main() {
       device: device,
       scene: game.scene,
       plane: BridgePlane.ground(),
-      material: (_) => engine.Material(),
+      material: (_) => engine.RenderMaterial(),
       spawn: (object, at) {
         spawned[object.name] = at.clone();
         return player = PositionComponent(position: at);
@@ -82,7 +82,7 @@ void main() {
     expect(walls.hitboxes, isTrue, reason: 'solid in Tiled');
     expect(walls.children.whereType<RectangleHitbox>(), hasLength(17));
     expect(walls.depth, 0.5);
-    expect(walls.colour!.z, closeTo(1.0, 1e-9), reason: 'its tint');
+    expect(walls.color!.b, closeTo(1.0, 1e-9), reason: 'its tint');
     expect(dots.hitboxes, isFalse);
     expect(dots.grid.count, 6);
     expect(spawned['player'], Vector2(1.5, 1.5));

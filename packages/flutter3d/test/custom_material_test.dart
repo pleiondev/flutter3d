@@ -20,17 +20,16 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 32;
 const int _height = 32;
 
 /// An application's own shading, configured by the application's own uniform.
 ///
-/// Reads `Tint.colour` and writes it. Nothing in the engine knows what `Tint`
+/// Reads `Tint.color` and writes it. Nothing in the engine knows what `Tint`
 /// is or what its member means; the material carries the values and the encoder
 /// binds them by name.
-final class _TintShader implements CpuFragmentShader {
+final class _TintShader extends CpuFragmentShader {
   const _TintShader();
 
   @override
@@ -43,10 +42,10 @@ final class _TintShader implements CpuFragmentShader {
 /// An application's own shading, sampling the application's own texture.
 ///
 /// Reads the slot `ramp_texture`, which is a name no engine shader has and no
-/// engine code knows. The material lists it under [Material.extraTextures] and
+/// engine code knows. The material lists it under [RenderMaterial.extraTextures] and
 /// the encoder binds it there; if the encoder did not, the fallback below is
 /// what a frame would show.
-final class _RampShader implements CpuFragmentShader {
+final class _RampShader extends CpuFragmentShader {
   const _RampShader();
 
   @override
@@ -64,7 +63,7 @@ final class _RampShader implements CpuFragmentShader {
 /// application's is too. On this backend that is Dart; on Impeller it is a
 /// compiled stage in the application's own bundle and on WebGL a source string
 /// it hands the context — three ways to answer the same one-method interface.
-final class _MagentaShader implements CpuFragmentShader {
+final class _MagentaShader extends CpuFragmentShader {
   const _MagentaShader();
 
   @override
@@ -115,7 +114,7 @@ TextureHandle _texel(CpuDevice device, int r, int g, int b) =>
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(<int>[r, g, b, 255])),
-    )!;
+    );
 
 ({CpuDevice device, Scene scene, CameraNode camera}) _wall(
   LightingModel model,
@@ -133,9 +132,9 @@ TextureHandle _texel(CpuDevice device, int r, int g, int b) =>
         device,
         CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+        baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
         lighting: model,
       ),
       name: 'wall',
@@ -143,11 +142,7 @@ TextureHandle _texel(CpuDevice device, int r, int g, int b) =>
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 60.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   scene.add(camera);
@@ -165,19 +160,22 @@ Future<Uint8List> _draw(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     // Tone mapping off, so a shader's output is compared with what it wrote
     // rather than with what a curve made of it.
     settings: const RenderSettings(tonemap: false),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Red, green, blue at the middle of the frame.
-List<int> _centre(Uint8List pixels) {
+List<int> _center(Uint8List pixels) {
   final at = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
   return <int>[pixels[at], pixels[at + 1], pixels[at + 2]];
 }
@@ -203,7 +201,7 @@ void main() {
           device,
           CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'tinted',
           lighting: _tint,
           parameterBlock: 'Tint',
@@ -214,11 +212,7 @@ void main() {
       )..setPosition(0.0, 0.0, -8.0),
     );
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 60.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
     );
     camera.lookAt(Vector3(0.0, 0.0, -1.0));
     scene.add(camera);
@@ -230,7 +224,7 @@ void main() {
       }),
     );
 
-    final rgb = _centre(pixels);
+    final rgb = _center(pixels);
     expect(rgb[1], greaterThan(200), reason: 'the tint it was given is green');
     expect(rgb[0], lessThan(60), reason: 'and not red');
   });
@@ -258,7 +252,7 @@ void main() {
           device,
           CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'ramped',
           lighting: _ramp,
           extraTextures: <String, TextureHandle>{
@@ -268,11 +262,7 @@ void main() {
       )..setPosition(0.0, 0.0, -8.0),
     );
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 60.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 60.0),
     );
     camera.lookAt(Vector3(0.0, 0.0, -1.0));
     scene.add(camera);
@@ -284,7 +274,7 @@ void main() {
       }),
     );
 
-    final rgb = _centre(pixels);
+    final rgb = _center(pixels);
     expect(rgb[2], greaterThan(200), reason: 'the texel it was handed is blue');
     expect(rgb[0], lessThan(20), reason: 'and not white, and not the fallback');
   });
@@ -304,7 +294,7 @@ void main() {
       }),
     );
 
-    final rgb = _centre(pixels);
+    final rgb = _center(pixels);
     expect(rgb[0], greaterThan(200), reason: 'magenta is red');
     expect(rgb[1], lessThan(60), reason: 'and not green');
     expect(rgb[2], greaterThan(200), reason: 'and blue');
@@ -327,7 +317,7 @@ void main() {
       }),
     );
 
-    final rgb = _centre(pixels);
+    final rgb = _center(pixels);
     expect(rgb[0], greaterThan(200));
     expect(rgb[2], greaterThan(200));
   });

@@ -17,8 +17,9 @@ import 'package:flutter3d_core/src/engine/render/debug_draw.dart';
 import 'package:flutter3d_core/src/engine/render/renderer.dart';
 import 'package:flutter3d_core/src/engine/render/sky_settings.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('an argument-less copyWith changes nothing', () {
@@ -30,7 +31,7 @@ void main() {
       exposure: 2.75,
       wireframe: true,
       backfaceCulling: false,
-      debug: const DebugDrawOptions(bounds: true, axes: true),
+      debug: const DebugDrawSettings(bounds: true, axes: true),
       highlighted: highlighted,
       tonemap: false,
       bloom: const BloomSettings(enabled: false, intensity: 0.125),
@@ -43,14 +44,27 @@ void main() {
       showPointShadowDebug: true,
       reflections: const ReflectionSettings(enabled: true),
       ambientOcclusion: const AmbientOcclusionSettings(enabled: true),
-      fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
+      fog: FogSettings(color: LinearColor(0.1, 0.2, 0.3), density: 0.05),
       sky: const SkySettings(enabled: true),
       anisotropy: 8,
       autoExposure: const AutoExposureSettings(enabled: true),
-      xray: XraySettings(color: Vector3(0.9, 0.1, 0.1), layerMask: 4),
+      xray: XraySettings(color: LinearColor(0.9, 0.1, 0.1), layerMask: 4),
+      reflectionProbes: false,
+      renderTextures: false,
+      irradianceUpdates: false,
+      stepsOff: const <RenderStep>{RenderStep.bloom},
     );
 
     final copy = original.copyWith();
+
+    // The three capture switches and the record `RenderSettings.without`
+    // keeps, all added at once.
+    // Mutation: dropping `stepsOff: stepsOff ?? this.stepsOff` from
+    // `copyWith` empties the record, and the last of these fails.
+    expect(copy.reflectionProbes, isFalse);
+    expect(copy.renderTextures, isFalse);
+    expect(copy.irradianceUpdates, isFalse);
+    expect(copy.stepsOff, same(original.stepsOff));
 
     expect(copy.specular, original.specular);
     expect(copy.exposure, original.exposure);
@@ -143,7 +157,7 @@ void main() {
   test('anisotropy below one is refused where it is written', () {
     // Mutation: drop the constructor's assert. Zero then reaches the
     // renderer, which reads it as one tap and draws — the same rule
-    // `SamplerOptions` asserts, held here so the two agree on what a count
+    // `SamplerDescriptor` asserts, held here so the two agree on what a count
     // of taps is.
     expect(() => RenderSettings(anisotropy: 0), throwsAssertionError);
     expect(() => RenderSettings(anisotropy: -4), throwsAssertionError);
@@ -223,7 +237,7 @@ void main() {
     // **One number, two legal ranges, and neither was written down.** The
     // cascade pass clamped to 256–4096 and the cube atlas to 128–1024, in two
     // files, as literals — which reads as one of them being a typo. It is not:
-    // the cube atlas holds six faces of `Renderer.kShadowedLights` lights side
+    // the cube atlas holds six faces of `Renderer.shadowedLights` lights side
     // by side, so the tile size that gives a cascade a 4096-pixel texture would
     // give the atlas a 24,576-pixel one.
     expect(
@@ -253,16 +267,16 @@ void main() {
   test('the atlas the doc quotes is the atlas the constants make', () {
     // **The figures in `cubeResolution`'s doc comment are recountable here.**
     // They were written when the atlas had four rows, and raising
-    // `kShadowedLights` to six left "the atlas holds twenty-four" standing
+    // `shadowedLights` to six left "the atlas holds twenty-four" standing
     // twenty-three lines above "the atlas holds thirty-six" — two sentences
     // about the same texture that cannot both be used. Prose cannot be made to
     // fail; this can.
     //
-    // Mutation: `kShadowedLights = 4` fails every expectation below, which is
+    // Mutation: `shadowedLights = 4` fails every expectation below, which is
     // exactly the edit that made the prose wrong and nothing noticed.
     const settings = ShadowSettings();
     expect(
-      6 * Renderer.kShadowedLights,
+      6 * Renderer.shadowedLights,
       36,
       reason: 'the doc says the atlas holds thirty-six faces',
     );
@@ -272,7 +286,7 @@ void main() {
       reason: 'the doc says the default atlas is 3072 across',
     );
     expect(
-      settings.cubeResolution * Renderer.kShadowedLights,
+      settings.cubeResolution * Renderer.shadowedLights,
       3072,
       reason: 'the doc says it is square at the default, which needs six rows',
     );

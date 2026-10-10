@@ -47,7 +47,7 @@ Offset screenOf(Vector3 world) {
 /// The camera on +Z, looking down -Z, which is where an unrotated node looks.
 PickingView viewLookingAtTheCube() => PickingView(
   camera: CameraNode(
-    projection: PerspectiveProjection(fovYRadians: fovY, near: 0.1, far: 100.0),
+    projection: PerspectiveProjection(fovY: fovY, near: 0.1, far: 100.0),
   )..setPosition(0.0, 0.0, eyeZ),
   size: viewport,
 );

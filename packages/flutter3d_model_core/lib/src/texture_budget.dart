@@ -38,12 +38,12 @@ final class TextureBudget {
 
   /// The widest or tallest a single texture may be — checked against each
   /// image's own `pixelWidth`/`pixelHeight`, the per-image half of the
-  /// budget. [TextureUsage.overs] is built from this.
+  /// budget. [TextureBudgetUsage.overs] is built from this.
   final int maxSide;
 
   /// How many bytes a project's textures may cost in total once every image
   /// is recomputed under [targetFormat] — the aggregate half, checked against
-  /// [TextureUsage.totalBytes] the same way `ProjectProfile.maxTriangles` is
+  /// [TextureBudgetUsage.totalBytes] the same way `ProjectProfile.maxTriangles` is
   /// checked against a project's summed triangle count.
   final int maxBytesOnDevice;
 
@@ -90,8 +90,8 @@ final class TextureBudget {
 
 /// What [measure] found: the project's images, recomputed under one
 /// [TextureBudget].
-final class TextureUsage {
-  const TextureUsage({required this.totalBytes, required this.overs});
+final class TextureBudgetUsage {
+  const TextureBudgetUsage({required this.totalBytes, required this.overs});
 
   /// The sum of every image in `project.images`, each counted once no matter
   /// how many materials sample it — `project.images` is itself the
@@ -120,7 +120,7 @@ final class TextureUsage {
 /// recognises, or truncated) contributes nothing to `totalBytes` and never
 /// appears in `overs` — there is no size to measure it against, the same
 /// answer `textureInfo` gives for the same bytes.
-TextureUsage measure(ModelProject project, TextureBudget budget) {
+TextureBudgetUsage measure(ModelProject project, TextureBudget budget) {
   var totalBytes = 0;
   final overs = <int>[];
   for (var i = 0; i < project.images.length; i++) {
@@ -136,7 +136,7 @@ TextureUsage measure(ModelProject project, TextureBudget budget) {
       overs.add(i);
     }
   }
-  return TextureUsage(totalBytes: totalBytes, overs: overs);
+  return TextureBudgetUsage(totalBytes: totalBytes, overs: overs);
 }
 
 /// [width]×[height] recomputed as if encoded to [format]: a block-layout sum

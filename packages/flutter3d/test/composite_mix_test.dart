@@ -12,11 +12,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// that it never allocates. A source that throws makes that an assertion rather
 /// than something the test takes on trust — and it is why this file needs no
 /// device.
-final class _NoTextures implements FrameTextureSource {
+final class _NoTextures with FrameTextureSource {
   const _NoTextures();
 
   @override
-  TextureHandle acquire(RenderTargetSpec spec) =>
+  TextureHandle acquire(RenderTargetDescriptor spec) =>
       throw StateError('tryTexture must never acquire');
 
   @override
@@ -46,7 +46,7 @@ final class _Pass extends RenderNode {
   final bool isActive;
 
   @override
-  void execute(NodeFrame frame) =>
+  void execute(RenderFrame frame) =>
       throw StateError('this graph is compiled, never run');
 }
 
@@ -194,11 +194,11 @@ void main() {
 
     const scene = _Pass(
       'scene',
-      writes: <ResourceId>[FrameResourceIds.hdrColour],
+      writes: <ResourceId>[FrameResourceIds.hdrColor],
     );
     const composite = _Pass(
       'composite',
-      reads: <ResourceId>[FrameResourceIds.hdrColour],
+      reads: <ResourceId>[FrameResourceIds.hdrColor],
       optionalReads: <ResourceId>[FrameResourceIds.bloom],
       writes: <ResourceId>[FrameResourceIds.frame],
     );
@@ -209,7 +209,7 @@ void main() {
               ..addNode(
                 _Pass(
                   'bloom',
-                  reads: const <ResourceId>[FrameResourceIds.hdrColour],
+                  reads: const <ResourceId>[FrameResourceIds.hdrColor],
                   writes: const <ResourceId>[FrameResourceIds.bloom],
                   isActive: bloom,
                 ),

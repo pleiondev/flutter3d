@@ -12,7 +12,9 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter/widgets.dart' show SizedBox, Widget;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,7 +54,7 @@ CpuDevice _device() => CpuDevice(
 
 InstancedMeshNode _batch() => InstancedMeshNode(
   CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-  Material(),
+  RenderMaterial(),
   capacity: 4,
 );
 
@@ -297,7 +299,10 @@ void main() {
 
   test('seats: the first to claim is player one, and four is the limit', () {
     FlameInputBridge bridge() => FlameInputBridge(
-      bindings: Bindings(<InputSource, GameAction>{}),
+      actions: ActionMap(
+        actions: ActionSet.common,
+        buttons: Bindings(<InputSource, GameAction>{}),
+      ),
       inputState: InputState(),
     );
     final candidates = List<FlameInputBridge>.generate(6, (_) => bridge());
@@ -330,9 +335,12 @@ void main() {
     // Mutation: feed the bridge only from the game's focus.
     const fire = GameAction('fire');
     final input = FlameInputBridge(
-      bindings: Bindings(<InputSource, GameAction>{
-        InputSource.key(LogicalKeyboardKey.space.keyId): fire,
-      }),
+      actions: ActionMap(
+        actions: ActionSet.common,
+        buttons: Bindings(<InputSource, GameAction>{
+          InputSource.key(LogicalKeyboardKey.space.keyId): fire,
+        }),
+      ),
       inputState: InputState(),
     );
     final game = _Game();

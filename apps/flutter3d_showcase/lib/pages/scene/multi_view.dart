@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MultiViewDemo extends ShowcaseDemo {
   bool showLeft = true;
@@ -28,7 +27,10 @@ final class MultiViewDemo extends ShowcaseDemo {
               context.device,
               CuboidShape(size: Vector3.all(1.0)).build(),
             ),
-            Material(name: 'left', baseColor: Vector4(0.2, 0.55, 0.95, 1.0)),
+            RenderMaterial(
+              name: 'left',
+              baseColor: LinearColor.fromSrgb(0.2, 0.55, 0.95, 1.0),
+            ),
             name: 'left cube',
           )
           ..setPosition(-1.4, 0.0, 0.0)
@@ -39,7 +41,10 @@ final class MultiViewDemo extends ShowcaseDemo {
               context.device,
               CuboidShape(size: Vector3.all(1.0)).build(),
             ),
-            Material(name: 'right', baseColor: Vector4(0.95, 0.42, 0.2, 1.0)),
+            RenderMaterial(
+              name: 'right',
+              baseColor: LinearColor.fromSrgb(0.95, 0.42, 0.2, 1.0),
+            ),
             name: 'right cube',
           )
           ..setPosition(1.4, 0.0, 0.0)
@@ -47,12 +52,12 @@ final class MultiViewDemo extends ShowcaseDemo {
     // #endregion layers
 
     _scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.5, 0.6)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.45, 0.5, 0.6)
+      ..ambientIntensity = 0.16 * Photometric.legacyUnit
       ..add(leftCube)
       ..add(rightCube)
       ..add(
-        LightNode(name: 'key', intensity: 3.0)
+        LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
 

@@ -15,6 +15,7 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,7 +26,8 @@ Level _shipped() => Level.fromJson(
       as Map<String, Object?>,
 );
 
-({PlatformerSimulation sim, InputState input}) _stage() {
+({PlatformerSimulation sim, void Function(double dt) step, InputState input})
+_stage() {
   final level = _shipped();
   final world = CollisionWorld();
   level.addTo(world);
@@ -37,7 +39,7 @@ Level _shipped() => Level.fromJson(
     registry: platformerRegistry(),
   );
   world.update();
-  return (sim: staged.sim, input: input);
+  return (sim: staged.sim, step: staged.step, input: input);
 }
 
 /// A route that touches forward movement, jumping and the drop-through key —
@@ -70,7 +72,7 @@ void main() {
     for (var i = 0; i < steps; i++) {
       _play(live.input, i);
       recorder.record(live.input);
-      live.sim.step(_dt);
+      live.step(_dt);
       liveCheckpoints.observe(recorder.tape.steps, live.sim.save().toJson());
       live.input.endStep();
     }
@@ -102,7 +104,7 @@ void main() {
     var replayedSteps = 0;
     while (!playback.isFinished) {
       playback.applyTo(replay.input);
-      replay.sim.step(_dt);
+      replay.step(_dt);
       replayedSteps++;
       replayCheckpoints.observe(replayedSteps, replay.sim.save().toJson());
       replay.input.endStep();

@@ -57,12 +57,10 @@ input.lookDelta;                      // mouse or right stick
 Latched edges are the point: a press that happens between two steps must still be seen by the step that follows, or a jump gets swallowed at a low frame rate. `endStep()` clears the latches.
 
 ```dart
-final devices = DesktopInput(
-  state: input,
-  bindings: DesktopInput.defaultBindings()
-    ..bind(InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
-           PlatformerActions.dropThrough),
-);
+final actions = DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common));
+actions.buttons.bind(InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
+    PlatformerActions.dropThrough);
+final devices = DesktopInput(state: input, actions: actions);
 ```
 
 Your game defines its own actions the same way the built-in ones are defined:
@@ -107,7 +105,7 @@ A level is JSON: brushes, materials, lights, entities, fog, and where to go next
 | Concept | What it is |
 |---|---|
 | `Brush` | An axis-aligned box: centre, size, material, optional `surface` name, optional layer, `solid` |
-| `LevelMaterial` | Base colour, roughness, metallic, emissive, `texelsPerMetre`, and albedo/normal/ORM paths |
+| `LevelMaterial` | Base colour, roughness, metallic, emissive, `texelsPerMeter`, and albedo/normal/ORM paths |
 | `LevelLight` | Type, position, direction, colour, intensity, range, `castsShadow` |
 | `EntityDef` | A `type`, a position, a yaw, a name, and free-form `properties` |
 
@@ -297,7 +295,7 @@ Three decisions, each with an alternative that looks better and is not:
 The grid is a walk: a rise of at most a step, a drop of at most a fall. A platformer is made of everything outside that, and a field over the grid alone reports every pit and every ledge as no way there. A jump link is one extra edge, from a cell at an edge across the cells the walk refuses to a cell on the far side, with the rise and the gap written on it.
 
 ```dart
-actors.navigation = Navigation.bake(level, jumps: JumpReach.of(const MovementTuning()));
+actors.navigation = Navigation.bake(level, jumps: JumpReach.of(const MovementSettings()));
 ```
 
 Links are baked once with the most capable reach a level's bodies have, and a field for a particular body filters them by its own: `JumpReach` is three numbers, jump speed, gravity and running speed, and `gapFor(rise)` is the later root of the flight. A heavy guard with a short hop is never sent across a gap the light one clears. The body's own width is added to every gap, because a link is measured centre to centre between two edge cells and a body's centre stops a radius short of each. `Mind.steerTowardsFocus` follows the route and jumps where the next step is a link, through the same buffered request the player's jump goes through, so a brain that asks every step asks once.
@@ -317,7 +315,7 @@ automap.reveal(player.position);      // each step
 automap.revealAll(player.position);   // a map pickup: everything reachable from here
 ```
 
-Walls are the cells the walk could not enter, not the cells nobody can stand in; the grid calls a roof walkable, because a wall's column has one standing place and it is on top. What was seen goes into the snapshot as runs of bits. `AutomapView` in `flutter3d_game` paints it, centred on the player and turned the way they face, and the dungeon shows it on M with the fight running underneath.
+Walls are the cells the walk could not enter, not the cells nobody can stand in; the grid calls a roof walkable, because a wall's column has one standing place and it is on top. What was seen goes into the snapshot as runs of bits. `AutomapView` in `flutter3d_game_ui` paints it, centred on the player and turned the way they face, and the dungeon shows it on M with the fight running underneath.
 
 ## The ECS, and how far it has got
 
@@ -382,7 +380,7 @@ final rewind = RewindBuffer(stepsPerSecond: 60, history: 3.0, seed: seed);
 loop.recorders.add(rewind.recorder);
 
 // After each step.
-if (rewind.keyframeDue) rewind.keyframe(sim.save());
+if (rewind.isKeyframeDue) rewind.keyframe(sim.save());
 
 // A kill camera: the last three seconds, through the ordinary step.
 final RewindPoint? point = rewind.rewindBy(3.0);

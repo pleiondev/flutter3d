@@ -4,10 +4,12 @@
 /// Flame's collision detection finding two hitboxes overlapping.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flame/collisions.dart' show ShapeHitbox;
 import 'package:flame/components.dart' show TextComponent, Vector2;
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_demo_river/src/course.dart';
 import 'package:flutter3d_demo_river/src/levels.dart';
@@ -219,7 +221,7 @@ void main() {
     game.input.press(RiverGame.fire);
     await _run(game, 60);
     expect(shielded.down, isFalse);
-    expect(shielded.shield.visible, isTrue);
+    expect(shielded.shield.isVisible, isTrue);
     expect(game.lastCrash, Crash.collision);
     expect(game.banner, contains('TANKERS'));
 
@@ -231,7 +233,7 @@ void main() {
     final open = game.bridges.firstWhere((b) => b.section == stage.last);
     expect(game.shielded(open), isFalse);
     await _run(game, 1);
-    expect(open.shield.visible, isFalse);
+    expect(open.shield.isVisible, isFalse);
     for (var i = 0; i < 60 && !open.down; i++) {
       await _run(game, 1);
     }
@@ -363,9 +365,15 @@ void main() {
     // Still on the water, only nearer: it is distance that wakes a target,
     // not the jet being in the air.
     game.jet.position.y = -(mover.plan.distance - RiverGame.wakeRange + 5.0);
-    await _run(game, 60);
+    // The furthest it got rather than where it ended: a mover that meets a
+    // bank turns back, and a second later can be where it started.
+    var furthest = 0.0;
+    for (var i = 0; i < 60; i++) {
+      await _run(game, 1);
+      furthest = math.max(furthest, (mover.position.x - mover.plan.x).abs());
+    }
     expect(mover.awake, isTrue);
-    expect((mover.position.x - mover.plan.x).abs(), greaterThan(0.5));
+    expect(furthest, greaterThan(0.5));
   });
 
   test('every model loads and takes its primitive\'s place', () async {

@@ -30,6 +30,9 @@ dependencies:
     path: ../../packages/flutter3d_game
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
+  # `Portable`, the sine and cosine a turn in the run is built from.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
 
   # The genre. The whole of the game's own vocabulary is here and none of it is
   # in the two above, which is the point stage 5 was making.
@@ -40,9 +43,24 @@ dependencies:
   flutter3d_audio:
     path: ../../packages/flutter3d_audio
 
+  # The physics core the crates are stepped by: C built by its hook for each
+  # target, WebAssembly in the browser. `FLUTTER3D_PHYSICS=dart` at build
+  # time steps them with flutter3d_physics' reference instead.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
+
   # Dust, sparks and the flame on a lamp. One pool, one draw call.
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
+
+  # The core's water, fire and floating wood drawn: the pits a level's
+  # dressing fills, the braziers, and what they sound like.
+  flutter3d_effects:
+    path: ../../packages/flutter3d_effects
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements:
+    path: ../../packages/flutter3d_elements
 
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_game/pubspec.yaml`.
@@ -54,10 +72,38 @@ dependencies:
   # `GameSimulation`.
   flutter_bloc: ^9.1.1
 
+  # The game parts other games use too (`tasks/1.0-addons.md`).
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+  flutter3d_game_kit:
+    path: ../../packages/flutter3d_game_kit
+  flutter3d_game_physics:
+    path: ../../packages/flutter3d_game_physics
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
+  # The audio model: the scene, its emitters and the sound bank.
+  flutter3d_audio_core:
+    path: ../../packages/flutter3d_audio_core
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+  # `soundTableIn`, the repository's check of a sound bank against its
+  # source, which no published package carries.
+  flutter3d_demo_content:
+    path: ../../packages/flutter3d_demo_content
+  # The parity scene's grid, the engine's own test fixture since 1.0.
+  flutter3d_core:
+    path: ../../packages/flutter3d_core
 
   # Real-device e2e: `integration_test/` runs a suite on the actual platform
   # rather than the headless harness `test/` uses — see
@@ -73,6 +119,12 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
+  # `N5`'s `testReplay`: `test/replay_test.dart` replays a recorded run on the
+  # software backend and checks it by digest and by golden.
+  flutter3d_testing:
+    path: ../../packages/flutter3d_testing
+
+
   # `ap-12`: the build hook (`hook/build.dart`) that converts
   # `assets_src/models/*.glb` into `flutter3d_generated/*.f3d` on every
   # build — `path`, the same convention every other sibling package in this
@@ -80,6 +132,10 @@ dev_dependencies:
   # writes for a project outside this repository.
   flutter3d_build:
     path: ../../packages/flutter3d_build
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter:
+    path: ../../packages/flutter3d_matter
 
 flutter:
   uses-material-design: true

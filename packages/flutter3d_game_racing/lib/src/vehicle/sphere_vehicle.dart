@@ -1,9 +1,13 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../layers.dart';
+import '../racing_world.dart' show racingWorld;
 import '../track_field.dart';
 import 'tire_model.dart';
 import 'tyres.dart';
@@ -46,18 +50,18 @@ import 'vehicle_tuning.dart';
 /// angle is the gap between the first two; slip ratio is the gap between the
 /// first and the third. Fuse any pair and the corresponding way of losing grip
 /// stops existing.
-final class SphereVehicle implements VehicleController {
+final class SphereVehicle with VehicleController {
   SphereVehicle({
     required this.world,
     required this.ground,
     required Vector3 position,
     double headingYaw = 0.0,
-    this.tuning = const VehicleTuning(),
-    Tyres? tyres,
+    this.tuning = const VehicleSettings(),
+    TireSet? tireSet,
     int layer = RacingLayers.vehicle,
     int mask = Layers.all,
     Object? userData,
-  }) : tyres = tyres ?? Tyres.road,
+  }) : tireSet = tireSet ?? TireSet.road,
        // ignore: prefer_initializing_formals
        _headingYaw = headingYaw,
        collider = Collider(
@@ -77,9 +81,9 @@ final class SphereVehicle implements VehicleController {
   /// Returns whether they went on. [pitStop] is this and the repairs together,
   /// which is what the game offers a player; this is the half of it a test — or
   /// a game that wants to charge for the two separately — can call on its own.
-  bool fitTyres(Tyres set) {
+  bool fitTires(TireSet set) {
     if (speed > 0.5) return false;
-    tyres = set;
+    tireSet = set;
     return true;
   }
 
@@ -89,16 +93,16 @@ final class SphereVehicle implements VehicleController {
   /// in most of the tests, which is the reason it is an interface.
   final GroundField ground;
 
-  final VehicleTuning tuning;
+  final VehicleSettings tuning;
 
   /// What the car is standing on the road with.
   ///
   /// Not final: a set of tyres is the one part of a car a driver is allowed to
   /// change without building another car, and changing them is a decision the
-  /// game can put a price on. Nothing here is stateful — a [Tyres] is a table
+  /// game can put a price on. Nothing here is stateful — a [TireSet] is a table
   /// of numbers — so swapping one for another mid-race is exactly as safe as
   /// having started on it.
-  Tyres tyres;
+  TireSet tireSet;
 
   /// How broken the car is, from nought to one.
   ///
@@ -110,10 +114,10 @@ final class SphereVehicle implements VehicleController {
   double damage = 0.0;
 
   /// The curve, from the tyres that are on it.
-  TireModel get tires => tyres.model;
+  TireModel get tires => tireSet.model;
 
   /// What each surface is worth to the tyres that are on it.
-  GripTable get grips => tyres.grips;
+  GripTable get grips => tireSet.grips;
 
   @override
   final Collider collider;
@@ -124,28 +128,34 @@ final class SphereVehicle implements VehicleController {
   @override
   final Vector3 velocity = Vector3.zero();
 
+  /// In radians about the vertical.
   @override
   double get headingYaw => _headingYaw;
   double _headingYaw;
 
+  /// In metres per second.
   @override
   double get speed => velocity.length;
 
+  /// In radians.
   @override
   double get slipAngle => _slipAngle;
   double _slipAngle = 0.0;
 
+  /// A ratio from -1 to 1: wheel speed less ground speed, over ground speed.
   @override
   double get slipRatio => _slipRatio;
   double _slipRatio = 0.0;
 
   @override
-  bool get grounded => _grounded;
+  bool get isGrounded => _grounded;
   bool _grounded = false;
 
+  /// The wheels' speed as a 0..1 fraction of the top speed.
   @override
   double get rpm => (_wheelSpeed.abs() / tuning.maxSpeed).clamp(0.0, 1.0);
 
+  /// In metres along the track.
   @override
   double get trackDistance => _ground.s;
 
@@ -173,6 +183,7 @@ final class SphereVehicle implements VehicleController {
 
   /// How fast the driven wheels are turning, as the speed the car would be
   /// doing if they were not slipping.
+  /// In metres per second.
   double get wheelSpeed => _wheelSpeed;
   double _wheelSpeed = 0.0;
 
@@ -268,7 +279,7 @@ final class SphereVehicle implements VehicleController {
     // shooter's own snapshot test caught exactly this about a recoil the
     // day it was added; a car is no different.
     'damage': damage,
-    'tyres': tyres.name,
+    'tyres': tireSet.name,
   };
 
   @override
@@ -285,7 +296,7 @@ final class SphereVehicle implements VehicleController {
     damage = from.number('damage');
     // A name this build no longer ships reads as the set every car starts on,
     // rather than as a crash on the launch after an update.
-    tyres = Tyres.named(from['tyres'] as String?);
+    tireSet = TireSet.named(from['tyres'] as String?);
     // The basis is derived, not saved: it follows from the heading and the
     // ground's normal, and rebuilding it is how a restored car is drawn the
     // right way up on the first frame rather than the second.
@@ -344,7 +355,7 @@ final class SphereVehicle implements VehicleController {
   double _gripLimit() {
     final grip = grips.gripFor(_ground.surface);
     final lean = _normal.y.clamp(0.2, 1.0);
-    return grip * tyres.limit * tuning.gravity * lean;
+    return grip * tireSet.limit * _g * lean;
   }
 
   void _steer(double dt, VehicleInput input) {
@@ -491,7 +502,7 @@ final class SphereVehicle implements VehicleController {
   /// * **rolling resistance** — a flat deceleration against the direction of
   ///   travel, which is what tyres, bearings and a turning transmission cost;
   /// * **a static hold** — below a walking pace, on a slope gentler than
-  ///   [VehicleTuning.holdSlope], the car simply stops. That is the handbrake,
+  ///   [VehicleSettings.holdSlope], the car simply stops. That is the handbrake,
   ///   the gearbox and static friction between them, and it has a ceiling for
   ///   the reason written where the ceiling is: without one it is a handbrake
   ///   that is always on.
@@ -528,7 +539,7 @@ final class SphereVehicle implements VehicleController {
     if (_grounded) {
       // Down the slope, not down the world: the part of gravity that would push
       // the car into the road is held by the road.
-      _gravity.setValues(0.0, -tuning.gravity, 0.0);
+      _gravity.setValues(0.0, -_g, 0.0);
       _gravity.addScaled(_normal, -_gravity.dot(_normal));
       velocity.addScaled(_gravity, dt);
 
@@ -537,7 +548,7 @@ final class SphereVehicle implements VehicleController {
       final into = velocity.dot(_normal);
       if (into < 0.0) velocity.addScaled(_normal, -into);
     } else {
-      velocity.y -= tuning.gravity * dt;
+      velocity.y -= _g * dt;
     }
 
     final speedNow = speed;
@@ -545,7 +556,10 @@ final class SphereVehicle implements VehicleController {
       // Sheltered air is air already moving with the car in front, so it
       // pushes back less. Linear in the shelter rather than in the speed,
       // because what a driver feels is the tow rather than the arithmetic.
-      final drag = tuning.airDrag * (1.0 - input.shelter * tuning.slipstream);
+      final drag =
+          tuning.airDrag *
+          _airShare *
+          (1.0 - input.shelter * tuning.slipstream);
       velocity.addScaled(velocity, -drag * speedNow * dt);
     }
   }
@@ -655,9 +669,9 @@ final class SphereVehicle implements VehicleController {
   /// Half a metre a second rather than nought, because a car resting against a
   /// kerb is never quite still and a rule a player cannot satisfy is a rule
   /// they think is broken.
-  bool pitStop(Tyres set) {
+  bool pitStop(TireSet set) {
     if (speed > 0.5) return false;
-    tyres = set;
+    tireSet = set;
     damage = 0.0;
     return true;
   }
@@ -706,6 +720,27 @@ final class SphereVehicle implements VehicleController {
   final Vector3 _up = Vector3(0.0, 1.0, 0.0);
   final Vector3 _normal = Vector3(0.0, 1.0, 0.0);
   final Vector3 _gravity = Vector3.zero();
+
+  /// How hard the car's world pulls it down, m/s²: the world's gravity
+  /// (`CollisionWorld.properties`), which a race sets ([racingWorld]) and a
+  /// level may override. Read where it is used, so a world changed mid-race
+  /// is the world from that step on.
+  double get _g => world.properties.gravityMagnitude;
+
+  /// The density of what the car drives through over the standard air's: a
+  /// ratio, one in the standard air, by which [VehicleSettings.airDrag]
+  /// scales.
+  double get _airShare {
+    final properties = world.properties;
+    if (properties.medium == 'f3d.air' &&
+        properties.airDensityOverride == null &&
+        properties.airTemperature == standardAirTemperature &&
+        properties.airPressure == standardAtmosphere) {
+      return 1.0;
+    }
+    return properties.mediumDensity(world.materials) / standardAirDensity;
+  }
+
   final Vector3 _delta = Vector3.zero();
   final Vector2 _force = Vector2.zero();
   final SweepHit _hit = SweepHit();

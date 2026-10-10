@@ -19,6 +19,10 @@ Environment=MODELS_ASSETS_DIR=/opt/flutter3d-models/assets
 # service looks for `content/learn/modeler` under its working directory, finds
 # nothing, and serves an empty tutorial without an error.
 Environment=MODELS_LEARN_DIR=/opt/flutter3d-models/learn
+# Editing from /app/ is off: models open to be viewed, and a save-back answers
+# 410. `tool/deploy.sh` reads this line and builds the viewer to match, so
+# turning editing on is `on` here, `systemctl daemon-reload`, and a deploy.
+Environment=MODELS_EDITOR=off
 Restart=on-failure
 RestartSec=5
 # SIGTERM lets uploads in flight finish; after this long they are cut.

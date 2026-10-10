@@ -29,11 +29,11 @@ double _linear(double channel) => channel <= 0.04045
     ? channel / 12.92
     : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
 
-/// The relative luminance of [colour], per WCAG 2.2.
-double luminance(Color colour) =>
-    0.2126 * _linear(colour.r) +
-    0.7152 * _linear(colour.g) +
-    0.0722 * _linear(colour.b);
+/// The relative luminance of [color], per WCAG 2.2.
+double luminance(Color color) =>
+    0.2126 * _linear(color.r) +
+    0.7152 * _linear(color.g) +
+    0.0722 * _linear(color.b);
 
 /// The contrast ratio between [a] and [b], lighter over darker.
 double contrast(Color a, Color b) {

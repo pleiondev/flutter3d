@@ -6,14 +6,27 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/typed_blocks.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show
+        LinearColor,
+        PluginScope,
+        Registration,
+        RenderAnchor,
+        RenderStepRegistry,
+        WorldPosition,
+        orderByConstraints;
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
 import '../scene/camera_node.dart';
+import '../scene/decal_node.dart';
 import '../scene/instanced_mesh_node.dart';
 import '../scene/irradiance_field.dart';
-import '../scene/irradiance_gather.dart' show kIrradianceReach;
+import '../scene/irradiance_gather.dart' show irradianceReach;
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
@@ -21,6 +34,7 @@ import '../scene/morph_state.dart';
 import '../scene/occlusion/hi_z_occlusion.dart';
 import '../scene/occlusion/occlusion_test.dart';
 import '../scene/occlusion/software_occlusion.dart';
+import '../scene/planar_reflector_node.dart';
 import '../scene/projection.dart';
 import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
@@ -29,23 +43,31 @@ import 'cluster_draws.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
+import 'depth_turn.dart';
+import 'draw_journal.dart';
 import 'empty_frame.dart';
+import 'engine_light_units.dart';
 import 'engine_tables.dart';
 import 'field_pass.dart';
 import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_history.dart';
+import 'frame_pacing.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
 import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
 import 'material.dart';
+import 'memory_report.dart';
+import 'mirror_view.dart';
 import 'object_id_frame.dart';
 import 'pass_contributor.dart';
+import 'physical_sky.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
 import 'render_list.dart';
+import 'render_listener.dart';
 import 'render_node.dart';
 import 'render_settings.dart';
 import 'render_view.dart';
@@ -60,23 +82,34 @@ import 'static_bake_key.dart';
 // being the one place that decides what a consumer reaches through.
 //
 // What `Renderer.captureObjectIds` answers with, for the same reason.
+export 'frame_pacing.dart';
 export 'object_id_frame.dart';
+export 'physical_camera.dart';
+export 'render_listener.dart';
 export 'render_settings.dart';
 
 part 'renderer_batch.dart';
 part 'renderer_contributor_lights.dart';
+part 'renderer_debug_view.dart';
+part 'renderer_decal_pass.dart';
+part 'renderer_depth.dart';
 part 'renderer_fog_pass.dart';
 part 'renderer_frame_nodes.dart';
 part 'renderer_irradiance_pass.dart';
 part 'renderer_light_list.dart';
+part 'renderer_material_stages.dart';
+part 'renderer_memory.dart';
 part 'renderer_mesh_encode.dart';
+part 'renderer_outline_pass.dart';
 part 'renderer_pick_pass.dart';
+part 'renderer_planar_pass.dart';
 part 'renderer_post_pass.dart';
 part 'renderer_probe_pass.dart';
 part 'renderer_resources.dart';
 part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_sky_pass.dart';
+part 'renderer_steps.dart';
 part 'renderer_temporal_pass.dart';
 part 'renderer_transmission_pass.dart';
 part 'renderer_transparency_pass.dart';
@@ -140,49 +173,55 @@ const String _kContactShadowTextureSlot = 'contact_shadow_texture';
 ///
 /// One [GraphicsDevice], injected, is the whole of what it knows about a
 /// backend — see [device].
-final class Renderer implements RenderServices {
+final class Renderer with RenderServices {
   Renderer._({
     required this.device,
-    required this.vertexShader,
-    required this.skinnedVertexShader,
-    required this.instancedVertexShader,
-    required this.lightmappedVertexShader,
-    required this.debugLineVertexShader,
-    required this.debugLineFragmentShader,
-    required this.fullscreenVertexShader,
-    required this.bloomThresholdShader,
-    required this.bloomDownsampleShader,
-    required this.bloomUpsampleShader,
-    required this.compositeShader,
-    required this.fxaaShader,
-    required this.reflectionShader,
-    required this.ssaoShader,
-    required this.contactShadowShader,
-    required this.contactShadowResolveShader,
-    required this.cameraVelocityShader,
-    required this.velocityShader,
-    required this.velocityVertexShader,
-    required this.velocitySkinnedVertexShader,
-    required this.velocityInstancedVertexShader,
-    required this.reactiveShader,
-    required this.temporalResolveShader,
-    required this.temporalAccumulateShader,
-    required this.ssaoBlurShader,
-    required this.lightShaftsShader,
-    required this.volumetricFogShader,
-    required this.volumetricFogUpsampleShader,
-    required this.depthOfFieldShader,
-    required this.velocityTileMaxShader,
-    required this.velocityNeighborMaxShader,
-    required this.motionBlurShader,
-    required this.viewportShadeShader,
-    required this.wboitResolveShader,
-    required this.sceneColourCopyShader,
+    required ShaderHandle Function(String name) require,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required TextureHandle fallbackBlack,
     required this.msaaEnabled,
-  }) : targetPool = RenderTargetPool(device),
+    RendererSteps? steps,
+  }) : renderSteps = steps ?? RendererSteps._(),
+       targetPool = RenderTargetPool(device),
+       _vertexShader = require('MeshVertex'),
+       _skinnedVertexShader = require('MeshSkinnedVertex'),
+       _instancedVertexShader = require('MeshInstancedVertex'),
+       _lightmappedVertexShader = require('MeshLightmappedVertex'),
+       _debugLineVertexShader = require('DebugLineVertex'),
+       _debugLineFragmentShader = require('DebugLine'),
+       _fullscreenVertexShader = require('FullscreenVertex'),
+       _bloomThresholdShader = require('BloomThreshold'),
+       _bloomDownsampleShader = require('BloomDownsample'),
+       _bloomUpsampleShader = require('BloomUpsample'),
+       _compositeShader = require('Composite'),
+       _fxaaShader = require('Fxaa'),
+       _reflectionShader = require('Reflections'),
+       _ssaoShader = require('Ssao'),
+       _contactShadowShader = require('ContactShadow'),
+       _contactShadowResolveShader = require('ContactShadowResolve'),
+       _cameraVelocityShader = require('CameraVelocity'),
+       _velocityShader = require('Velocity'),
+       _velocityVertexShader = require('VelocityVertex'),
+       _velocitySkinnedVertexShader = require('VelocitySkinnedVertex'),
+       _velocityInstancedVertexShader = require('VelocityInstancedVertex'),
+       _reactiveShader = require('Reactive'),
+       _temporalResolveShader = require('TemporalResolve'),
+       _temporalAccumulateShader = require('TemporalAccumulate'),
+       _ssaoBlurShader = require('SsaoBlur'),
+       _lightShaftsShader = require('LightShafts'),
+       _volumetricFogShader = require('VolumetricFog'),
+       _volumetricFogUpsampleShader = require('VolumetricFogUpsample'),
+       _depthOfFieldShader = require('DepthOfField'),
+       _velocityTileMaxShader = require('VelocityTileMax'),
+       _velocityNeighborMaxShader = require('VelocityNeighborMax'),
+       _motionBlurShader = require('MotionBlur'),
+       _viewportShadeShader = require('ViewportShade'),
+       _outlineMaskShader = require('OutlineMask'),
+       _highContrastShader = require('HighContrast'),
+       _decalShader = require('Decal'),
+       _wboitResolveShader = require('WboitResolve'),
+       _sceneColourCopyShader = require('SceneColourCopy'),
        // `prefer_initializing_formals` wants `this._fallbackAlbedo` here and
        // Dart will not have it: a named parameter may not be private, so the
        // only way to satisfy the lint is to make the fields public — which is
@@ -196,6 +235,10 @@ final class Renderer implements RenderServices {
        // ignore: prefer_initializing_formals
        _fallbackBlack = fallbackBlack;
 
+  /// Seconds since this renderer was made — `FrameContext.time`.
+  double get _seconds => _age.elapsedMicroseconds / 1e6;
+  final Stopwatch _age = Stopwatch()..start();
+
   /// The backend, injected rather than reached for.
   ///
   /// The renderer names no graphics API at all: it holds one of these and hands
@@ -203,6 +246,14 @@ final class Renderer implements RenderServices {
   /// second backend is a second implementation of this and nothing else, and a
   /// **fake** one is what makes a node's drawing testable off a device.
   final GraphicsDevice device;
+
+  /// Who is told about each frame after [render] has drawn it. Null, the
+  /// default, tells nobody.
+  ///
+  /// For drawing only: see [RenderListener] for why a callback must not
+  /// change the simulation. Called on the frame's own thread, after submit
+  /// and before [render] returns.
+  RenderListener? listener;
 
   /// The stages this renderer can find by name: the application's, then the
   /// backend's bundle.
@@ -213,164 +264,348 @@ final class Renderer implements RenderServices {
   /// application that compiles a stage of its own and hands the library in gets
   /// that stage found first, and needs no entry in any table of this package's.
   ShaderLibrary get shaders => _shaders;
-  late final ShaderLibrary _shaders;
+  late ShaderLibrary _shaders;
 
-  /// What draws alongside the world.
+  /// What [shaders] is built over: `materials` as [Renderer.create] was
+  /// given it, over the backend's bundle.
+  late final ShaderLibrary _baseShaders;
+
+  /// The libraries `renderSteps.addMaterials` added, the latest first.
+  final List<ShaderLibrary> _addedMaterials = <ShaderLibrary>[];
+
+  /// Puts [library] in front of the stages this renderer finds by name —
+  /// `RendererSteps.addMaterials`, which is the public way in, says how.
+  void _addMaterials(ShaderLibrary library) {
+    _addedMaterials
+      ..remove(library)
+      ..insert(0, library);
+    _relayerShaders();
+  }
+
+  /// Takes [library] back out of what [_addMaterials] added.
+  void _removeMaterials(ShaderLibrary library) {
+    if (_addedMaterials.remove(library)) _relayerShaders();
+  }
+
+  void _relayerShaders() {
+    _fragmentShaders.clear();
+    _opaqueStages.clear();
+    _predrawPipelines.clear();
+    _materialVertexShaders.clear();
+    _pipelineCache.clear();
+    _shaders = _addedMaterials.isEmpty
+        ? _baseShaders
+        : ShaderLibraryStack(<ShaderLibrary>[..._addedMaterials, _baseShaders]);
+  }
+
+  /// The one place a frame is extended — render steps of a plugin's or an
+  /// application's own, the passes placed at [RenderAnchor]s, the draws that
+  /// go inside the engine's own passes, and a plugin's own anchors. The
+  /// plugin API's `RenderStepRegistry`, filled.
   ///
-  /// A registry rather than a parameter per feature. `render()` grew one for
-  /// the weapon view model and another for the particles, and fog, decals and
-  /// a debug overlay would each have added a third — a parameter list is a
-  /// registry with no ordering and nothing an application can add to.
-  /// Things that draw inside the scene's pass.
-  final ContributorRegistry contributors = ContributorRegistry();
-
-  /// Things that own a pass of their own.
-  final RenderNodeRegistry nodes = RenderNodeRegistry();
-
-  T addContributor<T extends PassContributor>(T c) => contributors.add(c);
-
-  /// Registers a pass of an application's own, in [phase].
+  /// Handed to the plugin host as one of its registries, it is what a
+  /// plugin's `install` reaches with `host.registry<RendererSteps>()`:
+  /// `EngineLoop(registries: [renderer.renderSteps], plugins: …)`. An
+  /// application with no plugin host adds to it directly. Read at every
+  /// frame's compile, so what is added or withdrawn between frames is in the
+  /// next one. See [RendererSteps].
   ///
-  /// **The phase belongs here rather than only on [nodes].** This is the method
-  /// the render-node seam is documented in terms of, and it took no phase — so
-  /// the one thing [FramePhase] exists to make sayable could only be said by
-  /// reaching past this to `renderer.nodes.add(node, phase: …)`. A caller who
-  /// did not know that got the [FramePhase.overlay] default, which is the
-  /// arrangement `FramePhase.present` was added because it silently fails:
-  /// the pass runs, costs its time, and the composite overwrites it.
-  ///
-  /// Left off, the phase is the node's own [RenderNode.preferredPhase], as it
-  /// is through [RenderNodeRegistry.add]. A default of `overlay` here used to
-  /// override that answer, so `FullscreenEffect.present` registered through
-  /// this method landed before the composite — the exact failure above.
-  T addNode<T extends RenderNode>(T node, {FramePhase? phase}) =>
-      nodes.add(node, phase: phase);
+  /// **The only way in, since 1.0.** `addContributor`, `addNode` with a
+  /// `FramePhase`, and the `nodes` and `contributors` registries went: a pass
+  /// is `renderSteps.addNode`, a draw inside the scene's pass is
+  /// `renderSteps.addContributor`, and each hands back the [Registration]
+  /// that takes it out again.
+  final RendererSteps renderSteps;
 
-  /// Takes a contributor back out, and says whether it was there.
-  ///
-  /// Nothing here calls it: a game built on this engine adds its passes once and
-  /// runs. It is for an application that turns a feature off at run time — an
-  /// editor with a checkbox per pass, or a game dropping a post effect on a
-  /// machine that cannot afford it — where the alternative is rebuilding the
-  /// renderer and losing every resource it holds.
-  bool removeContributor(PassContributor c) => contributors.remove(c);
-
-  /// Takes a node back out, and says whether it was there.
-  ///
-  /// For the same caller as [removeContributor], one node at a time: an editor
-  /// deleting the thing that was selected, which nothing in this repository
-  /// does because nothing here deletes anything mid-frame.
-  bool removeNode(RenderNode node) => nodes.remove(node);
-
-  final ShaderHandle vertexShader;
+  final ShaderHandle _vertexShader;
 
   /// The skinned vertex stage. A separate shader because joints and weights are
   /// vertex attributes, and the layout is taken from the `in`
   /// declarations — so a skinned mesh cannot share a shader with a static one
   /// however similar the body is.
-  final ShaderHandle skinnedVertexShader;
+  final ShaderHandle _skinnedVertexShader;
 
   /// The instanced vertex stage: the standard layout in slot 0 and a
   /// per-instance transform and colour in slot 1. The same varyings and the
-  /// same `FrameInfo` as [vertexShader], so every fragment shader and both
+  /// same `FrameInfo` as [_vertexShader], so every fragment shader and both
   /// shadow passes draw from it unchanged — see `mesh_instanced.vert`.
-  final ShaderHandle instancedVertexShader;
+  final ShaderHandle _instancedVertexShader;
 
   /// The lightmapped vertex stage: the standard layout with the colour read
   /// as the vertex's place in the level's lightmap and the tint held at
-  /// white. The same varyings as [vertexShader] plus the coordinate, which
+  /// white. The same varyings as [_vertexShader] plus the coordinate, which
   /// the other three stages leave at zero — see `mesh_lightmapped.vert`.
-  final ShaderHandle lightmappedVertexShader;
+  final ShaderHandle _lightmappedVertexShader;
 
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
   /// the line buffer has a different vertex layout, and a backend takes the
   /// layout from the shader's `in` declarations.
-  final ShaderHandle debugLineVertexShader;
-  final ShaderHandle debugLineFragmentShader;
+  final ShaderHandle _debugLineVertexShader;
+  final ShaderHandle _debugLineFragmentShader;
 
   /// The post-processing stages. All of them share one vertex shader, because a
   /// full-screen pass differs only in its fragment work.
-  final ShaderHandle fullscreenVertexShader;
-  final ShaderHandle bloomThresholdShader;
-  final ShaderHandle bloomDownsampleShader;
-  final ShaderHandle bloomUpsampleShader;
-  final ShaderHandle compositeShader;
+  final ShaderHandle _fullscreenVertexShader;
+  final ShaderHandle _bloomThresholdShader;
+  final ShaderHandle _bloomDownsampleShader;
+  final ShaderHandle _bloomUpsampleShader;
+  final ShaderHandle _compositeShader;
 
   /// `gfx-04n`: edges smoothed on the composited picture.
-  final ShaderHandle fxaaShader;
+  final ShaderHandle _fxaaShader;
 
   /// The screen-space reflection pass.
-  final ShaderHandle reflectionShader;
+  final ShaderHandle _reflectionShader;
 
   /// The ambient occlusion pass.
-  final ShaderHandle ssaoShader;
+  final ShaderHandle _ssaoShader;
 
   /// The short march toward the light — `gfx-76n`. See `post/contact_shadow.frag`.
-  final ShaderHandle contactShadowShader;
+  final ShaderHandle _contactShadowShader;
 
   /// `post/contact_shadow_resolve.frag`: the march averaged over one window of
   /// its dither pattern, for a frame no temporal resolve smooths.
-  final ShaderHandle contactShadowResolveShader;
+  final ShaderHandle _contactShadowResolveShader;
 
   /// `post/camera_velocity.frag` — `R1`.
-  final ShaderHandle cameraVelocityShader;
+  final ShaderHandle _cameraVelocityShader;
 
   /// `post/velocity.frag` and the three vertex stages that feed it, for
   /// nodes that moved — `R1`.
-  final ShaderHandle velocityShader;
-  final ShaderHandle velocityVertexShader;
-  final ShaderHandle velocitySkinnedVertexShader;
-  final ShaderHandle velocityInstancedVertexShader;
+  final ShaderHandle _velocityShader;
+  final ShaderHandle _velocityVertexShader;
+  final ShaderHandle _velocitySkinnedVertexShader;
+  final ShaderHandle _velocityInstancedVertexShader;
 
   /// `post/reactive.frag` — `R4`: a blended surface marked in the velocity's
   /// blue, through the same three vertex stages.
-  final ShaderHandle reactiveShader;
+  final ShaderHandle _reactiveShader;
 
   /// `post/temporal_resolve.frag` — `R2`.
-  final ShaderHandle temporalResolveShader;
+  final ShaderHandle _temporalResolveShader;
 
   /// `post/temporal_accumulate.frag` — `R3`.
-  final ShaderHandle temporalAccumulateShader;
+  final ShaderHandle _temporalAccumulateShader;
 
   /// The temporal resolve's two histories, at the output's size: one read,
   /// one written, swapped each frame. The renderer's own, like the cube
   /// atlases, because what they hold outlives the frame.
-  final List<TextureHandle?> _history = <TextureHandle?>[null, null];
-  int _historyRead = 0;
+  List<TextureHandle?> get _history => _viewState.history;
+  int get _historyRead => _viewState.historyRead;
+  set _historyRead(int value) => _viewState.historyRead = value;
 
   /// Whether [_history] holds a frame worth blending: false at first, after a
   /// resize, and after a frame drawn with temporal anti-aliasing off.
-  bool _historyValid = false;
+  bool get _historyValid => _viewState.historyValid;
+  set _historyValid(bool value) => _viewState.historyValid = value;
+
+  /// What the frame being drawn remembers from the last one: the state of
+  /// the first view of the [render] call — item 26. Each [RenderView] keeps
+  /// its own, so two views drawn by separate calls (an editor's viewports, a
+  /// texture view drawn as a frame of its own) never blend one another's
+  /// history; a view's is given back when it is disposed.
+  _ViewState _viewState = _ViewState();
+  final Expando<_ViewState> _viewStates = Expando<_ViewState>('view state');
+  final Set<_ViewState> _allViewStates = <_ViewState>{};
+
+  /// How many [render] calls a view's state outlives the last one that drew
+  /// it. A view drawn again within them carries on; past them its textures
+  /// go back to the device and its history is forgotten, so views made
+  /// afresh every frame for several cameras — which no carry can match up —
+  /// cost a few frames of memory rather than a leak. A view drawn again
+  /// after that starts its resolve from nothing, as a new one does.
+  static const int viewIdleFrames = 16;
+
+  _ViewState _stateFor(RenderView view) {
+    final known = _viewStates[view];
+    if (known != null) return _remember(view, known);
+    // A view made afresh for every frame — `views: [RenderView(camera: c)]`
+    // in a build method — is the same view to whoever wrote it. It carries
+    // on the history of the latest view that looked through the same camera
+    // and was not drawn yet this frame, rather than starting the resolve
+    // from nothing every frame; with several cameras drawn by separate
+    // calls, each finds its own. A view kept across frames never needs
+    // this. The state moves rather than being shared: the old view, should
+    // it be drawn again, starts afresh instead of blending the new one's
+    // picture.
+    //
+    // Only a view drawn for the first time takes a state over, and a view
+    // whose state was taken is never taken from again: two stable views of
+    // one camera drawn by separate calls would otherwise hand one state back
+    // and forth every frame and blend each other's pictures.
+    _ViewState? carried;
+    RenderView? from;
+    if (_retiredViews[view] == null) {
+      for (final state in _allViewStates) {
+        final owner = state.view?.target;
+        if (owner == null ||
+            identical(owner, view) ||
+            owner.isDisposed ||
+            _retiredViews[owner] != null ||
+            !identical(owner.camera, view.camera) ||
+            state.lastUsed >= _frameIndex ||
+            !identical(_viewStates[owner], state)) {
+          continue;
+        }
+        if (carried == null || state.lastUsed > carried.lastUsed) {
+          carried = state;
+          from = owner;
+        }
+      }
+    }
+    if (carried != null && from != null) {
+      _viewStates[from] = null;
+      _retiredViews[from] = true;
+      _viewStates[view] = carried;
+      frameHistory.carryView(from, view);
+      return _remember(view, carried);
+    }
+    final state = _ViewState();
+    _viewStates[view] = state;
+    view.whenDisposed(() {
+      if (identical(state.view?.target, view)) _releaseViewState(state);
+    });
+    return _remember(view, state);
+  }
+
+  _ViewState _remember(RenderView view, _ViewState state) {
+    _allViewStates.add(state);
+    state
+      ..lastUsed = _frameIndex
+      ..view = WeakReference<RenderView>(view);
+    return state;
+  }
+
+  /// Gives back the state of every view no [render] call has drawn for
+  /// [viewIdleFrames]. At the top of a frame, before this frame's views are
+  /// looked up.
+  void _evictIdleViewStates() {
+    final idle = <_ViewState>[
+      for (final state in _allViewStates)
+        if (_frameIndex - state.lastUsed > viewIdleFrames) state,
+    ];
+    for (final state in idle) {
+      final view = state.view?.target;
+      if (view != null) {
+        if (identical(_viewStates[view], state)) _viewStates[view] = null;
+        _retiredViews[view] = true;
+        frameHistory.forgetView(view);
+      }
+      _releaseViewState(state);
+    }
+  }
+
+  void _releaseViewState(_ViewState state) {
+    for (final texture in <TextureHandle?>[
+      ...state.history,
+      for (final effect in state.effects.values) ...effect.textures,
+    ]) {
+      if (texture != null) releaseTextureAfterFrame(texture);
+    }
+    state.effects.clear();
+    state.history
+      ..[0] = null
+      ..[1] = null;
+    state.historyValid = false;
+    _allViewStates.remove(state);
+  }
+
+  /// Views whose state another view took over or that went idle: drawn
+  /// again, they start afresh and take nothing over.
+  final Expando<bool> _retiredViews = Expando<bool>('retired view');
+
+  /// The scene origin the last frame was drawn at, for `Scene.shiftOrigin`
+  /// between frames: see [_followOrigin].
+  WorldPosition? _lastOrigin;
+
+  /// The cutoff this frame's hashed materials are drawn with, carrying the
+  /// scene's origin for their noise — see [_hashedCutoffAt].
+  double _hashedCutoff = -2.0;
+
+  /// The cutoff a hashed material is drawn with while the scene's origin is
+  /// [origin] — readiness review §2.1.14.
+  ///
+  /// **Hashed noise is anchored on the world, so it has to know the
+  /// origin**, and the stages see only scene space: a `Scene.shiftOrigin`
+  /// moved every surface's scene position and re-rolled every leaf's
+  /// pattern in that frame. The noise is periodic over 128 of its cells
+  /// (eight metres) on each axis, so the origin only matters in those cells:
+  /// three numbers below 128, packed into one integer below 2^21 and carried
+  /// below the -2 that already says "hashed" — `FragInfo.material2.x` and
+  /// `PredrawInfo.mask.x` — rather than in a member added to blocks four
+  /// backends lay out alike. Every value involved is an integer a float32
+  /// holds exactly, and so is the unpacking in `HashedAlphaNoise`.
+  ///
+  /// An origin on a sixteenth of a metre (`Scene.rebaseAround` keeps whole
+  /// metres) keeps the pattern exactly; one between moves it by part of a
+  /// cell.
+  static double _hashedCutoffAt(WorldPosition origin) {
+    int cell(double metres) => (metres * 16.0).floor() % 128;
+    return -2.0 -
+        (cell(origin.x) * 16384 + cell(origin.y) * 128 + cell(origin.z));
+  }
+
+  /// Carries what this renderer keeps from earlier frames across a
+  /// `Scene.shiftOrigin` — item 18. The scene moved its nodes (and its
+  /// irradiance field) by the shift; [frameHistory] moves what it recorded
+  /// the same way when it is read, so the velocity of a floating origin is
+  /// nothing and the resolve does not smear; and the occlusion reading, a
+  /// picture of depths in the old space, is dropped rather than reprojected
+  /// into the new one, as a cut drops it. The shadow bakes key on their
+  /// matrices or are relative to their lights, and follow by themselves.
+  void _followOrigin(Scene scene) {
+    final origin = scene.origin;
+    frameHistory.origin = origin;
+    _hashedCutoff = _hashedCutoffAt(origin);
+    final last = _lastOrigin;
+    _lastOrigin = origin;
+    if (last == null ||
+        (last.x == origin.x && last.y == origin.y && last.z == origin.z)) {
+      return;
+    }
+    if (_hiZ case final hiZ?) {
+      hiZ.reset();
+      _hiZEpoch++;
+    }
+  }
 
   /// `gfx-32n`'s depth-aware blur over what that pass produced.
-  final ShaderHandle ssaoBlurShader;
+  final ShaderHandle _ssaoBlurShader;
 
   /// `gfx-33n`'s volumetric shafts through the directional shadow map.
-  final ShaderHandle lightShaftsShader;
+  final ShaderHandle _lightShaftsShader;
 
   /// `S4`'s half-resolution march through the air, and the depth-aware pass
   /// that lays it over the scene.
-  final ShaderHandle volumetricFogShader;
-  final ShaderHandle volumetricFogUpsampleShader;
+  final ShaderHandle _volumetricFogShader;
+  final ShaderHandle _volumetricFogUpsampleShader;
 
   /// `gfx-34n`'s thin lens and its gather.
-  final ShaderHandle depthOfFieldShader;
+  final ShaderHandle _depthOfFieldShader;
 
   /// `R6`'s motion blur: the tile search, walked once per axis, the
   /// neighbourhood over the tiles, and the gather.
-  final ShaderHandle velocityTileMaxShader;
-  final ShaderHandle velocityNeighborMaxShader;
-  final ShaderHandle motionBlurShader;
+  final ShaderHandle _velocityTileMaxShader;
+  final ShaderHandle _velocityNeighborMaxShader;
+  final ShaderHandle _motionBlurShader;
 
   /// `gfx-43n`/`44n`/`45n`'s three branches over the surface buffer.
-  final ShaderHandle viewportShadeShader;
+  final ShaderHandle _viewportShadeShader;
+
+  /// `N9`'s marks, drawn through the velocity vertex stages, and the
+  /// high-contrast look over the finished picture.
+  final ShaderHandle _outlineMaskShader;
+  final ShaderHandle _highContrastShader;
+
+  /// `P3`'s projected decals, read out of the surface and albedo buffers.
+  final ShaderHandle _decalShader;
 
   /// `R8`'s resolve: the transparent layers' weighted average, laid over the
   /// scene.
-  final ShaderHandle wboitResolveShader;
+  final ShaderHandle _wboitResolveShader;
 
   /// `M3`'s copy: one level of the scene behind the transmissive draws.
-  final ShaderHandle sceneColourCopyShader;
+  final ShaderHandle _sceneColourCopyShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -421,7 +656,7 @@ final class Renderer implements RenderServices {
   /// Made on demand, once, and only where cubes exist.
   TextureHandle? _environmentFallback(GraphicsDevice device) {
     if (_fallbackEnvironment != null) return _fallbackEnvironment;
-    if (!device.supportsCubeTextures) return null;
+    if (!device.features.has(DeviceFeature.cubeTextures)) return null;
     final face = ByteData(4);
     return _fallbackEnvironment = device.createCubeTextureFromPixels(
       size: 1,
@@ -478,6 +713,8 @@ final class Renderer implements RenderServices {
   void dispose() {
     _pipelineCache.clear();
     _fragmentShaders.clear();
+    _opaqueStages.clear();
+    _predrawPipelines.clear();
     _clusterDraws?.dispose();
     _clusterDraws = null;
 
@@ -517,8 +754,13 @@ final class Renderer implements RenderServices {
       _wboitRevealage,
       _wboitDepth,
       ..._ldrFrames,
-      ..._history,
-      for (final effect in _effectHistories.values) ...effect.textures,
+      for (final state in <_ViewState>{
+        _viewState,
+        ..._allViewStates,
+      }) ...<TextureHandle?>[
+        ...state.history,
+        for (final effect in state.effects.values) ...effect.textures,
+      ],
       _irradianceAtlas,
       _irradianceGpu?.atlas.current,
       _irradianceGpu?.radiance,
@@ -526,11 +768,13 @@ final class Renderer implements RenderServices {
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
-    _effectHistories.clear();
-    _history
-      ..[0] = null
-      ..[1] = null;
-    _historyValid = false;
+    for (final state in <_ViewState>{_viewState, ..._allViewStates}) {
+      state.effects.clear();
+      state.history
+        ..[0] = null
+        ..[1] = null;
+      state.historyValid = false;
+    }
     _hdrColor = null;
     _hdrMsaa = null;
     _surfaceColor = null;
@@ -545,6 +789,9 @@ final class Renderer implements RenderServices {
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
+    // A held frame would hand back a texture just released.
+    _lastResult = null;
+    _lastRequestedSize = null;
     _targetWidth = 0;
     _targetHeight = 0;
     _frameTargetWidth = 0;
@@ -571,10 +818,13 @@ final class Renderer implements RenderServices {
         probe.capture,
         probe.filtered,
       ],
+      for (final planar in _planarStates.values) ...planar.textures,
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
     _probeStates.clear();
+    _planarStates.clear();
+    _planarMaterial.extraTextures.clear();
     _fallbackAlbedo = null;
     _fallbackNormal = null;
     _fallbackBlack = null;
@@ -638,7 +888,93 @@ final class Renderer implements RenderServices {
   /// frame while [FrameHistory.tracking] is on, and read during the next.
   final FrameHistory frameHistory = FrameHistory();
 
-  static const int _kFramesInFlight = 3;
+  /// The depth of the deferred-release rings: the most frames that may be in
+  /// flight, whatever [pacing] allows — see [FramePacing.maxFramesInFlight].
+  static const int _kFramesInFlight = FramePacing.maxFramesInFlight;
+
+  /// How far this renderer lets the CPU run ahead of the GPU, and which
+  /// pipeline builds it reports — `A1.4`, `A1.7`. Read at the top of each
+  /// [render]; change it between frames.
+  FramePacing pacing = const FramePacing();
+
+  /// Frames [render] held rather than drew because [pacing]'s frames in
+  /// flight were all unfinished — `A1.4`. Cumulative.
+  int get heldFrames => _heldFrames;
+  int _heldFrames = 0;
+
+  /// Frames submitted whose completion the device has not reported yet —
+  /// for a frame overlay's pacing line beside [heldFrames], and for
+  /// `frame_pacing_test.dart`, which holds a frame on it.
+  int get unfinishedFrames => _unfinished.length;
+
+  /// The [frameIndex] of each of [unfinishedFrames], and the latest of them
+  /// submitted.
+  final Set<int> _unfinished = <int>{};
+  int _latestSubmitted = -1;
+
+  /// Whether [pacing]'s frames in flight are all unfinished.
+  ///
+  /// **The latest frame is not counted.** Impeller learns a frame is complete
+  /// only once the next frame begins, so the frame just submitted is always
+  /// unfinished here, and counting it would hold a renderer with one frame in
+  /// flight for ever. What is counted is the frames before it, which the GPU
+  /// finishes in order: with three in flight, frame N + 1 waits while N − 1
+  /// and N − 2 are both unfinished, which is when it would share N − 2's slot
+  /// of every per-frame ring. One frame in flight therefore behaves as two.
+  bool get _gpuIsBehind {
+    final older = _unfinished.where((f) => f != _latestSubmitted).length;
+    return older >= math.max(pacing.framesInFlight - 1, 1);
+  }
+
+  /// What the last drawn frame answered, for a held frame to answer again,
+  /// with the output size it was asked for.
+  FrameResult? _lastResult;
+  (int, int)? _lastRequestedSize;
+
+  /// Pipeline builds over [FramePacing.stallThreshold] during the frame
+  /// being drawn — `A1.7`. Emptied at the top of each [render].
+  final List<PipelineStall> _frameStalls = <PipelineStall>[];
+
+  /// Every pipeline stall since this renderer was made, oldest first, at
+  /// most [stallLogLength] of them — for a report after the fact, where a
+  /// frame's own list has gone with the frame.
+  List<PipelineStall> get pipelineStalls =>
+      List<PipelineStall>.unmodifiable(_stallLog);
+  final List<PipelineStall> _stallLog = <PipelineStall>[];
+
+  /// How many [pipelineStalls] are kept.
+  static const int stallLogLength = 64;
+
+  /// Builds a material pipeline through [build], timing it, and records a
+  /// [PipelineStall] when it took [FramePacing.stallThreshold] or more.
+  /// Builds inside [warmUp] are where builds belong, and are not stalls.
+  PipelineHandle _timedBuild(
+    PipelineHandle Function() build, {
+    required String material,
+    required String? vertexShader,
+    required PipelineGeometry geometry,
+    required bool opaque,
+  }) {
+    final clock = Stopwatch()..start();
+    final pipeline = build();
+    clock.stop();
+    if (!_warmingUp &&
+        clock.elapsedMicroseconds >= pacing.stallThreshold.inMicroseconds) {
+      final stall = PipelineStall(
+        material: material,
+        vertexShader: vertexShader,
+        geometry: geometry,
+        opaque: opaque,
+        micros: clock.elapsedMicroseconds,
+        frame: _frameIndex,
+      );
+      _frameStalls.add(stall);
+      _stallLog.add(stall);
+      if (_stallLog.length > stallLogLength) _stallLog.removeAt(0);
+      developer.log('$stall', name: 'flutter3d.pipelineStall');
+    }
+    return pipeline;
+  }
 
   final RenderList _renderList = RenderList();
 
@@ -657,7 +993,7 @@ final class Renderer implements RenderServices {
   void Function(DebugDraw lines)? debugLines;
 
   /// The scene's lights, repacked once per view.
-  final LightBuffer lights = LightBuffer();
+  final LightBuffer _frameLights = LightBuffer();
 
   /// The scene [lights] was last gathered from — the world scene of the frame
   /// being drawn. [encodeScene] compares against it: a contributor drawing the
@@ -701,6 +1037,8 @@ final class Renderer implements RenderServices {
   final PrevFrameInfoBlock _prevFrameInfo = PrevFrameInfoBlock();
   final VelocityInfoBlock _velocityInfo = VelocityInfoBlock();
   final ReactiveInfoBlock _reactiveInfo = ReactiveInfoBlock();
+  final OutlineMaskInfoBlock _outlineMaskInfo = OutlineMaskInfoBlock();
+  final HighContrastInfoBlock _highContrastInfo = HighContrastInfoBlock();
   final TemporalInfoBlock _temporalInfo = TemporalInfoBlock();
   final NoiseInfoBlock _noiseInfo = NoiseInfoBlock();
   final AccumulateInfoBlock _accumulateInfo = AccumulateInfoBlock();
@@ -711,8 +1049,7 @@ final class Renderer implements RenderServices {
   bool _temporalEffects = false;
 
   /// The noisy effects' histories, by the resource each one smooths — `R3`.
-  final Map<ResourceId, _EffectHistory> _effectHistories =
-      <ResourceId, _EffectHistory>{};
+  Map<ResourceId, _EffectHistory> get _effectHistories => _viewState.effects;
 
   /// The texture every noise-reading effect binds this frame, with
   /// [_noiseInfo] filled to match — `R3`. The engine's blue noise while
@@ -736,12 +1073,40 @@ final class Renderer implements RenderServices {
   final LayerInfoBlock _layerInfo = LayerInfoBlock();
   final SceneCopyInfoBlock _sceneCopyInfo = SceneCopyInfoBlock();
   final FrameInfoBlock _frameInfo = FrameInfoBlock();
+
+  /// The material language's vertex stages' and scene-depth readers' own
+  /// blocks — item 9 of `tasks/1.0-scope-additions.md`. See
+  /// `renderer_material_stages.dart`.
+  final _MaterialVertexInfoBlock _materialVertexInfo =
+      _MaterialVertexInfoBlock();
+  final _SceneDepthInfoBlock _sceneDepthInfo = _SceneDepthInfoBlock();
+
+  /// The surface buffer while the pass that draws the surfaces reading the
+  /// scene behind them is open — `LightingModel.usesSceneDepth` — and null
+  /// everywhere else, where such a surface reads a black one: the sky.
+  TextureHandle? _sceneDepthRead;
   final IdInfoBlock _idInfo = IdInfoBlock();
   final LineInfoBlock _lineInfo = LineInfoBlock();
   final SkinInfoBlock _skinInfo = SkinInfoBlock();
   final FragCoordInfoBlock _fragCoordInfo = FragCoordInfoBlock();
   final FragInfoBlock _fragInfo = FragInfoBlock();
+
+  /// The frame's debug views as `FragInfo.debug_view` carries them — the
+  /// right view, the wipe's column, the left view — kept apart from the
+  /// block because a subtree with a view of its own overwrites the block per
+  /// draw. See `renderer_debug_view.dart`.
+  final Float32List _debugFrame = Float32List(3);
+
+  /// Whether a draw this frame showed a subtree's own channel, which the
+  /// composite then passes through on both sides of the wipe.
+  bool _debugSubtreeShown = false;
+
+  /// Whether the draws being encoded keep the light whatever the views say —
+  /// a reflection or a probe capture, which run before the scene pass.
+  bool _debugSuppressed = false;
   final FxaaInfoBlock _fxaaInfo = FxaaInfoBlock();
+  final SmaaInfoBlock _smaaInfo = SmaaInfoBlock();
+  final LensFlareInfoBlock _lensFlareInfo = LensFlareInfoBlock();
   final EasuInfoBlock _easuInfo = EasuInfoBlock();
   final LocalExposureInfoBlock _localExposureInfo = LocalExposureInfoBlock();
   final LocalExposureBlurInfoBlock _localExposureBlurInfo =
@@ -756,6 +1121,7 @@ final class Renderer implements RenderServices {
   final ProbeInfoBlock _probeInfo = ProbeInfoBlock();
   final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
+  final DecalInfoBlock _decalInfo = DecalInfoBlock();
   final ShadowLightBlock _shadowLight = ShadowLightBlock();
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
   final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
@@ -806,6 +1172,28 @@ final class Renderer implements RenderServices {
   Float32List get _probeParams => _probeInfo.params;
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
+
+  /// The planar reflectors this renderer has drawn, by node: a picture per
+  /// view, kept across frames — see `renderer_planar_pass.dart`.
+  final Map<PlanarReflectorNode, _PlanarState> _planarStates =
+      <PlanarReflectorNode, _PlanarState>{};
+
+  /// What a reflector's surfaces are drawn again with: its picture, its view
+  /// and its reflectance, written per reflector, and the surface's own
+  /// sidedness written per draw. Held for the x-ray materials' reason.
+  final PlanarReflectionInfoBlock _planarInfo = PlanarReflectionInfoBlock();
+  late final RenderMaterial _planarMaterial = RenderMaterial(
+    name: 'planar reflection',
+    lighting: LightingModel.planarReflection,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+    parameterBlock: _planarInfo.name,
+    parameters: _planarInfo.members,
+    extraTextures: <String, TextureHandle>{},
+  );
+
+  /// A render texture's exposure, for the encode into its bytes.
+  final RenderTextureInfoBlock _renderTextureInfo = RenderTextureInfoBlock();
 
   PipelineHandle? _debugLinePipeline;
 
@@ -865,7 +1253,7 @@ final class Renderer implements RenderServices {
   /// look. The fragment-stage cache goes with them, because a stage the
   /// reloaded bundle newly answers has to be looked up again to be found.
   ///
-  /// The resolved vertex stages the renderer holds — `vertexShader` and its
+  /// The resolved vertex stages the renderer holds — `_vertexShader` and its
   /// siblings — are not re-resolved; they do not need to be, since their
   /// handles are the same objects after a reload. What this cannot do is pick
   /// up a stage a bundle *newly* lists under a name the renderer resolved to
@@ -873,11 +1261,16 @@ final class Renderer implements RenderServices {
   /// renderer to reload.
   ///
   /// Contributors keep their own pipelines — `ParticleContributor` links once
-  /// and holds — and are not reached from here; a contributor that wants to
-  /// follow a reload exposes its own way to drop what it linked.
+  /// and holds — so each is asked to drop what it linked, through
+  /// [PassContributor.relinkShaders].
   void relinkShaders() {
+    for (final contributor in renderSteps._store.contributors.all) {
+      contributor.relinkShaders();
+    }
     _pipelineCache.clear();
     _fragmentShaders.clear();
+    _opaqueStages.clear();
+    _predrawPipelines.clear();
     _fullscreenPipelines.clear();
     _debugLinePipeline = null;
     _shadowPipeline = null;
@@ -896,6 +1289,7 @@ final class Renderer implements RenderServices {
     _probePrefilterPipeline = null;
     _skyPipeline = null;
     _skyCubePipeline = null;
+    _skyPhysicalPipeline = null;
     _cubeShadowPipeline = null;
     _skinnedCubeShadowPipeline = null;
     _instancedCubeShadowPipeline = null;
@@ -904,6 +1298,19 @@ final class Renderer implements RenderServices {
   }
 
   final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
+
+  /// Each lighting model's opaque variant — `A1.2` — or null where no
+  /// library has one, kept so a missing one is asked about once.
+  final Map<String, ShaderHandle?> _opaqueStages = <String, ShaderHandle?>{};
+
+  /// The depth pre-draw's pipelines — `A1.2`, `A1.3` — one per vertex stage,
+  /// since the pre-draw must put every vertex exactly where the lit draw
+  /// after it does.
+  final Map<ShaderHandle, PipelineHandle> _predrawPipelines =
+      <ShaderHandle, PipelineHandle>{};
+
+  /// What the pre-draw is told: the cut, the alpha, the share, the bias.
+  final PredrawInfoBlock _predrawInfo = PredrawInfoBlock();
 
   /// Vertex stages a material brought with it, by entry point — `gfx-75n`.
   ///
@@ -938,7 +1345,21 @@ final class Renderer implements RenderServices {
   ///
   /// `Flutter3dSurface` calls it from `didHaveMemoryPressure`. An application
   /// that owns its own renderer calls it from wherever its platform says.
-  void releaseTransientTargets() => targetPool.trim();
+  ///
+  /// **Returns the bytes it handed back** — `A5.24` — as
+  /// `TextureHandle.estimatedBytes` counts them: the free targets only, since
+  /// the lent ones go when their frame releases them.
+  int releaseTransientTargets() => targetPool.trim();
+
+  /// What this renderer holds on the device, by category — `A5.24`:
+  /// textures, buffers, render targets, meshes, and shaders with their
+  /// pipelines. See [MemoryReport] for what is counted and how.
+  ///
+  /// [scene] adds what it draws — its meshes and its materials' textures —
+  /// which the renderer does not hold and so cannot list on its own.
+  /// Cheap enough for a tool to call every second, and allocates only the
+  /// report: nothing is read back from the device.
+  MemoryReport memoryReport({Scene? scene}) => _buildMemoryReport(scene);
 
   /// Called with every pooled target of a [render] frame at the moment its
   /// lifetime in the frame ends — `H7`. Null, and so nothing, by default.
@@ -947,7 +1368,7 @@ final class Renderer implements RenderServices {
   /// callback that fills the texture with garbage makes a pass that reads a
   /// resource after its last declared use, or loads a target it never wrote,
   /// show up as a changed picture.
-  void Function(TextureHandle texture)? debugOnTargetRetired;
+  void Function(TextureHandle texture)? _debugOnTargetRetired;
 
   int _targetWidth = 0;
   int _targetHeight = 0;
@@ -1097,13 +1518,13 @@ final class Renderer implements RenderServices {
   /// Nothing in the blend state could take that back: it protects attachment
   /// zero, and only on the backends whose `setBlend` honours an attachment
   /// index. `xray.frag` declares no second output at all.
-  final Material _xrayMark = Material(
+  final RenderMaterial _xrayMark = RenderMaterial(
     name: 'x-ray mark',
     lighting: LightingModel.xray,
     depthWrite: false,
     depthCompare: CompareFunction.lessEqual,
   );
-  final Material _xraySilhouette = Material(
+  final RenderMaterial _xraySilhouette = RenderMaterial(
     name: 'x-ray silhouette',
     lighting: LightingModel.xray,
     depthWrite: false,
@@ -1125,6 +1546,47 @@ final class Renderer implements RenderServices {
   PipelineHandle? _maskedCubeShadowPipeline;
   PipelineHandle? _skinnedMaskedCubeShadowPipeline;
   PipelineHandle? _instancedMaskedCubeShadowPipeline;
+
+  /// The same three once more, against `ShadowTransmittance`: see-through
+  /// casters writing what they let through into the sun's atlas —
+  /// `ShadowSettings.translucentCasters`. Never built while it is off.
+  PipelineHandle? _transmittanceShadowPipeline;
+  PipelineHandle? _skinnedTransmittanceShadowPipeline;
+  PipelineHandle? _instancedTransmittanceShadowPipeline;
+
+  /// A see-through caster's colour, opacity, transmission and head-on
+  /// reflectance, and the way to the light, for `ShadowTransmittance`.
+  final TransmittanceInfoBlock _transmittanceInfo = TransmittanceInfoBlock();
+
+  /// `ShadowSettings.caustics`: a refracting caster's faces into its maps,
+  /// and its photons into the atlas; built the first frame they are needed.
+  PipelineHandle? _causticSurfacePipeline;
+  PipelineHandle? _causticPhotonPipeline;
+
+  /// Six corners, two triangles: the quad each photon is drawn as.
+  GeometryBuffer? _causticQuad;
+
+  /// A photon's matrices, grid and the caster's optics.
+  final CausticInfoBlock _causticInfo = CausticInfoBlock();
+
+  /// Whether the sun's atlas, as last drawn, had photons added to it.
+  bool _shadowCaustics = false;
+
+  /// Whether the sun's atlas, as last drawn, carries what see-through
+  /// casters let through — read by the draws that light with it, which
+  /// otherwise would take an atlas's empty channels for a black filter.
+  bool _shadowTransmits = false;
+
+  /// Whether the sun's atlas, as last drawn, keeps its depth turned round —
+  /// `A2.8` — and what it is made of. A change of either is a fresh atlas.
+  bool _shadowReversed = false;
+  TextureFormat? _shadowFormat;
+
+  /// How the sun's atlas stores its depth, as every stage that reads it is
+  /// told: the modes `lib/shadow_storage.glsl` lists. Written with the
+  /// cascades' biases, read by the lit draws, the fog, the shafts and the
+  /// moments filter.
+  double _shadowStorage = 0.0;
 
   /// `gfx-60n`: the cutoff and the base alpha, packed for the shadow stages.
   Float32List get _shadowMask => _maskInfo.mask;
@@ -1149,6 +1611,11 @@ final class Renderer implements RenderServices {
   /// The textured half of the same pair, built only if a cube is ever set.
   PipelineHandle? _skyCubePipeline;
 
+  /// The air's, built only if a sky ever resolves to one — `P5`. That is any
+  /// sky switched on without a cube or gradient colours: see
+  /// `SkySettings.resolvedPhysical`.
+  PipelineHandle? _skyPhysicalPipeline;
+
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
   final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
@@ -1169,7 +1636,7 @@ final class Renderer implements RenderServices {
   /// For tests and for a frame inspector. The whole argument for cascades is a
   /// number — how much world one texel covers — and a change that cannot be
   /// measured is a change that gets quietly undone.
-  List<double> get debugCascadeRadii =>
+  List<double> get _debugCascadeRadii =>
       List<double>.unmodifiable(_shadowCascadeRadii);
   final List<double> _shadowCascadeRadii = <double>[];
 
@@ -1179,7 +1646,7 @@ final class Renderer implements RenderServices {
   /// snapping's whole job is that this value *quantises* as the camera creeps,
   /// and a picture at any single moment cannot show the difference between a
   /// number that jumps and one that slides.
-  List<vm.Vector3> get debugCascadeCentres =>
+  List<vm.Vector3> get _debugCascadeCentres =>
       List<vm.Vector3>.unmodifiable(_shadowCascadeCentres);
   final List<vm.Vector3> _shadowCascadeCentres = <vm.Vector3>[];
 
@@ -1218,6 +1685,10 @@ final class Renderer implements RenderServices {
   /// `shadow_bias` in `surface.glsl`.
   Float32List get _shadowCascadeBias => _fragInfo.shadowBias;
   final List<double> _shadowCascadeBiasScale = <double>[1.0, 1.0, 1.0];
+
+  /// Each cascade's depth range in metres, far plane less near: what one unit
+  /// of its stored depth is along the light.
+  final List<double> _shadowCascadeDepthRange = <double>[1.0, 1.0, 1.0];
   TextureHandle? _shadowMap;
 
   /// The static casters' own directional atlas — `S1`: drawn when they
@@ -1257,7 +1728,8 @@ final class Renderer implements RenderServices {
 
   /// The directional atlas as blurred exponential moments, and the atlas the
   /// first of the two blur passes lands in — `S2`. Null until a frame asks
-  /// for [ShadowFilter.evsm] on a device that can filter them.
+  /// for moments — [ShadowFilter.evsm], or a technique with a
+  /// [ShadowPrefilter] — on a device that can filter them.
   TextureHandle? _shadowMoments;
   TextureHandle? _shadowMomentsScratch;
 
@@ -1267,8 +1739,9 @@ final class Renderer implements RenderServices {
   int _shadowMapVersion = 0;
 
   /// What [_shadowMoments] was last made from: [_shadowMapVersion], the blur
-  /// radius and the cascade count. Null when it holds nothing yet.
-  (int, int, int)? _shadowMomentsKey;
+  /// radius, the cascade count and the prefilter stage's name. Null when it
+  /// holds nothing yet.
+  (int, int, int, String)? _shadowMomentsKey;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
   int _shadowsDenied = 0;
@@ -1356,6 +1829,19 @@ final class Renderer implements RenderServices {
   })?
   _clusterView;
 
+  /// Whether this frame's view depth runs reversed — `A2.8`, set by the
+  /// scene pass from [_DepthConvention._reversedFor] and read by every pass
+  /// after it that loads the depth that pass stored: the transparent
+  /// layers, the glass, the contributors that read the scene's depth. One
+  /// answer for the frame, because one buffer is cleared one way.
+  bool _depthReversed = false;
+
+  /// The near plane each view of the last scene pass was drawn with, in
+  /// metres, in the order the views were drawn — `A2.9`. For tests: the fit
+  /// buys precision, which no single picture shows, so the plane is what a
+  /// test holds to a value.
+  final List<double> _fittedNears = <double>[];
+
   /// Advanced whenever the reading is thrown away, so a readback that was
   /// already in the air lands on nothing rather than restoring a reading of
   /// a scene the frame has since stopped trusting.
@@ -1368,13 +1854,13 @@ final class Renderer implements RenderServices {
   /// The occlusion reading, for tests and a profiler: how many readings of
   /// the depth pyramid have arrived and been kept. Null until a frame has
   /// asked for [OcclusionMode.hiZ].
-  HiZOcclusion? get debugHiZ => _hiZ;
+  HiZOcclusion? get _debugHiZ => _hiZ;
 
   /// Readbacks of the luminance target that came back as an error. Diagnostic:
   /// a meter that has stopped hearing from the device holds its last answer,
   /// which looks like a meter that has settled, and this is what tells the
   /// two apart.
-  int get debugMeterFailures => _meterFailures;
+  int get _debugMeterFailures => _meterFailures;
   int _meterFailures = 0;
 
   /// Whether a luminance readback has been asked for and not yet answered.
@@ -1478,8 +1964,8 @@ final class Renderer implements RenderServices {
 
   /// What the composite exposes with this frame.
   double _exposureFor(RenderSettings settings) => settings.autoExposure.enabled
-      ? _autoExposure?.value ?? settings.exposure
-      : settings.exposure;
+      ? _autoExposure?.value ?? settings.cameraExposure
+      : settings.cameraExposure;
 
   /// What the composite exposes view [index] with — `gfx-22n`.
   ///
@@ -1518,7 +2004,7 @@ final class Renderer implements RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: seventy-eight goldens go through this
+  /// strength has, and for the same reason: 96 goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -1527,7 +2013,7 @@ final class Renderer implements RenderServices {
   ///
   /// The backend arrives as a value rather than being reached for, which is the
   /// whole of how a second one will be selected: an application constructs
-  /// `GpuRenderBackend.create()` and hands it over. A compile-time choice could
+  /// `GpuRenderBackend.open()` and hands it over. A compile-time choice could
   /// not be faked, and a fake is the only way anything below this line is ever
   /// exercised without a GPU.
   ///
@@ -1545,11 +2031,21 @@ final class Renderer implements RenderServices {
   /// its white somewhere other than 1.0, and that is not a decision this
   /// package can take back. What it can do is stop asking for the answer it
   /// already knows.
+  ///
+  /// **[replacing], after a device was lost.** A renderer made for the device
+  /// that came back (or a new one opened in its place) takes over
+  /// [replacing]'s [renderSteps] — the registry a plugin host holds — so a
+  /// plugin installed again after the loss adds its steps to this renderer.
+  /// What was added to the old one was made on the lost device: whoever owns
+  /// the plugins cancels and installs them again, which is what
+  /// `Flutter3dView` does. [replacing] draws nothing more and is disposed by
+  /// its owner.
   factory Renderer.create({
     required GraphicsDevice device,
     TextureHandle? fallbackAlbedo,
     TextureHandle? fallbackNormal,
     ShaderLibrary? materials,
+    Renderer? replacing,
   }) {
     // Consulted before the backend's, so an application can replace a stage as
     // well as add one — see [LayeredShaderLibrary] for why that order.
@@ -1570,53 +2066,27 @@ final class Renderer implements RenderServices {
 
     return Renderer._(
         device: device,
-        vertexShader: require('MeshVertex'),
-        skinnedVertexShader: require('MeshSkinnedVertex'),
-        instancedVertexShader: require('MeshInstancedVertex'),
-        lightmappedVertexShader: require('MeshLightmappedVertex'),
-        debugLineVertexShader: require('DebugLineVertex'),
-        debugLineFragmentShader: require('DebugLine'),
-        fullscreenVertexShader: require('FullscreenVertex'),
-        bloomThresholdShader: require('BloomThreshold'),
-        bloomDownsampleShader: require('BloomDownsample'),
-        bloomUpsampleShader: require('BloomUpsample'),
-        compositeShader: require('Composite'),
-        fxaaShader: require('Fxaa'),
-        reflectionShader: require('Reflections'),
-        ssaoShader: require('Ssao'),
-        contactShadowShader: require('ContactShadow'),
-        contactShadowResolveShader: require('ContactShadowResolve'),
-        cameraVelocityShader: require('CameraVelocity'),
-        velocityShader: require('Velocity'),
-        velocityVertexShader: require('VelocityVertex'),
-        velocitySkinnedVertexShader: require('VelocitySkinnedVertex'),
-        velocityInstancedVertexShader: require('VelocityInstancedVertex'),
-        reactiveShader: require('Reactive'),
-        temporalResolveShader: require('TemporalResolve'),
-        temporalAccumulateShader: require('TemporalAccumulate'),
-        ssaoBlurShader: require('SsaoBlur'),
-        lightShaftsShader: require('LightShafts'),
-        volumetricFogShader: require('VolumetricFog'),
-        volumetricFogUpsampleShader: require('VolumetricFogUpsample'),
-        depthOfFieldShader: require('DepthOfField'),
-        velocityTileMaxShader: require('VelocityTileMax'),
-        velocityNeighborMaxShader: require('VelocityNeighborMax'),
-        motionBlurShader: require('MotionBlur'),
-        viewportShadeShader: require('ViewportShade'),
-        wboitResolveShader: require('WboitResolve'),
-        sceneColourCopyShader: require('SceneColourCopy'),
+        require: require,
         fallbackAlbedo:
             fallbackAlbedo ?? SolidColorTexture.white.upload(device),
         fallbackNormal:
             fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
-        fallbackBlack: SolidColorTexture(
-          vm.Vector4(0.0, 0.0, 0.0, 1.0),
+        fallbackBlack: const SolidColorTexture.texel(
+          0.0,
+          0.0,
+          0.0,
         ).upload(device),
-        msaaEnabled: device.supportsOffscreenMsaa,
+        msaaEnabled: device.features.has(DeviceFeature.offscreenMultisample),
+        steps: replacing?.renderSteps,
       )
+      .._baseShaders = library
       .._shaders = library
+      .._attachSteps()
       .._listenForGpuTimings();
   }
+
+  /// Hands [renderSteps] this renderer, for the stages a plugin adds.
+  void _attachSteps() => renderSteps._store.renderer = this;
 
   /// What the GPU spent in each graph node's passes, from the last frame a
   /// device reported on — `H2`. A frame or two behind the one being drawn,
@@ -1624,7 +2094,7 @@ final class Renderer implements RenderServices {
   Map<String, int> _lastGpuMicros = const <String, int>{};
 
   void _listenForGpuTimings() {
-    if (!device.supportsGpuTimestamps) return;
+    if (!device.features.has(DeviceFeature.gpuTimestamps)) return;
     device.onGpuTimings((GpuFrameTimings timings) {
       final byNode = <String, int>{};
       for (final pass in timings.passes) {
@@ -1698,7 +2168,7 @@ final class Renderer implements RenderServices {
       TextureFormat format, {
       int sampleCount = 1,
     }) => device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: width,
         height: height,
         format: format,
@@ -1725,12 +2195,14 @@ final class Renderer implements RenderServices {
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
+    // And no frame is held on one of them — `A1.4`.
+    _lastResult = null;
     //
     // At the output size, which is the scene's except while temporal
     // anti-aliasing reconstructs a larger picture — `R2`.
     final frameFormat = _frameFormat;
     _makeLdrFrame = () => device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: frameWidth,
         height: frameHeight,
         format: frameFormat,
@@ -1786,7 +2258,7 @@ final class Renderer implements RenderServices {
   /// Only a directional light casts today: it is the one whose shadow volume is
   /// a box rather than a frustum or a cube, so it needs neither cascades nor six
   /// faces to be useful.
-  int _firstDirectionalIndex() => _directionalIndexIn(lights);
+  int _firstDirectionalIndex() => _directionalIndexIn(_frameLights);
 
   /// The same question asked of a buffer that is not this renderer's.
   ///
@@ -1928,7 +2400,7 @@ final class Renderer implements RenderServices {
     } else {
       _drawLights.gatherNearFrom(
         frameLights,
-        node.worldBoundsCentre,
+        node.worldBoundsCenter,
         node.worldBoundsRadius,
         channels: channels,
         fadeBand: fadeBand,
@@ -1986,13 +2458,13 @@ final class Renderer implements RenderServices {
       ShadowSettings.maxCubeTile,
     );
     if (_cubeShadow != null && _cubeShadowTile == tile) return;
-    // A grid of square tiles six faces across and [kShadowedLights] rows down:
+    // A grid of square tiles six faces across and [shadowedLights] rows down:
     // the face across, the light down.
     // Square because a ninety-degree frustum is square, and any other aspect
     // would stretch one axis of every face.
     final width = tile * 6;
-    final height = tile * kShadowedLights;
-    final spec = RenderTargetSpec(
+    final height = tile * shadowedLights;
+    final spec = RenderTargetDescriptor(
       width: width,
       height: height,
       format: hdrFormat,
@@ -2006,7 +2478,7 @@ final class Renderer implements RenderServices {
     _cubeShadowStatic = device.createTexture(spec);
     _cubeShadow = device.createTexture(spec);
     _cubeShadowDepth = device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: width,
         height: height,
         format: device.defaultDepthStencilFormat,
@@ -2053,7 +2525,11 @@ final class Renderer implements RenderServices {
   /// lights matter most from where the camera is, and takes them back when they
   /// stop mattering. It used to be the first four in scene order, which meant a
   /// level with five torches had one that could never cast a shadow anywhere.
-  static const int kShadowedLights = 6;
+  ///
+  /// Six. **A getter, not a constant**, since 1.0, so a later minor may
+  /// change the atlas without changing a number compiled into a caller.
+  static int get shadowedLights => _shadowedLights;
+  static const int _shadowedLights = 6;
 
   Float32List get _cubeFaceMatrices => _pointShadow.faces;
 
@@ -2107,32 +2583,94 @@ final class Renderer implements RenderServices {
 
     var upX = 1.0, upY = 1.0, upZ = 1.0;
     var downX = 1.0, downY = 1.0, downZ = 1.0;
-    if (sky.enabled) {
+    final air = sky.cubemap == null ? sky.resolvedPhysical : null;
+    if (sky.enabled && air != null) {
+      // `P5`: the same halves, out of the air. Taken off the scattered light
+      // with no disc, for the reason above, and a horizon averaged round the
+      // compass, because towards the sun and away from it differ by a factor
+      // of five at dusk and a surface faces neither.
+      final up = _physicalAmbient(air, sky.resolvedDirectionToSun);
+      upX = up.up.x;
+      upY = up.up.y;
+      upZ = up.up.z;
+      downX = up.down.x;
+      downY = up.down.y;
+      downZ = up.down.z;
+    } else if (sky.enabled) {
       final zenith = sky.resolvedZenith;
       final horizon = sky.resolvedHorizon;
       final nadir = sky.resolvedNadir;
-      upX = (zenith.x + horizon.x) * 0.5;
-      upY = (zenith.y + horizon.y) * 0.5;
-      upZ = (zenith.z + horizon.z) * 0.5;
+      upX = (zenith.r + horizon.r) * 0.5;
+      upY = (zenith.g + horizon.g) * 0.5;
+      upZ = (zenith.b + horizon.b) * 0.5;
       // Below the horizon a sky is haze, not ground, so this is a stand-in for
       // a bounce nothing here computes. It is dimmer than the upper half, which
       // is the half of the effect that reads.
-      downX = (horizon.x + nadir.x) * 0.5;
-      downY = (horizon.y + nadir.y) * 0.5;
-      downZ = (horizon.z + nadir.z) * 0.5;
+      downX = (horizon.r + nadir.r) * 0.5;
+      downY = (horizon.g + nadir.g) * 0.5;
+      downZ = (horizon.b + nadir.b) * 0.5;
     }
 
-    _ambientSky[0] = upX * tint.x;
-    _ambientSky[1] = upY * tint.y;
-    _ambientSky[2] = upZ * tint.z;
-    _ambientGround[0] = downX * tint.x;
-    _ambientGround[1] = downY * tint.y;
-    _ambientGround[2] = downZ * tint.z;
+    _ambientSky[0] = upX * tint.r;
+    _ambientSky[1] = upY * tint.g;
+    _ambientSky[2] = upZ * tint.b;
+    _ambientGround[0] = downX * tint.r;
+    _ambientGround[1] = downY * tint.g;
+    _ambientGround[2] = downZ * tint.b;
     // `L8`: the metal-rough models' diffuse lobe rides in the sky colour's
     // spare lane — frame-wide, as this is, and set here rather than in the
     // scene pass so a probe captured before it shades the room the same way.
     _ambientSky[3] = settings.diffuseModel == DiffuseModel.eon ? 1.0 : 0.0;
   }
+
+  /// The two ends of the hemispheric ambient under a physical sky: half the
+  /// zenith and half the horizon, and half the horizon and half the ground,
+  /// as [_updateAmbient] takes them from a gradient.
+  ///
+  /// Kept from frame to frame while the air and the sun do not change: it is
+  /// ten marches of the sky, which is nothing once and something every frame
+  /// on a phone.
+  ({vm.Vector3 up, vm.Vector3 down}) _physicalAmbient(
+    PhysicalSky air,
+    vm.Vector3 toSun,
+  ) {
+    final kept = _physicalAmbientKept;
+    if (kept != null &&
+        identical(kept.air, air) &&
+        kept.toSun.x == toSun.x &&
+        kept.toSun.y == toSun.y &&
+        kept.toSun.z == toSun.z) {
+      return (up: kept.up, down: kept.down);
+    }
+    final zenith = air.radiance(vm.Vector3(0.0, 1.0, 0.0), toSun);
+    final ground = air.radiance(vm.Vector3(0.0, -1.0, 0.0), toSun);
+    final horizon = vm.Vector3.zero();
+    const around = 8;
+    for (var i = 0; i < around; i++) {
+      final angle = 2.0 * math.pi * i / around;
+      // A degree above the horizon rather than on it: exactly level, the ray
+      // grazes the ground's sphere and which side it lands is rounding.
+      horizon.addScaled(
+        air.radiance(
+          vm.Vector3(math.cos(angle), 0.0175, math.sin(angle)),
+          toSun,
+        ),
+        1.0 / around,
+      );
+    }
+    final up = (zenith + horizon)..scale(0.5);
+    final down = (horizon + ground)..scale(0.5);
+    _physicalAmbientKept = (
+      air: air,
+      toSun: vm.Vector3.copy(toSun),
+      up: up,
+      down: down,
+    );
+    return (up: up, down: down);
+  }
+
+  ({PhysicalSky air, vm.Vector3 toSun, vm.Vector3 up, vm.Vector3 down})?
+  _physicalAmbientKept;
 
   /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
   /// frustum — or w negative when the row belongs to a point light.
@@ -2141,7 +2679,7 @@ final class Renderer implements RenderServices {
   /// is uploaded to the shader as `lights[]` and this is not: the shading reads
   /// a spot's tile through the matrix in `faces[]`, which already carries the
   /// aim. This is what the *pass* needs in order to build that matrix.
-  final Float32List _cubeLightAim = Float32List(4 * kShadowedLights);
+  final Float32List _cubeLightAim = Float32List(4 * shadowedLights);
   Float32List get _cubeLightData => _pointShadow.lights;
 
   /// One vec4 per light the shading knows about; x is its atlas row or -1.
@@ -2158,8 +2696,8 @@ final class Renderer implements RenderServices {
   /// Per row, what a slot needs beside the row number: y the shape (1 for a
   /// spot's single cone-shaped tile, 0 for a cube), z the tangent of half the
   /// frustum the row was drawn through.
-  final Float32List _shadowRowShape = Float32List(kShadowedLights);
-  final Float32List _shadowRowTangent = Float32List(kShadowedLights);
+  final Float32List _shadowRowShape = Float32List(shadowedLights);
+  final Float32List _shadowRowTangent = Float32List(shadowedLights);
 
   /// Repacked once per draw, for scenes that hold more lights than a draw can
   /// carry, with the slot table that belongs to that packing. Hot-loop scratch,
@@ -2183,10 +2721,10 @@ final class Renderer implements RenderServices {
   final vm.Vector3 _cubePosition = vm.Vector3.zero();
 
   final ShadowSlotAllocator _shadowSlotAllocator = ShadowSlotAllocator(
-    slotCount: kShadowedLights,
+    slotCount: shadowedLights,
   );
   final ShadowFaceScheduler _shadowFaceScheduler = ShadowFaceScheduler(
-    tileCount: kShadowedLights * 6,
+    tileCount: shadowedLights * 6,
   );
   final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
   final vm.Vector3 _shadowEye = vm.Vector3.zero();
@@ -2244,21 +2782,21 @@ final class Renderer implements RenderServices {
     for (final view in views) {
       if (view.priority < primary.priority) primary = view;
     }
-    primary.camera.readWorldPosition(_shadowEye);
+    primary.camera.readViewOrigin(_shadowEye);
 
     for (final light in scene.lights) {
-      final spot = light.type == LightType.spot;
-      if (light.type != LightType.point && !spot) continue;
+      final spot = light.type.base == LightType.spot;
+      if (light.type.base != LightType.point && !spot) continue;
       if (!light.castsShadow) continue;
-      if (!light.visibleInHierarchy || light.intensity <= 0.0) continue;
+      if (!light.isVisibleInHierarchy || light.intensity <= 0.0) continue;
 
       light.readWorldPosition(_cubePosition);
       final range = light.range > 0.0 ? light.range : 20.0;
       final distance = _cubePosition.distanceTo(_shadowEye);
 
-      // Angular size: how large the lit sphere looks from the camera. The same
-      // rule PlayCanvas sorts by, and the reason a torch at the far end of a
-      // corridor yields to one in this room. Clamped away from zero so a light
+      // Angular size: how large the lit sphere looks from the camera, which
+      // is why a torch at the far end of a corridor yields to one in this
+      // room. Clamped away from zero so a light
       // the camera is standing inside scores high rather than dividing by it.
       var priority = range / math.max(distance, 0.05);
 
@@ -2310,7 +2848,7 @@ final class Renderer implements RenderServices {
     // frustum reaches 45 degrees at the edge and atan(sqrt(2)) at the corner.
     const double faceHalfAngle = 0.9553166;
 
-    _faceSignatures.length = kShadowedLights * faces;
+    _faceSignatures.length = shadowedLights * faces;
     for (var i = 0; i < _faceSignatures.length; i++) {
       _faceSignatures[i] = null;
     }
@@ -2357,14 +2895,14 @@ final class Renderer implements RenderServices {
       }
 
       for (final node in scene.meshes) {
-        if (!node.visibleInHierarchy || !node.castsShadow) continue;
+        if (!node.isVisibleInHierarchy || !node.castsShadow) continue;
         if (node.shadowIsStatic) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
 
         final radius = node.worldBoundsRadius;
         _shadowToCaster
-          ..setFrom(node.worldBoundsCentre)
+          ..setFrom(node.worldBoundsCenter)
           ..sub(_cubePosition);
         final distance = _shadowToCaster.length;
         if (distance - radius > range) continue;
@@ -2466,6 +3004,15 @@ final class Renderer implements RenderServices {
   /// list — but two passes with no dependency between them keep the order they
   /// were registered in, which is what makes the frame reproducible enough to
   /// hold a golden against.
+  ///
+  /// **The order is written as anchors.** Each group of the engine's passes
+  /// stands between two [RenderAnchor]s — the shadow maps between
+  /// `beforeShadows` and `afterShadows`, the bloom between `beforeBloom` and
+  /// `afterBloom` — and goes through the same schedule a plugin's node does
+  /// ([_FrameSchedule]); the nodes registered in a [FramePhase] and through
+  /// [renderSteps] are placed at their anchors in it, and the graph registers
+  /// the schedule left to right. With nothing placed, that is the order this
+  /// method registered by hand before the anchors existed, pass for pass.
   CompiledFrameGraph _compileFrameGraph(
     RenderView view,
     RenderSettings s, {
@@ -2474,6 +3021,8 @@ final class Renderer implements RenderServices {
     required _ShadowMapNode shadow,
     required List<_ReflectionProbeNode> probes,
     required _IrradianceUpdateNode irradiance,
+    required _RenderTextureNode renderTextures,
+    required _PlanarReflectionNode planarReflections,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
@@ -2486,7 +3035,7 @@ final class Renderer implements RenderServices {
     required vm.Vector3? fogToLight,
     required vm.Vector3? fogRadiance,
   }) {
-    final graph = FrameGraph()
+    final schedule = _FrameSchedule()
       // The atlas before the directional map, which is the order they were
       // submitted in before either was a node. Nothing derives it — they write
       // different textures and neither reads the other — so registration order
@@ -2507,100 +3056,131 @@ final class Renderer implements RenderServices {
       // compile. Unregistering one when shadows are off would make the scene's
       // optional read conditional too, which moves the branch rather than
       // deleting it.
-      ..addNode(cubeStatic)
-      ..addNode(cube)
-      ..addNode(shadow)
-      // `S2`: after the map it is made of and before anything lit reads it.
-      // Active only for the `evsm` filter, and refused as unsupported on a
-      // device that cannot filter the moments.
-      ..addNode(_ShadowMomentsNode(this, s.shadows));
-
-    // After the shadows, which a probe's capture samples, and before the
-    // scene, which samples the probe. Both orderings are derived from reads —
-    // a probe optionally reads the three maps and the scene optionally reads
-    // every probe — so this is the version chain in the order it is read.
-    for (final probe in probes) {
-      graph.addNode(probe);
-    }
-    // `L4`: beside the probes, for their reason — it draws the lit scene and
-    // the scene reads what it writes.
-    graph.addNode(irradiance);
-    graph
-      ..addNode(scene)
+      //
+      // `S2`, the moments: after the map it is made of and before anything lit
+      // reads it. Active only for the `evsm` filter, and refused as
+      // unsupported on a device that cannot filter the moments.
+      ..stage(RenderAnchor.beforeShadows, <FrameGraphNode>[
+        cubeStatic,
+        cube,
+        shadow,
+        _ShadowMomentsNode(this, s.shadows),
+      ])
+      // After the shadows, which a probe's capture samples, and before the
+      // scene, which samples the probe. Both orderings are derived from reads
+      // — a probe optionally reads the three maps and the scene optionally
+      // reads every probe — so this is the version chain in the order it is
+      // read.
+      //
+      // `L4`, the irradiance update: beside the probes, for their reason — it
+      // draws the lit scene and the scene reads what it writes. `P4`, the
+      // render textures and the planar reflections: beside the probes, for
+      // their reason — each draws the lit scene through a camera of its own,
+      // and the scene optionally reads what each provides. Registered whatever
+      // the scene holds, so the names are known.
+      ..stage(RenderAnchor.beforeCaptures, <FrameGraphNode>[
+        ...probes,
+        irradiance,
+        renderTextures,
+        planarReflections,
+      ])
+      ..stage(RenderAnchor.beforeOpaque, <FrameGraphNode>[scene])
+      // `P3`: onto the opaque half, so the copy the glass reads holds the
+      // decals and the glass is drawn over them rather than painted.
+      ..stage(RenderAnchor.beforeDecals, <FrameGraphNode>[scene.decals])
       // `M3`: the copy of the scene and the transparent half drawn over it,
       // straight after the scene they split, and culled on a frame without
       // glass.
-      ..addNode(scene.copy)
-      ..addNode(scene.transparent)
-      // After the scene, whose render list it builds and sorts again the same
-      // way, and before anything else: it reads nothing and writes a name
-      // nothing else reads, so its place in the chain is nobody's concern,
-      // and inactive it is culled.
-      ..addNode(objectIds);
+      ..stage(RenderAnchor.beforeTransparent, <FrameGraphNode>[
+        scene.copy,
+        scene.transparent,
+      ])
+      // The object ids: after the scene, whose render list it builds and sorts
+      // again the same way, and before anything else: it reads nothing and
+      // writes a name nothing else reads, so its place in the chain is
+      // nobody's concern, and inactive it is culled.
+      //
+      // `N9`, the outline mask: the marks the high-contrast look rings, after
+      // the scene whose surface buffer hides them. Registered whether or not
+      // the look is on, for the reason bloom is — the look reads the name —
+      // and culled unless the look is on and something is marked.
+      //
+      // Both stand between the transparent half and `afterScene`, which is
+      // where `FramePhase.overlay` has always put a node: after them.
+      ..stage(RenderAnchor.afterTransparent, <FrameGraphNode>[
+        objectIds,
+        _OutlineMaskNode(this, s, composite._scene, composite._views),
+      ]);
 
-    for (final node in nodes.of(FramePhase.overlay)) {
-      graph.addNode(node);
-    }
-    // Registered whether or not it is switched on, for the reason bloom and
-    // the occlusion are: a name has to be known for a read of it to compile,
-    // and a node left out when its setting is off cannot be reported on.
-    // `gfx-38n` — this was the last post node still registered inside an `if`.
-    graph.addNode(_ReflectionsNode(this, view, s, scene.scene));
+    // The reflections: registered whether or not they are switched on, for
+    // the reason bloom and the occlusion are: a name has to be known for a
+    // read of it to compile, and a node left out when its setting is off
+    // cannot be reported on. `gfx-38n` — this was the last post node still
+    // registered inside an `if`.
+    schedule.stage(RenderAnchor.beforeReflections, <FrameGraphNode>[
+      _ReflectionsNode(this, view, s, scene.scene),
+    ]);
     // After reflections and before bloom: the meter reads the scene as the
     // composite will, glow not yet added. Registered whether or not it is on,
     // for the reason every other node is — a name has to be known — and
     // culled when it is off.
-    graph.addNode(luminance);
+    schedule.stage(RenderAnchor.beforeAutoExposure, <FrameGraphNode>[
+      luminance,
+    ]);
     // `C3`: beside the meter, for its reason — a small target read back, a
     // frame output while it is on, culled when it is off. After the scene,
     // whose surface buffer it reduces.
     final depthPyramid = _DepthPyramidNode(this, view, s, viewCount);
-    graph.addNode(depthPyramid);
+    schedule.stage(RenderAnchor.beforeHiZ, <FrameGraphNode>[depthPyramid]);
     // Before bloom, because the composite reads both and the registration order
     // is the version chain. Registered whether or not it is switched on, for
     // the reason bloom is: a name has to be known for a read of it to compile,
     // and the composite reads the occlusion.
-    graph.addNode(_SsaoNode(this, view, s));
-    // `gfx-32n`. A link in the occlusion chain rather than a second producer:
-    // it reads `ao` and writes the next version of it, so with the blur off
-    // the node is inactive, consumes no version, and the composite binds what
-    // the occlusion pass left — the version-skip the graph already does for
-    // every other optional link.
-    graph.addNode(_SsaoBlurNode(this, s));
+    //
+    // The blur, `gfx-32n`: a link in the occlusion chain rather than a second
+    // producer. It reads `ao` and writes the next version of it, so with the
+    // blur off the node is inactive, consumes no version, and the composite
+    // binds what the occlusion pass left — the version-skip the graph already
+    // does for every other optional link.
+    schedule.stage(RenderAnchor.beforeAmbientOcclusion, <FrameGraphNode>[
+      _SsaoNode(this, view, s),
+      _SsaoBlurNode(this, s),
+    ]);
     // `gfx-76n`, beside the occlusion rather than in it: the composite
     // multiplies both into the ambient term, but each has its own strength, so
     // either can be off without the other having to be. Registration order does
     // not matter here — it writes a name nothing else writes — and this is
     // simply where the pass it belongs next to is.
-    graph.addNode(_ContactShadowNode(this, view, s, contactToLight));
-    // Right after the march, as a link in its chain: with no temporal resolve
-    // to average the dither away, this does it within the frame. Inactive
-    // while one runs, so the history below reads the march itself.
-    graph.addNode(_ContactShadowResolveNode(this, s, contactToLight));
+    //
+    // The resolve right after the march, as a link in its chain: with no
+    // temporal resolve to average the dither away, this does it within the
+    // frame. Inactive while one runs, so the history below reads the march
+    // itself.
+    schedule.stage(RenderAnchor.beforeContactShadows, <FrameGraphNode>[
+      _ContactShadowNode(this, view, s, contactToLight),
+      _ContactShadowResolveNode(this, s, contactToLight),
+    ]);
     // `R1`: the motion of every pixel, for the temporal resolve. Before any
     // reader of it, which is all registration order has to promise here.
-    graph
-      ..addNode(_CameraVelocityNode(this, view, s))
+    schedule.stage(RenderAnchor.beforeVelocity, <FrameGraphNode>[
+      _CameraVelocityNode(this, view, s),
       // And the nodes that moved, over it: the next version of the same
       // resource, so registration order is what puts them on top.
-      ..addNode(_ObjectVelocityNode(this, view, s, composite._scene))
+      _ObjectVelocityNode(this, view, s, composite._scene),
       // `R4`: what blends, marked over both for the resolve to trust less.
-      ..addNode(_ReactiveNode(this, view, s, composite._scene))
+      _ReactiveNode(this, view, s, composite._scene),
       // `R3`: the two effects that march with noise, each carried into a
       // history of its own. After the velocity, which they reproject by, and
       // before anything reads them: the composite takes the last version.
-      ..addNode(
-        _AccumulateNode(this, view, s, FrameResourceIds.ao, 'ssao history'),
-      )
-      ..addNode(
-        _AccumulateNode(
-          this,
-          view,
-          s,
-          FrameResourceIds.contactShadow,
-          'contact shadow history',
-        ),
-      );
+      _AccumulateNode(this, view, s, FrameResourceIds.ao, 'ssao history'),
+      _AccumulateNode(
+        this,
+        view,
+        s,
+        FrameResourceIds.contactShadow,
+        'contact shadow history',
+      ),
+    ]);
     // `gfx-33n`. After the occlusion and before bloom: a shaft is light in
     // the air, so it should glow the way any other light does. It is not a
     // surface, and the occlusion should have nothing to say about it — but
@@ -2615,16 +3195,25 @@ final class Renderer implements RenderServices {
     // compromise: it lays the occlusion and the contact shadow on the
     // surface itself, before the air, and the composite leaves them out.
     // After the accumulate nodes, so it reads the versions they left.
-    graph.addNode(_VolumetricFogNode(this, view, s, fogToLight, fogRadiance));
-    graph.addNode(_LightShaftsNode(this, view, s, sunToLight, sunRadiance));
-    // `gfx-34n`. After the shafts, because a lens is in front of everything
-    // the scene emits and light in the air defocuses exactly as the geometry
-    // behind it does; before bloom, because a glow is what the sensor does
-    // with light that has already been through the lens.
-    graph.addNode(_DepthOfFieldNode(this, view, s));
-    // `R6`. After the lens, whose light the exposure smears, and before the
-    // resolve, which blends the smeared frames as it would sharp ones.
-    graph.addNode(_MotionBlurNode(this, s));
+    schedule
+      ..stage(RenderAnchor.beforeVolumetricFog, <FrameGraphNode>[
+        _VolumetricFogNode(this, view, s, fogToLight, fogRadiance),
+      ])
+      ..stage(RenderAnchor.beforeLightShafts, <FrameGraphNode>[
+        _LightShaftsNode(this, view, s, sunToLight, sunRadiance),
+      ])
+      // `gfx-34n`. After the shafts, because a lens is in front of everything
+      // the scene emits and light in the air defocuses exactly as the
+      // geometry behind it does; before bloom, because a glow is what the
+      // sensor does with light that has already been through the lens.
+      ..stage(RenderAnchor.beforeDepthOfField, <FrameGraphNode>[
+        _DepthOfFieldNode(this, view, s),
+      ])
+      // `R6`. After the lens, whose light the exposure smears, and before the
+      // resolve, which blends the smeared frames as it would sharp ones.
+      ..stage(RenderAnchor.beforeMotionBlur, <FrameGraphNode>[
+        _MotionBlurNode(this, s),
+      ]);
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.
@@ -2644,48 +3233,109 @@ final class Renderer implements RenderServices {
     // culled) unless the frame is upscaled.
     final easu = _EasuNode(this, s, fxaa);
     final shade = _ViewportShadeNode(this, view, s);
+    final contrast = _HighContrastNode(this, s);
     // `R2`: after everything that reads the scene's own buffers and before
     // bloom, so the glow is taken from the resolved picture and the
     // screen-space effects work at the scene's size.
     final resolve = _TemporalResolveNode(this, view, s);
-    graph
-      ..addNode(resolve)
-      ..addNode(_LocalExposureNode(this, s))
-      ..addNode(bloom)
-      ..addNode(composite)
-      ..addNode(easu)
+    schedule
+      ..stage(RenderAnchor.beforeTemporalResolve, <FrameGraphNode>[resolve])
+      ..stage(RenderAnchor.beforeLocalExposure, <FrameGraphNode>[
+        _LocalExposureNode(this, s),
+      ])
+      ..stage(RenderAnchor.beforeBloom, <FrameGraphNode>[bloom])
+      // `P2`: the flare, drawn from the glow and added to it, so the
+      // composite reads both as one.
+      ..stage(RenderAnchor.beforeLensFlare, <FrameGraphNode>[
+        _LensFlareNode(this, s.bloom),
+      ])
+      ..stage(RenderAnchor.beforeTonemap, <FrameGraphNode>[composite])
+      ..stage(RenderAnchor.beforeSpatialUpscale, <FrameGraphNode>[easu])
       // And the smoothing after the composite, which is what lets it read a
       // finished picture — `gfx-04n`. Registered whether or not it is on, for
       // the same reason bloom is: registration order is the version chain, and
       // an inactive node is culled rather than branched around.
-      ..addNode(fxaa)
+      ..stage(RenderAnchor.beforeEdgeSmoothing, <FrameGraphNode>[fxaa])
+      // `N9`, after the smoothing for the viewport shading's reason below:
+      // its lines are the thing that must not be blurred.
+      ..stage(RenderAnchor.beforeHighContrast, <FrameGraphNode>[contrast])
       // `gfx-43n`/`44n`/`45n`, last: a mode here is about the finished
       // picture, so it goes after the tone map and after the edges are
       // smoothed. Before the antialias it would have had its own outline
       // blurred, which is the one thing an outline must not be.
-      ..addNode(shade);
+      ..stage(RenderAnchor.beforeViewportShading, <FrameGraphNode>[shade]);
 
-    // After the composite, which is the whole of what [FramePhase.present]
-    // means: registration order is the version chain, so a node here reads the
-    // version the composite wrote and produces the next one. Nothing about the
-    // node changes between the two phases — it is where it is registered that
-    // decides what it sees.
-    final present = nodes.of(FramePhase.present).toList();
-    for (final node in present) {
+    // The nodes placed at anchors, through [renderSteps]: the
+    // application's and each plugin's, ordered at each anchor by their
+    // constraints. Registration order is the version chain, so a node reads
+    // the version the passes before its anchor wrote and produces the next
+    // one; nothing about a node changes between anchors, it is where it is
+    // placed that decides what it sees. A plugin's own anchor stands right
+    // after the anchor it follows, so its nodes come after that anchor's. A
+    // node owned by a step runs only while the step is on.
+    final placed = renderSteps._store.nodes;
+    for (final anchor in RenderAnchor.values) {
+      for (final at in renderSteps._store.anchorsFrom(anchor)) {
+        for (final entry in renderSteps._store.orderedAt(at)) {
+          final step = entry.step;
+          schedule.at(
+            anchor,
+            step == null ? entry.node : _SteppedNode(entry.node, step, s),
+            after: entry.after,
+            before: entry.before,
+          );
+        }
+      }
+    }
+    final graph = FrameGraph();
+    for (final node in schedule.ordered()) {
       graph.addNode(node);
     }
 
     // `R2`: everything after the resolve works on the picture it
     // reconstructed, at the size that was asked for.
-    // `R5`: with the spatial upscale, everything after it.
+    // `R5`: with the spatial upscale, everything after it. A node placed at
+    // an anchor after either is in that picture too.
     _outputSized = s.antiAlias.temporal.enabled
-        ? <FrameGraphNode>{resolve, bloom, composite, fxaa, shade, ...present}
+        ? <FrameGraphNode>{
+            resolve,
+            bloom,
+            composite,
+            fxaa,
+            contrast,
+            shade,
+            ...schedule.placedFrom(RenderAnchor.afterTemporalResolve),
+          }
         : _upscales(s)
-        ? <FrameGraphNode>{easu, fxaa, shade, ...present}
+        ? <FrameGraphNode>{
+            easu,
+            fxaa,
+            contrast,
+            shade,
+            ...schedule.placedFrom(RenderAnchor.afterSpatialUpscale),
+          }
         : const <FrameGraphNode>{};
 
+    // The passes of every step `RenderSettings.without` switched off, and of
+    // every added step taken down with one it needs. Their own settings have
+    // already made them inactive; this only names who asked, so the skip
+    // reads "switched off" rather than "settings". A node added with a step
+    // is that step's pass whether or not the step lists it.
+    final stepsOff = RenderStep.switchedOffIn(s, also: renderSteps.added);
     return graph.compile(
-      disabled: s.disabledPasses,
+      switchedOff: stepsOff.isEmpty
+          ? const <String>{}
+          : <String>{
+              for (final name in <String>[
+                ...RenderSettings.passOrder,
+                for (final probe in probes) probe.name,
+              ])
+                if (stepsOff.any((step) => step.ownsPass(name))) name,
+              for (final entry in placed)
+                if (stepsOff.contains(entry.step) ||
+                    stepsOff.any((step) => step.ownsPass(entry.node.name)))
+                  entry.node.name,
+            },
       outputs: <ResourceId>[
         FrameResourceIds.frame,
         // An application that asked for the surface buffer is a consumer no node
@@ -2699,7 +3349,7 @@ final class Renderer implements RenderServices {
         // is the pass that aborts. A caller asking for the buffer on such a
         // device gets a frame without one, which is the same "nobody filled
         // it" the flag has always had to handle.
-        if (s.surfaceBuffer && device.maxColorAttachments > 1)
+        if (s.surfaceBuffer && device.limits.maxColorAttachments > 1)
           FrameResourceIds.surfaceBuffer,
         // Both read back rather than read by a node, which is a consumer the
         // graph cannot see, so both are outputs while their node is active or
@@ -2833,7 +3483,7 @@ final class Renderer implements RenderServices {
   int _fogCellRows = 0;
 
   /// The rows [_lightListTexture] was last uploaded with, compared against
-  /// this frame's rather than trusting `SceneNode.changeEpoch`: a light's
+  /// this frame's rather than trusting `sceneChangeEpoch`: a light's
   /// colour, intensity, range and cone are plain fields that advance no epoch,
   /// so a torch that flickers without moving kept its first frame's row.
   Float32List _lightListUploaded = Float32List(0);
@@ -2873,13 +3523,25 @@ final class Renderer implements RenderServices {
   ///
   /// Asking twice before a frame runs replaces the first request: there is one
   /// next frame.
-  Future<FrameCapture> captureNextFrame() {
+  ///
+  /// [draws] also writes every draw down — see [DrawJournal] — and
+  /// [readFloats] reads each output's floats beside its bytes, for a backend
+  /// that can: `P12`'s inspector needs both, and a capture for a person
+  /// looking at pictures needs neither.
+  Future<FrameCapture> captureNextFrame({
+    bool draws = false,
+    Float32List? Function(TextureHandle texture)? readFloats,
+  }) {
     final completer = Completer<FrameCapture>();
     _captureWanted = completer;
+    _captureDraws = draws;
+    _captureFloats = readFloats;
     return completer.future;
   }
 
   Completer<FrameCapture>? _captureWanted;
+  bool _captureDraws = false;
+  Float32List? Function(TextureHandle texture)? _captureFloats;
 
   /// Hands [wanted] the capture this frame built, and clears the builder.
   ///
@@ -3028,13 +3690,27 @@ final class Renderer implements RenderServices {
     );
   }
 
-  /// Floats per vertex: two of clip position, three of ray, then six vec4s of
-  /// preset — or one vec4 of tint for the cube.
-  static const int _kSkyVertexFloats = 2 + 3 + 6 * 4;
-  static const int _kSkyCubeVertexFloats = 2 + 3 + 4;
+  /// Floats per vertex: three of clip position — the corner and the depth
+  /// it is drawn at, `A2.8` — three of ray, then six vec4s of preset — the
+  /// gradient's or the air's, the same size — or one vec4 of tint for the
+  /// cube.
+  static const int _kSkyVertexFloats = 3 + 3 + 6 * 4;
+  static const int _kSkyCubeVertexFloats = 3 + 3 + 4;
+
+  /// Where the sky is drawn the ordinary way round: the far plane less a
+  /// hair, strictly less than the 1.0 the depth is cleared to — see
+  /// `sky.vert`. Reversed, it is drawn at nought; see `_encodeSky`.
+  static const double _kSkyDepth = 0.999999;
 
   final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
   final vm.Vector3 _skyRay = vm.Vector3.zero();
+
+  /// The lens the sky is seen through when the camera's is orthographic —
+  /// `P7`, set by `_encodeSky` for the one draw: the view axis, the world
+  /// directions of the frame's right and top edges, and the frame's aspect.
+  /// Null through a perspective lens, whose own rays the sky takes.
+  ({vm.Vector3 forward, vm.Vector3 right, vm.Vector3 up, double aspect})?
+  _skyOrthoLens;
 
   /// Pipelines for full-screen stages this class does not have a field for.
   ///
@@ -3072,7 +3748,7 @@ final class Renderer implements RenderServices {
 
     pass.bindPipeline(
       _fullscreenPipelines[draw.fragment] ??= device.createPipeline(
-        fullscreenVertexShader,
+        _fullscreenVertexShader,
         draw.fragment,
       ),
     );
@@ -3192,6 +3868,45 @@ final class Renderer implements RenderServices {
     depthCompare: CompareFunction.less,
   );
 
+  /// How a see-through caster is drawn into the sun's atlas: tested against
+  /// the opaque casters' depth and writing none, so a pane behind a wall adds
+  /// nothing and two panes both count; both faces, since the stage counts a
+  /// closed body as crossed by its two surfaces; and blended so that layers
+  /// combine — what is taken from red and green as `src + dst·(1 − src)`,
+  /// which keeps the depth in red because the stage writes nought there,
+  /// and what is left of blue, in alpha, multiplied. See
+  /// `shadow_transmittance.frag` for the layout.
+  static const PassState _kShadowTransmittanceState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.oneMinusSourceColor,
+      sourceAlphaFactor: BlendFactor.destinationAlpha,
+      destinationAlphaFactor: BlendFactor.zero,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// Photons given back into the atlas: colour as destination minus source,
+  /// which takes from what green and blue say was taken from red and green,
+  /// and alpha as destination plus source, which adds to what is left of
+  /// blue. Every photon lands wherever it lands, so no depth.
+  static const PassState _kCausticPhotonState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState(
+      colorOperation: BlendOperation.reverseSubtract,
+      sourceColorFactor: BlendFactor.one,
+      destinationColorFactor: BlendFactor.one,
+      sourceAlphaFactor: BlendFactor.one,
+      destinationAlphaFactor: BlendFactor.one,
+    ),
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
   /// Blanking one tile of the atlas by drawing over it.
   ///
   /// The pass loads rather than clears — clearing is attachment-wide and would
@@ -3254,9 +3969,9 @@ final class Renderer implements RenderServices {
 
   /// Clamped and linear: a post pass reading outside the source would otherwise
   /// wrap the opposite edge of the screen into the glow.
-  static const SamplerOptions _clampSampler = SamplerOptions.linearClamp;
+  static const SamplerDescriptor _clampSampler = SamplerDescriptor.linearClamp;
 
-  /// Material samplers with `RenderSettings.anisotropy` applied, one per
+  /// RenderMaterial samplers with `RenderSettings.anisotropy` applied, one per
   /// distinct sampler the materials carry.
   ///
   /// A cache for the same reason the Impeller translation has one: a bind
@@ -3265,8 +3980,8 @@ final class Renderer implements RenderServices {
   /// engine's loaders ever build; an entry is replaced rather than joined
   /// when the setting changes, so a slider dragged across the range costs
   /// one allocation per stop rather than a map that grows with it.
-  final Map<SamplerOptions, SamplerOptions> _anisotropicSamplers =
-      <SamplerOptions, SamplerOptions>{};
+  final Map<SamplerDescriptor, SamplerDescriptor> _anisotropicSamplers =
+      <SamplerDescriptor, SamplerDescriptor>{};
 
   /// The device's ceiling on taps, asked for once.
   ///
@@ -3275,7 +3990,7 @@ final class Renderer implements RenderServices {
   /// five times per draw would spend more on the question than on the map
   /// lookup the answer feeds. Lazy, so a renderer that never draws a
   /// textured mesh never asks.
-  late final int _maxAnisotropy = device.maxAnisotropy;
+  late final int _maxAnisotropy = device.limits.maxSamplerAnisotropy;
 
   /// `RenderSettings.anisotropy` as this device can honour it — the level
   /// every material sampler of the frame is raised to, decided once per
@@ -3291,7 +4006,7 @@ final class Renderer implements RenderServices {
   /// and every sampler when [level] is one. [level] arrives already clamped
   /// to the device by [_anisotropyLevel], so what remains on the bind path
   /// is a handful of field comparisons and one map lookup.
-  SamplerOptions? _anisotropic(SamplerOptions? sampler, int level) {
+  SamplerDescriptor? _anisotropic(SamplerDescriptor? sampler, int level) {
     if (sampler == null || level <= 1) return sampler;
     if (sampler.anisotropy != 1 ||
         sampler.minFilter != MinMagFilter.linear ||
@@ -3314,7 +4029,7 @@ final class Renderer implements RenderServices {
   /// slides. And on a backend that folds the mip filter into minification, a
   /// sampler that says nothing about levels reads the base level whatever
   /// level the shader named, which is a mirror at every roughness.
-  static const SamplerOptions _environmentSampler = SamplerOptions(
+  static const SamplerDescriptor _environmentSampler = SamplerDescriptor(
     minFilter: MinMagFilter.linear,
     magFilter: MinMagFilter.linear,
     mipFilter: MipFilter.linear,
@@ -3334,7 +4049,7 @@ final class Renderer implements RenderServices {
   /// testing only the leaf draws every weapon at once.
   @override
   void encodeScene({
-    required NodeFrame frame,
+    required RenderFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
@@ -3359,7 +4074,7 @@ final class Renderer implements RenderServices {
     final LightBuffer passLights;
     final Float32List passShadowSlots;
     if (identical(scene, _lightsScene)) {
-      passLights = lights;
+      passLights = _frameLights;
       passShadowSlots = _shadowSlots;
     } else {
       _passLights.gather(scene.lights);
@@ -3378,9 +4093,12 @@ final class Renderer implements RenderServices {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // `P7`: whether the eye is a point the rays meet at or only where an
+    // orthographic camera was put — see `Orthographic` in `color.glsl`.
+    _fogInfo.projection[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
 
     for (final node in scene.meshes) {
-      if (!node.visibleInHierarchy) continue;
+      if (!node.isVisibleInHierarchy) continue;
       _encodeNode(
         encoder: encoder,
         node: node,
@@ -3434,7 +4152,7 @@ final class Renderer implements RenderServices {
     // No jitter where there can be no resolve: a device that opens one colour
     // attachment has no surface buffer, and a jittered picture nobody
     // averages is a picture that shakes.
-    if (!temporal.enabled || device.maxColorAttachments < 2) {
+    if (!temporal.enabled || device.limits.maxColorAttachments < 2) {
       return _viewProjection(camera, aspect);
     }
     final jittered = JitteredProjection.frame(
@@ -3536,6 +4254,9 @@ final class Renderer implements RenderServices {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
     }
+    // Without the steps whose addon was switched off; the same object while
+    // none was. See `RendererSteps.provide`.
+    settings = renderSteps._framed(settings);
 
     // This plan's own lights, gathered the way a frame gathers them — a
     // default light included, because a scene with none is lit by one and a
@@ -3553,7 +4274,7 @@ final class Renderer implements RenderServices {
     final candidates = <ShadowCandidate>[];
     _collectShadowCandidates(scene, views, into: candidates);
     final assignment = ShadowSlotAllocator(
-      slotCount: kShadowedLights,
+      slotCount: shadowedLights,
     ).assign(candidates);
     var slot = 0;
     for (var row = 0; row < assignment.owners.length; row++) {
@@ -3603,7 +4324,8 @@ final class Renderer implements RenderServices {
         this,
         scene: scene,
         shadowCaster: shadowCaster,
-        clearColor: ordered.first.clearColor,
+        clearColor: ordered.first.clearColorSrgb,
+        enabled: settings.irradianceUpdates,
       ),
       probes: <_ReflectionProbeNode>[
         for (var i = 0; i < scene.probes.length; i++)
@@ -3613,16 +4335,33 @@ final class Renderer implements RenderServices {
             probe: scene.probes[i],
             index: i,
             shadowCaster: shadowCaster,
-            clearColor: ordered.first.clearColor,
+            clearColor: ordered.first.clearColorSrgb,
+            enabled: settings.reflectionProbes,
           ),
       ],
+      renderTextures: _RenderTextureNode(
+        this,
+        scene: scene,
+        shadowCaster: shadowCaster,
+        enabled: settings.renderTextures,
+      ),
+      planarReflections: _PlanarReflectionNode(
+        this,
+        scene: scene,
+        views: ordered,
+        settings: settings,
+        shadowCaster: shadowCaster,
+      ),
       scene: _SceneNode(
         this,
         scene: scene,
         ordered: ordered,
-        contributors: contributors.active.toList(growable: false),
+        contributors: renderSteps._store.contributors.active.toList(
+          growable: false,
+        ),
         shadowCaster: shadowCaster,
         lightOverflow: planLights.overflow,
+        settings: settings,
       ),
       bloom: _BloomNode(this, settings.bloom),
       composite: _CompositeNode(this, scene, ordered, settings),
@@ -3671,6 +4410,9 @@ final class Renderer implements RenderServices {
   /// A mesh added later, or a setting switched on later, links on first use
   /// as before; so does a model that arrives after this runs, which is why a
   /// loading screen waits for its models before calling it.
+  ///
+  /// [warmUpInSlices] does the same work a little at a time, yielding between
+  /// slices so that a loading screen still answers input.
   void warmUp({
     required int width,
     required int height,
@@ -3678,47 +4420,138 @@ final class Renderer implements RenderServices {
     required List<RenderView> views,
     RenderSettings settings = const RenderSettings(),
   }) {
-    for (final node in scene.meshes) {
-      final skinned = node.skeleton != null;
-      final instanced = node is InstancedMeshNode;
-      _pipelineFor(
-        node.material.lighting,
-        skinned: skinned,
-        instanced: instanced,
-        lightmapped: node.lightmapped && !skinned && !instanced,
-      );
-    }
-    // And what only a later frame reaches: the tile reset a kept cascade
-    // atlas redraws a tile with (`S1`), and the copy a static one is read
-    // through — neither runs on a first frame, which draws every tile from a
-    // clear.
-    final reset = shaders['ShadowTileReset'];
-    final resetVertex = shaders['ShadowTileResetVertex'];
-    if (reset != null && resetVertex != null) {
-      _cubeShadowResetPipeline ??= device.createPipeline(resetVertex, reset);
-    }
-    final copy = shaders['ShadowCopy'];
-    final fullscreen = shaders['FullscreenVertex'];
-    if (copy != null &&
-        fullscreen != null &&
-        scene.meshes.any((node) => node.shadowIsStatic)) {
-      _shadowCopyPipeline ??= device.createPipeline(fullscreen, copy);
-    }
+    final steps = _warmUpSteps(
+      width: width,
+      height: height,
+      scene: scene,
+      views: views,
+      settings: settings,
+    );
     _warmingUp = true;
     try {
-      for (var frame = 0; frame < _kFramesInFlight; frame++) {
-        render(
-          width: width,
-          height: height,
-          scene: scene,
-          views: views,
-          settings: settings,
-        );
+      for (final step in steps) {
+        step();
       }
     } finally {
       _warmingUp = false;
     }
   }
+
+  /// [warmUp] in slices of at most about [slice] each, yielding to the event
+  /// loop between them — `A1.6`.
+  ///
+  /// **A warm-up that blocks is a loading screen that does not answer.** The
+  /// whole of [warmUp] can take hundreds of milliseconds on a phone, and the
+  /// UI thread is the one doing it: a tap on "cancel" waits, and so does the
+  /// spinner. Here the same work is cut into steps — one pipeline per mesh,
+  /// the shadow pipelines, then one frame per frame in flight — and after
+  /// each step that ends a slice of [slice] or more, the future waits for
+  /// the event loop's next turn, so input and a loading screen's own frame
+  /// get theirs. A step is not divided: a pipeline build or a frame longer
+  /// than [slice] is one slice of its own.
+  ///
+  /// [onProgress] is told the share of the steps done, from just above
+  /// nought to one, after each step — what a loading bar draws.
+  ///
+  /// What it leaves behind is what [warmUp] leaves. A frame drawn by the
+  /// application between two slices is an ordinary frame, and pays for
+  /// whatever has not been linked yet; a loading screen draws something
+  /// else until the future completes.
+  Future<void> warmUpInSlices({
+    required int width,
+    required int height,
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+    Duration slice = const Duration(milliseconds: 8),
+    void Function(double done)? onProgress,
+  }) async {
+    final steps = _warmUpSteps(
+      width: width,
+      height: height,
+      scene: scene,
+      views: views,
+      settings: settings,
+    );
+    final clock = Stopwatch()..start();
+    for (final (i, step) in steps.indexed) {
+      // Raised only around the step itself: whatever runs between slices is
+      // the application's, not the warm-up's.
+      _warmingUp = true;
+      try {
+        step();
+      } finally {
+        _warmingUp = false;
+      }
+      onProgress?.call((i + 1) / steps.length);
+      if (clock.elapsed >= slice && i < steps.length - 1) {
+        await Future<void>.delayed(Duration.zero);
+        clock
+          ..reset()
+          ..start();
+      }
+    }
+  }
+
+  /// What [warmUp] does, as steps small enough to slice between: a lit
+  /// pipeline per mesh, the shadow pipelines only a later frame reaches, and
+  /// a frame per frame in flight.
+  List<void Function()> _warmUpSteps({
+    required int width,
+    required int height,
+    required Scene scene,
+    required List<RenderView> views,
+    required RenderSettings settings,
+  }) => <void Function()>[
+    for (final node in scene.meshes)
+      () {
+        final skinned = node.skeleton != null;
+        final instanced = node is InstancedMeshNode;
+        final material = node.material;
+        // The variant the scene pass will draw it with: the lit model's
+        // opaque stage (`A1.2`) for anything but a blend or a faded node,
+        // where the model has one — a mask or a hash is cut by the pre-draw
+        // and then drawn through it too. Linking the plain stage alone left
+        // every model but the one the warm-up frames happened to see to link
+        // during play.
+        _pipelineFor(
+          material.lighting,
+          skinned: skinned,
+          instanced: instanced,
+          lightmapped: node.lightmapped && !skinned && !instanced,
+          opaque:
+              material.alphaMode != MaterialAlphaMode.blend &&
+              node.tint.a >= 1.0 &&
+              _opaqueStageFor(material.lighting) != null,
+        );
+      },
+    // And what only a later frame reaches: the tile reset a kept cascade
+    // atlas redraws a tile with (`S1`), and the copy a static one is read
+    // through — neither runs on a first frame, which draws every tile from a
+    // clear.
+    () {
+      final reset = shaders['ShadowTileReset'];
+      final resetVertex = shaders['ShadowTileResetVertex'];
+      if (reset != null && resetVertex != null) {
+        _cubeShadowResetPipeline ??= device.createPipeline(resetVertex, reset);
+      }
+      final copy = shaders['ShadowCopy'];
+      final fullscreen = shaders['FullscreenVertex'];
+      if (copy != null &&
+          fullscreen != null &&
+          scene.meshes.any((node) => node.shadowIsStatic)) {
+        _shadowCopyPipeline ??= device.createPipeline(fullscreen, copy);
+      }
+    },
+    for (var frame = 0; frame < _kFramesInFlight; frame++)
+      () => render(
+        width: width,
+        height: height,
+        scene: scene,
+        views: views,
+        settings: settings,
+      ),
+  ];
 
   FrameResult render({
     required int width,
@@ -3730,6 +4563,48 @@ final class Renderer implements RenderServices {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
     }
+    // `A1.4`: the GPU is behind by every frame in flight, so this one is not
+    // drawn — the last picture is presented again and the UI thread goes on.
+    // Never while warming up, whose frames are the point; never on the first
+    // frame or a resized one, which have no picture of the right size to
+    // hand back.
+    final previous = _lastResult;
+    if (previous != null &&
+        !_warmingUp &&
+        pacing.holdWhenBehind &&
+        _gpuIsBehind &&
+        _lastRequestedSize == (width, height)) {
+      _heldFrames++;
+      final held = previous.toHeld();
+      listener?.notify(held);
+      return held;
+    }
+    _frameStalls.clear();
+    // Item 26: a view is an object. A disposed one is a caller's mistake; one
+    // its visibility hook hides is left out, keeping its history for when it
+    // is shown again — unless that leaves nothing to draw. The first view's
+    // state is what this frame reads and writes, and its own settings, when
+    // it has some, are the frame's.
+    for (final view in views) {
+      if (view.isDisposed) {
+        throw StateError(
+          'a RenderView was disposed and then handed to render; make a new '
+          'one, or keep it until the last frame that draws it',
+        );
+      }
+    }
+    final shown = <RenderView>[
+      for (final view in views)
+        if (view.isVisible) view,
+    ];
+    if (shown.isNotEmpty) views = shown;
+    _evictIdleViewStates();
+    _followOrigin(scene);
+    _viewState = _stateFor(views.first);
+    settings = views.first.options.settings ?? settings;
+    // Without the steps whose addon was switched off; the same object while
+    // none was. See `RendererSteps.provide`.
+    settings = renderSteps._framed(settings);
     // `gfx-35n`. Applied here, once, so every target and every pass below is
     // sized from it — the scene, the surface buffer, the occlusion, the bloom
     // chain and the composite all take their size from these two numbers.
@@ -3774,7 +4649,7 @@ final class Renderer implements RenderServices {
     // A frame drawn without the resolve leaves the history describing a
     // picture from before it; turning it back on starts again.
     if (!temporal) _historyValid = false;
-    _temporalEffects = temporal && device.maxColorAttachments > 1;
+    _temporalEffects = temporal && device.limits.maxColorAttachments > 1;
     if (!_temporalEffects) {
       for (final history in _effectHistories.values) {
         history.valid = false;
@@ -3824,9 +4699,9 @@ final class Renderer implements RenderServices {
     // Lights are gathered once up front now, because the shadow pass needs the
     // caster before any view is drawn — and the packed buffer is per frame, not
     // per view.
-    lights.gather(scene.lights);
-    if (lights.count == 0 && scene.defaultLightWhenUnlit) {
-      lights.useDefaultLight();
+    _frameLights.gather(scene.lights);
+    if (_frameLights.count == 0 && scene.defaultLightWhenUnlit) {
+      _frameLights.useDefaultLight();
     }
     _lightsScene = scene;
     // **What was actually lost, not what did not fit the slots — `gfx-74n`.**
@@ -3856,7 +4731,7 @@ final class Renderer implements RenderServices {
 
     // Which point lights get a row of the atlas, decided by relevance rather
     // than by the order they happen to sit in the scene list.
-    // [kShadowedLights] is a limit on how many can be shadowed *at once*, not
+    // [shadowedLights] is a limit on how many can be shadowed *at once*, not
     // on how many a level may contain: the seventh torch takes a row as soon as
     // it matters more than one of the six, and gives it back when it stops.
     //
@@ -3893,7 +4768,7 @@ final class Renderer implements RenderServices {
       // point light's, and the cone still limits where its light falls,
       // because that is the lighting's attenuation and not the shadow's.
       final spot =
-          owner.type == LightType.spot &&
+          owner.type.base == LightType.spot &&
           owner.outerConeAngle * _kSpotFrustumMargin <= math.pi / 4;
       // The frustum this row is drawn and read through. A cube face is ninety
       // degrees, so `tan(45°)` is exactly one; a cone opens to twice its outer
@@ -3946,7 +4821,7 @@ final class Renderer implements RenderServices {
       _shadowRowTangent[row] = tanHalf;
       slot = math.max(slot, row + 1);
     }
-    _writeShadowSlots(lights, _shadowSlots);
+    _writeShadowSlots(_frameLights, _shadowSlots);
     // Which rows are occupied, and therefore whether the atlas is worth
     // drawing at all. Decided here rather than inside either atlas node,
     // because it is what the *frame* knows — both nodes are asked whether they
@@ -3967,7 +4842,7 @@ final class Renderer implements RenderServices {
       ..start();
     if (settings.autoExposure.enabled) {
       (_autoExposure ??= ExposureAdapter(
-        initial: settings.exposure,
+        initial: settings.cameraExposure,
       )).step(dt, settings.autoExposure);
       // `gfx-22n`. One adapter per view, stepped by the same clock. A view
       // that has just appeared starts at the frame's own exposure rather than
@@ -3976,7 +4851,9 @@ final class Renderer implements RenderServices {
       if (settings.autoExposure.perView) {
         while (_viewExposure.length < views.length) {
           _viewExposure.add(
-            ExposureAdapter(initial: _autoExposure?.value ?? settings.exposure),
+            ExposureAdapter(
+              initial: _autoExposure?.value ?? settings.cameraExposure,
+            ),
           );
         }
         while (_viewExposure.length > views.length) {
@@ -4006,7 +4883,7 @@ final class Renderer implements RenderServices {
     //
     // The scene and the composite hold this frame's views the way reflections
     // holds its own, because neither the view loop nor the overlay batch after
-    // the tone map can be derived from `NodeFrame`, which carries neither a
+    // the tone map can be derived from `RenderFrame`, which carries neither a
     // scene nor a viewport.
     //
     // The atlas nodes hold this frame's row count and the allocator's verdict
@@ -4059,6 +4936,7 @@ final class Renderer implements RenderServices {
       // probe that left the scene since last frame gives its cubes back here,
       // and this frame's one whole-cube capture is up for claiming again.
       _retireProbesNotIn(scene);
+      _retireReflectorsNotIn(scene);
       _wholeProbeCaptured = false;
       final probeNodes = <_ReflectionProbeNode>[
         for (var i = 0; i < scene.probes.length; i++)
@@ -4068,16 +4946,20 @@ final class Renderer implements RenderServices {
             probe: scene.probes[i],
             index: i,
             shadowCaster: shadowCaster,
-            clearColor: ordered.first.clearColor,
+            clearColor: ordered.first.clearColorSrgb,
+            enabled: settings.reflectionProbes,
           ),
       ];
       sceneNode = _SceneNode(
         this,
         scene: scene,
         ordered: ordered,
-        contributors: contributors.active.toList(growable: false),
+        contributors: renderSteps._store.contributors.active.toList(
+          growable: false,
+        ),
         shadowCaster: shadowCaster,
         lightOverflow: lightOverflowCount,
+        settings: settings,
       );
       final bloomNode = _BloomNode(this, settings.bloom);
       compositeNode = _CompositeNode(this, scene, ordered, settings);
@@ -4103,7 +4985,21 @@ final class Renderer implements RenderServices {
           this,
           scene: scene,
           shadowCaster: shadowCaster,
-          clearColor: ordered.first.clearColor,
+          clearColor: ordered.first.clearColorSrgb,
+          enabled: settings.irradianceUpdates,
+        ),
+        renderTextures: _RenderTextureNode(
+          this,
+          scene: scene,
+          shadowCaster: shadowCaster,
+          enabled: settings.renderTextures,
+        ),
+        planarReflections: _PlanarReflectionNode(
+          this,
+          scene: scene,
+          views: ordered,
+          settings: settings,
+          shadowCaster: shadowCaster,
         ),
         scene: sceneNode,
         bloom: bloomNode,
@@ -4113,11 +5009,17 @@ final class Renderer implements RenderServices {
         viewCount: ordered.length,
         // The same light the shadow map casts from, so the seam the march draws
         // continues the shadow the map drew rather than crossing it.
-        sunToLight: _toLightIn(lights, shadowCaster),
-        sunRadiance: _radianceIn(lights, shadowCaster),
-        contactToLight: _contactToLightIn(lights, shadowCaster),
-        fogToLight: _toLightIn(lights, _airLightIn(lights, shadowCaster)),
-        fogRadiance: _radianceIn(lights, _airLightIn(lights, shadowCaster)),
+        sunToLight: _toLightIn(_frameLights, shadowCaster),
+        sunRadiance: _radianceIn(_frameLights, shadowCaster),
+        contactToLight: _contactToLightIn(_frameLights, shadowCaster),
+        fogToLight: _toLightIn(
+          _frameLights,
+          _airLightIn(_frameLights, shadowCaster),
+        ),
+        fogRadiance: _radianceIn(
+          _frameLights,
+          _airLightIn(_frameLights, shadowCaster),
+        ),
       );
 
       // The frame's own resources: the graph names the lit scene and each
@@ -4135,7 +5037,7 @@ final class Renderer implements RenderServices {
               frameWidth: width,
               frameHeight: height,
               alias: settings.aliasTargets,
-              onRetire: debugOnTargetRetired,
+              onRetire: _debugOnTargetRetired,
             )
             // Half the frame, in the same HDR format, which is what the bloom
             // chain's top level has always been.
@@ -4225,11 +5127,20 @@ final class Renderer implements RenderServices {
                 format: TextureFormat.r8g8b8a8UNormInt,
               ),
             )
+            // `N9`: the frame's size, because a ring is drawn a pixel at a
+            // time round what the scene drew, and eight bits a channel
+            // because what it holds is a display colour a player picked.
+            ..declare(
+              const ResourceDesc(
+                id: FrameResourceIds.outlineMask,
+                format: TextureFormat.r8g8b8a8UNormInt,
+              ),
+            )
             // `M3`: the scene and its halvings side by side, in the scene's
             // own format, so the glass reads the light the scene held.
             ..declare(
               ResourceDesc(
-                id: FrameResourceIds.sceneColour,
+                id: FrameResourceIds.sceneColor,
                 format: hdrFormat,
                 size: AbsolutePixels(
                   sceneColourChain.atlasWidth,
@@ -4264,7 +5175,13 @@ final class Renderer implements RenderServices {
     _captureWanted = null;
     _capture = capturing == null
         ? null
-        : FrameCaptureBuilder(width: width, height: height);
+        : FrameCaptureBuilder(
+            width: width,
+            height: height,
+            journal: _captureDraws ? DrawJournal() : null,
+            readFloats: _captureFloats,
+          );
+    passState.journal = _capture?.journal;
     try {
       for (var i = 0; i < frameGraph.order.length; i++) {
         resources.beginNode(i);
@@ -4285,15 +5202,19 @@ final class Renderer implements RenderServices {
         // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
         // own names rather than a pass nobody can place.
         _passLabel = node.name;
+        passState.journal?.beginPass(i, node.name);
         developer.Timeline.startSync(node.name);
         try {
           node.execute(
-            NodeFrame(
+            RenderFrame(
               device: device,
               resources: resources,
               services: this,
-              state: passState,
               settings: settings,
+              view: views.first,
+              frameIndex: _frameIndex,
+              time: _seconds,
+              origin: scene.origin,
               // `R2`: after the temporal resolve, the output's size.
               width: _outputSized.contains(node) ? _outputWidth : width,
               height: _outputSized.contains(node) ? _outputHeight : height,
@@ -4308,11 +5229,10 @@ final class Renderer implements RenderServices {
               // scene runs first and a node drawing over the world has to cope
               // with there being nothing yet. The view model returns early.
               sceneColor:
-                  frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) ==
-                      null
+                  frameGraph.readVersionOf(i, FrameResourceIds.hdrColor) == null
                   ? null
-                  : resources.tryTexture(FrameResourceIds.hdrColour),
-            ),
+                  : resources.tryTexture(FrameResourceIds.hdrColor),
+            )..state = passState,
           );
         } finally {
           developer.Timeline.finishSync();
@@ -4335,7 +5255,16 @@ final class Renderer implements RenderServices {
         // pool, and the next pass draws over it. A capture taken after the
         // frame would hold whatever the last pass to borrow that shape left
         // there, attributed to whichever pass wrote it first.
-        _capture?.record(node, device: device, lookup: resources.tryTexture);
+        passState.journal?.endPass(passState.drawCalls - drawsBefore);
+        final cost = passTimings.last;
+        _capture?.record(
+          node,
+          device: device,
+          lookup: resources.tryTexture,
+          micros: cost.micros,
+          drawCalls: cost.drawCalls,
+          triangles: cost.triangles,
+        );
         resources.endNode(i);
       }
     } catch (error, stack) {
@@ -4405,14 +5334,11 @@ final class Renderer implements RenderServices {
       frameHistory.endFrame(
         frame: _frameIndex,
         meshes: scene.meshes,
-        views: <(CameraNode, vm.Matrix4)>[
+        views: <(RenderView, vm.Matrix4)>[
           for (final view in views)
             if (_viewportPixels(view.viewportFraction, width, height)
                 case final rect)
-              (
-                view.camera,
-                view.camera.viewProjection(rect.width / rect.height),
-              ),
+              (view, view.camera.viewProjection(rect.width / rect.height)),
         ],
       );
     }
@@ -4448,12 +5374,15 @@ final class Renderer implements RenderServices {
       return true;
     }());
 
-    return FrameResult(
+    // Asked for and not given. Computed here rather than plumbed out of the
+    // scene pass, because it is a fact about the settings and the device
+    // rather than about anything that happened during the frame.
+    final wireframeDeclined =
+        settings.wireframe && !device.features.has(DeviceFeature.wireframe);
+    final result = FrameResult(
       frame: frame,
-      // Asked for and not given. Computed here rather than plumbed out of the
-      // scene pass, because it is a fact about the settings and the device
-      // rather than about anything that happened during the frame.
-      wireframeDeclined: settings.wireframe && !device.supportsWireframe,
+      wireframeDeclined: wireframeDeclined,
+      alphaToCoverageDeclined: passState.coverageDeclined,
       // `gfx-20n`. Half of it comes from the scene pass, which knows what it
       // attached, and half from the graph, which knows whether the node ran.
       // Neither half can answer alone, which is why the answer is assembled
@@ -4475,7 +5404,7 @@ final class Renderer implements RenderServices {
       culled: scenePass.culled,
       pipelineSwitches: passState.pipelineSwitches,
       debugLines: debugLines,
-      lights: lights.count,
+      lights: _frameLights.count,
       lightsDropped: scenePass.lightOverflow,
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
@@ -4486,16 +5415,46 @@ final class Renderer implements RenderServices {
       passes: passTimings,
       // Read off the compiled graph rather than recomputed here: the reasons
       // are the compile's own answers, and a second derivation is a second
-      // thing to disagree with the frame.
-      skipped: frameGraph.skipped,
+      // thing to disagree with the frame. Each step switched off through
+      // `RenderSettings.without` is added under its own name, unless a
+      // skipped pass of that name already says it: the tone curve or the
+      // shadows have no node called that, and the report must still name them.
+      // Then what the frame declined, which the fields above already say
+      // one convention at a time.
+      skipped: <SkippedPass>[
+        ...RenderStep.reportSkips(
+          settings,
+          frameGraph.skipped,
+          also: renderSteps.added,
+        ),
+        ...FrameResult.declinedSkips(
+          wireframe: wireframeDeclined,
+          alphaToCoverage: passState.coverageDeclined,
+          multisampling: scenePass.msaaDeclined != null,
+          shadowsDenied: _shadowsDenied,
+        ),
+      ],
+      targetBytes: resources.targetBytes,
+      pipelineStalls: List<PipelineStall>.unmodifiable(_frameStalls),
     );
+    // What a held frame answers with, until the next one is drawn.
+    _lastResult = result;
+    _lastRequestedSize = (requestedWidth, requestedHeight);
+    // After the frame is whole and submitted: a listener sees what the
+    // caller is about to get, and nothing it does can reach this frame.
+    listener?.notify(result);
+    return result;
   }
 
   /// Puts this frame's finished-frame texture back into rotation once the
-  /// work that read it is done.
+  /// work that read it is done, and counts the frame as in flight until then
+  /// — `A1.4`. One callback for both, so a device's completions stay one
+  /// per frame.
   void _recycleLdrFrame() {
     final drawnInto = _ldrCurrent;
-    if (drawnInto == null) return;
+    final frame = _frameIndex - 1;
+    _unfinished.add(frame);
+    _latestSubmitted = frame;
     // **The membership test belongs inside the callback, not beside it.**
     // Asked here it is a question about the world at registration time, and
     // the callback runs later — on Impeller, from the command buffer's
@@ -4510,7 +5469,10 @@ final class Renderer implements RenderServices {
     // `onFrameComplete` runs synchronously, so there is no in-between. That
     // is every desktop and mobile build, on any window drag.
     device.onFrameComplete(() {
-      if (_ldrFrames.contains(drawnInto)) _ldrFree.add(drawnInto);
+      _unfinished.remove(frame);
+      if (drawnInto != null && _ldrFrames.contains(drawnInto)) {
+        _ldrFree.add(drawnInto);
+      }
     });
   }
 
@@ -4608,7 +5570,13 @@ final class Renderer implements RenderServices {
     // time it is called.
     _retireFrameSlot();
     try {
-      return _renderPost(hdr, settings, keepHdr, target, clock);
+      return _renderPost(
+        hdr,
+        renderSteps._framed(settings),
+        keepHdr,
+        target,
+        clock,
+      );
     } finally {
       _frameIndex++;
       developer.Timeline.finishSync();
@@ -4624,23 +5592,12 @@ final class Renderer implements RenderServices {
   ) {
     final bloomNode = _BloomNode(this, settings.bloom);
     final graph = FrameGraph()
-      ..addExternal(FrameResourceIds.hdrColour)
+      ..addExternal(FrameResourceIds.hdrColor)
       ..addNode(bloomNode);
-    // The same `disabledPasses` the full frame honours, narrowed to the one
-    // node this graph has. Without the narrowing a perfectly good set — the
-    // one a caller uses for their full frames, naming `ssao` or `antialias` —
-    // would be rejected here as a misspelling, because this graph genuinely
-    // does not have those nodes. Narrowed rather than validated, then: the
-    // typo check belongs to the frame that has all the names, and this path
-    // deliberately has one.
-    final postDisabled = settings.disabledPasses
-        .where((name) => name == bloomNode.name)
-        .toSet();
+    // `without({RenderStep.bloom})` switches the glow's own setting off, so
+    // the node is inactive and produces nothing for the composite to read.
     final compiled = graph.compile(
-      disabled: postDisabled,
-      outputs: <ResourceId>[
-        if (bloomNode.isActive && postDisabled.isEmpty) FrameResourceIds.bloom,
-      ],
+      outputs: <ResourceId>[if (bloomNode.isActive) FrameResourceIds.bloom],
     );
 
     final resources =
@@ -4662,7 +5619,7 @@ final class Renderer implements RenderServices {
           );
     // Between nodes, which is what binds a name's version zero rather than a
     // node's own output — see `FrameResources.provide`'s own doc comment.
-    resources.provide(FrameResourceIds.hdrColour, hdr);
+    resources.provide(FrameResourceIds.hdrColor, hdr);
 
     // Unlike `render`'s own loop, nothing here reads `bloom` back through the
     // graph — composite is called directly below rather than registered as a
@@ -4677,16 +5634,15 @@ final class Renderer implements RenderServices {
     for (var i = 0; i < compiled.order.length; i++) {
       resources.beginNode(i);
       (compiled.order[i] as RenderNode).execute(
-        NodeFrame(
+        RenderFrame(
           device: device,
           resources: resources,
           services: this,
-          state: passState,
           settings: settings,
           width: hdr.width,
           height: hdr.height,
           sceneColor: hdr,
-        ),
+        )..state = passState,
       );
       bloom = resources.tryTexture(FrameResourceIds.bloom);
       resources.endNode(i);
@@ -4695,7 +5651,7 @@ final class Renderer implements RenderServices {
     final output =
         target ??
         device.createTexture(
-          RenderTargetSpec(
+          RenderTargetDescriptor(
             width: hdr.width,
             height: hdr.height,
             format: device.defaultColorFormat,
@@ -4757,17 +5713,17 @@ final class Renderer implements RenderServices {
     // backend where the answer is no ends the process. A diagnostic that
     // cannot survive its own bad news is not a diagnostic. The device is
     // asked first, and a device that says one is reported rather than tried.
-    if (device.maxColorAttachments < 2) {
+    if (device.limits.maxColorAttachments < 2) {
       return 'MRT probe: this device opens at most '
-          '${device.maxColorAttachments} colour attachment, so the probe was '
-          'not run — see GraphicsDevice.maxColorAttachments. Every pass that '
+          '${device.limits.maxColorAttachments} colour attachment, so the probe was '
+          'not run — see DeviceLimits.maxColorAttachments. Every pass that '
           'reads the surface buffer is culled on this device and reported as '
           'starved.';
     }
 
     const size = 4;
     TextureHandle makeTarget() => device.createTexture(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: size,
         height: size,
         format: device.defaultColorFormat,
@@ -4796,7 +5752,7 @@ final class Renderer implements RenderServices {
       // would be inventing the semantics of the general case too.
       pass.setBlend(null, attachment: 1);
 
-      pass.bindPipeline(device.createPipeline(fullscreenVertexShader, probe));
+      pass.bindPipeline(device.createPipeline(_fullscreenVertexShader, probe));
       pass.bindVertexBuffer(_fullscreenTriangle, 3);
       pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
       pass.draw();
@@ -4804,11 +5760,8 @@ final class Renderer implements RenderServices {
 
       // asImage plus toByteData is the only readback path available: there is
       // no buffer readback on this backend at all.
-      final a = await device.readPixels(first);
-      final b = await device.readPixels(second);
-      if (a == null || b == null) {
-        return 'MRT probe: readback returned nothing.';
-      }
+      final a = await device.readback(first);
+      final b = await device.readback(second);
 
       String describe(ByteData data) =>
           '(${data.getUint8(0)}, ${data.getUint8(1)}, ${data.getUint8(2)})';
@@ -4989,8 +5942,8 @@ final class Renderer implements RenderServices {
 
     encoder.bindPipeline(
       _debugLinePipeline ??= device.createPipeline(
-        debugLineVertexShader,
-        debugLineFragmentShader,
+        _debugLineVertexShader,
+        _debugLineFragmentShader,
       ),
     );
     encoder.setState(_kDebugLineState);
@@ -5003,7 +5956,7 @@ final class Renderer implements RenderServices {
       vertexCount,
     );
     _lineInfo.viewProjection.setAll(0, viewProjection.storage);
-    encoder.bindBlock(debugLineVertexShader, _lineInfo);
+    encoder.bindBlock(_debugLineVertexShader, _lineInfo);
 
     encoder.draw();
     developer.Timeline.finishSync();
@@ -5014,4 +5967,54 @@ final class Renderer implements RenderServices {
   /// the overlay outgrows it.
   GeometryBuffer _identityIndices(int count) =>
       _debugIndices.view(device, count);
+}
+
+/// What tests read off a renderer: the cascades it fitted, the depth
+/// pyramid, the exposure meter's failures and the hook a retired target is
+/// reported through. Not exported by `flutter3d_core.dart` (it hides this
+/// extension), so none of it is the renderer's API; a test imports
+/// `package:flutter3d_core/src/engine/render/renderer.dart` to reach it.
+extension RendererInternals on Renderer {
+  /// The lights the last frame gathered and packed.
+  LightBuffer get lights => _frameLights;
+
+  /// The radius of each directional cascade the last frame fitted.
+  List<double> get debugCascadeRadii => _debugCascadeRadii;
+
+  /// The centre of each directional cascade the last frame fitted.
+  List<vm.Vector3> get debugCascadeCentres => _debugCascadeCentres;
+
+  /// The depth pyramid occlusion is tested against, when there is one.
+  HiZOcclusion? get debugHiZ => _debugHiZ;
+
+  /// How many times the exposure meter's readback failed.
+  int get debugMeterFailures => _debugMeterFailures;
+
+  /// The near plane each view of the last frame's scene pass was drawn
+  /// with: the camera's own, or the fitted one under reversed depth.
+  List<double> get debugFittedNears => List<double>.unmodifiable(_fittedNears);
+
+  /// Told each texture the target pool retires.
+  void Function(TextureHandle texture)? get debugOnTargetRetired =>
+      _debugOnTargetRetired;
+  set debugOnTargetRetired(void Function(TextureHandle texture)? hook) =>
+      _debugOnTargetRetired = hook;
+}
+
+/// What one view keeps from frame to frame: the temporal resolve's two
+/// histories and which is read, whether they are worth blending, and the
+/// noisy effects' histories — item 26.
+final class _ViewState {
+  /// The `Renderer.frameIndex` of the last frame that drew this state's view.
+  int lastUsed = 0;
+
+  /// The view this state belongs to, weakly, so a dropped view is not kept
+  /// alive by the state that is waiting to be evicted.
+  WeakReference<RenderView>? view;
+
+  final List<TextureHandle?> history = <TextureHandle?>[null, null];
+  int historyRead = 0;
+  bool historyValid = false;
+  final Map<ResourceId, _EffectHistory> effects =
+      <ResourceId, _EffectHistory>{};
 }

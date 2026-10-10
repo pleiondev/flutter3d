@@ -18,7 +18,6 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
@@ -68,7 +67,7 @@ final class _Shown {
     final renderer = Renderer.create(device: device);
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.05,
+        fovY: 1.05,
         near: 0.1,
         far: 200.0,
       ),
@@ -95,13 +94,13 @@ final class _Shown {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: const RenderSettings(),
     );
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    return pixels!.buffer.asUint8List();
+    return pixels.buffer.asUint8List();
   }
 }
 

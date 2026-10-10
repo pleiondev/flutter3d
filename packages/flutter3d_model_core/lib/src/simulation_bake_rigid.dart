@@ -3,12 +3,11 @@
 /// solver already bakes into — see `simulation_bake.dart`'s own doc comment
 /// for why a cache rather than a live simulation.
 ///
-/// **No rotation, on purpose.** `pro-sim-02`'s own row asks for this
-/// explicitly: a box that only translates needs no basis to carry along
-/// with its position, so every frame is [halfExtents]'s own eight corners
-/// plus [RigidBody.position] — the cheapest cache a rigid body can bake to,
-/// and the honest scope a single unconstrained body actually needs. A body
-/// that tips over is `pro-sim-02`'s own future row, not this one's.
+/// **Turned as the body turns.** Each frame is [halfExtents]'s eight
+/// corners turned by [RigidBody.orientation] and put at its position: a box
+/// dropped flat stays flat on either solver, and one the physics core tips
+/// over is baked tipping. Which solver steps it is the caller's —
+/// `BakeRigidBodyJobRequest.dynamicsFor`.
 library;
 
 import 'dart:typed_data';
@@ -41,7 +40,7 @@ List<Vector3> _boxCorners(Vector3 halfExtents) => <Vector3>[
 /// from the result names both itself. [label] is the row's own "с
 /// подписью" — what a cache-status strip shows for a bake nothing else here
 /// distinguishes from another rigid body's.
-final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
+final class BakeRigidBodyJobRequest with SimulationBakeRequest {
   BakeRigidBodyJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -51,7 +50,13 @@ final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
     this.frameCount = 180,
     this.dt = 1.0 / 60.0,
     this.label = 'Rigid body',
+    this.dynamicsFor,
   });
+
+  /// What steps the box: `Dynamics`, the reference in Dart, unless a caller
+  /// with the physics core hands over its own — kept a function here so
+  /// this package does not reach for native code.
+  final RigidDynamics Function(CollisionWorld world)? dynamicsFor;
 
   @override
   final int objectId;
@@ -59,9 +64,13 @@ final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
   final int baseVersion;
   final Vector3 halfExtents;
   final Vector3 startPosition;
+
+  /// In kilograms.
   final double mass;
   @override
   final int frameCount;
+
+  /// In seconds.
   final double dt;
   final String label;
 
@@ -84,7 +93,7 @@ final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
     );
     world.update();
 
-    final dynamics = Dynamics(world: world);
+    final dynamics = dynamicsFor?.call(world) ?? Dynamics(world: world);
     final body = dynamics.add(
       RigidBody(
         world: world,
@@ -103,7 +112,9 @@ final class BakeRigidBodyJobRequest implements SimulationBakeRequest {
 
       final frame = Float32List(vertexCount * 3);
       for (var v = 0; v < vertexCount; v++) {
-        final corner = corners[v] + body.position;
+        final corner = body.orientation.asRotationMatrix().transformed(
+          corners[v],
+        )..add(body.position);
         frame[v * 3] = corner.x;
         frame[v * 3 + 1] = corner.y;
         frame[v * 3 + 2] = corner.z;

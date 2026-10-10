@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:typed_data';
 
 // `Ktx2Texture` hidden: this package's own thin wrapper of the same name,
@@ -7,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import '../platform/background.dart';
 import 'image_decoder.dart';
 import 'ktx2/ktx2.dart';
 
@@ -15,6 +15,69 @@ export 'image_decoder.dart';
 /// Whether this build has no isolates in it — see `model_loader.dart`'s own
 /// copy of this constant for why it replaces `kIsWeb` here (mcp-03n).
 const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
+
+/// The cap [uploadEncodedImage] decodes [device]'s images to: [maxDimension]
+/// when one is given, and never more than the device's own largest 2D
+/// texture.
+///
+/// **Per call, since 1.0.** The process-wide `maxDecodedTextureDimension`
+/// went with the other global settings (API review A.4): an engine that
+/// loads for a phone passes the cap down from its own settings, and a second
+/// engine in the same isolate is not capped by the first's.
+int textureDecodeCap(GraphicsDevice device, {int? maxDimension}) {
+  final limit = device.limits.maxTextureDimension2D;
+  final asked = maxDimension;
+  return asked == null || asked > limit ? limit : asked;
+}
+
+/// [image] scaled down to fit [maxDimension] on its longer side, keeping its
+/// aspect ([cappedImageSize]), or [image] itself when it already fits.
+///
+/// An area average: each output texel is the mean of the source texels its
+/// footprint covers, which is the filter a mip level is built with and the
+/// one that does not alias a fine pattern into a coarse one. The fallback for
+/// a decoder that could not scale while decoding — the browser and the
+/// native codec both do, and never reach this with a large image.
+Rgba8Image fitRgba8Image(Rgba8Image image, {required int maxDimension}) {
+  final target = cappedImageSize(
+    image.width,
+    image.height,
+    maxDimension: maxDimension,
+  );
+  final sw = image.width;
+  final sh = image.height;
+  final dw = target.width;
+  final dh = target.height;
+  if (dw == sw && dh == sh) return image;
+  final src = image.pixels;
+  final out = Uint8List(dw * dh * 4);
+  for (var y = 0; y < dh; y++) {
+    final y0 = y * sh ~/ dh;
+    final y1 = ((y + 1) * sh ~/ dh).clamp(y0 + 1, sh);
+    for (var x = 0; x < dw; x++) {
+      final x0 = x * sw ~/ dw;
+      final x1 = ((x + 1) * sw ~/ dw).clamp(x0 + 1, sw);
+      var r = 0, g = 0, b = 0, a = 0;
+      for (var sy = y0; sy < y1; sy++) {
+        var i = (sy * sw + x0) * 4;
+        for (var sx = x0; sx < x1; sx++, i += 4) {
+          r += src[i];
+          g += src[i + 1];
+          b += src[i + 2];
+          a += src[i + 3];
+        }
+      }
+      final n = (y1 - y0) * (x1 - x0);
+      final half = n >> 1;
+      final o = (y * dw + x) * 4;
+      out[o] = (r + half) ~/ n;
+      out[o + 1] = (g + half) ~/ n;
+      out[o + 2] = (b + half) ~/ n;
+      out[o + 3] = (a + half) ~/ n;
+    }
+  }
+  return Rgba8Image(width: dw, height: dh, pixels: out);
+}
 
 /// Decodes an encoded image (PNG, JPEG, KTX2, …) and uploads it through
 /// [device].
@@ -45,7 +108,7 @@ const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 /// PNG of the same dimensions always cost;
 /// a file carrying BC, ETC2 or ASTC blocks is uploaded as those blocks —
 /// the upload that actually shrinks device memory — after
-/// [GraphicsDevice.supportsTextureFormat] has said yes, and left out with a
+/// [GraphicsDevice.textureFormatSupport] has said yes, and left out with a
 /// reason through [report] when it says no. Nothing is substituted: a device
 /// without BC7 gets no texture rather than a guess at one, because the guess
 /// would be a decoder this engine does not have.
@@ -61,28 +124,69 @@ const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 /// that carries its own chain is uploaded with it, and one that does not gets
 /// a chain built here only when its pixels are plain RGBA8 — a block cannot
 /// be halved on the CPU without the encoder the file already went through.
+///
+/// **On the web the browser decodes it — `A4.16`.** A device that is an
+/// [EncodedImageUpload] (WebGL2 and WebGPU) is handed the encoded bytes
+/// first: the browser's decoder runs off the main thread, the pixels go
+/// straight into the texture without passing through Dart, and the chain is
+/// built on the GPU. [decodeImage] is the fallback for a file the browser
+/// refuses. [platformDecode] false skips the device and always decodes with
+/// [decodeImage] — for a caller whose decoder is the point, such as a test
+/// that wants the same bytes on every backend.
+///
+/// **[maxDimension] caps the size at decode — `A4.17`.** An image whose longer
+/// side is larger is scaled down while it is decoded, keeping its aspect: by
+/// the browser's resize options on the web, by `dart:ui`'s target size
+/// through a [SizedImageDecoder], and on the CPU ([fitRgba8Image]) for a
+/// decoder that cannot. Null takes [maxDecodedTextureDimension]; either way
+/// the device's own largest texture is the ceiling ([textureDecodeCap]). A
+/// KTX2 file is not rescaled — its blocks were encoded at their size — but
+/// one that carries a chain starts at the first level that fits.
 Future<TextureHandle?> uploadEncodedImage(
   GraphicsDevice device,
   Uint8List encoded, {
   required ImageDecoder decodeImage,
   TextureSampling sampling = const TextureSampling(),
   void Function(String message)? report,
+  int? maxDimension,
+  bool platformDecode = true,
 }) async {
   if (encoded.isEmpty) return null;
+  final cap = textureDecodeCap(device, maxDimension: maxDimension);
 
   if (isKtx2File(encoded)) {
-    return _uploadKtx2(device, sampling, encoded, report);
+    return _uploadKtx2(device, sampling, encoded, report, cap);
   }
 
-  final Rgba8Image? image;
+  if (platformDecode && device is EncodedImageUpload) {
+    try {
+      final uploaded = await device.decodeTexture(
+        encoded,
+        mipmaps:
+            sampling.useMipmaps &&
+            device.features.has(DeviceFeature.manualMipmaps),
+        maxDimension: cap,
+      );
+      if (uploaded != null) return uploaded;
+    } catch (_) {
+      // The browser's refusal is a fallback, like its null: the CPU decoder
+      // below may read what it would not.
+    }
+  }
+
+  final Rgba8Image? decoded;
   try {
-    image = await decodeImage(encoded);
+    decoded = decodeImage is SizedImageDecoder
+        ? await decodeImage(encoded, maxDimension: cap)
+        : await decodeImage(encoded);
   } catch (_) {
     // An unsupported or corrupt image should degrade to "no texture", not take
     // the whole model down with it.
     return null;
   }
-  if (image == null) return null;
+  if (decoded == null) return null;
+  // A decoder that ignored the cap is held to it here.
+  final image = fitRgba8Image(decoded, maxDimension: cap);
 
   // Built here, from the bytes that were just decoded, rather than anywhere
   // downstream: this is the one place in the engine that holds an image's
@@ -132,13 +236,19 @@ TextureHandle? _uploadRgba8(
   final levels = buildsMipChain(device, sampling, width, height)
       ? MipChain.build(pixels, width, height)
       : null;
-  return device.createTextureFromPixels(
-    width: width,
-    height: height,
-    format: TextureFormat.r8g8b8a8UNormInt,
-    pixels: pixels,
-    mipLevels: levels,
-  );
+  // The device refuses with a `DeviceResourceException` since 1.0; a loader
+  // keeps its rule that one texture costs a texture, not the model.
+  try {
+    return device.createTextureFromPixels(
+      width: width,
+      height: height,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: pixels,
+      mipLevels: levels,
+    );
+  } on DeviceResourceException {
+    return null;
+  }
 }
 
 /// Routes a KTX2 file to [Ktx2Texture] rather than `dart:ui`, which does not
@@ -169,6 +279,7 @@ Future<TextureHandle?> _uploadKtx2(
   TextureSampling sampling,
   Uint8List encoded,
   void Function(String message)? report,
+  int cap,
 ) async {
   final Ktx2Texture texture;
   try {
@@ -197,7 +308,7 @@ Future<TextureHandle?> _uploadKtx2(
 
     texture = _isWeb || !isBasisUniversalKtx2(encoded)
         ? Ktx2Texture.parse(encoded, universalTarget: universalTarget)
-        : await Isolate.run(
+        : await runInBackground(
             () => Ktx2Texture.parse(encoded, universalTarget: universalTarget),
           );
   } on Ktx2FormatException catch (error) {
@@ -206,14 +317,23 @@ Future<TextureHandle?> _uploadKtx2(
   }
 
   final format = texture.format;
-  final levels = texture.levels;
-  final width = texture.pixelWidth;
-  final height = texture.pixelHeight;
+  // A file with a chain starts at its first level that fits the cap — the
+  // one rescale a block format allows, since each level was encoded at its
+  // own size. A single level larger than the cap is uploaded as it is.
+  final skip = _levelsAboveCap(
+    texture.pixelWidth,
+    texture.pixelHeight,
+    texture.levels.length,
+    cap,
+  );
+  final levels = skip == 0 ? texture.levels : texture.levels.sublist(skip);
+  final width = _halved(texture.pixelWidth, skip);
+  final height = _halved(texture.pixelHeight, skip);
   if (format == TextureFormat.r8g8b8a8UNormInt && levels.length == 1) {
     return _uploadRgba8(device, sampling, width, height, levels.single);
   }
 
-  if (!device.supportsTextureFormat(format)) {
+  if (!device.textureFormatSupport(format).sampled) {
     report?.call(
       'KTX2 texture left out: it is ${format.name}, which this device does '
       'not sample.',
@@ -237,16 +357,40 @@ Future<TextureHandle?> _uploadKtx2(
   }
 
   final chain =
-      sampling.useMipmaps && device.supportsMipmaps && levels.length > 1
+      sampling.useMipmaps &&
+          device.features.has(DeviceFeature.manualMipmaps) &&
+          levels.length > 1
       ? levels.sublist(1)
       : null;
-  return device.createTextureFromPixels(
-    width: width,
-    height: height,
-    format: format,
-    pixels: levels.first,
-    mipLevels: chain,
-  );
+  try {
+    return device.createTextureFromPixels(
+      width: width,
+      height: height,
+      format: format,
+      pixels: levels.first,
+      mipLevels: chain,
+    );
+  } on DeviceResourceException catch (refused) {
+    report?.call('KTX2 texture left out: ${refused.reason}.');
+    return null;
+  }
+}
+
+/// How many leading levels of a [levelCount]-level chain on a [width] by
+/// [height] base are larger than [cap] — never all of them.
+int _levelsAboveCap(int width, int height, int levelCount, int cap) {
+  var skip = 0;
+  while (skip < levelCount - 1 &&
+      (_halved(width, skip) > cap || _halved(height, skip) > cap)) {
+    skip++;
+  }
+  return skip;
+}
+
+/// [size] at mip level [level].
+int _halved(int size, int level) {
+  final halved = size >> level;
+  return halved < 1 ? 1 : halved;
 }
 
 /// Whether an image of this size, sampled this way, gets a mip chain.
@@ -257,7 +401,7 @@ Future<TextureHandle?> _uploadKtx2(
 ///  * The asset has to want one. A sampler that asks for single-level
 ///    minification is usually a UI atlas or a lookup table, where a blended
 ///    lower level is wrong rather than merely soft.
-///  * The device has to sample one correctly. [GraphicsDevice.supportsMipmaps]
+///  * The device has to sample one correctly. [DeviceFeature.manualMipmaps]
 ///    is asked rather than assumed because a hand-built chain on an OpenGL ES 2
 ///    device without `GL_APPLE_texture_max_level` **samples as black** — not
 ///    blurrier, black.
@@ -274,7 +418,7 @@ bool buildsMipChain(
   int height,
 ) =>
     sampling.useMipmaps &&
-    device.supportsMipmaps &&
+    device.features.has(DeviceFeature.manualMipmaps) &&
     MipChain.levelsFor(width, height) > 0;
 
 /// Maps decoded sampling settings onto the engine's sampler description.
@@ -285,14 +429,14 @@ bool buildsMipChain(
 /// memory spent on levels nothing blends between, which looks exactly like
 /// having built no chain at all. The two decisions have to be made from one
 /// input or they drift.
-SamplerOptions samplerOptionsFor(TextureSampling info) {
+SamplerDescriptor samplerOptionsFor(TextureSampling info) {
   SamplerAddressMode address(TextureWrap wrap) => switch (wrap) {
     TextureWrap.repeat => SamplerAddressMode.repeat,
     TextureWrap.clampToEdge => SamplerAddressMode.clampToEdge,
     TextureWrap.mirroredRepeat => SamplerAddressMode.mirror,
   };
 
-  return SamplerOptions(
+  return SamplerDescriptor(
     minFilter: info.minLinear ? MinMagFilter.linear : MinMagFilter.nearest,
     magFilter: info.magLinear ? MinMagFilter.linear : MinMagFilter.nearest,
     mipFilter: info.useMipmaps ? MipFilter.linear : MipFilter.nearest,

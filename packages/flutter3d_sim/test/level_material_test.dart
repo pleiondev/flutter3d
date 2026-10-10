@@ -25,7 +25,7 @@ void main() {
     expect(read.fmat, 'assets/materials/steel.fmat');
     expect(read.toJson()['fmat'], 'assets/materials/steel.fmat');
     expect(
-      read.texelsPerMetre,
+      read.texelsPerMeter,
       2.0,
       reason: 'tiling is geometry and belongs to the level either way',
     );

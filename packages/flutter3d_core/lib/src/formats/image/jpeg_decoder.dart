@@ -30,6 +30,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../format_exceptions.dart';
+
 /// A JPEG decoded down to plain RGBA8 — top row first, four bytes a pixel,
 /// `width * height * 4` bytes long. Reuses [DecodedImage] from
 /// `png_decoder.dart` are not done here on purpose: import that file's own
@@ -224,19 +226,31 @@ int _extend(int value, int count) {
   return value < threshold ? value - (1 << count) + 1 : value;
 }
 
-/// [bytes] decoded, or null on anything this reader cannot make sense of: a
-/// missing `SOI`, a precision or frame type this reader does not support, a
-/// Huffman code with no match, or entropy data that runs out before every
-/// MCU is accounted for.
-DecodedImage? decodeJpeg(Uint8List bytes) {
+/// [bytes] decoded.
+///
+/// Throws an [ImageFormatException] on anything this reader cannot make
+/// sense of: a missing `SOI`, a precision or frame type this reader does not
+/// support (progressive, arithmetic-coded), a Huffman code with no match, or
+/// entropy data that runs out before every MCU is accounted for.
+DecodedImage decodeJpeg(Uint8List bytes) {
   // Segment payloads are read by index rather than checked field by field, so
   // a segment that claims more than the file holds surfaces as a RangeError —
-  // a malformed file, which is answered with null like every other one.
+  // a malformed file, refused like every other one.
+  final DecodedImage? decoded;
   try {
-    return _decodeJpeg(bytes);
+    decoded = _decodeJpeg(bytes);
   } on RangeError {
-    return null;
+    throw ImageFormatException(
+      'a JPEG whose segments run past the end of its ${bytes.length} bytes',
+    );
   }
+  if (decoded != null) return decoded;
+  throw ImageFormatException(
+    bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xD8
+        ? 'a JPEG this decoder does not read: only baseline Huffman-coded '
+              'frames are, and this one is another kind or is damaged'
+        : 'not a JPEG: the file does not start with the SOI marker',
+  );
 }
 
 DecodedImage? _decodeJpeg(Uint8List bytes) {

@@ -1,0 +1,49 @@
+{
+  "format": "f3d.plugin",
+  "version": 2,
+  "requires": [],
+  "generator": "flutter3d",
+  "manifest": {
+    "id": "glow",
+    "apiVersion": "1.0",
+    "touches": "simulation",
+    "backends": ["webgl", "cpu"],
+    "description": "A gusting wind, a vent that blows it, and a glow over the picture.",
+    "homepage": "https://example.com/glow"
+  },
+  "phases": [
+    {"name": "weather", "kind": "step", "after": ["physics"], "before": ["elements"]},
+    {"name": "shimmer", "kind": "frame", "after": ["animate"], "before": ["audio"]}
+  ],
+  "events": [
+    {"name": "gust", "description": "The wind rose past a strength worth hearing."}
+  ],
+  "entityKinds": [
+    {"type": "vent", "requires": ["size", "strength"], "collider": "trigger"},
+    {"type": "wind_marker"}
+  ],
+  "materials": [
+    {"text": "material Glow {\n  param vec3 tint = vec3(1.0, 0.6, 0.2);\n  fragment {\n    return vec4(albedo * tint, alpha);\n  }\n}\n"}
+  ],
+  "renderSteps": [
+    {"name": "haze", "anchor": "after tonemap", "present": true, "shaders": {"webgl": "haze.frag"}}
+  ],
+  "wasm": [
+    {
+      "module": "gusts.wasm",
+      "system": "blow",
+      "phase": "weather",
+      "fields": [
+        {"name": "wind", "write": true, "unit": "m/s"},
+        {"name": "heat", "unit": "K"},
+        {"name": "vent.x", "unit": "m", "fraction": 8}
+      ],
+      "events": ["gust"],
+      "limits": {"memoryPages": 1, "fuelPerStep": 200000}
+    }
+  ],
+  "effects": [
+    {"name": "embers", "rate": 40}
+  ],
+  "catalogue": {"demo": "https://example.com/glow/play"}
+}

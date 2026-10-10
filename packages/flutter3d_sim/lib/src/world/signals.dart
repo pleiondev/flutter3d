@@ -60,11 +60,13 @@ final class TriggerVolume extends Signal with CollisionListener {
   /// a message shows once rather than for as long as the player stands there.
   @override
   void collect(MechanismEvents into) {
-    final said = takeOutcome()?.message;
+    final said = drainOutcome()?.message;
     if (said != null) into.messages.add(said);
   }
 
-  ActivationOutcome? takeOutcome() {
+  /// The outcome the last trigger left, taken so it is not read twice; null
+  /// when nothing has been said since the last call (absent, not an error).
+  ActivationOutcome? drainOutcome() {
     final outcome = _outcome;
     _outcome = null;
     return outcome;

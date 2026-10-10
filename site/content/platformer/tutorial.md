@@ -23,20 +23,20 @@ dependencies:
   flutter: { sdk: flutter }
 
   # The backend; why it is the one named line is covered in the quickstart.
-  flutter3d_impeller:  ^0.8.0
-  flutter3d:           ^0.8.0
-  flutter3d_game:      ^0.8.0
-  flutter3d_game_platformer: ^0.8.0
-  flutter3d_app:       ^0.8.0
-  flutter3d_audio:     ^0.8.0
-  flutter3d_particles: ^0.8.0
+  flutter3d_impeller:  ^1.0.0-rc.1
+  flutter3d:           ^1.0.0-rc.1
+  flutter3d_game:      ^1.0.0-rc.1
+  flutter3d_game_platformer: ^1.0.0-rc.1
+  flutter3d_app:       ^1.0.0-rc.1
+  flutter3d_audio:     ^1.0.0-rc.1
+  flutter3d_particles: ^1.0.0-rc.1
   vector_math: ^2.2.0
 ```
 
 Note what is *not* there: `flutter3d_game_shooter`. A genre is a package, and this game inherits none of the other one's vocabulary.
 
 <div class="warn">
-<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same 0.7.0 set, and the lines have to agree: <code>flutter3d_app</code> 0.7.0 asks for <code>flutter3d</code> 0.7.0, so one package left on 0.6.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Every line is on the same set, the release candidate 1.0.0-rc.1, and the lines have to agree: <code>flutter3d_app</code> 1.0.0-rc.1 asks for <code>flutter3d</code> ^1.0.0-rc.1, so one package left on 0.8.0 stops <code>pub get</code>. To work against a checkout instead, for engine changes of your own, swap each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Bind the two keys the genre adds {.step}
@@ -48,11 +48,15 @@ abstract final class MyActions {
   // The engine's table plus this game's own two.
 }
 
-static Bindings _bindings() => DesktopInput.defaultBindings()
-  ..bind(InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
-         PlatformerActions.dropThrough)
-  ..bind(InputSource.key(LogicalKeyboardKey.keyC.keyId),
-         PlatformerActions.dropThrough);
+static ActionMap _actions() {
+  final map = DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common));
+  map.buttons
+    ..bind(InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
+           PlatformerActions.dropThrough)
+    ..bind(InputSource.key(LogicalKeyboardKey.keyC.keyId),
+           PlatformerActions.dropThrough);
+  return map;
+}
 ```
 
 The dash is already the pointer's. Drop-through is bound to control, which is where a player looks for crouch and is what it becomes when crouching exists.
@@ -64,11 +68,14 @@ The dash is already the pointer's. Drop-through is bound to control, which is wh
 ## Read the settings before opening the devices {.step}
 
 ```dart
-_config = SettingsFile(appName: 'ascent').read();
-_devices = DesktopInput(
-  state: _input,
-  bindings: _config.bindings.length > 0 ? _config.bindings : _bindings(),
-);
+// In main(), before runApp: the settings are read once, asynchronously.
+final config = await SettingsFile(
+  appName: 'ascent',
+  defaultActions: _actions,
+).read();
+
+// In the screen, with that config: the player's map, or the game's own.
+_devices = DesktopInput(state: _input, actions: config.actionsOr(_actions));
 ```
 
 Settings first, devices second. The bindings a player saved are the ones the keyboard should be reading from the **first** key press, not from the first rebind.
@@ -77,29 +84,44 @@ Settings first, devices second. The bindings a player saved are the ones the key
 <p><code>SettingsFile</code> comes from <code>flutter3d_game</code>, so add that package to the pubspec like the rest. The catalogues used later on this page (<code>Sounds</code>, <code>Effects</code>, <code>RunnerClips</code>) are exported by no package at all: they are the application's own definitions, and the demo's live in <code>apps/flutter3d_demo_platformer/lib/src/</code> as <code>sounds.dart</code>, <code>effects.dart</code> and <code>runner_clips.dart</code>.</p>
 </div>
 
-## Open the renderer, and keep the scene non-null {.step}
+## Put the game in a view, and hand it each level's scene {.step}
 
 ```dart
-Scene _scene = Scene();   // empty until the level arrives, and never null
+final Scene _empty = Scene();   // drawn until the level arrives
 
-Future<void> _openGraphics() async {
-  final device = await GpuRenderBackend.create();
-  _device = device;
-
-  setState(() {
-    _renderer = Renderer.create(device: device);
+Widget build(BuildContext context) => Flutter3dView(
+  scene: _empty,
+  camera: _camera,
+  input: _input,
+  plugins: <Flutter3dPlugin>[_platformer, _placedSounds, _placedBursts],
+  registries: <PluginRegistry>[EntityKinds()],
+  onKeyEvent: _devices.handleKeyEvent,
+  onCreated: (Flutter3dEngine engine) {
     // One pool, one draw call, added once. Everything this game throws into
     // the air goes through it.
-    _renderer?.addContributor(ParticleContributor(_particles));
-  });
+    engine.renderer.renderSteps.addContributor(
+      ParticleContributor(_particles),
+    );
+    unawaited(_loadLevel(engine));
+  },
+  onBeforeFrame: (Flutter3dEngine engine, FrameInfo frame) =>
+      _pad.tick(frame.seconds),
+  onListenerMoved: (ListenerPose ears) => _ears.placeAt(
+    ears.position,
+    ears.forward,
+    origin: ears.origin,
+    up: ears.up,
+  ),
+);
 
-  _ticker = createTicker(_onTick)..start();
-  unawaited(_openAudio());
-  unawaited(_loadLevel());
+Future<void> _loadLevel(Flutter3dEngine engine) async {
+  final level = await stageLevel(engine.device);
+  engine.scene = level.scene;           // drawn from the next frame
+  _platformer.simulation = level.sim;   // stepped from the next step
 }
 ```
 
-The renderer must build its frame targets before anything else has taken device memory; the failure mode behind that, and the one line worth copying verbatim, are in the [first-scene tutorial](/core/tutorial/#a-scene-that-is-never-null).
+The view opens the device, makes the renderer, runs the loop with the genre in it, and owns focus and the lifecycle; the game hangs its own work on the loop's phases. The renderer must build its frame targets before anything else has taken device memory, which is why the view draws an empty scene until the level is up; the failure mode behind that is in the [first-scene tutorial](/core/tutorial/#a-scene-that-is-never-null).
 
 ## Author a level with the genre's floors {.step}
 
@@ -201,7 +223,7 @@ final runner = Runner(
   // What this game's floors are made of. The names live in the level
   // document, on the brushes, beside the material that paints them.
   surfaces: Surfaces.common(),
-  tuning: const RunnerTuning(
+  tuning: const RunnerSettings(
     jumpSpeed: 9.5,
     airJumpSpeed: 8.2,     // weaker: a double jump is a recovery, not a stair
     airJumps: 1,
@@ -321,7 +343,7 @@ void _placeCamera(double dt) {
   _camera
     ..setPositionFrom(camera.eye)
     ..lookAt(camera.target)
-    ..projection = _lens.copyWith(fovYRadians: _lens.fovYRadians + camera.extraFov);
+    ..projection = _lens.copyWith(fovY: _lens.fovY + camera.extraFovY);
 
   // Along the camera's own forward rather than through a yaw: aimAt reads an
   // angle as a first-person camera's, and this one is not.

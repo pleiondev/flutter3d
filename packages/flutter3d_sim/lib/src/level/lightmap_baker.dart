@@ -42,9 +42,17 @@ import 'level_collision.dart';
 import 'lightmap.dart';
 import 'lightmap_layout.dart';
 
+/// Bakes a level's [Lightmap] from its brushes, offline or at load.
+///
+/// **In `flutter3d_sim`, though no step reads it**, because it is a level
+/// asset rather than a picture: baked from the level's brushes, stored in a
+/// format sim registers and read beside the level document, with no renderer
+/// type in it — the same reason the navigation mesh lives here. A view
+/// package would have to reach back into the level format for every one of
+/// those, and the renderer already reads it from here.
 final class LightmapBaker {
   const LightmapBaker({
-    this.texelsPerMetre = 4.0,
+    this.texelsPerMeter = 4.0,
     this.bounces = 2,
     this.samples = 64,
     this.seed = 1,
@@ -53,7 +61,8 @@ final class LightmapBaker {
   }) : assert(bounces >= 0),
        assert(samples > 0);
 
-  final double texelsPerMetre;
+  /// The map's density: texels per metre of face.
+  final double texelsPerMeter;
 
   /// How many times light is allowed to bounce. Nought bakes nothing but
   /// the direct term, which with [includeDirect] off is an empty map.
@@ -68,7 +77,7 @@ final class LightmapBaker {
   final bool includeDirect;
 
   /// What a textured material reflects, since the bake does not read the
-  /// texture: a mid grey, scaled by the material's colour.
+  /// texture: a mid grey, scaled by the material's colour. A 0..1 albedo.
   final double texturedAlbedo;
 
   /// How far off a face a texel's ray starts, so it does not hit its own
@@ -86,7 +95,7 @@ final class LightmapBaker {
     // instances `addTo` puts in the world, so a hit indexes back to its brush.
     final level = expandRecipes(authored);
     final plan =
-        layout ?? LightmapLayout.plan(level, texelsPerMetre: texelsPerMetre);
+        layout ?? LightmapLayout.plan(level, texelsPerMeter: texelsPerMeter);
     final world = CollisionWorld();
     level.addTo(world);
     world.update();
@@ -99,7 +108,7 @@ final class LightmapBaker {
     ];
     log?.call(
       'planned ${plan.faces.length} faces into ${plan.width}x${plan.height} '
-      'at $texelsPerMetre texels a metre',
+      'at $texelsPerMeter texels a metre',
     );
 
     final direct = _direct(level, plan, world);
@@ -119,7 +128,7 @@ final class LightmapBaker {
     final map = Lightmap(
       width: plan.width,
       height: plan.height,
-      texelsPerMetre: plan.texelsPerMetre,
+      texelsPerMeter: plan.texelsPerMeter,
       levelHash: Lightmap.hashOf(level),
     );
     var sumR = 0.0;
@@ -169,7 +178,7 @@ final class LightmapBaker {
       final n = face.normal;
       for (var j = 0; j < face.height; j++) {
         for (var i = 0; i < face.width; i++) {
-          plan.texelCentre(face, i, j, point);
+          plan.texelCenter(face, i, j, point);
           origin
             ..setFrom(point)
             ..addScaled(n, _lift);
@@ -234,7 +243,7 @@ final class LightmapBaker {
       final v = face.v;
       for (var j = 0; j < face.height; j++) {
         for (var i = 0; i < face.width; i++) {
-          plan.texelCentre(face, i, j, point);
+          plan.texelCenter(face, i, j, point);
           origin
             ..setFrom(point)
             ..addScaled(n, _lift);
@@ -306,14 +315,6 @@ final class LightmapBaker {
   Vector3 _albedoOf(LevelMaterial material) {
     final tint = material.baseColor;
     final textured = material.albedo != null ? texturedAlbedo : 1.0;
-    return Vector3(
-      _linear(tint.x) * textured,
-      _linear(tint.y) * textured,
-      _linear(tint.z) * textured,
-    );
+    return Vector3(tint.r * textured, tint.g * textured, tint.b * textured);
   }
-
-  static double _linear(double srgb) => srgb <= 0.04045
-      ? srgb / 12.92
-      : math.pow((srgb + 0.055) / 1.055, 2.4).toDouble();
 }

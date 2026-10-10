@@ -60,7 +60,7 @@ final class LightOptimizer {
   final double darkening;
 
   /// How much the under-illumination hinge weighs in the retune, against the
-  /// squared difference.
+  /// squared difference. A unitless weight.
   final double underWeight;
 
   /// How many passes over every strength and colour a retune may take.
@@ -415,11 +415,15 @@ final class LightPlan {
   /// renders (six for a point light, one otherwise). A stand-in for a
   /// measured cost per light until there is a table of one.
   final double costBefore;
+
+  /// As [costBefore], in pixels shaded, for the lights after the moves.
   final double costAfter;
 
   /// How much of the lights' pictures other lights already cover, as a share
   /// of all their light — the redundancy the optimizer removes.
   final double overlapBefore;
+
+  /// As [overlapBefore], a 0..1 share, for the lights after the moves.
   final double overlapAfter;
 
   /// The mean difference between the original pictures and the new set's,
@@ -444,7 +448,7 @@ final class LightPlan {
 
   /// Whether anything would change: a move was kept and the set it leaves
   /// [holds] when drawn.
-  bool get changes => moves.isNotEmpty && holds;
+  bool get hasChanges => moves.isNotEmpty && holds;
 
   /// The two previews as PNG files.
   ({Uint8List before, Uint8List after}) get pngs => (
@@ -524,7 +528,9 @@ LevelLight _withRadiance(
   Map<String, Object?> extra = const <String, Object?>{},
 }) {
   final peak = math.max(radiance.x, math.max(radiance.y, radiance.z));
-  final Vector3 colour;
+  final Vector3 color;
+
+  /// In the level's light units, as [LevelLight.intensity].
   final double intensity;
   final sourcePeak = math.max(
     source.color.x,
@@ -537,18 +543,18 @@ LevelLight _withRadiance(
       (radiance - source.color * (peak / sourcePeak)).length <=
           1e-6 * math.max(peak, 1.0);
   if (peak <= 0.0) {
-    colour = source.color;
+    color = source.color;
     intensity = 0.0;
   } else if (even) {
-    colour = source.color;
+    color = source.color;
     intensity = peak / sourcePeak;
   } else {
-    colour = radiance / peak;
+    color = radiance / peak;
     intensity = peak;
   }
   return LevelLight.fromJson(<String, Object?>{
     ...source.toJson(),
-    'color': _tidied(colour),
+    'color': _tidied(color),
     'intensity': _tidy(intensity),
     ...extra,
   });
@@ -598,7 +604,11 @@ final class _Problem {
 
   final Float32List base;
   final Float32List reference;
+
+  /// As [LightOptimizer.darkening]: a 0..1 share of a pixel's brightness.
   final double darkening;
+
+  /// As [LightOptimizer.underWeight]: a unitless weight.
   final double underWeight;
   final int pixels;
   final Float64List _referenceLuma;

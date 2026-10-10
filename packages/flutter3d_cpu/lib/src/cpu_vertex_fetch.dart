@@ -10,7 +10,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-abstract interface class VertexFetch {
+abstract final class VertexFetch {
   /// How many floats one vertex amounts to.
   int get floatsPerVertex;
 
@@ -77,7 +77,7 @@ final class LayoutFetch implements VertexFetch {
   /// measurably the wrong shape when the same mistake was made in the packed
   /// path's ancestor.
   factory LayoutFetch.build(
-    VertexLayoutSpec layout,
+    VertexLayoutDescriptor layout,
     ByteData slotZero,
     Map<int, ByteData>? slots,
     int instance,

@@ -55,9 +55,11 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'webgpu_bundle_section.dart';
+import 'webgpu_compute.dart' show WebGpuStorage;
 import 'webgpu_formats.dart';
 import 'webgpu_interop.dart';
 import 'webgpu_types.dart';
@@ -226,7 +228,7 @@ bool webgpuIsDepthStencil(TextureFormat format) =>
 TextureHandle webgpuCreateTexture(
   GPUDevice gpu,
   List<WebGpuTexture> tracked,
-  RenderTargetSpec spec, {
+  RenderTargetDescriptor spec, {
   int levels = 1,
   bool transientAttachments = false,
 }) {
@@ -292,7 +294,7 @@ TextureHandle webgpuCreateTexture(
     transient: transient,
   );
   tracked.add(backend);
-  return TextureHandle(
+  return wrapTexture(
     backend: backend,
     width: spec.width,
     height: spec.height,
@@ -388,7 +390,7 @@ TextureHandle? webgpuCreateTextureFromPixels(
     sampleable: true,
   );
   tracked.add(backend);
-  return TextureHandle(
+  return wrapTexture(
     backend: backend,
     width: width,
     height: height,
@@ -498,7 +500,7 @@ TextureHandle? _webgpuCreateCompressedTextureFromPixels(
     sampleable: true,
   );
   tracked.add(backend);
-  return TextureHandle(
+  return wrapTexture(
     backend: backend,
     width: width,
     height: height,
@@ -639,7 +641,7 @@ TextureHandle? webgpuCreateCubeTextureFromPixels(
     sampleable: true,
   );
   tracked.add(backend);
-  return TextureHandle(
+  return wrapTexture(
     backend: backend,
     width: size,
     height: size,
@@ -709,7 +711,7 @@ TextureHandle? webgpuCreateCubeRenderTarget(
     sampleable: true,
   );
   tracked.add(backend);
-  return TextureHandle(
+  return wrapTexture(
     backend: backend,
     width: size,
     height: size,
@@ -758,8 +760,9 @@ GeometryBuffer webgpuUploadGeometry(
   GPUDevice gpu,
   List<GPUBuffer> tracked,
   ByteData bytes,
-  GeometryUsage usage,
-) {
+  GeometryUsage usage, {
+  void Function(GeometryBuffer)? release,
+}) {
   final buffer = gpu.createBuffer(
     GPUBufferDescriptor(
       // Rounded up to four, which `writeBuffer` demands of every size it is
@@ -775,10 +778,11 @@ GeometryBuffer webgpuUploadGeometry(
   );
   gpu.queue.writeBuffer(buffer, 0, gpuWritableBytes(bytes).toJS);
   tracked.add(buffer);
-  return GeometryBuffer(
+  return wrapGeometry(
     backend: WebGpuGeometry(buffer),
     offsetInBytes: 0,
     lengthInBytes: bytes.lengthInBytes,
+    release: release,
   );
 }
 
@@ -840,6 +844,476 @@ bool webgpuReleaseGeometry(Object buffer, List<GPUBuffer> tracked) {
   if (at < 0) return false;
   tracked.removeAt(at).destroy();
   return true;
+}
+
+/// The view shape a texture of [dimension] is sampled as.
+WebGpuTextureDimension webgpuViewDimension(TextureDimension dimension) =>
+    switch (dimension) {
+      TextureDimension.d1 => WebGpuTextureDimension.oneDimensional,
+      TextureDimension.d2 => WebGpuTextureDimension.twoDimensional,
+      TextureDimension.d2Array => WebGpuTextureDimension.twoDimensionalArray,
+      TextureDimension.d3 => WebGpuTextureDimension.threeDimensional,
+      TextureDimension.cube => WebGpuTextureDimension.cube,
+      TextureDimension.cubeArray => WebGpuTextureDimension.cubeArray,
+    };
+
+/// [usage] as `GPUTextureUsage` bits.
+int gpuTextureUsageOf(TextureUsage usage) =>
+    (usage.contains(TextureUsage.sampled)
+        ? GpuTextureUsage.textureBinding
+        : 0) |
+    (usage.contains(TextureUsage.renderTarget)
+        ? GpuTextureUsage.renderAttachment
+        : 0) |
+    (usage.contains(TextureUsage.storage)
+        ? GpuTextureUsage.storageBinding
+        : 0) |
+    (usage.contains(TextureUsage.copySource) ? GpuTextureUsage.copySrc : 0) |
+    (usage.contains(TextureUsage.copyDestination)
+        ? GpuTextureUsage.copyDst
+        : 0);
+
+/// A texture of any shape — `GraphicsDevice.createTexture`.
+///
+/// The device has already checked the features the shape needs; what is
+/// checked here is everything the browser would otherwise refuse
+/// asynchronously, as a texture handed back over an invalid allocation:
+/// a size past [limits], a layer count the shape cannot have, a chain longer
+/// than the texture, a sample count WebGPU does not offer, and a usage the
+/// format cannot take. Each is an [ArgumentError] naming the field.
+TextureHandle webgpuCreateTextureWithDescriptor(
+  GPUDevice gpu,
+  List<WebGpuTexture> tracked,
+  TextureDescriptor descriptor, {
+  required DeviceLimits limits,
+  required TextureFormatSupport support,
+}) {
+  final d = descriptor;
+  final spelling = gpuTextureFormat(d.format);
+  if (spelling == null || support == TextureFormatSupport.none) {
+    throw ArgumentError.value(
+      d.format,
+      'format',
+      'is not one this WebGPU device can allocate; ask textureFormatSupport',
+    );
+  }
+  Never refuse(String field, Object value, String why) =>
+      throw ArgumentError.value(value, field, why);
+
+  final layers = d.depthOrArrayLayers;
+  switch (d.dimension) {
+    case TextureDimension.d1:
+      if (d.height != 1 || layers != 1) {
+        refuse('height', d.height, 'a 1D texture is one texel high, one layer');
+      }
+      if (d.width > limits.maxTextureDimension1D) {
+        refuse('width', d.width, 'is past maxTextureDimension1D');
+      }
+    case TextureDimension.d3:
+      if (d.width > limits.maxTextureDimension3D ||
+          d.height > limits.maxTextureDimension3D ||
+          layers > limits.maxTextureDimension3D) {
+        refuse('size', d, 'is past maxTextureDimension3D');
+      }
+    case TextureDimension.d2:
+    case TextureDimension.d2Array:
+    case TextureDimension.cube:
+    case TextureDimension.cubeArray:
+      if (d.width > limits.maxTextureDimension2D ||
+          d.height > limits.maxTextureDimension2D) {
+        refuse('size', d, 'is past maxTextureDimension2D');
+      }
+      if (layers > limits.maxTextureArrayLayers) {
+        refuse('depthOrArrayLayers', layers, 'is past maxTextureArrayLayers');
+      }
+  }
+  switch (d.dimension) {
+    case TextureDimension.d2 when layers != 1:
+      refuse('depthOrArrayLayers', layers, 'a 2D texture has one layer');
+    case TextureDimension.cube when layers != 6 || d.width != d.height:
+      refuse('depthOrArrayLayers', layers, 'a cube is six square layers');
+    case TextureDimension.cubeArray when layers % 6 != 0 || d.width != d.height:
+      refuse('depthOrArrayLayers', layers, 'a cube array is six per cube');
+    default:
+  }
+  final largest = <int>[
+    d.width,
+    d.height,
+    if (d.dimension == TextureDimension.d3) layers,
+  ].reduce((int a, int b) => a > b ? a : b);
+  if (d.mipLevelCount > largest.bitLength ||
+      (d.dimension == TextureDimension.d1 && d.mipLevelCount != 1)) {
+    refuse('mipLevelCount', d.mipLevelCount, 'is longer than the full chain');
+  }
+  if (d.sampleCount != 1) {
+    if (d.sampleCount != 4) {
+      refuse('sampleCount', d.sampleCount, 'WebGPU offers one or four');
+    }
+    if (d.dimension != TextureDimension.d2 ||
+        d.mipLevelCount != 1 ||
+        !support.multisample ||
+        d.usage.contains(TextureUsage.storage)) {
+      refuse(
+        'sampleCount',
+        d.sampleCount,
+        'a multisampled texture is 2D, one level, not storage, in a format '
+            'whose support says multisample',
+      );
+    }
+  }
+  if (d.usage.contains(TextureUsage.renderTarget) &&
+      (d.dimension == TextureDimension.d1 ||
+          !(support.renderable || support.depthStencil))) {
+    refuse(
+      'usage',
+      d.usage,
+      '${d.format.name} cannot be an attachment here; leave renderTarget out '
+          '(TextureUsage.sampled | TextureUsage.copyDestination for an upload)',
+    );
+  }
+  if (d.usage.contains(TextureUsage.storage) && !support.storage) {
+    refuse('usage', d.usage, '${d.format.name} cannot be a storage texture');
+  }
+
+  // `depth24plus` has no byte layout to copy out, so the usage is left off
+  // as `webgpuCreateTexture` leaves it — asking for it asks for a promise
+  // the specification does not make.
+  final usage =
+      gpuTextureUsageOf(d.usage) &
+      (d.format == TextureFormat.d24UnormS8Uint
+          ? ~GpuTextureUsage.copySrc
+          : ~0);
+  final texture = gpu.createTexture(
+    GPUTextureDescriptor(
+      size: GPUExtent3DDict(
+        width: d.width,
+        height: d.height,
+        depthOrArrayLayers: layers,
+      ),
+      format: spelling,
+      usage: usage,
+      sampleCount: d.sampleCount,
+      mipLevelCount: d.mipLevelCount,
+      dimension: gpuTextureDimension(d.dimension),
+      label: d.label ?? 'texture $d',
+    ),
+  );
+  final backend = WebGpuTexture(
+    texture: texture,
+    dimension: webgpuViewDimension(d.dimension),
+    sampleable: d.usage.contains(TextureUsage.sampled) && d.sampleCount == 1,
+  );
+  tracked.add(backend);
+  return wrapTexture(
+    backend: backend,
+    width: d.width,
+    height: d.height,
+    format: d.format,
+    sampleCount: d.sampleCount,
+    storageMode: d.storageMode,
+    // A multisampled texture is `texture2D` with a sample count, as every
+    // target `createTexture` makes is.
+    type: d.dimension == TextureDimension.cube
+        ? TextureType.textureCube
+        : TextureType.texture2D,
+    dimension: d.dimension,
+    // Counted as the descriptor counts them: six for a cube.
+    depthOrArrayLayers: layers,
+    mipLevelCount: d.mipLevelCount,
+    usage: d.usage,
+  );
+}
+
+/// The extent of level [level] of [texture]: width, height and layers (or
+/// depth, for a volume, which halves with the level as the others do).
+({int width, int height, int layers}) webgpuLevelExtent(
+  GPUTexture texture,
+  int level,
+) {
+  int halve(int n) => (n >> level) < 1 ? 1 : n >> level;
+  return (
+    width: halve(texture.width),
+    height: halve(texture.height),
+    layers: texture.dimension == '3d'
+        ? halve(texture.depthOrArrayLayers)
+        : texture.depthOrArrayLayers,
+  );
+}
+
+/// [region] checked against level [level] of [texture], and against the
+/// block footprint of [format], or an [ArgumentError] naming what does not
+/// fit. A compressed region starts on a block and covers whole blocks, unless
+/// it runs to the edge of the level, where the last block is partial.
+void webgpuCheckRegion(
+  GPUTexture texture,
+  TextureFormat format,
+  int level,
+  TextureRegion region, {
+  required ({int blockWidth, int blockHeight, int bytesPerBlock}) block,
+}) {
+  if (level < 0 || level >= texture.mipLevelCount) {
+    throw ArgumentError.value(
+      level,
+      'mipLevel',
+      'the texture has ${texture.mipLevelCount} level(s)',
+    );
+  }
+  final extent = webgpuLevelExtent(texture, level);
+  final r = region;
+  if (r.x < 0 ||
+      r.y < 0 ||
+      r.z < 0 ||
+      r.width < 1 ||
+      r.height < 1 ||
+      r.depthOrArrayLayers < 1 ||
+      r.x + r.width > extent.width ||
+      r.y + r.height > extent.height ||
+      r.z + r.depthOrArrayLayers > extent.layers) {
+    throw ArgumentError.value(
+      region,
+      'region',
+      'does not fit level $level, which is '
+          '${extent.width}x${extent.height}x${extent.layers}',
+    );
+  }
+  bool aligned(int at, int size, int step, int edge) =>
+      at % step == 0 && (size % step == 0 || at + size == edge);
+  if (!aligned(r.x, r.width, block.blockWidth, extent.width) ||
+      !aligned(r.y, r.height, block.blockHeight, extent.height)) {
+    throw ArgumentError.value(
+      region,
+      'region',
+      '${format.name} is stored in ${block.blockWidth}x${block.blockHeight} '
+          'blocks, and a region covers whole ones',
+    );
+  }
+}
+
+/// Writes [data] into [region] of level [level] of [target] —
+/// `GraphicsDevice.writeTexture`.
+///
+/// `queue.writeTexture` takes any row stride, unlike an encoded copy, so
+/// [bytesPerRow] defaults to the tight one and is honoured as given.
+void webgpuWriteTexture(
+  GPUDevice gpu,
+  TextureHandle target,
+  ByteData data, {
+  TextureRegion? region,
+  int level = 0,
+  int? bytesPerRow,
+}) {
+  final texture = (target.backend as WebGpuTexture).texture;
+  if (texture.usage & GpuTextureUsage.copyDst == 0) {
+    throw ArgumentError.value(
+      target,
+      'target',
+      'was not made with TextureUsage.copyDestination',
+    );
+  }
+  final block = gpuCopyBlock(target.format, intoTexture: true);
+  if (block == null) {
+    throw ArgumentError.value(
+      target.format,
+      'format',
+      'has no byte layout WebGPU will write into',
+    );
+  }
+  final extent = webgpuLevelExtent(texture, level.clamp(0, 31));
+  final r =
+      region ??
+      TextureRegion(
+        width: extent.width,
+        height: extent.height,
+        depthOrArrayLayers: extent.layers,
+      );
+  webgpuCheckRegion(texture, target.format, level, r, block: block);
+  final across = (r.width + block.blockWidth - 1) ~/ block.blockWidth;
+  final rows = (r.height + block.blockHeight - 1) ~/ block.blockHeight;
+  final tight = across * block.bytesPerBlock;
+  final stride = bytesPerRow ?? tight;
+  if (stride < tight) {
+    throw ArgumentError.value(
+      stride,
+      'bytesPerRow',
+      'is shorter than one row of the region ($tight bytes)',
+    );
+  }
+  final needed =
+      stride * rows * (r.depthOrArrayLayers - 1) + stride * (rows - 1) + tight;
+  if (data.lengthInBytes < needed) {
+    throw ArgumentError.value(
+      data.lengthInBytes,
+      'data',
+      'holds fewer bytes than the region needs ($needed)',
+    );
+  }
+  gpu.queue.writeTexture(
+    GPUTexelCopyTextureInfo(
+      texture: texture,
+      mipLevel: level,
+      origin: GPUOrigin3DDict(x: r.x, y: r.y, z: r.z),
+      aspect: 'all',
+    ),
+    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes).toJS,
+    GPUTexelCopyBufferLayout(
+      offset: 0,
+      bytesPerRow: stride,
+      rowsPerImage: rows,
+    ),
+    GPUExtent3DDict(
+      width: r.width,
+      height: r.height,
+      depthOrArrayLayers: r.depthOrArrayLayers,
+    ),
+  );
+}
+
+/// [usage] as `GPUBufferUsage` bits.
+///
+/// **The two host usages are where the APIs meet awkwardly.** WebGPU lets
+/// `MAP_READ` sit only beside `COPY_DST`, and `MAP_WRITE` only beside
+/// `COPY_SRC`. So a buffer asked to be [BufferUsage.hostReadable] and nothing
+/// but a copy destination is a real mappable buffer, and one that is also
+/// storage (what `createStorageBuffer(hostReadable: true)` always made) is a
+/// storage buffer with `COPY_SRC`, read back through a staging copy — the
+/// contract's `MappedBuffer` allows "a copy where it cannot". The same for
+/// writing, through `COPY_DST` and `queue.writeBuffer`.
+int gpuBufferUsageOf(BufferUsage usage) {
+  final readOnlyMap =
+      usage.contains(BufferUsage.hostReadable) &&
+      (usage.bits &
+              ~(BufferUsage.hostReadable.bits |
+                  BufferUsage.copyDestination.bits)) ==
+          0;
+  final writeOnlyMap =
+      usage.contains(BufferUsage.hostWritable) &&
+      (usage.bits &
+              ~(BufferUsage.hostWritable.bits | BufferUsage.copySource.bits)) ==
+          0;
+  return (usage.contains(BufferUsage.vertex) ? GpuBufferUsage.vertex : 0) |
+      (usage.contains(BufferUsage.index) ? GpuBufferUsage.index : 0) |
+      (usage.contains(BufferUsage.uniform) ? GpuBufferUsage.uniform : 0) |
+      (usage.contains(BufferUsage.storage) ? GpuBufferUsage.storage : 0) |
+      (usage.contains(BufferUsage.indirect) ? GpuBufferUsage.indirect : 0) |
+      (usage.contains(BufferUsage.copySource) ? GpuBufferUsage.copySrc : 0) |
+      (usage.contains(BufferUsage.copyDestination)
+          ? GpuBufferUsage.copyDst
+          : 0) |
+      (readOnlyMap ? GpuBufferUsage.mapRead | GpuBufferUsage.copyDst : 0) |
+      (writeOnlyMap ? GpuBufferUsage.mapWrite | GpuBufferUsage.copySrc : 0) |
+      // Read back through a staging copy, or written through the queue.
+      (usage.contains(BufferUsage.hostReadable) && !readOnlyMap
+          ? GpuBufferUsage.copySrc
+          : 0) |
+      (usage.contains(BufferUsage.hostWritable) && !writeOnlyMap
+          ? GpuBufferUsage.copyDst
+          : 0);
+}
+
+/// A general buffer — `GraphicsDevice.createBuffer`, its gates already
+/// passed. [contents] are written through a mapping at creation, which needs
+/// no usage the caller did not ask for.
+StorageBuffer webgpuCreateBuffer(
+  GPUDevice gpu,
+  BufferDescriptor descriptor, {
+  ByteData? contents,
+}) {
+  final length = descriptor.lengthInBytes;
+  if (contents != null && contents.lengthInBytes > length) {
+    throw ArgumentError.value(
+      contents.lengthInBytes,
+      'contents',
+      'is longer than the $length-byte buffer',
+    );
+  }
+  final size = ((length < 4 ? 4 : length) + 3) & ~3;
+  final buffer = gpu.createBuffer(
+    GPUBufferDescriptor(
+      size: size,
+      usage: gpuBufferUsageOf(descriptor.usage),
+      mappedAtCreation: contents != null,
+      label: descriptor.label ?? 'buffer $length',
+    ),
+  );
+  if (contents != null) {
+    buffer.getMappedRange().toDart.asUint8List().setRange(
+      0,
+      contents.lengthInBytes,
+      contents.buffer.asUint8List(
+        contents.offsetInBytes,
+        contents.lengthInBytes,
+      ),
+    );
+    buffer.unmap();
+  }
+  GeometryBuffer? view(BufferUsage as) => descriptor.usage.contains(as)
+      ? wrapGeometry(
+          backend: WebGpuGeometry(buffer),
+          offsetInBytes: 0,
+          lengthInBytes: length,
+        )
+      : null;
+  return wrapStorageBuffer(
+    backend: WebGpuStorage(buffer, length),
+    lengthInBytes: length,
+    hostReadable: descriptor.usage.contains(BufferUsage.hostReadable),
+    asIndices: view(BufferUsage.index),
+    asVertices: view(BufferUsage.vertex),
+    usage: descriptor.usage,
+  );
+}
+
+/// One texel — white, or zero depth — in the shape a slot with nothing bound
+/// wants. See `WebGpuDevice.bindGroupFor`.
+WebGpuTexture webgpuCreateBlank(
+  GPUDevice gpu,
+  List<WebGpuTexture> tracked,
+  WebGpuTextureDimension dimension, {
+  required bool depth,
+}) {
+  final layers = switch (dimension) {
+    WebGpuTextureDimension.cube || WebGpuTextureDimension.cubeArray => 6,
+    _ => 1,
+  };
+  final texture = gpu.createTexture(
+    GPUTextureDescriptor(
+      size: GPUExtent3DDict(width: 1, height: 1, depthOrArrayLayers: layers),
+      // A WebGPU texture starts zeroed, which is the depth an unbound
+      // comparison slot reads.
+      format: depth ? 'depth16unorm' : 'rgba8unorm',
+      usage: GpuTextureUsage.textureBinding | GpuTextureUsage.copyDst,
+      sampleCount: 1,
+      mipLevelCount: 1,
+      dimension: switch (dimension) {
+        WebGpuTextureDimension.oneDimensional => '1d',
+        WebGpuTextureDimension.threeDimensional => '3d',
+        _ => '2d',
+      },
+      label: 'blank ${dimension.gpuName}${depth ? ' depth' : ''}',
+    ),
+  );
+  if (!depth) {
+    for (var layer = 0; layer < layers; layer++) {
+      gpu.queue.writeTexture(
+        GPUTexelCopyTextureInfo(
+          texture: texture,
+          mipLevel: 0,
+          origin: GPUOrigin3DDict(x: 0, y: 0, z: layer),
+          aspect: 'all',
+        ),
+        Uint8List.fromList(const <int>[255, 255, 255, 255]).toJS,
+        GPUTexelCopyBufferLayout(offset: 0, bytesPerRow: 4, rowsPerImage: 1),
+        GPUExtent3DDict(width: 1, height: 1, depthOrArrayLayers: 1),
+      );
+    }
+  }
+  final backend = WebGpuTexture(
+    texture: texture,
+    dimension: dimension,
+    sampleable: true,
+  );
+  tracked.add(backend);
+  return backend;
 }
 
 /// Destroys every tracked texture and buffer and empties both lists. See

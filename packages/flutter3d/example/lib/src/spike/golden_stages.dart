@@ -2,18 +2,21 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/widgets.dart' show Widget;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Decal3D, Material3D, Mesh3D, Mirror3D, Particles3D, SceneWidgets;
 // The two bakes are plain Dart and reach a browser build, but the package's
 // barrel also exports the converter, which does not; importing the two
 // libraries alone is what keeps the web build of this demo compiling.
 // ignore: implementation_imports
 import 'package:flutter3d_build/src/impostor_bake.dart';
 // ignore: implementation_imports
-import 'package:flutter3d_build/src/six_way_bake.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'golden_extras.dart';
 import 'golden_scene.dart';
 
 /// The arrangements the golden scenes 0.8 added draw, and the settings they draw
@@ -47,11 +50,7 @@ abstract final class GoldenStages {
     Vector3? up,
   }) {
     camera
-      ..projection = PerspectiveProjection(
-        fovYRadians: fovY,
-        near: near,
-        far: far,
-      )
+      ..projection = PerspectiveProjection(fovY: fovY, near: near, far: far)
       ..setPosition(eye.x, eye.y, eye.z)
       ..lookAt(target, up: up);
   }
@@ -61,7 +60,7 @@ abstract final class GoldenStages {
     GraphicsDevice device,
     Vector3 size,
     Vector3 at,
-    Material material, {
+    RenderMaterial material, {
     String? name,
   }) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
@@ -72,7 +71,7 @@ abstract final class GoldenStages {
   static MeshNode _sphere(
     GraphicsDevice device,
     Vector3 at,
-    Material material, {
+    RenderMaterial material, {
     double radius = 0.5,
   }) => MeshNode(
     DeviceMesh.upload(
@@ -82,10 +81,10 @@ abstract final class GoldenStages {
     material,
   )..setPositionFrom(at);
 
-  static Material _unlit(Vector4 colour, {bool doubleSided = false}) =>
-      Material(
+  static RenderMaterial _unlit(Vector4 color, {bool doubleSided = false}) =>
+      RenderMaterial(
         lighting: LightingModel.unlit,
-        baseColor: colour,
+        baseColor: _fromSrgb(color),
         doubleSided: doubleSided,
       );
 
@@ -95,9 +94,10 @@ abstract final class GoldenStages {
     Vector3 forward, {
     double intensity = 3.0,
     bool castsShadow = false,
-  }) =>
-      LightNode(intensity: intensity, castsShadow: castsShadow)
-        ..setLocalForward(forward.normalized());
+  }) => LightNode(
+    intensity: intensity * Photometric.legacyUnit,
+    castsShadow: castsShadow,
+  )..setLocalForward(forward.normalized());
 
   /// The temporal resolve, on, with [settings]' other choices kept.
   static RenderSettings _temporal(
@@ -130,7 +130,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> velocityShapes(GoldenStage stage) async {
     final box = MeshNode(
       DeviceMesh.upload(stage.device, CuboidShape().build()),
-      Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+      RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
       name: 'sliding box',
     );
     return GoldenStaged(
@@ -186,7 +186,7 @@ abstract final class GoldenStages {
   /// and the green it now sees; which clip is the difference between the
   /// variants.
   static Future<GoldenStaged> railing(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     final device = stage.device;
     final wall = _unlit(Vector4(1.0, 0.0, 0.0, 1.0));
     final bar = _unlit(Vector4(0.0, 0.0, 1.0, 1.0));
@@ -210,7 +210,9 @@ abstract final class GoldenStages {
       everyFrame: (frame, _) {
         _look(stage.camera, Vector3.zero(), Vector3(0.0, 0.0, -1.0));
         final moving = math.max(0, frame - _railingTurn);
-        if (moving > 0) wall.baseColor.setValues(0.0, 1.0, 0.0, 1.0);
+        if (moving > 0) {
+          wall.baseColor = LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0);
+        }
         bars.setPosition(0.03 * moving, 0.0, 0.0);
       },
     );
@@ -251,11 +253,11 @@ abstract final class GoldenStages {
 
   // ------------------------------------------------------------------ L1
 
-  /// A row of five spheres, roughness 0.1 to 0.9, of [colour] and
+  /// A row of five spheres, roughness 0.1 to 0.9, of [color] and
   /// [metallic], lit by a light from the upper right of the camera.
   static List<SceneNode> _sphereRow(
     GraphicsDevice device,
-    Vector4 colour, {
+    Vector4 color, {
     double metallic = 1.0,
     List<double> roughness = const <double>[0.1, 0.3, 0.5, 0.7, 0.9],
     LightingModel lighting = LightingModel.pbr,
@@ -264,9 +266,9 @@ abstract final class GoldenStages {
       _sphere(
         device,
         Vector3((i - (roughness.length - 1) / 2) * 1.15, 0.0, 0.0),
-        Material(
+        RenderMaterial(
           lighting: lighting,
-          baseColor: colour.clone(),
+          baseColor: _fromSrgb(color.clone()),
           metallic: metallic,
           roughness: roughness[i],
         ),
@@ -277,8 +279,8 @@ abstract final class GoldenStages {
   /// single scattering loses the most light and the compensation puts it
   /// back — `energy_compensation_test.dart`'s sphere, five times.
   static Future<GoldenStaged> roughMetals(GoldenStage stage) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.3;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.3 * Photometric.legacyUnit;
     return GoldenStaged(
       nodes: <SceneNode>[
         ..._sphereRow(stage.device, Vector4(1.0, 0.78, 0.34, 1.0)),
@@ -298,8 +300,8 @@ abstract final class GoldenStages {
   /// the eye, with the energy-preserving diffuse — `eon_diffuse_test.dart`'s
   /// sphere, the last one drawn by the layered model.
   static Future<GoldenStaged> roughDielectrics(GoldenStage stage) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.05;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.05 * Photometric.legacyUnit;
     final device = stage.device;
     return GoldenStaged(
       nodes: <SceneNode>[
@@ -312,9 +314,9 @@ abstract final class GoldenStages {
         _sphere(
           device,
           Vector3(2.3, 0.0, 0.0),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
-            baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
             roughness: 1.0,
           ),
         )..setPositionFrom(Vector3(2.3, 0.0, 0.0)),
@@ -338,7 +340,7 @@ abstract final class GoldenStages {
   /// sRGB value and stops at one; the card has to reach past the display's
   /// white for the table's shoulder to have anything to do.
   static Future<GoldenStaged> hdrTestCard(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     stage.scene.ambientIntensity = 0.0;
     final device = stage.device;
     final patch = DeviceMesh.upload(
@@ -358,10 +360,11 @@ abstract final class GoldenStages {
           for (var stop = 0; stop < stops; stop++)
             MeshNode(
               patch,
-              Material(
-                baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
+              RenderMaterial(
+                baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
                 roughness: 1.0,
-                emissive: rows[row] * (0.18 * math.pow(2.0, stop - 4)),
+                emissive: (rows[row] * (0.18 * math.pow(2.0, stop - 4)))
+                    .toLinearColor(),
               ),
             )..setPosition(
               (stop - (stops - 1) / 2) * 0.5,
@@ -385,14 +388,14 @@ abstract final class GoldenStages {
   /// read once per object could not show. `irradiance_per_pixel_test.dart`'s
   /// field, with a third column of probes between the red and the white.
   static Future<GoldenStaged> irradianceRoom(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     stage.scene
-      ..ambientIntensity = 1.0
+      ..ambientIntensity = 1.0 * Photometric.legacyUnit
       ..irradianceField = _redWallField();
     final device = stage.device;
-    final white = Material(
+    final white = RenderMaterial(
       lighting: LightingModel.lambert,
-      baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+      baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     );
     return GoldenStaged(
       nodes: <SceneNode>[
@@ -401,9 +404,9 @@ abstract final class GoldenStages {
           device,
           Vector3(0.1, 1.6, 4.0),
           Vector3(-2.05, 0.8, 0.0),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.lambert,
-            baseColor: Vector4(0.9, 0.12, 0.1, 1.0),
+            baseColor: LinearColor.fromSrgb(0.9, 0.12, 0.1, 1.0),
           ),
         ),
         _slab(device, Vector3(4.0, 1.6, 0.1), Vector3(0.0, 0.8, -2.05), white),
@@ -423,7 +426,7 @@ abstract final class GoldenStages {
       tile: 4,
       depthTile: 4,
     );
-    final colours = <Vector3>[
+    final colors = <Vector3>[
       Vector3(1.0, 0.1, 0.1),
       Vector3(1.0, 0.6, 0.55),
       Vector3(1.0, 1.0, 1.0),
@@ -434,7 +437,7 @@ abstract final class GoldenStages {
           final probe = field.probeIndex(x, y, z);
           for (var ty = 0; ty < field.tile; ty++) {
             for (var tx = 0; tx < field.tile; tx++) {
-              field.writeIrradianceTexel(probe, tx, ty, colours[x]);
+              field.writeIrradianceTexel(probe, tx, ty, colors[x]);
             }
           }
           // Far walls: nothing between any probe and any point.
@@ -456,11 +459,13 @@ abstract final class GoldenStages {
   /// behind the camera — `ssil_test.dart`'s room: the floor at the wall's
   /// foot reddens by what the wall bounces, and the crease darkens.
   static Future<GoldenStaged> ssilRoom(GoldenStage stage) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.05;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.05 * Photometric.legacyUnit;
     final device = stage.device;
-    Material lambert(Vector4 colour) =>
-        Material(lighting: LightingModel.lambert, baseColor: colour);
+    RenderMaterial lambert(Vector4 color) => RenderMaterial(
+      lighting: LightingModel.lambert,
+      baseColor: _fromSrgb(color),
+    );
     return GoldenStaged(
       nodes: <SceneNode>[
         _slab(
@@ -475,7 +480,7 @@ abstract final class GoldenStages {
           Vector3(0.0, 1.0, -1.0),
           lambert(Vector4(0.9, 0.1, 0.08, 1.0)),
         ),
-        LightNode(intensity: 1.0, castsShadow: false)
+        LightNode(intensity: 1.0 * Photometric.legacyUnit, castsShadow: false)
           ..setRotationYawPitchRoll(0.0, -0.6, 0.0),
       ],
       everyFrame: (_, _) =>
@@ -507,15 +512,15 @@ abstract final class GoldenStages {
       device,
       Vector3(12.0, 0.1, 12.0),
       Vector3(0.0, -0.05, 0.0),
-      Material(lighting: LightingModel.lambert),
+      RenderMaterial(lighting: LightingModel.lambert),
     ),
     for (var i = 0; i < 8; i++)
       for (var j = 0; j < 8; j++)
         LightNode(
             type: LightType.point,
-            intensity: intensity,
+            intensity: intensity * Photometric.legacyUnit,
             range: range,
-            color: _hue((i * 8 + j) / 64.0),
+            color: _hue((i * 8 + j) / 64.0).toLinearColor(),
           )
           ..castsShadow = false
           ..setPosition(i - 3.5, 0.3, j - 3.5),
@@ -544,8 +549,8 @@ abstract final class GoldenStages {
     required double intensity,
     required double range,
   }) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.03;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.03 * Photometric.legacyUnit;
     return GoldenStaged(
       nodes: _lightGrid(stage.device, intensity: intensity, range: range),
       everyFrame: (_, _) =>
@@ -567,7 +572,7 @@ abstract final class GoldenStages {
           heightFalloff: 1.0,
           steps: 16,
           distance: 20.0,
-        ).copyWith(color: Vector3.all(1.0)),
+        ).copyWith(color: LinearColor.white),
       );
 
   // ------------------------------------------------------------------ L7
@@ -577,8 +582,8 @@ abstract final class GoldenStages {
   /// `ltc_test.dart`'s panel, a metre wide, facing down where the mirror
   /// direction points.
   static Future<GoldenStaged> areaLightGloss(GoldenStage stage) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.03;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.03 * Photometric.legacyUnit;
     final device = stage.device;
     return GoldenStaged(
       nodes: <SceneNode>[
@@ -591,12 +596,16 @@ abstract final class GoldenStages {
             device,
             Vector3(1.2, 0.1, 5.0),
             Vector3(x, -0.05, 0.0),
-            Material(
-              baseColor: Vector4(0.25, 0.25, 0.27, 1.0),
+            RenderMaterial(
+              baseColor: LinearColor.fromSrgb(0.25, 0.25, 0.27, 1.0),
               roughness: roughness,
             ),
           ),
-        LightNode(type: LightType.area, intensity: 12.0, name: 'panel')
+        LightNode(
+            type: LightType.area,
+            intensity: 12.0 * Photometric.legacyUnit,
+            name: 'panel',
+          )
           ..width = 2.6
           ..height = 0.6
           ..setPosition(0.0, 1.5, -1.8)
@@ -627,7 +636,10 @@ abstract final class GoldenStages {
               device,
               CuboidShape(size: Vector3(40, 0.1, 40)).build(),
             ),
-            Material(name: 'floor', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+            RenderMaterial(
+              name: 'floor',
+              baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+            ),
             name: 'floor',
           )
           ..setPosition(0.0, -1.0, 0.0)
@@ -636,11 +648,12 @@ abstract final class GoldenStages {
       nodes: <SceneNode>[
         floor,
         for (var i = 0; i < 6; i++)
-          MeshNode(block, Material(name: 'block $i'))
+          MeshNode(block, RenderMaterial(name: 'block $i'))
             ..setPosition(-5.0 + i * 2.0, 0.0, -2.0),
-        MeshNode(block, Material(name: 'corner'))
+        MeshNode(block, RenderMaterial(name: 'corner'))
           ..setPosition(15.0, 0.0, -15.0),
-        MeshNode(block, Material(name: 'far'))..setPosition(10.0, 0.0, -12.0),
+        MeshNode(block, RenderMaterial(name: 'far'))
+          ..setPosition(10.0, 0.0, -12.0),
       ],
       everyFrame: (frame, _) {
         final step = (frame - _walkStart).clamp(0, 7);
@@ -665,13 +678,19 @@ abstract final class GoldenStages {
           device,
           Vector3(14.0, 0.2, 14.0),
           Vector3(0.0, -0.1, 0.0),
-          Material(name: 'floor', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+          ),
         ),
         _slab(
           device,
           Vector3(1.6, 0.2, 1.6),
           Vector3(0.0, 0.6, 0.0),
-          Material(name: 'box', baseColor: Vector4(0.7, 0.7, 0.7, 1.0)),
+          RenderMaterial(
+            name: 'box',
+            baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
+          ),
         ),
       ],
       everyFrame: (_, _) =>
@@ -696,14 +715,19 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> sunContactHardening(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.35).normalized());
-    final stone = Material(baseColor: Vector4(0.75, 0.73, 0.7, 1.0));
+    final stone = RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.75, 0.73, 0.7, 1.0),
+    );
     return GoldenStaged(
       nodes: <SceneNode>[
         _slab(
           device,
           Vector3(12.0, 0.2, 12.0),
           Vector3(0.0, -0.1, 0.0),
-          Material(baseColor: Vector4(0.82, 0.82, 0.82, 1.0), roughness: 0.9),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.82, 0.82, 0.82, 1.0),
+            roughness: 0.9,
+          ),
         ),
         _slab(device, Vector3(0.25, 3.2, 0.25), Vector3(-1.2, 1.5, 0.0), stone)
           ..setRotationYawPitchRoll(0.0, 0.0, -0.35),
@@ -732,10 +756,10 @@ abstract final class GoldenStages {
   /// sphere, beside the one it is measured against.
   static Future<GoldenStaged> _layerPair(
     GoldenStage stage,
-    List<Material> materials,
+    List<RenderMaterial> materials,
   ) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.15;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.15 * Photometric.legacyUnit;
     final device = stage.device;
     final spacing = 1.2;
     return GoldenStaged(
@@ -756,19 +780,19 @@ abstract final class GoldenStages {
     );
   }
 
-  static Material _paint({
+  static RenderMaterial _paint({
     MaterialExtensions? layers,
     double roughness = 0.6,
-  }) => Material(
+  }) => RenderMaterial(
     lighting: LightingModel.pbrLayered,
-    baseColor: Vector4(0.8, 0.05, 0.05, 1.0),
+    baseColor: LinearColor.fromSrgb(0.8, 0.05, 0.05, 1.0),
     roughness: roughness,
     extensions: layers,
   );
 
   /// `clearcoat-car-paint`: red paint, bare and under a sharp coat.
   static Future<GoldenStaged> clearcoat(GoldenStage stage) =>
-      _layerPair(stage, <Material>[
+      _layerPair(stage, <RenderMaterial>[
         _paint(),
         _paint(
           layers: MaterialExtensions(clearcoat: 1.0, clearcoatRoughness: 0.15),
@@ -777,11 +801,11 @@ abstract final class GoldenStages {
 
   /// `sheen-fabric`: the red cloth, bare and with a blue sheen at its rim.
   static Future<GoldenStaged> sheen(GoldenStage stage) =>
-      _layerPair(stage, <Material>[
+      _layerPair(stage, <RenderMaterial>[
         _paint(),
         _paint(
           layers: MaterialExtensions(
-            sheenColor: Vector3(0.2, 0.4, 1.0),
+            sheenColor: LinearColor(0.2, 0.4, 1.0),
             sheenRoughness: 0.5,
           ),
         ),
@@ -790,7 +814,7 @@ abstract final class GoldenStages {
   /// `anisotropy-disc`: the brushed lobe isotropic, then stretched along the
   /// tangent, then turned a quarter across it.
   static Future<GoldenStaged> anisotropy(GoldenStage stage) =>
-      _layerPair(stage, <Material>[
+      _layerPair(stage, <RenderMaterial>[
         _paint(roughness: 0.3),
         _paint(
           roughness: 0.3,
@@ -812,7 +836,7 @@ abstract final class GoldenStages {
   /// wall and pane, three times.
   static Future<GoldenStaged> transmissionGlass(GoldenStage stage) async {
     stage.sun.setLocalForward(Vector3(-0.3, -0.6, -1.0).normalized());
-    stage.scene.ambientIntensity = 0.2;
+    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
     final device = stage.device;
     final pane = DeviceMesh.upload(
       device,
@@ -822,15 +846,15 @@ abstract final class GoldenStages {
       device,
       const PlaneShape(width: 4.0, depth: 9.0).build(),
     );
-    MeshNode wall(double x, Vector4 colour) => MeshNode(half, _unlit(colour))
+    MeshNode wall(double x, Vector4 color) => MeshNode(half, _unlit(color))
       ..setPosition(x, 0.0, -4.0)
       ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0);
     MeshNode glass(double x, MaterialExtensions layers, double roughness) =>
         MeshNode(
             pane,
-            Material(
+            RenderMaterial(
               lighting: LightingModel.pbrLayered,
-              baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+              baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
               roughness: roughness,
               extensions: layers,
               doubleSided: true,
@@ -875,7 +899,7 @@ abstract final class GoldenStages {
   /// red, green and blue by column, the middle one long and turned — placed
   /// by its node, in front of a dark wall that gives the frame bounds.
   static Future<GoldenStaged> splatGltf(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     stage.scene.ambientIntensity = 0.0;
     final bytes = await rootBundle.load('assets/models/splat_grid.glb');
     final asset = await GltfLoader().load(
@@ -890,7 +914,9 @@ abstract final class GoldenStages {
         placement.translation.z,
       )
       ..setScale(placement.scale.x, placement.scale.y, placement.scale.z);
-    stage.renderer.addContributor(SplatContributor(splat.cloud, node: node));
+    stage.renderer.renderSteps.addContributor(
+      SplatContributor(splat.cloud, node: node),
+    );
     return GoldenStaged(
       nodes: <SceneNode>[node, _backdrop(stage.device, z: -3.0)],
       everyFrame: (_, _) =>
@@ -913,7 +939,7 @@ abstract final class GoldenStages {
   /// kept or dropped per pixel by a hash of the frame and averaged by the
   /// temporal resolve — `splat_stochastic_test.dart`'s layers.
   static Future<GoldenStaged> splatStochastic(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     stage.scene.ambientIntensity = 0.0;
     final splats = <(Vector3, Vector4)>[
       (Vector3(0.3, 0.2, -1.0), Vector4(0.0, 0.0, 1.0, 0.9)),
@@ -922,22 +948,22 @@ abstract final class GoldenStages {
     ];
     const sigma = 0.6;
     final n = splats.length;
-    final centres = Float32List(n * 3);
-    final colours = Float32List(n * 4);
+    final centers = Float32List(n * 3);
+    final colors = Float32List(n * 4);
     final scales = Float32List(n * 3);
     final rotations = Float32List(n * 4);
     for (var i = 0; i < n; i++) {
-      final (where, colour) = splats[i];
-      centres.setAll(i * 3, <double>[where.x, where.y, where.z]);
-      colours.setAll(i * 4, <double>[colour.x, colour.y, colour.z, colour.w]);
+      final (where, color) = splats[i];
+      centers.setAll(i * 3, <double>[where.x, where.y, where.z]);
+      colors.setAll(i * 4, <double>[color.x, color.y, color.z, color.w]);
       scales.setAll(i * 3, <double>[sigma, sigma, sigma]);
       rotations[i * 4 + 3] = 1.0;
     }
-    stage.renderer.addContributor(
+    stage.renderer.renderSteps.addContributor(
       SplatContributor(
         SplatCloud(
-          centres: centres,
-          colours: colours,
+          centers: centers,
+          colors: colors,
           scales: scales,
           rotations: rotations,
         ),
@@ -967,18 +993,18 @@ abstract final class GoldenStages {
   /// difference between two backends' pictures is then only the drawing.
   static Future<GoldenStaged> impostorForest(GoldenStage stage) async {
     stage.sun.setLocalForward(Vector3(-0.4, -1.0, -0.5).normalized());
-    stage.scene.ambientIntensity = 0.2;
+    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
     final baked = await bakeImpostors(_tree(), cell: 32);
     final lod = baked.nodes.single.lods.single;
     final impostor = lod.impostor!;
     TextureHandle upload(EncodedImage image) {
-      final decoded = decodePng(image.bytes)!;
+      final decoded = decodePng(image.bytes);
       return stage.device.createTextureFromPixels(
         width: decoded.width,
         height: decoded.height,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(decoded.rgba),
-      )!;
+      );
     }
 
     final albedo = upload(baked.images[impostor.albedoImage]);
@@ -1000,7 +1026,7 @@ abstract final class GoldenStages {
             stage.device,
             albedo: albedo,
             normalDepth: normalDepth,
-            centre: impostor.centre,
+            center: impostor.center,
             radius: impostor.radius,
           )..setLocalMatrix(Matrix4.translationValues(x, 0, z)..rotateY(yaw)),
       ],
@@ -1051,9 +1077,18 @@ abstract final class GoldenStages {
         ),
       ],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(name: 'bark', baseColor: Vector4(0.45, 0.3, 0.18, 1)),
-        SurfaceMaterial(name: 'leaves', baseColor: Vector4(0.25, 0.6, 0.2, 1)),
-        SurfaceMaterial(name: 'fruit', baseColor: Vector4(0.85, 0.15, 0.1, 1)),
+        SurfaceMaterial(
+          name: 'bark',
+          baseColor: LinearColor.fromSrgb(0.45, 0.3, 0.18, 1),
+        ),
+        SurfaceMaterial(
+          name: 'leaves',
+          baseColor: LinearColor.fromSrgb(0.25, 0.6, 0.2, 1),
+        ),
+        SurfaceMaterial(
+          name: 'fruit',
+          baseColor: LinearColor.fromSrgb(0.85, 0.15, 0.1, 1),
+        ),
       ],
       nodes: <ModelNode>[
         ModelNode(name: 'tree', surfaces: <int>[0, 1, 2]),
@@ -1068,7 +1103,7 @@ abstract final class GoldenStages {
   /// resolve with the reactive mask at full — `reactive_mask_test.dart`'s
   /// ember, three rows of it.
   static Future<GoldenStaged> taaEmbers(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     final particles = ParticleSystem(capacity: 8, seed: 1);
     final ember = ParticleEffect(
       count: 1,
@@ -1077,7 +1112,7 @@ abstract final class GoldenStages {
       size: const Range.exact(0.3),
       color: Vector4(1.0, 0.6, 0.2, 1.0),
     );
-    stage.renderer.addContributor(ParticleContributor(particles));
+    stage.renderer.renderSteps.addContributor(ParticleContributor(particles));
     return GoldenStaged(
       nodes: <SceneNode>[
         _slab(
@@ -1118,6 +1153,427 @@ abstract final class GoldenStages {
     spatialUpscale: const SpatialUpscaleSettings(enabled: true),
   );
 
+  // ------------------------------------------------------------------ P1
+
+  /// `smaa-teapot`: `shadow-teapot`'s silhouette and shadow edge smoothed by
+  /// SMAA 1x on the finished picture.
+  static RenderSettings smaaTeapot(RenderSettings settings) =>
+      settings.copyWith(
+        antiAlias: settings.antiAlias.copyWith(
+          enabled: true,
+          method: EdgeSmoothing.smaa,
+        ),
+      );
+
+  // ------------------------------------------------------------------ P2
+
+  /// `lens-flare`: one small, very bright panel up and to the left on black,
+  /// and the ghosts and ring its reflections throw across the middle of the
+  /// frame. The glow is kept tight so the ghosts read as discs.
+  static Future<GoldenStaged> lensFlare(GoldenStage stage) async {
+    final device = stage.device;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(0.25, 0.25, 0.05),
+          Vector3(-1.1, 0.7, -3.0),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+            emissive: LinearColor(30.0, 26.0, 20.0),
+          ),
+        )..shadowCasting = ShadowCastingMode.off,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.0, 1.0), Vector3(0.0, 0.0, -3.0)),
+    );
+  }
+
+  static RenderSettings lensFlareSettings(RenderSettings settings) =>
+      settings.copyWith(
+        bloom: settings.bloom.copyWith(
+          enabled: true,
+          intensity: 0.05,
+          levels: 3,
+          scatter: 0.5,
+          lensFlare: const LensFlareSettings(enabled: true, intensity: 3.0),
+        ),
+      );
+
+  /// `lens-distortion`: `shadow-teapot` through a barrel lens, the floor's
+  /// straight edges bowed and the corners held where they were.
+  static RenderSettings lensDistortion(RenderSettings settings) =>
+      settings.copyWith(look: settings.look.copyWith(distortion: 0.3));
+
+  // ------------------------------------------------------------------ P7
+
+  /// `alpha-to-coverage`: six leaf cards lying at different turns, each a
+  /// disc of green whose alpha falls from one at its middle to nought at its
+  /// rim, masked at a half with `RenderMaterial.alphaToCoverage`. Where the device
+  /// can — WebGL2 and WebGPU, in their multisampled scene pass — the disc's
+  /// edge is the resolve's smooth one; Impeller and the software rasteriser
+  /// draw the same disc cut hard at the cutoff, so this scene's references
+  /// differ between the two pairs at the edges and nowhere else.
+  static Future<GoldenStaged> alphaToCoverage(GoldenStage stage) async {
+    final device = stage.device;
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dx = (x + 0.5) / size - 0.5;
+        final dy = (y + 0.5) / size - 0.5;
+        final r = math.sqrt(dx * dx + dy * dy);
+        final i = (y * size + x) * 4;
+        pixels
+          ..[i] = 60
+          ..[i + 1] = 170
+          ..[i + 2] = 70
+          ..[i + 3] = ((1.0 - r / 0.5).clamp(0.0, 1.0) * 255).round();
+      }
+    }
+    final leaf = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    );
+    final card = DeviceMesh.upload(
+      device,
+      const PlaneShape(width: 1.6, depth: 1.6).build(),
+    );
+    final material = RenderMaterial(
+      lighting: LightingModel.unlit,
+      albedo: leaf,
+      alphaMode: MaterialAlphaMode.mask,
+      alphaCutoff: 0.5,
+      alphaToCoverage: true,
+      doubleSided: true,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        for (var i = 0; i < 6; i++)
+          MeshNode(card, material)
+            ..setPosition((i % 3 - 1) * 1.7, (i ~/ 3 - 0.5) * 1.6, 0.0)
+            ..setRotationYawPitchRoll(i * 0.4, math.pi / 2 - 0.3 * i, i * 0.5),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.0, 6.0), Vector3.zero()),
+    );
+  }
+
+  /// `orthographic-metal`: three metal spheres, rough to smooth, on a floor
+  /// that ends under a sky, in light fog, through an orthographic camera
+  /// looking down at them from the corner — the three things that read the
+  /// eye's position as a point the light travels to. Their highlights sit
+  /// in the same place on each sphere rather than sliding towards where the
+  /// eye's point projects, the fog lies flat rather than in rings round it,
+  /// and the sky is a gradient seen through a sixty-degree lens rather than
+  /// one colour.
+  static Future<GoldenStaged> orthographicMetal(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-1.0, -2.0, -1.5).normalized());
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(6.0, 0.2, 6.0),
+          Vector3(0.0, -0.1, 0.0),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.58, 1.0),
+            roughness: 0.9,
+          ),
+        ),
+        for (final (i, roughness) in <double>[0.6, 0.35, 0.15].indexed)
+          _sphere(
+            device,
+            Vector3(-1.5 + i * 1.5, 0.5, 0.0),
+            RenderMaterial(
+              baseColor: LinearColor.fromSrgb(0.9, 0.75, 0.5, 1.0),
+              metallic: 1.0,
+              roughness: roughness,
+            ),
+          ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 5.0, far: 100.0)
+        ..setPosition(7.0, 6.0, 9.0)
+        ..lookAt(Vector3(0.0, 0.3, 0.0)),
+    );
+  }
+
+  static RenderSettings orthographicMetalSettings(RenderSettings settings) =>
+      settings.copyWith(
+        sky: const SkySettings(enabled: true),
+        fog: FogSettings(color: LinearColor(0.7, 0.75, 0.8), density: 0.03),
+      );
+
+  /// `orthographic-shadows`: a level far longer than the view — a floor a
+  /// hundred and sixty metres long with posts down all of it — seen from
+  /// above through an orthographic camera zoomed in on its middle, under
+  /// three shadow cascades. Through this lens the near cascades are slabs of
+  /// what the frame shows; when they were spheres sized by distance from the
+  /// eye they covered the air before it, every shadow fell to the cascade
+  /// fitted to the whole level, and the posts' shadows went to mush.
+  static Future<GoldenStaged> orthographicShadows(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.6, 0.5).normalized());
+    final floor = RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.42, 0.42, 0.4, 1.0),
+      roughness: 0.9,
+    );
+    final post = RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.8, 0.45, 0.3, 1.0),
+      roughness: 0.6,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(12.0, 0.2, 160.0),
+          Vector3(0.0, -0.1, 0.0),
+          floor,
+        ),
+        for (var i = 0; i < 32; i++)
+          _slab(
+            device,
+            Vector3(0.6, 2.4, 0.6),
+            Vector3(i.isEven ? -2.0 : 2.0, 1.2, -77.5 + i * 5.0),
+            post,
+          ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 17.0, far: 400.0)
+        ..setPosition(9.0, 14.0, -26.0)
+        ..lookAt(Vector3(0.0, 0.0, 1.0)),
+    );
+  }
+
+  static RenderSettings orthographicShadowsSettings(RenderSettings settings) =>
+      settings.copyWith(shadows: settings.shadows.copyWith(cascades: 3));
+
+  /// `orthographic-particles`: three rows across a dark wall in fog, seen
+  /// through an orthographic camera — billboards above, splats in the
+  /// middle, mesh particles below, five of each at the same depth. Through
+  /// this lens the eye is only where the camera was put along its axis, so
+  /// every column must fog alike; measured from the eye's position, as the
+  /// three stages did, the outer columns came out darker than the middle
+  /// one, and the shards' faces dimmer.
+  static Future<GoldenStaged> orthographicParticles(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.isVisible = false;
+    ParticleEffect still(double size, Vector4 color) => ParticleEffect(
+      count: 1,
+      emitter: const SphereEmitter(speed: Range.exact(0.0)),
+      lifetime: const Range.exact(10.0),
+      size: Range.exact(size),
+      color: color,
+    );
+    final billboards = ParticleSystem(capacity: 8, seed: 1);
+    final shards = ParticleSystem(capacity: 8, seed: 1);
+    for (var i = 0; i < 5; i++) {
+      final x = -3.0 + i * 1.5;
+      billboards.burst(
+        still(0.9, Vector4(1.0, 0.6, 0.2, 1.0)),
+        Vector3(x, 1.4, -5.0),
+      );
+      shards.burst(
+        still(0.35, Vector4(0.3, 0.8, 1.0, 1.0)),
+        Vector3(x, -1.4, -5.0),
+      );
+    }
+    final splats = SplatCloud(
+      centers: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[-3.0 + i * 1.5, 0.0, -5.0],
+      ]),
+      colors: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[0.9, 0.3, 0.6, 1.0],
+      ]),
+      scales: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[0.25, 0.25, 0.25],
+      ]),
+      rotations: Float32List.fromList(<double>[
+        for (var i = 0; i < 5; i++) ...<double>[0.0, 0.0, 0.0, 1.0],
+      ]),
+    );
+    stage.renderer
+      ..renderSteps.addContributor(ParticleContributor(billboards))
+      ..renderSteps.addContributor(SplatContributor(splats))
+      ..renderSteps.addContributor(
+        MeshParticleContributor(
+          shards,
+          mesh: DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3.all(1.0)).build(),
+          ),
+        ),
+      );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(20.0, 20.0, 1.0),
+          Vector3(0.0, 0.0, -9.5),
+          _unlit(Vector4(0.15, 0.15, 0.15, 1.0)),
+        ),
+      ],
+      everyFrame: (_, _) => stage.camera
+        ..projection = const OrthographicProjection(height: 5.0, far: 100.0)
+        ..setPosition(0.0, 0.0, 0.0)
+        ..lookAt(Vector3(0.0, 0.0, -1.0)),
+    );
+  }
+
+  static RenderSettings orthographicParticlesSettings(
+    RenderSettings settings,
+  ) => settings.copyWith(
+    fog: FogSettings(color: LinearColor(0.35, 0.4, 0.5), density: 0.12),
+  );
+
+  /// `material-instance-data`: five spheres, one instanced batch drawn with
+  /// `shaders/instance_tint.f3dmat`, each copy given its own four numbers —
+  /// a colour round the hue circle and a rim growing left to right. One draw;
+  /// what differs between the copies is only what the game handed each.
+  static Future<GoldenStaged> materialInstanceData(GoldenStage stage) async {
+    final device = stage.device;
+    final batch = InstancedMeshNode(
+      DeviceMesh.upload(
+        device,
+        SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
+      ),
+      RenderMaterial(lighting: GoldenExtras.instanceTint),
+      capacity: 5,
+      name: 'copies',
+    );
+    const colors = <(double, double, double)>[
+      (0.95, 0.3, 0.25),
+      (0.95, 0.75, 0.2),
+      (0.35, 0.85, 0.35),
+      (0.25, 0.6, 0.95),
+      (0.7, 0.35, 0.9),
+    ];
+    for (final (i, (r, g, b)) in colors.indexed) {
+      batch.addInstance(
+        Matrix4.translationValues(-2.4 + i * 1.2, 0.0, 0.0),
+        data: Vector4(r, g, b, i / 4.0),
+      );
+    }
+    return GoldenStaged(
+      nodes: <SceneNode>[batch],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.0, 0.8, 6.8), Vector3.zero()),
+    );
+  }
+
+  // ----------------------------------------------------------------- P10
+
+  /// `widget-scene`: `planar-mirror`'s room written as widgets and mounted
+  /// into the runner's own scene through `SceneWidgets.mount` — a floor and
+  /// two boxes under shared `Material3D`s, a mirror whose surface is the
+  /// `Mesh3D` below its `Mirror3D`, a ball with a material of its own, an
+  /// orange `Decal3D` on the floor and a `Particles3D` plume over the post,
+  /// advanced a sixtieth of a second a frame from a fixed seed. Every widget
+  /// `P10` adds draws in it, through the graph the imperative scenes use.
+  static Future<GoldenStaged> widgetScene(GoldenStage stage) async {
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    final mount = SceneWidgets.mount(
+      scene: stage.scene,
+      renderer: stage.renderer,
+      device: stage.device,
+      children: <Widget>[
+        Material3D(
+          lighting: LightingModel.lambert,
+          baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.45, 1.0),
+          children: <Widget>[
+            Mesh3D(
+              shape: CuboidShape(size: Vector3(14.0, 0.2, 14.0)),
+              position: Vector3(0.0, -0.1, 0.0),
+              name: 'floor',
+            ),
+          ],
+        ),
+        Mirror3D(
+          position: Vector3(0.0, 0.005, 0.3),
+          tint: LinearColor(0.85, 0.9, 1.0),
+          children: <Widget>[
+            Material3D(
+              lighting: LightingModel.unlit,
+              baseColor: LinearColor.fromSrgb(0.02, 0.02, 0.03, 1.0),
+              children: <Widget>[
+                Mesh3D(
+                  shape: const PlaneShape(width: 3.2, depth: 2.4),
+                  name: 'mirror',
+                ),
+              ],
+            ),
+          ],
+        ),
+        // Two boxes, one material: the batch the widget shares.
+        Material3D(
+          baseColor: LinearColor.fromSrgb(0.8, 0.15, 0.1, 1.0),
+          children: <Widget>[
+            Mesh3D(
+              shape: CuboidShape(size: Vector3(0.8, 0.8, 0.8)),
+              position: Vector3(-0.7, 0.4, -0.3),
+            ),
+            Mesh3D(
+              shape: CuboidShape(size: Vector3(0.25, 1.6, 0.25)),
+              position: Vector3(0.2, 0.8, -1.2),
+            ),
+          ],
+        ),
+        Mesh3D(
+          shape: SphereShape(radius: 0.45, segments: 48, rings: 24),
+          material: RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.15, 0.3, 0.85, 1.0),
+          ),
+          position: Vector3(0.6, 0.45, 0.2),
+        ),
+        // Stamped down its y axis, so with no rotation it lies on the floor.
+        Decal3D(
+          position: Vector3(1.6, 0.0, 1.2),
+          scale: Vector3(0.9, 0.6, 0.9),
+          color: LinearColor.fromSrgb(1.0, 0.5, 0.1, 1.0),
+        ),
+        Particles3D(
+          position: Vector3(0.2, 1.7, -1.2),
+          effect: ParticleEffect(
+            count: 1,
+            emitter: const SphereEmitter(speed: Range(0.3, 0.6)),
+            lifetime: const Range.exact(1.2),
+            size: const Range.exact(0.18),
+            color: Vector4(1.0, 0.7, 0.3, 1.0),
+          ),
+          perSecond: 40.0,
+          seed: 7,
+        ),
+      ],
+    );
+    return GoldenStaged(
+      nodes: const <SceneNode>[],
+      everyFrame: (_, _) {
+        mount.advance(1.0 / 60.0);
+        _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2));
+      },
+    );
+  }
+
+  static RenderSettings widgetSceneSettings(RenderSettings settings) =>
+      settings.copyWith(
+        planarReflections: const PlanarReflectionSettings(enabled: true),
+        decals: const DecalSettings(enabled: true),
+      );
+
+  // ------------------------------------------------------------------ P6
+
+  /// `debug-view-split`: the lit teapot left of the middle and its shading
+  /// normal right of it, in one draw — the wipe `DebugViewSettings.split`
+  /// makes, and the composite leaving the right half out of the tone curve.
+  static RenderSettings debugViewSplit(RenderSettings settings) =>
+      settings.copyWith(
+        debugView: const DebugViewSettings(view: DebugView.normal, split: 0.5),
+      );
+
   // ------------------------------------------------------------------ R6
 
   /// `motion-blur-spin`: a wheel of three spokes round a hub, turning at a
@@ -1136,11 +1592,11 @@ abstract final class GoldenStages {
       wheel.add(
         MeshNode(
           spoke,
-          Material(
-            baseColor: <Vector4>[
-              Vector4(0.9, 0.8, 0.2, 1.0),
-              Vector4(0.2, 0.7, 0.9, 1.0),
-              Vector4(0.9, 0.3, 0.3, 1.0),
+          RenderMaterial(
+            baseColor: <LinearColor>[
+              LinearColor.fromSrgb(0.9, 0.8, 0.2, 1.0),
+              LinearColor.fromSrgb(0.2, 0.7, 0.9, 1.0),
+              LinearColor.fromSrgb(0.9, 0.3, 0.3, 1.0),
             ][i],
           ),
         )..setRotationYawPitchRoll(0.0, 0.0, i * math.pi / 3),
@@ -1156,7 +1612,7 @@ abstract final class GoldenStages {
             height: 0.5,
           ).build(),
         ),
-        Material(baseColor: Vector4(0.5, 0.5, 0.5, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0)),
       )..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0),
     );
     return GoldenStaged(
@@ -1189,10 +1645,10 @@ abstract final class GoldenStages {
     stage.sun
       ..intensity = 6.0
       ..setLocalForward(Vector3(0.25, -0.55, 1.0).normalized());
-    stage.scene.ambientIntensity = 0.03;
+    stage.scene.ambientIntensity = 0.03 * Photometric.legacyUnit;
     final device = stage.device;
-    final plaster = Material(
-      baseColor: Vector4(0.75, 0.72, 0.68, 1.0),
+    final plaster = RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.75, 0.72, 0.68, 1.0),
       roughness: 0.9,
     );
     // The back wall is four pieces round a window a metre and a half wide.
@@ -1253,9 +1709,9 @@ abstract final class GoldenStages {
           device,
           Vector3(8.0, 8.0, 0.1),
           Vector3(0.0, 1.5, -depth / 2 - 2.0),
-          Material(
-            baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-            emissive: Vector3(5.0, 6.0, 8.0),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+            emissive: LinearColor(5.0, 6.0, 8.0),
           ),
         )..shadowCasting = ShadowCastingMode.off,
         // Something in the dark half of the room for the lift to find.
@@ -1263,7 +1719,7 @@ abstract final class GoldenStages {
           device,
           Vector3(0.8, 0.8, 0.8),
           Vector3(-1.8, 0.4, -1.2),
-          Material(baseColor: Vector4(0.6, 0.25, 0.15, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.6, 0.25, 0.15, 1.0)),
         ),
       ],
       everyFrame: (_, _) => _look(
@@ -1291,18 +1747,18 @@ abstract final class GoldenStages {
   /// crossing through each other, in front of a grey wall, composited
   /// without a sort — `weighted_blended_test.dart`'s stack.
   static Future<GoldenStaged> glassStack(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     final device = stage.device;
     final quad = DeviceMesh.upload(
       device,
       const PlaneShape(width: 1.2, depth: 1.2).build(),
     );
-    final panes = <({double x, double z, double yaw, Vector4 colour})>[
-      (x: -0.3, z: -1.0, yaw: 0.0, colour: Vector4(0.9, 0.1, 0.1, 0.5)),
-      (x: 0.0, z: -1.6, yaw: 0.0, colour: Vector4(0.1, 0.9, 0.1, 0.45)),
-      (x: 0.3, z: -2.2, yaw: 0.0, colour: Vector4(0.1, 0.2, 0.9, 0.6)),
-      (x: 0.1, z: -1.3, yaw: 0.6, colour: Vector4(0.9, 0.8, 0.1, 0.4)),
-      (x: 0.1, z: -1.3, yaw: -0.6, colour: Vector4(0.8, 0.1, 0.9, 0.35)),
+    final panes = <({double x, double z, double yaw, Vector4 color})>[
+      (x: -0.3, z: -1.0, yaw: 0.0, color: Vector4(0.9, 0.1, 0.1, 0.5)),
+      (x: 0.0, z: -1.6, yaw: 0.0, color: Vector4(0.1, 0.9, 0.1, 0.45)),
+      (x: 0.3, z: -2.2, yaw: 0.0, color: Vector4(0.1, 0.2, 0.9, 0.6)),
+      (x: 0.1, z: -1.3, yaw: 0.6, color: Vector4(0.9, 0.8, 0.1, 0.4)),
+      (x: 0.1, z: -1.3, yaw: -0.6, color: Vector4(0.8, 0.1, 0.9, 0.35)),
     ];
     return GoldenStaged(
       nodes: <SceneNode>[
@@ -1318,9 +1774,9 @@ abstract final class GoldenStages {
         for (final pane in panes)
           MeshNode(
               quad,
-              Material(
+              RenderMaterial(
                 lighting: LightingModel.unlit,
-                baseColor: pane.colour,
+                baseColor: _fromSrgb(pane.color),
                 alphaMode: MaterialAlphaMode.blend,
                 doubleSided: true,
               ),
@@ -1352,7 +1808,7 @@ abstract final class GoldenStages {
             ...<int>[230, 230, 230, 255],
           ]),
         ),
-      )!;
+      );
 
   /// A normal map whose four texels lean four different ways.
   static TextureHandle _leaningNormals(GraphicsDevice device) =>
@@ -1368,7 +1824,7 @@ abstract final class GoldenStages {
             ...<int>[128, 40, 190, 255],
           ]),
         ),
-      )!;
+      );
 
   /// `texture-transform-per-map`: four plates from above, left to right —
   /// the quadrant texture as it is; turned, scaled and moved by its own
@@ -1376,8 +1832,8 @@ abstract final class GoldenStages {
   /// leaning normal map turned by its transform, lit from one side —
   /// `texture_transform_test.dart`'s plane and maps.
   static Future<GoldenStaged> textureTransforms(GoldenStage stage) async {
-    stage.sun.visible = false;
-    stage.scene.ambientIntensity = 0.25;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
     final device = stage.device;
     final plane = DeviceMesh.upload(
       device,
@@ -1388,24 +1844,24 @@ abstract final class GoldenStages {
       scale: Vector2(0.5, -0.75),
       rotation: math.pi / 2,
     );
-    MeshNode plate(double x, Material material) =>
+    MeshNode plate(double x, RenderMaterial material) =>
         MeshNode(plane, material)..setPosition(x, 0.0, 0.0);
     return GoldenStaged(
       nodes: <SceneNode>[
         plate(
           -3.3,
-          Material(
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
             albedo: _quadrants(device),
-            albedoSampler: SamplerOptions.nearestClamp,
+            albedoSampler: SamplerDescriptor.nearestClamp,
           ),
         ),
         plate(
           -1.1,
-          Material(
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
             albedo: _quadrants(device),
-            albedoSampler: SamplerOptions.nearestClamp,
+            albedoSampler: SamplerDescriptor.nearestClamp,
             textureTransforms: <MaterialMap, TextureTransform>{
               MaterialMap.baseColor: turned,
             },
@@ -1413,14 +1869,14 @@ abstract final class GoldenStages {
         ),
         plate(
           1.1,
-          Material(
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
-            baseColor: Vector4(0.3, 0.3, 0.3, 1.0),
+            baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.3, 1.0),
             albedo: _quadrants(device),
-            albedoSampler: SamplerOptions.nearestClamp,
+            albedoSampler: SamplerDescriptor.nearestClamp,
             emissiveTexture: _quadrants(device),
-            emissiveSampler: SamplerOptions.nearestClamp,
-            emissive: Vector3(0.5, 0.5, 0.5),
+            emissiveSampler: SamplerDescriptor.nearestClamp,
+            emissive: LinearColor(0.5, 0.5, 0.5),
             textureTransforms: <MaterialMap, TextureTransform>{
               MaterialMap.baseColor: TextureTransform(
                 offset: Vector2(0.5, 0.0),
@@ -1435,16 +1891,16 @@ abstract final class GoldenStages {
         ),
         plate(
           3.3,
-          Material(
+          RenderMaterial(
             lighting: LightingModel.pbrLayered,
             normal: _leaningNormals(device),
-            normalSampler: SamplerOptions.nearestClamp,
+            normalSampler: SamplerDescriptor.nearestClamp,
             textureTransforms: <MaterialMap, TextureTransform>{
               MaterialMap.normal: turned,
             },
           ),
         ),
-        LightNode(intensity: 3.0, castsShadow: false)
+        LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: false)
           ..setRotationYawPitchRoll(0.4, -1.0, 0.0),
       ],
       everyFrame: (_, _) => _look(
@@ -1487,22 +1943,25 @@ abstract final class GoldenStages {
   /// culled by the frustum, their cones and the occlusion test behind a
   /// slab across the left of the view. The picture is the unsplit scan's.
   static Future<GoldenStaged> scanChunks(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     final device = stage.device;
     final split = clusterMesh(_scan(), maxTriangles: 512, minTriangles: 128);
     return GoldenStaged(
       nodes: <SceneNode>[
         MeshNode(
           DeviceMesh.upload(device, split),
-          Material(baseColor: Vector4(0.8, 0.75, 0.7, 1.0), roughness: 0.8),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.8, 0.75, 0.7, 1.0),
+            roughness: 0.8,
+          ),
         )..setRotationYawPitchRoll(0.3, 0.1, 0.0),
         _slab(
           device,
           Vector3(1.6, 3.0, 0.1),
           Vector3(-0.9, 0.0, 1.4),
-          Material(baseColor: Vector4(0.3, 0.35, 0.4, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.3, 0.35, 0.4, 1.0)),
         )..occluder = true,
-        LightNode(intensity: 1.2, castsShadow: false)
+        LightNode(intensity: 1.2 * Photometric.legacyUnit, castsShadow: false)
           ..setRotationYawPitchRoll(0.4, -0.7, 0.0),
       ],
       // The test's first eye, drawn back a little: the slab hides the
@@ -1525,7 +1984,7 @@ abstract final class GoldenStages {
   /// Baked here, for the reason the impostors are: it is plain Dart and so
   /// the same sheet on every backend.
   static Future<GoldenStaged> smokeSixWay(GoldenStage stage) async {
-    stage.sun.visible = false;
+    stage.sun.isVisible = false;
     stage.scene
       ..ambientIntensity = 0.0
       ..defaultLightWhenUnlit = false;
@@ -1541,7 +2000,7 @@ abstract final class GoldenStages {
       height: sheet.height,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(bytes),
-    )!;
+    );
     final particles = ParticleSystem(capacity: 8);
     for (final x in <double>[-0.4, 0.0, 0.4]) {
       particles.burst(
@@ -1555,7 +2014,7 @@ abstract final class GoldenStages {
         Vector3(x, 0.0, x * 0.5),
       );
     }
-    stage.renderer.addContributor(
+    stage.renderer.renderSteps.addContributor(
       ParticleContributor(
         particles,
         sixWay: SixWayMaterial(
@@ -1564,8 +2023,12 @@ abstract final class GoldenStages {
         ),
       ),
     );
-    LightNode point(Vector3 at, Vector3 colour) =>
-        LightNode(type: LightType.point, intensity: 12.0, color: colour)
+    LightNode point(Vector3 at, Vector3 color) =>
+        LightNode(
+            type: LightType.point,
+            intensity: 12.0 * Photometric.legacyUnit,
+            color: color.toLinearColor(),
+          )
           ..castsShadow = false
           ..setPosition(at.x, at.y, at.z);
     return GoldenStaged(
@@ -1578,4 +2041,482 @@ abstract final class GoldenStages {
           _look(stage.camera, Vector3(0.0, 0.0, 4.0), Vector3.zero()),
     );
   }
+
+  // ------------------------------------------------------------------ P3
+
+  /// `decal-floor`: three decals on a floor beside a box under the sun —
+  /// `decal_test.dart`'s floor, with each of its claims in one frame.
+  ///
+  /// A ring with a hole in it, half in the box's shadow and reaching up the
+  /// box's side, which its angle limit keeps it off; an orange square of a
+  /// higher order over the ring's corner; and a cyan stripe that glows. The
+  /// ring's picture is drawn here, in Dart, so every backend reads the same
+  /// texels, and its four quarters are four colours so a mirrored picture
+  /// shows.
+  static Future<GoldenStaged> decalFloor(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.9, -1.0, -0.3).normalized());
+    // Enough sky in the shadow for the ring's colours to show there too.
+    stage.scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dx = (x + 0.5) / size - 0.5;
+        final dy = (y + 0.5) / size - 0.5;
+        final r = math.sqrt(dx * dx + dy * dy);
+        final quarter = (dx < 0.0 ? 0 : 1) + (dy < 0.0 ? 0 : 2);
+        final color = const <List<int>>[
+          <int>[220, 40, 40],
+          <int>[40, 180, 60],
+          <int>[50, 80, 220],
+          <int>[240, 230, 210],
+        ][quarter];
+        final at = (y * size + x) * 4;
+        pixels
+          ..[at] = color[0]
+          ..[at + 1] = color[1]
+          ..[at + 2] = color[2]
+          ..[at + 3] = r > 0.18 && r < 0.48 ? 255 : 0;
+      }
+    }
+    final ring = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(14.0, 0.2, 14.0),
+          Vector3(0.0, -0.1, 0.0),
+          RenderMaterial(
+            name: 'floor',
+            lighting: LightingModel.lambert,
+            baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.45, 1.0),
+          ),
+        ),
+        _slab(
+          device,
+          Vector3(1.0, 1.0, 1.0),
+          Vector3(-0.2, 0.5, -0.6),
+          RenderMaterial(
+            name: 'box',
+            baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.65, 1.0),
+          ),
+        ),
+        DecalNode(texture: ring, name: 'ring')
+          ..setScale(3.0, 1.2, 3.0)
+          ..setRotationYawPitchRoll(0.4, 0.0, 0.0)
+          ..setPosition(0.3, 0.0, 0.2),
+        DecalNode(
+            color: LinearColor.fromSrgb(1.0, 0.55, 0.1, 0.85),
+            order: 1,
+            name: 'tag',
+          )
+          ..setScale(0.9, 0.6, 0.9)
+          ..setPosition(1.4, 0.0, 1.0),
+        DecalNode(
+            color: LinearColor.fromSrgb(0.2, 0.9, 1.0, 1.0),
+            emissive: const LinearColor(1.5, 1.5, 1.5),
+            name: 'glow',
+          )
+          ..setScale(2.4, 0.6, 0.25)
+          ..setPosition(-0.6, 0.0, 1.9),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(1.0, 4.0, 5.0), Vector3(0.0, 0.0, 0.2)),
+    );
+  }
+
+  static RenderSettings decalFloorSettings(RenderSettings settings) =>
+      settings.copyWith(decals: const DecalSettings(enabled: true));
+  // ------------------------------------------------------------------ P4
+
+  /// The floor `planar-mirror` and `render-texture` stand on: grey, lit.
+  static MeshNode _p4Floor(GraphicsDevice device) => _slab(
+    device,
+    Vector3(14.0, 0.2, 14.0),
+    Vector3(0.0, -0.1, 0.0),
+    RenderMaterial(
+      name: 'floor',
+      lighting: LightingModel.lambert,
+      baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.45, 1.0),
+    ),
+  );
+
+  /// What both P4 scenes look at: a red box, a blue ball and a yellow post,
+  /// lit by the sun, so a picture of them has shading and shadows to get
+  /// right and no two of its sides look alike.
+  static List<SceneNode> _p4Props(GraphicsDevice device) => <SceneNode>[
+    _slab(
+      device,
+      Vector3(0.8, 0.8, 0.8),
+      Vector3(-0.7, 0.4, -0.3),
+      RenderMaterial(
+        name: 'box',
+        baseColor: LinearColor.fromSrgb(0.8, 0.15, 0.1, 1.0),
+      ),
+    ),
+    _sphere(
+      device,
+      Vector3(0.6, 0.45, 0.2),
+      RenderMaterial(
+        name: 'ball',
+        baseColor: LinearColor.fromSrgb(0.15, 0.3, 0.85, 1.0),
+      ),
+      radius: 0.45,
+    ),
+    _slab(
+      device,
+      Vector3(0.25, 1.6, 0.25),
+      Vector3(0.2, 0.8, -1.2),
+      RenderMaterial(
+        name: 'post',
+        baseColor: LinearColor.fromSrgb(0.9, 0.75, 0.15, 1.0),
+      ),
+    ),
+  ];
+
+  /// `planar-mirror`: a black mirror set into the floor, the props standing
+  /// on and around it — `planar_reflection_test.dart`'s mirror under a sun.
+  ///
+  /// A slightly blue tint, so the reflection cannot be mistaken for a hole
+  /// in the floor showing the world upside down, and the reflection at half
+  /// the view's resolution, which is the default and the path a game takes.
+  static Future<GoldenStaged> planarMirror(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    final mirror = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 3.2, depth: 2.4).build(),
+      ),
+      RenderMaterial(
+        name: 'mirror',
+        lighting: LightingModel.unlit,
+        baseColor: LinearColor.fromSrgb(0.02, 0.02, 0.03, 1.0),
+      ),
+      name: 'mirror',
+    )..setPosition(0.0, 0.005, 0.3);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _p4Floor(device),
+        mirror,
+        ..._p4Props(device),
+        PlanarReflectorNode(
+          surfaces: <MeshNode>[mirror],
+          tint: LinearColor(0.85, 0.9, 1.0),
+          name: 'reflector',
+        )..setPosition(0.0, 0.005, 0.0),
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2)),
+    );
+  }
+
+  static RenderSettings planarMirrorSettings(RenderSettings settings) =>
+      settings.copyWith(
+        planarReflections: const PlanarReflectionSettings(enabled: true),
+      );
+
+  /// `render-texture`: a monitor on a stand showing what a camera off to the
+  /// side sees of the props — `planar_reflection_test.dart`'s screen.
+  ///
+  /// The screen is unlit, so it shows the picture as the camera took it, and
+  /// left out of the camera's own picture, which would otherwise hold the
+  /// screen's back.
+  static Future<GoldenStaged> renderTexture(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.2 * Photometric.legacyUnit;
+    final watcher = CameraNode(name: 'watcher')
+      ..projection = const PerspectiveProjection(
+        fovY: math.pi / 4,
+        near: 0.1,
+        far: 50.0,
+      )
+      ..setPosition(-3.2, 1.6, 2.0)
+      ..lookAt(Vector3(0.0, 0.5, -0.4));
+    final picture = RenderView.texture(
+      device,
+      camera: watcher,
+      width: 128,
+      height: 96,
+      clearColorSrgb: Vector4(0.35, 0.45, 0.6, 1.0),
+    );
+    // A plane stood up to face the eye: its v runs down the screen, the way
+    // a picture's rows do. A box's sides run v up and would show it upside
+    // down, as they would a photograph.
+    const turn = -0.5;
+    final facing = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), turn);
+    final screen = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const PlaneShape(width: 1.6, depth: 1.2).build(),
+      ),
+      RenderMaterial(
+        name: 'screen',
+        lighting: LightingModel.unlit,
+        albedo: picture.texture,
+      ),
+      name: 'screen',
+    )..setPosition(1.9, 1.3, -0.6);
+    screen.setRotation(
+      facing * Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+    );
+    final back = _slab(
+      device,
+      Vector3(1.7, 1.3, 0.04),
+      Vector3(1.9 + 0.03 * math.sin(-turn), 1.3, -0.6 - 0.03 * math.cos(turn)),
+      RenderMaterial(
+        name: 'bezel',
+        baseColor: LinearColor.fromSrgb(0.1, 0.1, 0.12, 1.0),
+      ),
+    )..setRotation(facing);
+    final stand = _slab(
+      device,
+      Vector3(0.12, 0.7, 0.12),
+      Vector3(1.9, 0.35, -0.6),
+      RenderMaterial(
+        name: 'stand',
+        baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.22, 1.0),
+      ),
+    );
+    picture.excluded.addAll(<MeshNode>[screen, back, stand]);
+    stage.scene.addTextureView(picture);
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _p4Floor(device),
+        ..._p4Props(device),
+        screen,
+        back,
+        stand,
+        watcher,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.6, 2.0, 4.8), Vector3(0.6, 0.7, -0.4)),
+    );
+  }
+
+  // ------------------------------------------------------------------ N9
+
+  /// `high-contrast`: the P4 props on a paved floor, with the box ringed as a
+  /// monster would be and the ball as a pickup — `high_contrast_test.dart`'s
+  /// claims in one frame.
+  ///
+  /// The paving is the detail the look flattens: stones of different greys
+  /// with a dark joint between them and a speckle on each, drawn here in Dart
+  /// so every backend reads the same texels. The post is not marked, so the
+  /// frame shows a node outlined by its geometry beside two ringed by role.
+  /// The grey of `high-contrast`'s paving at texel ([x], [y]): each stone its
+  /// own grey from a hash of where it is, a two-texel joint, and a speckle
+  /// from a hash of the texel. Dark, so that the sun on it lands in the
+  /// middle of the tone the look pushes apart rather than past white.
+  ///
+  /// **The same answer under both integer models, and it was not.** The
+  /// browser sets are built by dart2js, where an `int` is a double and a shift
+  /// or a mask first truncates its operand to thirty-two bits. The first hash
+  /// here multiplied by a Knuth constant into the forties of bits and shifted
+  /// the product, so the VM and the browser baked two different floors and
+  /// both browser references disagreed with Impeller on half their pixels —
+  /// by the same amount, which is what pointed at the stage rather than at
+  /// either backend. Every product here stays under 2^53, where a double is
+  /// exact, and the mask keeps only bits a truncation to thirty-two leaves
+  /// alone. `golden_paving_test.dart` holds that.
+  static int pavingGrey(int x, int y) {
+    final stone = (x ~/ 16) * 7 + (y ~/ 16) * 13;
+    final joint = x % 16 < 2 || y % 16 < 2;
+    final speckle = (((x * 73 + y * 151) * 40503) & 0xFFFF) >> 11;
+    return joint ? 20 : 45 + (stone * 37) % 40 + speckle;
+  }
+
+  static Future<GoldenStaged> highContrast(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.setLocalForward(Vector3(-0.6, -1.0, -0.4).normalized());
+    stage.scene.ambientIntensity = 0.25 * Photometric.legacyUnit;
+    // Thirty-two stones a side, so a stone is under half a metre of the
+    // slab: a slab's face runs its coordinate once across, and the
+    // texture transforms are the layered model's, not the plain ones'.
+    const size = 512;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final grey = pavingGrey(x, y);
+        final at = (y * size + x) * 4;
+        pixels
+          ..[at] = grey
+          ..[at + 1] = grey
+          ..[at + 2] = (grey * 0.92).round()
+          ..[at + 3] = 255;
+      }
+    }
+    final paving = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    );
+    final props = _p4Props(device);
+    // Okabe and Ito's orange and bluish green: a monster and a pickup.
+    (props[0] as MeshNode).outlineColor = LinearColor.fromSrgb(
+      0.902,
+      0.624,
+      0.0,
+    );
+    (props[1] as MeshNode).outlineColor = LinearColor.fromSrgb(
+      0.0,
+      0.62,
+      0.451,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(14.0, 0.2, 14.0),
+          Vector3(0.0, -0.1, 0.0),
+          RenderMaterial(
+            name: 'paving',
+            lighting: LightingModel.lambert,
+            albedo: paving,
+            albedoSampler: SamplerDescriptor.linearClamp,
+          ),
+        ),
+        ...props,
+      ],
+      everyFrame: (_, _) =>
+          _look(stage.camera, Vector3(0.4, 2.2, 4.6), Vector3(0.0, 0.4, -0.2)),
+    );
+  }
+
+  static RenderSettings highContrastSettings(RenderSettings settings) =>
+      settings.copyWith(
+        highContrast: const HighContrastSettings(enabled: true),
+      );
+
+  // ------------------------------------------------------------------ P5
+
+  /// The sun for `sky-physical-dusk`, four degrees up and ahead of the camera.
+  static Vector3 get _duskSun => Vector3(0.35, 0.07, -0.93).normalized();
+
+  /// The sun for `sky-physical-night`, eight degrees below the horizon: the
+  /// glow it leaves behind on one side, and the stars out everywhere else.
+  static Vector3 get _nightSun => Vector3(0.6, -0.139, -0.79).normalized();
+
+  static const PhysicalSky _air = PhysicalSky(starBrightness: 2.0);
+
+  /// A floor reaching to the far plane, and blocks of rising height going
+  /// away from the camera through ground fog — `sky_physical_test.dart`'s
+  /// claims, in one frame: the sky reddens towards the sun, the disc is
+  /// red, and the fog is thick at the foot of each block and thin at its top.
+  static Future<GoldenStaged> skyPhysicalDusk(GoldenStage stage) async {
+    final device = stage.device;
+    final toSun = _duskSun;
+    stage.sun
+      ..setLocalForward(-toSun)
+      ..color = _air.sunlight(toSun).toLinearColor()
+      ..intensity = 3.0 * Photometric.legacyUnit;
+    final grey = RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.55, 1.0),
+      roughness: 0.8,
+    );
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(800.0, 0.1, 800.0),
+          Vector3(0.0, -0.05, 0.0),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.3, 0.32, 0.28, 1.0),
+            roughness: 0.9,
+          ),
+        ),
+        for (final (i, distance) in <double>[6.0, 12.0, 24.0, 48.0].indexed)
+          _slab(
+            device,
+            Vector3(1.6, 1.5 + i * 1.5, 1.6),
+            Vector3(-2.5 + i * 1.8, 0.75 + i * 0.75, -distance),
+            grey,
+          ),
+      ],
+      everyFrame: (_, _) => _look(
+        stage.camera,
+        Vector3(0.0, 1.6, 4.0),
+        Vector3(0.6, 2.4, -20.0),
+        fovY: math.pi / 3,
+        far: 500.0,
+      ),
+    );
+  }
+
+  static RenderSettings skyPhysicalDuskSettings(RenderSettings settings) {
+    final sky = SkySettings(
+      enabled: true,
+      directionToSun: _duskSun,
+      sunAngularRadius: 1.2 * math.pi / 180.0,
+      sunSoftness: 0.3 * math.pi / 180.0,
+      sunIntensity: 2.0 * Photometric.legacyUnit,
+      physical: _air,
+    );
+    // The fog fades to the sky across the camera's line of sight, so the far
+    // blocks sink into the horizon rather than into a grey of their own.
+    final horizon = sky.sample(Vector3(-0.93, 0.02, -0.35));
+    return settings.copyWith(
+      sky: sky,
+      // Under the default 1.6 the horizon a few degrees from a setting sun is
+      // white; half that keeps the band of colour in it readable.
+      exposure: 0.8,
+      fog: FogSettings(
+        color: horizon.toLinearColor(),
+        density: 0.035,
+        heightFalloff: 0.5,
+      ),
+    );
+  }
+
+  /// A floor and a block under a sky an hour after sunset, looking up past
+  /// the glow — `sky_physical_test.dart`'s stars.
+  static Future<GoldenStaged> skyPhysicalNight(GoldenStage stage) async {
+    final device = stage.device;
+    stage.sun.isVisible = false;
+    stage.scene.ambientIntensity = 0.02 * Photometric.legacyUnit;
+    return GoldenStaged(
+      nodes: <SceneNode>[
+        _slab(
+          device,
+          Vector3(800.0, 0.1, 800.0),
+          Vector3(0.0, -0.05, 0.0),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.2, 1.0)),
+        ),
+        _slab(
+          device,
+          Vector3(2.0, 3.0, 2.0),
+          Vector3(-3.0, 1.5, -10.0),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.2, 1.0)),
+        ),
+      ],
+      everyFrame: (_, _) => _look(
+        stage.camera,
+        Vector3(0.0, 1.6, 0.0),
+        Vector3(3.0, 5.0, -10.0),
+        fovY: math.pi / 3,
+        far: 500.0,
+      ),
+    );
+  }
+
+  static RenderSettings skyPhysicalNightSettings(RenderSettings settings) =>
+      settings.copyWith(
+        sky: SkySettings(
+          enabled: true,
+          directionToSun: _nightSun,
+          physical: _air,
+        ),
+      );
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

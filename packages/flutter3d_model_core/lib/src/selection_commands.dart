@@ -110,7 +110,7 @@ Outcome _asSelection(
   final found = _meshTarget(project, selection);
   if (found.target == null) return Outcome.refused(found.refused!);
   final OpResult result = choose(found.target!);
-  if (!result.ok) return Outcome.refused(result.reason!);
+  if (!result.isOk) return Outcome.refused(result.reason!);
   return _keep(
     project,
     selection,
@@ -586,6 +586,8 @@ final class SelectNear extends ModelCommand {
   const SelectNear({required this.point, required this.radius});
 
   final Vector3 point;
+
+  /// In metres, in the object's own space.
   final double radius;
 
   @override
@@ -617,7 +619,7 @@ final class SelectNear extends ModelCommand {
       final ElementLevel level = target.elements.level;
       final found = <int>[
         for (final int id in liveElements(target.mesh, level))
-          if (elementCentre(target.mesh, level, id) case final Vector3 at)
+          if (elementCenter(target.mesh, level, id) case final Vector3 at)
             if ((at - point).length2 <= reach) id,
       ];
       return found.isEmpty
@@ -713,9 +715,4 @@ final class SelectElements extends ModelCommand {
   }
 }
 
-ElementLevel? _elementLevelNamed(String? word) {
-  for (final ElementLevel level in ElementLevel.values) {
-    if (level.name == word) return level;
-  }
-  return null;
-}
+ElementLevel? _elementLevelNamed(String? word) => elementLevelOf(word);

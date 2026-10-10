@@ -1,5 +1,5 @@
 /// The same bending banner `skinning` builds, with its skeleton drawn over
-/// it: `DebugDrawOptions.skeletons` puts one octahedron a bone and one cross
+/// it: `DebugDrawSettings.skeletons` puts one octahedron a bone and one cross
 /// a leaf joint on every skinned mesh in the scene.
 ///
 /// Quoted by `skeleton_debug.md` and shown whole in the Source tab.
@@ -54,9 +54,9 @@ final class SkeletonDebugDemo extends ShowcaseDemo {
 
     final MeshNode banner = MeshNode(
       DeviceMesh.upload(context.device, mesh),
-      Material(
+      RenderMaterial(
         name: 'banner',
-        baseColor: Vector4(0.5, 0.55, 0.6, 1.0),
+        baseColor: LinearColor.fromSrgb(0.5, 0.55, 0.6, 1.0),
         doubleSided: true,
       ),
       name: 'banner',
@@ -65,7 +65,7 @@ final class SkeletonDebugDemo extends ShowcaseDemo {
     return Scene()
       ..add(banner)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
   }
@@ -96,7 +96,7 @@ final class SkeletonDebugDemo extends ShowcaseDemo {
   // #region settings
   @override
   RenderSettings settings(DemoContext context) =>
-      RenderSettings(debug: DebugDrawOptions(skeletons: showSkeleton));
+      RenderSettings(debug: DebugDrawSettings(skeletons: showSkeleton));
   // #endregion settings
 
   @override

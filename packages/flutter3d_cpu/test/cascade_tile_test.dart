@@ -12,6 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -26,7 +27,7 @@ BoundTexture _atlas() {
       texture.pixels[(y * _tile * 2 + x) * 4] = x < _tile ? 1.0 : 0.0;
     }
   }
-  return BoundTexture(texture, SamplerOptions.nearestClamp);
+  return BoundTexture(texture, SamplerDescriptor.nearestClamp);
 }
 
 /// A fragment at [u] across the near tile, halfway down it, at depth 0.5.

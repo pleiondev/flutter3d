@@ -32,7 +32,7 @@ light position, and current joint transforms.
 
 ## Step 4: Select the overlays
 
-`DebugDrawOptions` is part of `RenderSettings`, so it can change from one frame
+`DebugDrawSettings` is part of `RenderSettings`, so it can change from one frame
 to the next. A fixed `normalLength` keeps the orange normal segments readable
 on this model; zero would let the renderer choose a length from the scene size.
 

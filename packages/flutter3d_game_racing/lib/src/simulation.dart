@@ -1,5 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -7,6 +10,16 @@ import 'events.dart';
 import 'race_state.dart';
 import 'track.dart';
 import 'vehicle/vehicle_controller.dart';
+
+/// The moments inside a race's step that a game can hang its own rules off,
+/// beside the two every genre has ([StepPhase.begin], [StepPhase.end]).
+abstract final class RacingPhases {
+  /// Every car has driven, the cars have been pushed apart and handed to the
+  /// dynamics: where a rule that changes how a car moves — a slipstream, a
+  /// boost pad, a replacement controller writing the cars itself — belongs.
+  /// Progress, the overlaps and the recoveries come after it.
+  static const StepPhase afterVehicles = StepPhase('racing.afterVehicles');
+}
 
 /// A racing game's step, in the order it has to happen in.
 ///
@@ -74,31 +87,53 @@ final class RacingSimulation {
 
   final RaceState race;
   final MechanismWorld? mechanisms;
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// What each driver is asking for. Filled in before [step] — by the player's
   /// keys for car nought, and by an AI for the rest.
   final List<VehicleInput> inputs;
 
   /// The height below which there is no track left.
+  /// In metres.
   final double killPlane;
 
   /// How long a car may be off the racing surface before it is put back.
   ///
   /// Long enough to run wide and recover, short enough that cutting the course
   /// is not a strategy.
+  /// In seconds.
   final double offRoadPatience;
 
   /// How much of the speed of a bump between two cars comes back out of it.
   final double contactRestitution;
 
   /// True on the step the race ended.
-  /// What this step did, for a game that wants to hear about it.
+  EventRegistry? _bus;
+
+  /// Publishes what each step did onto [bus] from now on, from inside the
+  /// step that did it — see `events.dart` — until the returned registration
+  /// is cancelled. Unlike the flags beside them, the events name the car
+  /// they happened to, so the field's moments are heard in the order they
+  /// happened rather than by walking the grid. `RacingPlugin` calls this
+  /// for the race it steps; a race stepped by hand publishes onto a
+  /// [DirectBus], or nowhere.
+  Registration publishTo(EventRegistry bus) {
+    _bus = bus;
+    return Registration(() {
+      if (identical(_bus, bus)) _bus = null;
+    });
+  }
+
+  void _publish(GameEvent event) => _bus?.publish(event);
+
+  /// Rules a game adds to the step, by phase: [StepPhase.begin], the cars'
+  /// moment [RacingPhases.afterVehicles], and [StepPhase.end].
   ///
-  /// Drain it after the step; see `events.dart`. Unlike the flags beside it,
-  /// every event names the car it happened to, so the field's moments can be
-  /// read in the order they happened rather than by walking the grid.
-  final GameEvents events = GameEvents();
+  /// **Where a game replaces or extends what the cars do without editing the
+  /// genre's step**: a rule is hung at a named moment inside the step rather
+  /// than wrapped round it, so the order a tape replays stays the genre's.
+  /// Run only while the race is not finished.
+  final StepSystems systems = StepSystems();
 
   /// Advances one fixed step.
   ///
@@ -127,6 +162,7 @@ final class RacingSimulation {
 
     final racing = _runLights(dt);
     race.elapsed += dt;
+    systems.run(StepPhase.begin, dt);
 
     _world.movers(dt);
     _world.index(dt);
@@ -150,6 +186,7 @@ final class RacingSimulation {
         dynamics!.push(vehicle.collider, vehicle.velocity);
       }
     }
+    systems.run(RacingPhases.afterVehicles, dt);
 
     for (var i = 0; i < vehicles.length; i++) {
       _readProgress(i, dt, racing);
@@ -161,6 +198,7 @@ final class RacingSimulation {
     for (var i = 0; i < vehicles.length; i++) {
       _recover(i, dt);
     }
+    systems.run(StepPhase.end, dt);
   }
 
   /// Runs the countdown. Returns whether the cars may actually drive.
@@ -171,14 +209,14 @@ final class RacingSimulation {
     race.countdown -= dt;
     final after = race.countdown.ceil();
     if (after != before) {
-      events.add(CountdownTicked(after));
+      _publish(CountdownTicked(after));
     }
 
     if (race.countdown > 0.0) return false;
 
     race.countdown = 0.0;
     race.phase = RacePhase.running;
-    events.add(const RaceStarted());
+    _publish(const RaceStarted());
     return true;
   }
 
@@ -246,7 +284,7 @@ final class RacingSimulation {
     final length = track.length;
 
     final previous = _previousS[index];
-    final current = track.centre.wrap(vehicle.trackDistance);
+    final current = track.center.wrap(vehicle.trackDistance);
     final moved = _shortestDelta(previous, current, length);
     _previousS[index] = current;
     racer.s = current;
@@ -262,10 +300,10 @@ final class RacingSimulation {
     final wasOffRoad = racer.offRoad;
     racer.offRoad = racer.lateral.abs() > track.widthAt(current) / 2.0;
     if (racer.offRoad && !wasOffRoad) {
-      events.add(LeftTheRoad(racer));
+      _publish(LeftTheRoad(racer));
     }
 
-    if (!racing || racer.finished || !race.mode.countsProgress) {
+    if (!racing || racer.isFinished || !race.mode.countsProgress) {
       // The clock still runs where nothing else does, so a session has a
       // length even when no lap is being counted.
       if (!race.mode.countsProgress) racer.totalTime += dt;
@@ -294,7 +332,7 @@ final class RacingSimulation {
 
     final wrong = _backwards[index] > 12.0;
     if (wrong && !racer.wrongWay) {
-      events.add(WentWrongWay(racer));
+      _publish(WentWrongWay(racer));
     }
     racer.wrongWay = wrong;
   }
@@ -313,7 +351,7 @@ final class RacingSimulation {
     while (racer.nextCheckpoint < checkpoints.length &&
         _swept(previous, moved, checkpoints[racer.nextCheckpoint], length)) {
       racer.nextCheckpoint += 1;
-      events.add(CheckpointPassed(racer));
+      _publish(CheckpointPassed(racer));
       _closeSector(racer);
     }
   }
@@ -331,7 +369,7 @@ final class RacingSimulation {
   void _readDrift(RacerProgress racer, VehicleController car, double dt) {
     final sideways = car.slipAngle.abs();
     final sliding =
-        car.grounded && sideways >= driftAngle && car.speed >= driftSpeed;
+        car.isGrounded && sideways >= driftAngle && car.speed >= driftSpeed;
 
     if (sliding) {
       racer.driftFor += dt;
@@ -347,7 +385,7 @@ final class RacingSimulation {
       if (racer.driftScore > racer.bestDrift) {
         racer.bestDrift = racer.driftScore;
       }
-      events.add(DriftScored(racer, racer.driftScore, racer.driftFor));
+      _publish(DriftScored(racer, racer.driftScore, racer.driftFor));
     }
     racer.driftFor = 0.0;
     racer.driftScore = 0.0;
@@ -484,7 +522,7 @@ final class RacingSimulation {
     final best = racer.bestSectors[index];
     if (best == null || took < best) racer.bestSectors[index] = took;
 
-    events.add(
+    _publish(
       SectorCompleted(racer, index, took, best == null ? null : took - best),
     );
   }
@@ -513,22 +551,22 @@ final class RacingSimulation {
     racer.lap += 1;
     racer.nextCheckpoint = 0;
     racer.lastLap = racer.lapTime;
-    events.add(LapCompleted(racer));
+    _publish(LapCompleted(racer));
 
     final best = racer.bestLap;
     if (best == null || racer.lastLap < best) {
       racer.bestLap = racer.lastLap;
-      events.add(BestLapSet(racer));
+      _publish(BestLapSet(racer));
     }
     racer.lapTime = 0.0;
     racer.sectorTimes.clear();
 
     if (race.mode.endsAfterLaps && racer.lap >= race.laps) {
       racer.finishedAt = race.elapsed;
-      events.add(RacerFinished(racer));
-      if (race.progress.every((RacerProgress other) => other.finished)) {
+      _publish(RacerFinished(racer));
+      if (race.progress.every((RacerProgress other) => other.isFinished)) {
         race.phase = RacePhase.finished;
-        events.add(const RaceFinished());
+        _publish(const RaceFinished());
       }
     }
   }
@@ -567,14 +605,14 @@ final class RacingSimulation {
       trackDistance: at,
     );
 
-    _previousS[index] = race.track.centre.wrap(at);
+    _previousS[index] = race.track.center.wrap(at);
     _backwards[index] = 0.0;
     _offRoadFor[index] = 0.0;
     racer
       ..s = _previousS[index]
       ..offRoad = false
       ..wrongWay = false;
-    events.add(Respawned(racer));
+    _publish(Respawned(racer));
 
     // No `reindex` here, unlike the platformer's revive. That one runs at the
     // top of a step and returns before the step's own reindex; this runs at the
@@ -657,13 +695,13 @@ final class RacingSimulation {
       // and how long it has been off the road. Left behind, a car that
       // finished the last race off the tarmac is respawned on the first step
       // of the next one.
-      _previousS[car] = race.track.centre.wrap(race.track.grid.s);
+      _previousS[car] = race.track.center.wrap(race.track.grid.s);
       _backwards[car] = 0.0;
       _offRoadFor[car] = 0.0;
 
       final racer = race.progress[car];
       racer
-        ..s = race.track.centre.wrap(race.track.grid.s)
+        ..s = race.track.center.wrap(race.track.grid.s)
         ..lap = 0
         ..nextCheckpoint = 0
         ..lapTime = 0.0
@@ -684,7 +722,6 @@ final class RacingSimulation {
           ? RacePhase.countdown
           : RacePhase.running
       ..countdown = race.mode.startsBehindLights ? race.countdownSeconds : 0.0;
-    events.clear();
   }
 
   Snapshot save() => Snapshot(<String, Object?>{
@@ -699,6 +736,10 @@ final class RacingSimulation {
     // to be here. A circuit's own machinery — a gate, a lamp, whatever a track
     // document names — came back at whatever state the level file starts in.
     if (mechanisms != null) 'mechanisms': mechanisms!.save(),
+    // What the dynamics carry beyond the bodies: nothing for the reference,
+    // the core's own state for the native one, without which a rewind
+    // stepped on from this snapshot would not repeat the run.
+    'dynamics': ?dynamics?.saveState(),
   });
 
   void restore(Snapshot snapshot) {
@@ -719,6 +760,9 @@ final class RacingSimulation {
     _restoreDoubles(from['offRoadFor'], _offRoadFor);
 
     mechanisms?.restore(from['mechanisms']);
+
+    // After the bodies' own restore, which it puts the core's state over.
+    dynamics?.restoreState(from['dynamics']);
 
     // **`reindex` alone was a third of the job.** The broadphase disagrees
     // with every car that moved, which that call fixes — but the overlap set

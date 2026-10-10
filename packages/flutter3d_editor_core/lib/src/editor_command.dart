@@ -33,16 +33,77 @@ import 'palette_items.dart';
 /// "commands carry their own inverse" and finds none here has found this
 /// paragraph rather than an oversight.
 ///
+/// **Two families.** The editor's own commands are [EditorCommand], sealed: a
+/// `switch` over them is exhaustive, and the day another arrives the compiler
+/// names every place that has to grow. A plugin's are [PluginCommand], open,
+/// registered by name with `EditorPieces.addCommand` and read back through
+/// `EditorPieces.readCommand`. A `switch` over a [DocumentCommand] has the two
+/// cases, `EditorCommand()` and `PluginCommand()`, and is exhaustive too.
+///
+/// Everything else — [EditorHistory.run], a step of undo named by [says] — takes
+/// either family alike.
+sealed class DocumentCommand {
+  const DocumentCommand();
+
+  /// What this is called on the wire, and in a list of tools.
+  ///
+  /// One word in lower camel case, matching the method it stands for, so a
+  /// person reading a log of what an agent did reads verbs rather than numbers.
+  String get name;
+
+  /// What it does, read as a sentence, with the numbers in it: what a status
+  /// bar prints and what a step of undo is called.
+  String get says;
+
+  /// Everything this carries except its [name].
+  Map<String, Object?> get arguments;
+
+  /// Does it, to [editing]. False, having changed nothing, when it cannot —
+  /// see [EditorCommand.apply].
+  bool apply(Editing editing);
+
+  /// This command as a map, ready for `jsonEncode`: [name] under `command`,
+  /// then [arguments].
+  Map<String, Object?> toJson() => <String, Object?>{
+    'command': name,
+    ...arguments,
+  };
+}
+
+/// A command a plugin brings: one thing somebody can do to a document that the
+/// editor itself does not know.
+///
+/// **Extended outside this package**, where [EditorCommand] cannot be. A plugin
+/// writes one subclass per command and registers a reader for its [name] with
+/// `EditorPieces.addCommand`, so a tool server, a script or a recorded session
+/// reads it back from JSON the way it reads a built-in one. Like every command
+/// here it does not reverse itself: [EditorHistory] keeps the document it
+/// changed.
+///
+/// **Its [name] is the published one, `<pluginId>.<name>`**: the reader is
+/// registered as `addCommand('sink', …)` and `EditorPieces` files it under the
+/// plugin's id, so the command writes `boats.sink` under `command`, and that
+/// is what reads it back.
+///
+/// `base`, so a member added here in a 1.x release arrives with a body.
+abstract base class PluginCommand extends DocumentCommand {
+  const PluginCommand();
+}
+
+/// One of the editor's own commands — the ones [editorCommandNames] lists.
+///
 /// Sealed, in the shape the rest of the repository uses for a closed set: a
-/// `switch` over the kinds is exhaustive, and the day an eleventh arrives the
-/// compiler names every place that has to grow.
-sealed class EditorCommand {
+/// `switch` over the kinds is exhaustive, and the day a twelfth arrives the
+/// compiler names every place that has to grow. A plugin's commands are
+/// [PluginCommand]s instead, so opening the editor left this switch closed.
+sealed class EditorCommand extends DocumentCommand {
   const EditorCommand();
 
   /// What this is called on the wire, and in a list of tools.
   ///
   /// One word in lower camel case, matching the method it stands for, so a
   /// person reading a log of what an agent did reads verbs rather than numbers.
+  @override
   String get name;
 
   /// What it does, read as a sentence.
@@ -51,6 +112,7 @@ sealed class EditorCommand {
   /// can print and a history can label a step with. With the numbers in it,
   /// because "move" and "move by 0.25, 0, 0" answer different questions when
   /// somebody is looking for the step they want to go back past.
+  @override
   String get says;
 
   /// Everything this carries except its [name].
@@ -58,6 +120,7 @@ sealed class EditorCommand {
   /// Split out so one place writes the discriminator — see [toJson] — and so a
   /// caller that already knows which command it is holding can read the
   /// arguments without having to look past the name it just wrote.
+  @override
   Map<String, Object?> get arguments;
 
   /// Does it, to [editing].
@@ -71,13 +134,12 @@ sealed class EditorCommand {
   /// wrong place.
   ///
   /// A command that answers false has changed nothing.
+  @override
   bool apply(Editing editing);
 
   /// This command as a map, ready for `jsonEncode`.
-  Map<String, Object?> toJson() => <String, Object?>{
-    'command': name,
-    ...arguments,
-  };
+  @override
+  Map<String, Object?> toJson() => super.toJson();
 
   /// Reads one back, or null when it cannot.
   ///
@@ -90,7 +152,7 @@ sealed class EditorCommand {
   /// a `moveBy` with an unreadable `by` that quietly moved nothing would look
   /// exactly like a `moveBy` that ran.
   ///
-  /// The two arguments that do have defaults are a new light's [AddLight]
+  /// The two arguments that do have defaults are a new light's [AddLevelLight]
   /// strength and reach, because the method they stand for has them too.
   static EditorCommand? fromJson(Map<String, Object?> json) {
     final at = _vector(json['at']);
@@ -100,14 +162,14 @@ sealed class EditorCommand {
     final what = _text(json['what']);
     final kind = _kind(json['kind']);
     return switch (json['command']) {
-      'moveBy' when by != null => MoveBy(by),
+      'moveBy' when by != null => MoveSelectionBy(by),
       'resize' when by != null => Resize(by),
       'addBrush' when at != null => AddBrush(
         at,
         size: _vector(json['size']),
         material: _text(json['material']),
       ),
-      'addLight' when at != null => AddLight(
+      'addLight' when at != null => AddLevelLight(
         at,
         intensity: _number(json['intensity']) ?? 4.0,
         range: _number(json['range']) ?? 8.0,
@@ -116,6 +178,10 @@ sealed class EditorCommand {
         kind,
         what,
         at,
+        properties: switch (json['properties']) {
+          final Map<String, Object?> given => given,
+          _ => const <String, Object?>{},
+        },
       ),
       'duplicate' => const Duplicate(),
       'delete' => const Delete(),
@@ -123,6 +189,38 @@ sealed class EditorCommand {
       'brighten' when amount != null => Brighten(amount),
       'turn' when amount != null => Turn(amount),
       'setLights' => SetLights.fromArguments(json),
+      'createPrefab' => switch (_text(json['prefab'])) {
+        final String id => CreatePrefab(id),
+        null => null,
+      },
+      'placePrefab' when at != null => switch (_text(json['prefab'])) {
+        final String id => PlacePrefab(
+          id,
+          at,
+          called: _text(json['name']),
+          yaw: _number(json['yaw']) ?? 0.0,
+        ),
+        null => null,
+      },
+      'setOverride' when key != null => switch (_text(json['path'])) {
+        final String path => SetOverride(path, key, json['value']),
+        null => null,
+      },
+      'applyOverrides' => ApplyOverrides(path: _text(json['path'])),
+      'revertOverrides' => RevertOverrides(path: _text(json['path']), key: key),
+      'unpackPrefab' => const UnpackPrefab(),
+      'setPrefabField' when key != null => switch ((
+        _text(json['prefab']),
+        _text(json['path']),
+      )) {
+        (final String id, final String path) => SetPrefabField(
+          id,
+          path,
+          key,
+          json['value'],
+        ),
+        _ => null,
+      },
       _ => null,
     };
   }
@@ -189,6 +287,13 @@ const List<String> editorCommandNames = <String>[
   'brighten',
   'turn',
   'setLights',
+  'createPrefab',
+  'placePrefab',
+  'setOverride',
+  'applyOverrides',
+  'revertOverrides',
+  'unpackPrefab',
+  'setPrefabField',
 ];
 
 /// Moves whatever is selected, by a vector, onto the grid.
@@ -196,10 +301,10 @@ const List<String> editorCommandNames = <String>[
 /// One command for all three kinds, because [Editing.nudge] is one method for
 /// all three: a position is a position, and a command per kind would be three
 /// places to get the grid wrong.
-final class MoveBy extends EditorCommand {
+final class MoveSelectionBy extends EditorCommand {
   /// The vector is copied rather than kept, because a `Vector3` is mutable and a
   /// command somebody holds on to must not change meaning under them.
-  MoveBy(Vector3 by) : by = by.clone();
+  MoveSelectionBy(Vector3 by) : by = by.clone();
 
   final Vector3 by;
 
@@ -214,10 +319,12 @@ final class MoveBy extends EditorCommand {
     'by': EditorCommand._numbers(by),
   };
 
+  /// Everything selected moves, so a row of torches picked in the outliner
+  /// shifts as a row; with one thing selected that is [Editing.nudge].
   @override
   bool apply(Editing editing) {
     if (editing.where == null) return false;
-    editing.nudge(by);
+    editing.nudgeAll(by);
     return true;
   }
 }
@@ -289,12 +396,17 @@ final class AddBrush extends EditorCommand {
 }
 
 /// Puts a new light down and selects it.
-final class AddLight extends EditorCommand {
-  AddLight(Vector3 at, {this.intensity = 4.0, this.range = 8.0})
+final class AddLevelLight extends EditorCommand {
+  AddLevelLight(Vector3 at, {this.intensity = 4.0, this.range = 8.0})
     : at = at.clone();
 
   final Vector3 at;
+
+  /// The light's strength in the level's units, as [LevelLight.intensity]:
+  /// a pre-1.0 multiple that `Photometric.legacyUnit` turns into candela.
   final double intensity;
+
+  /// How far the light reaches, in metres.
   final double range;
 
   @override
@@ -325,15 +437,26 @@ final class AddLight extends EditorCommand {
 /// are how a row is *shown*, and this is what a row *does*. [Editing.place]
 /// reads exactly these two.
 final class Place extends EditorCommand {
-  Place(this.kind, this.what, Vector3 at) : at = at.clone();
+  Place(
+    this.kind,
+    this.what,
+    Vector3 at, {
+    this.properties = const <String, Object?>{},
+  }) : at = at.clone();
 
   /// Which of the document's three lists this adds to.
   final Piece kind;
 
-  /// A material for a brush, an entity type for an entity, [kLight] for a light.
+  /// A material for a brush, an entity type for an entity, [paletteLight] for a light.
   final String what;
 
   final Vector3 at;
+
+  /// What a placed entity starts with when the level has none of its type to
+  /// copy: a plugin's palette entry's `PaletteEntry.properties`. Written into
+  /// [arguments] only when there are any, so a placement without them reads
+  /// and writes as it always did.
+  final Map<String, Object?> properties;
 
   @override
   String get name => 'place';
@@ -346,12 +469,19 @@ final class Place extends EditorCommand {
     'kind': kind.name,
     'what': what,
     'at': EditorCommand._numbers(at),
+    if (properties.isNotEmpty) 'properties': properties,
   };
 
   @override
   bool apply(Editing editing) {
     editing.place(
-      Placeable(kind: kind, what: what, count: 0, tint: Vector3.zero()),
+      Placeable(
+        kind: kind,
+        what: what,
+        count: 0,
+        tint: Vector3.zero(),
+        properties: properties,
+      ),
       at,
     );
     return true;
@@ -379,7 +509,7 @@ final class Duplicate extends EditorCommand {
   }
 }
 
-/// Removes whatever is selected.
+/// Removes whatever is selected — all of it, when several things are.
 final class Delete extends EditorCommand {
   const Delete();
 
@@ -395,7 +525,7 @@ final class Delete extends EditorCommand {
   @override
   bool apply(Editing editing) {
     if (editing.piece == null) return false;
-    editing.remove();
+    editing.removeAll();
     return true;
   }
 }
@@ -434,6 +564,7 @@ final class SetField extends EditorCommand {
 final class Brighten extends EditorCommand {
   const Brighten(this.by);
 
+  /// A unitless multiplier on the light's strength.
   final double by;
 
   @override
@@ -461,6 +592,7 @@ final class Brighten extends EditorCommand {
 final class Turn extends EditorCommand {
   const Turn(this.by);
 
+  /// In radians, added to the entity's yaw.
   final double by;
 
   @override
@@ -533,4 +665,192 @@ final class SetLights extends EditorCommand {
     editing.setLights(lights);
     return true;
   }
+}
+
+/// Turns the selected entities into a prefab called [prefab], and puts one
+/// instance of it where they were — see [Editing.createPrefab].
+final class CreatePrefab extends EditorCommand {
+  const CreatePrefab(this.prefab);
+
+  final String prefab;
+
+  @override
+  String get name => 'createPrefab';
+
+  @override
+  String get says => 'make prefab $prefab from the selection';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{'prefab': prefab};
+
+  @override
+  bool apply(Editing editing) => editing.createPrefab(prefab);
+}
+
+/// Puts an instance of [prefab] down and selects it — see
+/// [Editing.placePrefab].
+final class PlacePrefab extends EditorCommand {
+  PlacePrefab(this.prefab, Vector3 at, {this.called, this.yaw = 0.0})
+    : at = at.clone();
+
+  final String prefab;
+  final Vector3 at;
+
+  /// What the instance is called — `name` on the wire — and so the first
+  /// segment of the names of everything it stands for. Null leaves those
+  /// names as the template has them.
+  final String? called;
+
+  /// Its facing, in radians about the vertical.
+  final double yaw;
+
+  @override
+  String get name => 'placePrefab';
+
+  @override
+  String get says => 'place prefab $prefab at ${EditorCommand._where(at)}';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'prefab': prefab,
+    'at': EditorCommand._numbers(at),
+    if (called != null) 'name': called,
+    if (yaw != 0.0) 'yaw': yaw,
+  };
+
+  @override
+  bool apply(Editing editing) =>
+      editing.placePrefab(prefab, at, name: called, yaw: yaw);
+}
+
+/// Makes the selected instance's [key] of the entity at [path] say [value],
+/// in that instance only — null takes the key away there.
+///
+/// [path] is the entity's name in the template, or `#<index>`, with the
+/// names of nested instances before it: `top/bulb`. A dotted [key] reaches
+/// one field of an object property: `glow.strength`.
+final class SetOverride extends EditorCommand {
+  const SetOverride(this.path, this.key, this.value);
+
+  final String path;
+  final String key;
+  final Object? value;
+
+  @override
+  String get name => 'setOverride';
+
+  @override
+  String get says => 'override $path $key with $value';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'path': path,
+    'key': key,
+    'value': value,
+  };
+
+  @override
+  bool apply(Editing editing) => editing.setOverride(path, key, value);
+}
+
+/// Writes the selected instance's overrides into its prefab — all of them,
+/// or those of the entity at [path] — so every instance gets them.
+final class ApplyOverrides extends EditorCommand {
+  const ApplyOverrides({this.path});
+
+  final String? path;
+
+  @override
+  String get name => 'applyOverrides';
+
+  @override
+  String get says => path == null
+      ? 'apply the overrides to the prefab'
+      : 'apply the overrides of $path to the prefab';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    if (path != null) 'path': path,
+  };
+
+  @override
+  bool apply(Editing editing) => editing.applyOverrides(path: path);
+}
+
+/// Drops the selected instance's overrides — all, those at [path], or the
+/// one [key] there — so it shows its prefab again.
+final class RevertOverrides extends EditorCommand {
+  const RevertOverrides({this.path, this.key});
+
+  final String? path;
+  final String? key;
+
+  @override
+  String get name => 'revertOverrides';
+
+  @override
+  String get says => switch ((path, key)) {
+    (null, _) => 'revert the overrides',
+    (final String path, null) => 'revert the overrides of $path',
+    (final String path, final String key) => 'revert $key of $path',
+  };
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    if (path != null) 'path': path,
+    if (key != null) 'key': key,
+  };
+
+  @override
+  bool apply(Editing editing) =>
+      editing.revertOverrides(path: path, key: path == null ? null : key);
+}
+
+/// Breaks the selected instance's link to its prefab, one level down — see
+/// [Editing.unpackPrefab].
+final class UnpackPrefab extends EditorCommand {
+  const UnpackPrefab();
+
+  @override
+  String get name => 'unpackPrefab';
+
+  @override
+  String get says => 'unpack the prefab instance';
+
+  @override
+  Map<String, Object?> get arguments => const <String, Object?>{};
+
+  @override
+  bool apply(Editing editing) => editing.unpackPrefab();
+}
+
+/// Writes [key] of the entity at [path] in [prefab]'s template, or takes it
+/// away when [value] is null: the edit every instance sees.
+final class SetPrefabField extends EditorCommand {
+  const SetPrefabField(this.prefab, this.path, this.key, this.value);
+
+  final String prefab;
+  final String path;
+  final String key;
+  final Object? value;
+
+  @override
+  String get name => 'setPrefabField';
+
+  @override
+  String get says => value == null
+      ? 'clear $key of $path in $prefab'
+      : 'set $key of $path in $prefab to $value';
+
+  @override
+  Map<String, Object?> get arguments => <String, Object?>{
+    'prefab': prefab,
+    'path': path,
+    'key': key,
+    'value': value,
+  };
+
+  @override
+  bool apply(Editing editing) =>
+      editing.setPrefabField(prefab, path, key, value);
 }

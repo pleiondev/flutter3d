@@ -19,8 +19,9 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 128;
 
@@ -29,7 +30,7 @@ const int _size = 128;
 const double _sensor = 0.036;
 
 /// What the encoder hands the shader: texels across the sensor's width.
-const double _texelsPerMetre = _size / _sensor;
+const double _texelsPerMeter = _size / _sensor;
 
 /// An 85mm portrait lens wide open, which is what a depth of field looks like
 /// when somebody wants one.
@@ -54,7 +55,7 @@ double _circle(
   focalLength: focalLength,
   aperture: aperture,
   maxRadius: maxRadius,
-  texelsPerMetre: _texelsPerMetre,
+  texelsPerMeter: _texelsPerMeter,
 );
 
 /// A ball at the focus distance and a wall well behind it.
@@ -63,7 +64,7 @@ double _circle(
 /// from is written by the lighting stages.
 Future<List<int>> _frame(
   DepthOfFieldSettings lens, {
-  Set<String> disabled = const <String>{},
+  Set<RenderStep> off = const <RenderStep>{},
 }) async {
   final device = CpuDevice(
     width: _size,
@@ -76,7 +77,10 @@ Future<List<int>> _frame(
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-        Material(name: 'near', baseColor: Vector4(0.9, 0.2, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'near',
+          baseColor: LinearColor.fromSrgb(0.9, 0.2, 0.2, 1.0),
+        ),
       )..setPosition(-0.9, 0.0, 0.0),
     )
     ..add(
@@ -84,11 +88,14 @@ Future<List<int>> _frame(
         // The front face lands at eleven and a half metres: the cuboid is a
         // metre deep and its centre is eight back from the origin.
         DeviceMesh.upload(device, CuboidShape(size: Vector3(6, 6, 1)).build()),
-        Material(name: 'far', baseColor: Vector4(0.1, 0.8, 0.3, 1.0)),
+        RenderMaterial(
+          name: 'far',
+          baseColor: LinearColor.fromSrgb(0.1, 0.8, 0.3, 1.0),
+        ),
       )..setPosition(0.0, 0.0, -8.0),
     )
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(3.0, 3.0, 5.0)
         ..lookAt(Vector3.zero()),
     )
@@ -101,14 +108,14 @@ Future<List<int>> _frame(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
-    settings: RenderSettings(depthOfField: lens, disabledPasses: disabled),
+    settings: RenderSettings(depthOfField: lens).without(off),
   );
 
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 /// How many pixels differ in any colour channel.
@@ -161,7 +168,7 @@ void main() {
       const focal = 0.085;
       const fnumber = 1.4;
       final limit =
-          focal * focal / (fnumber * (focus - focal)) * 0.5 * _texelsPerMetre;
+          focal * focal / (fnumber * (focus - focal)) * 0.5 * _texelsPerMeter;
 
       expect(_circle(1e9), closeTo(limit, limit * 1e-6));
       expect(_circle(1e9), lessThan(limit));
@@ -198,7 +205,7 @@ void main() {
         focalLength: 0.085,
         aperture: 1.4,
         maxRadius: 1e9,
-        texelsPerMetre: _texelsPerMetre * 2.0,
+        texelsPerMeter: _texelsPerMeter * 2.0,
       );
       expect(wide, closeTo(_circle(12.0) * 2.0, 1e-9));
     });
@@ -233,8 +240,8 @@ void main() {
     });
 
     test('zooming in lengthens the lens, and a wider frame shortens it', () {
-      double focal(double fov, double aspect) => const DepthOfFieldSettings()
-          .lensFor(verticalFieldOfView: fov, aspect: aspect)
+      double focal(double fovY, double aspect) => const DepthOfFieldSettings()
+          .lensFor(verticalFieldOfView: fovY, aspect: aspect)
           .focalLength;
       expect(focal(math.pi / 8.0, 1.0), greaterThan(focal(math.pi / 4.0, 1.0)));
       expect(focal(math.pi / 4.0, 16 / 9), lessThan(focal(math.pi / 4.0, 1.0)));
@@ -357,15 +364,15 @@ void main() {
       },
     );
 
-    test('the pass takes its name out of the graph when told to', () async {
-      // The switch `gfx-31n` added, applied to the newest pass: a name in
-      // `disabledPasses` is a pass that did not run, and the frame is byte for
-      // byte the one the lens was never in.
+    test('the pass leaves the graph when its step is switched off', () async {
+      // The switch `gfx-31n` added, applied to the newest pass: the step in
+      // `without` is a pass that did not run, and the frame is byte for byte
+      // the one the lens was never in.
       final plain = await _frame(const DepthOfFieldSettings());
       final lensed = await _frame(_portrait);
       final switchedOff = await _frame(
         _portrait,
-        disabled: const <String>{'depth of field'},
+        off: const <RenderStep>{RenderStep.depthOfField},
       );
 
       expect(

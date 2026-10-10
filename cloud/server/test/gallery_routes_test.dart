@@ -25,7 +25,7 @@ CatalogueItem _item({
   category: 'furniture',
   licenceId: licenceId,
   licenceName: requiresAttribution ? 'CC BY 4.0' : 'CC0 — public domain',
-  licenceUrl: 'https://creativecommons.org/',
+  licenseUrl: 'https://creativecommons.org/',
   requiresAttribution: requiresAttribution,
   author: author,
 );
@@ -69,10 +69,10 @@ void main() {
       // day one of them is out of date is the day an export ships without
       // a credit.
       final Map<String, Object?> chair = items.last! as Map<String, Object?>;
-      final Map<String, Object?> licence =
+      final Map<String, Object?> license =
           chair['licence']! as Map<String, Object?>;
-      expect(licence['requiresAttribution'], isTrue);
-      expect(licence['url'], isNotEmpty);
+      expect(license['requiresAttribution'], isTrue);
+      expect(license['url'], isNotEmpty);
       expect(chair['author'], 'A. Maker');
     });
 

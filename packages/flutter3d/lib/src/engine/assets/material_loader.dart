@@ -1,13 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'default_image_decoder.dart';
-
-// `Ktx2Texture` hidden: `flutter3d.dart` re-exports this package's own thin
-// wrapper of the same name from `ktx2/ktx2.dart` instead — see its doc
-// comment (`ap-01`).
-export 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 
 /// A reader for a material format the engine does not ship.
 ///
@@ -22,13 +18,22 @@ export 'package:flutter3d_core/formats.dart' hide Ktx2Texture;
 /// text. Moving it to an isolate would cost more in sending than it saves, and
 /// the isolate is what forces a model decoder to be sendable — a constraint
 /// there is no reason to inherit here.
-abstract interface class MaterialDecoder {
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base class MaterialDecoder {
+  /// A decoder; a subclass says what it reads.
+  const MaterialDecoder();
+
   /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
   /// the whole file, so a decoder with no useful suffix can sniff it.
   bool handles(String fileName, Uint8List bytes);
 
-  /// Reads [bytes] into a document. Throws [FormatException] on a file it
-  /// claimed and could not read.
+  /// Reads [bytes] into a document. Throws a `Flutter3dFormatException` of
+  /// its own on a file it claimed and could not read.
   MaterialDocument decode(Uint8List bytes, String fileName);
 }
 
@@ -48,7 +53,7 @@ Future<MaterialDocument> loadMaterialDocument(
     }
   }
   if (!fileName.toLowerCase().endsWith('.fmat') && !isFmat(bytes)) {
-    throw FormatException(
+    throw FmatFormatException(
       '$fileName is not a material this engine reads. Pass a MaterialDecoder '
       'for it, or convert it to .fmat.',
     );
@@ -75,15 +80,20 @@ Future<MaterialDocument> loadMaterialDocument(
 /// undecodable image gets.
 ///
 /// **An extra texture slot keeps its image and loses its sampler**, and says
-/// so in [warnings] when the file asked for one. [Material.extraTextures] is
+/// so in [warnings] when the file asked for one. [RenderMaterial.extraTextures] is
 /// names to handles: a slot invented for an application's own shader has no
 /// field here to hang a sampler off, so the encoder binds it with the
 /// device's default. Only whether it carries a mip chain survives, because
 /// that is part of the texture rather than of the sampler.
-Future<Material> bindMaterial(
+///
+/// [name] is what the material is called once bound, the file's own name by
+/// default. A level passes the name its surfaces use for it, because that is
+/// the one a tool addresses it by (`ext.flutter3d.material.set`).
+Future<RenderMaterial> bindMaterial(
   MaterialDocument document, {
   required GraphicsDevice device,
   required AssetUriResolver resolveUri,
+  String? name,
   LightingModel lighting = LightingModel.pbr,
   List<String>? warnings,
   ImageDecoder decodeImage = defaultImageDecoder,
@@ -94,7 +104,7 @@ Future<Material> bindMaterial(
   // handed whichever answer the first of them asked for.
   final cache = <(int, bool), TextureHandle?>{};
 
-  Future<(TextureHandle?, SamplerOptions?)> resolve(
+  Future<(TextureHandle?, SamplerDescriptor?)> resolve(
     TextureBinding? binding,
   ) async {
     if (binding == null) return (null, null);
@@ -165,7 +175,7 @@ Future<Material> bindMaterial(
   final (occlusion, occlusionSampler) = await resolve(surface.occlusionTexture);
   final (emissive, emissiveSampler) = await resolve(surface.emissiveTexture);
 
-  // Extras keep no sampler, and the file may ask for one. `Material`'s map is
+  // Extras keep no sampler, and the file may ask for one. `RenderMaterial`'s map is
   // `String -> TextureHandle`: the encoder binds these by name with the
   // device's default, because a slot named for an application's own shader
   // has no field here to hang a sampler off. A `.fmat` that writes
@@ -191,14 +201,14 @@ Future<Material> bindMaterial(
     }
   }
 
-  return Material(
-    name: surface.name,
+  return RenderMaterial(
+    name: name ?? surface.name,
     lighting:
         document.lighting ??
         (surface.lightingModel ??
                 (surface.unlit ? LightingModel.unlit : lighting))
             .withLayers(surface.extensions),
-    baseColor: surface.baseColor.clone(),
+    baseColor: surface.baseColor,
     metallic: surface.metallic,
     roughness: surface.roughness,
     albedo: albedo,
@@ -213,8 +223,10 @@ Future<Material> bindMaterial(
     occlusionStrength: surface.occlusionStrength,
     emissiveTexture: emissive,
     emissiveSampler: emissiveSampler,
-    emissive: surface.emissive.clone(),
-    emissiveStrength: surface.emissiveStrength,
+    emissive: surface.emissive,
+    // A file's strength is glTF's, a multiple of the factor; the material's
+    // is nits, and one of the file's was always drawn at the old unit's.
+    emissiveStrength: surface.emissiveStrength * Photometric.legacyNits,
     alphaMode: switch (surface.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,
@@ -234,7 +246,7 @@ Future<Material> bindMaterial(
 }
 
 /// Reads and binds in one call, which is what an application usually wants.
-Future<Material> loadMaterial(
+Future<RenderMaterial> loadMaterial(
   AssetSource source, {
   required GraphicsDevice device,
   List<MaterialDecoder> decoders = const <MaterialDecoder>[],
@@ -258,7 +270,7 @@ Future<Material> loadMaterial(
 ///
 /// **The one conversion from a decoded material to a drawable one.** Every
 /// decoder in the repository produces a [SurfaceMaterial] and the renderer takes
-/// a [Material]; between them sits this, and there is one of it because the
+/// a [RenderMaterial]; between them sits this, and there is one of it because the
 /// mapping is long, dull and easy to get subtly wrong — an alpha mode dropped, a
 /// sampler taken from the wrong slot — in a way that shows up as a picture
 /// nobody can explain rather than as an error.
@@ -273,11 +285,11 @@ Future<Material> loadMaterial(
 /// rebuilding one material after an edit re-uploads nothing at all.
 ///
 /// [transformsAtSampler] carries the maps' `KHR_texture_transform`s into
-/// [Material.textureTransforms] and draws a metal-rough material with the
+/// [RenderMaterial.textureTransforms] and draws a metal-rough material with the
 /// layered model, which reads them — `C8`. For a caller that does not bake
 /// them into the coordinates; see `ModelAsset.fromDocument`, which decides.
 /// A material another model draws gets none, since no other stage reads them.
-Future<Material> bindSurfaceMaterial(
+Future<RenderMaterial> bindSurfaceMaterial(
   SurfaceMaterial source, {
   LightingModel lighting = LightingModel.pbr,
   bool transformsAtSampler = false,
@@ -293,7 +305,7 @@ Future<Material> bindSurfaceMaterial(
   /// A slot the file does not declare comes back null and the renderer binds
   /// a neutral texture instead, which is why nothing here has to record
   /// "this material has no normal map".
-  Future<(TextureHandle?, SamplerOptions?)> resolve(
+  Future<(TextureHandle?, SamplerDescriptor?)> resolve(
     TextureBinding? binding,
   ) async {
     if (binding == null) return (null, null);
@@ -332,10 +344,10 @@ Future<Material> bindSurfaceMaterial(
   final atSampler =
       transformsAtSampler && identical(model, LightingModel.pbrLayered);
 
-  return Material(
+  return RenderMaterial(
     name: source.name,
     lighting: model,
-    baseColor: source.baseColor.clone(),
+    baseColor: source.baseColor,
     metallic: source.metallic,
     roughness: source.roughness,
     albedo: albedo,
@@ -350,8 +362,8 @@ Future<Material> bindSurfaceMaterial(
     occlusionStrength: source.occlusionStrength,
     emissiveTexture: emissive,
     emissiveSampler: emissiveSampler,
-    emissive: source.emissive.clone(),
-    emissiveStrength: source.emissiveStrength,
+    emissive: source.emissive,
+    emissiveStrength: source.emissiveStrength * Photometric.legacyNits,
     alphaMode: switch (source.alphaMode) {
       SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
       SurfaceAlphaMode.mask => MaterialAlphaMode.mask,

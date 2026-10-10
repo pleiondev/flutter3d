@@ -50,7 +50,7 @@ final class _TwoPads extends GamepadPlatform {
     }
     out
       ..clear()
-      ..connected = true
+      ..isConnected = true
       ..setAxis(PadAxis.leftStickX, index == 0 ? -1.0 : 1.0);
   }
 }
@@ -70,7 +70,7 @@ void main() {
       expect(_read(slots, 0).down(PadButton.faceSouth), isFalse);
       expect(_read(slots, 1).axis(PadAxis.leftStickX), closeTo(0.6, 1e-9));
       expect(_read(slots, 1).down(PadButton.faceSouth), isTrue);
-      expect(_read(slots, 2).connected, isFalse);
+      expect(_read(slots, 2).isConnected, isFalse);
     });
 
     test('the first unplugged leaves the second where it is', () {
@@ -80,7 +80,7 @@ void main() {
         ..note(_darwin(1, leftX: 0.5))
         ..note(<String, Object?>{'event': 'disconnected', 'slot': 0});
 
-      expect(_read(slots, 0).connected, isFalse);
+      expect(_read(slots, 0).isConnected, isFalse);
       expect(_read(slots, 1).axis(PadAxis.leftStickX), closeTo(0.5, 1e-9));
     });
 
@@ -172,14 +172,14 @@ void main() {
     two.read(out);
     expect(out.axis(PadAxis.leftStickX), 1.0);
     three.read(out);
-    expect(out.connected, isFalse);
+    expect(out.isConnected, isFalse);
   });
 
   test('a backend that tells no controllers apart has one, not the same one '
       'twice', () {
     // Mutation: answer every slot from read.
-    final out = PadSnapshot()..connected = true;
+    final out = PadSnapshot()..isConnected = true;
     UnsupportedGamepad().readPad(1, out);
-    expect(out.connected, isFalse);
+    expect(out.isConnected, isFalse);
   });
 }

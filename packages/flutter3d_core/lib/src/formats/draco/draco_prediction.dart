@@ -561,7 +561,7 @@ final class GeometricNormal {
 
     for (var entry = 0; entry < sequence.valueCount; entry++) {
       final start = sequence.cornerOf(entry);
-      final centre = positionAt(start);
+      final center = positionAt(start);
 
       // Every corner round the vertex, left then right.
       var nx = 0, ny = 0, nz = 0;
@@ -570,12 +570,12 @@ final class GeometricNormal {
       while (corner != dracoInvalid) {
         final a = positionAt(table.next(corner));
         final b = positionAt(table.previous(corner));
-        final ax = pos[a] - pos[centre];
-        final ay = pos[a + 1] - pos[centre + 1];
-        final az = pos[a + 2] - pos[centre + 2];
-        final bx = pos[b] - pos[centre];
-        final by = pos[b + 1] - pos[centre + 1];
-        final bz = pos[b + 2] - pos[centre + 2];
+        final ax = pos[a] - pos[center];
+        final ay = pos[a + 1] - pos[center + 1];
+        final az = pos[a + 2] - pos[center + 2];
+        final bx = pos[b] - pos[center];
+        final by = pos[b + 1] - pos[center + 1];
+        final bz = pos[b + 2] - pos[center + 2];
         nx += ay * bz - az * by;
         ny += az * bx - ax * bz;
         nz += ax * by - ay * bx;

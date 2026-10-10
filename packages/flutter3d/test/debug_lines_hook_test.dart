@@ -4,14 +4,13 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('lines added through debugLines are drawn, and cost nothing when '
       'there is no hook', () {
     final device = FakeBackend();
     TextureHandle texel() => device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -41,7 +40,7 @@ void main() {
     renderer.debugLines = (DebugDraw lines) => lines.addLine(
       Vector3(-1.0, 0.0, 0.0),
       Vector3(1.0, 0.0, 0.0),
-      Vector4(0.0, 1.0, 0.0, 1.0),
+      const LinearColor(0.0, 1.0, 0.0),
     );
     frame();
     expect(renderer.debugDraw.lineCount, 1);

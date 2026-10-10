@@ -1,0 +1,56 @@
+name: flutter3d_level_scene
+description: "A flutter3d level document turned into a scene: brushes into meshes, level materials into engine materials, lights, probes, decals, mirrors and camera screens into nodes. Plain Dart."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - level-editor
+  - 3d
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dependencies:
+  # The document: `Level`, `BrushGeometry`, `BrushSurface`, `LevelMaterial`,
+  # `LevelLight`, `EntityDef`, `LevelVisibility` and `LightmapLayout`.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # What the document becomes: `Scene`, `MeshNode`, `RenderMaterial`,
+  # `LightNode`, `DeviceMesh` and the device they are uploaded to.
+  flutter3d_core: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The graphics vocabulary, named here directly.
+  flutter3d_hardware: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+  # The software renderer, so a level is built onto a device in a test.
+  flutter3d_cpu: ^1.0.0-rc.1
+
+# **Out of `flutter3d_editor_core` in 1.0.0-rc.1.** Building a scene from a
+# level sat in the editor's core because the editor's agent server was the
+# first program with no window that wanted it, and the application's level
+# loader depended on the editor to reach it. A game resolving the editor's
+# document layer to load a level was the wrong way round; this package is
+# the half both of them stand on.

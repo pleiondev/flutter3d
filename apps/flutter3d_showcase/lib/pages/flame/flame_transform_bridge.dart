@@ -48,7 +48,7 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.5, 0.5, 0.5)).build(),
     ),
-    Material(name: name, baseColor: color),
+    RenderMaterial(name: name, baseColor: _fromSrgb(color)),
     name: name,
   )..setPosition(0.0, 0.25, 0.0);
 
@@ -70,22 +70,25 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
       Vector4(0.9, 0.6, 0.3, 1.0),
     );
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(8.0, 0.1, 8.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.36, 0.4, 0.38, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.36, 0.4, 0.38, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(_leader)
       ..add(follower)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -152,9 +155,9 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
         device,
         CuboidShape(size: Vector3(0.4, 0.4, 0.4)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'scene-authoritative',
-        baseColor: Vector4(0.5, 0.7, 0.9, 1.0),
+        baseColor: LinearColor.fromSrgb(0.5, 0.7, 0.9, 1.0),
       ),
     );
     scene.add(node);
@@ -176,9 +179,9 @@ final class FlameTransformBridgeDemo extends ShowcaseDemo {
         device,
         CuboidShape(size: Vector3(0.4, 0.4, 0.4)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'flame-authoritative',
-        baseColor: Vector4(0.9, 0.6, 0.3, 1.0),
+        baseColor: LinearColor.fromSrgb(0.9, 0.6, 0.3, 1.0),
       ),
     );
     scene.add(otherNode);
@@ -245,3 +248,6 @@ final class _Drift extends Component {
     );
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

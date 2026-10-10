@@ -124,7 +124,7 @@ void main() {
       expect(counts['monster'], 1);
       expect(counts['stone'], 2);
       expect(counts['iron'], 0);
-      expect(counts[kLight], 1);
+      expect(counts[paletteLight], 1);
     });
 
     test('and an empty level still offers what the engine defines', () {
@@ -168,7 +168,7 @@ void main() {
     test('and a light is made rather than copied', () {
       final editing = _open();
 
-      editing.place(_row(editing, kLight), Vector3(0.0, 4.0, 0.0));
+      editing.place(_row(editing, paletteLight), Vector3(0.0, 4.0, 0.0));
 
       expect(editing.level.lights.length, 2);
       expect(editing.kind, Piece.light);

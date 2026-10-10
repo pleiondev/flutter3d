@@ -1,3 +1,212 @@
+## 1.0.0-rc.1
+
+- **`EditorPieces.addComponent` refuses one of the editor's own kinds**
+  with an `ArgumentError`, so an entity can no longer gain a second copy of
+  a built-in component.
+- **A project made from the scaffold templates depends on
+  `flutter3d_plugin_api`**, which its seed genre is written against, so it
+  compiles as generated.
+
+- **Breaking: `AddLight` is `AddLevelLight`, `MoveBy` is
+  `MoveSelectionBy`, `Listed` is `ListedPiece`, and `contentsOf` is
+  `piecesOf`.** The modeller's commands and listing in
+  `flutter3d_model_core` had the same names; a public name has one home
+  across the published packages now. The journal names (`addLight`,
+  `moveBy`) are unchanged, so a journal written before reads the same.
+- **Breaking: `OpenKind` is `flutter3d_sim`'s.** It was declared here and,
+  identically, in `flutter3d_game`; both use the one beside `EntityKind`
+  now. `vocabularyOf` is unchanged.
+- **Breaking: `LevelScene`, `LevelSceneParts`, `LevelBatch`,
+  `LevelBatching` and `meshDataOf` are `flutter3d_level_scene`'s.** Building
+  a scene from a level is what the application's loader and the editor's
+  light optimizer both stand on, and the application should not depend on
+  the editor to reach it. `dart fix` moves the imports.
+
+- **`EditorRegistry` is declared here**, the slot `EditorPieces` fills; it
+  was a marker in `flutter3d_plugin_api`.
+
+- **Breaking: `GeneratorRefused` is `GeneratorException`** (decision H), with
+  the same members; `dart fix` renames it.
+
+- **A scaffolded project starts from `Flutter3dView`.** Its `lib/main.dart`
+  is `flutter3d_game`'s example: one view that opens the device and runs
+  the loop, with a small genre of the seed's own walking a body through the
+  level on an `ActionMap` and the event bus. The project no longer gets
+  `lib/src/backend.dart` or a `flutter_bloc` dependency, and its README
+  points at nothing inside the flutter3d repository.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `SamplerOptions` is `SamplerDescriptor`. Every settings class is
+  `final` with a `const` constructor and a `copyWith` over every field; a
+  nullable field is reset with `copyWith(clearX: true)`. `dart fix` carries
+  the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kGizmoSize` is `gizmoSize`, `kLight` is
+  `paletteLight`, `kLooksFile` is `looksFile`. The values are the same;
+  `dart fix` carries the renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `Editing.mayOverwrite` is `canOverwrite`; `LightPlan.changes` is
+  `hasChanges`. `dart fix` carries the renames.
+- **Breaking: a field of view is `fovY`**, in radians, wherever this package
+  names one (docs/CONTRACTS.md).
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `BehaviourKinds` is `BehaviorKinds`, `behaviourKinds` is
+  `behaviorKinds`, `centre` is `center`, `colour` is `color`,
+  `removeBehaviour` is `removeBehavior`, `setBehaviour` is `setBehavior`.
+  Only the Dart names changed: a file keeps the keys it was written with,
+  and `dart fix` carries the renames.
+- **Breaking: a level's screens are texture views.** `LevelScene.screenOf`
+  returns, and `LevelSceneParts.screens` holds, `RenderView`s made with
+  `RenderView.texture` — `RenderTexture` folded into the view object in
+  1.0. A screen's `texture`, `camera`, `excluded` and `invalidate` are where
+  they were; `exposure` and `refreshEveryFrame` are in its `options`.
+
+- **Breaking: a plugin's commands and components are published under its
+  id.** Through a plugin's view of `EditorPieces`, `addCommand('sink', …)`
+  registers `boats.sink` and `addComponent(kind: 'buoyancy')` registers
+  `boats.buoyancy`, so a command or component the editor adds in a later
+  minor never collides with a plugin's, and two plugins may both have a
+  `sink`. A `PluginCommand`'s `name` is that published name. Palette entries
+  stay keyed by the entity type they place, which is the level format's
+  word. `EditorPieces.published` says what a name becomes.
+- **The selection holds ids, not places in a list.** `Editing` keeps the
+  primary and the others by the row's id and answers `selected` as the
+  index the row has now, so a selection survives an undo that put a row back
+  before it, and something whose id is gone is no longer selected.
+  `selectedId`, `selectId` and `idOf` reach it directly, and `Listed` carries
+  the row's `id`. What the editor adds or copies gets an id of its own; an
+  unpacked prefab's entities too.
+- **Breaking: overrides and template fields are addressed by id.**
+  `setOverride`, `revertOverrides`, `applyOverrides` and `setPrefabField`
+  store id paths, the way level format 3 keeps them, and still take a name
+  or `#<index>` for any segment, looked up in the prefab it walks. `fields`
+  lists an entity's properties beside its own keys, as before, and
+  `setField` writes a property under `props`; neither shows the `id`.
+
+- **Breaking:** `GeneratorException` extends `Flutter3dFormatException` instead
+  of implementing `Exception` directly. The name and members are unchanged and
+  every `on` clause that caught it still does; every exception the engine
+  throws now hangs from `Flutter3dException` in `flutter3d_plugin_api`, in one
+  of four families: format, capability, plugin and resource. A caller who
+  reports anything the engine refused catches the root; one who acts on a kind
+  catches its family. The migration table marks it as nothing to do.
+- **A level's depth layers reach the renderer.** A brush surface's
+  `depthLayer` is set on its batch's material (`Material.depthLayer`).
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Prefabs in the editor.** `Editing.createPrefab` turns the selected
+  entities into a prefab with one instance where they were;
+  `placePrefab`, `setOverride`, `applyOverrides`, `revertOverrides`,
+  `unpackPrefab` (one level down) and `setPrefabField` do the rest, each
+  one step of undo, and each refused when the level would not expand.
+  `prefabListing` prints every template path an override can name. The
+  inspector has a Prefab section and offers a brush's `depthLayer`.
+
+- **Breaking: seven new `EditorCommand`s** — `CreatePrefab`, `PlacePrefab`,
+  `SetOverride`, `ApplyOverrides`, `RevertOverrides`, `UnpackPrefab` and
+  `SetPrefabField`. An exhaustive `switch` over `EditorCommand` needs a case
+  for each, or a default.
+
+- **A placed thing keeps what its palette entry starts it with.** `Place`
+  takes `properties:`, written only when there are any, so the editor places
+  a plugin's palette entry with its defaults, and older placements read as
+  before.
+
+- **Breaking: `GeneratorSource` can no longer be implemented outside their own
+  library: it is an `abstract base mixin class` now, so a game or a test mixes
+  it in (`with`) and its class is `final` or `base`. A member added to it in a
+  1.x release arrives with a body, which an `implements` could not have taken
+  without breaking somebody.
+
+- **A plugin brings its own commands, inspector sections and palette rows.**
+  `EditorPieces` fills the plugin API's `EditorRegistry` slot: a plugin asks
+  its host for `EditorPieces` and adds commands (`addCommand`, a name and a
+  reader from JSON), components (`addComponent`, an `EditorComponent`: a
+  heading, the fields it shows and their defaults, for one piece and,
+  optionally, some entity types) and palette entries (`addPaletteEntry`, a
+  `PaletteEntry`: an entity type, its label, tint and starting properties).
+  Everything goes again when the plugin is switched off, and comes back in
+  install order. A name, a component kind or a type somebody already holds
+  is refused with the holder named.
+
+- **Commands come in two families.** `DocumentCommand` is the sealed root
+  with two branches: `EditorCommand`, the editor's own eleven, still sealed,
+  so a `switch` over them stays exhaustive; and `PluginCommand`, open, for a
+  plugin to extend. `EditorHistory.run` takes either, and
+  `EditorPieces.readCommand` reads either back from JSON.
+
+- **The inspector's sections are components.** `builtInComponents` lists
+  the editor's own, and `inspectorSections` sorts a selection's fields into
+  them, a plugin's components landing before the last section of their
+  piece, which still takes every field no section names.
+  `EditorPieces.offersFor` lists the fields a component offers that the
+  selection does not have yet, at their defaults.
+
+- **`paletteOf` takes the plugins' entries.** Its new `pieces` argument
+  adds a row for each entry whether the level has one of its type or not,
+  and `Placeable` carries the entry's `label` and `properties`, which a
+  placed entity starts with when the level has none of its type to copy.
+
+- **Undoing an inspector edit puts the field back.** It did not:
+  `Level.toJson` hands back the same row maps on every call wherever nothing
+  in them changed, the history's snapshot held those maps, and
+  `Editing.setField` wrote into one of them, so the snapshot took the edit
+  too and undo restored a document that already had it. `setField` now
+  edits a copy of the row it changes.
+
+- **More than one thing selected.** `Editing.selection` is the primary
+  (`kind` and `selected`, as before) and whatever was added beside it with
+  `Editing.toggle`, read against the document each time so nothing an undo
+  took away stays selected. Selecting outright, adding, placing or
+  duplicating drops the others. `MoveBy` moves all of them and `Delete`
+  deletes all of them, each as one step of undo; with one thing selected
+  both do what they did.
+
+- **The level as a tree.** `outlineOf` lists the brushes, the lights and the
+  entities by type, each row with a label and the kind and index that
+  selecting it takes, and filters them by text. The editor's outliner is
+  drawn from it.
+
+- **`Editing.replaceLevel`** puts a whole level in place as one step of
+  undo.
+
+- **`LevelScene` builds a level's decals, mirrors and camera screens**:
+  - a `DecalNode` from its material's picture, tipped onto a wall by
+    `pitch`;
+  - a `PlanarReflectorNode` on every batch of its material;
+  - a `RenderTexture` that the material gives off as light.
+
+- **Cutscenes are written like behaviours.** `Editing.cutscenes` lists the
+  level's scenes by name; `setCutscene` reads a scene at
+  `cutsceneStepsPerSecond` and writes it as a `cutscene` entity, refusing
+  one that does not read, with where, or a name something else has;
+  `removeCutscene` takes one out. Each is one step of undo.
+
+- **Behaviour trees are written in the editor.** `Editing.setBehavior`
+  writes a tree under a name and refuses one that does not read with every
+  problem and where it is, writing nothing; `removeBehavior` takes one
+  out. Each is a step of undo. `Editing.behaviorKinds` is what trees are
+  read against, the standard kinds unless the game says otherwise, and
+  `issuesFor` checks the level with `BehaviorsRead`.
+
+- **The draw order of a brush, in the scene and the inspector.**
+  `LevelScene` gives each batch its brushes' `drawOrder`, a duplicate keeps
+  it, and the inspector offers it on a brush that has never said.
+
+- **A scaffolded project asks for `^1.0.0`.** `pubspecFor` still wrote
+  `^0.7.1`, so a game started from the template resolved the engine of two
+  releases ago.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

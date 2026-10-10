@@ -1,0 +1,148 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchControls-moved (TouchControls)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchControls'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchControls'
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchStick-moved (TouchStick)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchStick'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchStick'
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchButton (TouchButton)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchButton'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchButton'
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchSlots (TouchSlots)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchSlots'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchSlots'
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchSlot (TouchSlot)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchSlot'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchSlot'
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchToggle (TouchToggle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchToggle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchToggle'
+  - title: 'flutter3d 1.0.0-rc.1: game-TouchAction (TouchAction)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TouchAction'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TouchAction'
+  - title: 'flutter3d 1.0.0-rc.1: game-AutomapView-moved (AutomapView)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'AutomapView'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'AutomapView'
+  - title: 'flutter3d 1.0.0-rc.1: game-AutomapPainter (AutomapPainter)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'AutomapPainter'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'AutomapPainter'
+  - title: 'flutter3d 1.0.0-rc.1: game-Credit (Credit)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'Credit'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'Credit'
+  - title: 'flutter3d 1.0.0-rc.1: game-CreditsSection-moved (CreditsSection)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'CreditsSection'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'CreditsSection'
+  - title: 'flutter3d 1.0.0-rc.1: game-SettingsPanel-moved (SettingsPanel)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'SettingsPanel'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'SettingsPanel'
+  - title: 'flutter3d 1.0.0-rc.1: game-SettingsOverlay-moved (SettingsOverlay)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'SettingsOverlay'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'SettingsOverlay'
+  - title: 'flutter3d 1.0.0-rc.1: game-TapToRestart-moved (TapToRestart)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'TapToRestart'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_game_ui/flutter3d_game_ui.dart']
+          class: 'TapToRestart'

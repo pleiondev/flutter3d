@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -19,8 +21,8 @@ void main() {
       final light = scene.add(
         LightNode(
           type: LightType.directional,
-          color: Vector3(1.0, 0.5, 0.25),
-          intensity: 2.0,
+          color: LinearColor(1.0, 0.5, 0.25),
+          intensity: 2.0 * Photometric.legacyUnit,
           name: 'key',
         ),
       );
@@ -32,10 +34,10 @@ void main() {
 
       expect(slot(buffer.positions, 0).w, ShaderLightType.directional);
 
-      final colour = slot(buffer.colors, 0);
-      expect(colour.x, closeTo(1.0, 1e-6));
-      expect(colour.y, closeTo(0.5, 1e-6));
-      expect(colour.w, closeTo(2.0, 1e-6));
+      final color = slot(buffer.colors, 0);
+      expect(color.x, closeTo(1.0, 1e-6));
+      expect(color.y, closeTo(0.5, 1e-6));
+      expect(color.w, closeTo(2.0, 1e-6));
 
       final direction = slot(buffer.directions, 0);
       expect(direction.y, closeTo(-1.0, 1e-5));
@@ -117,7 +119,7 @@ void main() {
     test('an invisible light contributes nothing', () {
       final scene = Scene();
       scene.add(LightNode(name: 'on'));
-      scene.add(LightNode(name: 'off')..visible = false);
+      scene.add(LightNode(name: 'off')..isVisible = false);
 
       final buffer = LightBuffer()..gather(scene.lights);
       expect(buffer.count, 1);
@@ -125,7 +127,7 @@ void main() {
 
     test('a light under an invisible parent contributes nothing', () {
       final scene = Scene();
-      final pivot = scene.add(SceneNode())..visible = false;
+      final pivot = scene.add(SceneNode())..isVisible = false;
       pivot.add(LightNode());
 
       final buffer = LightBuffer()..gather(scene.lights);
@@ -134,18 +136,18 @@ void main() {
 
     test('zero intensity is treated as off', () {
       final scene = Scene();
-      scene.add(LightNode(intensity: 0.0));
+      scene.add(LightNode(intensity: 0.0 * Photometric.legacyUnit));
       expect((LightBuffer()..gather(scene.lights)).count, 0);
     });
 
     test('lights past the limit are counted rather than silently dropped', () {
       final scene = Scene();
-      for (var i = 0; i < LightBuffer.maxLights + 3; i++) {
+      for (var i = 0; i < LightNode.maxLights + 3; i++) {
         scene.add(LightNode(name: 'light $i'));
       }
 
       final buffer = LightBuffer()..gather(scene.lights);
-      expect(buffer.count, LightBuffer.maxLights);
+      expect(buffer.count, LightNode.maxLights);
       expect(buffer.overflow, 3);
     });
 
@@ -155,7 +157,7 @@ void main() {
       final buffer = LightBuffer()..gather(scene.lights);
       expect(buffer.count, 1);
 
-      light.visible = false;
+      light.isVisible = false;
       buffer.gather(scene.lights);
       expect(buffer.count, 0);
       expect(buffer.overflow, 0);

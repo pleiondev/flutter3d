@@ -29,11 +29,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart'
     as widgets_material
     show Material, MaterialType;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'check_prompt.dart';
 import 'lesson_player.dart';

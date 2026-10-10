@@ -1,6 +1,6 @@
 name: flutter3d_net_webrtc
-description: "A NetTransport over a real WebRTC data channel — net-01's rollback engine, P2P, with net-02's relay carrying only the SDP/ICE handshake."
-version: 0.8.0
+description: "A flutter3d_net PeerWire over a real WebRTC data channel: rollback peer to peer, with the relay carrying only the SDP/ICE handshake."
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -15,14 +15,25 @@ environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: '>=3.44.0'
 
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   flutter:
     sdk: flutter
 
-  # The `NetTransport` interface this implements, and nothing else from it —
+  # The `PeerWire` base class this extends, and nothing else from it —
   # `flutter3d_net` itself stays flat Dart, so the Flutter and native cost of
   # a real peer connection lives only in a package that opted into it.
-  flutter3d_net: ^0.8.0
+  flutter3d_net: ^1.0.0-rc.1
 
   # The actual peer connection: `RTCPeerConnection`, `RTCDataChannel`, ICE
   # candidate gathering. Native platform code on every platform but the web,
@@ -41,12 +52,12 @@ dev_dependencies:
 # ever asks for either — and `flutter3d_net`'s whole reason for existing is
 # that a rollback engine and a relay are ordinary Dart that does not need
 # any of that. Splitting it here keeps that claim true: a game, a test, or
-# `LoopbackTransport` never resolves `flutter_webrtc` unless something
+# `LoopbackWire` never resolves `flutter_webrtc` unless something
 # actually imports this package.
 #
 # **What is proven and what is not.** `WebRtcTransport`'s signalling
 # handshake — the offer, the answer, the ICE candidates, over whatever
-# `NetTransport` a caller hands it for signalling — is real code, written
+# `PeerWire` a caller hands it for signalling — is real code, written
 # against `flutter_webrtc`'s real API. What it is not, in this repository as
 # it stands: two real peer connections actually completing that handshake
 # and exchanging a data-channel message. That needs either two real devices

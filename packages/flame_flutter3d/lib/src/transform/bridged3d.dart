@@ -1,6 +1,7 @@
 import 'package:flame/components.dart' show Component;
 import 'package:flame/effects.dart' show ComponentEffect;
-import 'package:vector_math/vector_math.dart' show Aabb3, Vector4;
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
+import 'package:vector_math/vector_math.dart' show Aabb3;
 
 import 'bridge_space.dart';
 import 'plane.dart';
@@ -12,6 +13,11 @@ import 'plane.dart';
 /// **An instance is a bridged component too.** Taps and hitbox outlines
 /// asked for an `Object3dComponent`, and an invader drawn as one instance of
 /// fifty-five could neither be tapped nor have its hitbox seen.
+///
+/// **Implementable outside this package, and stays so through 1.x.** Games
+/// subclass the components that implement it, and closing it would make
+/// every one of those subclasses `base`. It does not grow within a major: a
+/// capability added later arrives beside it, as a second interface.
 abstract interface class Bridged3d implements Drawn3d {
   /// The plane its Flame point is on.
   BridgePlane get plane;
@@ -25,19 +31,24 @@ abstract interface class Bridged3d implements Drawn3d {
   /// The linear colour what it draws is multiplied by: what a
   /// [TintEffect] moves.
   @override
-  Vector4 get tint;
+  abstract LinearColor tint;
 }
 
 /// What a tap asks of anything drawn in the scene: where it is drawn, and
 /// its colour. Every [Bridged3d] is one, and so is a `Node3dComponent`,
 /// which stands in full 3D rather than on a plane.
+///
+/// **Implementable outside this package, and stays so through 1.x.** Games
+/// subclass the components that implement it, and closing it would make
+/// every one of those subclasses `base`. It does not grow within a major: a
+/// capability added later arrives beside it, as a second interface.
 abstract interface class Drawn3d {
   /// The box in the scene round what it draws, or null when it draws
   /// nothing: what a tap is tested against.
   Aabb3? get drawnBounds3d;
 
-  /// The linear colour what it draws is multiplied by.
-  Vector4 get tint;
+  /// The linear colour what it draws is multiplied by, assigned whole.
+  abstract LinearColor tint;
 }
 
 /// Moves a bridged component's [Bridged3d.tint] to a colour, as Flame's
@@ -46,26 +57,28 @@ abstract interface class Drawn3d {
 /// **Flame's own `ColorEffect` cannot reach it.** That effect wants a
 /// component with a paint, and a bridged component draws in 3D, with none;
 /// a hit flash was a timer and two assignments in the game. This moves the
-/// tint from wherever it is when the effect starts to [colour], on any
+/// tint from wherever it is when the effect starts to [color], on any
 /// `EffectController`: alternating for a flash, one way for a fade.
 class TintEffect extends ComponentEffect<Component> {
-  TintEffect(Vector4 colour, super.controller, {super.onComplete, super.key})
-    : _to = colour.clone();
+  /// An effect taking the tint to [color], linear.
+  TintEffect(LinearColor color, super.controller, {super.onComplete, super.key})
+    : _to = color;
 
-  final Vector4 _to;
-  final Vector4 _from = Vector4.zero();
+  final LinearColor _to;
+  LinearColor _from = LinearColor.white;
 
-  Vector4 get _tint => switch (target) {
-    final Drawn3d drawn => drawn.tint,
+  Drawn3d get _drawn => switch (target) {
+    final Drawn3d drawn => drawn,
     _ => throw UnsupportedError('A TintEffect is for a bridged component.'),
   };
 
   @override
   void onStart() {
     super.onStart();
-    _from.setFrom(_tint);
+    _from = _drawn.tint;
   }
 
   @override
-  void apply(double progress) => Vector4.mix(_from, _to, progress, _tint);
+  void apply(double progress) =>
+      _drawn.tint = LinearColor.lerp(_from, _to, progress);
 }

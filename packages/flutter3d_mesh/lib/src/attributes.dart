@@ -17,12 +17,13 @@
 /// neutral value.** A cube from a primitive has no vertex colours, and
 /// allocating four floats per corner to say "white" on every mesh in every
 /// document is a megabyte per 60 000 corners for information nobody entered.
-/// So layers are created on the first write; `colourOf` answers white until
+/// So layers are created on the first write; `colorOf` answers white until
 /// then, `weightsOf` answers "all of the first joint", and a conversion asks
 /// whether the layer is there before spending a byte on it.
 library;
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Where an attribute lives.
@@ -42,7 +43,7 @@ enum MeshDomain {
   /// seams, crease weight.
   edge,
 
-  /// One value per face. Material slot, shading flag.
+  /// One value per face. RenderMaterial slot, shading flag.
   face,
 }
 
@@ -51,7 +52,7 @@ enum MeshDomain {
 /// Machinery for the same reason [MeshDomain] is: the set is what this mesh
 /// stores, and a caller adding to it would be adding a layer to `EditMesh`
 /// rather than passing a new value.
-enum MeshAttribute { uv0, colour, weights, joints, crease, flags, materialSlot }
+enum MeshAttribute { uv0, color, weights, joints, crease, flags, materialSlot }
 
 /// Bits packed into the per-half-edge flag layer.
 ///
@@ -86,12 +87,14 @@ abstract final class FaceFlags {
 /// somewhere between. Three named fields is what that reads like; six out
 /// parameters is what it read like before.
 final class CornerAttributes {
-  CornerAttributes({Vector2? uv, Vector4? colour})
+  CornerAttributes({Vector2? uv, LinearColor? color})
     : uv = uv ?? Vector2.zero(),
-      colour = colour ?? Vector4.copy(kNeutralColor);
+      color = color ?? neutralColor;
 
   final Vector2 uv;
-  final Vector4 colour;
+
+  /// The corner's vertex colour, in linear light as every vertex colour is.
+  final LinearColor color;
 
   /// The corner half way between [a] and [b] at [t].
   ///
@@ -106,18 +109,18 @@ final class CornerAttributes {
     double t,
   ) => CornerAttributes(
     uv: a.uv + (b.uv - a.uv) * t,
-    colour: a.colour + (b.colour - a.colour) * t,
+    color: LinearColor.lerp(a.color, b.color, t),
   );
 
   @override
-  String toString() => 'CornerAttributes(uv: $uv, colour: $colour)';
+  String toString() => 'CornerAttributes(uv: $uv, colour: $color)';
 }
 
 /// What a vertex carries besides its position.
 final class VertexAttributes {
   VertexAttributes({Vector4? joints, Vector4? weights})
-    : joints = joints ?? Vector4.copy(kNeutralJoints),
-      weights = weights ?? Vector4.copy(kNeutralWeights);
+    : joints = joints ?? Vector4.copy(neutralJoints),
+      weights = weights ?? Vector4.copy(neutralWeights);
 
   /// Which four joints deform this vertex, as indices held in floats — the way
   /// `VertexLayout` carries them, so nothing converts on the way to a GPU.

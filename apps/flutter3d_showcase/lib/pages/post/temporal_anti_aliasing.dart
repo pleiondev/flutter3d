@@ -9,7 +9,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TemporalAntiAliasingDemo extends ShowcaseDemo {
   bool temporal = true;
@@ -22,7 +21,7 @@ final class TemporalAntiAliasingDemo extends ShowcaseDemo {
   double _time = 0.0;
 
   late final SceneNode _railing;
-  late final Material _wallPaint;
+  late final RenderMaterial _wallPaint;
 
   @override
   void configureView(DemoContext context) {
@@ -36,14 +35,16 @@ final class TemporalAntiAliasingDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region railing
-    Material flat(Vector4 colour) =>
-        Material(lighting: LightingModel.unlit, baseColor: colour);
+    RenderMaterial flat(Vector4 color) => RenderMaterial(
+      lighting: LightingModel.unlit,
+      baseColor: _fromSrgb(color),
+    );
     final DeviceMesh cube = DeviceMesh.upload(
       context.device,
       CuboidShape().build(),
     );
     _wallPaint = flat(Vector4(0.75, 0.25, 0.5, 1.0));
-    final Material barPaint = flat(Vector4(0.0, 0.0, 1.0, 1.0));
+    final RenderMaterial barPaint = flat(Vector4(0.0, 0.0, 1.0, 1.0));
 
     _railing = SceneNode(name: 'railing');
     for (int i = -6; i <= 6; i++) {
@@ -72,9 +73,9 @@ final class TemporalAntiAliasingDemo extends ShowcaseDemo {
     // blue bars span, so the box keeps it as history.
     final bool yellow = swapWall && (_time ~/ 2).isOdd;
     if (yellow) {
-      _wallPaint.baseColor.setValues(1.0, 1.0, 0.0, 1.0);
+      _wallPaint.baseColor = LinearColor.fromSrgb(1.0, 1.0, 0.0, 1.0);
     } else {
-      _wallPaint.baseColor.setValues(0.75, 0.25, 0.5, 1.0);
+      _wallPaint.baseColor = LinearColor.fromSrgb(0.75, 0.25, 0.5, 1.0);
     }
     // #endregion motion
   }
@@ -138,3 +139,6 @@ final class TemporalAntiAliasingDemo extends ShowcaseDemo {
     // #endregion reported
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

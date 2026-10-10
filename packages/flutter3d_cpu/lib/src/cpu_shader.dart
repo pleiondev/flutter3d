@@ -12,9 +12,11 @@
 /// [CpuTexture] and [BoundTexture] are a texture and a sampled one
 /// (`cpu_texture.dart`); [CpuVertexShader], [FragmentContext],
 /// [CpuFragmentShader] and [CpuStage] are the shapes a stage takes
-/// (`cpu_shader_stage.dart`).
+/// (`cpu_shader_stage.dart`); [CpuStorageTexture] is a texture a stage
+/// loads and stores texels of (`cpu_storage_texture.dart`).
 library;
 
 export 'cpu_shader_bindings.dart';
 export 'cpu_shader_stage.dart';
+export 'cpu_storage_texture.dart';
 export 'cpu_texture.dart';

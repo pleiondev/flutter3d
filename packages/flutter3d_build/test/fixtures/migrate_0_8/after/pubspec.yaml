@@ -1,0 +1,19 @@
+name: migrate_fixture
+description: "A small project written against flutter3d 0.8, for the 1.0 migration's test."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
+
+  flutter3d_particles: ^1.0.0-rc.1
+  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_physics: ^1.0.0-rc.1
+dev_dependencies:
+  flutter3d_build: ^1.0.0-rc.1

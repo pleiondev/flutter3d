@@ -121,7 +121,7 @@ final class GalleryItem {
     required this.name,
     required this.about,
     required this.category,
-    required this.licence,
+    required this.license,
     required this.sourceId,
     required this.open,
     this.author,
@@ -143,7 +143,7 @@ final class GalleryItem {
   final RecipeCategory category;
 
   /// What it is licensed under. Required, and there is no default.
-  final GalleryLicence licence;
+  final GalleryLicence license;
 
   /// Which source offered it — `GallerySource.id`.
   final String sourceId;
@@ -157,7 +157,7 @@ final class GalleryItem {
   final Future<GalleryModel> Function() open;
 
   /// Whether this item can be inserted without owing anybody anything.
-  bool get isFree => licence.isFree;
+  bool get isFree => license.isFree;
 }
 
 /// Where items come from: the recipes, a cached download, an API.
@@ -199,9 +199,9 @@ List<GalleryItem> freeFirst(List<GalleryItem> items) {
 /// that asks for a credit has to name somebody to credit, or the credit
 /// `gal-05` writes would be a blank line.
 String? refuseItem(GalleryItem item) {
-  if (item.licence.requiresAttribution &&
+  if (item.license.requiresAttribution &&
       (item.author == null || item.author!.trim().isEmpty)) {
-    return '${item.id} is under ${item.licence.name} and names no author';
+    return '${item.id} is under ${item.license.name} and names no author';
   }
   if (!item.id.startsWith('${item.sourceId}/')) {
     return '${item.id} does not start with its own source id';

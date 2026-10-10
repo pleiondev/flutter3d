@@ -23,7 +23,7 @@ const List<int> _binaryMagic = <int>[
 /// A `ModelDecoder` for Autodesk's FBX — the skeleton this package's own
 /// `pubspec.yaml` describes: recognises the format, and says plainly that
 /// reading one is not built here yet.
-final class FbxDecoder implements ModelDecoder {
+final class FbxDecoder extends ModelDecoder {
   const FbxDecoder();
 
   @override
@@ -62,7 +62,7 @@ final class FbxDecoder implements ModelDecoder {
     ModelLoadRequest request,
     AssetUriResolver resolveUri,
   ) async {
-    throw const FormatException(
+    throw const FbxFormatException(
       'FBX files are recognised but not yet read: this decoder is a '
       'skeleton (fmt-29d), and the reader (fmt-24/25) has not landed. '
       'Re-export as glTF/GLB in the meantime.',

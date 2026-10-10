@@ -32,6 +32,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/translate.dart'
+    show BundleSectionFormatException, decodeSectionJson;
 
 /// One vertex input, by the name the engine binds it under.
 ///
@@ -99,9 +101,17 @@ final class WebGpuBlock {
 /// where the value ends up: a bind group layout entry has to declare it, and a
 /// layout that says `2d` over a cube view is an error at pipeline creation
 /// rather than a picture that is merely wrong.
+///
+/// The last four arrived with 1.0's texture shapes. A section written before
+/// them names only `2d` and `cube` and decodes unchanged; one that names a
+/// `2d-array` sampler is one this backend can now bind an array texture to.
 enum WebGpuTextureDimension {
   twoDimensional('2d'),
-  cube('cube');
+  cube('cube'),
+  oneDimensional('1d'),
+  twoDimensionalArray('2d-array'),
+  threeDimensional('3d'),
+  cubeArray('cube-array');
 
   const WebGpuTextureDimension(this.gpuName);
 
@@ -122,6 +132,7 @@ final class WebGpuSampler {
     required this.textureBinding,
     required this.samplerBinding,
     required this.dimension,
+    this.comparison = false,
   });
 
   final String name;
@@ -129,6 +140,16 @@ final class WebGpuSampler {
   final int textureBinding;
   final int samplerBinding;
   final WebGpuTextureDimension dimension;
+
+  /// A `texture_depth_*` and a `sampler_comparison` rather than a float
+  /// texture and a filtering sampler — what `SamplerDescriptor.compare` binds
+  /// to. A different layout entry on both halves, so a comparison sampler in
+  /// an ordinary slot is a bind group the browser refuses; the encoder
+  /// refuses the mismatch first, by name.
+  ///
+  /// Written into the section only when true, so a section with none reads
+  /// and writes byte for byte as it did before the field existed.
+  final bool comparison;
 }
 
 /// One shader stage: the WGSL, and what a pipeline needs to know about it.
@@ -148,6 +169,23 @@ final class WebGpuStage {
   final List<WebGpuAttribute> attributes;
   final List<WebGpuBlock> blocks;
   final List<WebGpuSampler> samplers;
+
+  /// What this stage declares, as the renderer asks a handle's `kept` —
+  /// `P8`.
+  ///
+  /// **Its own lists, because on this backend they are the binding.** The
+  /// pipeline's layout is built from them, so every block and sampler they
+  /// name has to be bound at a draw whether or not the WGSL reads it. The
+  /// engine's library has the same answer from its generated table; a loaded
+  /// one had none, and the renderer fell back to the lighting model's flags —
+  /// which say what a model reads, not what its WGSL declares. A lit material
+  /// from the material language declares the metal-rough map through
+  /// `material_maps.glsl` and reads nothing of it, so the map went unbound
+  /// and the draw was refused.
+  StageBindings get declared => (
+    blocks: <String>{for (final block in blocks) block.name},
+    samplers: <String>{for (final sampler in samplers) sampler.name},
+  );
 }
 
 /// What the section decodes to.
@@ -175,22 +213,21 @@ ByteData encodeWebGpuSection({
 
 /// The stages in [bytes].
 ///
-/// Throws [FormatException] when the bytes are not the document above — the
-/// device turns that into a refusal naming the bundle, rather than a pipeline
-/// built from half a reflection.
+/// Throws [BundleSectionFormatException] when the bytes are not the document
+/// above — the device turns that into a refusal naming the bundle, rather
+/// than a pipeline built from half a reflection.
 WebGpuSectionStages decodeWebGpuSection(ByteData bytes) {
-  final text = utf8.decode(
-    bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-  );
-  final document = jsonDecode(text);
+  final document = decodeSectionJson(bytes);
   if (document is! Map<String, dynamic>) {
-    throw const FormatException('the section is not a JSON object');
+    throw const BundleSectionFormatException(
+      'the section is not a JSON object',
+    );
   }
 
   Map<String, WebGpuStage> stages(String kind) {
     final entries = document[kind];
     if (entries is! Map<String, dynamic>) {
-      throw FormatException('the section has no "$kind" object');
+      throw BundleSectionFormatException('the section has no "$kind" object');
     }
     return <String, WebGpuStage>{
       for (final entry in entries.entries)
@@ -236,6 +273,7 @@ Map<String, Object> _stageToJson(WebGpuStage stage) => <String, Object>{
         'texture': sampler.textureBinding,
         'sampler': sampler.samplerBinding,
         'dimension': sampler.dimension.gpuName,
+        if (sampler.comparison) 'comparison': true,
       },
   ],
 };
@@ -276,8 +314,9 @@ WebGpuAttribute _attributeFromJson(String where, Object? value) {
     ),
     format: VertexFormat.values.firstWhere(
       (candidate) => candidate.name == format,
-      orElse: () =>
-          throw FormatException('$where names the vertex format "$format"'),
+      orElse: () => throw BundleSectionFormatException(
+        '$where names the vertex format "$format"',
+      ),
     ),
   );
 }
@@ -330,20 +369,31 @@ WebGpuSampler _samplerFromJson(String where, Object? value) {
     ),
     dimension: WebGpuTextureDimension.values.firstWhere(
       (candidate) => candidate.gpuName == dimension,
-      orElse: () =>
-          throw FormatException('$where names the dimension "$dimension"'),
+      orElse: () => throw BundleSectionFormatException(
+        '$where names the dimension "$dimension"',
+      ),
     ),
+    comparison: switch (json['comparison']) {
+      null => false,
+      final bool flag => flag,
+      _ => throw BundleSectionFormatException(
+        '$where has a sampler whose "comparison" is not a boolean',
+      ),
+    },
   );
 }
 
 Map<String, dynamic> _object(String message, Object? value) =>
-    value is Map<String, dynamic> ? value : throw FormatException(message);
+    value is Map<String, dynamic>
+    ? value
+    : throw BundleSectionFormatException(message);
 
-List<dynamic> _list(String message, Object? value) =>
-    value is List<dynamic> ? value : throw FormatException(message);
+List<dynamic> _list(String message, Object? value) => value is List<dynamic>
+    ? value
+    : throw BundleSectionFormatException(message);
 
 String _string(String message, Object? value) =>
-    value is String ? value : throw FormatException(message);
+    value is String ? value : throw BundleSectionFormatException(message);
 
 int _integer(String message, Object? value) =>
-    value is int ? value : throw FormatException(message);
+    value is int ? value : throw BundleSectionFormatException(message);

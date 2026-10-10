@@ -145,10 +145,10 @@ class _DemoStageState extends State<DemoStage>
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints box) {
           final double ratio = MediaQuery.devicePixelRatioOf(context);
-          final int width = kFixedResolution
+          final int width = fixedResolution
               ? 1280
               : (box.maxWidth * ratio).round().clamp(1, 8192);
-          final int height = kFixedResolution
+          final int height = fixedResolution
               ? 720
               : (box.maxHeight * ratio).round().clamp(1, 8192);
           final FrameResult frame = run.render(width, height);
@@ -157,7 +157,7 @@ class _DemoStageState extends State<DemoStage>
         },
       ),
     );
-    return kFixedResolution
+    return fixedResolution
         ? Center(
             child: AspectRatio(aspectRatio: 16 / 9, child: surface),
           )

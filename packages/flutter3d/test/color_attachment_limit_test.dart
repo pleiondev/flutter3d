@@ -25,7 +25,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 48;
 
@@ -70,7 +69,10 @@ Future<List<int>> _pixels(
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.6).build()),
-        Material(name: 'ball', baseColor: Vector4(0.8, 0.3, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'ball',
+          baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
+        ),
       ),
     )
     // A floor for the ball to sit on, so occlusion has a contact to darken
@@ -83,16 +85,16 @@ Future<List<int>> _pixels(
           device,
           const PlaneShape(width: 4.0, depth: 4.0).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'floor',
-          baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
+          baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
           roughness: 0.1,
           metallic: 0.8,
         ),
       )..setPosition(0.0, -0.6, 0.0),
     )
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -105,8 +107,8 @@ Future<List<int>> _pixels(
     views: <RenderView>[RenderView(camera: scene.cameras.single)],
     settings: settings,
   );
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 void main() {
@@ -118,7 +120,7 @@ void main() {
         height: 4,
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       );
-      expect(device.maxColorAttachments, 3);
+      expect(device.limits.maxColorAttachments, 3);
     });
 
     test('a pass past the limit throws instead of being opened', () {
@@ -132,14 +134,14 @@ void main() {
         maxColorAttachments: 1,
       );
       final one = device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: 4,
           height: 4,
           format: device.defaultColorFormat,
         ),
       );
       final two = device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: 4,
           height: 4,
           format: device.defaultColorFormat,
@@ -169,7 +171,7 @@ void main() {
         maxColorAttachments: 1,
       );
       final one = device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: 4,
           height: 4,
           format: device.defaultColorFormat,

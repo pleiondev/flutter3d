@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ContactShadowsDemo extends ShowcaseDemo {
   bool contact = true;
@@ -29,15 +28,15 @@ final class ContactShadowsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region props
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.78, 0.76, 0.72, 1.0),
+      baseColor: LinearColor.fromSrgb(0.78, 0.76, 0.72, 1.0),
       roughness: 0.9,
       doubleSided: true,
     );
-    final Material clay = Material(
+    final RenderMaterial clay = RenderMaterial(
       name: 'clay',
-      baseColor: Vector4(0.85, 0.45, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.85, 0.45, 0.3, 1.0),
       roughness: 0.7,
     );
     final Scene scene = Scene()
@@ -74,7 +73,7 @@ final class ContactShadowsDemo extends ShowcaseDemo {
     // #endregion props
 
     // #region sun
-    _sun = LightNode(name: 'sun', intensity: 3.0)
+    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
       ..setLocalForward(Vector3(-0.6, -0.55, -0.4));
     // #endregion sun
     return scene..add(_sun);

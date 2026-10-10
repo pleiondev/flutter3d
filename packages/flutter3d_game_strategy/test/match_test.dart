@@ -53,7 +53,7 @@ Match mirror({
     final double z = 16.0 + side * 40.0;
     final base = sim.build(
       Building(
-        centre: Vector3(16.0, 0.0, z),
+        center: Vector3(16.0, 0.0, z),
         width: 6.0,
         depth: 6.0,
         name: 'base',
@@ -67,7 +67,9 @@ Match mirror({
       ),
     );
     for (var i = 0; i < workers; i++) {
-      sim.add(Unit(position: Vector3(22.0, 0.0, z - 1.0 + i), side: side));
+      sim.add(
+        StrategyUnit(position: Vector3(22.0, 0.0, z - 1.0 + i), side: side),
+      );
     }
     if (produce) {
       sim.addProducer(Producer(building: base));
@@ -100,7 +102,7 @@ List<double> digestOf(StrategySimulation sim) => <double>[
     for (final bool now in <bool>[true, false])
       _cellsKnown(sim, side, visible: now),
   for (final ResourceNode node in sim.resources) node.amount,
-  for (final Unit unit in sim.units) ...<double>[
+  for (final StrategyUnit unit in sim.units) ...<double>[
     unit.position.x,
     unit.position.y,
     unit.position.z,

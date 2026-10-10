@@ -6,8 +6,9 @@ library;
 import 'package:flame/components.dart';
 import 'package:flame/input.dart' show HudButtonComponent;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,11 +25,11 @@ Object3dComponent _jet(Vector2 at) {
 }
 
 void main() {
-  group('ChaseCamera', () {
+  group('FlameChaseCamera', () {
     test('sits at the offset and looks at the look offset', () {
       final camera = CameraNode();
       final jet = _jet(Vector2(4.0, -20.0));
-      ChaseCamera(
+      FlameChaseCamera(
         camera: camera,
         target: jet,
         offset: Vector3(0.0, 11.0, 11.0),
@@ -54,7 +55,7 @@ void main() {
     test('stiff, it keeps up with the target frame by frame', () {
       final camera = CameraNode();
       final jet = _jet(Vector2.zero());
-      final chase = ChaseCamera(
+      final chase = FlameChaseCamera(
         camera: camera,
         target: jet,
         offset: Vector3(0.0, 10.0, 10.0),
@@ -69,7 +70,7 @@ void main() {
 
     test('a shake moves the camera off its place, and dies away', () {
       final camera = CameraNode();
-      final chase = ChaseCamera(
+      final chase = FlameChaseCamera(
         camera: camera,
         target: _jet(Vector2.zero()),
         offset: Vector3(0.0, 10.0, 10.0),
@@ -89,7 +90,7 @@ void main() {
     test('with stiffness it closes on the place instead of jumping', () {
       final camera = CameraNode();
       final jet = _jet(Vector2.zero());
-      final chase = ChaseCamera(
+      final chase = FlameChaseCamera(
         camera: camera,
         target: jet,
         offset: Vector3(0.0, 10.0, 10.0),
@@ -155,7 +156,10 @@ void main() {
 
   group('phone input', () {
     FlameInputBridge bridge() => FlameInputBridge(
-      bindings: Bindings(<InputSource, GameAction>{}),
+      actions: ActionMap(
+        actions: ActionSet.common,
+        buttons: Bindings(<InputSource, GameAction>{}),
+      ),
       inputState: InputState(),
     );
 

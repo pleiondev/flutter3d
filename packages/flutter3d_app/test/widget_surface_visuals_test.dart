@@ -5,12 +5,12 @@
 library;
 
 import 'package:flutter/material.dart' hide Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 GraphicsDevice _device() => CpuDevice(
   width: 4,
@@ -88,7 +88,7 @@ void main() {
       ..addBox(Vector3(0.0, 1.0, 0.0), Vector3(2.0, 1.0, 0.1));
     final hit = RayHit();
     world.raycast(Vector3(0.0, 1.0, -5.0), Vector3(0.0, 0.0, 1.0), 20.0, hit);
-    expect(hit.hit, isTrue);
+    expect(hit.didHit, isTrue);
 
     final uv = surface.uvAt(hit.point, epsilon: 0.06);
     expect(uv, isNotNull);

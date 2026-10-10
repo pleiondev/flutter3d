@@ -17,7 +17,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 ({Renderer renderer, FakeBackend device, Scene scene, CameraNode camera})
 _stage({int probes = 0}) {
@@ -27,7 +26,7 @@ _stage({int probes = 0}) {
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData(4),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackAlbedo: texel,
@@ -46,11 +45,16 @@ _stage({int probes = 0}) {
   for (var i = 0; i < models.length; i++) {
     final angle = i * math.pi / 2.0;
     scene.add(
-      MeshNode(DeviceMesh.upload(device, box), Material(lighting: models[i]))
-        ..setPosition(4.0 * math.sin(angle), 0.0, -4.0 * math.cos(angle)),
+      MeshNode(
+        DeviceMesh.upload(device, box),
+        RenderMaterial(lighting: models[i]),
+      )..setPosition(4.0 * math.sin(angle), 0.0, -4.0 * math.cos(angle)),
     );
   }
-  scene.add(LightNode(intensity: 2.0)..setRotationYawPitchRoll(0.3, -0.6, 0.0));
+  scene.add(
+    LightNode(intensity: 2.0 * Photometric.legacyUnit)
+      ..setRotationYawPitchRoll(0.3, -0.6, 0.0),
+  );
   // One per room of a level, which is how many a first frame used to leave
   // for the frames after it.
   for (var i = 0; i < probes; i++) {
@@ -96,7 +100,12 @@ void main() {
     );
     final linked = it.device.linkedPipelines.length;
     _play(it, 300);
-    expect(it.device.linkedPipelines.length, linked);
+    expect(
+      it.device.linkedPipelines.length,
+      linked,
+      reason:
+          'play linked ${it.device.linkedPipelines.skip(linked).join(', ')}',
+    );
   });
 
   test('cold, the frames that turn to a new material link it', () {

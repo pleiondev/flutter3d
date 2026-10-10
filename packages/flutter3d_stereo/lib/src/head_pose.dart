@@ -35,8 +35,9 @@ final class HeadPose {
 /// So: [rotationVector] is `(x, y, z)` with the scalar either supplied as a
 /// fourth value or reconstructed from the other three — Android sends three on
 /// older devices and four on newer ones, and the caller should not have to know
-/// which. [displayRotationDegrees] is what `Display.getRotation` reports, in
-/// degrees, and it turns the device's frame into the screen's.
+/// which. [displayRotation] is what `Display.getRotation` reports, in radians
+/// (the platform's degrees are converted where the event is decoded), and it
+/// turns the device's frame into the screen's.
 ///
 /// The maths is here rather than in Kotlin for the reason `pad_input` gives for
 /// its own split: everything that can be got wrong should be somewhere a test
@@ -51,7 +52,9 @@ final class HeadPose {
 /// read in two senses, an angle about an axis can.
 Quaternion headRotationFromSensor(
   List<double> rotationVector, {
-  int displayRotationDegrees = 0,
+
+  /// What `Display.getRotation` reports, in radians.
+  double displayRotation = 0.0,
 }) {
   if (rotationVector.length < 3) {
     throw ArgumentError(
@@ -88,7 +91,7 @@ Quaternion headRotationFromSensor(
   // 90 degrees is the same picture as the head turning the other way.
   final screenFix = Quaternion.axisAngle(
     Vector3(0.0, 0.0, 1.0),
-    -displayRotationDegrees * math.pi / 180.0,
+    -displayRotation,
   );
 
   return (worldFix * sensor * screenFix)..normalize();
@@ -105,13 +108,12 @@ HeadPose decodeSensorEvent(List<double> event) {
       '${event.length} numbers.',
     );
   }
-  final displayRotation = event.last.round();
+  // The platform reports degrees; the engine takes radians, so the one
+  // conversion is here, where the number comes in.
+  final displayRotation = event.last.round() * math.pi / 180.0;
   final vector = event.sublist(0, event.length - 1);
   return HeadPose(
-    rotation: headRotationFromSensor(
-      vector,
-      displayRotationDegrees: displayRotation,
-    ),
+    rotation: headRotationFromSensor(vector, displayRotation: displayRotation),
     position: Vector3.zero(),
   );
 }

@@ -19,7 +19,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 48;
 
@@ -49,11 +48,14 @@ Future<List<int>> _quadWithTangent(Vector4 tangent) async {
     ..add(
       MeshNode(
         DeviceMesh.upload(device, builder.build()),
-        Material(name: 'quad', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+        RenderMaterial(
+          name: 'quad',
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+        ),
       ),
     )
     ..add(
-      LightNode(intensity: 4.0)
+      LightNode(intensity: 4.0 * Photometric.legacyUnit)
         ..setPosition(5.0, 0.0, 0.9)
         ..lookAt(Vector3.zero()),
     )
@@ -66,8 +68,8 @@ Future<List<int>> _quadWithTangent(Vector4 tangent) async {
     views: <RenderView>[RenderView(camera: scene.cameras.single)],
     settings: const RenderSettings(),
   );
-  final bytes = await device.readPixels(result.frame);
-  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i)];
+  final bytes = await device.readback(result.frame);
+  return <int>[for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i)];
 }
 
 void main() {

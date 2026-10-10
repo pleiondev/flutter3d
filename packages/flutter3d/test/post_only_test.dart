@@ -27,7 +27,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -51,21 +50,17 @@ _room() {
       it.device,
       CuboidShape(size: Vector3(0.8, 0.8, 0.2)).build(),
     ),
-    Material(
+    RenderMaterial(
       name: 'panel',
-      baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-      emissive: Vector3(6.0, 6.0, 6.0),
+      baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+      emissive: LinearColor(6.0, 6.0, 6.0),
     ),
     name: 'panel',
   );
   scene.add(panel);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 0.8,
-      near: 0.1,
-      far: 50.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 0.8, near: 0.1, far: 50.0),
   )..setPosition(0.0, 0.0, 4.0);
   camera.lookAt(Vector3.zero());
   scene.add(camera);
@@ -85,7 +80,10 @@ TextureHandle _base(
       height: _height,
       scene: it.scene,
       views: <RenderView>[
-        RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(
+          camera: it.camera,
+          clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+        ),
       ],
       settings: const RenderSettings(
         bloom: BloomSettings(enabled: false),
@@ -109,7 +107,7 @@ void main() {
   test('the base pass alone is almost featureless', () async {
     final it = _room();
     final hdr = _base(it);
-    final pixels = (await it.device.readPixels(hdr))!.buffer.asUint8List();
+    final pixels = (await it.device.readback(hdr)).buffer.asUint8List();
 
     // Everything past the panel's own silhouette is unlit black; the panel
     // itself is small against a 64x48 frame.
@@ -131,9 +129,7 @@ void main() {
       // `withoutGlow` and this test catches it directly.
       final it = _room();
       final hdr = _base(it);
-      final withoutGlow = (await it.device.readPixels(
-        hdr,
-      ))!.buffer.asUint8List();
+      final withoutGlow = (await it.device.readback(hdr)).buffer.asUint8List();
 
       final post = it.renderer.renderPost(
         hdr: hdr,
@@ -141,9 +137,9 @@ void main() {
           bloom: BloomSettings(threshold: 0.6, intensity: 0.6),
         ),
       );
-      final withGlow = (await it.device.readPixels(
+      final withGlow = (await it.device.readback(
         post.frame,
-      ))!.buffer.asUint8List();
+      )).buffer.asUint8List();
 
       expect(withGlow.length, withoutGlow.length);
 

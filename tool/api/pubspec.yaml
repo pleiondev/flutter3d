@@ -1,0 +1,43 @@
+name: api_snapshot
+description: "Writes and checks every published package's api/<package>.api — the public surface as text — and its api/<package>.mcp and .vm, the tools it offers agents and editors, so a change to either is a version decision somebody makes."
+publish_to: 'none'
+resolution: workspace
+
+# **Under `tool/` and not under `packages/`**, for the reason
+# `tool/godot_check`'s own pubspec gives: a package under `packages/` is held
+# to ARCHITECTURE.md's publishing list, and this never goes out.
+#
+# **Its own package because of the analyzer.** The snapshot is parsed, not
+# grepped — a signature spread over six lines, a default value with a comma in
+# it and a doc comment that mentions `class` all have to come out the same as
+# they would to a reader — and the structure scan (`tool/structure.dart`) has
+# to keep running before `pub get`. So the parser lives here, the scan starts
+# it as a program when the workspace is resolved, and the classifier both of
+# them use is plain Dart in `tool/structure/api.dart`.
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  analyzer: ^13.0.0
+
+  # **`schema_snapshot`'s servers, built rather than read.** The other half of
+  # this package: `api/<package>.mcp` lists what each MCP server offers, and a
+  # plain Dart server is built here, over a channel nobody writes to, so the
+  # list is what its constructor actually makes of its tools. Only
+  # `bin/schema_snapshot.dart` imports these; `api_snapshot` compiles without
+  # them. A server in a package that needs Flutter is read from source instead
+  # — see `lib/schema_snapshot.dart`.
+  # `flutter3d_build`'s plugin author server, built like the rest.
+  flutter3d_build: ^1.0.0-rc.1
+  flutter3d_editor_core: ^1.0.0-rc.1
+  flutter3d_mcp: ^1.0.0-rc.1
+  flutter3d_model_core: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
+  # The collision world a headless game's probe is started with, which the
+  # program read from source names.
+  flutter3d_physics: ^1.0.0-rc.1
+  stream_channel: ^2.1.4
+
+dev_dependencies:
+  test: ^1.25.0

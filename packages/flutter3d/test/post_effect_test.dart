@@ -27,8 +27,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 48;
 const int _height = 36;
@@ -55,13 +55,13 @@ final class _TintNode extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     // The version the composite wrote comes in; the version this produces goes
     // out. Both are called `frame`, and the registration order is what tells
     // them apart.
     final source = frame.resources.texture(FrameResourceIds.frame);
     final target = frame.resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: source.width,
         height: source.height,
         format: source.format,
@@ -83,7 +83,7 @@ final class _TintNode extends RenderNode {
 /// Deliberately something no other pass in the engine does, and deliberately
 /// per-channel: a test that looked for "darker" could be satisfied by exposure,
 /// by tone mapping, or by the effect not running while something else changed.
-final class _TintShader implements CpuFragmentShader {
+final class _TintShader extends CpuFragmentShader {
   const _TintShader();
 
   @override
@@ -111,7 +111,7 @@ final class _TintShader implements CpuFragmentShader {
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-  )!;
+  );
   return (
     device: device,
     renderer: Renderer.create(
@@ -123,7 +123,7 @@ final class _TintShader implements CpuFragmentShader {
 }
 
 ({Scene scene, CameraNode camera}) _ball() {
-  final scene = Scene()..ambientIntensity = 0.8;
+  final scene = Scene()..ambientIntensity = 0.8 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -132,9 +132,9 @@ final class _TintShader implements CpuFragmentShader {
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, SphereShape(radius: 1.0).build()),
-      Material(
+      RenderMaterial(
         name: 'ball',
-        baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
+        baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'ball',
@@ -146,12 +146,12 @@ final class _TintShader implements CpuFragmentShader {
   return (scene: scene, camera: camera);
 }
 
-Future<Uint8List> _draw({FramePhase? phase}) async {
+Future<Uint8List> _draw({RenderAnchor? at}) async {
   final engine = _engine();
-  if (phase != null) {
-    engine.renderer.nodes.add(
+  if (at != null) {
+    engine.renderer.renderSteps.addNode(
       _TintNode(engine.device.shaders['Tint']!),
-      phase: phase,
+      at: at,
     );
   }
   final room = _ball();
@@ -162,9 +162,9 @@ Future<Uint8List> _draw({FramePhase? phase}) async {
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Mean red and green over the whole frame, 0..255.
@@ -192,7 +192,7 @@ void main() {
     // then binds the tint's read to a version before the composite, and the
     // composite's write is the newest — same result, nothing tinted.
     final plain = await _draw();
-    final tinted = await _draw(phase: FramePhase.present);
+    final tinted = await _draw(at: RenderAnchor.beforePresent);
 
     final (plainR, plainG) = _means(plain);
     final (tintedR, tintedG) = _means(tinted);
@@ -227,7 +227,7 @@ void main() {
     // Mutation: register present-phase nodes with the overlay ones. This throws
     // instead of tinting, and the test above fails with it.
     await expectLater(
-      _draw(phase: FramePhase.overlay),
+      _draw(at: RenderAnchor.afterScene),
       throwsA(
         isA<FrameGraphError>().having(
           (FrameGraphError e) => e.toString(),

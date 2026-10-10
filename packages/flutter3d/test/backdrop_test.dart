@@ -24,12 +24,11 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -62,9 +61,9 @@ CpuDevice _uploads() => CpuDevice(
         device,
         CuboidShape(size: Vector3(60.0, 60.0, 1.0)).build(),
       ),
-      engine.Material(
+      engine.RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
         lighting: LightingModel.unlit,
       ),
       name: 'wall',
@@ -72,11 +71,7 @@ CpuDevice _uploads() => CpuDevice(
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.3,
-      far: 500.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.3, far: 500.0),
   )..lookAt(Vector3(0.0, 0.0, 1.0));
   scene.add(camera);
   return (scene: scene, camera: camera, device: device);
@@ -95,9 +90,9 @@ MeshNode _backdrop(
     device,
     CuboidShape(size: Vector3(40.0, 40.0, 0.2)).build(),
   ),
-  engine.Material(
+  engine.RenderMaterial(
     name: 'backdrop',
-    baseColor: Vector4(0.0, 1.0, 0.0, 1.0),
+    baseColor: LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0),
     lighting: LightingModel.unlit,
     drawBucket: -1,
     depthWrite: depthWrite,
@@ -117,7 +112,7 @@ Future<Uint8List> _draw(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       shadows: shadows,
@@ -125,9 +120,9 @@ Future<Uint8List> _draw(
       tonemap: false,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 int _redPixels(Uint8List rgba) {
@@ -208,9 +203,9 @@ void main() {
             world.device,
             CuboidShape(size: Vector3(24.0, 24.0, 1.0)).build(),
           ),
-          engine.Material(
+          engine.RenderMaterial(
             name: 'marker',
-            baseColor: Vector4(0.0, 1.0, 0.0, 1.0),
+            baseColor: LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0),
             lighting: LightingModel.unlit,
             // Last, after the wall has written its depth.
             drawBucket: 9,
@@ -274,9 +269,9 @@ void main() {
               withDome.device,
               SphereShape(radius: 900.0, segments: 12, rings: 8).build(),
             ),
-            engine.Material(
+            engine.RenderMaterial(
               name: 'dome',
-              baseColor: Vector4(0.4, 0.6, 1.0, 1.0),
+              baseColor: LinearColor.fromSrgb(0.4, 0.6, 1.0, 1.0),
               lighting: LightingModel.unlit,
               drawBucket: -1,
               depthWrite: false,
@@ -333,7 +328,10 @@ void main() {
             overhead.device,
             CuboidShape(size: Vector3(8.0, 2.0, 8.0)).build(),
           ),
-          engine.Material(name: 'high', baseColor: Vector4(1.0, 1.0, 1.0, 1.0)),
+          engine.RenderMaterial(
+            name: 'high',
+            baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
+          ),
           name: 'high',
         )..setPosition(0.2 * run, height, 15.0 - 0.25 * run),
       );
@@ -372,7 +370,7 @@ void main() {
           device,
           CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
         ),
-        engine.Material(name: name),
+        engine.RenderMaterial(name: name),
         name: name,
       )..setPosition(0.0, 0.0, at);
 
@@ -393,9 +391,9 @@ void main() {
 
   MeshNode block(Vector3 size, Vector3 at, String name) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    engine.Material(
+    engine.RenderMaterial(
       name: name,
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       lighting: LightingModel.pbr,
     ),
     name: name,
@@ -406,7 +404,7 @@ void main() {
   scene.add(
     LightNode(
       type: LightType.directional,
-      intensity: 1.1,
+      intensity: 1.1 * Photometric.legacyUnit,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.2, -0.95, 0.25)),

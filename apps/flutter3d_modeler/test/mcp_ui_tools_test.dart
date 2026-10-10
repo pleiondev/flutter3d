@@ -82,7 +82,7 @@ final class _NoopUiActions implements UiActions {
       (did: false, says: 'no window here', png: null);
 
   @override
-  Future<UiAnswer> galleryList({String? category, String? licence}) async =>
+  Future<UiAnswer> galleryList({String? category, String? license}) async =>
       (did: true, says: 'built-in/mug (Mug, tableware, cc0)');
 
   @override
@@ -242,9 +242,13 @@ Future<Map<String, Object?>> _call(
   final httpClient = HttpClient();
   try {
     final request = await httpClient.postUrl(
-      Uri.parse('http://127.0.0.1:${session.port}/mcp?token=${session.token}'),
+      Uri.parse('http://127.0.0.1:${session.port}/mcp'),
     );
     request.headers.contentType = ContentType.json;
+    request.headers.set(
+      HttpHeaders.authorizationHeader,
+      'Bearer ${session.token}',
+    );
     request.write(json.encode(body));
     final response = await request.close();
     final text = await response.transform(utf8.decoder).join();

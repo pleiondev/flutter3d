@@ -45,7 +45,7 @@ client introduced itself, which is the only thing that makes them appear.
 ## 2. The agent does case 1's own five steps — over the tool surface
 
 An agent connecting to that port sees the same tools
-`packages/flutter3d_model_mcp/test/tools_test.dart` already tests directly:
+`packages/flutter3d_mcp/test/model/tools_test.dart` already tests directly:
 `list`, `rename`, `addMaterial`, `setMaterialField`, `assignMaterial`, and
 the rest. Case 1's own five steps, run again, but this time as an MCP client
 actually would — a tool name plus a JSON object, not a typed Dart
@@ -146,7 +146,7 @@ injected, and the requests go out over a raw socket rather than an
 every request without touching the network.
 
 **The tool-call layer, and why the journal it writes looks the way it
-does.** Case 6's own fixtures (`packages/flutter3d_model_mcp/test/fixtures/
+does.** Case 6's own fixtures (`packages/flutter3d_mcp/test/model/fixtures/
 tutorial/case6_scenario.dart`) drive `modelTools.firstWhere(...).run(session,
 arguments)` for every agent step — a JSON map in, an `Answer` out — rather
 than constructing a `ModelCommand` directly the way cases 1–5 do. Underneath,
@@ -191,7 +191,7 @@ document rather than only asserting it in isolation.
 
 **Case 1's own import gap, re-checked and now closed.** `tut-01`'s own text
 already flagged that case 6 would need to re-check whether an agent-driven
-import needs `ImportOptions` sooner — it did, and the `import` tool now
+import needs `ImportSettings` sooner — it did, and the `import` tool now
 takes them: `unit`, `upAxis`, and `weld`/`fixNormals`/`triangulate`, the
 identical choice the app's own import screen offers a person. Case 6 still
 starts from `case1ImportedProject()` (the same helper case 1's own fixture
@@ -201,7 +201,7 @@ about what an agent does to a document already open, not about repeating
 case 1's own import step — so nothing on `case6.jsonl` or its fixtures
 changes; only the tool's own reach did.
 
-**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+**Proving it.** `packages/flutter3d_mcp/test/model/fixtures/tutorial/
 case6_scenario.dart` builds exactly the mixed-authorship project this page
 describes, calling the real tool table for every agent step and
 `session.history.run` directly for the one person step.

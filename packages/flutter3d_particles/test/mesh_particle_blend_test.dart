@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -15,8 +16,8 @@ const int _size = 32;
 const double _grey = 0.5;
 
 /// The middle pixel's red, as the composite hands it back, of a frame with
-/// one particle of [colour] at the origin drawn with [blend] over a grey clear.
-double _middle(BlendState blend, Vector4 colour) {
+/// one particle of [color] at the origin drawn with [blend] over a grey clear.
+double _middle(BlendState blend, Vector4 color) {
   final device = CpuDevice(
     width: _size,
     height: _size,
@@ -33,7 +34,7 @@ double _middle(BlendState blend, Vector4 colour) {
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         lifetime: const Range.exact(5.0),
         size: const Range.exact(1.0),
-        color: colour,
+        color: color,
       ),
       Vector3.zero(),
     );
@@ -43,7 +44,7 @@ double _middle(BlendState blend, Vector4 colour) {
     ..lookAt(Vector3.zero());
   final scene = Scene()..add(camera);
   final renderer = Renderer.create(device: device)
-    ..addContributor(
+    ..renderSteps.addContributor(
       MeshParticleContributor(particles, mesh: shard, blend: blend),
     );
   final result = renderer.render(
@@ -51,7 +52,10 @@ double _middle(BlendState blend, Vector4 colour) {
     height: _size,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(_grey, _grey, _grey, 1.0)),
+      RenderView(
+        camera: camera,
+        clearColorSrgb: Vector4(_grey, _grey, _grey, 1.0),
+      ),
     ],
     settings: const RenderSettings(
       tonemap: false,

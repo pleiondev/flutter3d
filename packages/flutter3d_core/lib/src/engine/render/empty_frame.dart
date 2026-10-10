@@ -48,7 +48,7 @@ String? describeEmptyFrame(Scene scene, List<RenderView> views) {
   var withGeometry = 0;
   for (var i = 0; i < meshes.length; i++) {
     final mesh = meshes[i];
-    if (!mesh.visibleInHierarchy) continue;
+    if (!mesh.isVisibleInHierarchy) continue;
     visible++;
     if (mesh.mesh.indexCount != 0) withGeometry++;
   }
@@ -68,7 +68,7 @@ String? describeEmptyFrame(Scene scene, List<RenderView> views) {
   var matched = 0;
   for (var i = 0; i < meshes.length; i++) {
     final mesh = meshes[i];
-    if (!mesh.visibleInHierarchy || mesh.mesh.indexCount == 0) continue;
+    if (!mesh.isVisibleInHierarchy || mesh.mesh.indexCount == 0) continue;
     for (var v = 0; v < views.length; v++) {
       if ((mesh.layerMask & views[v].layerMask) != 0) {
         matched++;
@@ -99,7 +99,7 @@ String? describeEmptyFrame(Scene scene, List<RenderView> views) {
 String _maskSummary(List<RenderView> views, List<MeshNode> meshes) {
   var meshBits = 0;
   for (var i = 0; i < meshes.length; i++) {
-    if (meshes[i].visibleInHierarchy) meshBits |= meshes[i].layerMask;
+    if (meshes[i].isVisibleInHierarchy) meshBits |= meshes[i].layerMask;
   }
   var viewBits = 0;
   for (var v = 0; v < views.length; v++) {

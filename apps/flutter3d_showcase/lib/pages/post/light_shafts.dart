@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class LightShaftsDemo extends ShowcaseDemo {
   // A density per metre since 0.7.4 — a dusty doorway rather than a clear
@@ -27,12 +26,12 @@ final class LightShaftsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     final GraphicsDevice device = context.device;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.35, 0.33, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.35, 0.33, 0.3, 1.0),
       roughness: 0.9,
     );
-    final Material floorStone = stone.copy()..doubleSided = true;
+    final RenderMaterial floorStone = stone.copy()..doubleSided = true;
 
     // #region doorway
     final DeviceMesh pillar = DeviceMesh.upload(
@@ -56,7 +55,7 @@ final class LightShaftsDemo extends ShowcaseDemo {
     // #region sun
     final LightNode sun = LightNode(
       name: 'sun',
-      intensity: 6.0,
+      intensity: 6.0 * Photometric.legacyUnit,
       castsShadow: true,
     )..setLocalForward(Vector3(-0.3, -0.6, 0.7));
     // #endregion sun

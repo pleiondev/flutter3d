@@ -95,7 +95,7 @@ void main() {
     test('landscape rolls the picture and leaves the gaze alone', () {
       final rotation = headRotationFromSensor(
         sensorFrom(sensor),
-        displayRotationDegrees: 90,
+        displayRotation: 90.0 * math.pi / 180.0,
       );
       expectVector(
         forwardOf(rotation),
@@ -113,7 +113,7 @@ void main() {
       final noTurn = headRotationFromSensor(sensorFrom(sensor));
       final fullTurn = headRotationFromSensor(
         sensorFrom(sensor),
-        displayRotationDegrees: 360,
+        displayRotation: 360.0 * math.pi / 180.0,
       );
       expectVector(forwardOf(fullTurn), forwardOf(noTurn));
       expectVector(upOf(fullTurn), upOf(noTurn));

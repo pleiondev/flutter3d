@@ -1,0 +1,488 @@
+# The public API of flutter3d_game_racing.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_game_racing/bridge.dart
+
+final class LapReadout extends StatelessWidget
+  Widget build(BuildContext context)
+  const LapReadout({super.key, required this.racer, required this.race, this.style = const ReadoutStyle()})
+  final RaceState race
+  final RacerProgress racer
+  final ReadoutStyle style
+
+final class PositionReadout extends StatelessWidget
+  Widget build(BuildContext context)
+  const PositionReadout({super.key, required this.racer, required this.race, this.style = const ReadoutStyle(), this.ordinals = const <String>['st', 'nd', 'rd'], this.otherwise = 'th'})
+  final List<String> ordinals
+  final RaceState race
+  final RacerProgress racer
+  final ReadoutStyle style
+  final String otherwise
+
+final class ReadoutStyle
+  const ReadoutStyle({this.text = const TextStyle(color: Color(0xFFFFFFFF), fontSize: 18.0), this.dim = const Color(0x66FFFFFF)})
+  final Color dim
+  final TextStyle text
+
+final class RoadMeshSettings
+  const RoadMeshSettings({this.sagitta = 0.04, this.minStep = 1.5, this.maxStep = 8.0, this.metresPerTile = 9.0, this.barrierHeight = 1.1})
+  final double barrierHeight
+  final double maxStep
+  final double metresPerTile
+  final double minStep
+  final double sagitta
+
+List<MeshData> buildBarrierMeshes(TrackSpline track, {required int side, RoadMeshSettings settings = const RoadMeshSettings(), VertexLayout? layout})
+
+MeshData buildRoadMesh(TrackSpline track, {RoadMeshSettings settings = const RoadMeshSettings(), VertexLayout? layout})
+
+MeshData buildVergeMesh(TrackSpline track, {required int side, RoadMeshSettings settings = const RoadMeshSettings(), VertexLayout? layout})
+
+List<Vector2> trackOutline(TrackSpline track, {double step = 12.0})
+
+library package:flutter3d_game_racing/flutter3d_game_racing.dart
+
+final class AiDriver
+  AiDriver({required this.track, this.tuning = const AiTuning()})
+  final AiTuning tuning
+  final TrackSpline track
+  void drive(VehicleController self, VehicleInput out, {List<VehicleController> others = const <VehicleController>[], double playerGap = 0.0})
+
+final class AiTuning
+  AiTuning copyWith({double? skill})
+  const AiTuning({this.lookAheadPerSpeed = 0.55, this.minLookAhead = 12.0, this.steerGain = 2.2, this.corneringGrip = 14.0, this.brakeHorizon = 45.0, this.brakeMargin = 1.1, this.rubberBandPer100m = 0.07, this.rubberBandClamp = 0.22, this.avoidRange = 22.0, this.avoidWidth = 3.2, this.avoidOffset = 3.0, this.skill = 1.0})
+  final double avoidOffset
+  final double avoidRange
+  final double avoidWidth
+  final double brakeHorizon
+  final double brakeMargin
+  final double corneringGrip
+  final double lookAheadPerSpeed
+  final double minLookAhead
+  final double rubberBandClamp
+  final double rubberBandPer100m
+  final double skill
+  final double steerGain
+
+final class BarrierBand
+  bool covers(double s)
+  const BarrierBand({required this.fromS, required this.toS, this.left = false, this.right = false})
+  final bool left
+  final bool right
+  final double fromS
+  final double toS
+
+final class BestLapSet extends RacerEvent
+  String get name
+  const BestLapSet(super.racer)
+
+final class ChaseCamera
+  ChaseCamera({required CollisionWorld world, this.track, this.tuning = const ChaseTuning()})
+  Vector3 get eye
+  Vector3 get target
+  double get fov
+  double get heading
+  double get motion
+  final CameraRig rig
+  final ChaseTuning tuning
+  final TrackSpline? track
+  set motion(double value)
+  void cut()
+  void follow(VehicleController car, double dt)
+  void kick(Vector3 direction)
+  void shake(double amount, {double seconds = 0.35})
+  void widen(double radians)
+
+final class ChaseTuning extends RigTuning
+  const ChaseTuning({super.distance = 8.0, super.height = 3.0, super.aimHeight = 1.0, super.lag = 7.0, this.headingBlend = 0.75, this.headingFrom = 4.0, this.headingTo = 14.0, this.lookAhead = 26.0, this.lookAheadWeight = 0.35, this.baseFov = 1.05, this.fovPerSpeed = 0.006, this.maxFov = 1.45, super.nearClearance = 0.4, super.minDistance = 2.0})
+  final double baseFov
+  final double fovPerSpeed
+  final double headingBlend
+  final double headingFrom
+  final double headingTo
+  final double lookAhead
+  final double lookAheadWeight
+  final double maxFov
+
+final class CheckpointPassed extends RacerEvent
+  String get name
+  const CheckpointPassed(super.racer)
+
+final class CountdownTicked extends GameEvent
+  String get name
+  const CountdownTicked(this.remaining)
+  final int remaining
+
+final class DriftScored extends RacerEvent
+  String get name
+  const DriftScored(super.racer, this.score, this.seconds)
+  final double score
+  final double seconds
+
+extension GhostDocument on GhostTape
+  Map<String, Object?> toJson()
+  double get lapTime
+
+typedef GhostFrame = Pose;
+
+typedef GhostPlayer = Playback;
+
+final class GhostRecorder
+  GhostRecorder({double hz = 15.0})
+  GhostTape finish(double lapTime)
+  int get frameCount
+  void reset()
+  void tick(double time, VehicleController vehicle)
+
+typedef GhostTape = Tape;
+
+final class GripTable extends SurfaceTable<double>
+  const GripTable(super.byName, {super.fallback = 1.0})
+  const GripTable.common()
+  const GripTable.plain()
+  double gripFor(String? surface)
+
+abstract interface class GroundField
+  bool sample(Vector3 position, double nearHint, GroundSample out)
+
+final class GroundSample
+  String? surface
+  bool barrier
+  bool onRoad
+  double halfWidth
+  double height
+  double lateral
+  double s
+  final Vector3 lateralAxis
+  final Vector3 normal
+
+final class LapCompleted extends RacerEvent
+  String get name
+  const LapCompleted(super.racer)
+
+final class LeftTheRoad extends RacerEvent
+  String get name
+  const LeftTheRoad(super.racer)
+
+final class RaceFinished extends GameEvent
+  String get name
+  const RaceFinished()
+
+final class RaceMode
+  String toString()
+  bool operator ==(Object other)
+  const RaceMode(this.name, {required this.startsBehindLights, required this.countsProgress, required this.endsAfterLaps})
+  final String name
+  final bool countsProgress
+  final bool endsAfterLaps
+  final bool startsBehindLights
+  int get hashCode
+  static const RaceMode freeRoam = RaceMode('freeRoam', startsBehindLights: false, countsProgress: false, endsAfterLaps: false)
+  static const RaceMode race = RaceMode('race', startsBehindLights: true, countsProgress: true, endsAfterLaps: true)
+  static const RaceMode timeTrial = RaceMode('timeTrial', startsBehindLights: false, countsProgress: true, endsAfterLaps: false)
+
+enum RacePhase
+  values: countdown, running, finished
+  RunOutcome get outcome
+
+final class RaceStarted extends GameEvent
+  String get name
+  const RaceStarted()
+
+final class RaceState
+  Map<String, Object?> save()
+  RacePhase phase
+  RaceState({required this.mode, required this.track, required int racers, this.laps = 3, this.countdownSeconds = 3.0})
+  double countdown
+  double elapsed
+  double? get bestLap
+  final List<RacerProgress> progress
+  final RaceMode mode
+  final TrackSpline track
+  final double countdownSeconds
+  final int laps
+  int positionOf(int racer)
+  void clearStepFlags()
+  void restore(Map<String, Object?> from)
+
+abstract base class RacerEvent extends GameEvent
+  bool get isPlayer
+  const RacerEvent(this.racer)
+  final RacerProgress racer
+
+final class RacerFinished extends RacerEvent
+  String get name
+  const RacerFinished(super.racer)
+
+final class RacerProgress
+  Map<String, Object?> save()
+  RacerProgress({required this.index})
+  bool get finished
+  bool offRoad
+  bool wrongWay
+  double bestDrift
+  double driftFor
+  double driftScore
+  double lapTime
+  double lastLap
+  double lateral
+  double progressAlong(double lapLength)
+  double s
+  double totalDrift
+  double totalTime
+  double? bestLap
+  double? finishedAt
+  final List<double> sectorTimes
+  final List<double?> bestSectors
+  final int index
+  int lap
+  int nextCheckpoint
+  void clearStepFlags()
+  void restore(Map<String, Object?> from)
+
+abstract final class RacingLayers
+  static const int roadTrigger = 1 << 8
+  static const int vehicle = 1 << 7
+
+final class RacingSimulation
+  RacingSimulation({required this.collision, required this.vehicles, required this.race, this.mechanisms, this.dynamics, this.killPlane = -50.0, this.offRoadPatience = 4.0, this.contactRestitution = 0.35, this.difficulty = Difficulty.normal, this.assisted = const <int>{0}})
+  Snapshot save()
+  final CollisionWorld collision
+  final Difficulty difficulty
+  final Dynamics? dynamics
+  final GameEvents events
+  final List<VehicleController> vehicles
+  final List<VehicleInput> inputs
+  final MechanismWorld? mechanisms
+  final RaceState race
+  final Set<int> assisted
+  final double contactRestitution
+  final double killPlane
+  final double offRoadPatience
+  static const double driftAngle = 0.14
+  static const double driftMinimum = 0.5
+  static const double driftSpeed = 8.0
+  static const double slipstreamReach = 40.0
+  static const double slipstreamWidth = 3.0
+  void restart({List<int>? order})
+  void restore(Snapshot snapshot)
+  void step(double dt)
+
+final class Respawned extends RacerEvent
+  String get name
+  const Respawned(super.racer)
+
+final class SectorCompleted extends RacerEvent
+  String get name
+  const SectorCompleted(super.racer, this.sector, this.time, this.delta)
+  final double time
+  final double? delta
+  final int sector
+
+final class SkyPreset
+  Vector3 colourAt(Vector3 direction)
+  Vector3 get directionToSun
+  Vector3 get horizonFogColour
+  Vector3 get sunDirection
+  Vector3 inScatterAlong(Vector3 viewDir)
+  const SkyPreset({required this.name, required this.sunElevationDeg, required this.sunAzimuthDeg, required this.sunColor, required this.sunIntensity, required this.zenith, required this.horizon, required this.belowHorizon, required this.glowWide, required this.glowStrength, required this.fogDensity, required this.fogBacklitExponent, required this.fogBacklitStrength, required this.ambientIntensity, required this.exposure, this.sunDisc = 0.0})
+  factory SkyPreset.fromJson(Map<String, Object?> json)
+  final String name
+  final Vector3 belowHorizon
+  final Vector3 horizon
+  final Vector3 sunColor
+  final Vector3 zenith
+  final double ambientIntensity
+  final double exposure
+  final double fogBacklitExponent
+  final double fogBacklitStrength
+  final double fogDensity
+  final double glowStrength
+  final double glowWide
+  final double sunAzimuthDeg
+  final double sunDisc
+  final double sunElevationDeg
+  final double sunIntensity
+
+abstract final class SkyPresets
+  static SkyPreset? byName(String name)
+  static final List<SkyPreset> all
+  static final SkyPreset dawn
+  static final SkyPreset dusk
+  static final SkyPreset golden
+  static final SkyPreset morning
+  static final SkyPreset noon
+
+final class SphereVehicle implements VehicleController
+  GripTable get grips
+  GroundSample get groundSample
+  Map<String, Object?> save()
+  Matrix3 get visualBasis
+  SphereVehicle({required this.world, required this.ground, required Vector3 position, double headingYaw = 0.0, this.tuning = const VehicleTuning(), Tyres? tyres, int layer = RacingLayers.vehicle, int mask = Layers.all, Object? userData})
+  TireModel get tires
+  Tyres tyres
+  Vector3 get position
+  bool fitTyres(Tyres set)
+  bool get grounded
+  bool pitStop(Tyres set)
+  double damage
+  double get headingYaw
+  double get impactThisStep
+  double get rpm
+  double get scrapedThisStep
+  double get slipAngle
+  double get slipRatio
+  double get speed
+  double get struckThisStep
+  double get trackDistance
+  double get wheelSpeed
+  final Collider collider
+  final CollisionWorld world
+  final GroundField ground
+  final Vector3 velocity
+  final VehicleTuning tuning
+  void hurt(double speed)
+  void placeAt(Vector3 position, double headingYaw, {double? trackDistance})
+  void restore(Map<String, Object?> from)
+  void step(double dt, VehicleInput input)
+
+final class StartGrid
+  const StartGrid({this.s = -12.0, this.columns = 2, this.rowGap = 6.0, this.columnGap = 3.5})
+  final double columnGap
+  final double rowGap
+  final double s
+  final int columns
+  static List<int> orderBy(List<double?> qualifying)
+
+final class SurfaceBand
+  bool covers(double s)
+  const SurfaceBand({required this.fromS, required this.toS, this.centre, this.shoulder})
+  final String? centre
+  final String? shoulder
+  final double fromS
+  final double toS
+
+final class TireModel
+  TireModel({this.peakSlipAngle = 0.16, double lateralTail = 0.72, this.peakSlipRatio = 0.14, double longitudinalTail = 0.82})
+  double lateralAt(double slipAngle)
+  double longitudinalAt(double slipRatio)
+  final double peakSlipAngle
+  final double peakSlipRatio
+  static void clampToCircle(Vector2 force, double limit)
+
+final class TrackDocument
+  TrackDocument({required this.track, this.level, SkyPreset? sky})
+  factory TrackDocument.fromJson(Map<String, Object?> json)
+  final Level? level
+  final SkyPreset sky
+  final TrackSpline track
+  static const int formatVersion = 1
+
+final class TrackField implements GroundField
+  TrackField({required this.track, this.world, this.searchWindow = 30.0, this.probeAbove = 3.0, this.probeBelow = 60.0, this.offTrackMask = defaultProbeMask})
+  bool sample(Vector3 position, double nearHint, GroundSample out)
+  final CollisionWorld? world
+  final TrackSpline track
+  final double probeAbove
+  final double probeBelow
+  final double searchWindow
+  final int offTrackMask
+  static const int defaultProbeMask = Layers.all & ~(RacingLayers.vehicle | RacingLayers.roadTrigger)
+
+final class TrackFrame
+  final Vector3 forward
+  final Vector3 position
+  final Vector3 right
+  final Vector3 up
+
+final class TrackSpline
+  String? surfaceAt(double s, double lateral)
+  TrackSpline({required this.centre, required List<double> widths, required List<double> banks, this.shoulder = 4.0, List<SurfaceBand> surfaces = const <SurfaceBand>[], List<BarrierBand> barriers = const <BarrierBand>[], List<double> checkpoints = const <double>[], this.grid = const StartGrid()})
+  bool barrierAt(double s, {required bool left})
+  double bankAt(double s)
+  double get length
+  double widthAt(double s)
+  final CatmullRom centre
+  final List<double> checkpoints
+  final StartGrid grid
+  final double shoulder
+  void centreAt(double s, Vector3 out)
+  void frameAt(double s, TrackFrame out)
+  void startSlot(int index, Vector3 outPosition, Vector3 outForward)
+  void surfacePoint(double s, double lateral, Vector3 out)
+
+final class Tyres
+  String toString()
+  Tyres({required this.name, TireModel? model, this.grips = const GripTable.common(), this.limit = 1.05})
+  final GripTable grips
+  final String name
+  final TireModel model
+  final double limit
+  static Tyres after(Tyres? current)
+  static Tyres named(String? name)
+  static final List<Tyres> all
+  static final Tyres rally
+  static final Tyres road
+  static final Tyres slicks
+
+abstract interface class VehicleController
+  Collider get collider
+  Map<String, Object?> save()
+  Matrix3 get visualBasis
+  Vector3 get position
+  Vector3 get velocity
+  bool get grounded
+  double get headingYaw
+  double get impactThisStep
+  double get rpm
+  double get slipAngle
+  double get slipRatio
+  double get speed
+  double get trackDistance
+  void placeAt(Vector3 position, double headingYaw, {double? trackDistance})
+  void restore(Map<String, Object?> from)
+  void step(double dt, VehicleInput input)
+
+final class VehicleInput
+  bool boost
+  bool handbrake
+  double brake
+  double shelter
+  double steer
+  double throttle
+  void reset()
+  void setFrom(VehicleInput other)
+
+final class VehicleTuning
+  const VehicleTuning({this.radius = 0.7, this.rideHeight = 0.55, this.maxSpeed = 52.0, this.maxReverse = 12.0, this.enginePush = 14.0, this.brakeStrength = 26.0, this.rollingDrag = 3.0, this.rollingResistance = 0.9, this.holdSpeed = 0.7, this.holdSlope = 1.2, this.airDrag = 0.0006, this.slipstream = 0.34, this.maxSteer = 0.62, this.steerFalloff = 26.0, this.wheelBase = 2.7, this.gravity = 20.0, this.impactShrugged = 6.0, this.impactCost = 0.017, this.powerLostWhenWrecked = 0.45, this.speedLostWhenWrecked = 0.25, this.groundStick = 0.45, this.suspensionRate = 18.0, this.slideAlignment = 2.2, this.wheelInertia = 0.25})
+  final double airDrag
+  final double brakeStrength
+  final double enginePush
+  final double gravity
+  final double groundStick
+  final double holdSlope
+  final double holdSpeed
+  final double impactCost
+  final double impactShrugged
+  final double maxReverse
+  final double maxSpeed
+  final double maxSteer
+  final double powerLostWhenWrecked
+  final double radius
+  final double rideHeight
+  final double rollingDrag
+  final double rollingResistance
+  final double slideAlignment
+  final double slipstream
+  final double speedLostWhenWrecked
+  final double steerFalloff
+  final double suspensionRate
+  final double wheelBase
+  final double wheelInertia
+
+final class WentWrongWay extends RacerEvent
+  String get name
+  const WentWrongWay(super.racer)
+
+GhostTape ghostTapeFromJson(Map<String, Object?> json)

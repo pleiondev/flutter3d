@@ -27,7 +27,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 80;
 const int _height = 64;
@@ -51,7 +50,7 @@ const int _height = 64;
 /// ambient is turned well up for the same reason — the default 0.06 is what
 /// made this effect impossible to see before there was anything to see it in.
 ({Scene scene, CameraNode camera}) _corner() {
-  final scene = Scene()..ambientIntensity = 0.9;
+  final scene = Scene()..ambientIntensity = 0.9 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -59,9 +58,9 @@ const int _height = 64;
   );
   MeshNode slab(Vector3 size, Vector3 at, String name) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
       lighting: LightingModel.lambert,
     ),
     name: name,
@@ -94,7 +93,7 @@ RenderSettings _settings({required bool ao}) => RenderSettings(
 /// Convex and isolated, so a correct occlusion pass has nothing to find on it —
 /// which makes any darkening a defect rather than a matter of degree.
 ({Scene scene, CameraNode camera}) _lone() {
-  final scene = Scene()..ambientIntensity = 0.9;
+  final scene = Scene()..ambientIntensity = 0.9 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -106,9 +105,9 @@ RenderSettings _settings({required bool ao}) => RenderSettings(
         device,
         CuboidShape(size: Vector3(1.6, 1.6, 0.4)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'slab',
-        baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
+        baseColor: LinearColor.fromSrgb(0.7, 0.7, 0.7, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'slab',
@@ -130,9 +129,9 @@ Future<Uint8List> _draw(RenderSettings settings, {bool lone = false}) async {
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: settings,
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 int _luma(Uint8List rgba, int x, int y) {

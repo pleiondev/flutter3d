@@ -16,40 +16,45 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart'
     show KeyDownEvent, LogicalKeyboardKey, rootBundle;
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
+import 'package:flutter3d_game_kit/soundtrack.dart'
+    show CueSheet, SoundtrackPlugin;
 import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show preparePhysics, usePhysics;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart' as stereo;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/circuits.dart';
 import 'src/controls.dart';
 import 'src/credits.dart';
+import 'src/elements.dart';
 import 'src/ending.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/net_race_screen.dart';
+import 'src/photo_mode.dart';
 import 'src/race_cubit.dart';
 import 'src/race_readout.dart';
 import 'src/reactions.dart';
 import 'src/roadside.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
-import 'src/stereo_hud_panel.dart';
 import 'src/title_card.dart';
-import 'src/touch_drive.dart';
 
 /// `net-03`'s relay — `bin/relay.dart` in `flutter3d_net`, wherever one is
 /// actually running. Defaults to a loopback address because no relay ships
@@ -68,28 +73,66 @@ const String _buildStamp = String.fromEnvironment(
   defaultValue: 'dev',
 );
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // The run's physics, chosen once: the core, which the browser fetches as
+  // WebAssembly, or the reference where it will not start. Every track's
+  // world is put on it as it loads.
+  await preparePhysics();
   // **This game had none of it.** The other two locked to landscape and hid
   // the system bars on a handset; this one, which has touch controls and is
   // meant to be played on a phone, did neither — so a tilt reframed the chase
   // camera mid-corner and the status bar sat over the lap counter.
-  configureForTouch();
-  runApp(const RacingApp());
+  lockLandscapeForTouch(_playing);
+  // Settings before the screen: the bindings a player saved are the ones the
+  // keyboard should read from the first key press, not from the first rebind.
+  final unread = <Issue>[];
+  final config = await SettingsFile(
+    appName: 'racing',
+    defaultActions: driveActionMap,
+    onIssue: (Issue reported) {
+      printIssue(reported);
+      unread.add(reported);
+    },
+  ).read();
+  runApp(RacingApp(config: config, configIssue: unread.lastOrNull?.message));
 }
 
+/// How this build is played — fingers or keys, a pointer that can be taken
+/// — asked of the platform once, for the whole game.
+final Playing _playing = Playing.ofPlatform();
+
 class RacingApp extends StatelessWidget {
-  const RacingApp({super.key});
+  const RacingApp({super.key, this.config, this.configIssue});
+
+  /// What the player changed, read before the first frame; defaults when
+  /// null.
+  final GameSettings? config;
+
+  /// Why [config] could not be read, if it could not.
+  final String? configIssue;
 
   @override
-  Widget build(BuildContext context) => const MaterialApp(
+  Widget build(BuildContext context) => MaterialApp(
     title: 'Ring',
     debugShowCheckedModeBanner: false,
-    home: RaceScreen(),
+    localizationsDelegates: const <LocalizationsDelegate<Object>>[
+      Flutter3dGameLocalizations.delegate,
+      DefaultMaterialLocalizations.delegate,
+      DefaultWidgetsLocalizations.delegate,
+    ],
+    home: RaceScreen(config: config, configIssue: configIssue),
   );
 }
 
 class RaceScreen extends StatefulWidget {
-  const RaceScreen({super.key});
+  const RaceScreen({super.key, this.config, this.configIssue});
+
+  /// See [RacingApp.config].
+  final GameSettings? config;
+
+  /// See [RacingApp.configIssue].
+  final String? configIssue;
 
   @override
   State<RaceScreen> createState() => _RaceScreenState();
@@ -124,7 +167,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// starts with `Scene()` for the same reason, which is how this was found.
   Scene _scene = Scene();
   static const PerspectiveProjection _lens = PerspectiveProjection(
-    fovYRadians: 1.05,
+    fovY: 1.05,
     near: 0.3,
     far: 1600.0,
   );
@@ -146,7 +189,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// stereo) the anchor the HUD panel rides along with.
   SceneNode get _stage => _rig?.stage ?? _camera;
 
-  /// `ls-x-02`'s own showcase: [StereoHud] on a `WidgetSurface`, a child of
+  /// `ls-x-02`'s own showcase: [StereoHudPanel] on a `WidgetSurface`, a child of
   /// [_rig]'s own stage — null in flat mode, where [RaceHud] stays the
   /// ordinary Flutter overlay it always was. Built once [_loadCircuit] has a
   /// device to build it with.
@@ -172,36 +215,42 @@ class _RaceScreenState extends State<RaceScreen>
     // Daylight from the first frame. This is `late` and so is worked out when
     // the first frame is built, which is before any circuit has loaded — and a
     // window that opens black and turns blue a second later reads as a fault.
-    clearColor: _skyColour(),
+    clearColorSrgb: _skyColour(),
   );
 
-  /// The preset, as the renderer's own sky.
-  ///
-  /// One model rather than two: the gradient the shader evaluates per pixel is
-  /// the gradient `SkyPreset.colourAt` computes on the CPU, so the haze the far
-  /// side of the circuit fades into and the sky above it cannot drift apart.
-  /// What the shader adds is the sun's own disc, which is half a degree across
-  /// and could not be drawn on any dome this game could afford.
-  ///
-  /// The colours go across untouched, because both sides of this are linear:
-  /// vertex colours, fog and now the sky are all scene-referred, and only
-  /// `RenderView.clearColor` is sRGB — which is why the clear colour is now
-  /// only what shows before the first circuit has loaded.
+  /// The air the circuit is raced under: the Earth's, as the engine's
+  /// physical sky has it.
+  static const PhysicalSky _air = PhysicalSky();
+
+  /// The sky over the circuit: the air, lit by the sun where the preset's
+  /// hour puts it. One model for everything that shows the air — the sky
+  /// drawn behind the circuit, the haze its far side fades into
+  /// ([_haze]), the sunlight on it ([_sunlight]) and what the car reflects
+  /// — so none of them can drift from the others.
   SkySettings _skySettings() => SkySettings(
     enabled: true,
-    zenith: _sky.zenith,
-    horizon: _sky.horizon,
-    nadir: _sky.belowHorizon,
+    physical: _air,
     directionToSun: _sky.directionToSun,
-    sunColor: _sky.sunColor,
-    glowExponent: _sky.glowWide,
-    glowStrength: _sky.glowStrength,
-    sunIntensity: _sky.sunDisc,
   );
 
+  /// The haze along the camera's gaze: the air's own light at the horizon
+  /// that way, which the far side of the circuit fades into.
+  Vector3 _haze() => _skySettings().sample(Vector3(_gaze.x, 0.0, _gaze.z));
+
+  /// Gives the circuit's sun the colour the air leaves of sunlight at the
+  /// hour it is raced: white at noon, gold at dawn.
+  void _sunlight(Scene scene) {
+    final color = _air.sunlight(_sky.directionToSun);
+    for (final light in scene.lights) {
+      if (light.type == LightType.directional) {
+        light.color = color.toLinearColor();
+      }
+    }
+  }
+
   Vector4 _skyColour() {
-    final colour = _sky.colourAt(_gaze);
-    return Vector4(colour.x, colour.y, colour.z, 1.0);
+    final color = _sky.colorAt(_gaze);
+    return Vector4(color.x, color.y, color.z, 1.0);
   }
 
   /// The one [RenderSettings] this game draws with — pulled out of `build`
@@ -215,10 +264,7 @@ class _RaceScreenState extends State<RaceScreen>
     // same arithmetic the sky above is drawn with, so the far side of the
     // lap fades into the background instead of into a band of a slightly
     // different grey.
-    fog: FogSettings(
-      color: _sky.inScatterAlong(_gaze),
-      density: _sky.fogDensity,
-    ),
+    fog: FogSettings(color: _haze().toLinearColor(), density: _sky.fogDensity),
     // The hour of the day changes it: a low sun puts far less light on a
     // circuit than a high one, and one exposure through both is either a
     // washed-out noon or a dusk nobody can see the road in.
@@ -228,10 +274,18 @@ class _RaceScreenState extends State<RaceScreen>
     // metres of world per texel, which draws a car's own shadow as a slab
     // beside it; three tiles put the near one over the part of the track
     // anybody is looking at.
+    //
+    // Both faces recorded, the engine's default. The dark ribbons along the
+    // far verges under a low sun are the barriers' shadows: traced against
+    // the circuit's own triangles they are where the sun is blocked, and
+    // recording only the faces turned to the sun lost them, since a barrier
+    // is one-sided and faces the road.
     shadows: const ShadowSettings(
       cascades: kShadowCascades,
       resolution: kShadowResolution,
     ),
+    // The player's colour vision, from the settings panel.
+    look: _vision?.of(_config) ?? const LookSettings(),
   );
 
   /// The hour this circuit is raced at, and everything that follows from it.
@@ -248,6 +302,9 @@ class _RaceScreenState extends State<RaceScreen>
   RaceState? _race;
   RacingSimulation? _simulation;
   ChaseCamera? _chase;
+
+  /// P stops the race and hands the player a camera — see `photo_mode.dart`.
+  final PhotoMode _photo = chasePhotoMode();
   AiDriver? _ai;
   final List<SphereVehicle> _cars = <SphereVehicle>[];
   final List<SceneNode> _carNodes = <SceneNode>[];
@@ -260,6 +317,17 @@ class _RaceScreenState extends State<RaceScreen>
   final ParticleSystem _particles = ParticleSystem(capacity: 1200);
   final Reactions _reactions = Reactions();
 
+  /// The water in the circuit's low spots, the wrecks a hard crash leaves
+  /// burning and the dust and smoke the cars throw up — in a world of its
+  /// own, which reads the race and never writes to it. One a circuit; null
+  /// between circuits.
+  TrackElements? _elements;
+
+  /// Whether this is a phone, which draws less of the water and the fires.
+  static bool get _handheld =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   /// Which circuit is being raced, how far into the season that is, and
   /// whether the screen is loading, racing, between one circuit and the next,
   /// or looking at a circuit — or a device — that would not open.
@@ -270,6 +338,21 @@ class _RaceScreenState extends State<RaceScreen>
   /// finished race forever. See `race_cubit.dart` for why this is a cubit
   /// rather than fields beside this one, the way it used to be.
   late final RaceCubit _raceCubit = RaceCubit(RaceProgress());
+
+  /// Where this game keeps what it keeps between launches: the ghosts, and
+  /// the player's answers about their data. Not the season, which is one
+  /// sitting — see `season_test.dart`.
+  final Storage _storage = defaultStorage('racing');
+
+  /// What the player is asked about their data. No run to keep in the
+  /// cloud — a season is one sitting — so that question says so; finished
+  /// races go to the server only if the player says yes.
+  late final GameCloud _cloud = GameCloud(
+    game: 'racing',
+    storage: _storage,
+    server: const String.fromEnvironment('FLUTTER3D_CLOUD'),
+    policy: '2026-10',
+  );
 
   Circuit get _circuit => _raceCubit.circuit;
 
@@ -349,10 +432,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// package since it existed and this game called none of it. Rebuilt with the
   /// circuit, because a lap of one circuit means nothing on another.
   late GhostKeeper _ghosts = _keeperFor(_circuit);
-  GhostCar? _ghostCar;
+  Ghost? _ghostCar;
 
   GhostKeeper _keeperFor(Circuit circuit) =>
-      GhostKeeper(storage: defaultStorage('racing'), track: circuit.track);
+      GhostKeeper(storage: _storage, track: circuit.track);
 
   /// How far above the body's own origin each car is drawn, in metres.
   ///
@@ -387,15 +470,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// same reasoning as `flutter3d_demo_dungeon`'s own `_rewind`.
   final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
 
-  /// `rp-02`'s door onto this run, over the VM service. Reads `_simulation`
-  /// fresh on every call rather than capturing it, since which simulation
-  /// that field answers changes every time a circuit does.
-  late final RunTimeline _timeline = RunTimeline(
-    rewind: _rewind,
-    input: _input,
-    stepSim: (double dt) => _simulation?.step(dt),
-    restore: (Snapshot snapshot) => _simulation?.restore(snapshot),
-  );
+  /// `rp-02`'s door onto this run, over the VM service: through the loop
+  /// and its snapshots, so whichever race the plugin is stepping is the one
+  /// rewound.
+  late final RunTimeline _timeline = RunTimeline(rewind: _rewind, loop: _loop);
 
   /// `rp-04`'s "send this run", called remotely rather than from a button
   /// this game draws itself — the last few seconds `_rewind` has kept, as
@@ -411,13 +489,14 @@ class _RaceScreenState extends State<RaceScreen>
   /// `_loadCircuit` had already decoded, so this names the same circuit the
   /// same way for nothing; empty only before the first circuit is ready.
   Map<String, Object?> _remoteBugReport() {
-    final report = bugReportTape(_rewind);
+    // The start as the run's own snapshot, which is what a `.f3drun` holds.
+    final report = bugReportTape(_rewind, part: RacingPlugin.id);
     if (report == null) {
       throw StateError('nothing has been recorded yet');
     }
     return <String, Object?>{
       'level': _circuit.track,
-      'levelHash': _demoCircuitHash ?? '',
+      'levelHash': _circuitHash ?? '',
       'start': report.start.toJson(),
       'tape': report.tape.toJson(),
       'buildStamp': _buildStamp,
@@ -437,6 +516,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// every binding in silence.
   late final SettingsFile _settingsFile = SettingsFile(
     appName: 'racing',
+    defaultActions: driveActionMap,
     onIssue: (Issue reported) {
       printIssue(reported);
       _issue = reported.message;
@@ -445,31 +525,42 @@ class _RaceScreenState extends State<RaceScreen>
 
   /// The last thing that went wrong where a player could see it.
   String? _issue;
-  late final GameConfig _config;
-  late final SettingsCubit _settings;
+
+  /// The player's settings as they are now: replaced on every change, by
+  /// [_applyConfig].
+  late GameSettings _config;
+
+  /// The colour table for the player's colour vision. See
+  /// `ColorVisionLook`.
+  ColorVisionLook? _vision;
+  late final GameSettingsController _settings;
 
   /// What the player has already told the operating system.
   Accommodations _system = const Accommodations();
   late final DesktopInput _devices = DesktopInput(
     state: _input,
-    bindings: ownedBindings(_config, driveKeys),
+    // The player's map, or the game's own: the one map the keyboard, the
+    // pad and the settings screen hold.
+    actions: _config.actionsOr(_firstLaunchControls),
   );
+
+  /// What a first launch starts with: the keys alone, as before, because
+  /// [initState] adds the pad's half to any table that has none — a fresh
+  /// one and one saved before the pad existed alike.
+  static ActionMap _firstLaunchControls() =>
+      ActionMap(actions: driveActions, buttons: driveKeys());
 
   /// The controller, which this game did not read.
   ///
   /// **Everything it needs was already written.** `VehicleInput` has held a
   /// throttle, a brake and a steering angle as `double` since the genre package
-  /// existed, and `PadRoutes.driving` was written for a game that never asked
-  /// for it — so a wheel that is half over and a trigger that is a third down
+  /// existed, and the pad's driving bindings were written for a game that
+  /// never asked for them — so a wheel that is half over and a trigger that is a third down
   /// went to a game reading `held ? 1.0 : 0.0`.
   late final PadInput _pad = PadInput(
     state: _input,
-    // One table for both devices, because a player's bindings are one file.
-    bindings: _devices.bindings,
-    // The stick steers; the pedals are bound like the buttons they also are, so
-    // a player can move them. Which way the stick turns the car is not
-    // something anybody rebinds.
-    routes: PadRoutes.driving(steerLeft: Drive.left, steerRight: Drive.right),
+    // One map for both devices, because a player's bindings are one file.
+    actions: _devices.actions,
   )..applySettings(_config);
 
   /// `rp-01`/`rp-04`: this game's own `.f3drun` files, on disk. The dungeon's
@@ -477,16 +568,14 @@ class _RaceScreenState extends State<RaceScreen>
   /// `_endDemo` for the mechanism this repeats rather than reinvents.
   DemoFile? _demos;
 
-  /// Where the run being recorded started, and on which circuit.
-  Snapshot? _demoStart;
-  String? _demoCircuit;
-  String? _demoCircuitHash;
+  /// The circuit being written down: its start, the loop's input, journal
+  /// and event digests ([DemoRecording.attach]), its checkpoints and where
+  /// the cars were.
+  DemoRecording? _demo;
 
-  /// A checkpoint every so many steps, taken live while the run is recorded.
-  DigestTrace? _demoCheckpoints;
-
-  /// The demo's own recorder.
-  InputTapeRecorder? _demoRecorder;
+  /// The digest of the circuit raced now, kept past its recording for
+  /// [_remoteBugReport].
+  String? _circuitHash;
 
   /// Starts writing the circuit down, from the grid.
   ///
@@ -495,23 +584,35 @@ class _RaceScreenState extends State<RaceScreen>
   /// doc comment for why), so a circuit always begins here, once, right after
   /// [_loadCircuit] puts a simulation in [_simulation].
   void _beginDemo(String circuit, String circuitHash, RacingSimulation sim) {
-    final start = sim.save();
-    _demoStart = start;
-    _demoCircuit = circuit;
-    _demoCircuitHash = circuitHash;
-    _demoCheckpoints = DigestTrace();
     _endRecording();
-    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
-    _demoRecorder = recorder;
-    _loop.recorders.add(recorder);
+    _circuitHash = circuitHash;
+    final start = sim.save();
+    _demo = DemoRecording(
+      physics: usePhysics(),
+      level: circuit,
+      levelHash: circuitHash,
+      start: start,
+      seed: start.data.integer('random'),
+      simulation: racingSimulationVersion,
+      // Beside the tape, where each car was every few steps: what a build on
+      // another simulation still shows of the race.
+      bodies: () => <BodyPose>[
+        for (var i = 0; i < _cars.length; i++)
+          BodyPose(
+            'car#$i',
+            _cars[i].position,
+            Quaternion.fromRotation(_cars[i].visualBasis),
+          ),
+      ],
+    )..attach(_loop);
   }
 
-  /// Stops the demo's recorder.
-  InputTapeRecorder? _endRecording() {
-    final recorder = _demoRecorder;
-    if (recorder != null) _loop.recorders.remove(recorder);
-    _demoRecorder = null;
-    return recorder;
+  /// Stops the demo's recording.
+  DemoRecording? _endRecording() {
+    final demo = _demo;
+    demo?.detach();
+    _demo = null;
+    return demo;
   }
 
   /// Writes the circuit down once it is won.
@@ -523,39 +624,143 @@ class _RaceScreenState extends State<RaceScreen>
   /// circuit failed to load, both moments after this has already run or
   /// never started.
   void _endDemo() {
-    final recorder = _endRecording();
-    final start = _demoStart;
-    final circuit = _demoCircuit;
-    final circuitHash = _demoCircuitHash;
-    final checkpoints = _demoCheckpoints;
-    if (recorder == null ||
-        start == null ||
-        circuit == null ||
-        circuitHash == null ||
-        checkpoints == null) {
-      return;
-    }
-    _demos?.write(
-      Demo(
-        level: circuit,
-        levelHash: circuitHash,
-        start: start,
-        tape: recorder.tape,
-        buildStamp: _buildStamp,
-        checkpoints: checkpoints,
-        platform: defaultTargetPlatform.name,
-      ),
+    final recording = _endRecording();
+    if (recording == null) return;
+    final demo = recording.demo(
+      buildStamp: _buildStamp,
+      platform: defaultTargetPlatform.name,
     );
+    unawaited(_demos?.write(demo));
+    // To the server too, if the player said runs may go.
+    unawaited(_cloud.send(demo));
   }
 
-  /// The loop, rather than a bare `FixedStep`.
+  /// What the race's moments sound like: the countdown, a checkpoint, a lap
+  /// and a best lap — the player's, heard where the ears are.
+  ///
+  /// **Played by [_cueSounds] off the bus's frame channel**, once a frame
+  /// after the frame's steps: the frame `_listen` played them in. Every step
+  /// of the frame is heard now, where `_listen` read only the last step's
+  /// events and lost a chime that landed on the first of two.
+  ///
+  /// A lap that set the best is heard as the best alone. [LapCompleted]
+  /// comes before [BestLapSet] in the step, so the lap is only noted here
+  /// and `_listen` plays it, in the same frame, when no best came with it.
+  late final CueSheet _cues = CueSheet()
+    ..on<CountdownTicked>(
+      (CountdownTicked event, List<Heard> out) => out.add(
+        Heard(event.remaining > 0 ? Sounds.count : Sounds.go, _ears.position),
+      ),
+    )
+    ..on<CheckpointPassed>((CheckpointPassed event, List<Heard> out) {
+      if (event.isPlayer) out.add(Heard(Sounds.checkpoint, _ears.position));
+    })
+    ..on<LapCompleted>((LapCompleted event, List<Heard> out) {
+      if (event.isPlayer) _lapHeard = true;
+    })
+    ..on<BestLapSet>((BestLapSet event, List<Heard> out) {
+      if (!event.isPlayer) return;
+      _bestHeard = true;
+      out.add(Heard(Sounds.best, _ears.position));
+    })
+    ..on<Respawned>((Respawned event, List<Heard> out) {
+      if (event.isPlayer) _respawnHeard = true;
+    });
+
+  /// What [_cues] noted this frame, for `_listen` to act on.
+  bool _lapHeard = false;
+  bool _bestHeard = false;
+  bool _respawnHeard = false;
+
+  late final SoundtrackPlugin _cueSounds = SoundtrackPlugin(
+    _cues,
+    scene: () => _audio,
+  );
+
+  /// The race said to a screen reader: the count, the player's laps, a best
+  /// lap and the flag.
+  final SpokenEvents _spoken = SpokenEvents(<Spoken<BusEvent>>[
+    Spoken<CountdownTicked>(
+      (CountdownTicked event) =>
+          event.remaining > 0 ? '${event.remaining}' : 'Go.',
+    ),
+    Spoken<LapCompleted>(
+      (LapCompleted event) =>
+          event.isPlayer ? 'Lap ${event.racer.lap} done.' : null,
+    ),
+    Spoken<BestLapSet>(
+      (BestLapSet event) => event.isPlayer ? 'Best lap.' : null,
+    ),
+    Spoken<RacerFinished>(
+      (RacerFinished event) => event.isPlayer ? 'Finished.' : null,
+    ),
+  ]);
+
+  /// The genre, installed in [_loop]: it steps whichever race [_simulation]
+  /// holds, and puts the race's events on the loop's bus.
+  final RacingPlugin _racing = RacingPlugin();
+
+  /// The engine's loop, which owns the frame.
   ///
   /// **This game drove the clock itself and got none of the loop's services**:
   /// no pause, no `beginStep`/`endStep` around a step — so `InputState.pressed`
   /// never worked here at all — and no reading of the simulated time the clock
   /// refused to run.
-  late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep)
-    ..recorders.add(_rewind.recorder);
+  ///
+  /// A step runs, by phase, exactly what `_driveOneStep` ran in one call, in
+  /// the same order, so a tape and a ghost recorded before replay to the bit:
+  ///
+  /// * `input` — `racing_app.drive`: the player's keys, the pit stop, the
+  ///   rivals' AI (the rewind's keyframes are the loop's own captures, taken
+  ///   by the buffer attached to it);
+  /// * `physics` — `racing.step`, the plugin's: the race's own step;
+  /// * `publish` — `racing_app.read`: the demo's checkpoint, the drain, the
+  ///   wrecks, the cars' interpolation, the ghost, what the step showed and
+  ///   sounded, and the flag.
+  ///
+  /// The frame's work after the steps runs in the frame phases, in the order
+  /// `_onTick` ran it: the clocks and the particles in `animate`; in `camera`
+  /// the cars and the camera placed, then the water and the wrecks from that
+  /// eye, then what the step said heard from the ears placed with it.
+  late final EngineLoop _loop = _buildLoop();
+
+  EngineLoop _buildLoop() {
+    final loop = EngineLoop(
+      input: _input,
+      plugins: <Flutter3dPlugin>[_racing, _cueSounds, _spoken],
+      registries: <PluginRegistry>[EntityKinds()],
+    );
+    // The last ten seconds, kept as the loop's own captures.
+    _rewind.attach(loop);
+    // What the step said, read once at its end: see [_stepEnded].
+    loop.onStepEnd(_stepEnded);
+    loop
+      ..addSystem('racing_app.drive', LoopPhase.input, _beforeStep)
+      ..addSystem('racing_app.read', LoopPhase.publish, _afterStep)
+      ..addSystem('racing_app.clocks', LoopPhase.animate, _clocks)
+      ..addSystem(
+        'racing_app.particles',
+        LoopPhase.animate,
+        (LoopContext frame) => _particles.advance(frame.dt),
+        after: <String>['racing_app.clocks'],
+      )
+      ..addSystem(
+        'racing_app.place',
+        LoopPhase.camera,
+        (LoopContext frame) => _place(frame.realDt),
+      )
+      ..addSystem(
+        'racing_app.elements',
+        LoopPhase.camera,
+        _elementsFrame,
+        after: <String>['racing_app.place'],
+      )
+      ..addSystem('racing_app.listen', LoopPhase.camera, (LoopContext frame) {
+        final race = _race;
+        if (race != null) _listen(race);
+      }, after: <String>['racing_app.elements']);
+    return loop;
+  }
 
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
@@ -569,7 +774,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// that refuses to start because there is no sound card is worse than a quiet
   /// one, which is why every use of this is behind a null check rather than a
   /// try.
-  SoLoudBackend? _speakers;
+  AudioBackend? _speakers;
 
   /// Silent until the device opens, and the **mixer survives the swap**: the
   /// settings panel turns volumes before there is a sound card, and a mixer
@@ -597,13 +802,25 @@ class _RaceScreenState extends State<RaceScreen>
   void initState() {
     // Settings before devices: the bindings a player saved are the ones the
     // keyboard should read from the first key press, not from the first rebind.
-    _config = _settingsFile.read();
+    _config = widget.config ?? const GameSettings();
+    _issue = widget.configIssue;
     // A config saved before this game read a controller has no `pad:` in it,
     // and nobody should have to delete their settings to plug one in. The
     // rebindings they did make are left alone.
-    if (!PadInput.knowsPad(_devices.bindings)) padBindings(_devices.bindings);
-    _settings = SettingsCubit(
-      config: _config,
+    if (!PadInput.knowsPad(_devices.actions)) {
+      padBindings(_devices.actions.buttons);
+    }
+    // The stick steers through the steering's two halves, bound as buttons
+    // with a magnitude, so a half-over stick steers half; a map saved before
+    // the stick was a binding gains it here.
+    PadInput.addDrivingDefaultsTo(
+      _devices.actions,
+      steerLeft: Drive.left,
+      steerRight: Drive.right,
+    );
+    _settings = GameSettingsController(
+      settings: _config,
+      actions: _devices.actions,
       file: _settingsFile,
       apply: _applyConfig,
     );
@@ -621,7 +838,7 @@ class _RaceScreenState extends State<RaceScreen>
 
   @override
   void dispose() {
-    unawaited(_settings.close());
+    _settings.dispose();
     // Closed like [_settings], and the cubit unhooks itself from the season's
     // progress first — see `RaceCubit.close` for why the order matters.
     unawaited(_raceCubit.close());
@@ -636,6 +853,7 @@ class _RaceScreenState extends State<RaceScreen>
     for (final voice in _voices) {
       voice.stop();
     }
+    _elements?.dispose();
     unawaited(_speakers?.dispose());
     _hudPanel?.dispose();
     _hudReading.dispose();
@@ -643,7 +861,8 @@ class _RaceScreenState extends State<RaceScreen>
   }
 
   /// Puts the config onto everything that is playing.
-  void _applyConfig(GameConfig config) {
+  void _applyConfig(GameSettings config) {
+    _config = config;
     applySavedVolumes(config, _audio.mixer);
     _applyAccessibility();
   }
@@ -655,10 +874,9 @@ class _RaceScreenState extends State<RaceScreen>
   /// turned reduce-motion on has said something about exactly that, and this
   /// game was not listening.
   void _applyAccessibility() {
-    _chase?.motion = _config.settingOf(
-      'a11y.cameraMotion',
-      _system.cameraMotion,
-    );
+    _chase?.motion =
+        _config.chosenValueOf(GameSettingKeys.cameraMotion) ??
+        _system.cameraMotion;
   }
 
   Future<void> _open() async {
@@ -671,6 +889,7 @@ class _RaceScreenState extends State<RaceScreen>
     }
     if (!mounted) return;
     _device = device;
+    _vision = ColorVisionLook(device);
 
     setState(() {
       try {
@@ -681,7 +900,8 @@ class _RaceScreenState extends State<RaceScreen>
     });
     if (_renderer == null) return;
 
-    _renderer?.addContributor(ParticleContributor(_particles));
+    _renderer?.renderSteps.addContributor(ParticleContributor(_particles));
+    if (!mounted) return;
 
     // The ticker before the circuit, not after. Drawing has to start at once —
     // see [_scene] — and there is nothing to step until the circuit is read, so
@@ -691,6 +911,8 @@ class _RaceScreenState extends State<RaceScreen>
     // `rp-02`: harmless where the VM service is off — `registerExtension`
     // just adds an entry nothing ever asks for.
     registerTimelineExtensions(_timeline, bugReport: _remoteBugReport);
+    // `P12`: the frame this game draws, pass by pass and draw by draw.
+    registerRenderExtensions(() => _renderer);
     await _loadCircuit(device);
   }
 
@@ -705,17 +927,22 @@ class _RaceScreenState extends State<RaceScreen>
     // this game's own comment used to: a plugin added to an already built
     // application does not bring its native framework with it, and the only
     // symptom is one line about native assets and then silence.
-    final speakers = await openSpeakers(
-      bank: Sounds.all,
-      mixer: _audio.mixer,
-      maxVoices: 24,
-    );
-    if (speakers == null) return;
+    final Speakers speakers;
+    try {
+      speakers = await openSpeakers(
+        // The game's own sounds and the water's and the fires'.
+        bank: SoundBank(<SoundDef>[...Sounds.all, ...ElementSounds.all]),
+        mixer: _audio.mixer,
+        maxVoices: 32,
+      );
+    } on AudioDeviceException {
+      return;
+    }
     if (!mounted) {
       // The screen is gone and `dispose` has already run past `_speakers`, so
       // the backend has to go down here — its own doc warns that an engine
       // left initialized blocks a later open().
-      unawaited(speakers.backend.dispose());
+      unawaited(speakers.dispose());
       return;
     }
 
@@ -763,6 +990,7 @@ class _RaceScreenState extends State<RaceScreen>
       final loaded = await const LevelLoader().load(
         _circuit.level,
         device: device,
+        physics: usePhysics(),
         // This circuit places no entities — the scenery is brushes — so the
         // registry is empty rather than absent: the loader validates against
         // it, and an empty one is the statement that nothing is expected.
@@ -783,6 +1011,8 @@ class _RaceScreenState extends State<RaceScreen>
       );
       final track = staged.track;
       final scene = loaded.scene;
+      // Dirt and sparks fall by the race's world, as the cars do.
+      _particles.world = loaded.collision.properties;
       addTrackTo(scene, track, device: device);
       // Sheds and signs. The faces are widgets, drawn here rather than shipped
       // as images — one round trip each, before the first frame, and none
@@ -817,7 +1047,11 @@ class _RaceScreenState extends State<RaceScreen>
           child: Transform.flip(
             flipX: true,
             flipY: true,
-            child: StereoHud(reading: _hudReading, issueOf: () => _issue),
+            child: StereoHudPanel<RaceReadout>(
+              reading: _hudReading,
+              builder: (context, readout) =>
+                  RaceHud(readout: readout, issue: _issue),
+            ),
           ),
         )..setPosition(Vector3(0.0, -0.28, -1.1));
         rig.stage.add(panel.node);
@@ -841,16 +1075,15 @@ class _RaceScreenState extends State<RaceScreen>
           scene.add(node);
           _carLift.add(liftFor(_cars[i]));
         } else {
-          // The player alone keeps the asset's own materials. Rivals ask for
-          // copies, because [Looks.paint] writes a colour into them and shared
-          // materials would paint the whole field — the player's car included —
-          // whatever colour the last rival happened to wear.
+          // Every car asks for copies, because [Looks.paint] writes a colour
+          // into them and shared materials would paint the whole field
+          // whatever colour the last car happened to wear.
           final instance = asset.instantiate(
             scene,
             name: i == 0 ? 'player' : 'rival-$i',
-            shareMaterials: i == 0,
+            shareMaterials: false,
           );
-          if (i != 0) Looks.paint(instance.meshes, Looks.carPaint(i));
+          Looks.paint(instance.meshes, Looks.carPaint(i));
           // `instantiate` has already put it in the scene.
           node = instance.root;
           // Put the model's lowest point on the road: the sphere's centre is a
@@ -865,7 +1098,7 @@ class _RaceScreenState extends State<RaceScreen>
           // is a view of the circuit per car per frame, and nobody looks at a
           // rival's door closely enough to pay for it.
           if (i == 0 && kPlayerProbe) {
-            final centre = (asset.localBounds.min + asset.localBounds.max)
+            final center = (asset.localBounds.min + asset.localBounds.max)
               ..scale(0.5);
             final probe = ReflectionProbeNode(
               name: 'player probe',
@@ -877,7 +1110,7 @@ class _RaceScreenState extends State<RaceScreen>
               // wheel arch a few centimetres from the probe does not fill a
               // face either.
               near: 0.5,
-            )..setPosition(centre.x, centre.y, centre.z);
+            )..setPosition(center.x, center.y, center.z);
             probe.excluded.addAll(instance.meshes);
             node.add(probe);
           }
@@ -889,8 +1122,25 @@ class _RaceScreenState extends State<RaceScreen>
         _carDraw.add(InterpolatedVector3(initial: _cars[i].position));
       }
 
-      _ghosts = _keeperFor(_circuit)..load();
-      _ghostCar = GhostCar.build(device, scene, model: asset);
+      final ghosts = _keeperFor(_circuit);
+      _ghosts = ghosts;
+      // Read in the background: the ghost appears once the lap is on hand.
+      unawaited(ghosts.load());
+      // The water and the fires, once the scene and the cars are there.
+      final renderer = _renderer;
+      if (renderer != null) {
+        _elements = await TrackElements.open(
+          device: device,
+          scene: scene,
+          renderer: renderer,
+          track: track,
+          cars: staged.cars,
+          sky: document.sky,
+          load: rootBundle.load,
+          light: _handheld,
+        );
+      }
+      _ghostCar = carGhost(device, scene, model: asset);
 
       {
         for (final car in _cars) {
@@ -901,7 +1151,9 @@ class _RaceScreenState extends State<RaceScreen>
       // The one light in the level was written from this same preset by the
       // generator, so the sun the shadows fall from and the sun the sky glows
       // around are the same sun by construction rather than by agreement.
-      scene.ambientIntensity = document.sky.ambientIntensity;
+      // The sky document's number is in the engine's old unit; lux here.
+      scene.ambientIntensity =
+          document.sky.ambientIntensity * Photometric.legacyUnit;
 
       // **The circuit reflects the sky it is raced under, and costs nothing to
       // do it.** A sky is already a function from direction to colour, which is
@@ -916,8 +1168,9 @@ class _RaceScreenState extends State<RaceScreen>
       // Built here, once per circuit, because it is a convolution over six
       // faces and belongs at a load rather than in a frame.
       _sky = document.sky;
-      final environment = EnvironmentMap.fromSky(device, _skySettings());
-      if (environment != null) {
+      _sunlight(scene);
+      if (EnvironmentMap.isSupportedOn(device)) {
+        final environment = EnvironmentMap.fromSky(device, _skySettings());
         scene
           ..environment = environment.texture
           ..environmentLevels = environment.levels;
@@ -930,6 +1183,8 @@ class _RaceScreenState extends State<RaceScreen>
         _race = staged.race;
         _outline = trackOutline(track);
         _simulation = staged.sim;
+        // Stepped by the plugin from the next step on.
+        _racing.simulation = staged.sim;
         _chase = staged.chase;
         _ai = staged.ai;
       });
@@ -1032,6 +1287,8 @@ class _RaceScreenState extends State<RaceScreen>
       voice.stop();
     }
     _voices.clear();
+    _elements?.dispose();
+    _elements = null;
     _cars.clear();
     _carNodes.clear();
     _carLift.clear();
@@ -1052,6 +1309,7 @@ class _RaceScreenState extends State<RaceScreen>
       _scene = Scene()..add(_stage);
       _race = null;
       _simulation = null;
+      _racing.simulation = null;
       _track = null;
       _chase = null;
       _ai = null;
@@ -1099,7 +1357,7 @@ class _RaceScreenState extends State<RaceScreen>
     final race = _race;
     if (_simulation == null || race == null) return;
 
-    _loop.paused = shouldPause(
+    _loop.isPaused = shouldPause(
       ready: _simulation != null,
       // The title card counts as a menu, and for the same reason `shouldPause`
       // gives that clause: it is a screen over the game and the clearest
@@ -1107,63 +1365,136 @@ class _RaceScreenState extends State<RaceScreen>
       // rivals leave the grid behind a card the player has not put down — see
       // [TitleCard], where that is the first of the three reasons this game
       // waits rather than running underneath.
-      menuOpen: _settings.state.isOpen || !_started,
+      menuOpen: _settings.value.isOpen || !_started,
       // This game never captures the pointer — it is driven from the keyboard —
       // so the pointer is not the gate here and saying otherwise would freeze
       // it on every desktop build.
       pointerIsTheGate: false,
       pointerHeld: false,
       padConnected: _pad.isConnected,
+      photoMode: _photo.isActive,
     );
-    _loop.advance(dt);
+    // The steps, then the frame's phases: see [_loop].
+    _loop.frame(dt);
     _pace.note(
-      dropped: _loop.clock.droppedSteps,
+      dropped: _loop.lostSteps,
       dt: dt,
-      stepSeconds: _loop.clock.stepSeconds,
+      stepSeconds: _loop.stepSeconds,
     );
+    // Not while a photo is drawn: a rebuild draws a frame on the renderer the
+    // tiles are drawn on — see `capturePhoto`.
+    if (!_photo.isBusy) setState(() {});
+  }
 
+  /// The screen's own clocks: the celebration, the refusal, the respawn
+  /// notice. Wall time, as a notice is read.
+  void _clocks(LoopContext frame) {
+    final dt = frame.realDt;
     if (_celebrateFor > 0.0) {
       _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
     }
     if (_refusedFor > 0.0) _refusedFor = (_refusedFor - dt).clamp(0.0, 2.0);
     if (_respawnFor > 0.0) _respawnFor = (_respawnFor - dt).clamp(0.0, 2.0);
-
-    // **What the loop accepted, not what the clock said.** A frame longer than
-    // the loop's own limit is a window that was dragged or a laptop that was
-    // shut; the simulation refuses it, and anything drawn beside the simulation
-    // has to refuse the same amount or it ends up showing a world that has not
-    // happened yet.
-    _particles.advance(_loop.lastFrame);
-    _place(dt);
-    _listen(race);
-    setState(() {});
   }
 
-  /// One step of the race. Called by the loop, once per fixed step.
-  void _driveOneStep(double stepSeconds) {
+  /// The water and the wrecks for this frame.
+  ///
+  /// **What the loop accepted, not what the clock said** — the frame's `dt`.
+  /// A frame longer than the loop's own limit is a window that was dragged or
+  /// a laptop that was shut; the simulation refuses it, and anything drawn
+  /// beside the simulation has to refuse the same amount or it ends up
+  /// showing a world that has not happened yet. After the camera has been
+  /// placed, so the water's ripples fade with distance from where the eye is
+  /// this frame.
+  void _elementsFrame(LoopContext frame) {
+    final chase = _chase;
+    final race = _race;
+    if (chase == null || race == null) return;
+    _elements?.frame(frame.dt, eye: chase.eye, progress: race.progress);
+  }
+
+  /// Opens photo mode where the chase camera is, or closes it.
+  void _togglePhoto() {
+    if (_photo.isActive) {
+      setState(_photo.leave);
+      return;
+    }
+    final chase = _chase;
+    final simulation = _simulation;
+    if (chase == null || simulation == null || _cars.isEmpty) return;
+    // The keys the car was holding are let go, as the settings let them go:
+    // otherwise it comes back out of the picture still accelerating.
+    _input.clear();
+    setState(
+      () => _photo.enter(
+        world: simulation.collision,
+        eye: chase.eye,
+        target: chase.target,
+        anchor: _cars[0].position,
+        lens: _lens.copyWith(fovY: chase.fovY),
+      ),
+    );
+  }
+
+  /// Draws the photo at [scale] times the window and saves it.
+  Future<void> _takePhoto(int scale) async {
+    final renderer = _renderer;
+    if (renderer == null || _photo.isBusy) return;
+    final size =
+        MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
+    setState(() => _photo.isBusy = true);
+    // The frame saying so is drawn first; after it nothing redraws until the
+    // picture is done.
+    await SchedulerBinding.instance.endOfFrame;
+    final taken = await savePhoto(
+      renderer: renderer,
+      scene: _scene,
+      camera: _camera,
+      width: (size.width * scale).round(),
+      height: (size.height * scale).round(),
+      settings: _raceSettings(),
+      filter: _photo.filter,
+      clearColorSrgb: _view.clearColorSrgb,
+      shelf: defaultPhotoShelf('racing'),
+      name: 'racing-${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    if (!mounted) return;
+    setState(() {
+      _photo
+        ..isBusy = false
+        ..said = taken.saved.message;
+    });
+  }
+
+  /// What the screen draws with: [_raceSettings], and in photo mode the
+  /// chosen filter over the race's own look.
+  RenderSettings _shownSettings() {
+    final race = _raceSettings();
+    return _photo.isActive ? race.copyWith(look: _photo.look(race.look)) : race;
+  }
+
+  /// The step's first half, in the `input` phase: who asks for what, before
+  /// [RacingPlugin] steps the race in `physics`.
+  void _beforeStep(LoopContext step) {
     final simulation = _simulation;
     final race = _race;
     if (simulation == null || race == null) return;
     _readDriver(simulation);
     _readPitStop();
     _driveTheRest(simulation, race);
-    // Before the step, so the keyframe is the state this step's recorded
-    // entry acts on — the moment `RewindBuffer` and the loop agree about.
-    if (_rewind.keyframeDue) _rewind.keyframe(simulation.save());
-    simulation.step(stepSeconds);
-    final demoRecorder = _demoRecorder;
-    if (demoRecorder != null) {
-      _demoCheckpoints?.observe(
-        demoRecorder.tape.steps,
-        simulation.save().toJson(),
-      );
-    }
-    // Drained once, here, and kept for the frame. `_listen` runs before the
-    // step and so reads the step before it — which is exactly what the
-    // per-step flags it replaces did, since those were cleared at the top of
-    // `step`. Draining anywhere else would give one reader half of what
-    // happened and the other reader the rest.
-    _lastStep = simulation.events.drain();
+  }
+
+  /// The step's second half, in the `publish` phase: what the race the
+  /// plugin just stepped did, read once.
+  void _afterStep(LoopContext step) {
+    final simulation = _simulation;
+    final race = _race;
+    if (simulation == null || race == null) return;
+    final stepSeconds = step.dt;
+    _demo?.observe(simulation.save);
+    // Whether a car was struck hard enough to leave a wreck: read after the
+    // step, which is the only moment the blow is there to read.
+    _elements?.stepped(stepSeconds);
 
     // Where the step left each car, kept beside where the step before left it,
     // so the frames drawn between the two have something to blend. Here rather
@@ -1174,6 +1505,25 @@ class _RaceScreenState extends State<RaceScreen>
       _carDraw[i].push(_cars[i].position);
     }
 
+    // What this step looks like, decided by something a test can call and
+    // performed here. Per car: a rival locking up in front is as worth seeing
+    // as the player doing it.
+    final reaction = _reactions.listen(race, _cars)..showIn(_particles);
+    // Here rather than in `_listen`, which reads flags once a frame: a bump is
+    // an event and not a state, and it has to sound at the moment its sparks
+    // are thrown or it arrives after the car has bounced off.
+    for (final heard in reaction.heard) {
+      _audio.play(heard.sound, heard.at);
+    }
+  }
+
+  /// The step's end, after the step channel has handed out what the race
+  /// published: the events of the step as a whole, which the `publish` phase
+  /// is too early to read — they are delivered once every phase has run.
+  void _stepEnded(StepEventSummary summary) {
+    final race = _race;
+    if (_simulation == null || race == null) return;
+    final events = summary.events.whereType<GameEvent>().toList();
     // Recorded always, not only when the lap is going to be a good one:
     // whether it was the best is knowable when it ends, and by then it is too
     // late to have been writing it down. **Against the record, not against the
@@ -1182,27 +1532,13 @@ class _RaceScreenState extends State<RaceScreen>
     // definition, and it used to take the place of a record that stood from
     // another evening. The keeper compares against the disk now, and says when
     // the disk changed.
-    final lapped = _lastStep.whereType<LapCompleted>().any(
+    final lapped = events.whereType<LapCompleted>().any(
       (LapCompleted event) => event.isPlayer,
     );
     if (_ghosts.stepped(race.progress[0], _cars[0], lapped)) {
       _celebrateFor = 4.0;
     }
-
-    // What this step looks like, decided by something a test can call and
-    // performed here. Per car: a rival locking up in front is as worth seeing
-    // as the player doing it.
-    final reaction = _reactions.listen(race, _cars);
-    for (final shown in reaction.bursts) {
-      _particles.burst(shown.effect, shown.at, direction: shown.direction);
-    }
-    // Here rather than in `_listen`, which reads flags once a frame: a bump is
-    // an event and not a state, and it has to sound at the moment its sparks
-    // are thrown or it arrives after the car has bounced off.
-    for (final heard in reaction.heard) {
-      _audio.play(heard.sound, heard.at);
-    }
-    if (_lastStep.whereType<RacerFinished>().any(
+    if (events.whereType<RacerFinished>().any(
       (RacerFinished event) => event.isPlayer,
     )) {
       _finishedHere();
@@ -1249,9 +1585,9 @@ class _RaceScreenState extends State<RaceScreen>
   /// gets tyres. A driver who wants the set they are already on presses it
   /// three times, which is free while standing still.
   void _readPitStop() {
-    if (!_input.pressed(Drive.tyres)) return;
+    if (!_input.pressed(Drive.tireSet)) return;
     final car = _cars[0];
-    if (car.pitStop(Tyres.after(car.tyres))) {
+    if (car.pitStop(TireSet.after(car.tireSet))) {
       _audio.play(Sounds.checkpoint, _ears.position);
       _refusedFor = 0.0;
     } else {
@@ -1319,9 +1655,9 @@ class _RaceScreenState extends State<RaceScreen>
     final tape = _ghosts.best;
     final race = _race;
     if (tape != null && race != null) {
-      _ghostCar?.showAt(race.progress[0].lapTime, tape, _carLift[0]);
+      _ghostCar?.showAt(race.progress[0].lapTime, tape, lift: _carLift[0]);
     } else {
-      _ghostCar?.node.visible = false;
+      _ghostCar?.node.isVisible = false;
     }
 
     final chase = _chase;
@@ -1331,21 +1667,32 @@ class _RaceScreenState extends State<RaceScreen>
       ..setPositionFrom(chase.eye)
       ..lookAt(chase.target);
     // `StereoRig` reads its own field of view from `StereoSurface`'s own
-    // `verticalFieldOfView` every frame (`fitToViewport`, called from
-    // `build()`) — `chase.fov` reaches it there instead of through
+    // `fovY` every frame (`fitToViewport`, called from
+    // `build()`) — `chase.fovY` reaches it there instead of through
     // `.projection`, which only [_camera] itself has.
     if (_rig == null) {
-      _camera.projection = _lens.copyWith(fovYRadians: chase.fov);
+      _camera.projection = _lens.copyWith(fovY: chase.fovY);
+    }
+    // In photo mode the chase camera still follows the stopped car, and the
+    // photo camera is put on the node after it.
+    if (_photo.isActive) {
+      _photo
+        ..fly(dt)
+        ..applyTo(_camera);
     }
 
     // The sky, once a frame, from where the camera ended up. The engine's fog
     // is one colour with no idea of direction; giving it the colour of the air
     // *along this view* is what stops distance being the same grey whichever
     // way the car is pointing.
-    _gaze
-      ..setFrom(chase.target)
-      ..sub(chase.eye);
-    _view.clearColor = _skyColour();
+    if (_photo.gaze case final photographed?) {
+      _gaze.setFrom(photographed);
+    } else {
+      _gaze
+        ..setFrom(chase.target)
+        ..sub(chase.eye);
+    }
+    _view.clearColorSrgb = _skyColour();
 
     // `ls-x-02`'s own HUD panel — read and redrawn only when it exists
     // (flat mode never builds one) and only once a race is actually up to
@@ -1360,34 +1707,17 @@ class _RaceScreenState extends State<RaceScreen>
   ///
   /// Read from the same flags the display reads, once, after the steps: a sound
   /// played from inside a step is a sound played several times on a slow frame.
-  /// What the last simulated step reported. See where it is drained.
-  List<GameEvent> _lastStep = const <GameEvent>[];
-
   void _listen(RaceState race) {
     for (var i = 0; i < _voices.length && i < race.progress.length; i++) {
       _voices[i].update(offRoad: race.progress[i].offRoad);
     }
 
-    // A best lap and the lap it was are two events now, so the "best instead
-    // of lap" choice is made here rather than by an else.
-    final best = _lastStep.whereType<BestLapSet>().any((e) => e.isPlayer);
-    for (final GameEvent event in _lastStep) {
-      switch (event) {
-        case CountdownTicked():
-          _audio.play(
-            event.remaining > 0 ? Sounds.count : Sounds.go,
-            _ears.position,
-          );
-        case BestLapSet(isPlayer: true):
-          _audio.play(Sounds.best, _ears.position);
-        case LapCompleted(isPlayer: true) when !best:
-          _audio.play(Sounds.lap, _ears.position);
-        case CheckpointPassed(isPlayer: true):
-          _audio.play(Sounds.checkpoint, _ears.position);
-        case Respawned(isPlayer: true):
-          _respawnFor = 2.0;
-      }
-    }
+    // The rest of the race's moments were played off the bus before this
+    // frame's phases ([_cues]). A best lap and the lap it was are two events,
+    // so the "best instead of lap" choice is made here, once both are heard.
+    if (_lapHeard && !_bestHeard) _audio.play(Sounds.lap, _ears.position);
+    if (_respawnHeard) _respawnFor = 2.0;
+    _lapHeard = _bestHeard = _respawnHeard = false;
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
     // an angle as a first-person camera's, and a chase camera is not one.
@@ -1395,6 +1725,7 @@ class _RaceScreenState extends State<RaceScreen>
     if (chase != null) {
       _ears.aimAlong(chase.eye, chase.target - chase.eye);
     }
+    _elements?.hear(_audio, _loop.lastFrame);
     _audio.update(_ears);
   }
 
@@ -1402,8 +1733,8 @@ class _RaceScreenState extends State<RaceScreen>
     final race = _race!;
     final player = race.progress[0];
     return RaceReadout(
-      behind: _pace.behind,
-      paused: _settings.state.isOpen,
+      behind: _pace.isBehind,
+      paused: _settings.value.isOpen,
       notice: _notice,
       speed: _cars[0].speed,
       lap: player.lap,
@@ -1414,7 +1745,7 @@ class _RaceScreenState extends State<RaceScreen>
       bestLap: player.bestLap,
       record: _ghosts.record,
       recordJustSet: _celebrateFor > 0.0,
-      tyres: _cars[0].tyres.name,
+      tireSet: _cars[0].tireSet.name,
       tyresRefused: _refusedFor > 0.0,
       damage: _cars[0].damage,
       wrongWay: player.wrongWay,
@@ -1476,6 +1807,29 @@ class _RaceScreenState extends State<RaceScreen>
           // three clauses go in is `settingsKeys`; what is this game's is the
           // opening itself: the keys the car was holding are let go, or it
           // comes back accelerating into a wall.
+          // Photo mode before the settings: Escape there means "back to the
+          // race", and the panel would take it as "open me". Not over the
+          // title card, where there is no race to stop, and not in the
+          // headset, which has no window to take a picture the size of.
+          if (event is KeyDownEvent &&
+              _started &&
+              _rig == null &&
+              !_settings.value.isOpen &&
+              !_photo.isBusy &&
+              (event.logicalKey == LogicalKeyboardKey.keyP ||
+                  (_photo.isActive &&
+                      event.logicalKey == LogicalKeyboardKey.escape))) {
+            _togglePhoto();
+            return KeyEventResult.handled;
+          }
+          final photoSays = _photo.key(
+            event,
+            onCapture: (int scale) => unawaited(_takePhoto(scale)),
+          );
+          if (photoSays != null) {
+            setState(() {});
+            return photoSays;
+          }
           final settingsSay = settingsKeys(
             event,
             _settings,
@@ -1520,7 +1874,7 @@ class _RaceScreenState extends State<RaceScreen>
                 // reads well through a headset is unmeasured, the same
                 // "unverified against glass" line `LessonStereoView`'s own
                 // doc comment already draws for its lens numbers.
-                verticalFieldOfView: _chase?.fov ?? _lens.fovYRadians,
+                fovY: _chase?.fovY ?? _lens.fovY,
                 onBeforeFrame: () {},
                 settings: () => _raceSettings().forStereo(),
               )
@@ -1530,7 +1884,7 @@ class _RaceScreenState extends State<RaceScreen>
                 scene: scene,
                 view: _view,
                 onBeforeFrame: () {},
-                settings: _raceSettings,
+                settings: _shownSettings,
                 presentFrame: presentFrame,
               ),
             // A platform view takes the pointer events over it, so the click
@@ -1550,18 +1904,21 @@ class _RaceScreenState extends State<RaceScreen>
             ),
             // Not behind the title card: the lap counter and the speedometer
             // showed through it, counting a race the player has not started.
-            if (_race != null && _started)
+            // Not in photo mode either: the picture is the circuit, and the
+            // bar is all that is over it.
+            if (_race != null && _started && !_photo.isActive)
               RaceHud(readout: _readout(), issue: _issue),
+            if (_photo.isActive) PhotoBar(mode: _photo),
             // A phone has no keyboard and this game had nothing else to offer
             // it: the wheel and the pedals, above the frame and below the
             // panel. Hidden while the settings are open, or a thumb reaching
             // for a slider holds the throttle down behind it — and hidden
             // behind the title card, where a thumb on the throttle would be
             // holding it down through the lights.
-            if (Playing.touch &&
+            if (_playing.touch &&
                 _race != null &&
                 _started &&
-                !_settings.state.isOpen)
+                !_settings.value.isOpen)
               TouchDrive(
                 state: _input,
                 steerLeft: Drive.left,
@@ -1571,8 +1928,8 @@ class _RaceScreenState extends State<RaceScreen>
                 handbrake: Drive.handbrake,
                 // The HUD tells a driver to stop first and then change; on a
                 // phone there was nothing bound to the second half of that
-                // sentence. See [TouchDrive.pitStop].
-                pitStop: Drive.tyres,
+                // sentence. See [TouchDrive.corner].
+                corner: const TouchAction(Drive.tireSet, 'pit'),
               ),
             // **This was a caption over a race that never stopped.** The last
             // circuit keeps running after the flag — nothing calls `moveOn`
@@ -1585,22 +1942,22 @@ class _RaceScreenState extends State<RaceScreen>
                 circuits: _raceCubit.season.circuits,
                 laps: _raceCubit.season.laps,
                 bestLap: _raceCubit.season.bestLap,
-                touch: Playing.touch,
+                touch: _playing.touch,
               ),
             // Over the ending in turn, and only once the season is done: R is
             // what a keyboard presses here and a handset has none.
-            if (Playing.touch && _seasonIsOver && !_settings.state.isOpen)
+            if (_playing.touch && _seasonIsOver && !_settings.value.isOpen)
               TapToRestart(
                 onRestart: () => unawaited(_startOver()),
                 label: 'Tap to race the season again',
               ),
             if (!_started)
               TitleCard(
-                prompt: Playing.touch
+                prompt: _playing.touch
                     ? 'Touch to start the season.'
                     : 'Press any key to start the season, or a button on the '
                           'pad.',
-                touch: Playing.touch,
+                touch: _playing.touch,
                 // The card's own, because the start layer above cannot see a
                 // touch that lands on it — see [TitleCard.onBegin]. Without
                 // this a handset read "touch to start the season" and had
@@ -1635,27 +1992,27 @@ class _RaceScreenState extends State<RaceScreen>
               ),
             SettingsOverlay(
               settings: _settings,
-              mixer: _audio.mixer,
-              // Only the sliders this game's own sounds can be heard through.
-              // `busesIn` reads the bank, so a soundtrack arriving one day brings
-              // its slider with it and nobody has to remember.
-              buses: busesIn(Sounds.all),
-              bindings: _devices.bindings,
-              config: _config,
-              // Asked, not assumed. This said `false` while the same widget in
-              // the other two games asked the pad — so a driver with a
-              // controller plugged in read "Gamepad (none connected)" over the
-              // sliders that set its dead zone.
-              padConnected: _pad.isConnected,
-              actions: rebindableActions,
-              defaultBindings: driveKeys,
+              sections: SettingsSection.standard(
+                // Only the sliders this game's own sounds can be heard
+                // through. `busesIn` reads the bank, so a soundtrack arriving
+                // one day brings its slider with it.
+                buses: busesIn(Sounds.all),
+                // Asked, not assumed: a driver with a controller plugged in
+                // read "Gamepad (none connected)" over the sliders that set
+                // its dead zone while this said `false`.
+                padConnected: _pad.isConnected,
+                // The map's section, and its reset puts the pad back as
+                // well: `driveKeys` alone left a controller unbound.
+                defaultActions: driveActionMap,
+                // What the game ships that somebody else made, here as well
+                // as on the title card: an attribution licence asks for it
+                // wherever the work appears.
+                credits: CreditsSection(credits: credits.models),
+                // A season kept on this device, and sending races: both
+                // asked, both off until answered.
+                privacy: _cloud.consents,
+              ),
               opening: _input.clear,
-              // **The licence asks for this and the game did not do it.** The
-              // car is CC BY 4.0, whose text says attribution must appear
-              // wherever the work does. Kept here as well as on the title
-              // card, which is where it now primarily lives: a gear most
-              // players never open was the wrong and only home for it.
-              credits: const CreditsSection(credits: Credits.models),
               // Not over the title card, which carries the same credits and is
               // the one screen a stray gear has nothing to add to.
               canOpen: _started,

@@ -62,7 +62,7 @@ Vector3 _at(Vector3 target) => (target - _eye).normalized();
 /// cent proud of it — written here rather than reached through a device.
 List<GizmoBar> _barsAround(Editing editing) => gizmoBarsAround(
   editing.where!,
-  (editing.brush?.size ?? Vector3.all(kGizmoSize)) * 1.06,
+  (editing.brush?.size ?? Vector3.all(gizmoSize)) * 1.06,
 );
 
 /// How many steps deep the history is, found the only way it can be asked:
@@ -95,14 +95,14 @@ void main() {
       drag.moveTo(editing, _eye, _at(drag.grabbed + Vector3(x, 0.0, 0.0)));
     }
     expect(
-      editing.level.brushes[0].centre.x,
+      editing.level.brushes[0].center.x,
       closeTo(1.5, 1e-9),
       reason: 'the brush follows the pointer, snapped to the quarter metre',
     );
-    expect(editing.level.brushes[0].centre.y, 0.0);
-    expect(editing.level.brushes[0].centre.z, 0.0);
+    expect(editing.level.brushes[0].center.y, 0.0);
+    expect(editing.level.brushes[0].center.z, 0.0);
     expect(
-      editing.level.brushes[1].centre.x,
+      editing.level.brushes[1].center.x,
       8.0,
       reason: 'only what is selected moves',
     );
@@ -114,7 +114,7 @@ void main() {
     );
     expect(drag.finish(editing), isTrue);
     expect(
-      editing.level.brushes[0].centre.x,
+      editing.level.brushes[0].center.x,
       closeTo(1.5, 1e-9),
       reason: 'ending the drag leaves the brush exactly where it was dragged',
     );
@@ -123,7 +123,7 @@ void main() {
     // four, one per report of a pointer that happened to be moving.
     expect(editing.history.undoSays, 'drag by 1.50, 0.00, 0.00');
     expect(_undoDepth(editing), 1);
-    expect(editing.level.brushes[0].centre.x, 0.0);
+    expect(editing.level.brushes[0].center.x, 0.0);
   });
 
   test('the bar that was grabbed is the axis the thing moves along', () {
@@ -135,10 +135,10 @@ void main() {
     expect(drag?.axis, EditorAxis.y);
 
     drag!.moveTo(editing, _eye, _at(drag.grabbed + Vector3(0.0, 2.0, 0.0)));
-    final centre = editing.level.brushes[0].centre;
-    expect(centre.y, closeTo(2.0, 1e-9));
-    expect(centre.x, 0.0, reason: 'a vertical bar does not move it sideways');
-    expect(centre.z, 0.0);
+    final center = editing.level.brushes[0].center;
+    expect(center.y, closeTo(2.0, 1e-9));
+    expect(center.x, 0.0, reason: 'a vertical bar does not move it sideways');
+    expect(center.z, 0.0);
   });
 
   test('a drag that goes nowhere leaves the history alone', () {
@@ -152,7 +152,7 @@ void main() {
     drag!.moveTo(editing, _eye, _at(drag.grabbed + Vector3(0.05, 0.0, 0.0)));
     expect(drag.finish(editing), isFalse);
     expect(editing.canUndo, isFalse);
-    expect(editing.level.brushes[0].centre.x, 0.0);
+    expect(editing.level.brushes[0].center.x, 0.0);
   });
 
   test('a press that misses every bar is the camera, not the brush', () {
@@ -197,14 +197,14 @@ void main() {
 
     final along = bars.where((GizmoBar it) => it.axis == EditorAxis.x);
     for (final bar in along) {
-      final centre = (bar.min + bar.max) / 2.0;
+      final center = (bar.min + bar.max) / 2.0;
       expect(
         bar.max.x - bar.min.x,
         closeTo(size.x + kGrabMargin * 2, 1e-5),
         reason: 'a bar along X is as long as the cage is wide',
       );
-      expect((centre.y - 2.0).abs(), closeTo(size.y / 2.0, 1e-5));
-      expect((centre.z - 3.0).abs(), closeTo(size.z / 2.0, 1e-5));
+      expect((center.y - 2.0).abs(), closeTo(size.y / 2.0, 1e-5));
+      expect((center.z - 3.0).abs(), closeTo(size.z / 2.0, 1e-5));
       expect(
         bar.max.y - bar.min.y,
         greaterThan(kGrabMargin * 2),

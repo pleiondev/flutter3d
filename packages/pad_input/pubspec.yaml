@@ -1,6 +1,6 @@
 name: pad_input
 description: "Reads a gamepad's sticks, triggers and buttons as a snapshot the caller asks for, with a dead zone applied and no opinion about what any button means."
-version: 0.4.3+1
+version: 0.5.0
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -14,6 +14,17 @@ topics:
 environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: '>=3.44.0'
+
+# Declared, because pub.dev reads a plugin's platforms off `flutter: plugin:`
+# and this one reaches the browser's Gamepad API through Dart instead, with no
+# plugin entry for the web.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
@@ -47,6 +58,14 @@ flutter:
       ios:
         pluginClass: GamepadPlugin
         sharedDarwinSource: true
+
+      # XInput, polled; and the kernel's joystick interface. Both forward the
+      # platform's own numbers, and `lib/src/desktop_mapping.dart` reads them.
+      windows:
+        pluginClass: PadInputPluginCApi
+
+      linux:
+        pluginClass: PadInputPlugin
 
       # The web needs no registration: the backend is pure Dart and
       # `lib/src/platform_default.dart` selects it with a conditional export.

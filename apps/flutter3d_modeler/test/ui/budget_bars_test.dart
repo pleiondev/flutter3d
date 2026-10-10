@@ -43,10 +43,10 @@ void main() {
       );
       expect(fill.widthFactor, closeTo(0.4375, 1e-9));
 
-      final colour = tester.widget<DecoratedBox>(
+      final color = tester.widget<DecoratedBox>(
         find.byKey(fillColourKey('triangles')),
       );
-      final BoxDecoration decoration = colour.decoration as BoxDecoration;
+      final BoxDecoration decoration = color.decoration as BoxDecoration;
       final theme = modelerTheme();
       expect(
         decoration.color,
@@ -68,10 +68,10 @@ void main() {
       // own track — while the colour alone says it is over.
       expect(fill.widthFactor, 1.0);
 
-      final colour = tester.widget<DecoratedBox>(
+      final color = tester.widget<DecoratedBox>(
         find.byKey(fillColourKey('joints')),
       );
-      final BoxDecoration decoration = colour.decoration as BoxDecoration;
+      final BoxDecoration decoration = color.decoration as BoxDecoration;
       final theme = modelerTheme();
       expect(decoration.color, theme.colorScheme.tertiary);
     },
@@ -82,10 +82,10 @@ void main() {
   ) async {
     await _pump(tester, _report);
 
-    final colour = tester.widget<DecoratedBox>(
+    final color = tester.widget<DecoratedBox>(
       find.byKey(fillColourKey('influences')),
     );
-    final BoxDecoration decoration = colour.decoration as BoxDecoration;
+    final BoxDecoration decoration = color.decoration as BoxDecoration;
     final theme = modelerTheme();
     expect(decoration.color, isNot(theme.colorScheme.tertiary));
   });

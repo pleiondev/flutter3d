@@ -23,14 +23,24 @@ typedef RequiredShader = ({String name, bool fragment});
 /// generator reads it; a backend that computes answers to these names, and
 /// one that does not answers `supportsCompute` false instead. Checked
 /// against the manifest by `test/manifest_test.dart`.
-const List<String> kComputeShaders = <String>['PrefixSum'];
+///
+/// The three `SplatSort` stages are the GPU splat sort — `H11` — and a
+/// computing backend may leave them out: the software rasteriser does, so
+/// its clouds take the CPU sort they are held to, and a consumer asks for
+/// each by name before it dispatches.
+const List<String> computeShaders = <String>[
+  'PrefixSum',
+  'SplatSortCount',
+  'SplatSortScan',
+  'SplatSortScatter',
+];
 
 /// Every entry point, as the manifest lists them.
 ///
 /// Generated from `shaders/flutter3d.shaderbundle.json` and checked against it
 /// by `test/manifest_test.dart`, which fails if a shader is added to one and
 /// not the other.
-const List<RequiredShader> kRequiredShaders = <RequiredShader>[
+const List<RequiredShader> requiredShaders = <RequiredShader>[
   (name: 'BlinnPhong', fragment: true),
   (name: 'BloomDownsample', fragment: true),
   (name: 'BloomThreshold', fragment: true),
@@ -41,6 +51,10 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'FullscreenVertex', fragment: false),
   (name: 'Easu', fragment: true),
   (name: 'Fxaa', fragment: true),
+  (name: 'SmaaEdges', fragment: true),
+  (name: 'SmaaWeights', fragment: true),
+  (name: 'SmaaBlend', fragment: true),
+  (name: 'LensFlare', fragment: true),
   (name: 'LocalExposure', fragment: true),
   (name: 'LocalExposureBlur', fragment: true),
   (name: 'Lambert', fragment: true),
@@ -66,6 +80,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'PbrLayered', fragment: true),
   (name: 'PolylineVertex', fragment: false),
   (name: 'ProbePrefilter', fragment: true),
+  (name: 'PlanarReflection', fragment: true),
+  (name: 'RenderTextureEncode', fragment: true),
   (name: 'Reflections', fragment: true),
   (name: 'Ssao', fragment: true),
   (name: 'Splat', fragment: true),
@@ -92,10 +108,17 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'VelocityNeighborMax', fragment: true),
   (name: 'MotionBlur', fragment: true),
   (name: 'ViewportShade', fragment: true),
+  (name: 'OutlineMask', fragment: true),
+  (name: 'HighContrast', fragment: true),
+  (name: 'Decal', fragment: true),
   (name: 'ShadowDepth', fragment: true),
   (name: 'ShadowDistance', fragment: true),
   (name: 'ShadowDepthMasked', fragment: true),
   (name: 'ShadowDistanceMasked', fragment: true),
+  (name: 'ShadowTransmittance', fragment: true),
+  (name: 'CausticSurface', fragment: true),
+  (name: 'CausticPhotonVertex', fragment: false),
+  (name: 'CausticPhoton', fragment: true),
   (name: 'ShadowCopy', fragment: true),
   (name: 'EvsmFilter', fragment: true),
   (name: 'ShadowTileReset', fragment: true),
@@ -104,7 +127,16 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'SkyCube', fragment: true),
   (name: 'SkyVertex', fragment: false),
   (name: 'SkyCubeVertex', fragment: false),
+  (name: 'SkyPhysical', fragment: true),
+  (name: 'SkyPhysicalVertex', fragment: false),
   (name: 'Toon', fragment: true),
+  (name: 'UnlitOpaque', fragment: true),
+  (name: 'LambertOpaque', fragment: true),
+  (name: 'BlinnPhongOpaque', fragment: true),
+  (name: 'PbrOpaque', fragment: true),
+  (name: 'PbrLayeredOpaque', fragment: true),
+  (name: 'ToonOpaque', fragment: true),
+  (name: 'DepthPredraw', fragment: true),
   (name: 'Unlit', fragment: true),
   (name: 'VertexTextureProbe', fragment: true),
   (name: 'VertexTextureProbeVertex', fragment: false),

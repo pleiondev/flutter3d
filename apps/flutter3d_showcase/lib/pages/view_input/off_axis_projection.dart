@@ -15,9 +15,9 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.68, 0.72, 0.78, 1.0),
+      baseColor: LinearColor.fromSrgb(0.68, 0.72, 0.78, 1.0),
       roughness: 0.7,
     );
     final MeshNode ball = MeshNode(
@@ -31,7 +31,7 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
 
     // #region symmetric
     final OffAxisProjection symmetric = OffAxisProjection.symmetric(
-      fovYRadians: 0.9,
+      fovY: 0.9,
       aspect: 16 / 9,
     );
     // #endregion symmetric
@@ -47,7 +47,7 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
   }
@@ -55,7 +55,7 @@ final class OffAxisProjectionDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     final OffAxisProjection symmetric = OffAxisProjection.symmetric(
-      fovYRadians: 0.9,
+      fovY: 0.9,
       aspect: 16 / 9,
     );
     _off = symmetric.copyWith(

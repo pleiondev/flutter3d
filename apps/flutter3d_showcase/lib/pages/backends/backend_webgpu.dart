@@ -7,7 +7,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BackendWebgpuDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
@@ -15,9 +14,9 @@ final class BackendWebgpuDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _device = context.device;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.55, 0.4, 0.65, 1.0),
+      baseColor: LinearColor.fromSrgb(0.55, 0.4, 0.65, 1.0),
       roughness: 0.6,
     );
     final MeshNode ball = MeshNode(
@@ -31,7 +30,7 @@ final class BackendWebgpuDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -50,9 +49,9 @@ final class BackendWebgpuDemo extends ShowcaseDemo {
 
   // #region read
   String _report(GraphicsDevice device) =>
-      'wireframe: ${device.supportsWireframe}\n'
-      'blend constant: ${device.supportsBlendColor}\n'
-      'max colour attachments: ${device.maxColorAttachments}';
+      'wireframe: ${device.features.has(DeviceFeature.wireframe)}\n'
+      'blend constant: ${device.features.has(DeviceFeature.blendConstant)}\n'
+      'max colour attachments: ${device.limits.maxColorAttachments}';
   // #endregion read
 
   @override
@@ -85,7 +84,7 @@ final class BackendWebgpuDemo extends ShowcaseDemo {
     // A modern API opens several colour attachments in one pass; the one
     // capability this page names, maxColorAttachments, has to actually
     // answer more than the bare minimum on the device that opened.
-    if (_device.maxColorAttachments < 2) {
+    if (_device.limits.maxColorAttachments < 2) {
       throw StateError(
         'the open device answers fewer colour attachments than this page '
         'claims a modern backend offers',

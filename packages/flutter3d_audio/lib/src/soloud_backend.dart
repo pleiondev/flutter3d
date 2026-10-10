@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Issue, IssueSink;
 import 'package:flutter_soloud/flutter_soloud.dart';
 
 import 'cutoff.dart';
@@ -17,42 +19,12 @@ import 'cutoff.dart';
 /// volume and a pan, both of which take effect immediately.
 ///
 /// If a later flutter_soloud exposes the call, the right change is a second
-/// backend rather than an edit here — the interface exists for exactly that.
-/// Where a backend says what it could not do.
+/// backend rather than an edit here — the base class exists for exactly that.
 ///
-/// Declared here rather than imported from `flutter3d_game`, which is where
-/// the identical typedef lives: this package knows nothing about a game and
-/// must not start. Dart's function types are structural, so an application
-/// passing that one to this is the same type — the duplication costs a line
-/// and buys a dependency not taken.
-/// What this package is reporting.
-///
-/// **One object rather than a bare string, so this can grow.** A function type
-/// is frozen the day it is published: adding a severity, or which subsystem
-/// spoke, means widening `void Function(String)` and breaking every sink
-/// anybody has written. Adding a field here does not.
-final class AudioIssue {
-  const AudioIssue(this.message);
-
-  /// What went wrong, in a sentence a person can read.
-  final String message;
-
-  @override
-  String toString() => message;
-}
-
-/// **Named apart from `flutter3d_game`'s on purpose.** This package depends on
-/// nothing of ours — not the engine, not the simulation — so that a program can
-/// take the sound without the rest, and there is nowhere to put a shared type
-/// that would not give that up. Two identical `typedef`s were interchangeable
-/// and cost nothing; two identical *classes* are not, and a program importing
-/// both would have to prefix one of them at every use. So this one carries its
-/// own name and its own vocabulary, which is what the packages being uncoupled
-/// actually means.
-typedef AudioIssueSink = void Function(AudioIssue issue);
-
-final class SoLoudBackend implements AudioBackend {
-  SoLoudBackend({SoLoud? soloud, AudioIssueSink? onIssue})
+/// What it could not do it says through [onIssue], in the engine's one
+/// [Issue] type, which `flutter3d_app` reports through as well.
+final class SoLoudBackend extends AudioBackend {
+  SoLoudBackend({SoLoud? soloud, IssueSink? onIssue})
     : _soloud = soloud ?? SoLoud.instance,
       onIssue = onIssue ?? _printIssue;
 
@@ -65,10 +37,9 @@ final class SoLoudBackend implements AudioBackend {
   /// the session and the only record of it was a console line stripped out of
   /// the build a player runs. Every storage path in `flutter3d_app` threads one
   /// of these; audio was the layer that did not.
-  final AudioIssueSink onIssue;
+  final IssueSink onIssue;
 
-  static void _printIssue(AudioIssue issue) =>
-      debugPrint('flutter3d_audio: $issue');
+  static void _printIssue(Issue issue) => debugPrint('flutter3d_audio: $issue');
 
   final Map<String, AudioSource> _sources = <String, AudioSource>{};
 
@@ -84,6 +55,7 @@ final class SoLoudBackend implements AudioBackend {
   /// Named for the engine rather than for a voice, because [start] on the
   /// interface begins a sound and two meanings of one word in one class is how
   /// somebody eventually calls the wrong one.
+  @override
   Future<void> open() async {
     if (_soloud.isInitialized) return;
     // The web module races the app. flutter_soloud's two script tags are
@@ -114,6 +86,7 @@ final class SoLoudBackend implements AudioBackend {
   /// early when `isInitialized` — so a second backend after a hot restart
   /// attached to an engine nobody had re-initialised and played nothing, which
   /// looks exactly like a game with no sound.
+  @override
   Future<void> dispose() async {
     _sources.clear();
     _sampleRates.clear();
@@ -139,7 +112,7 @@ final class SoLoudBackend implements AudioBackend {
       // is worth saying out loud, because silence is what a sound that works
       // and a sound that failed to decode look like from the outside.
       _failed.add(asset);
-      onIssue(AudioIssue('could not load "$asset": $error'));
+      onIssue(Issue('could not load "$asset": $error'));
       return;
     }
     _sources[asset] = source;
@@ -162,7 +135,7 @@ final class SoLoudBackend implements AudioBackend {
       if (!_filterRefused) {
         _filterRefused = true;
         onIssue(
-          AudioIssue(
+          Issue(
             'no low-pass filter on this platform, walls only quieten: $error',
           ),
         );
@@ -215,7 +188,7 @@ final class SoLoudBackend implements AudioBackend {
     } catch (error) {
       _filterRefused = true;
       onIssue(
-        AudioIssue(
+        Issue(
           'the low-pass filter refused a voice, walls only quieten: $error',
         ),
       );
@@ -234,11 +207,16 @@ final class SoLoudBackend implements AudioBackend {
     final source = _sources[asset];
     if (source == null) return null;
     try {
+      // **Started held while the backend is paused.** A sound the game
+      // started under a pause menu, or in the frame the application went to
+      // the background, used to play at once, over the pause; held here, it
+      // is listed like any other voice and [resume] lets it go with them.
       final handle = _soloud.play(
         source,
         volume: gain,
         pan: pan,
         looping: loop,
+        paused: _paused,
       );
       // Set rather than passed: `play` has no speed argument, and setting it on
       // the handle immediately afterwards is the same frame, so nothing is
@@ -252,7 +230,7 @@ final class SoLoudBackend implements AudioBackend {
       _applyMuffle(handle, muffle, rate);
       return handle;
     } catch (error) {
-      onIssue(AudioIssue('could not play "$asset": $error'));
+      onIssue(Issue('could not play "$asset": $error'));
       return null;
     }
   }
@@ -279,7 +257,7 @@ final class SoLoudBackend implements AudioBackend {
         ..setPan(handle, pan)
         ..setRelativePlaySpeed(handle, rate);
     } catch (error) {
-      onIssue(AudioIssue('could not update a voice: $error'));
+      onIssue(Issue('could not update a voice: $error'));
     }
     _applyMuffle(handle, muffle, rate);
   }
@@ -293,7 +271,36 @@ final class SoLoudBackend implements AudioBackend {
     try {
       _soloud.stop(handle);
     } catch (error) {
-      onIssue(AudioIssue('could not stop a voice: $error'));
+      onIssue(Issue('could not stop a voice: $error'));
+    }
+  }
+
+  /// Pauses every voice this backend started and has not stopped, and holds
+  /// every voice [start]ed before [resume].
+  @override
+  void pause() => _setPaused(true);
+
+  /// Lets the voices [pause] held go on, and the ones started since.
+  @override
+  void resume() => _setPaused(false);
+
+  /// Whether [pause] holds the voices: set by [pause], cleared by [resume].
+  bool get isPaused => _paused;
+  bool _paused = false;
+
+  void _setPaused(bool paused) {
+    _paused = paused;
+    for (final handle in _voiceSource.keys) {
+      try {
+        // A one-shot that ran out is still listed until the mix forgets it.
+        if (_soloud.getIsValidVoiceHandle(handle)) {
+          _soloud.setPause(handle, paused);
+        }
+      } catch (error) {
+        // A voice that ran out between the last mix and now; the next mix
+        // forgets it.
+        onIssue(Issue('could not pause a voice: $error'));
+      }
     }
   }
 
@@ -305,7 +312,7 @@ final class SoLoudBackend implements AudioBackend {
       // Not alive, which is the answer that lets the scene forget it. Saying
       // "yes" here would keep a dead handle being updated every frame for the
       // life of the level.
-      onIssue(AudioIssue('could not ask about a voice: $error'));
+      onIssue(Issue('could not ask about a voice: $error'));
       return false;
     }
   }

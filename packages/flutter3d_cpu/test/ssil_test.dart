@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -25,7 +26,7 @@ final class _AoProbe extends RenderNode {
   String get name => 'ao probe';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -37,7 +38,7 @@ final class _AoProbe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final ao = frame.resources.texture(FrameResourceIds.ao);
     last = _device.readHdrPixels(ao);
     width = ao.width;
@@ -60,10 +61,13 @@ final class _AoProbe extends RenderNode {
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final cube = DeviceMesh.upload(device, CuboidShape().build());
-  MeshNode slab(Vector3 at, Vector3 scale, Vector4 colour) =>
+  MeshNode slab(Vector3 at, Vector3 scale, Vector4 color) =>
       MeshNode(
           cube,
-          Material(lighting: LightingModel.lambert, baseColor: colour),
+          RenderMaterial(
+            lighting: LightingModel.lambert,
+            baseColor: _fromSrgb(color),
+          ),
         )
         ..setPosition(at.x, at.y, at.z)
         ..setScale(scale.x, scale.y, scale.z);
@@ -79,25 +83,29 @@ final class _AoProbe extends RenderNode {
       ),
     )
     ..add(slab(Vector3(0.0, 1.0, -1.0), Vector3(8.0, 2.0, 0.2), wall))
-    ..add(LightNode(intensity: 3.0)..setRotationYawPitchRoll(0.0, -0.6, 0.0))
+    ..add(
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.0, -0.6, 0.0),
+    )
     ..add(camera);
   final probe = _AoProbe(device);
-  final result = (Renderer.create(device: device)..addNode(probe)).render(
-    width: _width,
-    height: _height,
-    scene: scene,
-    views: <RenderView>[RenderView(camera: camera)],
-    settings: RenderSettings(
-      tonemap: false,
-      bloom: const BloomSettings(enabled: false),
-      ambientOcclusion: AmbientOcclusionSettings(
-        enabled: true,
-        radius: 0.6,
-        strength: 1.0,
-        method: method,
-      ),
-    ),
-  );
+  final result = (Renderer.create(device: device)..renderSteps.addNode(probe))
+      .render(
+        width: _width,
+        height: _height,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: RenderSettings(
+          tonemap: false,
+          bloom: const BloomSettings(enabled: false),
+          ambientOcclusion: AmbientOcclusionSettings(
+            enabled: true,
+            radius: 0.6,
+            strength: 1.0,
+            method: method,
+          ),
+        ),
+      );
   return (
     ao: probe.last!,
     width: probe.width,
@@ -156,3 +164,6 @@ void main() {
     },
   );
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

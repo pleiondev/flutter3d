@@ -171,15 +171,15 @@ void main() {
 
     test('a unit is converted into the field\'s own', () {
       expect(
-        NumberField.parse('10cm', unit: NumberUnit.metres),
+        NumberField.parse('10cm', unit: NumberUnit.meters),
         closeTo(0.1, 1e-12),
       );
       expect(
-        NumberField.parse('24 mm', unit: NumberUnit.metres),
+        NumberField.parse('24 mm', unit: NumberUnit.meters),
         closeTo(0.024, 1e-12),
       );
       expect(
-        NumberField.parse('1ft', unit: NumberUnit.metres),
+        NumberField.parse('1ft', unit: NumberUnit.meters),
         closeTo(0.3048, 1e-12),
       );
       expect(
@@ -197,9 +197,9 @@ void main() {
       () {
         // Mutation: drop whatever follows the number. `10kg` in a length field
         // then commits ten metres, which is worse than saying no.
-        expect(NumberField.parse('10kg', unit: NumberUnit.metres), isNull);
+        expect(NumberField.parse('10kg', unit: NumberUnit.meters), isNull);
         expect(NumberField.parse('10cm'), isNull, reason: 'a plain field');
-        expect(NumberField.parse('90deg', unit: NumberUnit.metres), isNull);
+        expect(NumberField.parse('90deg', unit: NumberUnit.meters), isNull);
       },
     );
 

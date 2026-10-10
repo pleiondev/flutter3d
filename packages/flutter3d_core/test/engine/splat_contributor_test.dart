@@ -16,26 +16,31 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_node.dart'
+    show FrameContextInternals;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 SplatCloud _cloud(int count) {
-  final centres = Float32List(count * 3);
-  final colours = Float32List(count * 4);
+  final centers = Float32List(count * 3);
+  final colors = Float32List(count * 4);
   final scales = Float32List(count * 3);
   final rotations = Float32List(count * 4);
   for (var i = 0; i < count; i++) {
-    centres[i * 3] = i * 0.3;
-    colours[i * 4 + 3] = 1.0;
+    centers[i * 3] = i * 0.3;
+    colors[i * 4 + 3] = 1.0;
     scales[i * 3] = 0.2;
     scales[i * 3 + 1] = 0.2;
     scales[i * 3 + 2] = 0.2;
     rotations[i * 4 + 3] = 1.0;
   }
   return SplatCloud(
-    centres: centres,
-    colours: colours,
+    centers: centers,
+    colors: colors,
     scales: scales,
     rotations: rotations,
   );
@@ -55,13 +60,12 @@ void main() {
         encoder: pass,
         device: device,
         services: _NoServices(),
-        state: FramePassState(),
         settings: const RenderSettings(),
         width: 320,
         height: 200,
         view: RenderView(camera: CameraNode()..setPosition(0.0, 0.0, 5.0)),
         viewProjection: vm.Matrix4.identity(),
-      ),
+      )..state = FramePassState(),
     );
 
     final vertices = pass.recordedOf<RecordedVertices>().single;
@@ -89,7 +93,6 @@ void main() {
           encoder: pass,
           device: FakeBackend(framebufferOrigin: origin),
           services: _NoServices(),
-          state: FramePassState(),
           settings: const RenderSettings(),
           width: 320,
           height: 200,
@@ -97,7 +100,7 @@ void main() {
           viewProjection: vm.Matrix4.identity(),
           frameIndex: frameIndex,
           temporal: temporal,
-        ),
+        )..state = FramePassState(),
       );
       return pass;
     }
@@ -199,16 +202,54 @@ void main() {
         sorted: false,
       );
     expect(quads.sorts, 0);
-    final lastCorner = (quads.vertexCount - 1) * kSplatFloatsPerVertex;
+    final lastCorner = (quads.vertexCount - 1) * splatFloatsPerVertex;
     expect(quads.vertices[lastCorner], closeTo(0.6, 1e-6));
     expect(quads.vertices[0], closeTo(0.0, 1e-6));
   });
+
+  group('the box it answers the near fit with', () {
+    // `PassContributor.boundsFor`: a cloud drawn nearer than every mesh has
+    // to be counted, or the fitted near plane cuts it away; the default null
+    // kept the camera's own plane for every view a cloud was in.
+    final view = RenderView(camera: CameraNode());
+
+    test('holds every splat to the reach its quad is drawn to', () {
+      // Mutation: return the base class's null — fails on the first line.
+      // Mutation: the centres alone, without `splatReach` times the largest
+      // scale — the box ends at x 0.6 and its minimum at nought.
+      final bounds = SplatContributor(_cloud(3)).boundsFor(view)!;
+      const reach = splatReach * 0.2;
+      expect(bounds.min.x, closeTo(-reach, 1e-6));
+      expect(bounds.max.x, closeTo(0.6 + reach, 1e-6));
+      expect(bounds.min.y, closeTo(-reach, 1e-6));
+      expect(bounds.max.z, closeTo(reach, 1e-6));
+    });
+
+    test('is placed by the node the cloud hangs from', () {
+      // Mutation: skip the node's world matrix — the box stays at the
+      // origin, ten metres from where the cloud is drawn.
+      final node = SceneNode()..setPosition(0.0, 0.0, -10.0);
+      final bounds = SplatContributor(_cloud(3), node: node).boundsFor(view)!;
+      expect(bounds.min.z, closeTo(-10.0 - splatReach * 0.2, 1e-5));
+      expect(bounds.max.z, closeTo(-10.0 + splatReach * 0.2, 1e-5));
+    });
+
+    test('says nothing for a tree, whose cut is not made until it draws', () {
+      // The cut is chosen in `encode`, after the fit is asked: a box from the
+      // last cut could miss what this frame's draws.
+      final lod = SplatLod(
+        buildSplatOctree(_cloud(3), leafCapacity: 128, grid: 4),
+        budget: 3,
+      );
+      expect(SplatContributor.lod(lod).boundsFor(view), isNull);
+    });
+  });
 }
 
-final class _NoServices implements RenderServices {
+final class _NoServices with RenderServices {
   @override
   void encodeScene({
-    required NodeFrame frame,
+    required RenderFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,

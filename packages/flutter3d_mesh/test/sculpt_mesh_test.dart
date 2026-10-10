@@ -171,7 +171,7 @@ void main() {
       const targetTx = 5;
       const targetTz = 5;
       const tileGap = 1000.0;
-      final centre = Vector3(
+      final center = Vector3(
         targetTx * tileGap + (tileSize - 1) / 2,
         0,
         targetTz * tileGap + (tileSize - 1) / 2,
@@ -182,7 +182,7 @@ void main() {
       const radius = 25.0;
 
       final result = sculpt.applyBrush(
-        center: centre,
+        center: center,
         radius: radius,
         displace: (int vertex, Vector3 position, double falloff) =>
             position + Vector3(0, falloff, 0),
@@ -273,7 +273,7 @@ void main() {
       const targetTx = 5;
       const targetTz = 5;
       const tileGap = 1000.0;
-      final centre = Vector3(
+      final center = Vector3(
         targetTx * tileGap + (tileSize - 1) / 2,
         0,
         targetTz * tileGap + (tileSize - 1) / 2,
@@ -281,7 +281,7 @@ void main() {
       const radius = 25.0;
 
       final result = sculpt.applyBrush(
-        center: centre,
+        center: center,
         radius: radius,
         displace: (int vertex, Vector3 position, double falloff) =>
             position + Vector3(0, falloff, 0),
@@ -424,16 +424,16 @@ void main() {
       final mesh = buildSmallUvGridMesh(cols: 6, rows: 6);
       final sculpt = SculptMesh.fromEditMesh(mesh);
 
-      final centre = Vector3(3, 0.2, 3);
+      final center = Vector3(3, 0.2, 3);
       const radius = 2.5;
 
-      final fromGrid = sculpt.verticesWithinRadius(centre, radius).toSet();
+      final fromGrid = sculpt.verticesWithinRadius(center, radius).toSet();
 
       final bruteForce = <int>{};
       final p = Vector3.zero();
       for (var v = 0; v < sculpt.vertexCount; v++) {
         sculpt.positionOf(v, p);
-        if ((p - centre).length <= radius) bruteForce.add(v);
+        if ((p - center).length <= radius) bruteForce.add(v);
       }
 
       expect(fromGrid, bruteForce);

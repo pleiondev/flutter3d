@@ -12,10 +12,12 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dashwire/dashwire.dart';
 import 'package:flame_multiplayer/flame_multiplayer.dart';
 import 'package:flame_multiplayer_dashwire/flame_multiplayer_dashwire.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 
 /// Two dashwire ends as degraded as a bad connection: 15 ms each way, up to
@@ -46,7 +48,7 @@ void main() {
     addTearDown(wireB.close);
     final roomA = PeerRoom(wireA, slot: 0, about: const {'plays': 'elf'});
     final roomB = PeerRoom(wireB, slot: 1, about: const {'plays': 'wizard'});
-    for (var i = 0; i < 500 && !(roomA.met && roomB.met); i++) {
+    for (var i = 0; i < 500 && !(roomA.hasMet && roomB.hasMet); i++) {
       roomA.step(1 / 60);
       roomB.step(1 / 60);
       await _pause();
@@ -61,25 +63,27 @@ void main() {
       <int>[0, 0, 0],
     ];
     final settled = <Map<int, String>>[<int, String>{}, <int, String>{}];
-    final plays = <RollbackPlay<List<int>>>[
+    final plays = <RollbackSession<List<int>>>[
       for (final slot in <int>[0, 1])
-        RollbackPlay<List<int>>(
+        RollbackSession<List<int>>(
           wire: (slot == 0 ? roomA : roomB).channel('play'),
           localSlot: slot,
-          capture: () {
+          inputDelay: 3,
+          captureLocalFrame: () {
             final n = games[slot][2];
             return {'move': (n ~/ (5 + slot * 3)).isEven ? 1 : -1};
           },
           applyAndStep: (hands) {
             final game = games[slot];
-            game[0] += (hands[0]['move'] as int?) ?? 0;
-            game[1] += (hands[1]['move'] as int?) ?? 0;
+            game[0] += (hands[0]?['move'] as int?) ?? 0;
+            game[1] += (hands[1]?['move'] as int?) ?? 0;
             game[2] += game[0] * 3 + game[1] + 1;
           },
           save: () => List<int>.of(games[slot]),
           restore: (state) => games[slot].setAll(0, state),
           maxRollbackFrames: 30,
-          onSettled: (step, after) => settled[slot][step] = jsonEncode(after),
+          onSettled: (step, after, _) =>
+              settled[slot][step] = jsonEncode(after),
         ),
     ];
     for (var i = 0; i < 300; i++) {
@@ -93,8 +97,42 @@ void main() {
     for (final step in common) {
       expect(settled[0][step], settled[1][step], reason: 'step $step');
     }
-    expect(plays[0].session.droppedCorrections, 0);
-    expect(plays[1].session.droppedCorrections, 0);
+    expect(plays[0].droppedCorrections, 0);
+    expect(plays[1].droppedCorrections, 0);
+  }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('a room over dashwire carries the versions, and two builds on '
+      'different simulation versions refuse each other', () async {
+    final (a, b) = LoopbackConnection.pair();
+    final wireA = DashwireWire(a);
+    final wireB = DashwireWire(b);
+    addTearDown(wireA.close);
+    addTearDown(wireB.close);
+    final roomA = PeerRoom(
+      wireA,
+      slot: 0,
+      simulation: const SimulationVersion(genre: 'game', genreVersion: 5),
+    );
+    final roomB = PeerRoom(
+      wireB,
+      slot: 1,
+      simulation: const SimulationVersion(genre: 'game', genreVersion: 6),
+    );
+    for (
+      var i = 0;
+      i < 200 && (roomA.refusal == null || roomB.refusal == null);
+      i++
+    ) {
+      roomA.step(1 / 60);
+      roomB.step(1 / 60);
+      await _pause();
+    }
+    // Mutation: the versions lost on the way through dashwire's JSON — both
+    // read nought and meet.
+    expect(roomA.hasMet || roomB.hasMet, isFalse);
+    expect(roomA.peerHello?.simulation.genreVersion, 6);
+    expect(roomA.refusal, contains('update this game'));
+    expect(roomB.refusal, contains('update the other game'));
   }, timeout: const Timeout(Duration(seconds: 30)));
 
   test('turns keep their order, and the baton arrives, over the reliable '
@@ -165,7 +203,7 @@ void main() {
 
     final roomA = PeerRoom(wireA, slot: 0, about: const {'plays': 'jet'});
     final roomB = PeerRoom(wireB, slot: 1, about: const {'plays': 'ghost'});
-    for (var i = 0; i < 500 && !(roomA.met && roomB.met); i++) {
+    for (var i = 0; i < 500 && !(roomA.hasMet && roomB.hasMet); i++) {
       roomA.step(1 / 60);
       roomB.step(1 / 60);
       await _pause();
@@ -185,4 +223,68 @@ void main() {
     expect(feedB.latest, {'x': 19});
     expect(feedA.latest, isNull);
   }, timeout: const Timeout(Duration(seconds: 45)));
+
+  test('bytes cross as bytes, apart from the messages', () async {
+    // Mutation: leave `sendBytes` to its default, a base64 frame — the far
+    // side still hears the bytes, so the raw payload is checked too.
+    final (a, b) = LoopbackConnection.pair();
+    final wireA = DashwireWire(a);
+    final wireB = DashwireWire(b);
+    addTearDown(wireA.close);
+    addTearDown(wireB.close);
+    final heard = <Uint8List>[];
+    final messages = <Map<String, Object?>>[];
+    wireB
+      ..listenBytes((_, bytes) => heard.add(bytes))
+      ..listen(messages.add);
+    wireA
+      ..sendBytes(Uint8List.fromList(<int>[1, 2, 3, 255]))
+      ..send(<String, Object?>{'hello': 1});
+    for (var i = 0; i < 100 && (heard.isEmpty || messages.isEmpty); i++) {
+      await _pause();
+    }
+    expect(heard.single, <int>[1, 2, 3, 255]);
+    expect(messages.single, <String, Object?>{'hello': 1});
+
+    final (c, d) = LoopbackConnection.pair();
+    final wireC = DashwireWire(c);
+    addTearDown(wireC.close);
+    final raw = <Uint8List>[];
+    final tapped = d.messages.listen((m) => raw.add(m.payload));
+    addTearDown(tapped.cancel);
+    addTearDown(d.close);
+    wireC.sendBytes(Uint8List.fromList(<int>[4, 5]));
+    for (var i = 0; i < 100 && raw.isEmpty; i++) {
+      await _pause();
+    }
+    expect(raw.single, <int>[DashwireWire.bytesTag, 4, 5]);
+  });
+
+  test(
+    'a base64 frame from a wire that carries only JSON arrives as bytes',
+    () async {
+      // Mutation: deliver every JSON map to the message listeners — the
+      // frame of a machine on the default `sendBytes` reaches the game as
+      // a message it never sent.
+      final (a, b) = LoopbackConnection.pair();
+      final wireA = DashwireWire(a);
+      final wireB = DashwireWire(b);
+      addTearDown(wireA.close);
+      addTearDown(wireB.close);
+      final heard = <Uint8List>[];
+      final messages = <Map<String, Object?>>[];
+      wireB
+        ..listenBytes((_, bytes) => heard.add(bytes))
+        ..listen(messages.add);
+      wireA.send(<String, Object?>{
+        PeerWire.engineKey: PeerWire.bytesFrame,
+        PeerWire.bytesKey: base64Encode(<int>[9, 8, 7]),
+      });
+      for (var i = 0; i < 100 && heard.isEmpty; i++) {
+        await _pause();
+      }
+      expect(heard.single, <int>[9, 8, 7]);
+      expect(messages, isEmpty);
+    },
+  );
 }

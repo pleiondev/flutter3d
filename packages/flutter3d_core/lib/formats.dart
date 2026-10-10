@@ -28,12 +28,16 @@ export 'src/formats/animation/animation_mask.dart';
 export 'src/formats/animation/animation_track.dart';
 export 'src/formats/asset_resolver.dart';
 export 'src/formats/asset_source.dart';
+export 'src/formats/color_vision.dart';
+export 'src/formats/cube_lut.dart';
 export 'src/formats/document_compare.dart';
 export 'src/formats/draco/draco.dart';
 export 'src/formats/export_report.dart';
 export 'src/formats/f3d/f3d.dart';
 export 'src/formats/fbx/fbx_decoder.dart';
 export 'src/formats/fmat/fmat.dart';
+export 'src/formats/format_exceptions.dart';
+export 'src/formats/formats_registry.dart';
 export 'src/formats/gltf/gltf.dart';
 export 'src/formats/image/deflate.dart';
 export 'src/formats/image/hdr_decoder.dart';
@@ -60,17 +64,19 @@ export 'src/formats/ktx2/universal/universal_block.dart'
         decodeUniversalBlock,
         encodeUniversalBlock,
         encodeUniversalBlocks,
-        kUniversalBlockKey,
-        kUniversalBlockRgb,
-        kUniversalBlockRgba,
+        universalBlockKey,
+        universalBlockRgb,
+        universalBlockRgba,
         transcodeUniversal;
 export 'src/formats/lighting_model.dart';
 export 'src/formats/material_document.dart';
 export 'src/formats/material_hint.dart';
 export 'src/formats/material_language/material_ast.dart';
+export 'src/formats/material_language/material_bundle.dart';
 export 'src/formats/material_language/material_eval.dart';
 export 'src/formats/material_language/material_glsl.dart';
 export 'src/formats/material_language/material_parser.dart';
+export 'src/formats/model_decoders.dart';
 export 'src/formats/model_document.dart';
 export 'src/formats/model_loader.dart';
 export 'src/formats/model_node.dart';

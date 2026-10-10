@@ -55,7 +55,7 @@ double _play(Match match, double seconds, {CommandPost? command}) {
 
 /// Straight down onto [unit], which is what a click over a worker is when the
 /// camera is above the map.
-({Vector3 origin, Vector3 direction}) _onto(Unit unit) => (
+({Vector3 origin, Vector3 direction}) _onto(StrategyUnit unit) => (
   origin: Vector3(unit.position.x, unit.position.y + 50.0, unit.position.z),
   direction: Vector3(0.0, -1.0, 0.0),
 );
@@ -118,7 +118,7 @@ void main() {
     // would be empty — a match that cannot be played back, which is the one
     // thing this genre's recording is for. See `OrderQueue`.
     final (:match, :command) = _open();
-    final Unit picked = command.mine.first;
+    final StrategyUnit picked = command.mine.first;
     command.select(picked);
     command.orderTo(_away);
 
@@ -139,11 +139,11 @@ void main() {
     // instanced batch, so `pickPixel` says "the crowd" for a cursor over any
     // worker on the map; the ray against each unit's radius is what names one.
     final (:match, :command) = _open();
-    final Unit wanted = command.mine[2];
+    final StrategyUnit wanted = command.mine[2];
     final ray = _onto(wanted);
 
     expect(command.selectAt(ray.origin, ray.direction), isTrue);
-    expect(command.selected, <Unit>[wanted]);
+    expect(command.selected, <StrategyUnit>[wanted]);
     expect(match.simulation.units, contains(wanted));
   });
 
@@ -154,11 +154,11 @@ void main() {
     // dropped: a click that cannot be obeyed disbanding the squad the player
     // spent a drag gathering is the worse of the two failures.
     final CommandPost command = _open().command;
-    final Unit theirs = command.simulation.units.firstWhere(
-      (Unit unit) => unit.side != viewerSide,
+    final StrategyUnit theirs = command.simulation.units.firstWhere(
+      (StrategyUnit unit) => unit.side != viewerSide,
     );
     command.select(command.mine.first);
-    final List<Unit> before = command.selected;
+    final List<StrategyUnit> before = command.selected;
 
     final ray = _onto(theirs);
     expect(command.selectAt(ray.origin, ray.direction), isFalse);
@@ -167,7 +167,7 @@ void main() {
 
   test('a rectangle takes this side and leaves the other', () {
     // The whole map, so that what is being measured is the side filter rather
-    // than the geometry — `Selection.unitsWithin` has its own tests for that.
+    // than the geometry — `UnitSelection.unitsWithin` has its own tests for that.
     final CommandPost command = _open().command;
 
     final int took = command.selectWithin(
@@ -177,7 +177,7 @@ void main() {
 
     expect(took, command.mine.length);
     expect(
-      command.selected.every((Unit unit) => unit.side == viewerSide),
+      command.selected.every((StrategyUnit unit) => unit.side == viewerSide),
       isTrue,
       reason: "the rectangle took the other side's crowd as well",
     );
@@ -185,7 +185,7 @@ void main() {
 
   test('and only who stands inside it', () {
     final CommandPost command = _open().command;
-    final Unit wanted = command.mine.first;
+    final StrategyUnit wanted = command.mine.first;
 
     // Half a metre round one worker. The document stands its crowd a metre and
     // a half apart, so this reaches nobody else.
@@ -213,7 +213,7 @@ void main() {
       reason: 'no hall built anybody in forty seconds',
     );
 
-    final Unit built = command.mine.last;
+    final StrategyUnit built = command.mine.last;
     final ray = _onto(built);
     expect(command.selectAt(ray.origin, ray.direction), isTrue);
     expect(command.selected.single, built);

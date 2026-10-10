@@ -6,7 +6,7 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
@@ -146,9 +146,9 @@ void main() {
         // half-extents below (2.0, 2.0, 0.1) are half of what is passed here,
         // the same convention `flutter3d_sim/test/parity_test.dart`'s `_room`
         // relies on for its floor.
-        final centre = Vector3(0.0, 1.0, 0.0);
+        final center = Vector3(0.0, 1.0, 0.0);
         final halfExtents = Vector3(2.0, 2.0, 0.1);
-        final world = CollisionWorld()..addBox(centre, halfExtents * 2.0);
+        final world = CollisionWorld()..addBox(center, halfExtents * 2.0);
         final hit = RayHit();
         // Straight along Z, so the hit point's x and y are the ray's own —
         // aimed at a quarter of the way across the wall and a quarter of the
@@ -161,12 +161,12 @@ void main() {
           20.0,
           hit,
         );
-        expect(hit.hit, isTrue, reason: 'the ray was aimed at the wall');
+        expect(hit.didHit, isTrue, reason: 'the ray was aimed at the wall');
 
         final uv = _uvOnBoxFace(
           point: hit.point,
           normal: hit.normal,
-          centre: centre,
+          center: center,
           halfExtents: halfExtents,
         );
         expect(
@@ -234,10 +234,10 @@ void main() {
 Offset _uvOnBoxFace({
   required Vector3 point,
   required Vector3 normal,
-  required Vector3 centre,
+  required Vector3 center,
   required Vector3 halfExtents,
 }) {
-  final local = point - centre;
+  final local = point - center;
   // Whichever axis the normal points along is the face's own depth axis; the
   // other two are the face's width and height, read off in a fixed order so a
   // hit on the front and the back of the wall do not mirror each other.

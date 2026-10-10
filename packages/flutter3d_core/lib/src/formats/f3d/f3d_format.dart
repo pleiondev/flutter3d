@@ -25,25 +25,97 @@
 ///   u32 magic          'F3D\n'
 ///   u32 version
 ///   u32 sectionCount
-///   u32 reserved
+///   u32 entryBytes     0 in version 1 (read as 16); 20 or more from version 2
 ///
-/// Section directory, sectionCount x 16 bytes
-///   u32 kind           see [F3dSection]
+/// Section directory, sectionCount x entryBytes
+///   u32 kind           see [F3dSection]; [f3dVendorKindStart] and up are
+///                      anybody's
 ///   u32 offset         from the start of the file
 ///   u32 length         in bytes
 ///   u32 count          in elements, for the fixed-record tables
+///   u32 flags          version 2 and up, see [F3dSectionFlags]; version 1
+///                      entries read as 0
 /// ```
 ///
 /// A directory rather than a fixed set of header fields, because it makes the
 /// format extensible in the only way that matters: a reader skips a kind it does
 /// not know, so a later version can add a section without breaking an older
-/// loader. [kVersion] then only has to change when an existing record's meaning
-/// changes.
+/// loader. [f3dVersion] then only has to change when an existing record's
+/// meaning changes.
 ///
 /// Tables hold fixed-size records so an index is an offset multiplication rather
 /// than a walk. Everything variable-length — strings, vertex and index arrays,
 /// image bytes, keyframe data — lives in the blob and is referenced by
 /// `(offset, length)`.
+///
+/// ## How the format grows
+///
+/// Four ways, and only the last one needs a new version:
+///
+/// * **A new section.** An older reader skips a kind it does not know. When
+///   skipping it would open a *different* model rather than a poorer one, the
+///   writer sets [F3dSectionFlags.mustUnderstand] on it, and a reader that
+///   does not know the kind refuses the file, naming it.
+/// * **A longer record.** From version 2 a table's stride is its section's
+///   `length ~/ count`, not the record size this build knows, so a later
+///   writer may append fields to the tail of a record and an older reader
+///   reads the head it knows and steps over the rest. A version-1 file is read
+///   at the record sizes in [F3dRecord], as it always was.
+/// * **A section of somebody else's.** Kinds from [f3dVendorKindStart] up are
+///   never the engine's: a tool may store its own data there, and
+///   `F3dDocument.parse(understands:)` and `F3dDocument.section` read it back.
+/// * **A changed meaning.** A record whose existing fields change meaning bumps
+///   [f3dVersion]; the reader branches on the version for that record alone,
+///   and a fixture minted at the new version goes under `test/fixtures/v<N>/`.
+///
+/// ## The bundle
+///
+/// A `.f3d` is one file for a whole asset, not only its geometry. Beside the
+/// model's own tables it may carry:
+///
+/// * **lights and cameras** ([F3dSection.lights], [F3dSection.cameras]) and
+///   the nodes that carry them ([F3dSection.nodeAttachments]), read back as
+///   `ModelDocument.lights`, `ModelDocument.cameras`, `ModelNode.lightIndex`
+///   and `ModelNode.cameraIndex`. Intensities are photometric, as
+///   `docs/CONTRACTS.md` says: lux for a directional light, candela for a
+///   point or spot one;
+/// * **each material's lighting model** ([F3dSection.materialLighting]), in
+///   the JSON `.fmat` writes, read back as `RenderMaterial.lightingModel`;
+/// * **material language programs** ([F3dSection.programs]): `.f3dmat`
+///   sources by name, `F3dDocument.programs`. A material is drawn with one
+///   when its lighting model's shader names it; a reader without the section
+///   draws the material's base parameters;
+/// * **prefabs** ([F3dSection.prefabs]): level documents in the format
+///   envelope (`"format": "f3d.level"`), by name, `F3dDocument.prefabs`. This
+///   package does not read levels; `flutter3d_sim`'s `Level.fromJson` does.
+///   A prefab names this file's nodes by name and places this file by its
+///   own path;
+/// * **files carried whole** ([F3dSection.files]), by path,
+///   `F3dDocument.files`: the models, `.fmat` materials and textures a prefab
+///   names when the bundle was made from a scene rather than one model.
+///
+/// `F3dWriter` writes the first two from the document and the last three
+/// from its `programs`, `prefabs` and `files`. Every one is optional and
+/// none is must-understand: a reader that skips one opens a poorer asset
+/// (no lights, base parameters instead of a program, no prefab), never a
+/// different one, so they arrived without a version bump and a file without
+/// them is the bytes it always was. They live in the registry as the same
+/// format, `f3d.model`.
+///
+/// **The 0.8 readers.** They open only version 1 and skip kinds they do not
+/// know. So the writer stays at version 1 unless a section carries a flag:
+/// a bundle with lights, programs, prefabs and files, or an unflagged tool
+/// section, is still a version-1 file that a 0.8 game opens and draws as
+/// its geometry. The records of the 0.8 sections keep their sizes and
+/// meanings, and only new sections are added. `f3d_fixture_test.dart` walks
+/// a bundle the way the 0.8.5 loader does.
+///
+/// **Files past 4 GiB** will be the wide variant, [f3dWideMagic]: the same
+/// layout with u64 offsets and lengths in the directory and the blob's
+/// records. Reserved now so the magic is never taken for anything else; this
+/// build refuses a wide file by name rather than misreading it. It will come
+/// in a minor release as a variant both readers open, not as a version bump
+/// of this one.
 ///
 /// ## Alignment
 ///
@@ -52,16 +124,58 @@
 /// the whole point of the format is to build those views without copying.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException, FormatSpec;
+
 /// `F3D\n`, chosen so a file opened in a text editor announces itself on line
 /// one and the trailing newline stops the magic from running into what follows.
-const int kF3dMagic = 0x0A443346;
+const int f3dMagic = 0x0A443346;
 
-/// Bumped when an existing record changes meaning. Adding a section does not
-/// need it — an old reader skips what it does not recognise.
-const int kF3dVersion = 1;
+/// The newest version this build reads: bumped when an existing record
+/// changes meaning. Adding a section does not need it — an old reader skips
+/// what it does not recognise.
+///
+/// **Version 2 is the flags word in the directory** (see [F3dSectionFlags])
+/// and the record stride taken from each section. `F3dWriter` writes version
+/// 1 unless a section needs flags, so a converted asset that uses nothing new
+/// keeps the bytes it had.
+const int f3dVersion = 2;
 
-const int kF3dHeaderBytes = 16;
-const int kF3dSectionEntryBytes = 16;
+/// `.f3d` in the format registry: its id, suffix, magic, the version this
+/// build reads up to, and the fixture minted at each version.
+const FormatSpec f3dFormat = FormatSpec(
+  id: 'f3d.model',
+  version: f3dVersion,
+  suffixes: <String>['.f3d'],
+  fixture: 'test/fixtures/v<N>/box.f3d',
+  enveloped: false,
+  magic: <int>[0x46, 0x33, 0x44, 0x0A],
+);
+
+/// The magic of the wide variant, `F3DW`: u64 offsets for files past 4 GiB.
+/// Reserved; see "How the format grows" in this library's documentation.
+const int f3dWideMagic = 0x57443346;
+
+/// The first section kind that is never the engine's. Kinds from here up are
+/// free for tools and plugins; the engine skips them unless asked to read one.
+const int f3dVendorKindStart = 0x80000000;
+
+const int f3dHeaderBytes = 16;
+
+/// A version-1 directory entry: kind, offset, length, count.
+const int f3dSectionEntryBytes = 16;
+
+/// A version-2 directory entry: a version-1 entry and its flags word. The
+/// header's fourth word says the size a file uses, so a later version may
+/// grow the entry the same way a record grows.
+const int f3dSectionEntryBytesV2 = 20;
+
+/// The bits of a directory entry's flags word (version 2 and up).
+abstract final class F3dSectionFlags {
+  /// A reader that does not know this section's kind must refuse the file:
+  /// skipping it would open a different model, not a poorer one.
+  static const int mustUnderstand = 1 << 0;
+}
 
 /// Section kinds.
 ///
@@ -167,12 +281,112 @@ abstract final class F3dSection {
   /// switches by the screen fraction alone, and a file without it reads as
   /// every level unmeasured.
   static const int lodErrors = 27;
+
+  /// Every `extras` block the document carries, each a JSON string with
+  /// the kind and the index of what it belongs to — see
+  /// [F3dRecord.extras] and [F3dExtrasOwner]. A clip's markers and a
+  /// model's animation graphs live there. Written only when there is one,
+  /// so a file with none is the bytes it was; a reader that predates it
+  /// skips it and loses the blocks, as it always had.
+  static const int extras = 28;
+
+  // ------------------------------------------------- the bundle (1.0.0-rc.1)
+  //
+  // What makes a `.f3d` one file for a whole asset rather than the model
+  // alone. None is must-understand: a reader that skips one opens a poorer
+  // model (no lights, the base parameters instead of a program, no prefab),
+  // never a different one.
+
+  /// `KHR_lights_punctual` lights, one record each — `ModelDocument.lights`.
+  /// Intensity as the contract has it (`docs/CONTRACTS.md`): lux for a
+  /// directional light, candela for a point or spot one.
+  static const int lights = 29;
+
+  /// Cameras, one record each — `ModelDocument.cameras`.
+  static const int cameras = 30;
+
+  /// Which node carries which light and camera — `ModelNode.lightIndex` and
+  /// `ModelNode.cameraIndex`. Sparse, one record per node that has either.
+  static const int nodeAttachments = 31;
+
+  /// A material's lighting model — `RenderMaterial.lightingModel` — as the
+  /// JSON `.fmat` writes under `lightingModel`. Sparse, one record per
+  /// material that names one. A model naming a program of [programs] is how
+  /// a material is drawn with it; a reader without the section draws the
+  /// material's base parameters.
+  static const int materialLighting = 32;
+
+  /// RenderMaterial language (`.f3dmat`) sources, by name — `F3dDocument.programs`.
+  static const int programs = 33;
+
+  /// Level and prefab documents, each a JSON object in the format envelope
+  /// (`"format": "f3d.level"`), by name — `F3dDocument.prefabs`.
+  static const int prefabs = 34;
+
+  /// Files carried whole, by path — `F3dDocument.files`: the models,
+  /// `.fmat` materials and textures a prefab names when the bundle was made
+  /// from a scene rather than from one model.
+  static const int files = 35;
+
+  /// Every kind above, the ones this build reads. A must-understand section
+  /// of any other kind is refused unless the caller understands it.
+  static const Set<int> known = <int>{
+    layouts,
+    attributes,
+    meshes,
+    surfaces,
+    materials,
+    images,
+    nodes,
+    roots,
+    animations,
+    tracks,
+    warnings,
+    strings,
+    blob,
+    skins,
+    morphTargets,
+    morphWeights,
+    surfaceAttributes,
+    meshNames,
+    asset,
+    imageUris,
+    lods,
+    materialExtensions,
+    variants,
+    pointerTracks,
+    impostors,
+    clusters,
+    lodErrors,
+    extras,
+    lights,
+    cameras,
+    nodeAttachments,
+    materialLighting,
+    programs,
+    prefabs,
+    files,
+  };
+}
+
+/// Whose an [F3dSection.extras] record is.
+abstract final class F3dExtrasOwner {
+  /// The root document's own, `DocumentAsset.extras`; its index is 0.
+  static const int document = 0;
+  static const int node = 1;
+  static const int material = 2;
+  static const int skin = 3;
+  static const int animation = 4;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
 abstract final class F3dRecord {
   /// u32 attributeCount, u32 firstAttribute
   static const int layout = 8;
+
+  /// u32 owner (an [F3dExtrasOwner]), u32 index, u32 jsonOffset,
+  /// u32 jsonLength — the JSON in the strings section.
+  static const int extras = 16;
 
   /// u32 nameOffset, u32 nameLength, u32 componentCount
   static const int attribute = 12;
@@ -283,6 +497,34 @@ abstract final class F3dRecord {
   /// dataOffset — `clusterCount + 1` u32 run starts and `clusterCount * 11`
   /// f32 of boxes and cones in the blob, exactly as `MeshClusters` holds them.
   static const int clusters = 16;
+
+  /// u32 type (0 directional, 1 point, 2 spot), f32`3` colour (linear),
+  /// f32 intensity (lux or candela), f32 range, f32 innerConeAngle, f32
+  /// outerConeAngle (radians), u32 nameOffset, u32 nameLength, u32 flags (bit
+  /// 0: a range is set)
+  static const int light = 44;
+
+  /// u32 projection (0 perspective, 1 orthographic), f32`4` (perspective:
+  /// yfov, aspectRatio, znear, zfar; orthographic: xmag, ymag, znear, zfar),
+  /// u32 flags (bit 0: aspectRatio set, bit 1: zfar set), u32 nameOffset,
+  /// u32 nameLength
+  static const int camera = 32;
+
+  /// u32 nodeIndex, i32 lightIndex, i32 cameraIndex (-1 for none)
+  static const int nodeAttachment = 12;
+
+  /// u32 materialIndex, u32 jsonOffset, u32 jsonLength into the strings
+  /// section
+  static const int materialLighting = 12;
+
+  /// u32 nameOffset, u32 nameLength, u32 textOffset, u32 textLength, all
+  /// into the strings section: a program's name and source, a prefab's name
+  /// and JSON.
+  static const int namedText = 16;
+
+  /// u32 pathOffset, u32 pathLength into the strings section, u32
+  /// dataOffset, u32 dataLength into the blob
+  static const int file = 16;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name
@@ -312,7 +554,7 @@ abstract final class F3dSamplingFlags {
   static const int minLinear = 1 << 1;
   static const int useMipmaps = 1 << 2;
 
-  /// Two bits each, holding a [TextureWrap] index.
+  /// Two bits each, holding a `TextureWrap` code (`f3d_wire.dart`).
   static const int wrapSShift = 3;
   static const int wrapTShift = 5;
   static const int wrapMask = 0x3;
@@ -334,9 +576,10 @@ abstract final class F3dSamplingFlags {
 /// A distinct type rather than [FormatException] so a caller can tell "this is
 /// not our format" from "this is our format and it is broken", and rebuild the
 /// asset in the second case.
-final class F3dFormatException implements Exception {
+final class F3dFormatException extends Flutter3dFormatException {
   const F3dFormatException(this.message);
 
+  @override
   final String message;
 
   @override

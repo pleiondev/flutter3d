@@ -63,12 +63,12 @@ void main() {
 
       final hook = File('${scratch.path}/hook/build.dart');
       expect(hook.existsSync(), isTrue);
-      expect(hook.readAsStringSync(), kHookBuildContent);
+      expect(hook.readAsStringSync(), hookBuildContent);
 
       final pubspec = File('${scratch.path}/pubspec.yaml').readAsStringSync();
       expect(
         pubspec,
-        contains('flutter3d_build: $kFlutter3dBuildVersionConstraint'),
+        contains('flutter3d_build: $flutter3dBuildVersionConstraint'),
       );
       expect(pubspec, contains('- flutter3d_generated/'));
       // The original, still-commented example line is untouched — init adds
@@ -76,7 +76,7 @@ void main() {
       expect(pubspec, contains('#   - images/a_dot_burr.jpeg'));
 
       final gitignore = File('${scratch.path}/.gitignore').readAsStringSync();
-      expect(gitignore, contains(kGitignoreEntry));
+      expect(gitignore, contains(gitignoreEntry));
     },
   );
 
@@ -116,7 +116,9 @@ void main() {
       out: out,
       projectRoot: scratch,
     );
-    expect(code, 1);
+    // 3, "out of date under --check", as every command's exit codes say; 1
+    // is for a step that is blocked.
+    expect(code, 3);
     expect(out.text, contains('hook/build.dart'));
     expect(File('${scratch.path}/hook/build.dart').existsSync(), isFalse);
     expect(
@@ -131,7 +133,7 @@ void main() {
 
     final hook = File('${scratch.path}/hook/build.dart');
     hook.writeAsStringSync(
-      '// a person added something here\n$kHookBuildContent',
+      '// a person added something here\n$hookBuildContent',
     );
 
     final err = _BufferSink();
@@ -159,7 +161,7 @@ void main() {
       projectRoot: scratch,
     );
     expect(code, 0);
-    expect(hook.readAsStringSync(), kHookBuildContent);
+    expect(hook.readAsStringSync(), hookBuildContent);
   });
 
   test('an existing active assets: list keeps its own entries', () async {
@@ -257,14 +259,18 @@ dev_dependencies:
     // touches afterwards to a version that is no longer the one on pub.dev.
     //
     // Mutation: bump `version:` in this package's pubspec by a minor — this
-    // fails until `kFlutter3dBuildVersionConstraint` follows it.
+    // fails until `flutter3dBuildVersionConstraint` follows it.
+    // A pre-release is asked for whole: `^1.0.0` does not admit
+    // `1.0.0-rc.1`, which sorts below it.
     final version = RegExp(
-      r'^version:\s*(\d+)\.(\d+)\.\d+',
+      r'^version:\s*(\d+)\.(\d+)\.\d+(-\S+)?',
       multiLine: true,
     ).firstMatch(File('pubspec.yaml').readAsStringSync())!;
     expect(
-      kFlutter3dBuildVersionConstraint,
-      '^${version.group(1)}.${version.group(2)}.0',
+      flutter3dBuildVersionConstraint,
+      version.group(3) == null
+          ? '^${version.group(1)}.${version.group(2)}.0'
+          : '^${version.group(0)!.split(RegExp(r'\s+')).last}',
     );
   });
 

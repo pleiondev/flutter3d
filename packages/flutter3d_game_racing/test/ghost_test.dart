@@ -8,7 +8,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// A car that goes exactly where it is told, so that a test about recording is
 /// not also a test about driving.
-final class ScriptedCar implements VehicleController {
+final class ScriptedCar with VehicleController {
   ScriptedCar()
     : collider = Collider(
         shape: CollisionSphere(0.7),
@@ -43,7 +43,7 @@ final class ScriptedCar implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;

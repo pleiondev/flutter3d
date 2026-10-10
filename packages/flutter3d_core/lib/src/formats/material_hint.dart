@@ -25,8 +25,13 @@ sealed class MaterialHintKind {
 final class RangeHint extends MaterialHintKind {
   const RangeHint(this.min, this.max, {this.step});
 
+  /// In the unit of the value the hint is for.
   final double min;
+
+  /// In the unit of the value the hint is for.
   final double max;
+
+  /// In the unit of the value the hint is for.
   final double? step;
 }
 

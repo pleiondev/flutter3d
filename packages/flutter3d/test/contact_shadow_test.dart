@@ -28,7 +28,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 80;
 const int _height = 64;
@@ -57,7 +56,7 @@ const int _height = 64;
   required bool sun,
   bool sunCasts = true,
 }) {
-  final scene = Scene()..ambientIntensity = 0.35;
+  final scene = Scene()..ambientIntensity = 0.35 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -66,9 +65,9 @@ const int _height = 64;
 
   MeshNode slab(Vector3 size, Vector3 at, String name) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.75, 0.75, 0.75, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.75, 0.75, 1.0),
       lighting: LightingModel.lambert,
     ),
     name: name,
@@ -83,7 +82,7 @@ const int _height = 64;
     scene.add(
       LightNode(
           type: LightType.directional,
-          intensity: 2.0,
+          intensity: 2.0 * Photometric.legacyUnit,
           castsShadow: sunCasts,
           name: 'sun',
         )
@@ -98,7 +97,7 @@ const int _height = 64;
     scene.add(
       LightNode(
         type: LightType.point,
-        intensity: 8.0,
+        intensity: 8.0 * Photometric.legacyUnit,
         range: 12.0,
         name: 'lamp',
       )..setPosition(-2.0, 2.5, -1.0),
@@ -119,7 +118,7 @@ const int _height = 64;
 /// from a different offset of the 4 x 4 pattern, and with nothing to average
 /// them the edge is exactly as ragged as the pattern.
 ({Scene scene, CameraNode camera}) _plateOverFloor() {
-  final scene = Scene()..ambientIntensity = 0.35;
+  final scene = Scene()..ambientIntensity = 0.35 * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -128,9 +127,9 @@ const int _height = 64;
 
   MeshNode slab(Vector3 size, Vector3 at, String name) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(
+    RenderMaterial(
       name: name,
-      baseColor: Vector4(0.75, 0.75, 0.75, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.75, 0.75, 1.0),
       lighting: LightingModel.lambert,
     ),
     name: name,
@@ -143,7 +142,7 @@ const int _height = 64;
     ..add(
       LightNode(
           type: LightType.directional,
-          intensity: 1.0,
+          intensity: 1.0 * Photometric.legacyUnit,
           castsShadow: false,
           name: 'sun',
         )
@@ -188,9 +187,9 @@ Future<Uint8List> _draw(
     views: <RenderView>[RenderView(camera: at.camera)],
     settings: settings,
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Total red across [x0]..[x1] on row [y], which on this grey scene is

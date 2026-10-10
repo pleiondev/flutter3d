@@ -1,0 +1,2711 @@
+# The public API of flutter3d_model_core.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_model_core/flutter3d_model_core.dart
+
+final class AddClip extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddClip({this.clipName})
+  final String? clipName
+
+final class AddImage extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddImage({required this.bytes, this.imageName, this.mimeType})
+  final String? imageName
+  final String? mimeType
+  final Uint8List bytes
+
+final class AddJoint extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddJoint({required this.skeletonIndex, required this.objectId, this.inverseBindMatrix})
+  final Matrix4? inverseBindMatrix
+  final int objectId
+  final int skeletonIndex
+
+final class AddLathe extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddLathe({required this.profile, this.segments = 32, this.closedProfile = false, this.shapeName = 'lathe', this.at})
+  final List<Vector2> profile
+  final String shapeName
+  final Vector3? at
+  final bool closedProfile
+  final int segments
+
+final class AddLight extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddLight({this.type = ProjectLightType.directional, this.at})
+  final ProjectLightType type
+  final Vector3? at
+
+final class AddLod extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddLod({required this.id, required this.ratio, required this.maxScreenFraction})
+  final double maxScreenFraction
+  final double ratio
+  final int id
+
+final class AddMaterial extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddMaterial({this.materialName, this.assignTo})
+  final String? materialName
+  final int? assignTo
+
+final class AddModifier extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddModifier({required this.id, required this.modifier})
+  final Modifier modifier
+  final int id
+
+final class AddNode extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddNode({required this.materialIndex, required this.kind, this.fields = const <String, Object?>{}, this.position = (0.0, 0.0)})
+  final (double x, double y) position
+  final Map<String, Object?> fields
+  final String kind
+  final int materialIndex
+
+final class AddPrimitive extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  ParametricShape? get shape
+  String get name
+  String get says
+  const AddPrimitive({required this.kind, this.size = 1.0, this.segments = 32, this.at})
+  final String kind
+  final Vector3? at
+  final double size
+  final int segments
+  static const List<String> primitiveKinds = <String>['box', 'plane', 'sphere', 'cylinder', 'torus']
+
+final class AddShapeDriver extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddShapeDriver({required this.id, required this.driver})
+  final ShapeDriver driver
+  final int id
+
+final class AddShapeFromMesh extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddShapeFromMesh({required this.id, required this.shapeName})
+  final String shapeName
+  final int id
+
+final class AddSkeleton extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddSkeleton({this.skeletonName})
+  final String? skeletonName
+
+final class AddSocket extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AddSocket({this.label = 'socket', this.at})
+  final String label
+  final Vector3? at
+
+final class AdoptTexture extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AdoptTexture({required this.materialIndex, this.size})
+  final int materialIndex
+  final int? size
+
+final class ApplyClipResult extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ApplyClipResult({required this.clip, this.clipIndex})
+  final ProjectClip clip
+  final int? clipIndex
+
+final class ApplyJobResult extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ApplyJobResult({required this.objectId, required this.baseVersion, required this.meshBytes})
+  factory ApplyJobResult.of(JobResult result)
+  final Uint8List meshBytes
+  final int baseVersion
+  final int objectId
+
+final class ApplyModifier extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ApplyModifier({required this.id, required this.index})
+  final int id
+  final int index
+
+final class ApplySimulationCache extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ApplySimulationCache({required this.objectId, required this.baseVersion, required this.cache})
+  factory ApplySimulationCache.of(BakeClothJobRequest bake)
+  final SimulationCache cache
+  final int baseVersion
+  final int objectId
+
+final class ApplyTransform extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ApplyTransform(this.id)
+  final int id
+
+final class AssetAudit
+  String get says
+  String toString()
+  Vector3? get baseCentre
+  bool get clean
+  double get pivotDistance
+  double get size
+  factory AssetAudit.of(ModelProject project)
+  final Aabb3? bounds
+  final ExportReadiness readiness
+  final List<AuditFinding> findings
+  final List<List<int>> duplicateMaterials
+  final List<MeshAudit> meshes
+
+final class AssignMaterial extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const AssignMaterial({required this.id, required this.to})
+  final int id
+  final int? to
+
+typedef AtlasCell = ({double x, double y, double width, double height});
+
+enum AuditCheck
+  values: units, pivot, readiness, materials, mesh
+
+final class AuditFinding
+  String toString()
+  const AuditFinding(this.check, this.message)
+  final AuditCheck check
+  final String message
+
+final class AutosavePolicy
+  const AutosavePolicy({this.debounce = const Duration(seconds: 2), this.minInterval = const Duration(seconds: 15)})
+  final Duration debounce
+  final Duration minInterval
+
+final class BakeClothJobRequest implements SimulationBakeRequest
+  BakeClothJobRequest({required this.objectId, required this.baseVersion, required ClothMesh mesh, required this.settings, required this.dt, required this.frameCount, this.obstacles = const <ClothObstacle>[]})
+  Future<SimulationCache> bake()
+  Future<void> runChunk(int index)
+  SimulationCache buildCache()
+  final ClothSettings settings
+  final List<ClothObstacle> obstacles
+  final double dt
+  final int baseVersion
+  final int frameCount
+  final int objectId
+  final int vertexCount
+  int get bakedFrameCount
+
+final class BakeDriversJobRequest
+  Future<ProjectClip> run()
+  const BakeDriversJobRequest({required this.clipIndex, required this.clip, required this.drivers, required this.shapeTargetObjectId, required this.shapeCount})
+  final List<ShapeDriver> drivers
+  final ProjectClip clip
+  final int clipIndex
+  final int shapeCount
+  final int shapeTargetObjectId
+
+final class BakeIkJobRequest
+  Future<ProjectClip> run()
+  const BakeIkJobRequest({required this.project, required this.clipIndex, required this.clip, required this.constraint, required this.fps})
+  final IkConstraint constraint
+  final ModelProject project
+  final ProjectClip clip
+  final double fps
+  final int clipIndex
+
+final class BakeMapKind
+  String toString()
+  final String name
+  final String? slot
+  static BakeMapKind? named(String name)
+  static const BakeMapKind ambientOcclusion = BakeMapKind._('ao', 'occlusion')
+  static const BakeMapKind curvature = BakeMapKind._('curvature', null)
+  static const BakeMapKind normal = BakeMapKind._('normal', 'normal')
+  static const BakeMapKind thickness = BakeMapKind._('thickness', null)
+  static const List<BakeMapKind> values = <BakeMapKind>[normal, ambientOcclusion, curvature, thickness]
+
+final class BakeMaps extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BakeMaps({required this.sourceId, required this.targetId, this.maps = const <String>['normal'], this.resolution = 1024, this.shell = 0.1})
+  final List<String> maps
+  final double shell
+  final int resolution
+  final int sourceId
+  final int targetId
+
+final class BakeParticleSystemJobRequest implements SimulationBakeRequest
+  BakeParticleSystemJobRequest({required this.objectId, required this.baseVersion, required this.system, this.frameCount = 180, this.dt = 1.0 / 60.0, void Function(double dt)? advancePerFrame, this.label = 'Particles'})
+  Future<SimulationCache> bake()
+  Future<SimulationCache> buildCache()
+  final ParticleSystem system
+  final String label
+  final double dt
+  final int baseVersion
+  final int frameCount
+  final int objectId
+  final void Function(double dt) advancePerFrame
+  int get vertexCount
+
+final class BakeRigidBodyJobRequest implements SimulationBakeRequest
+  BakeRigidBodyJobRequest({required this.objectId, required this.baseVersion, required this.halfExtents, required this.startPosition, this.mass = 1.0, this.frameCount = 180, this.dt = 1.0 / 60.0, this.label = 'Rigid body'})
+  Future<SimulationCache> bake()
+  Future<SimulationCache> buildCache()
+  final String label
+  final Vector3 halfExtents
+  final Vector3 startPosition
+  final double dt
+  final double mass
+  final int baseVersion
+  final int frameCount
+  final int objectId
+  int get vertexCount
+
+final class BakeRootMotionIntoClip extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BakeRootMotionIntoClip({required this.clipIndex, required this.rootJoint})
+  final int clipIndex
+  final int rootJoint
+
+final class BakeRootMotionJobRequest
+  Future<ExtractRootMotion> run()
+  const BakeRootMotionJobRequest({required this.clipIndex, required this.rootJoint})
+  final int clipIndex
+  final int rootJoint
+
+final class BakeSimulationToShapes extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BakeSimulationToShapes({required this.id, this.maxKeys = 8})
+  final int id
+  final int maxKeys
+
+final class BakeTextureGraph extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BakeTextureGraph({required this.materialIndex, this.size = 1024})
+  final int materialIndex
+  final int size
+
+final class BakeToMesh extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BakeToMesh(this.id)
+  final int id
+
+final class BendJoint extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BendJoint({required this.skeletonIndex, required this.jointIndex, required this.degrees, this.axis = 0})
+  final double degrees
+  final int axis
+  final int jointIndex
+  final int skeletonIndex
+
+final class BevelEdges extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BevelEdges(this.width, {this.segments = 1, this.clampOverlap = true})
+  final bool clampOverlap
+  final double width
+  final int segments
+
+final class BindSkin extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BindSkin({required this.objectId, required this.skeletonIndex})
+  final int objectId
+  final int skeletonIndex
+
+final class BindWeightsJobRequest
+  Future<JobResult> run()
+  const BindWeightsJobRequest({required this.objectId, required this.baseVersion, required this.meshBytes, required this.bones, this.falloffPower = 2.0, this.useVisibility = true, this.epsilon = 1e-4, this.maxInfluences = kMaxSkinInfluences, this.pruneThreshold = 1e-3})
+  final List<BoneSegment> bones
+  final Uint8List meshBytes
+  final bool useVisibility
+  final double epsilon
+  final double falloffPower
+  final double pruneThreshold
+  final int baseVersion
+  final int maxInfluences
+  final int objectId
+
+final class BlendMode
+  String toString()
+  double blendChannel(double top, double bottom)
+  final String name
+  static const BlendMode add = BlendMode._('add', _add)
+  static const BlendMode multiply = BlendMode._('multiply', _multiply)
+  static const BlendMode normal = BlendMode._('normal', _normal)
+  static const BlendMode overlay = BlendMode._('overlay', _overlay)
+  static const BlendMode screen = BlendMode._('screen', _screen)
+  static const List<BlendMode> values = <BlendMode>[normal, multiply, add, overlay, screen]
+
+final class BlendTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const BlendTextureNode({required super.id, this.base, this.overlay, this.mode = TextureBlendMode.normal, this.factor = 1.0})
+  final TextureBlendMode mode
+  final double factor
+  final int? base
+  final int? overlay
+
+class BoneMap
+  Map<String, String> get pairs
+  String toString()
+  String? targetOf(String sourceName)
+  bool get isEmpty
+  const BoneMap(Map<String, String> map)
+  int get length
+
+final class BoneSegment
+  String toString()
+  const BoneSegment(this.head, this.tail, {this.name})
+  final String? name
+  final Vector3 head
+  final Vector3 tail
+
+final class BoolHint extends ParamHint
+  const BoolHint()
+
+final class BridgeLoops extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BridgeLoops()
+
+final class BrushSample
+  Map<String, Object?> toJson()
+  const BrushSample({required this.center, required this.radius})
+  final Vector3 center
+  final double radius
+  static BrushSample? fromJson(Object? json)
+
+final class BudgetUsage
+  String toString()
+  bool get over
+  const BudgetUsage({required this.used, required this.limit})
+  double get fraction
+  final int limit
+  final int used
+
+final class BuildTopology extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const BuildTopology({required this.id, this.weld})
+  final double? weld
+  final int id
+
+class BuiltRig
+  const BuiltRig({required this.objects, required this.skeleton})
+  final List<ModelObject> objects
+  final ProjectSkeleton skeleton
+
+final class ChannelsTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const ChannelsTextureNode({required super.id, this.source, this.channel = TextureChannel.r})
+  final TextureChannel channel
+  final int? source
+
+final class CheckerTextureNode extends TextureNode
+  CheckerTextureNode({required super.id, Vector4? colorA, Vector4? colorB, this.scale = 8.0})
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  final Vector4 colorA
+  final Vector4 colorB
+  final double scale
+
+final class ColorTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const ColorTextureNode({required super.id, required this.value})
+  final Vector4 value
+
+final class CommandJournal
+  CommandJournal()
+  T transaction<T>(T Function() body)
+  Uint8List toBytes()
+  int get length
+  static JournalReplay replay(Uint8List bytes, ModelProject initial)
+  void amend(ModelCommand replacement, {StepAuthor author = StepAuthor.person})
+  void beginTransaction()
+  void endTransaction()
+  void record(ModelCommand command, {StepAuthor author = StepAuthor.person})
+  void rollbackTransaction()
+
+final class CompositeGraph
+  CompositeGraph touched(CompositePass pass)
+  CompositeGraph withPass(CompositePass pass, {required bool on})
+  RenderSettings settings(RenderSettings from)
+  String toString()
+  bool isOn(CompositePass pass)
+  const CompositeGraph({required this.enabled, this.dirty = const <CompositePass>{}})
+  factory CompositeGraph.of(RenderSettings settings)
+  final Set<CompositePass> dirty
+  final Set<CompositePass> enabled
+  static Set<CompositePass> branchFrom(CompositePass pass)
+
+final class CompositePass
+  String toString()
+  final String name
+  final bool fixed
+  final int at
+  static CompositePass? named(String name)
+  static const CompositePass ambientOcclusion = CompositePass._('ssao', 1, fixed: false)
+  static const CompositePass bloom = CompositePass._('bloom', 3, fixed: false)
+  static const CompositePass look = CompositePass._('look', 5, fixed: false)
+  static const CompositePass output = CompositePass._('output', 6, fixed: true)
+  static const CompositePass reflections = CompositePass._('reflections', 2, fixed: false)
+  static const CompositePass scene = CompositePass._('scene', 0, fixed: true)
+  static const CompositePass tonemap = CompositePass._('tonemap', 4, fixed: false)
+  static const List<CompositePass> values = <CompositePass>[scene, ambientOcclusion, reflections, bloom, tonemap, look, output]
+
+final class DeleteElements extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DeleteElements()
+
+final class DeleteKeys extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DeleteKeys({required this.clipIndex, required this.trackIndex, required this.indices})
+  final List<int> indices
+  final int clipIndex
+  final int trackIndex
+
+final class DeleteObjects extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DeleteObjects()
+
+final class DeleteShape extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DeleteShape({required this.id, required this.shapeIndex})
+  final int id
+  final int shapeIndex
+
+typedef DescribedElement = ({int id, Vector3 at, Vector3? normal, double? area, double? length});
+
+final class DissolveEdges extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DissolveEdges()
+
+final class DoubleHint extends ParamHint
+  const DoubleHint({this.min, this.max, this.step, this.unit})
+  final String? unit
+  final double? max
+  final double? min
+  final double? step
+
+final class DrawQuad extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DrawQuad({required this.objectId, required this.points, this.sourceId, this.snap = 0.02})
+  final List<Vector3> points
+  final double snap
+  final int objectId
+  final int? sourceId
+
+final class DriverAxis
+  String toString()
+  Vector3 get vector
+  final String name
+  static const DriverAxis x = DriverAxis._('x', 1, 0, 0)
+  static const DriverAxis y = DriverAxis._('y', 0, 1, 0)
+  static const DriverAxis z = DriverAxis._('z', 0, 0, 1)
+
+final class DuplicateMaterial extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DuplicateMaterial(this.index)
+  final int index
+
+final class DuplicateObjects extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const DuplicateObjects()
+
+final class EditedGeometry extends Geometry
+  const EditedGeometry(this.mesh)
+  final EditMesh mesh
+  int get triangleCount
+  int get vertexCount
+
+final class EmbedMaterial extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const EmbedMaterial(this.index)
+  final int index
+
+final class EnumHint extends ParamHint
+  const EnumHint(this.values)
+  final List<String> values
+
+final class ExportBlocked extends ExportResult
+  String get says
+  const ExportBlocked(this.issues)
+  final List<ExportIssue> issues
+
+final class ExportFile
+  String toString()
+  const ExportFile(this.name, this.bytes)
+  final String name
+  final Uint8List bytes
+
+enum ExportFormat
+  values: f3d, obj, glb, stl, stlAscii, usdz
+  String get label
+  String get says
+  String get suffix
+  bool get carriesLods
+  const ExportFormat(this.writer)
+  final ModelWriter writer
+
+final class ExportIssue
+  String toString()
+  const ExportIssue(this.severity, this.message, {this.object})
+  final ExportSeverity severity
+  final ModelObject? object
+  final String message
+
+final class ExportReadiness
+  String get says
+  String toString()
+  bool get canExport
+  factory ExportReadiness.check(ModelProject project, {bool? trianglesOnly, bool? requireManifold})
+  factory ExportReadiness.of(List<ExportIssue> found)
+  final List<ExportIssue> issues
+
+final class ExportRefused extends ExportResult
+  String toString()
+  const ExportRefused(this.because)
+  final String because
+
+sealed class ExportResult
+  const ExportResult()
+
+enum ExportSeverity
+  values: warning, error
+
+final class ExportWritten extends ExportResult
+  const ExportWritten(this.files, this.warnings)
+  final List<ExportFile> files
+  final List<String> warnings
+
+final class ExtractRootMotion extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ExtractRootMotion({required this.clipIndex, required this.rootJoint})
+  final int clipIndex
+  final int rootJoint
+
+final class Extrude extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Extrude(this.distance)
+  final double distance
+
+final class FillHoles extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const FillHoles()
+
+ModelProject FitTexturesToProfile(ModelProject project, {TextureBudget? budget})
+
+sealed class Geometry
+  const Geometry()
+  int get triangleCount
+  int get vertexCount
+
+final class GrowSelection extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const GrowSelection()
+
+final class HistoryStep
+  const HistoryStep({required this.command, required this.before, required this.selectionBefore, this.meshSteps = const <EditMesh, int>{}, this.author = StepAuthor.person, this.client})
+  final Map<EditMesh, int> meshSteps
+  final ModelCommand command
+  final ModelProject before
+  final ProjectSelection selectionBefore
+  final StepAuthor author
+  final String? client
+
+final class IkConstraint
+  String toString()
+  const IkConstraint({required this.rootJointId, required this.midJointId, required this.effectorJointId, required this.target, required this.pole})
+  final Vector3 pole
+  final Vector3 target
+  final int effectorJointId
+  final int midJointId
+  final int rootJointId
+
+final class ImageDimensions
+  String toString()
+  bool operator ==(Object other)
+  const ImageDimensions(this.width, this.height)
+  final int height
+  final int width
+  int get hashCode
+
+final class ImageTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const ImageTextureNode({required super.id, required this.imageId})
+  final int imageId
+
+final class ImportCounts
+  String toString()
+  bool operator ==(Object other)
+  const ImportCounts({required this.objects, required this.materials, required this.images, required this.triangles})
+  final int images
+  final int materials
+  final int objects
+  final int triangles
+  int get hashCode
+
+final class ImportOptions
+  const ImportOptions({this.scale = 1.0, this.upAxis = UpAxis.y})
+  final UpAxis upAxis
+  final double scale
+
+final class ImportReport
+  const ImportReport({required this.project, required this.issues, required this.counts})
+  final ImportCounts counts
+  final List<String> issues
+  final ModelProject project
+
+final class ImportedGeometry extends Geometry
+  const ImportedGeometry(this.data)
+  final MeshData data
+  int get triangleCount
+  int get vertexCount
+
+final class ImpostorAtlas
+  ({int view, int next, double blend}) pick(double cameraYaw)
+  ImpostorAtlas({this.angles = 8, this.size = 1024})
+  ImpostorView viewAt(int index)
+  List<ImpostorView> get views
+  SnapshotCamera cameraFor(int index, {required Vector3 centre, required double distance, double fovYRadians = math.pi / 8})
+  String toString()
+  final int angles
+  final int columns
+  final int size
+  int get cellSize
+  int get rows
+
+typedef ImpostorBake = ({ImpostorAtlas atlas, int size, Uint8List rgba});
+
+final class ImpostorCard
+  List<Vector3> cornersAt(Vector3 centre, double cameraYaw)
+  const ImpostorCard({required this.width, required this.height})
+  factory ImpostorCard.framing({required double distance, double fovYRadians = math.pi / 8})
+  final double height
+  final double width
+
+typedef ImpostorView = ({int index, double yaw, AtlasCell cell});
+
+final class InsetFaces extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const InsetFaces(this.thickness, {this.depth = 0.0})
+  final double depth
+  final double thickness
+
+final class IntHint extends ParamHint
+  const IntHint({this.min, this.max, this.step = 1})
+  final int step
+  final int? max
+  final int? min
+
+final class InvertSelection extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const InvertSelection()
+
+final class InvertTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const InvertTextureNode({required super.id, this.source})
+  final int? source
+
+final class JobRequest
+  Future<JobResult> run()
+  Map<String, Object?> toJson()
+  const JobRequest({required this.objectId, required this.baseVersion, required this.meshBytes, required this.modifiers})
+  final List<Modifier> modifiers
+  final Uint8List meshBytes
+  final int baseVersion
+  final int objectId
+  static JobRequest? fromJson(Map<String, Object?> json)
+
+final class JobResult
+  Map<String, Object?> toJson()
+  const JobResult({required this.objectId, required this.baseVersion, required this.meshBytes})
+  final Uint8List meshBytes
+  final int baseVersion
+  final int objectId
+  static JobResult? fromJson(Map<String, Object?> json)
+
+final class JournalReplay
+  bool get ok
+  factory JournalReplay.ok(ModelHistory history)
+  factory JournalReplay.refused(String said)
+  final ModelHistory? history
+  final String? refused
+
+final class Key
+  Key withTangents({List<double>? inTangent, List<double>? outTangent})
+  Key withTime(double newTime)
+  const Key({required this.time, required this.values, this.inTangent, this.outTangent})
+  final List<double> values
+  final List<double>? inTangent
+  final List<double>? outTangent
+  final double time
+
+final class KeyShape extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const KeyShape({required this.id, required this.clipIndex, required this.time})
+  final double time
+  final int clipIndex
+  final int id
+
+final class KeyTable
+  AnimationInterpolation interpolation
+  AnimationTrack toAnimationTrack({required int nodeIndex, required AnimationPath path})
+  KeyTable({required this.componentCount, this.interpolation = AnimationInterpolation.linear, List<Key>? keys})
+  List<Key> get keys
+  double get duration
+  factory KeyTable.fromAnimationTrack(AnimationTrack track)
+  final int componentCount
+  int get keyCount
+  static double snappedToFrame(double time, double fps)
+  static double timeOfFrame(int frame, double fps)
+  static int frameOfTime(double time, double fps)
+  void deleteKeys(List<int> indices)
+  void moveKeys(List<int> indices, double deltaTime)
+  void sample(double time, Float32List out)
+  void setInterpolation(AnimationInterpolation next)
+  void setKey(double time, List<double> values, {List<double>? inTangent, List<double>? outTangent})
+  void setTangent(int index, {List<double>? inTangent, List<double>? outTangent})
+
+final class LevelsTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const LevelsTextureNode({required super.id, this.source, this.blackPoint = 0.0, this.whitePoint = 1.0, this.gamma = 1.0})
+  final double blackPoint
+  final double gamma
+  final double whitePoint
+  final int? source
+
+final class LightingSync
+  RenderSettings apply(RenderSettings settings, SceneLighting lighting)
+  void sync(Scene scene, SceneLighting lighting)
+
+final class Link extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Link({required this.materialIndex, required this.nodeId, required this.input, required this.from})
+  final String input
+  final int from
+  final int materialIndex
+  final int nodeId
+
+final class LinkMaterialFile extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const LinkMaterialFile({required this.index, required this.path, this.bytes})
+  final String path
+  final Uint8List? bytes
+  final int index
+
+final class LinkToSource extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const LinkToSource({required this.id, required this.path, required this.sha})
+  final String path
+  final String sha
+  final int id
+
+final class Listed
+  Map<String, Object?> toJson()
+  String toString()
+  const Listed({required this.id, required this.name, this.kind, this.parent, this.version, this.transform, this.materials = const <int>[], this.about = const <String, Object?>{}})
+  final List<double>? transform
+  final List<int> materials
+  final Map<String, Object?> about
+  final String name
+  final String? kind
+  final int id
+  final int? parent
+  final int? version
+
+final class LodMeshCache
+  MeshData? meshFor(ModelObject object, int lodIndex)
+  void forget(int objectId)
+  void invalidate(int objectId)
+
+final class LodSpec
+  LodSpec copyWith({double? ratio, double? maxScreenFraction})
+  String toString()
+  const LodSpec({required this.ratio, required this.maxScreenFraction})
+  final double maxScreenFraction
+  final double ratio
+
+final class LookAtConstraint
+  String toString()
+  const LookAtConstraint({required this.jointId, required this.target, required this.forward, required this.up, this.maxYaw = math.pi, this.maxPitch = math.pi})
+  final Vector3 forward
+  final Vector3 target
+  final Vector3 up
+  final double maxPitch
+  final double maxYaw
+  final int jointId
+
+final class LoopCut extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const LoopCut({this.cuts = 1, this.factor = 0.5})
+  final double factor
+  final int cuts
+
+final class MarkSeam extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const MarkSeam({this.on = true})
+  final bool on
+
+typedef MaskRead = double Function(int x, int y);
+
+final class MergeByDistance extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const MergeByDistance({this.distance})
+  final double? distance
+
+final class MeshAudit
+  const MeshAudit({required this.object, required this.degenerate, required this.nonManifold, required this.flipped})
+  final ModelObject object
+  final int degenerate
+  final int flipped
+  final int nonManifold
+
+final class MirrorJoints extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const MirrorJoints({required this.skeletonIndex, required this.axis, required this.jointMirror})
+  final Map<int, int> jointMirror
+  final int axis
+  final int skeletonIndex
+
+sealed class ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, Object?> toJson()
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  String toString()
+  bool get isJournaled
+  const ModelCommand()
+
+typedef ModelCredit = ({String title, String author, String licence, String url});
+
+final class ModelHistory
+  CommandJournal? recoveryJournal
+  Future<void> get whenNotInTransaction
+  List<({String says, StepAuthor author, String? client})> get authorship
+  List<HistoryStep> get steps
+  List<ModelCommand> get journal
+  Map<EditMesh, int> get openMeshSteps
+  ModelHistory(this._project, {this.depth = 64, this.historyBudgetBytes = kHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
+  ModelHistory.withSteps(this._project, List<HistoryStep> steps, {this.depth = 64, this.historyBudgetBytes = kHistoryBudgetBytes, ProjectSelection? selection, this.recoveryJournal})
+  ModelProject get project
+  ProjectSelection get selection
+  StepAuthor? get topStepAuthor
+  String? amend(ModelCommand replacement, {StepAuthor by = StepAuthor.person, String? client})
+  String? get redoSays
+  String? get undoSays
+  String? run(ModelCommand command, {StepAuthor author = StepAuthor.person, String? client})
+  T transaction<T>(T Function() body)
+  bool get canRedo
+  bool get canUndo
+  bool get isDirty
+  bool redo()
+  bool undo({StepAuthor? onlyIfAuthoredBy})
+  final int depth
+  final int historyBudgetBytes
+  int undoAllBy(StepAuthor author, {String? client})
+  set selection(ProjectSelection to)
+  void beginTransaction()
+  void dropRedo()
+  void endTransaction()
+  void markSaved()
+
+final class ModelObject
+  ModelObject copyWith({String? name, Geometry? geometry, Matrix4? transform, int? parent, bool clearParent = false, List<int>? materialSlots, List<ModifierSlot>? modifiers, int? skeletonIndex, bool clearSkeletonIndex = false, ShapeSet? shapeSet, List<ShapeDriver>? shapeDrivers, List<LodSpec>? lods, SimulationCache? simulationCache, bool clearSimulationCache = false, bool? visible, bool? locked, SourceLink? source, bool clearSource = false, ModelCredit? credit, bool clearCredit = false})
+  String toString()
+  const ModelObject({required this.id, required this.name, required this.geometry, required this.transform, this.parent, this.version = 1, this.materialSlots = const <int>[], this.modifiers = const <ModifierSlot>[], this.skeletonIndex, this.shapeSet = const ShapeSet(), this.shapeDrivers = const <ShapeDriver>[], this.lods = const <LodSpec>[], this.simulationCache, this.visible = true, this.locked = false, this.source, this.credit})
+  final Geometry geometry
+  final List<LodSpec> lods
+  final List<ModifierSlot> modifiers
+  final List<ShapeDriver> shapeDrivers
+  final List<int> materialSlots
+  final Matrix4 transform
+  final ModelCredit? credit
+  final ShapeSet shapeSet
+  final SimulationCache? simulationCache
+  final SourceLink? source
+  final String name
+  final bool locked
+  final bool visible
+  final int id
+  final int version
+  final int? parent
+  final int? skeletonIndex
+
+final class ModelProject implements ModelProjectView
+  ModelObject? operator [](int id)
+  ModelProject added(ModelObject Function(int id) build)
+  ModelProject copyWith({ProjectProfile? profile, List<ProjectMaterial>? materials, List<EncodedImage>? images, List<ProjectSkeleton>? skeletons, List<ProjectClip>? clips, SceneLighting? lighting})
+  ModelProject removed(int id)
+  ModelProject withObject(ModelObject object)
+  String toString()
+  bool holds(int id)
+  bool isVisible(int id)
+  const ModelProject({this.profile = const ProjectProfile(), this.objects = const <ModelObject>[], this.materials = const <ProjectMaterial>[], this.images = const <EncodedImage>[], this.nextId = 1, this.skeletons = const <ProjectSkeleton>[], this.clips = const <ProjectClip>[], this.lighting = const SceneLighting()})
+  final List<EncodedImage> images
+  final List<ModelObject> objects
+  final List<ProjectClip> clips
+  final List<ProjectMaterial> materials
+  final List<ProjectSkeleton> skeletons
+  final ProjectProfile profile
+  final SceneLighting lighting
+  final int nextId
+  int get triangleCount
+  int get vertexCount
+
+abstract interface class ModelProjectView
+  bool holds(int id)
+
+final class ModifierEvaluationCache
+  EditMesh? evaluatedMesh(ModelProject project, ModelObject object)
+  void forget(int objectId)
+
+final class ModifierSlot
+  Map<String, Object?> toJson()
+  ModifierSlot copyWith({Modifier? modifier, bool? enabled, bool? inExport})
+  const ModifierSlot({required this.modifier, this.enabled = true, this.inExport = true})
+  final Modifier modifier
+  final bool enabled
+  final bool inExport
+  static ModifierSlot? fromJson(Object? json)
+
+final class MoveBy extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const MoveBy(this.by, {this.space = TransformSpace.global})
+  final TransformSpace space
+  final Vector3 by
+
+final class MoveKeys extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const MoveKeys({required this.clipIndex, required this.trackIndex, required this.indices, required this.deltaTime})
+  final List<int> indices
+  final double deltaTime
+  final int clipIndex
+  final int trackIndex
+
+final class MoveNode extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const MoveNode({required this.materialIndex, required this.nodeId, required this.x, required this.y})
+  final double x
+  final double y
+  final int materialIndex
+  final int nodeId
+
+final class NoiseTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const NoiseTextureNode({required super.id, this.seed = 0, this.scale = 1.0})
+  final double scale
+  final int seed
+
+final class NormalFromHeightTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const NormalFromHeightTextureNode({required super.id, this.height, this.strength = 1.0})
+  final double strength
+  final int? height
+
+enum OriginPlacement
+  values: boundsCentre, boundsBottom, worldOrigin
+
+final class Outcome
+  bool get ok
+  factory Outcome.done(ModelProject project, {ProjectSelection? selection, EditMesh? meshTouched, List<EditMesh> meshesTouched = const <EditMesh>[]})
+  factory Outcome.refused(String said)
+  final EditMesh? meshTouched
+  final List<EditMesh> meshesTouched
+  final ModelProject? project
+  final ProjectSelection? selection
+  final String? refused
+
+final class OutputTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const OutputTextureNode({required super.id, this.result, this.slot})
+  final String? slot
+  final int? result
+
+final class PackAtlas extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const PackAtlas({required this.objectIds, this.margin = 0.01})
+  final List<int> objectIds
+  final double margin
+
+final class PaintLayer
+  PaintLayer paintTile(int tx, int ty, Uint8List pixels)
+  PaintLayer({required this.tilesX, required this.tilesY, this.blendMode = BlendMode.normal, Map<int, PaintTile>? tiles})
+  PaintTile? tileAt(int tx, int ty)
+  final BlendMode blendMode
+  final Map<int, PaintTile> tiles
+  final int tilesX
+  final int tilesY
+
+final class PaintMirror
+  Map<String, Object?> toJson()
+  const PaintMirror({required this.axis, required this.jointMirror, this.plane = 0.0, this.tolerance = 1e-4})
+  final Map<int, int> jointMirror
+  final double plane
+  final double tolerance
+  final int axis
+  static PaintMirror? fromJson(Object? json)
+
+final class PaintSample
+  Map<String, Object?> toJson()
+  const PaintSample({required this.centre, required this.radius})
+  final Vector3 centre
+  final double radius
+  static PaintSample? fromJson(Object? json)
+
+final class PaintStack
+  List<double> pixelAt(int x, int y)
+  Uint8List flatten()
+  const PaintStack(this.layers)
+  final List<PaintLayer> layers
+
+final class PaintStroke extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const PaintStroke({required this.objectId, required this.samples, required this.colour, this.layer = 0, this.strength = 1.0, this.size = 1024, this.maskImage, this.maskInverted = false})
+  final List<PaintSample> samples
+  final List<double> colour
+  final bool maskInverted
+  final double strength
+  final int layer
+  final int objectId
+  final int size
+  final int? maskImage
+
+final class PaintTile
+  PaintTile(this.pixels)
+  final Uint8List pixels
+
+final class PaintVertexColour extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const PaintVertexColour({required this.objectId, required this.samples, required this.colour, this.strength = 1.0})
+  final List<PaintSample> samples
+  final List<double> colour
+  final double strength
+  final int objectId
+
+final class PaintWeights extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const PaintWeights({required this.objectId, required this.skeletonIndex, required this.joint, required this.samples, required this.strength, this.mode = PaintWeightsMode.paint, this.mirror, this.normalize = true, this.maxInfluences})
+  final List<BrushSample> samples
+  final PaintMirror? mirror
+  final PaintWeightsMode mode
+  final bool normalize
+  final double strength
+  final int joint
+  final int objectId
+  final int skeletonIndex
+  final int? maxInfluences
+
+final class PaintWeightsMode
+  String toString()
+  final String name
+  static const PaintWeightsMode assign = PaintWeightsMode._('assign')
+  static const PaintWeightsMode paint = PaintWeightsMode._('paint')
+
+final class PanoramaSync
+  bool get rebuiltLast
+  void sync(GraphicsDevice device, Scene scene, ModelProject project)
+
+sealed class ParamHint
+  const ParamHint()
+
+final class ParametricGeometry extends Geometry
+  ParametricGeometry(this.shape)
+  final ParametricShape shape
+  int get triangleCount
+  int get vertexCount
+
+final class PoseJoint extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const PoseJoint({required this.joint, required this.path, required this.clipIndex, required this.frame})
+  final AnimationPath path
+  final int clipIndex
+  final int frame
+  final int joint
+
+final class ProfileBudgetReport
+  String toString()
+  bool get anyOver
+  const ProfileBudgetReport({required this.triangles, required this.joints, required this.influences, required this.textureBytes, required this.wireframeDeclined})
+  factory ProfileBudgetReport.of(ModelProject project)
+  final BudgetUsage influences
+  final BudgetUsage joints
+  final BudgetUsage textureBytes
+  final BudgetUsage triangles
+  final bool wireframeDeclined
+
+enum ProfileTarget
+  values: desktop, mobile, web
+
+final class ProjectClip
+  String toString()
+  bool get isEmpty
+  const ProjectClip({this.name, required this.tracks, this.extras})
+  final List<ProjectTrack> tracks
+  final Map<String, Object?>? extras
+  final String? name
+
+final class ProjectLight
+  ProjectLight copyWith({ProjectLightType? type, Vector3? color, double? intensity, double? range, bool? castsShadow, double? innerConeAngle, double? outerConeAngle, Matrix4? transform})
+  ProjectLight({this.type = ProjectLightType.directional, Vector3? color, this.intensity = 1.0, this.range = 0.0, this.castsShadow = false, this.innerConeAngle = 0.0, this.outerConeAngle = math.pi / 4.0, Matrix4? transform})
+  final Matrix4 transform
+  final ProjectLightType type
+  final Vector3 color
+  final bool castsShadow
+  final double innerConeAngle
+  final double intensity
+  final double outerConeAngle
+  final double range
+
+final class ProjectLightType
+  String toString()
+  final String name
+  static const List<ProjectLightType> values = <ProjectLightType>[directional, point, spot]
+  static const ProjectLightType directional = ProjectLightType._('directional')
+  static const ProjectLightType point = ProjectLightType._('point')
+  static const ProjectLightType spot = ProjectLightType._('spot')
+
+final class ProjectMaterial
+  ProjectMaterial withBake(SurfaceMaterial next)
+  ProjectMaterial withFmat(String? next)
+  ProjectMaterial withGraph(TextureGraph? next)
+  ProjectMaterial withPaint(PaintStack? next)
+  ProjectMaterial withSurface(SurfaceMaterial next)
+  String toString()
+  bool get isGraphStale
+  const ProjectMaterial({required this.surface, this.version = 1, this.fmat, this.graph, this.bakedAtVersion, this.paint})
+  final PaintStack? paint
+  final String? fmat
+  final SurfaceMaterial surface
+  final TextureGraph? graph
+  final int version
+  final int? bakedAtVersion
+
+final class ProjectModelDocument extends ModelDocument
+  List<AnimationClip> animations
+  List<EncodedImage> images
+  List<ModelNode> nodes
+  List<ModelSkin> skins
+  List<ModelSurface> surfaces
+  List<String> warnings
+  List<SurfaceMaterial> materials
+  List<int> roots
+  ModelDocument of(ModelProject project, {bool withLods = false})
+  String toString()
+
+final class ProjectOpened extends ProjectRead
+  const ProjectOpened(this.project, {this.warnings = const <String>[], this.history = const <HistoryStep>[]})
+  final List<HistoryStep> history
+  final List<String> warnings
+  final ModelProject project
+
+final class ProjectProfile
+  Map<String, ParamHint> get profileHints
+  ProjectProfile copyWith({String? name, ProfileTarget? target, int? maxTriangles, int? maxJoints, int? maxInfluences, int? maxTextureSize, int? maxTextureBytes, bool clearMaxTextureBytes = false, bool? requireTriangles, bool? requireManifold, TextureBudget? textures, double? texelsPerMeter, bool clearTexelsPerMeter = false, double? fps, bool? frameSnap, int? sculptTriangleLimitWeb})
+  bool operator ==(Object other)
+  const ProjectProfile({this.name = 'desktop', this.target = ProfileTarget.desktop, this.maxTriangles = 500000, this.maxJoints = 64, this.maxInfluences = 4, this.maxTextureSize = 4096, this.maxTextureBytes, this.requireTriangles = true, this.requireManifold = false, this.textures = TextureBudget.desktop, this.texelsPerMeter, this.fps = 30.0, this.frameSnap = false, this.sculptTriangleLimitWeb = 300000})
+  final ProfileTarget target
+  final String name
+  final TextureBudget textures
+  final bool frameSnap
+  final bool requireManifold
+  final bool requireTriangles
+  final double fps
+  final double? texelsPerMeter
+  final int maxInfluences
+  final int maxJoints
+  final int maxTextureSize
+  final int maxTriangles
+  final int sculptTriangleLimitWeb
+  final int? maxTextureBytes
+  int get hashCode
+  static const ProjectProfile mobile = ProjectProfile(name: 'mobile', target: ProfileTarget.mobile, maxTriangles: 100000, maxJoints: 64, maxTextureSize: 2048, textures: TextureBudget.mobile)
+
+sealed class ProjectRead
+  const ProjectRead()
+
+final class ProjectRefused extends ProjectRead
+  String toString()
+  const ProjectRefused(this.because)
+  final String because
+
+abstract final class ProjectSection
+  static const int blob = 3
+  static const int checksums = 6
+  static const int editMeshes = 2
+  static const int history = 7
+  static const int historyImages = 8
+  static const int images = 5
+  static const int importedMeshes = 4
+  static const int manifest = 1
+  static const int simulationCaches = 9
+
+final class ProjectSelection
+  Map<String, Object?> toJson()
+  ProjectSelection copyWith({SelectionMode? mode, List<int>? objects, ElementLevel? level, List<int>? elements})
+  ProjectSelection within(ModelProjectView project)
+  Selection get asMeshSelection
+  String get says
+  String toString()
+  bool get isEmpty
+  const ProjectSelection({this.mode = SelectionMode.object, this.objects = const <int>[], this.level = ElementLevel.vertex, this.elements = const <int>[]})
+  final ElementLevel level
+  final List<int> elements
+  final List<int> objects
+  final SelectionMode mode
+  int? get activeObject
+  static ProjectSelection? fromJson(Object? json)
+  static const ProjectSelection none = ProjectSelection()
+
+final class ProjectSkeleton
+  ProjectSkeleton copyWith({List<int>? joints, List<Matrix4>? inverseBindMatrices, int? skeletonRoot, bool clearSkeletonRoot = false, String? name, List<IkConstraint>? constraints})
+  ProjectSkeleton({required List<int> joints, required this.inverseBindMatrices, this.skeletonRoot, this.name, List<IkConstraint> constraints = const <IkConstraint>[]})
+  String toString()
+  final List<IkConstraint> constraints
+  final List<Matrix4> inverseBindMatrices
+  final List<int> joints
+  final String? name
+  final int? skeletonRoot
+  int get jointCount
+
+final class ProjectTrack
+  const ProjectTrack({required this.objectId, required this.track})
+  final AnimationTrack track
+  final int objectId
+
+final class ReadinessCache
+  ExportReadiness of(ModelProject project, {bool? trianglesOnly, bool? requireManifold})
+  ReadinessCache()
+  int get walked
+  void forget()
+
+final class RecalculateNormals extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RecalculateNormals({this.flip = false})
+  final bool flip
+
+enum RecoveryDecision
+  values: openSaved, offerAutosave
+
+final class RegenerateLods extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RegenerateLods(this.id)
+  final int id
+
+final class Reimport extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Reimport({required this.id, required this.sha, required this.meshBytes})
+  final String sha
+  final Uint8List meshBytes
+  final int id
+
+final class RemoveJoint extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RemoveJoint({required this.skeletonIndex, required this.jointIndex})
+  final int jointIndex
+  final int skeletonIndex
+
+final class RemoveLight extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RemoveLight(this.index)
+  final int index
+
+final class RemoveMaterial extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RemoveMaterial(this.index)
+  final int index
+
+final class RemoveModifier extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RemoveModifier({required this.id, required this.index})
+  final int id
+  final int index
+
+final class RemoveNode extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RemoveNode({required this.materialIndex, required this.nodeId})
+  final int materialIndex
+  final int nodeId
+
+final class RemoveShapeDriver extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RemoveShapeDriver({required this.id, required this.index})
+  final int id
+  final int index
+
+final class Rename extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Rename({required this.id, required this.to})
+  final String to
+  final int id
+
+final class RenameJoint extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RenameJoint({required this.skeletonIndex, required this.jointIndex, required this.to})
+  final String to
+  final int jointIndex
+  final int skeletonIndex
+
+final class RenameShape extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RenameShape({required this.id, required this.shapeIndex, required this.to})
+  final String to
+  final int id
+  final int shapeIndex
+
+final class RenderPreset
+  const RenderPreset({required this.width, required this.height, required this.camera, this.ssaa = 1, this.settings = const RenderSettings(), this.tilesX = 1, this.tilesY = 1, this.clearColor})
+  final RenderSettings settings
+  final SnapshotCamera camera
+  final Vector4? clearColor
+  final int height
+  final int ssaa
+  final int tilesX
+  final int tilesY
+  final int width
+
+final class RenderProjectView
+  String toString()
+  final String name
+  final double pitch
+  final double yaw
+  static const List<RenderProjectView> values = <RenderProjectView>[front, back, left, right, top, bottom, iso]
+  static const RenderProjectView back = RenderProjectView._('back', math.pi, 0.0)
+  static const RenderProjectView bottom = RenderProjectView._('bottom', 0.0, -_maxPitch)
+  static const RenderProjectView front = RenderProjectView._('front', 0.0, 0.0)
+  static const RenderProjectView iso = RenderProjectView._('iso', math.pi / 4, math.pi / 6)
+  static const RenderProjectView left = RenderProjectView._('left', -math.pi / 2, 0.0)
+  static const RenderProjectView right = RenderProjectView._('right', math.pi / 2, 0.0)
+  static const RenderProjectView top = RenderProjectView._('top', 0.0, _maxPitch)
+
+final class RenderRefusal implements Exception
+  RenderRefusal(this.message)
+  String toString()
+  final String message
+
+final class RenderRequest
+  RenderRequest({required this.project, this.view = RenderProjectView.iso, this.width = 512, this.height = 512, this.shading = RenderShading.material, this.selection = const <int>{}, this.weightsJoint})
+  final ModelProject project
+  final RenderProjectView view
+  final RenderShading shading
+  final Set<int> selection
+  final int height
+  final int width
+  final int? weightsJoint
+
+final class RenderShading
+  String toString()
+  final String name
+  static const List<RenderShading> values = <RenderShading>[material, normals, weights, wireframe]
+  static const RenderShading material = RenderShading._('material')
+  static const RenderShading normals = RenderShading._('normals')
+  static const RenderShading weights = RenderShading._('weights')
+  static const RenderShading wireframe = RenderShading._('wireframe')
+
+final class RenderSnapshotJob
+  Future<Uint8List> run({void Function(double progress)? onProgress})
+  Future<void> renderTile(int index)
+  RenderSnapshotJob(this.project, this.preset, {required this.tileDevice, this.concurrency = 1})
+  Uint8List finish()
+  final ModelProject project
+  final RenderPreset preset
+  final TileDevice tileDevice
+  final int concurrency
+  int get chunkCount
+
+final class ReorderModifier extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ReorderModifier({required this.id, required this.from, required this.to})
+  final int from
+  final int id
+  final int to
+
+final class ReparentJoint extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ReparentJoint({required this.skeletonIndex, required this.jointIndex, required this.to})
+  final int jointIndex
+  final int skeletonIndex
+  final int? to
+
+final class ReplaceDocument extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  bool get isJournaled
+  const ReplaceDocument(this.next, this.says)
+  final ModelProject next
+  final String says
+
+enum ResizeFilter
+  values: box, bilinear
+
+final class RetargetClipJobRequest
+  Future<ProjectClip> run()
+  const RetargetClipJobRequest({required this.sourceProject, required this.sourceSkeleton, required this.sourceClip, required this.targetProject, required this.targetSkeleton, required this.boneMap, this.lockFeet = true, this.groundY = 0.0, this.footTolerance = 1e-3})
+  final BoneMap boneMap
+  final ModelProject sourceProject
+  final ModelProject targetProject
+  final ProjectClip sourceClip
+  final ProjectSkeleton sourceSkeleton
+  final ProjectSkeleton targetSkeleton
+  final bool lockFeet
+  final double footTolerance
+  final double groundY
+
+final class RetargetRig
+  RetargetRig({required Iterable<RigNode> nodes, required List<int> joints})
+  RigNode? operator [](int id)
+  final List<int> joints
+
+final class RetargetSource
+  List<ProjectClip> get clips
+  ProjectSkeleton get skeleton
+  const RetargetSource({required this.name, required this.project, required this.skeletonIndex, this.warning})
+  factory RetargetSource.fromDocument(String name, ModelDocument document)
+  final ModelProject project
+  final String name
+  final String? warning
+  final int skeletonIndex
+
+final class Retopologize extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Retopologize({required this.objectId, this.targetQuads = 2000})
+  final int objectId
+  final int targetQuads
+
+class RigBuildOptions
+  const RigBuildOptions({this.mirrorAxis = RigMirrorAxis.x, this.spineCount = 1, this.fingers = false, this.toes = false, this.faceBones = false, this.ikChains = false, this.controllers = false})
+  final RigMirrorAxis mirrorAxis
+  final bool controllers
+  final bool faceBones
+  final bool fingers
+  final bool ikChains
+  final bool toes
+  final int spineCount
+
+final class RigMirrorAxis
+  String toString()
+  final String name
+  static const List<RigMirrorAxis> values = <RigMirrorAxis>[x, y, z]
+  static const RigMirrorAxis x = RigMirrorAxis._('x')
+  static const RigMirrorAxis y = RigMirrorAxis._('y')
+  static const RigMirrorAxis z = RigMirrorAxis._('z')
+
+final class RigNode
+  const RigNode({required this.id, required this.name, required this.restLocal, this.parent})
+  final Matrix4 restLocal
+  final String name
+  final int id
+  final int? parent
+
+typedef RigPreview = ({int jointCount, int deformingCount, int controllerCount, int ikChainCount});
+
+final class RigTemplate
+  String toString()
+  final String name
+  static const List<RigTemplate> values = <RigTemplate>[humanoid, quadruped]
+  static const RigTemplate humanoid = RigTemplate._('humanoid')
+  static const RigTemplate quadruped = RigTemplate._('quadruped')
+
+final class RigTrack
+  const RigTrack({required this.nodeId, required this.track})
+  final AnimationTrack track
+  final int nodeId
+
+final class RotateBy extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const RotateBy({required this.axis, required this.radians, this.pivot = TransformPivot.median, this.space = TransformSpace.global})
+  final TransformPivot pivot
+  final TransformSpace space
+  final Vector3 axis
+  final double radians
+
+final class ScaleBy extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ScaleBy(this.by, {this.pivot = TransformPivot.median})
+  final TransformPivot pivot
+  final double by
+
+final class SceneEnvironmentPreset
+  String toString()
+  final String name
+  static const List<SceneEnvironmentPreset> values = <SceneEnvironmentPreset>[none, studio, daylight, sunset]
+  static const SceneEnvironmentPreset daylight = SceneEnvironmentPreset._('daylight')
+  static const SceneEnvironmentPreset none = SceneEnvironmentPreset._('none')
+  static const SceneEnvironmentPreset studio = SceneEnvironmentPreset._('studio')
+  static const SceneEnvironmentPreset sunset = SceneEnvironmentPreset._('sunset')
+
+final class SceneLighting
+  SceneLighting copyWith({List<ProjectLight>? lights, SceneEnvironmentPreset? environment, double? ambientIntensity, bool? shadows, double? exposure, ScenePostSettings? post, int? panorama, bool clearPanorama = false})
+  const SceneLighting({this.lights = const <ProjectLight>[], this.environment = SceneEnvironmentPreset.none, this.ambientIntensity = 0.3, this.shadows = false, this.exposure = 1.6, this.post = const ScenePostSettings(), this.panorama})
+  final List<ProjectLight> lights
+  final SceneEnvironmentPreset environment
+  final ScenePostSettings post
+  final bool shadows
+  final double ambientIntensity
+  final double exposure
+  final int? panorama
+
+final class ScenePostSettings
+  ScenePostSettings copyWith({bool? bloomEnabled})
+  const ScenePostSettings({this.bloomEnabled = true})
+  final bool bloomEnabled
+
+final class SculptStroke extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SculptStroke({required this.objectId, required this.kind, required this.radius, required this.strength, required this.points, this.pressures = const <double>[], this.falloff = BrushFalloff.smooth, this.symmetryX = false})
+  final BrushFalloff falloff
+  final BrushKind kind
+  final List<Vector3> points
+  final List<double> pressures
+  final bool symmetryX
+  final double radius
+  final double strength
+  final int objectId
+
+final class SelectAll extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectAll()
+
+final class SelectByMaterial extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectByMaterial(this.slot)
+  final int slot
+
+final class SelectEdgeLoop extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectEdgeLoop(this.edge)
+  final int edge
+
+final class SelectEdgeRing extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectEdgeRing(this.edge)
+  final int edge
+
+final class SelectElements extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectElements({this.objects, this.object, this.level, this.elements})
+  final List<int>? elements
+  final List<int>? objects
+  final String? level
+  final int? object
+
+final class SelectFacing extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectFacing({required this.axis, this.within = 45.0})
+  final Vector3 axis
+  final double within
+
+final class SelectLinked extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectLinked()
+
+final class SelectNear extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectNear({required this.point, required this.radius})
+  final Vector3 point
+  final double radius
+
+final class SelectNone extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SelectNone()
+
+enum SelectionMode
+  values: object, mesh
+
+final class Separate extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Separate()
+
+final class SetEnvironment extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetEnvironment(this.preset)
+  final SceneEnvironmentPreset preset
+
+final class SetInterpolation extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetInterpolation({required this.clipIndex, required this.trackIndex, required this.interpolation})
+  final AnimationInterpolation interpolation
+  final int clipIndex
+  final int trackIndex
+
+final class SetKey extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetKey({required this.clipIndex, required this.trackIndex, required this.time, required this.values, this.inTangent, this.outTangent})
+  final List<double> values
+  final List<double>? inTangent
+  final List<double>? outTangent
+  final double time
+  final int clipIndex
+  final int trackIndex
+
+final class SetLightField extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetLightField({required this.index, required this.field, required this.value})
+  final Object? value
+  final String field
+  final int index
+
+final class SetLightTransform extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetLightTransform({required this.index, required this.to})
+  final Matrix4 to
+  final int index
+
+final class SetLodRatio extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetLodRatio({required this.id, required this.lodIndex, required this.ratio})
+  final double ratio
+  final int id
+  final int lodIndex
+
+final class SetMaterialField extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetMaterialField({required this.index, required this.field, required this.value})
+  final Object? value
+  final String field
+  final int index
+
+final class SetMaterialGraph extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetMaterialGraph({required this.materialIndex, this.graph})
+  final TextureGraph? graph
+  final int materialIndex
+
+final class SetModifierField extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetModifierField({required this.id, required this.index, required this.field, required this.value})
+  final Object? value
+  final String field
+  final int id
+  final int index
+
+final class SetNodeField extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetNodeField({required this.materialIndex, required this.nodeId, required this.field, required this.value})
+  final Object? value
+  final String field
+  final int materialIndex
+  final int nodeId
+
+final class SetObjectLocked extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetObjectLocked({required this.id, required this.to})
+  final bool to
+  final int id
+
+final class SetObjectVisible extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetObjectVisible({required this.id, required this.to})
+  final bool to
+  final int id
+
+final class SetOrigin extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetOrigin({required this.id, this.to = OriginPlacement.boundsCentre})
+  final OriginPlacement to
+  final int id
+
+final class SetPanorama extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetPanorama({this.index})
+  final int? index
+
+final class SetParametric extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetParametric({required this.id, required this.to})
+  final ParametricShape to
+  final int id
+
+final class SetParent extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetParent({required this.id, required this.to})
+  final int id
+  final int? to
+
+final class SetProfileLimits extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetProfileLimits({this.maxJoints, this.maxInfluences})
+  final int? maxInfluences
+  final int? maxJoints
+  static const int hardMaxInfluences = 4
+  static const int hardMaxJoints = 64
+
+final class SetRestPose extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetRestPose({required this.skeletonIndex, required this.jointIndex, required this.worldTransform})
+  final Matrix4 worldTransform
+  final int jointIndex
+  final int skeletonIndex
+
+final class SetRig extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetRig({required this.jointObjects, required this.skeleton, this.skinObjectId, this.weights, required this.label})
+  final List<ModelObject> jointObjects
+  final ProjectSkeleton skeleton
+  final SkinWeightsBlob? weights
+  final String label
+  final int? skinObjectId
+
+final class SetSceneLightingField extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetSceneLightingField({required this.field, required this.value})
+  final Object? value
+  final String field
+
+final class SetShapeDriverField extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetShapeDriverField({required this.id, required this.index, required this.field, required this.value})
+  final Object? value
+  final String field
+  final int id
+  final int index
+
+final class SetShapeWeight extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetShapeWeight({required this.id, required this.shapeIndex, required this.weight})
+  final double weight
+  final int id
+  final int shapeIndex
+
+final class SetTangent extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetTangent({required this.clipIndex, required this.trackIndex, required this.index, this.inTangent, this.outTangent})
+  final List<double>? inTangent
+  final List<double>? outTangent
+  final int clipIndex
+  final int index
+  final int trackIndex
+
+final class SetTexture extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetTexture({required this.materialIndex, required this.slot, this.imageIndex, this.sampling = const TextureSampling()})
+  final String slot
+  final TextureSampling sampling
+  final int materialIndex
+  final int? imageIndex
+
+final class SetTransform extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SetTransform({required this.id, required this.to})
+  final Matrix4 to
+  final int id
+
+final class ShapeDriver
+  Map<String, Object?> toJson()
+  ShapeDriver copyWith({int? shapeIndex, int? jointId, DriverAxis? axis, double? from, double? to, ShapeDriverCurve? curve})
+  String toString()
+  const ShapeDriver({required this.shapeIndex, required this.jointId, required this.axis, required this.from, required this.to, this.curve = ShapeDriverCurve.linear})
+  double angleOf(Quaternion rotation)
+  double evaluate(Quaternion rotation)
+  final DriverAxis axis
+  final ShapeDriverCurve curve
+  final double from
+  final double to
+  final int jointId
+  final int shapeIndex
+  static ShapeDriver? fromJson(Object? json)
+
+final class ShapeDriverCurve
+  String toString()
+  double apply(double t)
+  final String name
+  static const ShapeDriverCurve linear = ShapeDriverCurve._('linear', _linear)
+
+final class ShapeSet
+  ShapeSet copyWith({List<ShapeKey>? keys, List<double>? weights})
+  String toString()
+  bool get isEmpty
+  const ShapeSet({this.keys = const <ShapeKey>[], this.weights = const <double>[]})
+  final List<ShapeKey> keys
+  final List<double> weights
+
+final class ShrinkSelection extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ShrinkSelection()
+
+abstract interface class SimulationBakeRequest
+  Future<SimulationCache> bake()
+  int get baseVersion
+  int get frameCount
+  int get objectId
+  int get vertexCount
+
+final class SimulationCache
+  Float32List frame(int index)
+  Map<String, Object?> toJson()
+  SimulationCache({required this.vertexCount, required List<Float32List> frames})
+  bool get isEmpty
+  double coverage(int targetFrameCount)
+  final List<Float32List> frames
+  final int vertexCount
+  int get frameCount
+  static SimulationCache? fromJson(Map<String, Object?> json)
+
+final class SkinWeightsBlob
+  Map<String, Object?> toJson()
+  const SkinWeightsBlob({required this.baseVersion, required this.data})
+  final Float32List data
+  final int baseVersion
+  static SkinWeightsBlob? fromJson(Object? json)
+
+final class SlideEdges extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SlideEdges(this.amount)
+  final double amount
+
+final class SnapshotCamera
+  const SnapshotCamera({required this.position, required this.target, this.up, this.projection = const PerspectiveProjection()})
+  final Projection projection
+  final Vector3 position
+  final Vector3 target
+  final Vector3? up
+
+final class SocketGeometry extends Geometry
+  const SocketGeometry()
+  int get triangleCount
+  int get vertexCount
+
+typedef SourceLink = ({String path, String sha});
+
+enum StepAuthor
+  values: person, agent
+
+final class SubdivideMesh extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const SubdivideMesh({this.levels = 1, this.smooth = true})
+  final bool smooth
+  final int levels
+
+final class TextureBakeCache
+  void clear()
+
+enum TextureBlendMode
+  values: normal, multiply, add, screen
+
+final class TextureBudget
+  String toString()
+  bool operator ==(Object other)
+  const TextureBudget({required this.maxSide, required this.maxBytesOnDevice, required this.targetFormat, this.requirePowerOfTwo = false})
+  final TextureFileFormat targetFormat
+  final bool requirePowerOfTwo
+  final int maxBytesOnDevice
+  final int maxSide
+  int get hashCode
+  static const TextureBudget desktop = TextureBudget(maxSide: 2048, maxBytesOnDevice: 256 * 1024 * 1024, targetFormat: TextureFileFormat.bc7)
+  static const TextureBudget mobile = TextureBudget(maxSide: 1024, maxBytesOnDevice: 64 * 1024 * 1024, targetFormat: TextureFileFormat.astc4x4)
+  static const TextureBudget web = TextureBudget(maxSide: 2048, maxBytesOnDevice: 128 * 1024 * 1024, targetFormat: TextureFileFormat.etc2Rgba8)
+
+enum TextureChannel
+  values: r, g, b, a
+
+enum TextureEncoding
+  values: png, ktx2
+
+enum TextureFileFormat
+  values: rgba8, bc1, bc3, bc7, etc2Rgba8, astc4x4, other
+
+final class TextureGraph
+  List<TextureGraphIssue> validate()
+  Map<String, Object?> toJson()
+  TextureNode? nodeById(int id)
+  const TextureGraph({this.nodes = const <TextureNode>[], this.positions = const <int, (double, double)>{}})
+  final List<TextureNode> nodes
+  final Map<int, (double x, double y)> positions
+  static TextureGraph fromJson(Map<String, Object?> json)
+
+final class TextureGraphIssue
+  String toString()
+  const TextureGraphIssue(this.nodeId, this.message)
+  final String message
+  final int nodeId
+
+final class TextureInfo
+  String toString()
+  bool operator ==(Object other)
+  const TextureInfo({required this.width, required this.height, required this.format, required this.bytesOnDevice, required this.hasOwnMips})
+  final TextureFileFormat format
+  final bool hasOwnMips
+  final int bytesOnDevice
+  final int height
+  final int width
+  int get hashCode
+
+typedef TextureInputSocket = ({TextureValueType type, int? from});
+
+sealed class TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  const TextureNode({required this.id})
+  final int id
+  static TextureNode fromJson(Map<String, Object?> json)
+
+final class TextureUsage
+  const TextureUsage({required this.totalBytes, required this.overs})
+  final List<int> overs
+  final int totalBytes
+
+enum TextureValueType
+  values: color, scalar
+
+typedef TileDevice = GraphicsDevice Function(int width, int height);
+
+final class ToggleModifier extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ToggleModifier({required this.id, required this.index})
+  final int id
+  final int index
+
+final class ToggleModifierExport extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const ToggleModifierExport({required this.id, required this.index})
+  final int id
+  final int index
+
+final class TransformElements extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const TransformElements(this.by, {this.what = 'move', this.pivot = TransformPivot.median, this.space = TransformSpace.global})
+  final Matrix4 by
+  final String what
+  final TransformPivot pivot
+  final TransformSpace space
+
+enum TransformPivot
+  values: median, individual
+
+enum TransformSpace
+  values: global, local
+
+final class Triangulate extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Triangulate()
+
+class TwoBoneIkResult
+  const TwoBoneIkResult({required this.rootLocalRotation, required this.midLocalRotation, required this.reachError})
+  final Quaternion midLocalRotation
+  final Quaternion rootLocalRotation
+  final double reachError
+
+final class Unlink extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const Unlink({required this.materialIndex, required this.nodeId, required this.input})
+  final String input
+  final int materialIndex
+  final int nodeId
+
+final class UnlinkSource extends ModelCommand
+  Map<String, Object?> get arguments
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const UnlinkSource({required this.id})
+  final int id
+
+final class UnwrapCommand extends ModelCommand
+  Map<String, Object?> get arguments
+  Map<String, ParamHint> get hints
+  Outcome apply(ModelProject project, ProjectSelection selection)
+  String get name
+  String get says
+  const UnwrapCommand({this.method = UnwrapMethod.lscm, this.margin = 0.01, this.autoPack = true})
+  final UnwrapMethod method
+  final bool autoPack
+  final double margin
+
+final class UnwrapMethod
+  String toString()
+  final String name
+  static const UnwrapMethod lscm = UnwrapMethod._('lscm')
+
+enum UpAxis
+  values: y, z
+
+final class UvTransformTextureNode extends TextureNode
+  Map<String, MaterialHint> get hints
+  Map<String, Object?> toJson()
+  Map<String, TextureInputSocket> get inputs
+  String get kind
+  TextureValueType get outputType
+  UvTransformTextureNode({required super.id, this.source, Vector2? offset, Vector2? scale, this.rotation = 0.0})
+  final Vector2 offset
+  final Vector2 scale
+  final double rotation
+  final int? source
+
+final class Vector3Hint extends ParamHint
+  const Vector3Hint({this.step, this.unit})
+  final String? unit
+  final double? step
+
+const double assetMaxSize = 100.0
+
+const double assetMinSize = 0.01
+
+BoneMap autoMap(List<String> sourceNames, List<String> targetNames)
+
+ModelProject bakeAllTransforms(ModelProject project)
+
+BakeDriversJobRequest? bakeDriversJobRequestFor(ModelProject project, int clipIndex, List<ShapeDriver>? drivers, int shapeTargetObjectId, int shapeCount)
+
+ProjectClip bakeIk({required ModelProject project, required ProjectClip clip, required IkConstraint constraint, required double fps})
+
+BakeIkJobRequest? bakeIkJobRequestFor(ModelProject project, int clipIndex, IkConstraint constraint, {required double fps})
+
+Future<ImpostorBake> bakeImpostor({required ModelProject project, required ImpostorAtlas atlas, required Vector3 centre, required double distance, required TileDevice tileDevice, double fovYRadians = math.pi / 8, RenderSettings settings = const RenderSettings(), Vector4? clearColor})
+
+ProjectClip bakeLookAt({required ModelProject project, required ProjectClip clip, required LookAtConstraint constraint, required double fps})
+
+ProjectClip bakeShapeDrivers({required ProjectClip clip, required List<ShapeDriver> drivers, required int shapeTargetObjectId, required int shapeCount})
+
+Future<Uint8List?> bakeTextureFull(TextureGraph graph, int outputNodeId, Map<int, Uint8List> images, {int size = 2048})
+
+Uint8List? bakeTextureGraph(TextureGraph graph, int outputNodeId, Map<int, Uint8List> images, {int size = 256, TextureBakeCache? cache})
+
+Map<int, List<WeightPair>> bindWeights({required List<Vector3> positions, required List<int> triangles, required List<BoneSegment> bones, double falloffPower = 2.0, bool useVisibility = true, double epsilon = 1e-4})
+
+BindWeightsJobRequest? bindWeightsJobRequestFor({required ModelProject project, required int objectId, required List<BoneSegment> bones, double falloffPower = 2.0, bool useVisibility = true, double epsilon = 1e-4, int maxInfluences = kMaxSkinInfluences, double pruneThreshold = 1e-3})
+
+({int blockWidth, int blockHeight, int bytesPerBlock})? blockLayoutFor(TextureFileFormat format)
+
+List<BoneSegment> boneSegmentsOf(RetargetRig rig)
+
+Aabb3? boundsOfMesh(EditMesh mesh)
+
+BuiltRig buildSkeleton(RigTemplate template, Map<String, Vector3> markers, {required Aabb3 bounds, RigBuildOptions options = const RigBuildOptions(), required int firstObjectId, String? skeletonName, Matrix4? meshWorld})
+
+List<Listed> clipsOf(ModelProject project)
+
+List<Listed> contentsOf(ModelProject project)
+
+int crc32(List<int> bytes)
+
+String? creditsFile(ModelProject project, {String? documentName})
+
+List<ModelCredit> creditsIn(ModelProject project)
+
+String? creditsLine(ModelProject project)
+
+List<(double, double)> curveSamples(KeyTable table, int component, {required int sampleCount})
+
+RecoveryDecision decideRecovery({DateTime? savedAt, DateTime? autosaveAt})
+
+List<DescribedElement> describeElements(EditMesh mesh, ElementLevel level, {Iterable<int>? ids, int limit = 50})
+
+(int, int, int, int)? dirtyRectOf(List<(int, int)> tiles, int canvas)
+
+List<(int, int)> dirtyTilesBetween(PaintStack? before, PaintStack? after)
+
+Future<Uint8List> drawTile(ModelProject project, RenderPreset preset, int index, TileDevice tileDevice, {required int tileWidth, required int tileHeight, GraphicsDevice? on})
+
+void drawTinyText(Uint8List pixels, {required int width, required int height, required int x, required int y, required String text, int scale = 1, int red = 0xFF, int green = 0xFF, int blue = 0xFF})
+
+void drawTinyTextWithShadow(Uint8List pixels, {required int width, required int height, required int x, required int y, required String text, int scale = 1})
+
+Vector3? elementCentre(EditMesh mesh, ElementLevel level, int id)
+
+Vector3? elementNormal(EditMesh mesh, ElementLevel level, int id)
+
+Vector3 eulerOf(Quaternion q)
+
+List<double> evaluateShapeDriversLive({required ProjectClip clip, required List<ShapeDriver> drivers, required double time, required int shapeCount})
+
+String formatByteSize(int bytes)
+
+ModelProject fromModelDocument(ModelDocument document, {ImportOptions options = const ImportOptions()})
+
+Map<String, ParamHint> hintsForModifier(Modifier modifier)
+
+const List<String> humanoidBoneNames = …
+
+ImageDimensions? imageDimensions(Uint8List bytes)
+
+ImportReport importInto(ModelProject project, ModelDocument document, {ImportOptions options = const ImportOptions()})
+
+ImportReport importReportOf(ModelDocument document, {ImportOptions options = const ImportOptions()})
+
+bool isProjectFile(Uint8List bytes)
+
+JobRequest? jobRequestFor(ModelProject project, int objectId, int uptoIndex)
+
+const int kHistoryBudgetBytes = 512 * 1024 * 1024
+
+const int kMaxSkinInfluences = 4
+
+const int kPanoramaCubeLevels = 4
+
+const int kPanoramaCubeSize = 32
+
+const int kProjectChecksumEntryBytes = 8
+
+const int kProjectChecksumOffset = 12
+
+const int kProjectHeaderBytes = 16
+
+const int kProjectImageEntryBytes = 8
+
+const int kProjectImportedEntryBytes = 16
+
+const int kProjectMagic = 0x50443346
+
+const int kProjectMeshEntryBytes = 8
+
+const int kProjectSectionEntryBytes = 16
+
+const int kProjectSimulationEntryBytes = 8
+
+const int kProjectVersion = 1
+
+const String kRootMotionExtra = 'flutter3dRootMotion'
+
+int lightOverflowOf(SceneLighting lighting)
+
+List<Listed> lightsOf(ModelProject project)
+
+Iterable<int> liveElements(EditMesh mesh, ElementLevel level)
+
+BoneMap looseAutoMap(List<String> sourceNames, List<String> targetNames)
+
+List<ExportIssue> materialIssues(ModelProject project)
+
+List<Listed> materialsOf(ModelProject project)
+
+TextureUsage measure(ModelProject project, TextureBudget budget)
+
+String mirrorBoneName(String name)
+
+Map<int, List<WeightPair>> mirrorSkinWeights(Map<int, List<WeightPair>> weights, List<Vector3> positions, List<BoneSegment> bones, {int axis = 0, double plane = 0.0, double tolerance = 1e-4})
+
+ModelCommand? modelCommandFromJson(Object? json)
+
+final List<String> modelCommandNames
+
+List<Listed> modifiersOf(ModelProject project, int id)
+
+Map<int, List<WeightPair>> normalizeSkinWeights(Map<int, List<WeightPair>> weights)
+
+const int paintTileSize = 64
+
+void paintWeights({required ModelProject project, required EditMesh mesh, required ProjectSkeleton skeleton, required int joint, required List<BrushSample> samples, required double strength, PaintWeightsMode mode = PaintWeightsMode.paint, PaintMirror? mirror, bool normalize = false, int? maxInfluences})
+
+ByteData? panoramaPixels(Uint8List bytes)
+
+ParametricShape? parametricShapeFrom(Map<String, Object?> json)
+
+Map<String, Object?> parametricShapeJson(ParametricShape shape)
+
+ExportResult planExport(ModelProject project, {required ExportFormat format, String name = 'model', bool force = false, bool bakeTransforms = false, TextureEncoding textureEncoding = TextureEncoding.png, Set<int> only = const <int>{}, bool applyModifiers = true})
+
+List<(int, int)> polygonEdgesOf(EditMesh mesh)
+
+Pose poseOf(ModelProject project, ProjectSkeleton skeleton)
+
+RigPreview previewRig(RigTemplate template, {RigBuildOptions options = const RigBuildOptions()})
+
+Map<int, List<WeightPair>> pruneSkinWeights(Map<int, List<WeightPair>> weights, {int maxInfluences = kMaxSkinInfluences, double threshold = 1e-3})
+
+ProjectRead readProject(Uint8List bytes)
+
+String recoveryPathFor(String? path, {required String sessionId})
+
+({RenderSettings settings, CompositeGraph graph}) renderPost(RenderSettings from, CompositeGraph graph, {BloomSettings? bloom, LookSettings? look, bool? tonemap})
+
+Future<Uint8List> renderProject(RenderRequest request, {required GraphicsDevice Function(int width, int height) deviceFactory})
+
+Future<Uint8List> renderSheet({required ModelProject project, int width = 512, int height = 512, RenderShading shading = RenderShading.material, Set<int> selection = const <int>{}, int? weightsJoint, bool labels = true, List<RenderProjectView> views = renderSheetViews, required GraphicsDevice Function(int width, int height) deviceFactory})
+
+const List<RenderProjectView> renderSheetViews = <RenderProjectView>[RenderProjectView.front, RenderProjectView.right, RenderProjectView.top, RenderProjectView.iso]
+
+List<String> requiredMarkers(RigTemplate template)
+
+Uint8List resizeRgba(Uint8List rgba, int width, int height, int newWidth, int newHeight, {ResizeFilter filter = ResizeFilter.bilinear})
+
+({Quaternion root, Quaternion mid, double reachError}) resolveIkConstraint({required ModelProject project, required IkConstraint constraint, ProjectClip? clip, double time = 0.0})
+
+({Quaternion rotation, double aimError}) resolveLookAtConstraint({required ModelProject project, required LookAtConstraint constraint, ProjectClip? clip, double time = 0.0})
+
+ProjectClip retargetClip({required ProjectClip sourceClip, required ModelProject sourceProject, required ProjectSkeleton sourceSkeleton, required ModelProject targetProject, required ProjectSkeleton targetSkeleton, required BoneMap boneMap, bool lockFeet = true, double groundY = 0.0, double footTolerance = 1e-3})
+
+RetargetClipJobRequest? retargetClipJobRequestFor({required ModelProject sourceProject, required int sourceSkeletonIndex, required int sourceClipIndex, required ModelProject targetProject, required int targetSkeletonIndex, required BoneMap boneMap, bool lockFeet = true, double groundY = 0.0, double footTolerance = 1e-3})
+
+RetargetRig retargetRigOf(ModelProject project, ProjectSkeleton skeleton, {Iterable<int> alsoNodes = const <int>[]})
+
+List<RigTrack> retargetTracks({required List<RigTrack> tracks, required RetargetRig source, required RetargetRig target, required BoneMap boneMap, bool lockFeet = true, double groundY = 0.0, double footTolerance = 1e-3})
+
+List<ExportIssue> rigIssues(ModelProject project, ProjectProfile profile)
+
+Scene sceneFromProject(ModelProject project, GraphicsDevice device, {Material Function(ModelObject object, Material material)? restyle, int? weightsJoint, bool wires = false})
+
+List<Listed> shapesOf(ModelProject project, int id)
+
+bool shouldSave(AutosavePolicy policy, {required bool isDirty, required DateTime now, required DateTime lastEditAt, DateTime? lastSavedAt})
+
+List<ShapeKey> simulationCacheToShapeKeys(SimulationCache cache, {int maxKeys = 8})
+
+List<Listed> skeletonsOf(ModelProject project)
+
+Map<int, List<WeightPair>> smoothSkinWeights(Map<int, List<WeightPair>> weights, Map<int, List<int>> adjacency, {double lambda = 0.5, int iterations = 1})
+
+TwoBoneIkResult solveTwoBoneIk({required Vector3 rootWorldPosition, required Vector3 midWorldPosition, required Vector3 tipWorldPosition, required Quaternion rootParentWorldRotation, required Quaternion rootWorldRotation, required Quaternion midWorldRotation, required Vector3 target, required Vector3 pole})
+
+({Vector2 inHandle, Vector2 outHandle}) tangentHandles(KeyTable table, int keyIndex, int component, {double handleLength = 0.1})
+
+double? texelDensityOf(ModelProject project, ModelObject object)
+
+List<ExportIssue> textureBudgetIssues(ModelProject project)
+
+TextureInfo? textureInfo(Uint8List bytes)
+
+const int tinyFontHeight = 7
+
+const int tinyFontSpacing = 1
+
+const int tinyFontWidth = 5
+
+int tinyTextWidth(String text, {int scale = 1})
+
+ModelDocument toModelDocument(ModelProject project, {bool withLods = false})
+
+int toPowerOfTwo(int n)
+
+({double min, double max}) valueRange(KeyTable table, int component)
+
+Map<int, List<int>> vertexAdjacency(List<int> triangles)
+
+MeshData? wireMeshFor(EditMesh mesh, {double thickness = wireThickness})
+
+const double wireThickness = 0.003
+
+Aabb3? worldBoundsOf(ModelProject project)
+
+Matrix4 worldTransformOf(ModelProject project, int id, {Map<int, Quaternion>? rotationOverrides})
+
+Uint8List writeProject(ModelProject project, {ModelHistory? history, int maxHistoryBytes = 4 * 1024 * 1024})
+
+export package:flutter3d_mesh/flutter3d_mesh.dart show WeightPair
+  WeightPair

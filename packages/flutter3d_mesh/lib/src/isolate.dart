@@ -20,12 +20,15 @@
 /// for the same reason. What the web should do instead is chunk the work and
 /// yield between the chunks, or run it in a worker; that is `ui-34d`, and it
 /// belongs to whoever owns the frame rather than to the mesh.
+///
+/// **The isolate half is chosen by platform, not only by a constant**, so a
+/// browser build has no `dart:isolate` in it at all: `isolate_run.dart` is
+/// what runs elsewhere, `isolate_here.dart` what runs in a browser.
 library;
 
-import 'dart:isolate';
-import 'dart:typed_data';
-
 import 'edit_mesh.dart';
+
+export 'isolate_run.dart' if (dart.library.js_interop) 'isolate_here.dart';
 
 /// Work an isolate can be handed: one mesh in, one mesh out.
 typedef MeshWork = EditMesh Function(EditMesh mesh);
@@ -36,29 +39,3 @@ typedef MeshWork = EditMesh Function(EditMesh mesh);
 /// underneath it: whether the program was compiled to JavaScript or to
 /// WebAssembly, where `Isolate.run` is a stub that throws.
 const bool meshWorkStaysHere = bool.fromEnvironment('dart.library.js_interop');
-
-/// Runs [work] on [mesh] in another isolate and brings the result back.
-///
-/// [work] must be a top-level or static function — a closure would carry
-/// whatever it captured across, which is the copy the byte format is here to
-/// avoid, and a closure over anything the sending isolate keeps alive would not
-/// cross at all.
-///
-/// On a build without isolates the work happens on this thread instead, so a
-/// caller gets the answer everywhere and a frozen frame in one of the two
-/// places. See the library note for what the web should do about that.
-Future<EditMesh> editInIsolate(EditMesh mesh, MeshWork work) async {
-  if (meshWorkStaysHere) return work(mesh);
-  final sent = TransferableTypedData.fromList(<Uint8List>[mesh.toBytes()]);
-  final back = await Isolate.run(() => _apply(sent, work));
-  return EditMesh.fromBytes(back.materialize().asUint8List());
-}
-
-/// The other side: rebuild, work, write back.
-///
-/// Top-level, so the closure `Isolate.run` carries holds two sendable values
-/// and nothing else.
-TransferableTypedData _apply(TransferableTypedData sent, MeshWork work) {
-  final mesh = EditMesh.fromBytes(sent.materialize().asUint8List());
-  return TransferableTypedData.fromList(<Uint8List>[work(mesh).toBytes()]);
-}

@@ -3,7 +3,7 @@
 library;
 
 import 'package:flame/components.dart' show Component;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show Actor, ActorSystem;
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
@@ -90,7 +90,7 @@ class InstancedActorComponent extends Component implements StepFollower {
     stepper?.unfollow(this);
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
     final system = removesFrom;
     if (system != null && actor.exists) system.remove(actor);
     super.onRemove();
@@ -169,7 +169,7 @@ class InstancedPoseComponent extends Component {
   void onRemove() {
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
     super.onRemove();
   }
 

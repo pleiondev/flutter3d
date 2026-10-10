@@ -1,4 +1,8 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Registration;
+
 import '../input/input_tape.dart';
+import '../loop/engine_loop.dart';
 import 'snapshot.dart';
 
 /// The last few seconds of a run, kept so they can be lived again.
@@ -38,17 +42,15 @@ import 'snapshot.dart';
 ///
 /// ## What the caller does
 ///
-/// Two things, both once per step and both at the same moment:
+/// **[attach] it to the loop**, once: the loop records each step's input
+/// through [recorder], and the buffer takes its keyframes itself, as the
+/// loop's own capture (`EngineLoop.capture`) — the world, the genre's run and
+/// every part a plugin added, through the one path every snapshot takes. A
+/// keyframe holds whatever the loop's snapshots hold, so a part added later
+/// is in every rewind with nothing more said.
 ///
-/// 1. the loop records the step's input through [recorder] — add it to
-///    `GameLoop.recorders` and it happens at the right moment on its own;
-/// 2. the step, before it simulates, asks [keyframeDue] and hands over a
-///    snapshot when the answer is yes. Before rather than after, because the
-///    snapshot has to be the state the recorded entry is about to act on.
-///
-/// Neither the loop nor this class can take the snapshot, since neither knows
-/// what a simulation is, and that boundary is the reason both of them can be
-/// tested with a toy.
+/// [keyframe] stays for a buffer filled by hand — rebuilt from a recording
+/// played outside a loop — and takes the same loop capture.
 final class RewindBuffer {
   RewindBuffer({
     required this.stepsPerSecond,
@@ -83,7 +85,7 @@ final class RewindBuffer {
   /// snapshot is large and whose step is cheap wants them further apart.
   final int keyframeEvery;
 
-  /// Where the loop writes each step's input. Add it to `GameLoop.recorders`.
+  /// Where the loop writes each step's input. Add it to `EngineLoop.recorders`.
   final InputTapeRecorder recorder;
 
   /// Keyframes, oldest first. Each is the state before the step at its index.
@@ -105,7 +107,7 @@ final class RewindBuffer {
   /// while the step's entry has been recorded — asked before the loop has
   /// recorded it, this describes the previous step. The loop and this class
   /// agree on the moment: after the input is filled, before the step runs.
-  bool get keyframeDue {
+  bool get isKeyframeDue {
     final frames = recorder.tape.frames.length;
     if (frames == 0) return false;
     final current = step - 1;
@@ -113,9 +115,41 @@ final class RewindBuffer {
         (_keyframes.isEmpty || _keyframes.last.step != current);
   }
 
-  /// Takes [snapshot] as the state before the step about to run.
+  /// Records from [loop] from now on: [recorder] goes into its `recorders`,
+  /// and after every live step whose successor is due one, the state the
+  /// next step starts from is kept as [EngineLoop.capture] — and the state as
+  /// it is now, when this step is due one. Cancelling the registration takes
+  /// both back.
   ///
-  /// Call when [keyframeDue] says so. A snapshot handed over at another
+  /// **The one way a live buffer is kept.** A rewind of an attached buffer
+  /// restores through `EngineLoop.rewindTo`, which restores every part of the
+  /// state; a buffer whose keyframes were each game's own save restored the
+  /// genre and left everything else where it was.
+  Registration attach(EngineLoop loop) {
+    if (!loop.recorders.contains(recorder)) loop.recorders.add(recorder);
+    void keep() {
+      if (step % keyframeEvery != 0) return;
+      if (_keyframes.isNotEmpty && _keyframes.last.step == step) return;
+      _keyframes.add(_Keyframe(step: step, snapshot: loop.capture()));
+      _forget();
+    }
+
+    keep();
+    final observing = loop.onStepEnd((summary) {
+      // A resimulated step was recorded the first time; its state is the one
+      // the buffer already holds.
+      if (!summary.resimulated) keep();
+    });
+    return Registration(() {
+      loop.recorders.remove(recorder);
+      observing.cancel();
+    });
+  }
+
+  /// Takes [snapshot] as the state before the step about to run: for a
+  /// buffer filled by hand rather than [attach]ed.
+  ///
+  /// Call when [isKeyframeDue] says so. A snapshot handed over at another
   /// moment is kept too — the buffer does not check — and a rewind through it
   /// then lands somewhere the tape did not lead, which is the one way to get
   /// a wrong picture out of this class.
@@ -123,6 +157,10 @@ final class RewindBuffer {
     _keyframes.add(_Keyframe(step: step - 1, snapshot: snapshot));
     _forget();
   }
+
+  /// The earliest step a rewind can reach, or null before the first
+  /// keyframe — the left end of a scrubber, whose right end is [step].
+  int? get oldestStep => _keyframes.isEmpty ? null : _keyframes.first.step;
 
   /// How many seconds back a rewind can currently reach.
   ///
@@ -178,6 +216,35 @@ final class RewindBuffer {
     final keep = point.step - _dropped;
     if (keep < frames.length) frames.removeRange(keep, frames.length);
     _keyframes.removeWhere((k) => k.step > point.step);
+  }
+
+  /// The snapshots held after [step], by the step each was taken before.
+  ///
+  /// What the run looked like at those moments — for comparing a replay of
+  /// the same tape against, after something that should not have changed
+  /// the outcome (or should have) has changed the code.
+  Map<int, Snapshot> keyframesAfter(int step) => <int, Snapshot>{
+    for (final keyframe in _keyframes)
+      if (keyframe.step > step) keyframe.step: keyframe.snapshot,
+  };
+
+  /// Makes [point]'s keyframe the oldest thing held: the keyframes on either
+  /// side of it and the entries before it are forgotten, the entries after it
+  /// kept.
+  ///
+  /// For a change to the world the snapshots do not carry — a level edited
+  /// while the run goes on. The run is replayed from [point]'s keyframe under
+  /// the new world; the keyframes before it describe states the old world
+  /// led to, and the ones after it states the replay has just replaced, so a
+  /// rewind through either would put one world's state under the other.
+  void rebaseAt(RewindPoint point) {
+    final base = point.step - point.replayed;
+    _keyframes.removeWhere((k) => k.step != base);
+    final drop = base - _dropped;
+    if (drop > 0) {
+      recorder.tape.frames.removeRange(0, drop);
+      _dropped = base;
+    }
   }
 
   /// Forgets everything, for a new level.

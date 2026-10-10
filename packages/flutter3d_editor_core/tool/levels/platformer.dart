@@ -247,12 +247,12 @@ Map<String, String> firstSteps(GeneratorSource _) {
 
   Map<String, Object?> light(
     List<num> at,
-    List<num> colour,
+    List<num> color,
     num intensity,
     num range,
   ) => <String, Object?>{
     'at': at,
-    'color': colour,
+    'color': color,
     'intensity': intensity,
     'range': range,
   };
@@ -1134,7 +1134,7 @@ Map<String, String> ascent(GeneratorSource _) {
       lights: <Map<String, Object?>>[
         // Back at an angle that casts: the renderer has cascades now.
         PlatformKit.sun,
-        for (final (x, y, z, colour, range)
+        for (final (x, y, z, color, range)
             in const <(num, num, num, List<num>, num)>[
               (0.0, 7.0, -12.0, <num>[0.6, 0.75, 1.0], 46.0),
               (-38.0, 7.0, -10.0, <num>[1.0, 0.85, 0.6], 34.0),
@@ -1155,7 +1155,7 @@ Map<String, String> ascent(GeneratorSource _) {
             ])
           <String, Object?>{
             'at': <num>[x, y, z],
-            'color': colour,
+            'color': color,
             'intensity': 26.0,
             'range': range,
           },
@@ -1477,7 +1477,7 @@ Map<String, String> cisterns(GeneratorSource _) {
       name: 'Cisterns',
       lights: <Map<String, Object?>>[
         PlatformKit.sun,
-        for (final (at, colour, range) in const <(List<num>, List<num>, num)>[
+        for (final (at, color, range) in const <(List<num>, List<num>, num)>[
           (<num>[0.0, 6.0, -6.0], <num>[0.7, 0.9, 1.0], 36.0),
           (<num>[0.0, 6.0, 14.0], <num>[0.6, 0.9, 0.9], 40.0),
           (<num>[0.0, 6.0, 32.0], <num>[1.0, 0.9, 0.7], 36.0),
@@ -1488,7 +1488,7 @@ Map<String, String> cisterns(GeneratorSource _) {
           (<num>[0.0, 8.0, 136.0], <num>[0.6, 0.9, 0.9], 40.0),
           (<num>[0.0, 10.0, 156.0], <num>[0.9, 1.0, 0.95], 44.0),
         ])
-          PlatformKit.pointLight(at, colour, range: range),
+          PlatformKit.pointLight(at, color, range: range),
       ],
       fog: const <num>[0.04, 0.09, 0.10],
       density: 0.006,
@@ -1841,7 +1841,7 @@ Map<String, String> foundry(GeneratorSource _) {
       name: 'Foundry',
       lights: <Map<String, Object?>>[
         PlatformKit.sun,
-        for (final (at, colour, range) in const <(List<num>, List<num>, num)>[
+        for (final (at, color, range) in const <(List<num>, List<num>, num)>[
           (<num>[0.0, 6.0, -6.0], <num>[0.7, 0.8, 1.0], 36.0),
           (<num>[0.0, 6.0, 26.0], <num>[1.0, 0.86, 0.6], 40.0),
           (<num>[0.0, 4.0, 48.0], <num>[1.0, 0.55, 0.25], 44.0),
@@ -1851,7 +1851,7 @@ Map<String, String> foundry(GeneratorSource _) {
           (<num>[0.0, 8.0, 156.0], <num>[0.85, 0.92, 1.0], 46.0),
           (<num>[0.0, 8.0, 174.0], <num>[0.9, 1.0, 0.95], 40.0),
         ])
-          PlatformKit.pointLight(at, colour, range: range),
+          PlatformKit.pointLight(at, color, range: range),
       ],
       fog: const <num>[0.10, 0.05, 0.04],
       density: 0.006,
@@ -2101,7 +2101,7 @@ Map<String, String> spire(GeneratorSource _) {
       name: 'Spire',
       lights: <Map<String, Object?>>[
         PlatformKit.sun,
-        for (final (at, colour, range) in const <(List<num>, List<num>, num)>[
+        for (final (at, color, range) in const <(List<num>, List<num>, num)>[
           (<num>[0.0, 6.0, 0.0], <num>[1.0, 0.9, 0.7], 40.0),
           (<num>[0.0, 8.0, 33.0], <num>[0.85, 0.9, 1.0], 40.0),
           (<num>[0.0, 13.0, 56.5], <num>[1.0, 0.9, 0.75], 44.0),
@@ -2111,7 +2111,7 @@ Map<String, String> spire(GeneratorSource _) {
           (<num>[0.0, 24.0, 126.5], <num>[1.0, 0.92, 0.8], 46.0),
           (<num>[0.0, 25.0, 143.0], <num>[1.0, 1.0, 0.9], 50.0),
         ])
-          PlatformKit.pointLight(at, colour, range: range),
+          PlatformKit.pointLight(at, color, range: range),
       ],
       fog: const <num>[0.04, 0.05, 0.09],
       density: 0.005,

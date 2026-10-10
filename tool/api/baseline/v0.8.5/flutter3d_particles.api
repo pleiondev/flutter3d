@@ -1,0 +1,282 @@
+# The public API of flutter3d_particles.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_particles/flutter3d_particles.dart
+
+final class BoxEmitter extends ParticleEmitter
+  BoxEmitter({required Vector3 halfExtents, this.speed = const Range(0.0, 0.0), Vector3? along})
+  final Range speed
+  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+
+final class ConeEmitter extends ParticleEmitter
+  const ConeEmitter({this.speed = const Range(3.0, 8.0), this.halfAngleDegrees = 25.0})
+  final Range speed
+  final double halfAngleDegrees
+  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+
+final class CurveKey
+  const CurveKey(this.at, this.value, {this.ease = KeyEase.linear})
+  final KeyEase ease
+  final double at
+  final double value
+
+final class DriftEmitter extends ParticleEmitter
+  const DriftEmitter({this.speed = const Range(0.3, 1.0), this.spread = const Range(-0.3, 0.3)})
+  final Range speed
+  final Range spread
+  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+
+final class Emission
+  Emission(this.effect, this.origin, this.perSecond, this.direction, this.remaining)
+  bool get spent
+  double? remaining
+  final ParticleEffect effect
+  final Vector3 origin
+  final Vector3? direction
+  final double perSecond
+
+final class Flipbook
+  Flipbook({required this.columns, required this.rows, this.frames, this.loops = 1})
+  FlipbookCell cellFor(Particle particle)
+  final int columns
+  final int loops
+  final int rows
+  final int? frames
+  int get frameCount
+
+final class FlipbookCell
+  const FlipbookCell(this.left, this.top, this.width, this.height)
+  final double height
+  final double left
+  final double top
+  final double width
+
+final class GradientKey
+  const GradientKey(this.at, this.color, {this.ease = KeyEase.linear})
+  final KeyEase ease
+  final Vector4 color
+  final double at
+
+final class KeyEase
+  String toString()
+  bool operator ==(Object other)
+  const KeyEase(this.name, this.shape)
+  final String name
+  final double Function(double t) shape
+  int get hashCode
+  static const KeyEase linear = KeyEase('linear', _linear)
+  static const KeyEase smooth = KeyEase('smooth', _smooth)
+  static const KeyEase step = KeyEase('step', _step)
+
+mixin class LightEmitter
+  final ParticleGlow glow
+
+final class MeshParticleContributor extends PassContributor
+  MeshParticleContributor(this.particles, {required this.mesh, this.blend = BlendState.additive})
+  bool get isActive
+  final BlendState blend
+  final DrawableGeometry mesh
+  final ParticleSystem particles
+  static const BlendState darkening = …
+  void encode(ContributorFrame frame)
+
+final class Particle
+  List<ParticleAffector> affectors
+  Object? source
+  bool alive
+  double age
+  double birthSize
+  double get life
+  double lifetime
+  double rotation
+  double seed
+  double size
+  final Vector3 position
+  final Vector3 velocity
+  final Vector4 color
+
+abstract base class ParticleAffector
+  abstract void apply(Particle particle, double dt)
+  const ParticleAffector()
+
+final class ParticleColorGradient extends ParticleAffector
+  const ParticleColorGradient(this.gradient)
+  final ParticleGradient gradient
+  void apply(Particle particle, double dt)
+
+final class ParticleColorOverLife extends ParticleAffector
+  ParticleColorOverLife(Vector4 from, Vector4 to)
+  void apply(Particle particle, double dt)
+
+final class ParticleContributor extends PassContributor
+  ParticleContributor(this.particles, {this.texture, this.flipbook, this.sixWay, this.softness = 0.0})
+  bool get isActive
+  bool get readsSceneDepth
+  final Flipbook? flipbook
+  final ParticleSystem particles
+  final SixWayMaterial? sixWay
+  final TextureHandle? texture
+  final double softness
+  void encode(ContributorFrame frame)
+  void encodeReactive(ReactiveFrame frame)
+
+final class ParticleCurve
+  ParticleCurve(this.keys)
+  ParticleCurve.constant(double value)
+  ParticleCurve.linear(double from, double to)
+  double sample(double t)
+  final List<CurveKey> keys
+
+final class ParticleDrag extends ParticleAffector
+  const ParticleDrag(this.perSecond)
+  final double perSecond
+  void apply(Particle particle, double dt)
+
+final class ParticleEffect
+  const ParticleEffect({required this.count, required this.emitter, required this.lifetime, required this.size, required this.color, this.affectors = const <ParticleAffector>[]})
+  final List<ParticleAffector> affectors
+  final ParticleEmitter emitter
+  final Range lifetime
+  final Range size
+  final Vector4 color
+  final int count
+
+abstract base class ParticleEmitter
+  abstract void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+  const ParticleEmitter()
+  void randomDirection(Vector3 out, math.Random random)
+
+final class ParticleFade extends ParticleAffector
+  const ParticleFade({this.startsAt = 0.0})
+  final double startsAt
+  void apply(Particle particle, double dt)
+
+final class ParticleGlow
+  Vector3 get centre
+  bool get located
+  double get power
+  int get count
+  static const double smoothing = 0.09
+  void accumulate(Particle particle)
+  void beginStep()
+  void endStep(double dt)
+
+final class ParticleGradient
+  ParticleGradient(this.keys)
+  ParticleGradient.constant(Vector4 color)
+  ParticleGradient.linear(Vector4 from, Vector4 to)
+  final List<GradientKey> keys
+  void sampleInto(Vector4 out, double t)
+
+final class ParticleGravity extends ParticleAffector
+  const ParticleGravity([this.acceleration = -9.8])
+  final double acceleration
+  void apply(Particle particle, double dt)
+
+final class ParticleRandom implements math.Random
+  ParticleRandom(this.systemSeed)
+  bool nextBool()
+  double nextDouble()
+  final int systemSeed
+  int nextInt(int max)
+  void reseed(int ordinal, int salt)
+
+abstract final class ParticleSalt
+  static const int birth = 1
+  static const int emitter = 2
+
+final class ParticleSizeCurve extends ParticleAffector
+  const ParticleSizeCurve(this.curve)
+  final ParticleCurve curve
+  void apply(Particle particle, double dt)
+
+final class ParticleSizeOverLife extends ParticleAffector
+  const ParticleSizeOverLife({this.from = 1.0, this.to = 0.0})
+  final double from
+  final double to
+  void apply(Particle particle, double dt)
+
+final class ParticleSpin extends ParticleAffector
+  const ParticleSpin({required this.turnsPerSecond, this.randomiseStart = true})
+  final bool randomiseStart
+  final double turnsPerSecond
+  void apply(Particle particle, double dt)
+
+final class ParticleSystem
+  @Deprecated('Use emit() plus advance(), which spends the rate across fixed sub-steps. ' 'This emits a whole frame at once, so the result depends on the frame rate.') int emitFor(Object key, ParticleEffect effect, Vector3 origin, double dt, {required double perSecond, Vector3? direction})
+  ParticleSystem({this.capacity = 2048, math.Random? random, int? seed})
+  double boundsInto(Vector3 centre)
+  final int capacity
+  int burst(ParticleEffect effect, Vector3 origin, {Vector3? direction, Object? source})
+  int get aliveCount
+  int get dropped
+  int writeInstances(Float32List out)
+  int writeQuads(Vector3 cameraRight, Vector3 cameraUp, Float32List vertices, Uint32List indices, {Flipbook? flipbook, Vector3? farthestAlong})
+  static const int floatsPerInstance = 3 + 4 + 1
+  static const int floatsPerParticle = 4 * (3 + 4 + 2)
+  void advance(double dt)
+  void clear()
+  void emit(Object key, ParticleEffect effect, Vector3 origin, {required double perSecond, Vector3? direction})
+  void emitTimed(Object key, ParticleEffect effect, Vector3 origin, {required double perSecond, required double seconds, Vector3? direction})
+  void resetDropped()
+  void step(double dt)
+  void stopEmitting(Object key)
+
+final class ParticleTurbulence extends ParticleAffector
+  const ParticleTurbulence({this.strength = 2.0, this.scale = 0.6, this.a = 1.0, this.b = 1.0, this.c = 1.0})
+  final double a
+  final double b
+  final double c
+  final double scale
+  final double strength
+  void apply(Particle particle, double dt)
+
+final class ParticleWind extends ParticleAffector
+  ParticleWind(Vector3 acceleration)
+  void apply(Particle particle, double dt)
+
+final class Range
+  const Range(this.min, this.max)
+  const Range.exact(double value)
+  double sample(math.Random random)
+  final double max
+  final double min
+
+final class Shown
+  String toString()
+  const Shown(this.effect, this.at, {this.direction})
+  final ParticleEffect effect
+  final Vector3 at
+  final Vector3? direction
+
+typedef SixWayChannel = ({int image, int channel});
+
+final class SixWayLayout
+  const SixWayLayout({required this.right, required this.left, required this.top, required this.bottom, required this.back, required this.front, required this.coverage, this.emission})
+  final SixWayChannel back
+  final SixWayChannel bottom
+  final SixWayChannel coverage
+  final SixWayChannel front
+  final SixWayChannel left
+  final SixWayChannel right
+  final SixWayChannel top
+  final SixWayChannel? emission
+  static const SixWayLayout positiveNegative = …
+
+final class SixWayMaterial
+  SixWayMaterial({required this.positive, required this.negative, Vector3? emission, Vector3? ambient})
+  final TextureHandle negative
+  final TextureHandle positive
+  final Vector3 ambient
+  final Vector3 emission
+
+final class SphereEmitter extends ParticleEmitter
+  const SphereEmitter({this.speed = const Range(2.0, 6.0), this.radius = const Range.exact(0.0)})
+  final Range radius
+  final Range speed
+  void emit(Particle particle, Vector3 origin, Vector3 direction, math.Random random)
+
+double easeShape(double t, KeyEase ease)
+
+({Uint8List positive, Uint8List negative}) importSixWay({required List<Uint8List> images, required int width, required int height, int columns = 1, int rows = 1, SixWayLayout layout = SixWayLayout.positiveNegative, bool flipCells = true})

@@ -18,7 +18,11 @@ final class Purse extends Tally {}
 ///
 /// The same shape as `Damageable` and `Collector`: a collider says *who* it is,
 /// and whether that someone gathers things is a question they answer.
-abstract interface class Gatherer {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class Gatherer {
   Purse get purse;
 }
 
@@ -28,6 +32,10 @@ abstract interface class Gatherer {
 /// not, for ever, and a `Purse` that could answer "how many blue keys" would be
 /// answering a question no door asks. `KeyRing` in the engine is that set, and
 /// this is how a pickup reaches one without knowing whose it is.
-abstract interface class KeyTaker {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class KeyTaker {
   KeyRing get keyRing;
 }

@@ -10,9 +10,12 @@ library;
 import 'dart:convert';
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -52,6 +55,7 @@ final class _World {
       elapsed: elapsed,
       random: GameRandom(1),
     );
+    sim.publishTo(heard.bus);
   }
 
   Collider _trigger(Vector3 at, int layer) => world.add(
@@ -64,13 +68,16 @@ final class _World {
     ),
   );
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final Collectible coin;
   late final Checkpoint checkpoint;
   late final PlatformerSimulation sim;
+
+  /// What [sim] publishes, step by step.
+  final Heard heard = Heard();
 
   bool _forward = false;
 
@@ -317,7 +324,7 @@ void _progressTests() {
 
       expect(world.sim.deaths, 5, reason: 'the tally is carried, not reset');
       expect(
-        world.sim.events.drain().whereType<RunnerDied>(),
+        world.heard.take().whereType<RunnerDied>(),
         isEmpty,
         reason: 'a carried death fired the death sound on arrival',
       );
@@ -329,7 +336,7 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.sim.events.drain().whereType<RunnerDied>().isNotEmpty;
+        died = world.heard.take().whereType<RunnerDied>().isNotEmpty;
       }
 
       expect(died, isTrue, reason: 'nothing killed the runner in four seconds');
@@ -341,14 +348,14 @@ void _progressTests() {
       var died = false;
       for (var i = 0; i < 240 && !died; i++) {
         world.run(1, forward: true);
-        died = world.sim.events.drain().whereType<RunnerDied>().isNotEmpty;
+        died = world.heard.take().whereType<RunnerDied>().isNotEmpty;
       }
       expect(died, isTrue);
 
       world.step();
 
       expect(
-        world.sim.events.drain().whereType<RunnerDied>(),
+        world.heard.take().whereType<RunnerDied>(),
         isEmpty,
         reason: 'the death was reported twice, so the burst plays again',
       );

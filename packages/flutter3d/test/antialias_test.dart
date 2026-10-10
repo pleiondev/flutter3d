@@ -47,9 +47,9 @@ Scene _diagonal(CpuDevice device) {
         device,
         CuboidShape(size: Vector3(2.2, 2.2, 0.2)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'card',
-        baseColor: Vector4(0.95, 0.95, 0.95, 1.0),
+        baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.95, 1.0),
         lighting: LightingModel.unlit,
       ),
     )..setLocalMatrix(Matrix4.rotationZ(0.37)),
@@ -68,13 +68,13 @@ Future<Uint8List> _draw(
     views: <RenderView>[
       RenderView(
         camera: CameraNode()..setPosition(0.0, 0.0, 4.0),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,
   );
-  final pixels = await it.device.readPixels(frame.frame);
-  return pixels!.buffer.asUint8List();
+  final pixels = await it.device.readback(frame.frame);
+  return pixels.buffer.asUint8List();
 }
 
 /// Pixels that are neither near-black nor near-white — the softened steps of

@@ -218,7 +218,7 @@ void main() {
     final scene = Scene();
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.05,
+        fovY: 1.05,
         near: 0.1,
         far: 100.0,
       ),
@@ -226,7 +226,8 @@ void main() {
     camera.lookAt(Vector3.zero());
     scene.add(camera);
     scene.add(
-      LightNode(intensity: 4.0, name: 'sun')..lookAt(Vector3(-0.4, -1.0, -0.6)),
+      LightNode(intensity: 4.0 * Photometric.legacyUnit, name: 'sun')
+        ..lookAt(Vector3(-0.4, -1.0, -0.6)),
     );
 
     final document = await decodeModel(
@@ -243,13 +244,11 @@ void main() {
       height: 32,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: const RenderSettings(),
     );
-    final pixels = (await device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final pixels = (await device.readback(result.frame)).buffer.asUint8List();
 
     var lit = 0;
     for (var i = 0; i < pixels.length; i += 4) {

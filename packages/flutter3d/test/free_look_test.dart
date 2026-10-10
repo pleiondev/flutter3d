@@ -90,7 +90,7 @@ void main() {
       () {
         final node = SceneNode();
         final orbit = OrbitController(node, distance: 5.0);
-        final look = FreeLook(orbit)..metresPerSecond = 2.0;
+        final look = FreeLook(orbit)..metersPerSecond = 2.0;
         final Vector3 before = _eye(node).clone();
         final Vector3 facing = _forward(node).clone();
 
@@ -130,7 +130,7 @@ void main() {
       // Yaw and pitch both off zero, so "up" following the camera instead of
       // the world would show as a tilt in the answer.
       final orbit = OrbitController(node, distance: 4.0, yaw: 0.9, pitch: 0.7);
-      final look = FreeLook(orbit)..metresPerSecond = 1.0;
+      final look = FreeLook(orbit)..metersPerSecond = 1.0;
       final Vector3 before = _eye(node).clone();
 
       look.walk(up: 1.0, seconds: 1.0);
@@ -174,7 +174,7 @@ Vector3 _walked({
   final orbit = OrbitController(node, distance: 4.0, yaw: 0.4, pitch: 0.3);
   final Vector3 before = node.readWorldPosition().clone();
   FreeLook(orbit)
-    ..metresPerSecond = 2.0
+    ..metersPerSecond = 2.0
     ..walk(
       forward: forward,
       right: right,

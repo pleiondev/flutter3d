@@ -9,7 +9,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class AlphaModesDemo extends ShowcaseDemo {
   double opacity = 0.9;
@@ -18,7 +17,7 @@ final class AlphaModesDemo extends ShowcaseDemo {
 
   static const int _size = 64;
 
-  late final List<Material> _materials;
+  late final List<RenderMaterial> _materials;
 
   @override
   void configureView(DemoContext context) {
@@ -56,16 +55,16 @@ final class AlphaModesDemo extends ShowcaseDemo {
       height: _size,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: _softDisc(),
-    )!;
+    );
 
     // #region materials
-    _materials = <Material>[
+    _materials = <RenderMaterial>[
       for (final MaterialAlphaMode mode in MaterialAlphaMode.values)
-        Material(
+        RenderMaterial(
           name: mode.name,
-          baseColor: Vector4(0.95, 0.55, 0.2, opacity),
+          baseColor: LinearColor.fromSrgb(0.95, 0.55, 0.2, opacity),
           albedo: disc,
-          albedoSampler: SamplerOptions.linearClamp,
+          albedoSampler: SamplerDescriptor.linearClamp,
           alphaMode: mode,
         ),
     ];
@@ -96,7 +95,10 @@ final class AlphaModesDemo extends ShowcaseDemo {
               context.device,
               const PlaneShape(width: 9, depth: 3).build(),
             ),
-            Material(name: 'wall', baseColor: Vector4(0.2, 0.35, 0.55, 1.0)),
+            RenderMaterial(
+              name: 'wall',
+              baseColor: LinearColor.fromSrgb(0.2, 0.35, 0.55, 1.0),
+            ),
             name: 'wall',
           )
           ..setRotation(upright)
@@ -104,7 +106,7 @@ final class AlphaModesDemo extends ShowcaseDemo {
     return scene
       ..add(wall)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.2, -0.3, -1.0)),
       );
   }
@@ -112,9 +114,9 @@ final class AlphaModesDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region live
-    for (final Material material in _materials) {
+    for (final RenderMaterial material in _materials) {
       material
-        ..baseColor.w = opacity
+        ..baseColor = material.baseColor.withAlpha(opacity)
         ..alphaCutoff = cutoff
         ..doubleSided = doubleSided;
     }

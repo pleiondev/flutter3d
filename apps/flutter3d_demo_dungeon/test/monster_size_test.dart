@@ -24,13 +24,12 @@ library;
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/monster_looks.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 400;
 const int _height = 400;
@@ -39,7 +38,7 @@ const int _height = 400;
 /// its far side: at twenty metres a body one metre deep is out by five per
 /// cent, which is inside what this asks of the number.
 const double _distance = 20.0;
-const double _fov = 0.4;
+const double _fovY = 0.4;
 
 /// How tall and wide [path] draws, in metres, posed on its resting clip.
 Future<({double tall, double wide})> _drawn(String path) async {
@@ -63,15 +62,13 @@ Future<({double tall, double wide})> _drawn(String path) async {
   }
 
   scene.add(
-    LightNode(color: Vector3(1.0, 1.0, 1.0), intensity: 4.0)
-      ..lookAt(Vector3(-0.3, -0.3, -1.0)),
+    LightNode(
+      color: LinearColor(1.0, 1.0, 1.0),
+      intensity: 4.0 * Photometric.legacyUnit,
+    )..lookAt(Vector3(-0.3, -0.3, -1.0)),
   );
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: _fov,
-      near: 0.1,
-      far: 60.0,
-    ),
+    projection: const PerspectiveProjection(fovY: _fovY, near: 0.1, far: 60.0),
   )..setPosition(0.0, 1.5, _distance);
   camera.lookAt(Vector3(0.0, 1.5, 0.0));
   scene.add(camera);
@@ -81,11 +78,11 @@ Future<({double tall, double wide})> _drawn(String path) async {
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(result.frame)).buffer.asUint8List();
 
   var top = _height, bottom = -1, left = _width, right = -1;
   for (var y = 0; y < _height; y++) {
@@ -102,7 +99,7 @@ Future<({double tall, double wide})> _drawn(String path) async {
   }
   expect(bottom, greaterThan(0), reason: '$path drew nothing at all');
 
-  final perPixel = 2 * _distance * math.tan(_fov / 2) / _height;
+  final perPixel = 2 * _distance * math.tan(_fovY / 2) / _height;
   return (tall: (bottom - top) * perPixel, wide: (right - left) * perPixel);
 }
 

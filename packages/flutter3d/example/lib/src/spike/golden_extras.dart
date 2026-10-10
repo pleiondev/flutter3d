@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The particles and the view model a golden draws, built to be repeatable.
 ///
@@ -44,6 +43,63 @@ abstract final class GoldenExtras {
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
     usesFogInfo: true,
+  );
+
+  /// The example's material written in the engine's language — `P8`:
+  /// `shaders/rim_glow.f3dmat`, compiled by `tool/build_material.dart` into
+  /// every GPU section with its source beside them for the software backend.
+  static const String rimGlowBundle = 'assets/shaders/rim_glow.f3dshaders';
+
+  /// The lighting model `BundledMaterials` reads out of [rimGlowBundle]'s
+  /// source, written as a constant because a golden scene is one; the
+  /// example's `material_language_test.dart` holds the two equal, so this
+  /// is the program's answer and not a second description of it.
+  static const LightingModel rimGlow = LightingModel(
+    'RimGlow',
+    'RimGlow',
+    usesAlbedoTexture: true,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMetallic: false,
+    usesLightList: false,
+    usesMaterialParameters: true,
+  );
+
+  /// The example's lighting hook — `P8`: `shaders/toon_hook.f3dmat`, a
+  /// material whose `light` block answers each light inside the engine's
+  /// light loop, compiled beside [rimGlowBundle].
+  static const String toonHookBundle = 'assets/shaders/toon_hook.f3dshaders';
+
+  /// [toonHookBundle]'s lighting model, held to the source by the example's
+  /// `material_language_test.dart` as [rimGlow] is: a lit model, so the maps,
+  /// the shadows and the light list, which the `light` block makes it.
+  static const LightingModel toonHook = LightingModel(
+    'ToonHook',
+    'ToonHook',
+    usesAlbedoTexture: true,
+    usesMaterialMaps: true,
+    usesMetallicRoughnessMap: false,
+    usesMetallic: false,
+    usesLightList: true,
+    usesMaterialParameters: true,
+  );
+
+  /// The example's instance attributes — `P8`: `shaders/instance_tint.f3dmat`,
+  /// a material reading each copy's own numbers as `instance`.
+  static const String instanceTintBundle =
+      'assets/shaders/instance_tint.f3dshaders';
+
+  /// [instanceTintBundle]'s lighting model, held to the source by the
+  /// example's `material_language_test.dart`.
+  static const LightingModel instanceTint = LightingModel(
+    'InstanceTint',
+    'InstanceTint',
+    usesAlbedoTexture: true,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMetallic: false,
+    usesLightList: false,
+    usesMaterialParameters: false,
   );
 
   /// Simulated seconds before the frame is drawn.
@@ -221,10 +277,10 @@ abstract final class GoldenExtras {
       // Asked for, not assumed: a device that answers false samples a
       // hand-built chain as black on some hardware, and a fixture that ignored
       // the answer would record that black.
-      mipLevels: device.supportsMipmaps
+      mipLevels: device.features.has(DeviceFeature.manualMipmaps)
           ? MipChain.build(bytes, size, size)
           : null,
-    )!;
+    );
   }
 
   /// A handful of particles drawn as meshes rather than as billboards.
@@ -327,7 +383,7 @@ abstract final class GoldenExtras {
       height: height,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(pixels),
-    )!;
+    );
 
     // Two quads in the standard layout, the colour attribute carrying each
     // corner's place in the atlas: the floor on the left half, the wall on
@@ -370,9 +426,9 @@ abstract final class GoldenExtras {
     );
     return MeshNode(
       mesh,
-      Material(
+      RenderMaterial(
         name: 'lightmapped room',
-        baseColor: Vector4(0.82, 0.80, 0.76, 1.0),
+        baseColor: LinearColor.fromSrgb(0.82, 0.80, 0.76, 1.0),
         roughness: 0.9,
       )..lightmap = atlas,
       name: 'lightmapped room',
@@ -396,7 +452,7 @@ abstract final class GoldenExtras {
   /// The sampler is what the bridge hands a level's brushes — trilinear and
   /// repeating, with `min(8, maxAnisotropy)` taps — so the scene pins the
   /// path a corridor floor takes and not a path built for the picture.
-  static Material checkerFloor(GraphicsDevice device) {
+  static RenderMaterial checkerFloor(GraphicsDevice device) {
     const size = 512;
     const checks = 64;
     const texelsPerCheck = size ~/ checks;
@@ -421,11 +477,11 @@ abstract final class GoldenExtras {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: base,
       mipLevels: MipChain.build(base, size, size),
-    )!;
-    return Material(name: 'checker floor', roughness: 0.9)
+    );
+    return RenderMaterial(name: 'checker floor', roughness: 0.9)
       ..albedo = texture
-      ..albedoSampler = SamplerOptions.trilinearRepeat.withAnisotropy(
-        math.min(8, device.maxAnisotropy),
+      ..albedoSampler = SamplerDescriptor.trilinearRepeat.withAnisotropy(
+        math.min(8, device.limits.maxSamplerAnisotropy),
       );
   }
 
@@ -480,7 +536,7 @@ abstract final class GoldenExtras {
     const tall = 1.6;
     final room = SceneNode(name: 'probe room');
 
-    MeshNode wall(String name, Vector4 colour, List<double> vertices) =>
+    MeshNode wall(String name, Vector4 color, List<double> vertices) =>
         MeshNode(
           DeviceMesh.upload(
             device,
@@ -490,7 +546,11 @@ abstract final class GoldenExtras {
               indices: Uint32List.fromList(<int>[0, 1, 2, 0, 2, 3]),
             ),
           ),
-          Material(name: name, baseColor: colour, roughness: 0.85),
+          RenderMaterial(
+            name: name,
+            baseColor: _fromSrgb(color),
+            roughness: 0.85,
+          ),
           name: name,
         );
 
@@ -545,9 +605,9 @@ abstract final class GoldenExtras {
         device,
         const SphereShape(radius: 0.42, segments: 48, rings: 32).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'mirror ball',
-        baseColor: Vector4(0.98, 0.98, 0.98, 1.0),
+        baseColor: LinearColor.fromSrgb(0.98, 0.98, 0.98, 1.0),
         metallic: 1.0,
         roughness: 0.04,
       ),
@@ -558,9 +618,9 @@ abstract final class GoldenExtras {
         device,
         const SphereShape(radius: 0.24, segments: 48, rings: 32).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'brushed ball',
-        baseColor: Vector4(0.95, 0.85, 0.6, 1.0),
+        baseColor: LinearColor.fromSrgb(0.95, 0.85, 0.6, 1.0),
         metallic: 1.0,
         roughness: 0.45,
       ),
@@ -665,9 +725,9 @@ abstract final class GoldenExtras {
         device,
         CuboidShape(size: Vector3(3.0, 1.2, 0.16)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(0.72, 0.70, 0.66, 1.0),
+        baseColor: LinearColor.fromSrgb(0.72, 0.70, 0.66, 1.0),
         roughness: 0.85,
       ),
       name: 'wall',
@@ -680,9 +740,9 @@ abstract final class GoldenExtras {
     final behind =
         MeshNode(
             cube,
-            Material(
+            RenderMaterial(
               name: 'far cube',
-              baseColor: Vector4(0.30, 0.55, 0.85, 1.0),
+              baseColor: LinearColor.fromSrgb(0.30, 0.55, 0.85, 1.0),
               roughness: 0.4,
             ),
             name: 'far cube',
@@ -692,9 +752,9 @@ abstract final class GoldenExtras {
     final inFront =
         MeshNode(
             cube,
-            Material(
+            RenderMaterial(
               name: 'near cube',
-              baseColor: Vector4(0.35, 0.75, 0.40, 1.0),
+              baseColor: LinearColor.fromSrgb(0.35, 0.75, 0.40, 1.0),
               roughness: 0.4,
             ),
             name: 'near cube',
@@ -742,11 +802,11 @@ abstract final class GoldenExtras {
         device,
         CuboidShape(size: Vector3(4.0, 0.2, 4.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'polished floor',
         // Dark, so the reflection is brighter than what it lands on. A pale
         // floor swallows it.
-        baseColor: Vector4(0.14, 0.14, 0.17, 1.0),
+        baseColor: LinearColor.fromSrgb(0.14, 0.14, 0.17, 1.0),
         roughness: 0.04,
         metallic: 0.1,
       ),
@@ -756,10 +816,10 @@ abstract final class GoldenExtras {
     MeshNode block(String name, Vector3 size, Vector3 at, Vector3 glow) =>
         MeshNode(
           DeviceMesh.upload(device, CuboidShape(size: size).build()),
-          Material(
+          RenderMaterial(
             name: name,
-            baseColor: Vector4(0.02, 0.02, 0.02, 1.0),
-            emissive: glow,
+            baseColor: LinearColor.fromSrgb(0.02, 0.02, 0.02, 1.0),
+            emissive: glow.toLinearColor(),
             roughness: 0.8,
           ),
           name: name,
@@ -805,11 +865,11 @@ abstract final class GoldenExtras {
   /// was written, and it is what caught this pass taking its taps around the
   /// pixel mirrored about the middle of the frame.
   static List<MeshNode> occlusionCorner(GraphicsDevice device) {
-    final stone = Material(
+    final stone = RenderMaterial(
       name: 'stone',
       // Pale, so there is headroom for the occlusion to take away. A dark
       // surface darkened is a dark surface.
-      baseColor: Vector4(0.78, 0.77, 0.74, 1.0),
+      baseColor: LinearColor.fromSrgb(0.78, 0.77, 0.74, 1.0),
       roughness: 0.95,
     );
     MeshNode slab(String name, Vector3 size, Vector3 at) => MeshNode(
@@ -839,7 +899,7 @@ abstract final class GoldenExtras {
     final scene = Scene();
     final camera = CameraNode(
       // Narrower than the world camera, the way a real view model is.
-      projection: const PerspectiveProjection(fovYRadians: 0.95),
+      projection: const PerspectiveProjection(fovY: 0.95),
     );
     scene.add(camera);
     scene.add(
@@ -848,9 +908,9 @@ abstract final class GoldenExtras {
           device,
           CuboidShape(size: Vector3(0.34, 0.2, 0.7)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'view model',
-          baseColor: Vector4(0.85, 0.30, 0.22, 1.0),
+          baseColor: LinearColor.fromSrgb(0.85, 0.30, 0.22, 1.0),
           roughness: 0.35,
         ),
         name: 'held',
@@ -859,3 +919,6 @@ abstract final class GoldenExtras {
     return ViewModelNode(scene: scene, camera: camera);
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show openDevice;
 
 import '../animation/model_animation_component.dart';
@@ -92,7 +92,8 @@ class Model3dComponent extends PositionComponent {
 
   /// The scene the model stands in, lit by the renderer's default key light
   /// and a softer ambient than the engine's own default.
-  final Scene scene = Scene(name: 'Model3dComponent')..ambientIntensity = 0.3;
+  final Scene scene = Scene(name: 'Model3dComponent')
+    ..ambientIntensity = 0.3 * Photometric.legacyUnit;
 
   /// The camera [render] draws through, placed by [frameModel].
   late final CameraNode camera3d = scene.add(CameraNode(name: 'model3d eye'));
@@ -101,7 +102,7 @@ class Model3dComponent extends PositionComponent {
   /// transparent, so the 2D game shows round the model.
   late final RenderView view = RenderView(
     camera: camera3d,
-    clearColor: Vector4.zero(),
+    clearColorSrgb: Vector4.zero(),
   );
 
   /// The loaded model, once [onLoad] has finished; null for a subclass
@@ -173,7 +174,7 @@ class Model3dComponent extends PositionComponent {
     _framed = bounds;
     final aspect = size.y > 0.0 ? size.x / size.y : 1.0;
     _framedAspect = aspect;
-    final centre = bounds.center;
+    final center = bounds.center;
     final radius = math.max(bounds.max.distanceTo(bounds.min) / 2.0, 1e-3);
     const fovY = math.pi / 4.0;
     // The narrower of the two angles decides: a tall component is limited
@@ -183,15 +184,15 @@ class Model3dComponent extends PositionComponent {
       math.atan(math.tan(fovY / 2.0) * aspect),
     );
     final distance = radius / math.sin(halfFov);
-    final eye = centre + viewFrom.normalized() * distance;
+    final eye = center + viewFrom.normalized() * distance;
     camera3d
       ..projection = PerspectiveProjection(
-        fovYRadians: fovY,
+        fovY: fovY,
         near: math.max(distance - radius * 2.0, distance * 0.01),
         far: distance + radius * 2.0,
       )
       ..setPosition(eye.x, eye.y, eye.z)
-      ..lookAt(centre);
+      ..lookAt(center);
   }
 
   @override
@@ -235,8 +236,7 @@ class Model3dComponent extends PositionComponent {
     _animations = null;
     _instance?.root.removeFromParent();
     _instance = null;
-    final device = _device;
-    if (device != null) _asset?.release(device);
+    _asset?.dispose();
     _asset = null;
     _device = null;
     final game = _sharedFrom;
@@ -304,8 +304,8 @@ class Model3dComponent extends PositionComponent {
   Future<void> _readBack(Renderer renderer, TextureHandle frame) async {
     _reading = true;
     try {
-      final bytes = await renderer.device.readPixels(frame);
-      if (bytes == null || !identical(renderer, _renderer)) return;
+      final bytes = await renderer.device.readback(frame);
+      if (!identical(renderer, _renderer)) return;
       final decoded = Completer<ui.Image>();
       ui.decodeImageFromPixels(
         bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),

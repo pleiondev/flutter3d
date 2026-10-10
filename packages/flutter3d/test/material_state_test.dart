@@ -10,22 +10,24 @@
 /// direction it was documented for.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A material with nothing left at its default, so that a copy which drops a
 /// field drops something visible.
-engine.Material _distinctive() => engine.Material(
+engine.RenderMaterial _distinctive() => engine.RenderMaterial(
   name: 'distinctive',
   lighting: LightingModel.blinnPhong,
-  baseColor: Vector4(0.1, 0.2, 0.3, 0.4),
+  baseColor: LinearColor.fromSrgb(0.1, 0.2, 0.3, 0.4),
   metallic: 0.25,
   roughness: 0.75,
   normalScale: 2.0,
   occlusionStrength: 0.5,
-  emissive: Vector3(0.6, 0.7, 0.8),
+  emissive: LinearColor(0.6, 0.7, 0.8),
   emissiveStrength: 3.0,
   alphaMode: MaterialAlphaMode.mask,
   alphaCutoff: 0.25,
@@ -43,7 +45,7 @@ engine.Material _distinctive() => engine.Material(
     scene.add(
       MeshNode(
           geometry,
-          engine.Material(
+          engine.RenderMaterial(
             name: 'bucket-${buckets[i]}',
             lighting: LightingModel.unlit,
             drawBucket: buckets[i],
@@ -115,13 +117,13 @@ void main() {
       final source = _distinctive();
       final copy = source.copy();
 
-      copy.baseColor.setValues(1.0, 1.0, 1.0, 1.0);
-      copy.emissive.setValues(1.0, 1.0, 1.0);
+      copy.baseColor = LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0);
+      copy.emissive = LinearColor(1.0, 1.0, 1.0);
 
       // Loose, because `Vector4` is single precision and 0.1 is not one of the
       // numbers it holds exactly.
-      expect(source.baseColor.x, closeTo(0.1, 1e-6));
-      expect(source.emissive.x, closeTo(0.6, 1e-6));
+      expect(source.baseColor.toSrgb().r, closeTo(0.1, 1e-6));
+      expect(source.emissive.r, closeTo(0.6, 1e-6));
     });
   });
 

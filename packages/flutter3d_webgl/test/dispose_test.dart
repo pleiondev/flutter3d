@@ -30,12 +30,11 @@ const int _width = 32;
 const int _height = 32;
 
 WebGlDevice _makeDevice() {
-  final device = WebGlDevice.create(
+  final device = WebGlDevice.open(
     width: _width,
     height: _height,
-    sources: engineShaders,
+    sources: webGlEngineShaders,
   );
-  if (device == null) fail('no WebGL2 context in this browser');
   return device;
 }
 
@@ -53,7 +52,7 @@ void main() {
     final device = _makeDevice();
 
     device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _width,
         height: _height,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -89,7 +88,7 @@ void main() {
     final device = _makeDevice();
 
     device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _width,
         height: _height,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -98,7 +97,7 @@ void main() {
     // A renderbuffer path: multisampled targets are renderbuffers rather than
     // textures — see the note on WebGlTexture — and dispose has to reach both.
     device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _width,
         height: _height,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -142,7 +141,7 @@ void main() {
       // Mutation: make `releaseTexture` a no-op. The count stays at one.
       final device = _makeDevice();
       final texture = device.createTexture(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: _width,
           height: _height,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -168,7 +167,7 @@ void main() {
       // an id the driver may already have reissued.
       final device = _makeDevice();
       final texture = device.createTexture(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: _width,
           height: _height,
           format: TextureFormat.r8g8b8a8UNormInt,
@@ -199,5 +198,56 @@ void main() {
       expect(device.debugDrainErrors('releaseGeometry'), isNull);
       device.dispose();
     });
+  });
+  test('a disposed stage is deleted, and its name answers anew', () {
+    // `ShaderHandle.dispose`: the library forgets the handle and deletes the
+    // shader object, which the driver accepts.
+    // Mutation: delete the object without forgetting the handle. The second
+    // lookup hands back the deleted stage, and linking it raises an error.
+    final device = _makeDevice();
+    final first = device.shaders['Composite']!;
+    first.dispose();
+    expect(first.isDisposed, isTrue);
+    expect(device.debugDrainErrors('dispose'), isNull);
+    final second = device.shaders['Composite']!;
+    expect(second, isNot(same(first)));
+    expect(second.isDisposed, isFalse);
+    device.dispose();
+  });
+
+  test('a refusal says which debug group was open', () {
+    // WebGL2 has no `KHR_debug`; the groups are kept for this backend's own
+    // words. Mutation: leave `_where` out of `_fail`. The message loses the
+    // group.
+    final device = _makeDevice();
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: _width,
+        height: _height,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass =
+        device.beginRenderPass(
+            RenderPassDescriptor(
+              colors: <ColorTarget>[ColorTarget(texture: target)],
+            ),
+          )
+          ..pushDebugGroup('opaque')
+          ..insertDebugMarker('floor');
+    expect(
+      () => pass.bindVertexBuffer(
+        device.uploadGeometry(ByteData(4 * 3), GeometryUsage.vertices),
+        3,
+      ),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('in "opaque"'), contains('after "floor"')),
+        ),
+      ),
+    );
+    device.dispose();
   });
 }

@@ -24,6 +24,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
 
 import '../../../l10n/app_localizations.dart';
 import 'actions_list.dart';
+import 'animation_graphs_list.dart';
 import 'constraints_list.dart';
 import 'skeleton_tree.dart';
 
@@ -40,6 +41,9 @@ class AnimationPanel extends StatelessWidget {
     required this.onSelectJoint,
     this.selectedConstraint,
     required this.onSelectConstraint,
+    this.animationGraphs = const <String, Map<String, Object?>>{},
+    this.onSetAnimationGraph,
+    this.onRemoveAnimationGraph,
     this.onRemoveConstraint,
   });
 
@@ -71,6 +75,13 @@ class AnimationPanel extends StatelessWidget {
   final int? selectedConstraint;
   final ValueChanged<int> onSelectConstraint;
   final ValueChanged<int>? onRemoveConstraint;
+
+  /// The project's animation graphs, and what sets and removes one; the
+  /// section is shown when both are given.
+  final Map<String, Map<String, Object?>> animationGraphs;
+  final String? Function(String name, Map<String, Object?> graph)?
+  onSetAnimationGraph;
+  final ValueChanged<String>? onRemoveAnimationGraph;
 
   String _jointName(int jointId) {
     for (final object in objects) {
@@ -111,6 +122,17 @@ class AnimationPanel extends StatelessWidget {
             selected: selectedConstraint,
             onSelect: onSelectConstraint,
             onRemove: onRemoveConstraint,
+          ),
+        ],
+        if ((onSetAnimationGraph, onRemoveAnimationGraph) case (
+          final onSet?,
+          final onRemove?,
+        )) ...<Widget>[
+          const SizedBox(height: 6),
+          AnimationGraphsList(
+            graphs: animationGraphs,
+            onSet: onSet,
+            onRemove: onRemove,
           ),
         ],
       ],

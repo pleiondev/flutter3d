@@ -10,7 +10,6 @@ import 'package:flame/events.dart' show HasKeyboardHandlerComponents;
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/flame_layer.dart';
@@ -68,25 +67,31 @@ final class FlameInputBridgeDemo extends ShowcaseDemo {
 
     _walker = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),
-      Material(name: 'walker', baseColor: Vector4(0.5, 0.7, 0.9, 1.0)),
+      RenderMaterial(
+        name: 'walker',
+        baseColor: LinearColor.fromSrgb(0.5, 0.7, 0.9, 1.0),
+      ),
       name: 'walker',
     )..setPosition(0.0, 0.5, 0.0);
     _scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(8.0, 0.1, 8.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.36, 0.4, 0.38, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.36, 0.4, 0.38, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(_walker)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
 
@@ -113,7 +118,10 @@ final class FlameInputBridgeDemo extends ShowcaseDemo {
         GameAction.moveRight,
       );
     _input = InputState();
-    _bridge = FlameInputBridge(bindings: bindings, inputState: _input);
+    _bridge = FlameInputBridge(
+      actions: ActionMap(actions: ActionSet.common, buttons: bindings),
+      inputState: _input,
+    );
     _game = _InputGame()
       ..add(_Keys(_bridge))
       ..add(_KeyCap('W', GameAction.moveForward, _input, Vector2(56.0, 72.0)))
@@ -186,7 +194,10 @@ final class FlameInputBridgeDemo extends ShowcaseDemo {
         GameAction.moveRight,
       );
     final inputState = InputState();
-    final bridge = FlameInputBridge(bindings: bindings, inputState: inputState);
+    final bridge = FlameInputBridge(
+      actions: ActionMap(actions: ActionSet.common, buttons: bindings),
+      inputState: inputState,
+    );
     // #endregion shared
 
     // #region press

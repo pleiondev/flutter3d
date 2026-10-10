@@ -73,10 +73,9 @@ Future<void> checkObjectIdDrawsAndDecodes(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: white,
   );
-  require(albedo != null, 'a one-pixel texture for the id stage was refused');
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: _size,
       height: _size,
       // Eight bits a channel and no more, which is what makes the encoding
@@ -120,7 +119,7 @@ Future<void> checkObjectIdDrawsAndDecodes(GraphicsDevice device) async {
       // Negative cutoff: not a masked material, so nothing is discarded.
       'mask': Float32List.fromList(<double>[-1.0, 1.0, 0.0, 0.0]),
     })
-    ..bindTexture(fragment, 'base_color_texture', albedo!)
+    ..bindTexture(fragment, 'base_color_texture', albedo)
     ..bindVertexData(ByteData.sublistView(_fullFrameTriangle), 3)
     ..bindIndexData(
       ByteData.sublistView(Uint16List.fromList(<int>[0, 1, 2])),
@@ -130,9 +129,8 @@ Future<void> checkObjectIdDrawsAndDecodes(GraphicsDevice device) async {
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(target);
-  require(read != null, 'the id target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(target);
+  final bytes = read.buffer.asUint8List();
   final at = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
   final (red, green, blue) = (bytes[at], bytes[at + 1], bytes[at + 2]);
   final decoded = red + green * 256 + blue * 65536;

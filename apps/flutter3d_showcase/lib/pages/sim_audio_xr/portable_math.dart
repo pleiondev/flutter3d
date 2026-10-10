@@ -8,10 +8,10 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PortableMathDemo extends ShowcaseDemo {
   late final String _report;
@@ -139,7 +139,7 @@ final class PortableMathDemo extends ShowcaseDemo {
       _bars[i].set(_seen[i] / 40.0);
       _barsAgain[i].set(_seenAgain[i] / 40.0);
     }
-    _lamp.material.baseColor.setValues(
+    _lamp.material.baseColor = LinearColor.fromSrgb(
       _agree ? 0.35 : 0.9,
       _agree ? 0.85 : 0.3,
       _agree ? 0.4 : 0.3,

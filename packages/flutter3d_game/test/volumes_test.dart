@@ -19,10 +19,10 @@ void main() {
     // The claim the four lists could not make. Written as a loop over the one
     // list rather than three assertions, so a fourth bus is covered the day it
     // is added.
-    final config = GameConfig();
-    for (final bus in settableBuses) {
-      config.setVolume(bus.name, 0.25);
-    }
+    final config = settableBuses.fold(
+      const GameSettings(),
+      (GameSettings settings, AudioBus bus) => settings.withVolume(bus, 0.25),
+    );
     final mixer = Mixer();
 
     applySavedVolumes(config, mixer);
@@ -43,7 +43,7 @@ void main() {
     final mixer = Mixer();
     final before = mixer.volumeOf(AudioBus.master);
 
-    applySavedVolumes(GameConfig(), mixer);
+    applySavedVolumes(const GameSettings(), mixer);
 
     expect(mixer.volumeOf(AudioBus.master), closeTo(before, 1e-9));
   });

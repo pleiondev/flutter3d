@@ -37,7 +37,7 @@ void main() {
     height: side,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData(side * side * 4),
-  )!;
+  );
 
   setUp(() {
     device = FakeBackend();

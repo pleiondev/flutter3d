@@ -8,7 +8,6 @@ import '../image_sniff.dart';
 import '../meshopt/meshopt_index_codec.dart';
 import '../meshopt/meshopt_vertex_codec.dart';
 import '../model_document.dart';
-import '../srgb.dart';
 import 'glb_container.dart';
 import 'gltf_accessor.dart';
 // For `toGltfFilters`, the exact inverse of `_decodeSampler`'s filter half —
@@ -101,13 +100,13 @@ final class GltfWriter {
   /// have no attribute whose values fit a normalized integer, and a file that
   /// asked for compression but got none of it should not claim the extension
   /// it never used. Valid only after [writeGlb] has run.
-  bool get usedGeometryQuantization => _usedQuantization;
+  bool get didQuantizeGeometry => _usedQuantization;
   bool _usedQuantization = false;
 
   /// Whether [compressGeometry] actually reordered a mesh's triangles and
   /// vertices for GPU cache reuse — false only when every surface's mesh had
   /// no triangles to begin with. Valid only after [writeGlb] has run.
-  bool get usedVertexCacheReordering => _usedVertexCacheReordering;
+  bool get didReorderVertexCache => _usedVertexCacheReordering;
   bool _usedVertexCacheReordering = false;
 
   final BytesBuilder _binary = BytesBuilder();

@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'intersections.dart';
 import 'mesh_data.dart';
@@ -320,7 +320,7 @@ final class TriangleBvh {
   /// Returns the triangle's number in the mesh's own index order — what a
   /// caller maps back to a face — with the distance and the point.
   ({int triangle, double distance, Vector3 point})? raycast(
-    Ray ray, {
+    LocalRay ray, {
     double maxDistance = double.infinity,
   }) {
     if (_nodes == 0) return null;
@@ -489,7 +489,7 @@ final class TriangleBvh {
   );
 
   /// Slab test against a node's box, rejecting anything past [maxDistance].
-  bool _hitsBox(int node, Ray ray, double maxDistance) {
+  bool _hitsBox(int node, LocalRay ray, double maxDistance) {
     var near = 0.0;
     var far = maxDistance;
     for (var axis = 0; axis < 3; axis++) {

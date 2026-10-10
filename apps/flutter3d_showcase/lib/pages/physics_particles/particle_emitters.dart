@@ -4,10 +4,11 @@
 /// Quoted by `particle_emitters.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ParticleEmittersDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -61,7 +62,10 @@ final class ParticleEmittersDemo extends ShowcaseDemo {
       (Vector3(-3.0, 0.0, 0.0), const SphereEmitter(speed: Range(1.0, 2.5))),
       (
         Vector3(-1.0, 0.0, 0.0),
-        const ConeEmitter(speed: Range(2.0, 4.0), halfAngleDegrees: 18.0),
+        const ConeEmitter(
+          speed: Range(2.0, 4.0),
+          halfAngle: 18.0 * math.pi / 180.0,
+        ),
       ),
       (
         Vector3(1.0, 0.0, 0.0),
@@ -79,13 +83,13 @@ final class ParticleEmittersDemo extends ShowcaseDemo {
 
     // #region burst
     _burstAll();
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles),
     );
     // #endregion burst
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

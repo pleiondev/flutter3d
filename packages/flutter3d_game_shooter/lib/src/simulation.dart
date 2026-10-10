@@ -16,7 +16,8 @@
 /// **Everything here is state.** What a shot looked like, what it sounded like,
 /// how much the screen flashed and where the smoke went are not; they are the
 /// caller's, and this reports *that* things happened rather than what they
-/// looked like, through [events] — see `events.dart`. It used to be through a
+/// looked like, on the bus it is handed ([GameSimulation.publishTo]) — see
+/// `events.dart`. It used to be through a
 /// field for each kind of moment, one of each per step; those are gone, and
 /// what replaced them can carry two of anything and says what order it was in.
 ///
@@ -41,6 +42,8 @@
 /// which is the one thing this package exists to prevent.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -60,22 +63,41 @@ import 'step_phases.dart';
 /// Three, not two, because "the level ended" and "you ended" want different
 /// screens, different music and different keys — and a caller holding a single
 /// `bool over` has to keep a second flag beside it to tell them apart.
-enum GameState {
-  playing,
+///
+/// **A class with constants, not an enum** (1.0): a state this genre adds in a
+/// minor release — a level that ends on a timer — is a new constant, not a
+/// break in every exhaustive `switch` over the old three. A `switch` over it
+/// keeps a default case; [outcome] is the answer every game shares and is
+/// exhaustive. No `paused`: pausing is the loop's, and a paused run is still
+/// [playing].
+final class GameState {
+  const GameState._(this.name, this.outcome);
+
+  static const GameState playing = GameState._('playing', RunOutcome.playing);
 
   /// The player's health reached zero. Their input no longer moves anything;
   /// the world carries on around them.
-  dead,
+  static const GameState dead = GameState._('dead', RunOutcome.lost);
 
   /// An [Exit] was reached. See [GameSimulation.nextLevel].
-  complete;
+  static const GameState complete = GameState._('complete', RunOutcome.won);
+
+  /// Every state, in the order they were declared.
+  static const List<GameState> values = <GameState>[playing, dead, complete];
+
+  /// The state called [name] in a snapshot, or null for one this build does
+  /// not know.
+  static GameState? byName(Object? name) =>
+      values.where((GameState it) => it.name == name).firstOrNull;
+
+  /// The word a snapshot writes for it.
+  final String name;
 
   /// The same answer in the words every game shares.
-  RunOutcome get outcome => switch (this) {
-    GameState.playing => RunOutcome.playing,
-    GameState.dead => RunOutcome.lost,
-    GameState.complete => RunOutcome.won,
-  };
+  final RunOutcome outcome;
+
+  @override
+  String toString() => 'GameState.$name';
 }
 
 final class GameSimulation {
@@ -93,11 +115,9 @@ final class GameSimulation {
     this.zones = const HitZones(),
     this.difficulty = Difficulty.normal,
   }) {
-    // Handed down rather than collected up, which is what makes the order real:
-    // a monster killed by this step's shot lands in the buffer *after* the shot
-    // that killed it, because both were written where they happened. A list
-    // read off the actor system afterwards can only say that both occurred.
-    actors?.events = events;
+    // So a rocket the player fired is still the player's after a rewind: a
+    // monster's is named by its entity, the player is in no world.
+    projectiles?.nameOwner('player', player.body.collider);
   }
 
   /// How hard this game is being.
@@ -175,7 +195,7 @@ final class GameSimulation {
 
   /// Crates, barrels and anything else with mass, or null for a game with
   /// none.
-  final Dynamics? dynamics;
+  final RigidDynamics? dynamics;
 
   /// What the level document says follows it.
   final String? levelNext;
@@ -221,17 +241,46 @@ final class GameSimulation {
   /// adds a line rather than a class.
   final Tally tally = Tally();
 
-  /// What this step did, for a game that wants to hear about it.
+  EventRegistry? _bus;
+
+  /// Publishes what each step did onto [bus] from now on, until the returned
+  /// registration is cancelled: see `events.dart` for what this template
+  /// reports. `ShooterPlugin` calls it with the engine's bus; a simulation
+  /// stepped by hand is handed a `DirectBus`. With no bus, nothing is told,
+  /// which costs nothing — most of this repository's tests step without
+  /// listening.
   ///
-  /// Drain it after [step]; see `events.dart` for what this template reports
-  /// and [GameEvents] for why it is a buffer rather than a stream. Ignoring it
-  /// costs nothing — the buffer caps itself, and most of this repository's
-  /// tests step without ever reading it.
+  /// The actor system is handed the same bus rather than collected from
+  /// afterwards, which is what makes the order real: a monster killed by this
+  /// step's shot is published *after* the shot that killed it, because both
+  /// were published where they happened.
   ///
   /// This replaced a field for each kind of moment. Those could not carry two
   /// of anything — a shotgun landing eight pellets was one `firedThisStep` and
   /// a list of hits — and nothing said which of two subsystems spoke first.
-  final GameEvents events = GameEvents();
+  Registration publishTo(EventRegistry bus) {
+    _bus = bus;
+    actors?.events = bus;
+    return Registration(() {
+      if (!identical(_bus, bus)) return;
+      _bus = null;
+      if (identical(actors?.events, bus)) actors?.events = null;
+    });
+  }
+
+  void _publish(GameEvent event) => _bus?.publish(event);
+
+  /// The player's shot this step — its [ShotFired] and every [ShotLanded] —
+  /// as they were published, read off the simulation itself; empty on a step
+  /// nothing was fired.
+  ///
+  /// **For a system hung on [systems] that answers what the shot did**: the
+  /// crypt's crates, pushed by the rounds that pass through them (see
+  /// `package:flutter3d_demo_content/crypt.dart`), which runs inside the step,
+  /// before the bus hands the step's events out. Cleared at the top of
+  /// [step].
+  List<GameEvent> get shotEvents => List<GameEvent>.unmodifiable(_shotEvents);
+  final List<GameEvent> _shotEvents = <GameEvent>[];
 
   /// Names this simulation counts under. Constants because a typo in one place
   /// and not the other is a counter that reads nought for ever.
@@ -275,7 +324,7 @@ final class GameSimulation {
     for (final mechanism in doors.all) {
       if (mechanism is Secret && mechanism.justFound) {
         tally.add(secrets);
-        events.add(SecretFound(mechanism));
+        _publish(SecretFound(mechanism));
       }
     }
   }
@@ -327,9 +376,19 @@ final class GameSimulation {
   final Vector3 _eye = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
+  /// The cutscene playing now, or null: what the application draws the
+  /// camera, the subtitles and the fade from, and what a skip steps through.
+  Cutscene? get cutscene {
+    for (final mechanism in mechanisms?.all ?? const <Mechanism>[]) {
+      if (mechanism is Cutscene && mechanism.isPlaying) return mechanism;
+    }
+    return null;
+  }
+
   /// Advances the world by one fixed step.
   void step(double dt) {
     _firedThisStep = null;
+    _shotEvents.clear();
     // Last step's dead and hurt, forgotten here rather than inside
     // `ActorSystem.step` — which is halfway through this step, after the
     // player's own shot has already killed something. See
@@ -339,8 +398,14 @@ final class GameSimulation {
     systems.run(StepPhase.begin, dt);
 
     final playing = _state == GameState.playing;
+    // **A cutscene has the player's hands.** The world goes on round them —
+    // the cutscene itself is stepped with the mechanisms below — but nothing
+    // the player presses moves, turns, fires or uses anything until it ends
+    // or is skipped. Read before the mechanisms step, so the step a cutscene
+    // ends on is the step the controls come back.
+    final controlled = playing && cutscene == null;
 
-    if (playing) {
+    if (controlled) {
       player.look(input.lookDelta);
       player.moveWish(input.moveAxis, _wish);
       // Asked for every step rather than on an edge: standing up can be refused
@@ -358,13 +423,21 @@ final class GameSimulation {
     // The order this game worked out and the other two copied — see
     // [WorldStep], which holds the whole argument now, including which half of
     // it a test will catch and which half is reasoning said out loud.
+    // A cutscene's signals, on the step they fired, onto the run's own bus —
+    // where whatever answers them, a sound or a reaction, already listens.
+    // Published as they fire, inside the movers below; nothing else there
+    // publishes, so they sit where they always did among the step's events.
+    for (final mechanism in mechanisms?.all ?? const <Mechanism>[]) {
+      if (mechanism is Cutscene) mechanism.player.events = _bus;
+    }
     _world.movers(dt);
     _world.index(dt);
 
     player.body.step(
       dt,
       wishDirection: _wish,
-      sprint: playing && !player.isCrouching && input.held(GameAction.sprint),
+      sprint:
+          controlled && !player.isCrouching && input.held(GameAction.sprint),
     );
 
     // After the player has moved, because what they shove depends on where
@@ -381,7 +454,7 @@ final class GameSimulation {
 
     final doors = mechanisms;
     if (doors != null) {
-      if (playing && input.pressed(GameAction.use)) _use(doors);
+      if (controlled && input.pressed(GameAction.use)) _use(doors);
       // Last, because the use key above can start a door: publishing before it
       // would report that door a step late, every time. It is why `WorldStep`
       // keeps this apart from `settle` instead of bundling the two.
@@ -394,7 +467,7 @@ final class GameSimulation {
     systems.run(ShooterPhases.afterWorld, dt);
 
     player.inventory.step(dt);
-    if (playing) _weapon(dt);
+    if (controlled) _weapon(dt);
 
     // **A shot is a noise, and until now nothing in the level could tell.** A
     // monster noticed being seen or being hit and nothing else, so a player
@@ -413,7 +486,7 @@ final class GameSimulation {
     if (actors != null && player.isAlive) {
       player.eye(_eye);
       actors.step(dt, focus: _eye, focusBody: player.body.collider);
-      _hurtPlayer(actors.damageToFocusThisStep);
+      hurtPlayer(actors.damageToFocusThisStep);
       // Counted where the news is, which is the step it happened on: `died` is
       // cleared at the top of the next one.
       if (actors.died.isNotEmpty) tally.add(kills, actors.died.length);
@@ -476,7 +549,7 @@ final class GameSimulation {
       ignore: player.body.collider,
     );
     if (target == null) return;
-    events.add(
+    _publish(
       MechanismUsed(
         target.activate(mechanisms.activationBy(player.body.collider)),
       ),
@@ -566,12 +639,14 @@ final class GameSimulation {
     // No branch on the kind of weapon. Rays, swings and rockets each know how
     // they arrive; this only has to say where the shot came from.
     shot.begin(weapon, firedFrom, _aim, shooter: player.body.collider);
-    weapon.behaviour.deliver(shot);
+    weapon.behavior.deliver(shot);
     _firedThisStep = weapon;
-    events.add(ShotFired(weapon: weapon, from: firedFrom));
-    for (final hit in shot.hits) {
-      events.add(ShotLanded(hit));
-    }
+    final fired = <GameEvent>[
+      ShotFired(weapon: weapon, from: firedFrom),
+      for (final hit in shot.hits) ShotLanded(hit),
+    ];
+    fired.forEach(_publish);
+    _shotEvents.addAll(fired);
 
     // Pellets landing in the same monster are summed before they are applied,
     // or eight of them are eight deaths.
@@ -596,7 +671,7 @@ final class GameSimulation {
   ///
   /// See [Snapshot] for what this is and is not. The per-step lists are
   /// deliberately absent: they describe the step that has just happened, a
-  /// caller has already drained them, and restoring them would replay a sound
+  /// caller has already heard them, and restoring them would replay a sound
   /// for a monster that died before the save was taken.
   Snapshot save() => Snapshot(<String, Object?>{
     'state': _state.name,
@@ -621,13 +696,15 @@ final class GameSimulation {
     'monsterCount': _monsterCount,
     'secretCount': _secretCount,
     'counted': _counted,
+    // What the dynamics carry beyond the bodies: nothing for the reference,
+    // the core's own state for the native one, without which a rewind
+    // stepped on from this snapshot would not repeat the run.
+    'dynamics': ?dynamics?.saveState(),
   });
 
   void restore(Snapshot snapshot) {
     final from = snapshot.data;
-    for (final value in GameState.values) {
-      if (value.name == from['state']) _state = value;
-    }
+    _state = GameState.byName(from['state']) ?? _state;
     _exitNext = from['exitNext'] as String?;
 
     final player = from['player'];
@@ -651,29 +728,40 @@ final class GameSimulation {
     if (blown is Map) breaches?.restore(blown.cast<String, Object?>());
     _monsterCount = from.integer('monsterCount', _monsterCount);
     _secretCount = from.integer('secretCount', _secretCount);
-    _counted = from.flag('counted', _counted);
+    _counted = from.flag('counted', orElse: _counted);
 
     // Whatever the step that took the snapshot reported is not news any more.
     // Health came back on a component; whether a body is solid is a fact about
     // the collision world, and something has to put the two together.
     actors?.syncCorpses();
 
+    // After the bodies' own restore, which it puts the core's state over.
+    dynamics?.restoreState(from['dynamics']);
+
     // The broadphase is holding every body where it was before the restore.
     _world.afterRestore();
   }
 
-  void _hurtPlayer(double rawAmount) {
+  /// Hurts the player by [rawAmount] before the difficulty's scale, and says
+  /// so on the bus: a [PlayerHurt], and a [PlayerDied] on the step it kills.
+  ///
+  /// **Public for a rule hung on [systems]** that harms the player by a law of
+  /// its own — the crypt's fires, by the heat they send (see
+  /// `package:flutter3d_demo_content/crypt.dart`). It used to scale the harm
+  /// and write both events itself, a second copy of this door that a change
+  /// here would not have reached.
+  void hurtPlayer(double rawAmount) {
     // **Scaled here, at the one door damage reaches the player through.** Every
-    // source — a claw, a blast, a fall — arrives at this method, so the setting
-    // is applied once rather than at each of them, and a source added later
-    // gets it without anybody remembering.
+    // source — a claw, a blast, a fall, a fire — arrives at this method, so the
+    // setting is applied once rather than at each of them, and a source added
+    // later gets it without anybody remembering.
     final amount = rawAmount * difficulty.damageTaken;
     if (amount <= 0.0) return;
     // Asked before and after, so the death is reported on the step it happened
     // rather than on every step after it, which is what `player.isAlive` gives.
     final wasAlive = player.isAlive;
     player.applyDamage(amount);
-    events.add(PlayerHurt(amount));
-    if (wasAlive && !player.isAlive) events.add(const PlayerDied());
+    _publish(PlayerHurt(amount));
+    if (wasAlive && !player.isAlive) _publish(const PlayerDied());
   }
 }

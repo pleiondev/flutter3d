@@ -53,7 +53,7 @@ final class Collectible extends Takeable {
     // After the purse, not before: a key handed out for a pickup that was then
     // refused is a door that opens for nothing.
     final unlocks = key;
-    if (unlocks != null && taker is KeyTaker) taker.keyRing.take(unlocks);
+    if (unlocks != null && taker is KeyTaker) taker.keyRing.add(unlocks);
     return true;
   }
 }

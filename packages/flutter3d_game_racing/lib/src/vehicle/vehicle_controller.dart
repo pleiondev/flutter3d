@@ -16,6 +16,7 @@ final class VehicleInput {
   double brake = 0.0;
 
   /// Steering, from `-1` (full left) to `1` (full right).
+  /// Unitless.
   double steer = 0.0;
 
   /// Locks the wheels. Not a drift button — see [VehicleController.slipAngle]
@@ -67,7 +68,11 @@ final class VehicleInput {
 /// be four rays with springs on them. Everything above has to survive that
 /// change without noticing it, so the questions it may ask are fixed now, while
 /// there is still only one thing answering them.
-abstract interface class VehicleController {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class VehicleController {
   /// Where the car is. The body's centre, not the wheels.
   Vector3 get position;
 
@@ -103,7 +108,7 @@ abstract interface class VehicleController {
   double get slipRatio;
 
   /// Whether the car is on something.
-  bool get grounded;
+  bool get isGrounded;
 
   /// How hard something pushed the car back this step, in metres per second
   /// taken out of it. Zero on a clean lap.
@@ -120,8 +125,8 @@ abstract interface class VehicleController {
   /// to know which class it has.
   /// **A number, and that is why it is still here** while the flags around the
   /// genre became events. An edge — jumped, landed, crossed the line — is a
-  /// moment, and a moment belongs in the step's buffer where two of them can be
-  /// told apart and put in order. This is how hard the car is being scraped or
+  /// moment, and a moment belongs among the step's events where two of them
+  /// can be told apart and put in order. This is how hard the car is being scraped or
   /// struck *now*, which is state, and a game implementing this interface says
   /// it by answering rather than by being handed a sink to write into.
   double get impactThisStep;

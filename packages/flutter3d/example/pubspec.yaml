@@ -5,6 +5,7 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 dependencies:
   flutter:
@@ -40,6 +41,10 @@ dependencies:
     path: ../../flutter3d_webgpu
   flutter3d:
     path: ../
+  # The parity scene, the engine's own test fixture: not API since 1.0, so
+  # the spikes that draw it import it from the core directly.
+  flutter3d_core:
+    path: ../../flutter3d_core
   # minimal_main.dart opens its device through this package, because that is
   # what a new application does: say `openDevice()` and not which backend.
   flutter3d_app:
@@ -70,6 +75,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # `tool/build_material.dart`: the engine's shaders, resolved for the
+  # material it compiles — `P8`.
+  flutter3d_shaders:
+    path: ../../flutter3d_shaders
+
+  flutter3d_build_hooks:
+    path: ../../flutter3d_build_hooks
+  # `test/material_language_test.dart`: the language's parser, to hold the
+  # golden's lighting model to its source, comes from `flutter3d_core`, a
+  # dependency above.
 
 flutter:
   uses-material-design: true
@@ -87,3 +102,8 @@ flutter:
     # refuses to build without it rather than shipping a demo whose
     # `loaded-shader` scene cannot find its bytes.
     - assets/shaders/example.f3dshaders
+    # And the material written in the engine's language, which the same
+    # script compiles from shaders/rim_glow.f3dmat — `P8`.
+    - assets/shaders/rim_glow.f3dshaders
+    - assets/shaders/toon_hook.f3dshaders
+    - assets/shaders/instance_tint.f3dshaders

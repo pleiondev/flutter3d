@@ -39,7 +39,7 @@ extension _TemporalPass on Renderer {
       for (var i = 0; i < 2; i++) {
         _destroyAfterFrame(history.textures[i]);
         history.textures[i] = device.createTexture(
-          RenderTargetSpec(
+          RenderTargetDescriptor(
             width: current.width,
             height: current.height,
             format: current.format,
@@ -60,7 +60,7 @@ extension _TemporalPass on Renderer {
     drawFullscreen(
       FullscreenDraw(
         target: next,
-        fragment: temporalAccumulateShader,
+        fragment: _temporalAccumulateShader,
         textures: <String, TextureHandle>{
           'current_texture': current,
           'history_texture': previous,
@@ -69,8 +69,8 @@ extension _TemporalPass on Renderer {
         uniforms: <String, Map<String, Float32List>>{
           _accumulateInfo.name: _accumulateInfo.members,
         },
-        samplers: const <String, SamplerOptions>{
-          'velocity_texture': SamplerOptions.nearestClamp,
+        samplers: const <String, SamplerDescriptor>{
+          'velocity_texture': SamplerDescriptor.nearestClamp,
         },
       ),
     );
@@ -90,7 +90,7 @@ extension _TemporalPass on Renderer {
     for (var i = 0; i < 2; i++) {
       _destroyAfterFrame(_history[i]);
       _history[i] = device.createTexture(
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: width,
           height: height,
           format: hdrFormat,
@@ -163,7 +163,7 @@ extension _TemporalPass on Renderer {
     drawFullscreen(
       FullscreenDraw(
         target: next,
-        fragment: temporalResolveShader,
+        fragment: _temporalResolveShader,
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'history_texture': previous,
@@ -176,9 +176,9 @@ extension _TemporalPass on Renderer {
         // Filtered for the colour, which is read between texels on purpose;
         // not for the two buffers, where a filtered read across a silhouette
         // is a depth and a motion that belong to nothing.
-        samplers: const <String, SamplerOptions>{
-          'velocity_texture': SamplerOptions.nearestClamp,
-          'surface_texture': SamplerOptions.nearestClamp,
+        samplers: const <String, SamplerDescriptor>{
+          'velocity_texture': SamplerDescriptor.nearestClamp,
+          'surface_texture': SamplerDescriptor.nearestClamp,
         },
       ),
     );

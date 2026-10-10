@@ -16,16 +16,21 @@ Heightfield _flat() => Heightfield(
 );
 
 /// A base, a seam twenty metres from it, and one worker between them.
-({StrategySimulation sim, Unit worker, ResourceNode seam, Building base})
+({
+  StrategySimulation sim,
+  StrategyUnit worker,
+  ResourceNode seam,
+  Building base,
+})
 _camp({double amount = 1000.0}) {
   final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
   final base = sim.build(
-    Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
+    Building(center: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
   );
   final seam = sim.addResource(
     ResourceNode(at: Vector3(40.0, 0.0, 20.0), amount: amount),
   );
-  final worker = sim.add(Unit(position: Vector3(26.0, 0.0, 20.0)));
+  final worker = sim.add(StrategyUnit(position: Vector3(26.0, 0.0, 20.0)));
   worker.job = HarvestJob(node: seam, dropOff: base);
   return (sim: sim, worker: worker, seam: seam, base: base);
 }
@@ -100,7 +105,7 @@ void main() {
     test('makes a unit when its side can pay for one', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
       sim.addProducer(
         Producer(building: hall, cost: 25.0, seconds: 2.0)
@@ -127,7 +132,7 @@ void main() {
       // existing.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
       sim.addProducer(Producer(building: hall, cost: 25.0, seconds: 1.0));
       sim.stock[0].amount = 500.0;
@@ -145,7 +150,7 @@ void main() {
       // when a unit comes out — the first order then runs the hall for ever.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
       final maker = sim.addProducer(
         Producer(building: hall, cost: 1.0, seconds: 0.5)
@@ -161,7 +166,7 @@ void main() {
       expect(maker.ordered, 0);
       expect(maker.isWanted, isFalse);
       expect(
-        sim.units.every((Unit it) => it.type == UnitType.soldier),
+        sim.units.every((StrategyUnit it) => it.type == UnitType.soldier),
         isTrue,
         reason: 'a hall asked for soldiers made something else',
       );
@@ -172,7 +177,7 @@ void main() {
       // with nothing then gets a free unit every four seconds.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 8.0, depth: 8.0),
       );
       sim.addProducer(
         Producer(building: hall)..order(UnitType.worker, count: 9),
@@ -192,7 +197,7 @@ void main() {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final theirs = sim.build(
         Building(
-          centre: Vector3(60.0, 0.0, 60.0),
+          center: Vector3(60.0, 0.0, 60.0),
           width: 8.0,
           depth: 8.0,
           side: 1,
@@ -222,7 +227,7 @@ void main() {
       );
       final third = wide.build(
         Building(
-          centre: Vector3(60.0, 0.0, 60.0),
+          center: Vector3(60.0, 0.0, 60.0),
           width: 8.0,
           depth: 8.0,
           side: 2,
@@ -247,7 +252,7 @@ void main() {
     test('puts a new unit outside the building that made it', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final hall = sim.build(
-        Building(centre: Vector3(30.0, 0.0, 30.0), width: 10.0, depth: 10.0),
+        Building(center: Vector3(30.0, 0.0, 30.0), width: 10.0, depth: 10.0),
       );
       sim.addProducer(
         Producer(building: hall, cost: 1.0, seconds: 0.5)

@@ -1,6 +1,6 @@
 /// Everything the service needs to know that is not in its code.
 ///
-/// One [LtiPlatformConfig], not a list: `doc/edu-03-lti-plan.md` §4 defers
+/// One [LtiPlatformSettings], not a list: `doc/edu-03-lti-plan.md` §4 defers
 /// multi-platform organisation to the cloud track's team projects and takes
 /// "one platform's fields in the environment" as the whole of `edu-03`'s
 /// answer until then, the same discipline `cloud/lessons`/`cloud/server`
@@ -10,7 +10,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_lti/flutter3d_lti.dart';
+import 'package:flutter3d_education/lti.dart';
 import 'package:pointycastle/export.dart' as pc;
 
 class Config {
@@ -47,7 +47,7 @@ class Config {
       return Uri.parse(value);
     }
 
-    final platform = LtiPlatformConfig(
+    final platform = LtiPlatformSettings(
       issuer: required('LTI_PLATFORM_ISSUER'),
       clientId: required('LTI_PLATFORM_CLIENT_ID'),
       deploymentId: required('LTI_PLATFORM_DEPLOYMENT_ID'),
@@ -85,7 +85,7 @@ class Config {
   /// skips score passback rather than failing every launch over it.
   static LtiToolCredentials? _readToolCredentials(
     Map<String, String> env,
-    LtiPlatformConfig platform,
+    LtiPlatformSettings platform,
     List<String> missing,
   ) {
     final path = env['LTI_TOOL_KEY_FILE'];
@@ -120,7 +120,7 @@ class Config {
   /// `lti-04`'s xAPI half — null exactly when no LRS is configured, the
   /// second of the two paths `doc/edu-00-interactive-format.md` §10 leaves
   /// to the host and neither of which this service requires.
-  static XapiLrsConfig? _readLrsConfig(
+  static XapiLrsSettings? _readLrsConfig(
     Map<String, String> env,
     List<String> missing,
   ) {
@@ -132,7 +132,7 @@ class Config {
       missing.add('LTI_LRS_AUTHORIZATION');
       return null;
     }
-    return XapiLrsConfig(
+    return XapiLrsSettings(
       statementsEndpoint: Uri.parse(endpoint),
       authorizationHeader: auth,
     );
@@ -146,7 +146,7 @@ class Config {
   /// `cloud/lessons`'s own `baseUrl` solves for its embed snippet.
   final String baseUrl;
 
-  final LtiPlatformConfig platform;
+  final LtiPlatformSettings platform;
 
   /// The web build of `flutter3d_lesson_viewer`, served under `/app/` — or
   /// null, when nginx serves it and this process should not.
@@ -162,7 +162,7 @@ class Config {
   /// Where a `check` result's xAPI statement goes (`lti-04`) — null when no
   /// Learning Record Store is configured, `doc/edu-00-interactive-format.md`
   /// §10's own "a result need not go anywhere in particular" left open.
-  final XapiLrsConfig? lrs;
+  final XapiLrsSettings? lrs;
 
   static String _withoutTrailingSlash(String url) =>
       url.endsWith('/') ? url.substring(0, url.length - 1) : url;

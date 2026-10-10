@@ -12,12 +12,13 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double cx, double cy, double cz, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(cx, cy, cz), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(cx, cy, cz), size: Vector3(sx, sy, sz));
 
 /// An 8 × 3 × 8 room: floor at y = 0, ceiling at y = 3, walls a metre
 /// thick, all grey. Lit by one lamp in the middle, a metre and a half up.
@@ -32,12 +33,12 @@ Level _room({
 }) => Level(
   name: 'a room',
   materials: <String, LevelMaterial>{
-    'stone': LevelMaterial(baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
-    'soot': LevelMaterial(baseColor: Vector4(0.02, 0.02, 0.02, 1.0)),
+    'stone': LevelMaterial(baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6)),
+    'soot': LevelMaterial(baseColor: LinearColor.fromSrgb(0.02, 0.02, 0.02)),
   },
   brushes: <Brush>[
     Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
+      center: Vector3(0.0, -0.5, 0.0),
       size: Vector3(10.0, 1.0, 10.0),
       material: floorMaterial,
     ),
@@ -50,7 +51,7 @@ Level _room({
       ...extra,
     ].map(
       (b) => Brush(
-        centre: b.centre,
+        center: b.center,
         size: b.size,
         material: b.material == 'default' ? 'stone' : b.material,
         solid: b.solid,
@@ -70,7 +71,7 @@ void main() {
   group('the layout', () {
     test('gives every visible face a rectangle, and no two overlap', () {
       final level = _room();
-      final layout = LightmapLayout.plan(level, texelsPerMetre: 4.0);
+      final layout = LightmapLayout.plan(level, texelsPerMeter: 4.0);
 
       // Six faces face the room; the outer faces of the shell are visible
       // too since nothing hides them, so more than six — but the ones that
@@ -114,10 +115,10 @@ void main() {
     });
 
     test('maps a texel to the world and back', () {
-      final layout = LightmapLayout.plan(_room(), texelsPerMetre: 4.0);
+      final layout = LightmapLayout.plan(_room(), texelsPerMeter: 4.0);
       final floor = _floorTop(layout);
       final at = Vector3.zero();
-      layout.texelCentre(floor, 3, 7, at);
+      layout.texelCenter(floor, 3, 7, at);
       expect(at.y, closeTo(0.0, 1e-6));
       expect(layout.texelOf(floor, at), (3, 7));
     });
@@ -157,13 +158,13 @@ void main() {
   group('a direct bake', () {
     test('lights the floor under the lamp by inverse square', () {
       final level = _room();
-      final layout = LightmapLayout.plan(level, texelsPerMetre: 4.0);
+      final layout = LightmapLayout.plan(level, texelsPerMeter: 4.0);
       final map = const LightmapBaker(
         bounces: 0,
         includeDirect: true,
       ).bake(level, layout: layout);
       final floor = _floorTop(layout);
-      final centre = Vector3.zero();
+      final center = Vector3.zero();
 
       // Right under the lamp: a metre and a half away, straight down, so
       // 10 / 1.5² = 4.44. Four metres away along the floor: the distance is
@@ -174,14 +175,14 @@ void main() {
       final (fi, fj) = layout.texelOf(floor, Vector3(4.0, 0.0, 0.0));
       final far = map.irradianceAt(floor.x + fi, floor.y + fj);
       expect(far.x, closeTo(10.0 / 18.25 * (1.5 / 4.272), 0.05));
-      layout.texelCentre(floor, ci, cj, centre);
-      expect(centre.length, lessThan(0.2));
+      layout.texelCenter(floor, ci, cj, center);
+      expect(center.length, lessThan(0.2));
     });
 
     test('leaves the floor behind a pillar dark', () {
       // A pillar between the lamp and the east end of the floor.
       final level = _room(extra: <Brush>[_box(2.0, 1.5, 0.0, 0.5, 3.0, 1.0)]);
-      final layout = LightmapLayout.plan(level, texelsPerMetre: 4.0);
+      final layout = LightmapLayout.plan(level, texelsPerMeter: 4.0);
       final map = const LightmapBaker(
         bounces: 0,
         includeDirect: true,
@@ -209,7 +210,7 @@ void main() {
         extra: <Brush>[_box(2.0, 1.5, 0.0, 0.5, 3.0, 1.0)],
         intensity: 20.0,
       );
-      final layout = LightmapLayout.plan(level, texelsPerMetre: 2.0);
+      final layout = LightmapLayout.plan(level, texelsPerMeter: 2.0);
       final map = const LightmapBaker(
         bounces: 1,
         samples: 64,
@@ -257,7 +258,7 @@ void main() {
 
       expect(again.width, map.width);
       expect(again.height, map.height);
-      expect(again.texelsPerMetre, map.texelsPerMetre);
+      expect(again.texelsPerMeter, map.texelsPerMeter);
       expect(again.levelHash, map.levelHash);
       expect(again.pixels, map.pixels);
       expect(again.isStaleFor(level), isFalse);
@@ -281,19 +282,19 @@ void main() {
       final level = _room();
       const density = 1.2;
       final baked = const LightmapBaker(
-        texelsPerMetre: density,
+        texelsPerMeter: density,
         bounces: 0,
       ).bake(level);
       final again = Lightmap.fromBytes(baked.toBytes());
       final replanned = LightmapLayout.plan(
         level,
-        texelsPerMetre: again.texelsPerMetre,
+        texelsPerMeter: again.texelsPerMeter,
       );
 
-      expect(again.texelsPerMetre, isNot(density), reason: 'float32 narrows');
+      expect(again.texelsPerMeter, isNot(density), reason: 'float32 narrows');
       expect(replanned.width, baked.width);
       expect(replanned.height, baked.height);
-      final planned = LightmapLayout.plan(level, texelsPerMetre: density);
+      final planned = LightmapLayout.plan(level, texelsPerMeter: density);
       for (final face in planned.faces) {
         final other = replanned.faceOf(face.brush, face.face);
         expect(other, isNotNull);
@@ -313,7 +314,7 @@ void main() {
     // the hash equal and this expectation reports false.
     test('is stale for a level that grew a decorative moulding', () {
       final moulding = Brush(
-        centre: Vector3(0.0, 2.5, 3.0),
+        center: Vector3(0.0, 2.5, 3.0),
         size: Vector3(3.0, 0.3, 0.3),
         solid: false,
       );
@@ -348,17 +349,20 @@ void main() {
       final bytes = map.toBytes();
       expect(
         () => Lightmap.fromBytes(Uint8List.sublistView(bytes, 0, 12)),
-        throwsFormatException,
+        throwsA(isA<LightmapFormatException>()),
       );
       final wrong = Uint8List.fromList(bytes)..[0] = 0;
-      expect(() => Lightmap.fromBytes(wrong), throwsFormatException);
+      expect(
+        () => Lightmap.fromBytes(wrong),
+        throwsA(isA<LightmapFormatException>()),
+      );
     });
 
     test('RGBM holds a bright texel and a dim one to a percent', () {
       final map = Lightmap(
         width: 2,
         height: 1,
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         levelHash: 0,
       );
       map.setIrradiance(0, 0, 6.0, 3.0, 0.5);

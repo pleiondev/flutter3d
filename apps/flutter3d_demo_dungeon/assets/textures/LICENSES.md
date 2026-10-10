@@ -17,6 +17,7 @@ not to.
 | `ceiling_*` | [Concrete042A](https://ambientcg.com/view?id=Concrete042A) | CC0 1.0 | Mottled grey, the ceilings |
 | `stone_*` | [PavingStones128](https://ambientcg.com/view?id=PavingStones128) | CC0 1.0 | Cut ashlar, pillars and stairs |
 | `metal_*` | [Metal046B](https://ambientcg.com/view?id=Metal046B) | CC0 1.0 | Dark worn iron, doors and lifts |
+| `planks_*` | [Planks023A](https://ambientcg.com/view?id=Planks023A) | CC0 1.0 | Grey weathered boards, the crates and barrels |
 
 Each prefix has three files: `_albedo.jpg` (sRGB base colour),
 `_normal.png` (tangent space, OpenGL green-up) and `_orm.png`

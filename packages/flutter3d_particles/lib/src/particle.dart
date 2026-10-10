@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart' show standardGravity;
 import 'package:vector_math/vector_math.dart';
 
 import 'particle_affector.dart';
@@ -31,8 +32,13 @@ final class Particle {
   /// about the direction it faces, which is the only rotation a billboard has.
   double rotation = 0.0;
 
+  /// How long it has lived, in seconds.
   double age = 0.0;
+
+  /// How long it lives, in seconds.
   double lifetime = 0.0;
+
+  /// The billboard's width and height now, in metres.
   double size = 0.0;
 
   /// The size this particle was born with.
@@ -61,9 +67,19 @@ final class Particle {
   /// The list is shared with the effect and never mutated.
   List<ParticleAffector> affectors = const <ParticleAffector>[];
 
-  bool alive = false;
+  /// How hard the world this particle is in pulls it down, m/s²: its
+  /// system's `ParticleSystem.gravity`, handed over each step, and what a
+  /// [ParticleGravity] with no acceleration of its own reads.
+  double gravity = standardGravity;
 
-  /// How far through its life, in `[0, 1]`.
+  /// The wind where this particle is, m/s: its system's world's
+  /// (`ParticleSystem.world`), handed over each step, and what a
+  /// [ParticleDrag] slows it against.
+  final Vector3 wind = Vector3.zero();
+
+  bool isAlive = false;
+
+  /// How far through its life, in `[0, 1]`: a fraction of [lifetime].
   double get life {
     if (lifetime <= 0.0) return 1.0;
     final t = age / lifetime;
@@ -81,7 +97,10 @@ final class Range {
 
   const Range.exact(double value) : min = value, max = value;
 
+  /// The least value drawn, in the units of the value it stands for.
   final double min;
+
+  /// The most value drawn, in the units of the value it stands for.
   final double max;
 
   double sample(math.Random random) =>

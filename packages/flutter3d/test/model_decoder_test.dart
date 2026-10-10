@@ -50,7 +50,7 @@ final class _NamedDocument extends ModelDocument {
 /// Deliberately not a real format. What is being checked is that the engine
 /// hands the file over and takes back a document, not that anybody can parse
 /// anything.
-final class _ToyDecoder implements ModelDecoder {
+final class _ToyDecoder extends ModelDecoder {
   const _ToyDecoder();
 
   static bool isToy(Uint8List bytes) =>
@@ -73,7 +73,7 @@ final class _ToyDecoder implements ModelDecoder {
 }
 
 /// Claims everything, so it can be shown to win against a built-in format.
-final class _GreedyDecoder implements ModelDecoder {
+final class _GreedyDecoder extends ModelDecoder {
   const _GreedyDecoder();
 
   @override

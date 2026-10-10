@@ -29,7 +29,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 120;
@@ -80,11 +79,14 @@ MorphTarget _slideTarget(MeshData mesh) => MorphTarget(
   final cube =
       MeshNode(
           DeviceMesh.upload(device, source),
-          Material(name: 'cube', baseColor: Vector4(0.8, 0.5, 0.3, 1.0)),
+          RenderMaterial(
+            name: 'cube',
+            baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.3, 1.0),
+          ),
           name: 'cube',
         )
         ..setPosition(0.0, 2.0, 0.0)
-        ..morph = (MorphState(texture: texture!, targetCount: 1)
+        ..morph = (MorphState(texture: texture, targetCount: 1)
           ..setWeights(<double>[weight]));
   scene.add(cube);
 
@@ -94,7 +96,10 @@ MorphTarget _slideTarget(MeshData mesh) => MorphTarget(
           device,
           CuboidShape(size: Vector3(24.0, 0.2, 24.0)).build(),
         ),
-        Material(name: 'ground', baseColor: Vector4(0.75, 0.75, 0.75, 1.0)),
+        RenderMaterial(
+          name: 'ground',
+          baseColor: LinearColor.fromSrgb(0.75, 0.75, 0.75, 1.0),
+        ),
         name: 'ground',
       )
       ..setPosition(0.0, -0.1, 0.0)
@@ -108,11 +113,7 @@ MorphTarget _slideTarget(MeshData mesh) => MorphTarget(
   scene.add(sun);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 0.9,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 0.9, near: 0.1, far: 100.0),
   );
   if (frameTheGround) {
     camera
@@ -144,9 +145,9 @@ Future<Uint8List> _draw(
     views: <RenderView>[RenderView(camera: it.camera)],
     settings: settings,
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 int _differing(Uint8List a, Uint8List b, {int tolerance = 8}) {

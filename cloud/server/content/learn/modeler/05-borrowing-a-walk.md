@@ -107,7 +107,7 @@ by-design shape `tut-09` already names for the bend slider.
 ---
 
 Below is this exact project, rendered headlessly through `renderProject`
-(`packages/flutter3d_model_mcp/lib/src/render_tool.dart`'s own underlying
+(`packages/flutter3d_mcp/lib/src/model/render_tool.dart`'s own underlying
 function) once the retarget has landed and root motion has been extracted:
 the real character, the real 17-joint rig, both clips now on the project.
 
@@ -153,7 +153,7 @@ a caller might have in mind. See `doc/modeler-tutorial-gaps.md` for that
 entry, alongside the now-closed `tut-13` (`looseAutoMap`'s chain-index
 reading) and `tut-12` (the `lockFeet` crash).
 
-**Proving it.** `packages/flutter3d_model_mcp/test/fixtures/tutorial/
+**Proving it.** `packages/flutter3d_mcp/test/model/fixtures/tutorial/
 case5_scenario.dart` builds exactly the project this page describes, against
 a live `ModelSession` seeded with case 4's own saved project
 (`case4.f3dproj`, read back through `readProject` the way opening it in the

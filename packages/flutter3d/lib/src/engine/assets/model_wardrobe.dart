@@ -1,4 +1,5 @@
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bundle_asset_source.dart';
@@ -19,6 +20,8 @@ final class ModelLook {
   /// The asset path, read through whatever source [ModelWardrobe.load] is
   /// given.
   final String file;
+
+  /// How long the model is fitted to be along [axis], in metres.
   final double length;
   final int axis;
   final bool onGround;

@@ -70,7 +70,11 @@ void main() {
       ]),
     );
     for (final node in ready.nodes.values) {
-      expect(node.visible, isTrue, reason: 'nothing has been peeled back yet');
+      expect(
+        node.isVisible,
+        isTrue,
+        reason: 'nothing has been peeled back yet',
+      );
     }
   });
 
@@ -79,10 +83,10 @@ void main() {
     _advance(ready, 2);
 
     expect(ready.player.current?.name, 'step-3');
-    expect(ready.nodes['cell-membrane']!.visible, isFalse);
-    expect(ready.nodes['cytoplasm']!.visible, isFalse);
-    expect(ready.nodes['mitochondria']!.visible, isTrue);
-    expect(ready.nodes['nucleus']!.visible, isTrue);
+    expect(ready.nodes['cell-membrane']!.isVisible, isFalse);
+    expect(ready.nodes['cytoplasm']!.isVisible, isFalse);
+    expect(ready.nodes['mitochondria']!.isVisible, isTrue);
+    expect(ready.nodes['nucleus']!.isVisible, isTrue);
   });
 
   test('every step carries a real, gradeable question', () async {
@@ -102,6 +106,20 @@ void main() {
       _advance(ready, 2);
       final spec = CheckSpec.fromStep(ready.player.current!)!;
       expect(spec.accepts('  Выработка Энергии  '), isTrue);
+      // What mitochondria make is ATP; a pupil who says so is right.
+      expect(spec.accepts('синтез АТФ'), isTrue);
     },
   );
+
+  test('the cell\'s fluid is cytoplasm, cytosol or hyaloplasm', () async {
+    // Mutation: accept "цитоплазма" alone. The liquid the organelles sit in
+    // is the cytosol, or hyaloplasm in the Russian school's word; a pupil who
+    // knows that should not be marked wrong.
+    final ready = await _opened();
+    _advance(ready, 1);
+    final spec = CheckSpec.fromStep(ready.player.current!)!;
+    for (final answer in <String>['цитоплазма', 'цитозоль', 'гиалоплазма']) {
+      expect(spec.accepts(answer), isTrue, reason: answer);
+    }
+  });
 }

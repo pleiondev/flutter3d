@@ -9,6 +9,7 @@ whole suite with no binding, and `dart run` advances a step in a container with
 no Flutter SDK in it.
 
 ```dart
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 final world = CollisionWorld()..addBox(Vector3.zero(), Vector3(20, 1, 20));
@@ -33,8 +34,10 @@ outright.
 The package came out of `flutter3d_game`, which reached Flutter in eight files
 out of eighty-nine: five touch and keyboard widgets, one `MediaQuery` read and
 one `debugPrint`. Those stayed behind with the devices they belong to.
-`flutter3d_game` does not re-export this package, so a program that steps a
-simulation imports it by name.
+`flutter3d_game` re-exports only what a first game uses of this package, by
+name, so a program that steps a simulation imports it by name. This package
+re-exports nothing in turn: the collision world and the character controller
+are `flutter3d_physics`'s, and a program that names them depends on it.
 
 A structure rule enforces the boundary. `the simulation names no Flutter` in
 `tool/structure.dart` reads this package's `lib/`, `test/` and `bin/` and fails

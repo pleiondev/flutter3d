@@ -14,13 +14,16 @@
 /// making.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show HeadlessRun;
 
 /// Thrown when a claim cannot be read, or names somebody the reading does not
 /// have.
-final class ReadingPredicateException implements Exception {
+final class ReadingPredicateException extends Flutter3dFormatException {
   const ReadingPredicateException(this.message);
 
+  @override
   final String message;
 
   @override
@@ -113,6 +116,8 @@ final class NearPredicate extends ReadingPredicate {
   const NearPredicate(super.who, {required this.point, required this.within});
 
   final List<double> point;
+
+  /// How near [who] has to stand to [point], in metres.
   final double within;
 
   @override
@@ -172,7 +177,11 @@ final class HealthPredicate extends ReadingPredicate {
     }
   }
 
+  /// The health [who] has to be under, in hit points: the game's own unit.
   final double? below;
+
+  /// The health [who] has to have at least, in hit points (the game's own
+  /// unit).
   final double? atLeast;
 
   @override

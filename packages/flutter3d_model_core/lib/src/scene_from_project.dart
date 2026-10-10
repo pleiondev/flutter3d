@@ -36,6 +36,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -71,19 +73,19 @@ import 'world_transform.dart';
 Scene sceneFromProject(
   ModelProject project,
   GraphicsDevice device, {
-  Material Function(ModelObject object, Material material)? restyle,
+  RenderMaterial Function(ModelObject object, RenderMaterial material)? restyle,
   int? weightsJoint,
   bool wires = false,
 }) {
   final scene = Scene()
     ..add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.2
+        ..intensity = 3.2 * Photometric.legacyUnit
         ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
     )
     ..add(
       LightNode(type: LightType.directional, name: 'fill')
-        ..intensity = 1.1
+        ..intensity = 1.1 * Photometric.legacyUnit
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
   // Additive over the fixed pair above — see [LightingSync.sync]'s own doc
@@ -153,10 +155,10 @@ Scene sceneFromProject(
 /// and invisible on the other, which is the half of the mesh somebody asked
 /// to see. Not fully black: a wire against a dark background needs somewhere
 /// to go.
-final Material _wireMaterial = Material(
+final RenderMaterial _wireMaterial = RenderMaterial(
   name: 'wires',
   lighting: LightingModel.unlit,
-  baseColor: Vector4(0.06, 0.07, 0.09, 1.0),
+  baseColor: LinearColor.fromSrgb(0.06, 0.07, 0.09, 1.0),
 );
 
 /// [VertexLayout.skinned] for an object bound to a skeleton,
@@ -475,21 +477,21 @@ MeshData _withSkin(
 /// of what shows — the same material `weight_gradient.dart`'s own
 /// `kWeightGradientMaterial` gives the live viewport's weights view: a
 /// diagnostic colour is not a picture of light.
-final Material _weightsGradientMaterial = Material(
+final RenderMaterial _weightsGradientMaterial = RenderMaterial(
   name: 'weights',
   lighting: LightingModel.unlit,
 );
 
 /// [object]'s first material slot, translated field for field into the
-/// engine's own [Material] — or a plain grey [Material] when it names none,
+/// engine's own [RenderMaterial] — or a plain grey [RenderMaterial] when it names none,
 /// the same fallback `MaterialPool.forObject` answers with as `clay()`.
-Material _materialOf(ModelProject project, ModelObject object) {
+RenderMaterial _materialOf(ModelProject project, ModelObject object) {
   final index = object.materialSlots.firstOrNull;
   if (index == null || index < 0 || index >= project.materials.length) {
-    return Material(lighting: LightingModel.pbr);
+    return RenderMaterial(lighting: LightingModel.pbr);
   }
   final surface = project.materials[index].surface;
-  return Material(
+  return RenderMaterial(
     name: surface.name,
     lighting:
         (surface.lightingModel ??
@@ -499,7 +501,8 @@ Material _materialOf(ModelProject project, ModelObject object) {
     metallic: surface.metallic,
     roughness: surface.roughness,
     emissive: surface.emissive,
-    emissiveStrength: surface.emissiveStrength,
+    // The project's strength is a file's, a plain multiple; nits here.
+    emissiveStrength: surface.emissiveStrength * Photometric.legacyNits,
     doubleSided: surface.doubleSided,
     extensions: surface.extensions,
   );

@@ -17,7 +17,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/animation/skin_blend.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A grid of `(side + 1)²` vertices, [VertexLayout.skinned], each rigidly
 /// bound to whichever of [jointCount] joints its own X falls under — a

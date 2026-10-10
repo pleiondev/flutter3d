@@ -22,7 +22,7 @@
 ///     count says how often, because a model that needed it is a model somebody
 ///     should look at.
 ///
-/// Everything the import decided is in the [ImportReport]. Nothing here is
+/// Everything the import decided is in the [MeshImportReport]. Nothing here is
 /// silent, and that is the difference between an importer and a black box.
 ///
 /// **A morph target is not a guess** — `mesh-61`'s own remaining half — so it
@@ -35,6 +35,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'attributes.dart';
@@ -42,8 +43,8 @@ import 'edit_mesh.dart';
 import 'shape_key.dart';
 
 /// What an import had to decide, and how often.
-final class ImportReport {
-  const ImportReport({
+final class MeshImportReport {
+  const MeshImportReport({
     required this.sourceVertices,
     required this.weldedVertices,
     required this.faces,
@@ -80,15 +81,16 @@ final class ImportReport {
   final int droppedDegenerate;
 
   /// The distance under which two vertices were taken for one.
+  /// In metres.
   final double weldEpsilon;
 
   /// Whether anything happened that a person should be told about.
-  bool get worthReporting =>
+  bool get isWorthReporting =>
       flippedFaces > 0 || splitNonManifold > 0 || droppedDegenerate > 0;
 
   @override
   String toString() =>
-      'ImportReport(${sourceVertices - weldedVertices} vertices from '
+      'MeshImportReport(${sourceVertices - weldedVertices} vertices from '
       '$sourceVertices, $faces faces, $flippedFaces flipped, '
       '$splitNonManifold edges split, $droppedDegenerate degenerate dropped)';
 }
@@ -113,7 +115,7 @@ final class ImportReport {
 /// answers with a neutral value" rule every other per-vertex layer in this
 /// package already follows. Named from [MorphTarget.name] when the file
 /// gave one, `shape 1`/`shape 2`/... by position otherwise.
-(EditMesh, ImportReport, List<ShapeKey>) importMeshData(
+(EditMesh, MeshImportReport, List<ShapeKey>) importMeshData(
   MeshData mesh, {
   double? weldEpsilon,
 }) {
@@ -121,7 +123,7 @@ final class ImportReport {
   final stride = layout.floatsPerVertex;
   final positionAt = layout.floatOffsetOf(VertexLayout.position.name);
   final uvAt = layout.floatOffsetOf(VertexLayout.texcoord.name);
-  final colourAt = layout.floatOffsetOf(VertexLayout.color.name);
+  final colorAt = layout.floatOffsetOf(VertexLayout.color.name);
   final sourceVertices = mesh.vertexCount;
 
   final bounds = mesh.computeBounds();
@@ -278,10 +280,10 @@ final class ImportReport {
   // morph target's own delta rides the identical walk — see this function's
   // own doc comment for why.
   final shapeKeys = <ShapeKey>[];
-  if (uvAt >= 0 || colourAt >= 0 || mesh.morphTargets.isNotEmpty) {
+  if (uvAt >= 0 || colorAt >= 0 || mesh.morphTargets.isNotEmpty) {
     final uv = Vector2.zero();
-    final colour = Vector4.zero();
-    final hasCorners = uvAt >= 0 || colourAt >= 0;
+    LinearColor? color;
+    final hasCorners = uvAt >= 0 || colorAt >= 0;
 
     final position = Vector3.zero();
     final targetPositions = <Float32List>[
@@ -310,15 +312,15 @@ final class ImportReport {
               mesh.vertices[source * stride + uvAt + 1],
             );
           }
-          if (colourAt >= 0) {
-            colour.setValues(
-              mesh.vertices[source * stride + colourAt],
-              mesh.vertices[source * stride + colourAt + 1],
-              mesh.vertices[source * stride + colourAt + 2],
-              mesh.vertices[source * stride + colourAt + 3],
+          if (colorAt >= 0) {
+            color = LinearColor(
+              mesh.vertices[source * stride + colorAt],
+              mesh.vertices[source * stride + colorAt + 1],
+              mesh.vertices[source * stride + colorAt + 2],
+              mesh.vertices[source * stride + colorAt + 3],
             );
           }
-          result.setCorner(half, CornerAttributes(uv: uv, colour: colour));
+          result.setCorner(half, CornerAttributes(uv: uv, color: color));
         }
         if (mesh.morphTargets.isNotEmpty) {
           final destination = result.originOf(half);
@@ -350,7 +352,7 @@ final class ImportReport {
 
   return (
     result,
-    ImportReport(
+    MeshImportReport(
       sourceVertices: sourceVertices,
       weldedVertices: unique.length,
       faces: triangles.length,

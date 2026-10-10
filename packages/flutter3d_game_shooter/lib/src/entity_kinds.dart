@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -12,6 +13,15 @@ import 'secret.dart';
 /// a spawn point, a door, a lift, a button, a trigger, an exit, a light. What a
 /// pickup gives, what a key unlocks and what a note says are this genre's, and
 /// they left the format the day the format stopped being one game's.
+
+/// The entity kinds that are the shooter's own and need nothing of the
+/// game's roster: a secret and a note. What a `ShooterPlugin` installs unless
+/// the game hands its own. A pickup ([PickupKind]) needs the game's gifts
+/// and the key is the engine's word, so a game adds those itself.
+List<EntityKind> shooterKinds() => <EntityKind>[
+  const SecretKind(),
+  const NoteKind(),
+];
 
 final class PickupKind extends EntityKind {
   const PickupKind(this.gifts) : super(ShooterEntities.pickup);
@@ -118,8 +128,8 @@ final class SecretKind extends EntityKind {
   }
 }
 
-final class KeyKind extends EntityKind {
-  const KeyKind() : super(EntityTypes.key);
+final class ShooterKeyKind extends EntityKind {
+  const ShooterKeyKind() : super(EntityTypes.key);
 
   /// Small enough to walk past without collecting by accident, big enough to
   /// walk into on purpose.
@@ -132,8 +142,8 @@ final class KeyKind extends EntityKind {
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
-    final colour = entity.string('color');
-    if (colour == null) return;
+    final color = entity.string('color');
+    if (color == null) return;
     final collider = place(
       entity,
       context,
@@ -147,7 +157,7 @@ final class KeyKind extends EntityKind {
         name: entity.name,
         gift: const KeyGift(),
         amount: 1.0,
-        detail: colour,
+        detail: color,
         collider: collider,
       ),
     );

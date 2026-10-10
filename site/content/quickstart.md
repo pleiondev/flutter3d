@@ -10,7 +10,7 @@ This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on
 <ul>
 <li>A resolved pub workspace and a built shader bundle</li>
 <li>The engine's own demo running, with every feature switchable</li>
-<li>Your own Flutter app drawing a mesh through <code>Renderer</code></li>
+<li>Your own Flutter app drawing a mesh through <code>Flutter3dView</code></li>
 </ul>
 </div>
 
@@ -25,7 +25,7 @@ This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all forty-one packages and twelve applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 57 packages and 17 applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -91,14 +91,14 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 10789 tests across 42 packages and twelve applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so seventy-eight scenes stay checkable in a headless run.
+There are 13463 tests across 57 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run.
 
 ## Your own application
 
-A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose, because it is the one line an application changes to run on a different graphics API.
+A new app needs two engine packages in its pubspec: `flutter3d`, the engine, and `flutter3d_app`, which picks this platform's backends and wraps an engine in a widget.
 
 <div class="note">
-<p>The 0.8.0 set is on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>, so the <code>^0.8.0</code> lines below resolve as written. Skip 0.7.0: installed from pub.dev, its Impeller build hook fails before the first test, and on macOS and iOS an unlit material crashes the first frame. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
+<p>The 1.0.0 set goes out first as a release candidate, <code>1.0.0-rc.1</code>, on <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. pub.dev keeps 0.8.x as the default until 1.0.0, so the candidate is opt-in: the <code>^1.0.0-rc.1</code> lines below ask for it, and they admit 1.0.0 too when it follows. Skip 0.7.0: installed from pub.dev, its Impeller build hook fails before the first test, and on macOS and iOS an unlit material crashes the first frame. If you are moving a project from 0.6.0, several packages were folded into others; <code>doc/boundary-0.7.0.md</code> in the repository lists which import lines move.</p>
 </div>
 
 ```yaml
@@ -112,64 +112,94 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The backend. The engine talks to a HAL (flutter3d_hardware) and never to a
-  # graphics API, so this is the one line that picks which one runs:
-  #   flutter3d_impeller -> flutter_gpu (Metal, Vulkan)  <- the production one
-  #   flutter3d_webgl    -> WebGL2, in the browser
-  #   flutter3d_webgpu   -> WebGPU, in a browser that has an adapter
-  #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
-  flutter3d_impeller: ^0.8.0
-
-  flutter3d: ^0.8.0
+  # The engine, and the widget that runs it. flutter3d_app depends on the
+  # backends this platform draws with (Impeller on a device, WebGL2 and
+  # WebGPU in a browser, the software rasteriser when neither starts) and
+  # chooses among them at run time.
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_app: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
 ```
 
-Then open a device, create a renderer, and hand it a scene. Everything below is real API; the [core tutorial](/core/tutorial/) walks through it line by line.
+Then put a `Flutter3dView` where the picture goes. It opens the device, makes the renderer and the loop, and owns the frame clock, focus, pausing when the route is covered or the app goes to the background, and teardown. `onCreated` is called once the device is open, with the engine: the scene to fill, the device to upload to, the loop to add systems and plugins to.
 
 ```dart
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
+import 'package:flutter3d_app/flutter3d_app.dart';
 
-Future<Renderer> openRenderer() async {
-  final device = await GpuRenderBackend.create();
-  // The fallbacks a material without a map samples (white, and the neutral
-  // normal) are the renderer's own unless you hand it others. Neutral
-  // fallbacks instead of per-map flags: the shader then needs no branch and
-  // the engine no bookkeeping about which maps a material has.
-  return Renderer.create(device: device);
-}
+/// How far the ball has turned, in radians.
+var spin = 0.0;
 
-Scene buildScene(GraphicsDevice device) {
-  final scene = Scene();
-
-  // A shape is a value that builds `MeshData` on the CPU; the device turns
-  // that into buffers. The two steps stay apart because bounds, culling and
-  // picking need the first one and no device at all.
-  scene.add(MeshNode(
-    DeviceMesh.upload(device, const SphereShape(radius: 1.0).build()),
-    Material(
-      name: 'ball',
-      lighting: LightingModel.pbr,
-      baseColor: Vector4(0.9, 0.42, 0.28, 1.0),
-      roughness: 0.35,
+void main() => runApp(
+  MaterialApp(
+    home: Scaffold(
+      body: Flutter3dView(
+        onCreated: (Flutter3dEngine engine) {
+          // A shape is a value that builds `MeshData` on the CPU; the device
+          // turns that into buffers. The two steps stay apart because bounds,
+          // culling and picking need the first one and no device at all.
+          engine.scene.add(
+            MeshNode(
+              DeviceMesh.upload(
+                engine.device,
+                const SphereShape(radius: 1.0).build(),
+              ),
+              RenderMaterial(
+                baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28),
+                roughness: 0.35,
+              ),
+            ),
+          );
+        },
+        // Called after the loop has stepped, before the frame is drawn.
+        onFrame: (Flutter3dEngine engine, FrameInfo frame) {
+          spin += frame.seconds * 0.5;
+          engine.scene.meshes.first.setRotationYawPitchRoll(spin, 0.0, 0.0);
+        },
+      ),
     ),
-  ));
-
-  scene.add(LightNode(type: LightType.directional)
-    ..intensity = 3.0
-    ..castsShadow = true
-    ..setLocalForward(Vector3(-0.4, -1.0, -0.3)));
-
-  return scene;
-}
+  ),
+);
 ```
 
-<div class="note">
-<p>None of the shipped games open a device this way. This page hand-rolls <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> because that is what happens underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> covers the pattern the games use instead: <code>flutter3d_app</code> and <code>flutter3d_game</code>.</p>
-</div>
+The view makes an empty scene with a light, and a camera at `(0, 1, 5)` looking at the origin, unless you hand it a `scene` and a `camera` of your own. `settings` is what every frame is drawn with, `plugins` go into its loop, and a `device` or `renderer` you hand it is borrowed and left alone when the view goes. The [core tutorial](/core/tutorial/) walks through the rest.
+
+### Or write the scene as widgets
+
+`flutter3d_app` has the same scene as widgets. `Scene3D` is a `Flutter3dView` underneath, and its children become nodes of an ordinary `Scene`. A rebuild that keeps a widget's key keeps its node, so anything you set on the node imperatively survives it.
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart';
+
+Widget ball({required bool polished}) => Scene3D(
+  children: <Widget>[
+    Camera3D(position: Vector3(0.0, 1.2, 3.5), target: Vector3.zero()),
+    Light3D.point(position: Vector3(2.0, 2.5, 2.0), range: 20.0),
+    // Every Mesh3D below without a material of its own is drawn with this
+    // one. A rebuild writes the new values into the same material object.
+    Material3D(
+      key: const ValueKey<String>('ball'),
+      baseColor: polished
+          ? LinearColor.fromSrgb(0.25, 0.45, 0.9)
+          : LinearColor.fromSrgb(0.9, 0.42, 0.28),
+      roughness: polished ? 0.1 : 0.35,
+      children: const <Widget>[Mesh3D(shape: SphereShape(radius: 1.0))],
+    ),
+  ],
+);
+```
+
+There are widgets for groups (`Node3D`), models with their animation (`Model3D`), lights, cameras, reflection probes (`ReflectionProbe3D`), decals (`Decal3D`), mirrors (`Mirror3D`, whose child meshes are its surfaces) and particles (`Particles3D`). `Contributor3D` adds any pass contributor for as long as it is in the tree. `example/lib/widgets_main.dart` is the runnable version of the snippet above.
+
+If your game already has its own loop and renderer, `SceneWidgets.mount` builds the same widgets into a scene you draw yourself, without a screen. The golden runner draws the `widget-scene` reference that way, on all four backends.
+
+### The low level underneath
+
+`Flutter3dView` is built on `SceneSurface`, which draws a scene that somebody else has set up: a device opened (`openDevice`, or a backend's own `open`), a `Renderer.create` over it, a loop stepped, and focus, lifecycle and teardown all the caller's. That stays public for a host that has its own frame clock or draws several engines into one widget tree, and [the frame](/core/rendering/) describes what the renderer does with a scene either way. [Assembling an application](/core/session/) covers what the shipped games add on top: `flutter3d_game`'s run, levels and settings.
 
 ## Where to go next
 

@@ -8,6 +8,8 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -16,7 +18,7 @@ CpuMesh _cube() => CpuMesh(CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build());
 void main() {
   group('the boolean is a view of the mode', () {
     test('and reads whether it casts at all', () {
-      final node = MeshNode(_cube(), Material());
+      final node = MeshNode(_cube(), RenderMaterial());
 
       expect(node.castsShadow, isTrue);
 
@@ -34,7 +36,7 @@ void main() {
     test('and writing it moves between on and off', () {
       // Every level document and every application in this repository writes
       // the boolean, so it has to keep meaning what it meant.
-      final node = MeshNode(_cube(), Material())..castsShadow = false;
+      final node = MeshNode(_cube(), RenderMaterial())..castsShadow = false;
 
       expect(node.shadowCasting, ShadowCastingMode.off);
 
@@ -49,8 +51,8 @@ void main() {
       final scene = Scene();
       final camera = CameraNode();
       scene.root.add(camera);
-      final drawn = MeshNode(_cube(), Material());
-      final proxy = MeshNode(_cube(), Material())
+      final drawn = MeshNode(_cube(), RenderMaterial());
+      final proxy = MeshNode(_cube(), RenderMaterial())
         ..shadowCasting = ShadowCastingMode.shadowsOnly;
       scene.root
         ..add(drawn)
@@ -85,7 +87,7 @@ void main() {
       // The bake is drawn once and kept for as long as the atlas rows stay with
       // the same lights, so nothing else in a frame would notice.
       final scene = Scene();
-      final wall = MeshNode(_cube(), Material())..shadowIsStatic = true;
+      final wall = MeshNode(_cube(), RenderMaterial())..shadowIsStatic = true;
       scene.root.add(wall);
       final before = scene.staticShadowGeneration;
 
@@ -96,7 +98,7 @@ void main() {
 
     test('and setting the same mode asks for nothing', () {
       final scene = Scene();
-      final wall = MeshNode(_cube(), Material())
+      final wall = MeshNode(_cube(), RenderMaterial())
         ..shadowIsStatic = true
         ..shadowCasting = ShadowCastingMode.doubleSided;
       final after = scene.staticShadowGeneration;
@@ -108,7 +110,7 @@ void main() {
 
     test('while a mover changes nothing, because it is redrawn anyway', () {
       final scene = Scene();
-      final door = MeshNode(_cube(), Material());
+      final door = MeshNode(_cube(), RenderMaterial());
       scene.root.add(door);
       final before = scene.staticShadowGeneration;
 

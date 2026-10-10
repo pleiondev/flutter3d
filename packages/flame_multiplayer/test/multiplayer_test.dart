@@ -7,7 +7,12 @@ library;
 import 'dart:convert';
 
 import 'package:flame_multiplayer/flame_multiplayer.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
+
+/// A game's simulation at genre version [n].
+SimulationVersion _sim(int n) =>
+    SimulationVersion(genre: 'walk', genreVersion: n);
 
 /// A game small enough to read and still worth rolling back: two players
 /// walking along a line, each by what their hands say, and a shared counter
@@ -62,10 +67,10 @@ void main() {
         wireA.tick();
         wireB.tick();
       }
-      expect(host.met, isFalse);
+      expect(host.hasMet, isFalse);
 
       final guest = PeerRoom(wireB, slot: 1, about: {'plays': 'wizard'});
-      for (var i = 0; i < 600 && !(host.met && guest.met); i++) {
+      for (var i = 0; i < 600 && !(host.hasMet && guest.hasMet); i++) {
         host.step(1 / 60);
         guest.step(1 / 60);
         wireA.tick();
@@ -94,9 +99,127 @@ void main() {
       expect(heardOne, <Object?>[1]);
       expect(heardTwo, <Object?>[2]);
     });
+
+    test('machines on the same simulation version meet, and each hears the '
+        'other\'s versions', () {
+      final (wireA, wireB) = LoopbackWire.pair(delaySteps: 2);
+      final a = PeerRoom(wireA, slot: 0, simulation: _sim(3));
+      final b = PeerRoom(wireB, slot: 1, simulation: _sim(3));
+      for (var i = 0; i < 60 && !(a.hasMet && b.hasMet); i++) {
+        a.step(1 / 60);
+        b.step(1 / 60);
+        wireA.tick();
+        wireB.tick();
+      }
+      expect(a.hasMet && b.hasMet, isTrue);
+      expect(a.refusal, isNull);
+      // Mutation: the versions left out of the hello — the other side reads
+      // protocol 0.0 and refuses a machine it could have played with.
+      expect(b.peerHello, WireHello(simulation: _sim(3)));
+    });
+
+    test('machines on different simulation versions refuse each other, say '
+        'which to update to, and fall quiet', () {
+      final (wireA, wireB) = LoopbackWire.pair(delaySteps: 2);
+      final sentA = _Counting(wireA);
+      final sentB = _Counting(wireB);
+      final older = PeerRoom(sentA, slot: 0, simulation: _sim(2));
+      final newer = PeerRoom(sentB, slot: 1, simulation: _sim(3));
+      final heard = <Object?>[];
+      newer.channel('play').listen((m) => heard.add(m['n']));
+      for (var i = 0; i < 300; i++) {
+        older.step(1 / 60);
+        newer.step(1 / 60);
+        wireA.tick();
+        wireB.tick();
+      }
+      // Mutation: the simulation version not compared — the two meet and
+      // their rollback drifts apart.
+      expect(older.hasMet, isFalse);
+      expect(newer.hasMet, isFalse);
+      // Mutation: the side to update named the wrong way round — the newer
+      // build told to go back.
+      expect(older.refusal, contains('update this game'));
+      expect(older.refusal, contains('walk 3'));
+      expect(newer.refusal, contains('update the other game'));
+      // Mutation: a refusal answered with a hello that says it has not
+      // heard — the two answer each other every tick for as long as the
+      // wire is up.
+      expect(sentA.hellos + sentB.hellos, lessThan(10));
+
+      // Mutation: channels open to a refused machine — its frames land in a
+      // simulation they do not belong to.
+      older.channel('play').send({'n': 1});
+      for (var i = 0; i < 5; i++) {
+        wireB.tick();
+      }
+      expect(heard, isEmpty);
+    });
   });
 
-  group('RollbackPlay', () {
+  group('WireHello', () {
+    test('a lower minor of the same major plays, on the minor both speak', () {
+      final ours = WireHello(simulation: _sim(1), protocolMinor: 4);
+      final theirs = WireHello(simulation: _sim(1), protocolMinor: 2);
+      // Mutation: minors compared like majors — a build one minor behind is
+      // refused although the protocol only grew.
+      expect(ours.refusal(theirs), isNull);
+      expect(theirs.refusal(ours), isNull);
+      // Mutation: the higher minor taken — the newer machine sends what the
+      // older one cannot read.
+      expect(ours.sharedMinor(theirs), 2);
+      expect(theirs.sharedMinor(ours), 2);
+    });
+
+    test('another major is refused, naming the major to update to', () {
+      final ours = WireHello(simulation: _sim(1), protocolMajor: 2);
+      final next = WireHello(simulation: _sim(1), protocolMajor: 3);
+      // Mutation: majors not compared — two protocols that changed a
+      // message under each other play on and misread it.
+      expect(ours.refusal(next), contains('update this game to protocol 3'));
+      expect(
+        next.refusal(ours),
+        contains(
+          'update the other game to '
+          'protocol 3',
+        ),
+      );
+    });
+
+    test(
+      'a hello from before versions reads as protocol 0.0 and is refused',
+      () {
+        final old = WireHello.read(const <String, Object?>{
+          'tag': 'hello',
+          'met': false,
+          'body': <String, Object?>{},
+        });
+        // Mutation: a missing protocol read as this build's — a peer that
+        // never said what it speaks is taken at its word.
+        expect(old.protocol, '0.0');
+        expect(
+          WireHello(simulation: _sim(1)).refusal(old),
+          contains(
+            'update the other game to protocol '
+            '${WireHello.currentProtocolMajor}',
+          ),
+        );
+      },
+    );
+
+    test('what it writes it reads back', () {
+      final hello = WireHello(
+        simulation: _sim(9),
+        protocolMajor: 2,
+        protocolMinor: 3,
+      );
+      // Mutation: a field dropped from toJson — the other side reads it as
+      // nought.
+      expect(WireHello.read(hello.toJson()), hello);
+    });
+  });
+
+  group('RollbackSession for two', () {
     test('both machines settle every step on the run that was played, and '
         'on the same ending', () {
       final (wireA, wireB) = LoopbackWire.pair(
@@ -107,17 +230,20 @@ void main() {
       final games = <_Walk>[_Walk(), _Walk()];
       final settled = <Map<int, String>>[<int, String>{}, <int, String>{}];
       final captured = <int>[0, 0];
-      final plays = <RollbackPlay<Map<String, Object?>>>[
+      final plays = <RollbackSession<Map<String, Object?>>>[
         for (final slot in <int>[0, 1])
-          RollbackPlay<Map<String, Object?>>(
+          RollbackSession<Map<String, Object?>>(
             wire: slot == 0 ? wireA : wireB,
             localSlot: slot,
-            capture: () => _hands(slot, captured[slot]++),
-            applyAndStep: games[slot].step,
+            captureLocalFrame: () => _hands(slot, captured[slot]++),
+            applyAndStep: (frames) => games[slot].step(_bySlot(frames)),
             save: games[slot].save,
             restore: games[slot].restore,
+            inputDelay: 3,
+            maxRollbackFrames: 20,
             endsAt: (after) => (after['steps']! as int) >= 300,
-            onSettled: (step, after) => settled[slot][step] = jsonEncode(after),
+            onSettled: (step, after, _) =>
+                settled[slot][step] = jsonEncode(after),
           ),
       ];
 
@@ -147,7 +273,7 @@ void main() {
         expect(settled[0][step], settled[1][step], reason: 'step $step');
         expect(settled[0][step], truthSettled[step], reason: 'step $step');
       }
-      expect(plays.every((p) => p.connected), isTrue);
+      expect(plays.every((p) => p.isConnected), isTrue);
       final ends = <({int step, Map<String, Object?> after})>[
         plays[0].agreedEnd!,
         plays[1].agreedEnd!,
@@ -160,11 +286,11 @@ void main() {
       final (wireA, _) = LoopbackWire.pair();
       final seen = <List<Map<String, Object?>>>[];
       final game = _Walk();
-      RollbackPlay<Map<String, Object?>>(
+      RollbackSession<Map<String, Object?>>(
         wire: wireA,
         localSlot: 1,
-        capture: () => {'move': 1},
-        applyAndStep: seen.add,
+        captureLocalFrame: () => {'move': 1},
+        applyAndStep: (frames) => seen.add(_bySlot(frames)),
         save: game.save,
         restore: game.restore,
         inputDelay: 0,
@@ -230,8 +356,8 @@ void main() {
       // Paced: never more than one frame in a step while it keeps up.
       expect(perStep.every((n) => n <= 2), isTrue);
       expect(handedB, {'player': 1, 'score': 90});
-      expect(b.holding, isTrue);
-      expect(a.holding, isFalse);
+      expect(b.isHolding, isTrue);
+      expect(a.isHolding, isFalse);
       expect(handedA, isNull);
 
       // The new holder's word reaches the old one.
@@ -361,25 +487,48 @@ final class _Swapping {
       _toB[i + 1] = first;
     }
     for (final message in _toB) {
-      b._listener?.call(message);
+      b.deliver(message);
     }
     _toB.clear();
   }
 }
 
-final class _End implements PeerWire {
+final class _End extends PeerWire {
   _End(this._wire, {required this.toB});
 
   final _Swapping _wire;
   final bool toB;
-  void Function(Map<String, Object?> message)? _listener;
-
   @override
   void send(Map<String, Object?> message, {bool reliable = true}) {
     if (toB) _wire._toB.add(message);
   }
+}
+
+/// A wire that counts the hellos sent through it.
+final class _Counting extends PeerWire {
+  _Counting(this._inner);
+
+  final PeerWire _inner;
+  int hellos = 0;
 
   @override
-  void listen(void Function(Map<String, Object?> message) onMessage) =>
-      _listener = onMessage;
+  int get slot => _inner.slot;
+
+  @override
+  void send(Map<String, Object?> message, {bool reliable = true}) {
+    if (message['tag'] == 'hello') hellos++;
+    _inner.send(message, reliable: reliable);
+  }
+
+  @override
+  Registration listenFrom(
+    void Function(int from, Map<String, Object?> message) onMessage,
+  ) => _inner.listenFrom(onMessage);
 }
+
+/// Two slots' frames as the list `_Walk.step` reads.
+List<Map<String, Object?>> _bySlot(Map<int, Map<String, Object?>> frames) =>
+    <Map<String, Object?>>[
+      frames[0] ?? const <String, Object?>{},
+      frames[1] ?? const <String, Object?>{},
+    ];

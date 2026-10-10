@@ -29,12 +29,14 @@ const double _budget = 0.04;
 
 void main() {
   test('fifty programs draw what the software rasteriser draws', () async {
-    final device = WebGlDevice.create(
-      width: 32,
-      height: 32,
-      sources: engineShaders,
-    );
-    if (device == null) {
+    final WebGlDevice device;
+    try {
+      device = WebGlDevice.open(
+        width: 32,
+        height: 32,
+        sources: webGlEngineShaders,
+      );
+    } on DeviceUnavailableException {
       markTestSkipped('this browser has no WebGL2');
       return;
     }

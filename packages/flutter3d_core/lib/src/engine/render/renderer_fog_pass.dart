@@ -44,14 +44,14 @@ extension _FogPass on Renderer {
     // Half the scene's size, rounded up so an odd edge keeps its last
     // column. The format is the scene's: the in-scatter is HDR light.
     final half = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: math.max(1, (scene.width + 1) ~/ 2),
         height: math.max(1, (scene.height + 1) ~/ 2),
         format: scene.format,
       ),
     );
     final target = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: scene.width,
         height: scene.height,
         format: scene.format,
@@ -61,7 +61,7 @@ extension _FogPass on Renderer {
     final aspect = height == 0 ? 1.0 : width / height;
     // Origin-adjusted and not depth-range adjusted, as the shafts' is.
     final viewProjection = toFramebufferOrigin(
-      view.camera.viewProjection(aspect),
+      _finiteViewProjection(view.camera, aspect),
       device.framebufferOrigin,
     );
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
@@ -69,7 +69,7 @@ extension _FogPass on Renderer {
     info.inverseViewProjection.setAll(0, inverse.storage);
 
     final eye = vm.Vector3.zero();
-    view.camera.readWorldPosition(eye);
+    view.camera.readViewOrigin(eye);
     info.camera
       ..[0] = eye.x
       ..[1] = eye.y
@@ -83,7 +83,8 @@ extension _FogPass on Renderer {
       ..[2] = forward.z
       ..[3] = settings.steps.clamp(0, 64).toDouble();
 
-    final albedo = settings.color ?? vm.Vector3.all(1.0);
+    final air = settings.color ?? LinearColor.white;
+    final albedo = vm.Vector3(air.r, air.g, air.b);
     final sun = toLight ?? vm.Vector3(0.0, 1.0, 0.0);
     final sunLight = toLight == null || radiance == null
         ? vm.Vector3.zero()
@@ -110,6 +111,9 @@ extension _FogPass on Renderer {
       ..[2] = shadow == null ? 0.0 : _shadowCascades[2]
       ..[3] = 0.0;
     info.bias.setAll(0, _shadowCascadeBias);
+    // `A2.8`: how the map stores its depth, in the lane the copy above
+    // filled with a lit draw's see-through flag the fog never read.
+    info.bias[3] = _shadowStorage;
 
     info.medium
       ..[0] = math.max(settings.density, 0.0)
@@ -124,7 +128,8 @@ extension _FogPass on Renderer {
       ..[1] = albedo.y
       ..[2] = albedo.z
       ..[3] = cells == null ? 0.0 : 1.0;
-    final ambient = settings.ambient ?? vm.Vector3.zero();
+    final glow = settings.ambient ?? LinearColor.black;
+    final ambient = vm.Vector3(glow.r, glow.g, glow.b);
     info.ambient
       ..[0] = ambient.x * albedo.x
       ..[1] = ambient.y * albedo.y
@@ -157,7 +162,7 @@ extension _FogPass on Renderer {
     drawFullscreen(
       FullscreenDraw(
         target: half,
-        fragment: volumetricFogShader,
+        fragment: _volumetricFogShader,
         textures: <String, TextureHandle>{
           'surface_texture': surface,
           'shadow_texture': shadow ?? fallbackBlack,
@@ -174,9 +179,9 @@ extension _FogPass on Renderer {
         // Nearest on everything that holds numbers rather than colour: a
         // filtered depth at a silhouette stops the march at a depth nothing
         // stands at, and a filtered light row is a light nobody placed.
-        samplers: const <String, SamplerOptions>{
-          'surface_texture': SamplerOptions.nearestClamp,
-          'light_list_texture': SamplerOptions.nearestClamp,
+        samplers: const <String, SamplerDescriptor>{
+          'surface_texture': SamplerDescriptor.nearestClamp,
+          'light_list_texture': SamplerDescriptor.nearestClamp,
           'point_shadow_texture': Renderer._clampSampler,
           'point_shadow_static_texture': Renderer._clampSampler,
         },
@@ -210,7 +215,7 @@ extension _FogPass on Renderer {
     drawFullscreen(
       FullscreenDraw(
         target: target,
-        fragment: volumetricFogUpsampleShader,
+        fragment: _volumetricFogUpsampleShader,
         textures: <String, TextureHandle>{
           'scene_texture': scene,
           'fog_texture': half,
@@ -224,9 +229,9 @@ extension _FogPass on Renderer {
         // The fog texels are weighed by hand, four of them at their centres,
         // so each is read as it is; a filtered read would blend across the
         // very edge the weights are there to respect.
-        samplers: const <String, SamplerOptions>{
-          'fog_texture': SamplerOptions.nearestClamp,
-          'surface_texture': SamplerOptions.nearestClamp,
+        samplers: const <String, SamplerDescriptor>{
+          'fog_texture': SamplerDescriptor.nearestClamp,
+          'surface_texture': SamplerDescriptor.nearestClamp,
         },
       ),
     );

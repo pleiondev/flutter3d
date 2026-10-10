@@ -67,7 +67,7 @@ bool looksLikeAsciiStl(Uint8List bytes) {
 /// normal is exactly the one number the format gives it. [layout]'s
 /// `texcoord`/`tangent`/`color` slots, when requested, get [MeshBuilder]'s own
 /// neutral values, since the format carries none of the three.
-final class StlLoader implements ModelDecoder {
+final class StlLoader extends ModelDecoder {
   StlLoader({
     this.layout = VertexLayout.standard,
     this.normals = StlNormals.fromFile,

@@ -73,16 +73,16 @@ final class Ktx2Texture {
     Uint8List bytes, {
     UniversalTarget? universalTarget,
   }) {
-    if (bytes.lengthInBytes < kKtx2LevelIndexOffset) {
+    if (bytes.lengthInBytes < ktx2LevelIndexOffset) {
       throw Ktx2FormatException(
         'File is ${bytes.lengthInBytes} bytes, too short for a KTX2 header.',
       );
     }
-    for (var i = 0; i < kKtx2Identifier.length; i++) {
-      if (bytes[i] != kKtx2Identifier[i]) {
+    for (var i = 0; i < ktx2Identifier.length; i++) {
+      if (bytes[i] != ktx2Identifier[i]) {
         throw Ktx2FormatException(
           'Not a KTX2 file: byte $i is 0x${bytes[i].toRadixString(16)}, '
-          'expected 0x${kKtx2Identifier[i].toRadixString(16)}.',
+          'expected 0x${ktx2Identifier[i].toRadixString(16)}.',
         );
       }
     }
@@ -93,7 +93,7 @@ final class Ktx2Texture {
       bytes.lengthInBytes,
     );
     int header(int field) =>
-        view.getUint32(kKtx2HeaderOffset + field, Endian.little);
+        view.getUint32(ktx2HeaderOffset + field, Endian.little);
 
     final vkFormat = header(Ktx2HeaderField.vkFormat);
     final pixelWidth = header(Ktx2HeaderField.pixelWidth);
@@ -131,7 +131,7 @@ final class Ktx2Texture {
     // Basis Universal" — the real format then lives in the supercompression
     // global data below, not in this field.
     if (vkFormat == VkFormat.undefined) {
-      final universal = keyValues[kUniversalBlockKey];
+      final universal = keyValues[universalBlockKey];
       if (universal != null) {
         if (levelCount == 0) {
           throw const Ktx2FormatException(
@@ -243,7 +243,7 @@ List<ByteData> _readLevels(
   }
 
   final levelIndexEnd =
-      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+      ktx2LevelIndexOffset + levelCount * ktx2LevelIndexEntryBytes;
   if (levelIndexEnd > bytes.lengthInBytes) {
     throw Ktx2FormatException(
       'Level index claims $levelCount entries, which runs past the end of '
@@ -253,7 +253,7 @@ List<ByteData> _readLevels(
 
   final levels = <ByteData>[];
   for (var i = 0; i < levelCount; i++) {
-    final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
+    final entry = ktx2LevelIndexOffset + i * ktx2LevelIndexEntryBytes;
     final byteOffset = _readOffsetOrLength(view, entry, 'level $i offset');
     final byteLength = _readOffsetOrLength(view, entry + 8, 'level $i length');
     if (byteOffset + byteLength > bytes.lengthInBytes) {
@@ -316,11 +316,11 @@ List<ByteData> _readLevels(
 /// when the file has no descriptor to read.
 int? _colorModelOf(Uint8List bytes, ByteData view) {
   final offset = view.getUint32(
-    kKtx2IndexOffset + Ktx2IndexField.dfdByteOffset,
+    ktx2IndexOffset + Ktx2IndexField.dfdByteOffset,
     Endian.little,
   );
   final length = view.getUint32(
-    kKtx2IndexOffset + Ktx2IndexField.dfdByteLength,
+    ktx2IndexOffset + Ktx2IndexField.dfdByteLength,
     Endian.little,
   );
   const colorModelAt = 4 + 8;
@@ -391,7 +391,7 @@ Ktx2Texture _parseBasisEtc1s(
   int levelCount,
 ) {
   final levelIndexEnd =
-      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+      ktx2LevelIndexOffset + levelCount * ktx2LevelIndexEntryBytes;
   if (levelIndexEnd > bytes.lengthInBytes) {
     throw Ktx2FormatException(
       'Level index claims $levelCount entries, which runs past the end of '
@@ -401,12 +401,12 @@ Ktx2Texture _parseBasisEtc1s(
 
   final sgdByteOffset = _readOffsetOrLength(
     view,
-    kKtx2IndexOffset + Ktx2IndexField.sgdByteOffset,
+    ktx2IndexOffset + Ktx2IndexField.sgdByteOffset,
     'supercompression global data offset',
   );
   final sgdByteLength = _readOffsetOrLength(
     view,
-    kKtx2IndexOffset + Ktx2IndexField.sgdByteLength,
+    ktx2IndexOffset + Ktx2IndexField.sgdByteLength,
     'supercompression global data length',
   );
   if (sgdByteOffset + sgdByteLength > bytes.lengthInBytes) {
@@ -476,8 +476,7 @@ Ktx2Texture _parseBasisEtc1s(
     final levelWidth = width < 1 ? 1 : width;
     final levelHeight = height < 1 ? 1 : height;
 
-    final levelEntry =
-        kKtx2LevelIndexOffset + level * kKtx2LevelIndexEntryBytes;
+    final levelEntry = ktx2LevelIndexOffset + level * ktx2LevelIndexEntryBytes;
     final levelByteOffset = _readOffsetOrLength(
       view,
       levelEntry,
@@ -564,11 +563,11 @@ Ktx2Texture _parseUniversal(
   UniversalTarget? target,
 ) {
   final hasAlpha = switch (marker) {
-    kUniversalBlockRgba => true,
-    kUniversalBlockRgb => false,
+    universalBlockRgba => true,
+    universalBlockRgb => false,
     _ => throw Ktx2FormatException(
-      '$kUniversalBlockKey is "$marker", which is not a block layout this '
-      'build reads — "$kUniversalBlockRgb" and "$kUniversalBlockRgba" are.',
+      '$universalBlockKey is "$marker", which is not a block layout this '
+      'build reads — "$universalBlockRgb" and "$universalBlockRgba" are.',
     ),
   };
   if (target == null) {
@@ -586,7 +585,7 @@ Ktx2Texture _parseUniversal(
   }
 
   final levelIndexEnd =
-      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+      ktx2LevelIndexOffset + levelCount * ktx2LevelIndexEntryBytes;
   if (levelIndexEnd > bytes.lengthInBytes) {
     throw Ktx2FormatException(
       'Level index claims $levelCount entries, which runs past the end of '
@@ -596,7 +595,7 @@ Ktx2Texture _parseUniversal(
 
   final levels = <ByteData>[];
   for (var i = 0; i < levelCount; i++) {
-    final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;
+    final entry = ktx2LevelIndexOffset + i * ktx2LevelIndexEntryBytes;
     final byteOffset = _readOffsetOrLength(view, entry, 'level $i offset');
     final byteLength = _readOffsetOrLength(view, entry + 8, 'level $i length');
     if (byteOffset + byteLength > bytes.lengthInBytes) {
@@ -649,17 +648,17 @@ Ktx2Texture _parseUniversal(
   // section — this is asked *before* the parse, of bytes nothing has checked,
   // so a file too short to hold the question is a no rather than a throw. The
   // parse that follows is what reports the truncation.
-  if (bytes.lengthInBytes < kKtx2LevelIndexOffset) return null;
+  if (bytes.lengthInBytes < ktx2LevelIndexOffset) return null;
   if (!isBasisUniversalKtx2(bytes)) return null;
   final view = ByteData.view(
     bytes.buffer,
     bytes.offsetInBytes,
     bytes.lengthInBytes,
   );
-  final marker = _checkKeyValues(bytes, view)[kUniversalBlockKey];
+  final marker = _checkKeyValues(bytes, view)[universalBlockKey];
   return switch (marker) {
-    kUniversalBlockRgba => (hasAlpha: true),
-    kUniversalBlockRgb => (hasAlpha: false),
+    universalBlockRgba => (hasAlpha: true),
+    universalBlockRgb => (hasAlpha: false),
     _ => null,
   };
 }
@@ -691,11 +690,11 @@ Ktx2Texture _parseUniversal(
 Map<String, String> _checkKeyValues(Uint8List bytes, ByteData view) {
   final entries = <String, String>{};
   final kvdByteOffset = view.getUint32(
-    kKtx2IndexOffset + Ktx2IndexField.kvdByteOffset,
+    ktx2IndexOffset + Ktx2IndexField.kvdByteOffset,
     Endian.little,
   );
   final kvdByteLength = view.getUint32(
-    kKtx2IndexOffset + Ktx2IndexField.kvdByteLength,
+    ktx2IndexOffset + Ktx2IndexField.kvdByteLength,
     Endian.little,
   );
   if (kvdByteLength == 0) return entries;
@@ -805,17 +804,14 @@ String _supercompressionName(int scheme) => switch (scheme) {
 /// isolate, a transcode is a pass over every block and does not.
 bool isBasisUniversalKtx2(Uint8List bytes) {
   if (!isKtx2File(bytes) ||
-      bytes.lengthInBytes < kKtx2HeaderOffset + Ktx2HeaderField.vkFormat + 4) {
+      bytes.lengthInBytes < ktx2HeaderOffset + Ktx2HeaderField.vkFormat + 4) {
     return false;
   }
   return ByteData.view(
         bytes.buffer,
         bytes.offsetInBytes,
         bytes.lengthInBytes,
-      ).getUint32(
-        kKtx2HeaderOffset + Ktx2HeaderField.vkFormat,
-        Endian.little,
-      ) ==
+      ).getUint32(ktx2HeaderOffset + Ktx2HeaderField.vkFormat, Endian.little) ==
       VkFormat.undefined;
 }
 
@@ -824,9 +820,9 @@ bool isBasisUniversalKtx2(Uint8List bytes) {
 /// Cheap enough to call before committing to a decoder — the same role
 /// `isF3dFile` plays for `.f3d`.
 bool isKtx2File(Uint8List bytes) {
-  if (bytes.lengthInBytes < kKtx2Identifier.length) return false;
-  for (var i = 0; i < kKtx2Identifier.length; i++) {
-    if (bytes[i] != kKtx2Identifier[i]) return false;
+  if (bytes.lengthInBytes < ktx2Identifier.length) return false;
+  for (var i = 0; i < ktx2Identifier.length; i++) {
+    if (bytes[i] != ktx2Identifier[i]) return false;
   }
   return true;
 }

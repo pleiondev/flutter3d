@@ -31,7 +31,7 @@ void main() {
   late DateTime? modified;
   late ByteData onDisk;
   final refreshed = <int>[];
-  final refused = <ShaderBundleRefused>[];
+  final refused = <ShaderBundleException>[];
 
   late Future<ByteData> Function() read;
 

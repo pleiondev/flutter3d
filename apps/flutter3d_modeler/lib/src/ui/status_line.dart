@@ -69,7 +69,7 @@ String grouped(int count) {
 
 /// The project's texture weight against its own export budget — `mat-33d`'s
 /// own "N MB of M": [usedBytes] is `measure(project, profile.textures)`'s own
-/// `TextureUsage.totalBytes`, [budgetBytes] is that same call's
+/// `TextureBudgetUsage.totalBytes`, [budgetBytes] is that same call's
 /// `TextureBudget.maxBytesOnDevice`. A record rather than the two types
 /// themselves, so [StatusLine] reads two integers and formats them rather
 /// than importing `texture_budget.dart`'s own shapes for a bar that has no

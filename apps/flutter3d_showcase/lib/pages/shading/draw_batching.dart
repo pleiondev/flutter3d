@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class DrawBatchingDemo extends ShowcaseDemo {
   bool batch = true;
@@ -28,9 +27,9 @@ final class DrawBatchingDemo extends ShowcaseDemo {
       context.device,
       CuboidShape(size: Vector3(0.8, 0.8, 0.8)).build(),
     );
-    final Material crateMaterial = Material(
+    final RenderMaterial crateMaterial = RenderMaterial(
       name: 'crate',
-      baseColor: Vector4(0.7, 0.55, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.7, 0.55, 0.3, 1.0),
       roughness: 0.7,
     );
     final Scene scene = Scene();
@@ -49,7 +48,7 @@ final class DrawBatchingDemo extends ShowcaseDemo {
     // #endregion crates
 
     return scene..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.4, -0.8, -0.5)),
     );
   }

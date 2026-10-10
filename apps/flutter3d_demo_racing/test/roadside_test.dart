@@ -15,14 +15,13 @@ import 'package:flutter3d_demo_racing/src/roadside.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 120;
 
 /// A wide ring, the shape the tests in this directory already use.
 TrackSpline _ring() => TrackSpline(
-  centre: CatmullRom(<Vector3>[
+  center: CatmullRom(<Vector3>[
     Vector3(60.0, 0.0, 0.0),
     Vector3(0.0, 0.0, 60.0),
     Vector3(-60.0, 0.0, 0.0),
@@ -49,7 +48,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -66,7 +65,7 @@ void main() {
       pixels: ByteData.sublistView(
         Uint8List.fromList(<int>[220, 30, 30, 255, 30, 200, 60, 255]),
       ),
-    )!;
+    );
 
     final scene = Scene();
     final track = _ring();
@@ -80,10 +79,13 @@ void main() {
     final at = board.readPosition();
 
     scene.add(
-      LightNode(color: Vector3(1.0, 1.0, 1.0), intensity: 3.0, name: 'sun')
-        ..lookAt(Vector3(0.2, -1.0, 0.3)),
+      LightNode(
+        color: LinearColor(1.0, 1.0, 1.0),
+        intensity: 3.0 * Photometric.legacyUnit,
+        name: 'sun',
+      )..lookAt(Vector3(0.2, -1.0, 0.3)),
     );
-    scene.ambientIntensity = 0.6;
+    scene.ambientIntensity = 0.6 * Photometric.legacyUnit;
 
     // Where the board is looking. A plane's face is its +Y before anything is
     // rotated, so the world normal is that vector through the node's rotation.
@@ -112,7 +114,7 @@ void main() {
     final eye = at + facing * 14.0;
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.05,
+        fovY: 1.05,
         near: 0.3,
         far: 400.0,
       ),
@@ -125,12 +127,10 @@ void main() {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.3, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.3, 1.0)),
       ],
     );
-    final pixels = (await device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final pixels = (await device.readback(result.frame)).buffer.asUint8List();
 
     // How much of the frame came out red, against a blue background. A board
     // edge-on covers a line of pixels; a board facing the camera covers a

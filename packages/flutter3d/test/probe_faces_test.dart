@@ -56,13 +56,13 @@ void main() {
       // The centre of the face is the direction it is named after. Mutation:
       // swap two entries of the aim table — the centre of one face lands off
       // the picture entirely.
-      final centre = _ndc(face, <double>[
+      final center = _ndc(face, <double>[
         aim.x,
         aim.y,
         aim.z,
       ], FramebufferOrigin.topLeft);
-      expect(centre.x.abs(), lessThan(1e-6));
-      expect(centre.y.abs(), lessThan(1e-6));
+      expect(center.x.abs(), lessThan(1e-6));
+      expect(center.y.abs(), lessThan(1e-6));
     });
 
     test('face $face puts the table\'s left column on the left', () {

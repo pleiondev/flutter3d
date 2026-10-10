@@ -1,0 +1,50 @@
+# The public API of flutter3d_mcp_kit.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart
+
+typedef Answer = ({bool did, String says});
+
+final class LoopbackMcpServer
+  Future<void> close()
+  final String token
+  int get port
+  static Future<LoopbackMcpServer> start({required void Function(StreamChannel<String> channel) serve, int port = 0, String? token})
+
+final class OfferedPrompt
+  Prompt get prompt
+  const OfferedPrompt({required this.name, required this.description, required this.text})
+  final String description
+  final String name
+  final String text
+
+final class OfferedTool<S, A>
+  String get name
+  const OfferedTool(this.tool, this.run)
+  final FutureOr<A> Function(S session, Map<String, Object?> arguments) run
+  final Tool tool
+
+typedef PictureAnswer = ({bool did, String says, Uint8List? png});
+
+base class ToolTableServer<S, A> extends MCPServer with ToolsSupport, PromptsSupport
+  FutureOr<InitializeResult> initialize(InitializeRequest request)
+  ToolTableServer(super.channel, {required this.session, required this.tools, required this.toResult, this.prompts = const <OfferedPrompt>[], required String name, required String version, required String instructions, this.refusal, this.pausedBecause, this.onCall, this.onInitialize})
+  final A Function(String says)? refusal
+  final CallToolResult Function(A answer) toResult
+  final List<OfferedPrompt> prompts
+  final List<OfferedTool<S, A>> tools
+  final S session
+  final String? Function()? pausedBecause
+  final void Function(String clientName)? onInitialize
+  final void Function(String toolName, Map<String, Object?> arguments, A answer, Duration elapsed)? onCall
+
+void deleteMcpSessionFile(File file)
+
+CallToolResult pictureResultOf(PictureAnswer answer)
+
+String? refuseArguments(Tool tool, Map<String, Object?> arguments)
+
+CallToolResult resultOf(Answer answer)
+
+void writeMcpSessionFile(File file, {required int port, required String token})

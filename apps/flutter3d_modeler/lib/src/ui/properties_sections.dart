@@ -19,9 +19,9 @@ enum PropertiesSection {
   modifiers,
   materials,
 
-  /// `ux-40`'s own row: the rest of the Material workspace — a live preview
+  /// `ux-40`'s own row: the rest of the RenderMaterial workspace — a live preview
   /// of the material being edited, its texture slots and its texture graph.
-  /// Material mode's alone; object mode keeps [materials] on its own, which
+  /// RenderMaterial mode's alone; object mode keeps [materials] on its own, which
   /// is the compact row a person fixing a mesh needs and not a screen they
   /// have to scroll past to reach the modifier stack.
   materialWorkspace,
@@ -62,7 +62,7 @@ enum PropertiesSection {
 /// answer `true` in every mode rather than disappearing along with the
 /// mode-specific sections. Object mode owns the object list, the transform
 /// grid, the modifier stack and — `mat-04a-n`'s own row — the material
-/// panel: a full `Material` workspace of its own is `ModelerMode.material`'s
+/// panel: a full `RenderMaterial` workspace of its own is `ModelerMode.material`'s
 /// phase-2 row, but phase 1's own scenario ("clean a mesh, fix its
 /// material, export to GLB") needs a way to paint an object today, and
 /// object mode is where that object already is. Mesh mode owns the
@@ -133,7 +133,7 @@ Set<PropertiesSection> sectionsFor(
       PropertiesSection.sceneEnvironment,
       PropertiesSection.scenePost,
     },
-    // **`ux-07`: Material mode is no longer empty.** It was enabled, it
+    // **`ux-07`: RenderMaterial mode is no longer empty.** It was enabled, it
     // switched, and it showed Display/View/Budget and nothing else — the
     // materials were edited in Object mode, with no hint and no link. The
     // live run's own finding, and the first minute of the application is

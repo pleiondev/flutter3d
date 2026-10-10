@@ -27,17 +27,17 @@ void main() {
     });
 
     test('and a glTF is metres, which its own specification says', () {
-      expect(unitForFile('helmet.glb'), ImportUnit.metres);
-      expect(unitForFile('helmet.gltf'), ImportUnit.metres);
-      expect(unitForFile('chair.obj'), ImportUnit.metres);
+      expect(unitForFile('helmet.glb'), ImportUnit.meters);
+      expect(unitForFile('helmet.gltf'), ImportUnit.meters);
+      expect(unitForFile('chair.obj'), ImportUnit.meters);
     });
 
     test(
       'a name this build cannot read a format off keeps the old default',
       () {
-        expect(unitForFile(null), ImportUnit.metres);
-        expect(unitForFile(''), ImportUnit.metres);
-        expect(unitForFile('no-extension'), ImportUnit.metres);
+        expect(unitForFile(null), ImportUnit.meters);
+        expect(unitForFile(''), ImportUnit.meters);
+        expect(unitForFile('no-extension'), ImportUnit.meters);
       },
     );
   });

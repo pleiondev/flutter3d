@@ -25,6 +25,23 @@ const List<Feature> environmentFeatures = <Feature>[
     ],
   ),
   Feature(
+    id: 'physical-sky',
+    title: 'Physical sky',
+    category: Category.environment,
+    summary:
+        'Sunlight scattered by the air, so the sky is blue at noon and red '
+        'at dusk by itself, with a fog that lies on the ground.',
+    since: '1.0.0-rc.1',
+    evidence: 'A physical sky, with stars, and fog that lies on the ground.',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['PhysicalSky'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/physical_sky.dart',
+      'packages/flutter3d_core/lib/src/engine/render/sky_settings.dart',
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+    ],
+  ),
+  Feature(
     id: 'distance-fog',
     title: 'Distance fog',
     category: Category.environment,
@@ -37,6 +54,30 @@ const List<Feature> environmentFeatures = <Feature>[
         '`forward` member',
     keywords: <String>['foginfo'],
     engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
+    ],
+    changes: <Change>[
+      Change(
+        version: '1.0.0-rc.1',
+        note:
+            'The fog thins with height by default, halving every fourteen metres, so the tops of the pillars are a little clearer than their feet.',
+        evidence: 'fog lies on the ground unless told otherwise',
+      ),
+    ],
+  ),
+  Feature(
+    id: 'planar-reflections',
+    title: 'Planar reflections',
+    category: Category.environment,
+    summary:
+        'A floor or a pool that shows the world in it, drawn again by a '
+        'camera mirrored in its plane.',
+    since: '1.0.0-rc.1',
+    evidence: 'Planar reflections',
+    evidenceFile: 'packages/flutter3d_core/CHANGELOG.md',
+    keywords: <String>['PlanarReflectorNode'],
+    engineFiles: <String>[
+      'packages/flutter3d_core/lib/src/engine/scene/planar_reflector_node.dart',
       'packages/flutter3d_core/lib/src/engine/render/render_settings.dart',
     ],
   ),
@@ -156,7 +197,7 @@ const List<Feature> environmentFeatures = <Feature>[
     since: '0.4.2',
     evidence:
         '`MeshNode.lightmapped` picks a vertex stage that reads the '
-        'colour attribute as a place in `Material.lightmap`',
+        'colour attribute as a place in `RenderMaterial.lightmap`',
     keywords: <String>['lightmapped'],
     engineFiles: <String>[
       'packages/flutter3d_core/lib/src/engine/scene/mesh_node.dart',

@@ -9,7 +9,6 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ImageDecodeDemo extends ShowcaseDemo {
   late final DecodedImage _png;
@@ -53,12 +52,12 @@ final class ImageDecodeDemo extends ShowcaseDemo {
       }
     }
     final pngBytes = encodeCompressedPng(width, height, rgba);
-    _png = decodePng(pngBytes)!;
+    _png = decodePng(pngBytes);
     // #endregion png
 
     // #region jpeg
     final jpegBytes = base64Decode(_jpegBase64);
-    _jpeg = decodeJpeg(jpegBytes)!;
+    _jpeg = decodeJpeg(jpegBytes);
     // #endregion jpeg
 
     // #region hdr
@@ -81,12 +80,12 @@ final class ImageDecodeDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, CuboidShape().build()),
-          Material(baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0)),
           name: 'block',
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

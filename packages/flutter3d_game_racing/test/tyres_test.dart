@@ -16,7 +16,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Ground implements GroundField {
+final class _Ground with GroundField {
   _Ground({this.surface});
 
   final String? surface;
@@ -38,14 +38,14 @@ final class _Ground implements GroundField {
 
 const double _step = 1 / 60;
 
-SphereVehicle _car(Tyres tyres, {String surface = 'asphalt'}) {
-  const tuning = VehicleTuning();
+SphereVehicle _car(TireSet tireSet, {String surface = 'asphalt'}) {
+  const tuning = VehicleSettings();
   return SphereVehicle(
-    world: CollisionWorld(),
+    world: CollisionWorld(properties: racingWorld),
     ground: _Ground(surface: surface),
     position: Vector3(0.0, tuning.rideHeight, 0.0),
     tuning: tuning,
-    tyres: tyres,
+    tireSet: tireSet,
   );
 }
 
@@ -60,11 +60,11 @@ void _run(SphereVehicle car, VehicleInput input, double seconds) {
 /// Braking rather than cornering because it is one number with a unit, and
 /// because it spends the same grip: what stops a car is what turns it.
 double _brakingDistance(
-  Tyres tyres, {
+  TireSet tireSet, {
   String surface = 'asphalt',
   double from = 30.0,
 }) {
-  final car = _car(tyres, surface: surface);
+  final car = _car(tireSet, surface: surface);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < from; step++) {
     car.step(_step, throttle);
@@ -86,11 +86,11 @@ double _brakingDistance(
 /// barely two metres shorter and corners a fifth harder. Nothing puts a ceiling
 /// on cornering but the tyres.
 double _peakCornering(
-  Tyres tyres, {
+  TireSet tireSet, {
   String surface = 'asphalt',
   double from = 25.0,
 }) {
-  final car = _car(tyres, surface: surface);
+  final car = _car(tireSet, surface: surface);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < from; step++) {
     car.step(_step, throttle);
@@ -123,9 +123,9 @@ void main() {
       // Measured, from thirty metres a second to walking pace: 22.2 m on
       // slicks, 24.1 m on road tyres, 27.2 m on rally tyres. Two metres and
       // three — a corner's worth over a lap, not a different game.
-      final slicks = _brakingDistance(Tyres.slicks);
-      final road = _brakingDistance(Tyres.road);
-      final rally = _brakingDistance(Tyres.rally);
+      final slicks = _brakingDistance(TireSet.slicks);
+      final road = _brakingDistance(TireSet.road);
+      final rally = _brakingDistance(TireSet.rally);
 
       expect(
         slicks,
@@ -145,9 +145,9 @@ void main() {
       // metres of braking. **This is the test that holds `limit` up**: replacing
       // it with a constant leaves every braking figure inside its tolerance,
       // because the brakes run out before the tyres do.
-      final slicks = _peakCornering(Tyres.slicks);
-      final road = _peakCornering(Tyres.road);
-      final rally = _peakCornering(Tyres.rally);
+      final slicks = _peakCornering(TireSet.slicks);
+      final road = _peakCornering(TireSet.road);
+      final rally = _peakCornering(TireSet.rally);
 
       expect(
         slicks,
@@ -164,8 +164,12 @@ void main() {
 
   group('off it', () {
     test('and on grass they corner the other way round too', () {
-      final slicks = _peakCornering(Tyres.slicks, surface: 'grass', from: 15.0);
-      final rally = _peakCornering(Tyres.rally, surface: 'grass', from: 15.0);
+      final slicks = _peakCornering(
+        TireSet.slicks,
+        surface: 'grass',
+        from: 15.0,
+      );
+      final rally = _peakCornering(TireSet.rally, surface: 'grass', from: 15.0);
 
       expect(
         rally,
@@ -181,12 +185,16 @@ void main() {
       // 14.5 m on rally tyres. The slicks do not stop so much as run out of
       // speed eventually.
       final slicks = _brakingDistance(
-        Tyres.slicks,
+        TireSet.slicks,
         surface: 'grass',
         from: 20.0,
       );
-      final road = _brakingDistance(Tyres.road, surface: 'grass', from: 20.0);
-      final rally = _brakingDistance(Tyres.rally, surface: 'grass', from: 20.0);
+      final road = _brakingDistance(TireSet.road, surface: 'grass', from: 20.0);
+      final rally = _brakingDistance(
+        TireSet.rally,
+        surface: 'grass',
+        from: 20.0,
+      );
 
       expect(
         rally,
@@ -213,13 +221,13 @@ void main() {
     // slicks keep less of their grip than rally tyres do — which is why one
     // lets go suddenly and the other slides.
     expect(
-      Tyres.slicks.model.lateralAt(1.2).abs(),
-      lessThan(Tyres.rally.model.lateralAt(1.2).abs()),
+      TireSet.slicks.model.lateralAt(1.2).abs(),
+      lessThan(TireSet.rally.model.lateralAt(1.2).abs()),
       reason: 'both tyres behave the same once the car is sideways',
     );
     expect(
-      Tyres.slicks.model.peakSlipAngle,
-      lessThan(Tyres.rally.model.peakSlipAngle),
+      TireSet.slicks.model.peakSlipAngle,
+      lessThan(TireSet.rally.model.peakSlipAngle),
       reason: 'the limit arrives at the same place on both',
     );
   });
@@ -230,54 +238,54 @@ void main() {
       // tyres is a table of numbers — and that is exactly the problem: a driver
       // who could change at speed would hold slicks down the straight and
       // knobbly tyres through the gravel, and a choice with no cost is not one.
-      final car = _car(Tyres.road);
+      final car = _car(TireSet.road);
       _run(car, VehicleInput()..throttle = 1.0, 2.0);
       expect(car.speed, greaterThan(5.0), reason: 'the car never moved');
 
-      expect(car.fitTyres(Tyres.slicks), isFalse);
-      expect(car.tyres, Tyres.road);
+      expect(car.fitTires(TireSet.slicks), isFalse);
+      expect(car.tireSet, TireSet.road);
     });
 
     test('and allowed at a standstill', () {
-      final car = _car(Tyres.road);
+      final car = _car(TireSet.road);
 
-      expect(car.fitTyres(Tyres.slicks), isTrue);
-      expect(car.tyres, Tyres.slicks);
+      expect(car.fitTires(TireSet.slicks), isTrue);
+      expect(car.tireSet, TireSet.slicks);
     });
 
     test('and takes effect immediately, without rebuilding the car', () {
-      // The reason `tyres` is not final. A car is a lot of state — where it is
+      // The reason `tireSet` is not final. A car is a lot of state — where it is
       // on the lap, how fast its wheels are turning — and throwing it away to
       // change a table of numbers would put the driver back on the grid.
-      final car = _car(Tyres.road);
+      final car = _car(TireSet.road);
       final where = car.position.clone();
 
-      car.fitTyres(Tyres.rally);
+      car.fitTires(TireSet.rally);
 
-      expect(car.grips.gripFor('grass'), Tyres.rally.grips.gripFor('grass'));
-      expect(car.tires.peakSlipAngle, Tyres.rally.model.peakSlipAngle);
+      expect(car.grips.gripFor('grass'), TireSet.rally.grips.gripFor('grass'));
+      expect(car.tires.peakSlipAngle, TireSet.rally.model.peakSlipAngle);
       expect(car.position, where);
     });
 
     test('and cycling goes round rather than off the end', () {
-      var tyres = Tyres.all.first;
-      final seen = <Tyres>{};
-      for (var i = 0; i < Tyres.all.length; i++) {
-        seen.add(tyres);
-        tyres = Tyres.after(tyres);
+      var tireSet = TireSet.all.first;
+      final seen = <TireSet>{};
+      for (var i = 0; i < TireSet.all.length; i++) {
+        seen.add(tireSet);
+        tireSet = TireSet.after(tireSet);
       }
 
-      expect(seen.length, Tyres.all.length, reason: 'a set nobody can reach');
-      expect(tyres, Tyres.all.first, reason: 'it does not come back round');
+      expect(seen.length, TireSet.all.length, reason: 'a set nobody can reach');
+      expect(tireSet, TireSet.all.first, reason: 'it does not come back round');
     });
 
     test('and a name this build no longer ships reads as the first set', () {
       // What a saved document does when a compound is renamed or dropped: the
       // tyres every car starts on, rather than a crash on the launch after an
       // update.
-      expect(Tyres.named('unobtainium'), Tyres.road);
-      expect(Tyres.named(null), Tyres.road);
-      expect(Tyres.named('rally'), Tyres.rally);
+      expect(TireSet.named('unobtainium'), TireSet.road);
+      expect(TireSet.named(null), TireSet.road);
+      expect(TireSet.named('rally'), TireSet.rally);
     });
   });
 }

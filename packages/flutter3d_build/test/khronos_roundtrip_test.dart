@@ -5,7 +5,7 @@
 /// **Reads `flutter3d_samples`'s files by a relative sibling path, not by
 /// depending on the package.** That package needs the Flutter SDK for its
 /// own `flutter.assets:` entry — `flatDartPackages` would refuse it here —
-/// so this reaches the same files `kSamplesPath` in that package names for
+/// so this reaches the same files `samplesPath` in that package names for
 /// exactly this situation, without importing it. `convert_test.dart`'s own
 /// `triangle.obj` fixture note explains the same choice for the same
 /// reason.
@@ -19,7 +19,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:test/test.dart';
 
 /// Where `flutter3d_samples` keeps its files, relative to this package's own
-/// directory — the same path that package's own `kSamplesPath` documents,
+/// directory — the same path that package's own `samplesPath` documents,
 /// spelled out rather than imported.
 const String _samples = '../flutter3d_samples/assets';
 

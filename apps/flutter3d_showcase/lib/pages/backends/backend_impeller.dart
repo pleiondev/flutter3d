@@ -7,7 +7,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BackendImpellerDemo extends ShowcaseDemo {
   late final GraphicsDevice _device;
@@ -15,9 +14,9 @@ final class BackendImpellerDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _device = context.device;
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.72, 0.5, 0.32, 1.0),
+      baseColor: LinearColor.fromSrgb(0.72, 0.5, 0.32, 1.0),
       roughness: 0.6,
     );
     final MeshNode ball = MeshNode(
@@ -31,7 +30,7 @@ final class BackendImpellerDemo extends ShowcaseDemo {
     return Scene()
       ..add(ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -41,9 +40,10 @@ final class BackendImpellerDemo extends ShowcaseDemo {
   // `flutter3d_hardware`'s registry to open one, having first made sure
   // Impeller and the software rasteriser have both registered themselves:
   //
-  //     ensureGpuBackendRegistered();
-  //     ensureCpuBackendRegistered();
-  //     return openRegisteredDevice(width: width, height: height, ...);
+  //     final registry = DeviceRegistry();
+  //     registerGpuBackend(registry);
+  //     registerCpuBackend(registry);
+  //     return registry.open(width: width, height: height, ...);
   //
   // Impeller is tried first; the software device is what a native build
   // falls back to if flutter_gpu will not start.
@@ -57,10 +57,10 @@ final class BackendImpellerDemo extends ShowcaseDemo {
 
   // #region read
   String _report(GraphicsDevice device) =>
-      'wireframe: ${device.supportsWireframe}\n'
-      'blend constant: ${device.supportsBlendColor}\n'
-      'max colour attachments: ${device.maxColorAttachments}\n'
-      'max anisotropy: ${device.maxAnisotropy}';
+      'wireframe: ${device.features.has(DeviceFeature.wireframe)}\n'
+      'blend constant: ${device.features.has(DeviceFeature.blendConstant)}\n'
+      'max colour attachments: ${device.limits.maxColorAttachments}\n'
+      'max anisotropy: ${device.limits.maxSamplerAnisotropy}';
   // #endregion read
 
   @override
@@ -95,7 +95,8 @@ final class BackendImpellerDemo extends ShowcaseDemo {
     // backends. This page asks for it unconditionally; whether the frame
     // actually got it has to match what the device that opened said it
     // could do, whichever backend that turned out to be.
-    if (frame.wireframeDeclined != !_device.supportsWireframe) {
+    if (frame.wireframeDeclined !=
+        !_device.features.has(DeviceFeature.wireframe)) {
       throw StateError(
         'wireframeDeclined disagreed with supportsWireframe for the open '
         'device',

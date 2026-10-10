@@ -94,10 +94,10 @@ class _BudgetRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ModelerColors colours = theme.extension<ModelerColors>()!;
-    final Color fill = usage.over
+    final ModelerColors colors = theme.extension<ModelerColors>()!;
+    final Color fill = usage.isOver
         ? theme.colorScheme.tertiary
-        : colours.success;
+        : colors.success;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

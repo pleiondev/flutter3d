@@ -89,6 +89,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -456,12 +458,15 @@ final List<_Probe> _probes = <_Probe>[
 /// one cell to bin and a sweep has more than one candidate, and a flight of
 /// steps so the step-up and the floor snap both run.
 CollisionWorld _room() {
-  final world = CollisionWorld()
-    ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
-    ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
-    ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
-    ..addBox(Vector3(-20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0))
-    ..addBox(Vector3(20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0));
+  // The world the digests below were recorded in: falling at 24 m/s², the
+  // gravity the characters had before they fell by their world's.
+  final world =
+      CollisionWorld(properties: WorldProperties(gravity: Vector3(0, -24, 0)))
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0))
+        ..addBox(Vector3(0.0, 2.0, -20.0), Vector3(40.0, 6.0, 1.0))
+        ..addBox(Vector3(0.0, 2.0, 20.0), Vector3(40.0, 6.0, 1.0))
+        ..addBox(Vector3(-20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0))
+        ..addBox(Vector3(20.0, 2.0, 0.0), Vector3(1.0, 6.0, 40.0));
   for (var x = -3; x <= 3; x++) {
     for (var z = -3; z <= 3; z++) {
       if ((x + z) % 2 == 0) continue;
@@ -580,45 +585,52 @@ DigestTrace _play(InputTape tape, {int every = 25}) {
 /// table above disagreed in eleven rows on the same machine in the same run.
 /// That is the gap this file exists to measure, and it is now measured across
 /// three machines rather than argued from one.
+///
+/// **Re-recorded on 2026-10-09, macOS-arm64, VM and Chrome agreeing on all
+/// forty**, because the run itself changed with the controller and its wall
+/// sweep (one per convex part of a shape since then). The first two
+/// checkpoints, before the body meets anything, are still the ones from
+/// 2026-09-02; the third is the first after its first contact, a pillar at
+/// (−4, 8) at step 71. The Linux pair is owed again by the next CI run.
 const List<String> _recorded = <String>[
   'c520c154',
   '9af8158a',
-  'd13b7674',
-  '0f9db809',
-  '14fc0650',
-  'a6dc93da',
-  '5100b198',
-  '82812341',
-  '51e0ec96',
-  '3822350d',
-  'e44d5e92',
-  '084fb3f7',
-  'faa42b93',
-  '5c64e512',
-  '1baccb9c',
-  '18c6c624',
-  '1679b0f4',
-  '25903db7',
-  '4f88287b',
-  '6cc18752',
+  '8d50bcd4',
+  '7969ab2f',
+  '8ad39fb0',
+  'e45d237a',
+  '35a5d3f1',
+  '628f4241',
+  '1bc4d74b',
+  '3ea16fcd',
+  'cb393e92',
+  'f615f7b7',
+  'f27a711c',
+  'ce0a1eae',
+  '2f81daf9',
+  '047d94c2',
+  '3a05395e',
+  '92ed3ea6',
+  '8400271b',
+  '00a650f9',
   'ec9c7533',
-  '1b06238f',
-  'eea0d6c4',
-  '2989f158',
-  '983ac32c',
-  '0058789b',
-  '3c63d6f6',
-  '24d60127',
-  '4ed4ca85',
-  'a82b54b5',
-  '356743f5',
-  'd8f4aa2e',
-  'f8eca0c6',
-  '30f37585',
-  '6987d8cb',
-  '3a5a8853',
-  'acff5788',
-  'f7ef3bc0',
-  '6aa9f123',
-  'b3fd5b9f',
+  '19342e8f',
+  'bb606dec',
+  '51fec8f1',
+  'ff135c4e',
+  'e8a658e7',
+  'e06d6262',
+  'ef812592',
+  '16f6cf83',
+  'fd25ad51',
+  '36e84ad1',
+  '51042599',
+  'ab9fc16f',
+  '151fe633',
+  '6ddff1d1',
+  '7b73d2cb',
+  '2e60d304',
+  'c5d2d457',
+  '40e76144',
+  '406cb43f',
 ];

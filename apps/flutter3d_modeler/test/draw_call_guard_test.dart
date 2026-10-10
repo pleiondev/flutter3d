@@ -74,10 +74,10 @@ const int kOverlayBatches = 3;
   Renderer renderer,
   ModelerStage stage,
 ) {
-  final overlay = renderer.addContributor(
+  final overlay = renderer.renderSteps.addContributor(
     MeshOverlay(
-      vertexShader: renderer.debugLineVertexShader,
-      fragmentShader: renderer.debugLineFragmentShader,
+      vertexShader: renderer.shaders['DebugLineVertex']!,
+      fragmentShader: renderer.shaders['DebugLine']!,
     ),
   );
   final look = stage.overlayView(_height.toDouble());
@@ -155,7 +155,7 @@ void main() {
     const GroundGrid().writeInto(overlay, eye: look.eye, fadeRadius: 1000);
     final gridOnly = _count(renderer, stage).drawCalls;
 
-    MeshOverlayBuilder(colours: MeshOverlayColours()).build(
+    MeshOverlayBuilder(colors: MeshOverlayColours()).build(
       overlay,
       mesh: stage.editMesh!,
       selection: Selection.empty(ElementLevel.vertex),
@@ -178,7 +178,7 @@ void main() {
     final look = stage.overlayView(_height.toDouble());
 
     const GroundGrid().writeInto(overlay, eye: look.eye, fadeRadius: 1000);
-    MeshOverlayBuilder(colours: MeshOverlayColours()).build(
+    MeshOverlayBuilder(colors: MeshOverlayColours()).build(
       overlay,
       mesh: stage.editMesh!,
       // A selected face is the fullest the overlay gets: lines for the wire

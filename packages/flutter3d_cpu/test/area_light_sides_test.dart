@@ -14,6 +14,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
@@ -25,7 +27,7 @@ const int _size = 48;
 /// clamped, which is what a form factor is the closed form of.
 double _integrate(
   Vector3 n, {
-  required Vector3 centre,
+  required Vector3 center,
   required Vector3 halfWidth,
   required Vector3 halfHeight,
   int steps = 400,
@@ -38,7 +40,7 @@ double _integrate(
     final u = (i + 0.5) / steps * 2.0 - 1.0;
     for (var j = 0; j < steps; j++) {
       final v = (j + 0.5) / steps * 2.0 - 1.0;
-      final point = centre + halfWidth * u + halfHeight * v;
+      final point = center + halfWidth * u + halfHeight * v;
       final distance2 = point.length2;
       final direction = point.normalized();
       final cosSurface = n.dot(direction);
@@ -51,12 +53,12 @@ double _integrate(
 }
 
 /// The corners `SampleLight` builds for a panel seen from the origin.
-List<Vector3> _corners(Vector3 centre, Vector3 halfWidth, Vector3 halfHeight) =>
+List<Vector3> _corners(Vector3 center, Vector3 halfWidth, Vector3 halfHeight) =>
     <Vector3>[
-      centre - halfWidth - halfHeight,
-      centre + halfWidth - halfHeight,
-      centre + halfWidth + halfHeight,
-      centre - halfWidth + halfHeight,
+      center - halfWidth - halfHeight,
+      center + halfWidth - halfHeight,
+      center + halfWidth + halfHeight,
+      center - halfWidth + halfHeight,
     ];
 
 /// The HDR frame of [objects] under [light], seen by [camera], with no
@@ -95,11 +97,15 @@ LightNode _panel({
   double height = 2.0,
   double size = 1.0,
   double intensity = 12.0,
-}) => LightNode(type: LightType.area, intensity: intensity)
-  ..width = size
-  ..height = size
-  ..setPosition(0.0, height, 0.0)
-  ..setRotationYawPitchRoll(0.0, -math.pi / 2.0, 0.0);
+}) =>
+    LightNode(
+        type: LightType.area,
+        intensity: intensity * Photometric.legacyUnit,
+      )
+      ..width = size
+      ..height = size
+      ..setPosition(0.0, height, 0.0)
+      ..setRotationYawPitchRoll(0.0, -math.pi / 2.0, 0.0);
 
 /// The brightest green value in [hdr].
 double _peakGreen(Float32List hdr) {
@@ -120,7 +126,7 @@ void main() {
           ({
             String name,
             Vector3 n,
-            Vector3 centre,
+            Vector3 center,
             Vector3 halfWidth,
             Vector3 halfHeight,
           })
@@ -129,14 +135,14 @@ void main() {
             // Symmetric about the horizon: the old sum read exactly nought.
             name: 'a wall panel centred on the horizon',
             n: up,
-            centre: Vector3(0.0, 0.0, -1.5),
+            center: Vector3(0.0, 0.0, -1.5),
             halfWidth: Vector3(0.8, 0.0, 0.0),
             halfHeight: Vector3(0.0, 0.5, 0.0),
           ),
           (
             name: 'a wall panel mostly above it',
             n: up,
-            centre: Vector3(0.3, 0.3, -1.2),
+            center: Vector3(0.3, 0.3, -1.2),
             halfWidth: Vector3(0.8, 0.0, 0.0),
             halfHeight: Vector3(0.0, 0.5, 0.0),
           ),
@@ -144,7 +150,7 @@ void main() {
             // The side of a sphere under a ceiling panel, near its terminator.
             name: 'a ceiling panel seen from a steep slope',
             n: Vector3(math.sin(1.3), math.cos(1.3), 0.0),
-            centre: Vector3(-0.4, 1.0, 0.0),
+            center: Vector3(-0.4, 1.0, 0.0),
             halfWidth: Vector3(1.0, 0.0, 0.0),
             halfHeight: Vector3(0.0, 0.0, 0.6),
           ),
@@ -154,12 +160,12 @@ void main() {
       test(it.name, () {
         final reference = _integrate(
           it.n,
-          centre: it.centre,
+          center: it.center,
           halfWidth: it.halfWidth,
           halfHeight: it.halfHeight,
         );
         final closed = rectangleFormFactor(
-          _corners(it.centre, it.halfWidth, it.halfHeight),
+          _corners(it.center, it.halfWidth, it.halfHeight),
           it.n,
         );
         // Mutation: count every edge whole, as the unclipped sum did, and the
@@ -196,7 +202,10 @@ void main() {
           device,
           CuboidShape(size: Vector3(6.0, 0.4, 6.0)).build(),
         ),
-        Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0), roughness: 0.4),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+          roughness: 0.4,
+        ),
       )..setPosition(0.0, 3.2, 0.0),
     ];
     CameraNode camera() => CameraNode()
@@ -227,7 +236,7 @@ void main() {
 
   group('a clear coat reflects a panel by its own integral', () {
     // A floor under a large panel, seen where it mirrors the panel.
-    List<MeshNode> Function(CpuDevice) floor(Material material) =>
+    List<MeshNode> Function(CpuDevice) floor(RenderMaterial material) =>
         (device) => <MeshNode>[
           MeshNode(
             DeviceMesh.upload(
@@ -248,9 +257,9 @@ void main() {
       final mirror = _peakGreen(
         _render(
           floor(
-            Material(
+            RenderMaterial(
               lighting: LightingModel.pbrLayered,
-              baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+              baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
               metallic: 1.0,
               roughness: 0.0,
             ),
@@ -259,9 +268,9 @@ void main() {
           camera: camera(),
         ),
       );
-      Material paint({required double coat}) => Material(
+      RenderMaterial paint({required double coat}) => RenderMaterial(
         lighting: LightingModel.pbrLayered,
-        baseColor: Vector4(0.02, 0.02, 0.02, 1.0),
+        baseColor: LinearColor.fromSrgb(0.02, 0.02, 0.02, 1.0),
         roughness: 0.8,
         extensions: MaterialExtensions(
           clearcoat: coat,

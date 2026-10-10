@@ -44,9 +44,6 @@ TextureHandle _ramp(CpuDevice device, {required int width, double top = 0.02}) {
     format: TextureFormat.r32g32b32a32Float,
     pixels: pixels.buffer.asByteData(),
   );
-  if (texture == null) {
-    throw StateError('the ramp was refused; the byte count must be exact');
-  }
   return texture;
 }
 
@@ -72,8 +69,8 @@ Future<List<int>> _composited(double dither, {int width = 512}) async {
     ),
   );
 
-  final bytes = await device.readPixels(result.frame);
-  return <int>[for (var x = 0; x < width; x++) bytes!.getUint8(x * 4)];
+  final bytes = await device.readback(result.frame);
+  return <int>[for (var x = 0; x < width; x++) bytes.getUint8(x * 4)];
 }
 
 /// How many times the value changes along the row.

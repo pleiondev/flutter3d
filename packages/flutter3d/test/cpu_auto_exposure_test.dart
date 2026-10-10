@@ -15,7 +15,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
@@ -37,20 +36,16 @@ const int _height = 64;
           device,
           CuboidShape(size: Vector3(60.0, 60.0, 1.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'wall',
-          baseColor: Vector4(grey, grey, grey, 1.0),
+          baseColor: LinearColor.fromSrgb(grey, grey, grey, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'wall',
       )..setPosition(0.0, 0.0, -10.0),
     );
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   scene.add(camera);
@@ -71,18 +66,21 @@ Future<({FrameResult result, Uint8List pixels})> _draw(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   // The readback of the luminance target is already complete on this backend,
   // and the meter runs on the microtask after it; let it.
   await pumpEventQueue();
-  return (result: result, pixels: pixels!.buffer.asUint8List());
+  return (result: result, pixels: pixels.buffer.asUint8List());
 }
 
-int _centre(Uint8List pixels) =>
+int _center(Uint8List pixels) =>
     pixels[((_height ~/ 2) * _width + _width ~/ 2) * 4];
 
 /// At once, so the frame after the first metered one is at the target
@@ -110,8 +108,8 @@ void main() {
     final second = await _draw(it, _instant);
     expect(second.result.exposure, _instant.autoExposure.maxExposure);
     expect(
-      _centre(second.pixels),
-      greaterThan(_centre(first.pixels)),
+      _center(second.pixels),
+      greaterThan(_center(first.pixels)),
       reason: 'the exposure reached the picture, not only the counter',
     );
   });
@@ -125,7 +123,7 @@ void main() {
     final first = await _draw(it, _instant);
     final second = await _draw(it, _instant);
     expect(second.result.exposure, _instant.autoExposure.minExposure);
-    expect(_centre(second.pixels), lessThan(_centre(first.pixels)));
+    expect(_center(second.pixels), lessThan(_center(first.pixels)));
   });
 
   test('a finite rate approaches the ceiling one frame at a time', () async {

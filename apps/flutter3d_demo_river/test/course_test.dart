@@ -48,6 +48,24 @@ void main() {
     }
   });
 
+  test('a tanker or a helicopter that moves has water to move across', () {
+    final course = Course();
+    var movers = 0;
+    for (var i = 0; i < _sections; i++) {
+      for (final target in course.section(i).targets) {
+        if (target.kind == TargetKind.jet || target.speed == 0.0) continue;
+        movers++;
+        final (from, to) = course.rowAt(target.distance).channelAt(target.x)!;
+        expect(
+          to - from - 2.0 * target.kind.halfLength,
+          greaterThanOrEqualTo(3.0),
+          reason: '${target.kind} at ${target.distance}',
+        );
+      }
+    }
+    expect(movers, greaterThan(0));
+  });
+
   test('there is always a channel a jet fits through', () {
     final course = Course();
     for (var d = -sectionLength; d < sectionLength * _sections; d += 0.5) {

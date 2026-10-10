@@ -1,41 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'cli_contract.dart' show lightsUsage;
 import 'device_classes.dart';
 import 'manifest.dart';
-
-/// What `dart run flutter3d_build:lights` prints when it is asked wrongly.
-const String lightsUsage = '''
-usage: dart run flutter3d_build:lights --optimize <level.json> [options]
-
-Fewer lights that light the level the way it is lit now. Every light is
-drawn alone in software from the views; lights others already cover are
-removed, close pairs are merged, and the rest are retuned, keeping only
-changes whose picture stays close to the original.
-
-  --poses <file.json>   where players stood: a JSON list of poses
-                        ({"t", "p": [x, y, z], "y"}), as a game's Recorder
-                        writes them while it plays a .f3drun back. May be
-                        given more than once. Without one, the views are four
-                        headings from every player spawn.
-  --state <file.json>   a lighting state the level must look right
-                        under: {"name": "noon", "lights": [...]}, the lights
-                        written as the level writes them and never changed.
-                        May be given more than once, and the level is then
-                        judged under each; a state with no lights is night.
-  -o, --out <path>      where to write the level; default: over the input
-  --preview <dir>       write before.png and after.png of the first view
-  --dry-run             say what would change and write no level
-  --classes <names>     phone,web,desktop: write one level per device class
-                        beside the output (level.phone.json, ...), each
-                        optimised to its class's tolerance (the nearest
-                        flutter3d_assets.yaml's lightDifference for the
-                        class, or the preset's), and leave the level
-                        itself alone
-''';
 
 /// The lights command: read a level, optimise its lights, write it back.
 ///
@@ -136,11 +108,11 @@ Future<int> runLights(
     File('$directory/before.png').writeAsBytesSync(pngs.before);
     File('$directory/after.png').writeAsBytesSync(pngs.after);
   }
-  if (!plan.changes || options.dryRun) return 0;
+  if (!plan.hasChanges || options.dryRun) return 0;
 
   final to = options.out ?? options.level;
   final elsewhere = to != options.level;
-  if (!elsewhere && !editing.mayOverwrite) {
+  if (!elsewhere && !editing.canOverwrite) {
     complain.writeln(
       '${options.level} was written by ${editing.generatedBy} and will not be '
       'overwritten — give --out and the copy takes ownership of itself',
@@ -195,7 +167,7 @@ Future<int> _perClass(
       say.writeln('  $move');
     }
     if (options.dryRun) continue;
-    if (plan.changes) {
+    if (plan.hasChanges) {
       editing.history.run(SetLights(plan.after, why: plan.says));
     }
     final to = deviceClassPath(base, deviceClass);

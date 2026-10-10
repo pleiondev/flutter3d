@@ -6,7 +6,7 @@
 /// there rather than failing — but a suite that only ever runs on the VM would
 /// silently stop covering the one thing this package exists to do.
 ///
-/// Everything here above `WebGlDevice.create` is the ordinary flutter3d frame.
+/// Everything here above `WebGlDevice.open` is the ordinary flutter3d frame.
 /// That is the claim: a backend is a package, not an edit to the renderer.
 ///
 /// Checked by reading pixels rather than by eye, because the failure that
@@ -23,7 +23,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 128;
 const int _height = 128;
@@ -32,12 +31,11 @@ void main() {
   late WebGlDevice device;
 
   setUp(() {
-    final made = WebGlDevice.create(
+    final made = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (made == null) fail('no WebGL2 context in this browser');
     device = made;
   });
 
@@ -58,9 +56,9 @@ void main() {
           device,
           const SphereShape(radius: 1.0, segments: 24, rings: 12).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'ball',
-          baseColor: Vector4(0.9, 0.2, 0.1, 1.0),
+          baseColor: LinearColor.fromSrgb(0.9, 0.2, 0.1, 1.0),
           lighting: LightingModel.lambert,
         ),
         name: 'ball',
@@ -68,7 +66,7 @@ void main() {
     );
 
     final light = LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 4.0
+      ..intensity = 4.0 * Photometric.legacyUnit
       ..setPosition(2.0, 3.0, 2.0)
       ..lookAt(Vector3.zero());
     scene.root.add(light);
@@ -87,10 +85,10 @@ void main() {
     );
     expect(result.drawCalls, greaterThan(0));
 
-    final pixels = await device.readPixels(result.frame);
+    final pixels = await device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
 
-    final bytes = pixels!.buffer.asUint8List();
+    final bytes = pixels.buffer.asUint8List();
     expect(bytes.length, _width * _height * 4);
 
     // Three claims, and each one fails a different way of drawing nothing.
@@ -170,7 +168,6 @@ Renderer _renderer(WebGlDevice device) {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
     );
-    if (made == null) fail('the device would not make a 1x1 texture');
     return made;
   }
 

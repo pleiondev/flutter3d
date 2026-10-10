@@ -6,15 +6,20 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FixedStepDemo extends ShowcaseDemo {
   bool menuOpen = false;
 
   // #region clock
-  final FixedStep _clock = FixedStep(stepSeconds: 1 / 60);
+  late final EngineLoop _loop = EngineLoop(input: InputState())
+    ..addSystem('marker.move', LoopPhase.rules, (LoopContext step) {
+      _stepsRun++;
+      final x = (_stepsRun * step.dt * 1.5) % 2.0 - 1.0;
+      _position.push(Vector3(x, 0.0, 0.0));
+    });
   final InterpolatedVector3 _position = InterpolatedVector3();
   int _stepsRun = 0;
   // #endregion clock
@@ -24,9 +29,9 @@ final class FixedStepDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final material = Material(
+    final material = RenderMaterial(
       name: 'marker',
-      baseColor: Vector4(0.8, 0.5, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.2, 1.0),
       roughness: 0.6,
     );
     _ball = MeshNode(
@@ -37,7 +42,7 @@ final class FixedStepDemo extends ShowcaseDemo {
     return Scene()
       ..add(_ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -61,16 +66,11 @@ final class FixedStepDemo extends ShowcaseDemo {
   void update(DemoContext context, double dt) {
     if (_paused) return;
     // #region advance
-    final steps = _clock.advance(dt);
-    for (var i = 0; i < steps; i++) {
-      _stepsRun++;
-      final x = (_stepsRun * _clock.stepSeconds * 1.5) % 2.0 - 1.0;
-      _position.push(Vector3(x, 0.0, 0.0));
-    }
+    _loop.frame(dt);
     // #endregion advance
 
     // #region blend
-    _position.read(_clock.alpha, _drawn);
+    _position.read(_loop.alpha, _drawn);
     _ball.setPositionFrom(_drawn);
     // #endregion blend
   }

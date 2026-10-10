@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 /// Whether the machine is keeping up, and what it cost when it did not.
 ///
-/// **`FixedStep.droppedSteps` was read by nobody.** The loop refuses to run
+/// **The steps a loop drops were read by nobody.** The loop refuses to run
 /// more than `maxStepsPerFrame` steps for one frame — it has to, or a long
 /// frame asks for a longer one and the application hangs — and the simulated
 /// time it will not run is thrown away and counted. Nothing read the count, so
@@ -22,7 +22,8 @@ final class Pace {
     : assert(window > 0.0),
       assert(tolerance > 0.0);
 
-  /// How long a stall keeps counting against the machine, as a time constant.
+  /// How long a stall keeps counting against the machine, as a time constant
+  /// in seconds.
   final double window;
 
   /// How much lost time inside that window is worth telling the player about,
@@ -45,11 +46,11 @@ final class Pace {
   double get lost => _lost;
 
   /// Whether the machine has been failing to keep up just now.
-  bool get behind => _recent > tolerance;
+  bool get isBehind => _recent > tolerance;
 
   /// Takes the loop's running total and the length of the frame just drawn.
   ///
-  /// The **total**, not a delta, because that is what [FixedStep] exposes and
+  /// The **total**, not a delta, because that is what `EngineLoop.lostSteps` exposes and
   /// asking the caller to difference it is asking the caller to hold state this
   /// class is already holding.
   void note({

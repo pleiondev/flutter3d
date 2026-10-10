@@ -15,7 +15,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
+import 'package:flutter3d_webgpu/src/webgpu_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// `GPUTextureFormat`, the subset a colour, depth or compressed texture in this
@@ -48,6 +48,25 @@ const Set<String> _textureFormats = <String>{
   'astc-4x4-unorm-srgb',
   'astc-8x8-unorm',
   'astc-8x8-unorm-srgb',
+  'rgba8snorm',
+  'rgba8uint',
+  'rgba8sint',
+  'r16float',
+  'rg16float',
+  'rgba16uint',
+  'rgba16sint',
+  'r32uint',
+  'r32sint',
+  'rg32float',
+  'rg32uint',
+  'rg32sint',
+  'rgba32uint',
+  'rgba32sint',
+  'rgb10a2unorm',
+  'rg11b10ufloat',
+  'rgb9e5ufloat',
+  'depth16unorm',
+  'depth32float',
 };
 
 const Set<String> _blendFactors = <String>{
@@ -64,6 +83,10 @@ const Set<String> _blendFactors = <String>{
   'src-alpha-saturated',
   'constant',
   'one-minus-constant',
+  'src1',
+  'one-minus-src1',
+  'src1-alpha',
+  'one-minus-src1-alpha',
 };
 
 const Set<String> _blendOperations = <String>{
@@ -375,13 +398,13 @@ void main() {
       // `H7`. Mutation: drop the storage-mode check, and every render target
       // is allocated unsampleable; drop the `supported` one, and a browser
       // without the flag refuses the texture.
-      const tile = RenderTargetSpec(
+      const tile = RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.d32FloatS8UInt,
         storageMode: StorageMode.deviceTransient,
       );
-      const kept = RenderTargetSpec(
+      const kept = RenderTargetDescriptor(
         width: 4,
         height: 4,
         format: TextureFormat.r16g16b16a16Float,
@@ -515,6 +538,213 @@ void main() {
         isNot(key(blend: BlendState.additive)),
       );
       expect(key(blend: BlendState.alphaBlend), key(blend: BlendState()));
+    });
+  });
+
+  group('what a device was granted decides what it reports', () {
+    bool none(String _) => false;
+    bool all(String _) => true;
+
+    test('the pre-1.0 answers are what they were', () {
+      // `DeviceCapabilityForwarders` reads these; the getters they replaced
+      // answered exactly this on every adapter.
+      //
+      // Mutation: make `float32-renderable` depend on a grant. On an adapter
+      // without `float32-filterable` nothing changes, and on one with it
+      // `supportsFloat32Filtering` goes false where it used to be true.
+      final bare = webgpuDeviceFeatures(granted: none);
+      for (final yes in <DeviceFeature>[
+        DeviceFeature.offscreenMultisample,
+        DeviceFeature.manualMipmaps,
+        DeviceFeature.cubeTextures,
+        DeviceFeature.renderToMipLevel,
+        DeviceFeature.alphaToCoverage,
+        DeviceFeature.stencil,
+        DeviceFeature.compute,
+        DeviceFeature.independentBlend,
+        DeviceFeature.float32Renderable,
+      ]) {
+        expect(bare.has(yes), isTrue, reason: yes.name);
+      }
+      for (final no in <DeviceFeature>[
+        DeviceFeature.blendConstant,
+        DeviceFeature.wireframe,
+        DeviceFeature.gpuTimestamps,
+        DeviceFeature.float32Filterable,
+      ]) {
+        expect(bare.has(no), isFalse, reason: no.name);
+      }
+      final full = webgpuDeviceFeatures(granted: all);
+      expect(full.has(DeviceFeature.gpuTimestamps), isTrue);
+      expect(
+        full.has(DeviceFeature.float32Filterable) &&
+            full.has(DeviceFeature.float32Renderable),
+        isTrue,
+      );
+    });
+
+    test('an adapter feature is reported only when it was granted', () {
+      // Mutation: list `depth-clip-control`'s feature unconditionally. A device
+      // without it then promises `setDepthClamp`, and the pipeline it builds
+      // with `unclippedDepth: true` is refused by the browser.
+      const behindGrant = <DeviceFeature, String>{
+        DeviceFeature.depthClamp: 'depth-clip-control',
+        DeviceFeature.indirectFirstInstance: 'indirect-first-instance',
+        DeviceFeature.dualSourceBlending: 'dual-source-blending',
+        DeviceFeature.timestampQuery: 'timestamp-query',
+        DeviceFeature.float32Blendable: 'float32-blendable',
+        DeviceFeature.rg11b10Renderable: 'rg11b10ufloat-renderable',
+        DeviceFeature.shaderF16: 'shader-f16',
+        DeviceFeature.subgroups: 'subgroups',
+        DeviceFeature.clipDistances: 'clip-distances',
+        DeviceFeature.textureCompressionBC: 'texture-compression-bc',
+        DeviceFeature.multiDrawIndirect: 'multi-draw-indirect',
+      };
+      for (final MapEntry(key: feature, value: name) in behindGrant.entries) {
+        expect(
+          webgpuDeviceFeatures(granted: none).has(feature),
+          isFalse,
+          reason: '${feature.name} without $name',
+        );
+        expect(
+          webgpuDeviceFeatures(granted: (String f) => f == name).has(feature),
+          isTrue,
+          reason: '${feature.name} with $name',
+        );
+      }
+    });
+
+    test('what WebGPU cannot do is never reported, whatever is granted', () {
+      // Mutation: list `sampler-border-color`. The conformance check then
+      // binds a border sampler and the browser has no field to put it in.
+      final full = webgpuDeviceFeatures(granted: all);
+      for (final no in <DeviceFeature>[
+        DeviceFeature.blendConstant,
+        DeviceFeature.wireframe,
+        DeviceFeature.renderStageStorage,
+        DeviceFeature.samplerBorderColor,
+        DeviceFeature.textureCompressionASTCHdr,
+        DeviceFeature.synchronousReadback,
+        DeviceFeature.pipelineStatisticsQuery,
+      ]) {
+        expect(full.has(no), isFalse, reason: no.name);
+      }
+    });
+
+    test('the format table agrees with the features about the same thing', () {
+      // The conformance honesty check asks both questions and wants one
+      // answer. Mutation: answer r32float's `filterable` true without the
+      // grant. A sampler then filters a texture the layout calls
+      // unfilterable, and the pipeline does not build.
+      for (final granted in <bool Function(String)>[none, all]) {
+        final features = webgpuDeviceFeatures(granted: granted);
+        TextureFormatSupport of(TextureFormat f) =>
+            webgpuTextureFormatSupport(f, granted: granted);
+        expect(
+          of(TextureFormat.r32Float).filterable,
+          features.has(DeviceFeature.float32Filterable),
+        );
+        expect(
+          of(TextureFormat.r32Float).renderable,
+          features.has(DeviceFeature.float32Renderable),
+        );
+        expect(
+          of(TextureFormat.r32Float).blendable,
+          features.has(DeviceFeature.float32Blendable),
+        );
+        expect(
+          of(TextureFormat.r11g11b10UFloat).renderable,
+          features.has(DeviceFeature.rg11b10Renderable),
+        );
+        expect(
+          of(TextureFormat.bc7RGBAUNormInt).sampled,
+          features.has(DeviceFeature.textureCompressionBC),
+        );
+        expect(
+          of(TextureFormat.etc2RGBA8UNormInt).sampled,
+          features.has(DeviceFeature.textureCompressionETC2),
+        );
+        expect(
+          of(TextureFormat.astc4x4LDR).sampled,
+          features.has(DeviceFeature.textureCompressionASTC),
+        );
+        expect(of(TextureFormat.astc4x4HDR), TextureFormatSupport.none);
+      }
+    });
+
+    test('sampled is what supportsTextureFormat always answered', () {
+      // Mutation: ask the depth32float-stencil8 feature for `sampled`. The
+      // legacy getter answered true for it on every adapter, and the
+      // forwarder may not change a legacy answer.
+      for (final format in TextureFormat.values) {
+        final family = gpuTextureFormatFeature(format);
+        final legacy = gpuTextureFormat(format) != null && family == null;
+        expect(
+          webgpuTextureFormatSupport(format, granted: none).sampled,
+          legacy,
+          reason: format.name,
+        );
+      }
+    });
+
+    test('read-write storage is the three formats WebGPU allows', () {
+      // Mutation: mark rgba8unorm read-write. A stage declared that way is a
+      // pipeline the browser refuses.
+      final readWrite = <TextureFormat>[
+        for (final format in TextureFormat.values)
+          if (webgpuTextureFormatSupport(format, granted: all).storageReadWrite)
+            format,
+      ];
+      expect(readWrite, <TextureFormat>[
+        TextureFormat.r32Float,
+        TextureFormat.r32UInt,
+        TextureFormat.r32SInt,
+      ]);
+    });
+  });
+
+  group('copies', () {
+    test('an encoded copy refuses a row stride that is not 256-aligned', () {
+      // Mutation: accept any positive stride. The copy is then an invalid
+      // command buffer, refused asynchronously with nothing naming the call.
+      expect(() => gpuCheckCopyBytesPerRow(256), returnsNormally);
+      expect(() => gpuCheckCopyBytesPerRow(512), returnsNormally);
+      expect(() => gpuCheckCopyBytesPerRow(16), throwsArgumentError);
+      expect(() => gpuCheckCopyBytesPerRow(0), throwsArgumentError);
+    });
+
+    test('depth copies follow the direction the specification allows', () {
+      // Mutation: give depth32float a layout into the texture too. A write
+      // into it is then refused by the browser rather than here.
+      expect(
+        gpuCopyBlock(TextureFormat.d32Float, intoTexture: false),
+        isNotNull,
+      );
+      expect(gpuCopyBlock(TextureFormat.d32Float, intoTexture: true), isNull);
+      expect(
+        gpuCopyBlock(TextureFormat.d16UNormInt, intoTexture: true),
+        isNotNull,
+      );
+      expect(
+        gpuCopyBlock(TextureFormat.d24UnormS8Uint, intoTexture: false),
+        isNull,
+      );
+      expect(gpuCopyBlock(TextureFormat.bc7RGBAUNormInt, intoTexture: true), (
+        blockWidth: 4,
+        blockHeight: 4,
+        bytesPerBlock: 16,
+      ));
+      expect(gpuCopyBlock(TextureFormat.r16g16b16a16Float, intoTexture: true), (
+        blockWidth: 1,
+        blockHeight: 1,
+        bytesPerBlock: 8,
+      ));
+    });
+
+    test('min and max are spelled, and so are the source1 factors', () {
+      expect(gpuBlendOperation(BlendOperation.min), 'min');
+      expect(gpuBlendOperation(BlendOperation.max), 'max');
+      expect(gpuBlendFactor(BlendFactor.source1Alpha), 'src1-alpha');
     });
   });
 }

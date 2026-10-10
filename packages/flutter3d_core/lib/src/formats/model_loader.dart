@@ -17,16 +17,45 @@ import 'stl/stl.dart';
 export 'asset_source.dart';
 
 /// Which decoder to use.
-enum ModelFormat {
+///
+/// **A class with constant values rather than an enum**, so a later release
+/// can name a format of its own without breaking a `switch` written against
+/// this one: a switch over these needs a default, which is where a format
+/// it does not know goes. The values compare by identity; [name] is for a
+/// message, never for a file.
+final class ModelFormat {
+  /// A format called [name]. The engine's own are the constants below.
+  const ModelFormat(this.name);
+
+  /// What the format is called, for a message.
+  final String name;
+
   /// Pick from the file extension, falling back to sniffing the bytes.
-  auto,
-  gltf,
-  obj,
+  static const ModelFormat auto = ModelFormat('auto');
+
+  /// glTF 2.0, as `.gltf` or `.glb`.
+  static const ModelFormat gltf = ModelFormat('gltf');
+
+  /// Wavefront OBJ.
+  static const ModelFormat obj = ModelFormat('obj');
 
   /// The engine's own container, produced by `dart run flutter3d_build:convert`.
-  f3d,
+  static const ModelFormat f3d = ModelFormat('f3d');
 
-  stl,
+  /// STL, binary or text.
+  static const ModelFormat stl = ModelFormat('stl');
+
+  /// The engine's own values, in the order the enum had them.
+  static const List<ModelFormat> values = <ModelFormat>[
+    auto,
+    gltf,
+    obj,
+    f3d,
+    stl,
+  ];
+
+  @override
+  String toString() => 'ModelFormat.$name';
 }
 
 /// A decoder for a format the engine does not ship.
@@ -41,7 +70,16 @@ enum ModelFormat {
 ///
 /// **Implementations must be sendable**, and that is not a formality — see
 /// [ModelLoadRequest.decoders] for the isolate that makes it one.
-abstract interface class ModelDecoder {
+///
+/// **Extended outside this package, and stays so through 1.x.** A base class
+/// rather than an interface (decision 5 of `tasks/1.0-api-review.md`): a
+/// member added in a minor arrives with a default body, so a decoder written
+/// against 1.0 keeps compiling. Write `extends ModelDecoder`, on a `final`
+/// or `base` class.
+abstract base class ModelDecoder {
+  /// A decoder; `const` so one can be a constant.
+  const ModelDecoder();
+
   /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
   /// the whole file, so a decoder with no useful suffix can sniff its magic.
   bool handles(String fileName, Uint8List bytes);
@@ -164,7 +202,9 @@ ModelDecoder builtInModelDecoder(
     layout: request.layout,
     normals: request.stlNormals,
   ),
-  ModelFormat.gltf || ModelFormat.auto => GltfLoader(layout: request.layout),
+  // `gltf`, `auto` once nothing narrowed it, and a format a later release
+  // names that this one has no reader of its own for.
+  _ => GltfLoader(layout: request.layout),
 };
 
 /// Every file suffix a built-in reader answers to, and which reader.

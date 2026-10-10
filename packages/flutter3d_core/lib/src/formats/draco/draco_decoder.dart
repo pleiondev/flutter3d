@@ -349,6 +349,8 @@ final class _Attribute {
   /// Quantisation, read after every attribute's integers — the stream puts
   /// all the values first and all the parameters after.
   late final Float32List minValues;
+
+  /// The quantization box's side, in the unit of the attribute it quantizes.
   late final double range;
   late final int quantizationBits;
 

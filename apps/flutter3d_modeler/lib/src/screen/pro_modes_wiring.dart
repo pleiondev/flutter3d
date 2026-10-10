@@ -230,7 +230,7 @@ extension _ProModesWiring on _ModelerScreenState {
   // ------------------------------------------------------------------ paint
 
   void _setPaintLayer(int to) => setState(() => _paint.layer = to);
-  void _setPaintColour(List<double> to) => setState(() => _paint.colour = to);
+  void _setPaintColour(List<double> to) => setState(() => _paint.color = to);
   void _setPaintRadius(double to) => setState(() => _paint.diameter = to);
   void _setPaintStrength(double to) => setState(() => _paint.strength = to);
   void _setPaintMask(String? to) => setState(() => _paint.mask = to);
@@ -320,7 +320,7 @@ extension _ProModesWiring on _ModelerScreenState {
           at: event.at,
           objectId: objectId,
           radiusPixels: _paint.radius,
-          colour: _paint.colour,
+          color: _paint.color,
           strength: _paint.strength * event.force,
           layer: _paint.layer,
           maskImage: _maskImageOf(state),
@@ -330,7 +330,7 @@ extension _ProModesWiring on _ModelerScreenState {
           view: event.view,
           at: event.at,
           radiusPixels: _paint.radius,
-          colour: _paint.colour,
+          color: _paint.color,
           strength: _paint.strength * event.force,
           layer: _paint.layer,
           maskImage: _maskImageOf(state),

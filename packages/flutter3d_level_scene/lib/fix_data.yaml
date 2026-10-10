@@ -1,0 +1,78 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-LevelScene-moved (LevelScene)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      class: 'LevelScene'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          class: 'LevelScene'
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-LevelSceneParts (LevelSceneParts)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      class: 'LevelSceneParts'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          class: 'LevelSceneParts'
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-LevelBatch (LevelBatch)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      typedef: 'LevelBatch'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          typedef: 'LevelBatch'
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-LevelBatching (LevelBatching)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      class: 'LevelBatching'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          class: 'LevelBatching'
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-meshDataOf (meshDataOf)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      function: 'meshDataOf'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          function: 'meshDataOf'
+  - title: 'flutter3d 1.0.0-rc.1: app-package-flutter3d_editor_core-flutter3d_editor_core-dart (LevelBatching)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      class: 'LevelBatching'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          class: 'LevelBatching'
+  - title: 'flutter3d 1.0.0-rc.1: app-package-flutter3d_editor_core-flutter3d_editor_core-dart (meshDataOf)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      function: 'meshDataOf'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
+          function: 'meshDataOf'

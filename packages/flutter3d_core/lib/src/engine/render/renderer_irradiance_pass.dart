@@ -67,8 +67,8 @@ extension _IrradiancePass on Renderer {
   /// Whether [field] is updated on this device at all.
   bool _updatesIrradianceOnGpu(IrradianceField field) =>
       field.gpuUpdates > 0 &&
-      device.supportsCubeTextures &&
-      device.maxColorAttachments > 1;
+      device.features.has(DeviceFeature.cubeTextures) &&
+      device.limits.maxColorAttachments > 1;
 
   /// [field]'s GPU state, made the first time it is asked for.
   _IrradianceGpu _irradianceGpuFor(IrradianceField field) {
@@ -76,20 +76,15 @@ extension _IrradiancePass on Renderer {
     if (existing != null && identical(existing.field, field)) return existing;
     _releaseIrradianceGpu();
     final packed = field.toAtlas();
-    TextureHandle cube() =>
-        device.createCubeRenderTarget(
-          size: _kIrradianceCaptureSize,
-          format: hdrFormat,
-        ) ??
-        (throw StateError(
-          'the device answered true to supportsCubeTextures and then made no '
-          'cube for an irradiance probe',
-        ));
+    TextureHandle cube() => device.createCubeRenderTarget(
+      size: _kIrradianceCaptureSize,
+      format: hdrFormat,
+    );
     return _irradianceGpu = _IrradianceGpu(
       field: field,
       atlas: FieldPass(
         device,
-        RenderTargetSpec(
+        RenderTargetDescriptor(
           width: packed.width,
           height: packed.height,
           format: hdrFormat,
@@ -130,7 +125,7 @@ extension _IrradiancePass on Renderer {
       ..[0] = field.tile.toDouble()
       ..[1] = field.depthTile.toDouble()
       ..[2] = gpu.momentsTop.toDouble()
-      ..[3] = kIrradianceReach;
+      ..[3] = irradianceReach;
     info.atlas
       ..[0] = gpu.atlas.spec.width.toDouble()
       ..[1] = gpu.atlas.spec.height.toDouble()
@@ -172,9 +167,9 @@ extension _IrradiancePass on Renderer {
             scene: scene,
             position: position,
             near: 0.05,
-            far: kIrradianceReach,
+            far: irradianceReach,
             excluded: const <SceneNode>{},
-            colour: gpu.radiance,
+            color: gpu.radiance,
             surface: gpu.surface,
             size: _kIrradianceCaptureSize,
             face: face,
@@ -212,7 +207,7 @@ extension _IrradiancePass on Renderer {
         shader,
         'seed_texture',
         seed,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       )
       ..bindTexture(
         shader,
@@ -224,7 +219,7 @@ extension _IrradiancePass on Renderer {
         shader,
         'surface_texture',
         gpu.surface,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
   }
 }

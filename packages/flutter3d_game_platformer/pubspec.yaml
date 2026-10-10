@@ -1,6 +1,6 @@
 name: flutter3d_game_platformer
 description: "A second genre: a runner who jumps twice and dashes, things to collect, hazards to fall into, and checkpoints to come back at."
-version: 0.8.0+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -13,17 +13,45 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
     sdk: flutter
 
+  # The virtual cameras this genre's camera is a preset of: the framing, the
+  # director it can be handed to, and the blends and shakes between cameras.
+  flutter3d_camera: ^1.0.0-rc.1
+
   # The engine half. Everything here is content it takes as an argument. The
   # runner switches on `CollisionHeightfield`, and only a floor can say that
   # the version underneath has it.
-  flutter3d_sim: ^0.8.0
+  flutter3d_sim: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   flutter_test:

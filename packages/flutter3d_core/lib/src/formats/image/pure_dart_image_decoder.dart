@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import '../format_exceptions.dart';
 import '../image_sniff.dart';
 import '../ktx2/encode/rgba8_image.dart';
 import 'jpeg_decoder.dart';
@@ -13,18 +14,20 @@ import 'png_decoder.dart';
 /// order, so the import would run backwards).
 ///
 /// PNG and baseline JPEG only, the same two formats `sniffImageMimeType`
-/// recognises a decoder for; anything else — an unrecognised signature, a
-/// progressive JPEG `decodeJpeg` refuses, a truncated file — answers `null`
-/// rather than throwing, the same contract `dart:ui`'s own decoder path
-/// gives a caller of `ImageDecoder`.
-Future<Rgba8Image?> decodeImagePure(Uint8List encoded) async {
+/// recognises a decoder for. Anything else — an unrecognised signature, a
+/// progressive JPEG `decodeJpeg` refuses, a truncated file — throws an
+/// [ImageFormatException] saying which; the texture upload that takes an
+/// `ImageDecoder` treats a throw as it treats a null, as no texture.
+Future<Rgba8Image> decodeImagePure(Uint8List encoded) async {
   final mimeType = sniffImageMimeType(encoded);
   final decoded = switch (mimeType) {
     'image/png' => decodePng(encoded),
     'image/jpeg' => decodeJpeg(encoded),
-    _ => null,
+    _ => throw ImageFormatException(
+      'an image this decoder does not read: PNG and baseline JPEG are, and '
+      'this is ${mimeType ?? 'neither'}',
+    ),
   };
-  if (decoded == null) return null;
   return Rgba8Image(
     width: decoded.width,
     height: decoded.height,

@@ -32,6 +32,7 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_strategy/src/command.dart';
 import 'package:flutter3d_demo_strategy/src/level_document.dart';
+import 'package:flutter3d_demo_strategy/src/map_world.dart';
 import 'package:flutter3d_demo_strategy/src/run.dart';
 import 'package:flutter3d_demo_strategy/src/staging.dart';
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
@@ -69,10 +70,15 @@ const int _cap = 10000;
 /// this. Anything more — sending squads about, picking a fight — would be this
 /// file inventing a player's taste, and the map has to be finishable by the
 /// plainest one there is.
+///
+/// **With the map's world round every step**, as the screen plays it: the
+/// stream and the pond that slow whoever wades them, the fires that hurt
+/// whoever stands near them. See `map_world.dart`.
 int _play(Match match, CommandPost command) {
   for (var step = 0; step < _cap; step++) {
     if (match.standing.isOver) return step;
     command.restock();
+    // The map's world steps inside the match's step: see `mapWorldOf`.
     match.step(strategyStep);
   }
   return _cap;
@@ -83,8 +89,10 @@ void main() {
     final StrategyMap map = _map();
     final StrategyStart start = openMatch(map);
     final command = CommandPost(simulation: start.simulation, side: viewerSide);
+    final world = mapWorldOf(start.simulation);
 
     final int steps = _play(start.match, command);
+    world.dispose();
 
     expect(
       steps,
@@ -137,7 +145,7 @@ void main() {
     // queue, or the producer behind it — and the crowd stays exactly the size
     // it opened at, while everything else here still passes.
     final int mine = start.simulation.units
-        .where((Unit it) => it.side == viewerSide)
+        .where((StrategyUnit it) => it.side == viewerSide)
         .length;
     expect(
       mine,

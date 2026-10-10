@@ -4,7 +4,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TangentsDemo extends ShowcaseDemo {
   late final MeshData _flatMesh;
@@ -37,12 +36,15 @@ final class TangentsDemo extends ShowcaseDemo {
     // #endregion compare
 
     // #region bump
-    final TextureHandle tilt = SolidColorTexture(
-      Vector4(0.78, 0.5, 0.86, 1.0),
+    // A normal, not a colour: its texels are written as they are.
+    final TextureHandle tilt = const SolidColorTexture.texel(
+      0.78,
+      0.5,
+      0.86,
     ).upload(context.device);
-    Material bumpMaterial(String name) => Material(
+    RenderMaterial bumpMaterial(String name) => RenderMaterial(
       name: name,
-      baseColor: Vector4(0.6, 0.64, 0.7, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.64, 0.7, 1.0),
       metallic: 0.85,
       roughness: 0.2,
       normal: tilt,
@@ -50,8 +52,8 @@ final class TangentsDemo extends ShowcaseDemo {
     // #endregion bump
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.4, 0.48, 0.64)
-      ..ambientIntensity = 0.14
+      ..ambientColor = LinearColor(0.4, 0.48, 0.64)
+      ..ambientIntensity = 0.14 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _flatMesh),
@@ -67,7 +69,7 @@ final class TangentsDemo extends ShowcaseDemo {
         )..setPosition(1.3, 1.0, 0.0),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.4)
+        LightNode(name: 'key', intensity: 3.4 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
     return scene;

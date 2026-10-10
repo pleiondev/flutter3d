@@ -84,3 +84,8 @@ site/CLAUDE.md
 # depth. The modeler's sit under `test/goldens/screens/<tutorial>/`, which the
 # narrower pattern walked straight past.
 **/failures/
+
+# The source articles behind the physics presets: 46 PDFs at 191 MB, each
+# cited with its URL in `docs/articles/README.md`, so the checkout carries the
+# citations and not the papers.
+docs/articles/*.pdf

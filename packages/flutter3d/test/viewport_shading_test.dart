@@ -21,7 +21,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -29,7 +28,7 @@ const int _size = 64;
 /// surface for the normals and the curvature.
 Future<({List<int> pixels, FrameResult result})> _frame(
   ViewportShadingSettings shading, {
-  Set<String> disabled = const <String>{},
+  Set<RenderStep> off = const <RenderStep>{},
 }) async {
   final device = CpuDevice(
     width: _size,
@@ -41,11 +40,14 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.7).build()),
-        Material(name: 'ball', baseColor: Vector4(0.8, 0.2, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'ball',
+          baseColor: LinearColor.fromSrgb(0.8, 0.2, 0.2, 1.0),
+        ),
       ),
     )
     ..add(
-      LightNode(intensity: 5.0)
+      LightNode(intensity: 5.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -58,28 +60,27 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
       viewportShading: shading,
-      disabledPasses: disabled,
       // Off, so what the mode produces is what comes out: a glow taken from a
       // normals view would be a halo around a colour that is not light.
       bloom: const BloomSettings(enabled: false),
-    ),
+    ).without(off),
   );
-  final bytes = await device.readPixels(result.frame);
+  final bytes = await device.readback(result.frame);
   return (
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
     result: result,
   );
 }
 
 /// The channels of the pixel at the frame's centre, which is on the ball.
-List<int> _centre(List<int> pixels) {
+List<int> _center(List<int> pixels) {
   const at = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
   return <int>[pixels[at], pixels[at + 1], pixels[at + 2]];
 }
@@ -97,7 +98,7 @@ void main() {
     });
 
     test(
-      'a mode switched off by name leaves the frame it always drew',
+      'a mode switched off as a step leaves the frame it always drew',
       () async {
         // **The claim that replaces the material swap.** With the traversal
         // approach this could not be checked at all: the subject *had* been
@@ -106,7 +107,7 @@ void main() {
         final plain = await _frame(const ViewportShadingSettings());
         final shaded = await _frame(
           const ViewportShadingSettings(mode: ViewportShading.normals),
-          disabled: const <String>{'viewport shading'},
+          off: const <RenderStep>{RenderStep.viewportShading},
         );
 
         expect(shaded.pixels, plain.pixels);
@@ -152,12 +153,12 @@ void main() {
         final shaded = await _frame(
           const ViewportShadingSettings(mode: ViewportShading.normals),
         );
-        final centre = _centre(shaded.pixels);
+        final center = _center(shaded.pixels);
 
-        expect(centre[2], greaterThan(centre[0]));
-        expect(centre[2], greaterThan(centre[1]));
+        expect(center[2], greaterThan(center[0]));
+        expect(center[2], greaterThan(center[1]));
         expect(
-          centre[2],
+          center[2],
           greaterThan(180),
           reason: 'the blue channel carries a normal pointing at the camera',
         );
@@ -169,11 +170,11 @@ void main() {
       final shaded = await _frame(
         const ViewportShadingSettings(mode: ViewportShading.clay),
       );
-      final centre = _centre(shaded.pixels);
+      final center = _center(shaded.pixels);
 
-      expect((centre[0] - centre[1]).abs(), lessThan(3));
-      expect((centre[1] - centre[2]).abs(), lessThan(3));
-      expect(centre[0], greaterThan(0), reason: 'and it is lit, not black');
+      expect((center[0] - center[1]).abs(), lessThan(3));
+      expect((center[1] - center[2]).abs(), lessThan(3));
+      expect(center[0], greaterThan(0), reason: 'and it is lit, not black');
     });
 
     test('the ambient floor decides how dark the far side goes', () async {
@@ -206,8 +207,8 @@ void main() {
       );
 
       expect(
-        _centre(outlined.pixels),
-        _centre(plain.pixels),
+        _center(outlined.pixels),
+        _center(plain.pixels),
         reason: 'the middle of a smooth face is not an edge',
       );
 
@@ -240,7 +241,7 @@ void main() {
       // The silhouette still counts — a neighbour with no surface at all is
       // an edge whatever the thresholds say, which is deliberate and is the
       // one thing this test cannot ask to be turned off.
-      expect(_centre(none.pixels), _centre(plain.pixels));
+      expect(_center(none.pixels), _center(plain.pixels));
     });
   });
 
@@ -318,7 +319,7 @@ void main() {
         final renderer = Renderer.create(device: FakeBackend());
         final scene = Scene()
           ..add(
-            LightNode(intensity: 4.0)
+            LightNode(intensity: 4.0 * Photometric.legacyUnit)
               ..setPosition(2.0, 3.0, 4.0)
               ..lookAt(Vector3.zero()),
           )

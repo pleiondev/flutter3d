@@ -5,7 +5,7 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor/src/editor_bar.dart';
 import 'package:flutter3d_editor/src/editor_cubit.dart';
 import 'package:flutter3d_editor/src/light_plan_dialog.dart';

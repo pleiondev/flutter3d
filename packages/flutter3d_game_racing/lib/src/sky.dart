@@ -42,7 +42,7 @@
 /// that stops shadow edges crawling stops holding. What the engine draws is not
 /// a dome; it is the background, evaluated per pixel.
 ///
-/// [colourAt] is still the CPU's copy of that gradient, and still earns its
+/// [colorAt] is still the CPU's copy of that gradient, and still earns its
 /// place twice over: the view's clear colour before the first circuit has
 /// loaded, and the fog colour below — which is the one thing the engine's sky
 /// does *not* do for us.
@@ -62,13 +62,13 @@ import 'sky_presets.dart';
 /// because they are not independent. A morning sun with a noon fog colour is a
 /// picture where the far side of the circuit is lit by a different star, and the
 /// only way to be sure that never happens is for the fog colour never to be
-/// authored at all — it is [horizonFogColour], derived from the same two
+/// authored at all — it is [horizonFogColor], derived from the same two
 /// colours the sky is drawn from.
 final class SkyPreset {
   const SkyPreset({
     required this.name,
-    required this.sunElevationDeg,
-    required this.sunAzimuthDeg,
+    required this.sunElevation,
+    required this.sunAzimuth,
     required this.sunColor,
     required this.sunIntensity,
     required this.zenith,
@@ -88,15 +88,18 @@ final class SkyPreset {
   /// which one it is looking at.
   final String name;
 
-  /// Degrees above the horizon. Zero is sunrise; ninety is directly overhead.
-  final double sunElevationDeg;
+  /// Radians above the horizon. Zero is sunrise; π/2 is directly overhead.
+  final double sunElevation;
 
-  /// Degrees clockwise from north, in the same frame the track is laid out in.
-  final double sunAzimuthDeg;
+  /// Radians clockwise from north, in the same frame the track is laid out in.
+  final double sunAzimuth;
 
   /// The colour and strength of the directional light. The generator derives the
   /// level's one sun from these rather than repeating them.
   final Vector3 sunColor;
+
+  /// The strength is a unitless multiplier on [sunColor], in the pre-1.0 light
+  /// scale [ambientIntensity] is in.
   final double sunIntensity;
 
   /// The sky straight up, at the horizon, and below it.
@@ -114,6 +117,9 @@ final class SkyPreset {
   /// six is a lobe some tens of degrees wide, which is the part of a sunlit sky
   /// a driver actually notices.
   final double glowWide;
+
+  /// The brightness is a unitless multiplier on [sunColor], added to the
+  /// gradient.
   final double glowStrength;
 
   /// Haze per metre, in the units `FogSettings` wants.
@@ -125,11 +131,19 @@ final class SkyPreset {
   /// towards the sun through a kilometre of it is bright and looking away is
   /// not, and a game that misses this has one grey for every direction.
   final double fogBacklitExponent;
+
+  /// The strength is a unitless multiplier: looking straight at the sun, the
+  /// haze is one plus this times as bright.
   final double fogBacklitStrength;
 
   /// What the renderer is told about the light that is not the sun, and how much
   /// light the camera is set for.
+  /// [ambientIntensity] is in the pre-1.0 engine unit (times
+  /// `Photometric.legacyUnit` it is lux); [exposure] is a linear multiplier, as
+  /// `RenderSettings.exposure` takes it.
   final double ambientIntensity;
+
+  /// A linear multiplier on the light.
   final double exposure;
 
   /// How bright the sun's own disc is, or zero for none.
@@ -156,8 +170,8 @@ final class SkyPreset {
   /// Which way the sun is, as seen from the track: a unit vector pointing up at
   /// it.
   Vector3 get directionToSun {
-    final elevation = sunElevationDeg * _degrees;
-    final azimuth = sunAzimuthDeg * _degrees;
+    final elevation = sunElevation;
+    final azimuth = sunAzimuth;
     final flat = math.cos(elevation);
     return Vector3(
       flat * math.sin(azimuth),
@@ -173,7 +187,7 @@ final class SkyPreset {
   /// and is certainly what a linear ramp does not. On top of it sits the wide
   /// lobe around the sun, added rather than mixed, because scattered light is
   /// light arriving and not paint.
-  Vector3 colourAt(Vector3 direction) {
+  Vector3 colorAt(Vector3 direction) {
     final length = direction.length;
     if (length <= 0.0) return Vector3.copy(horizon);
     final y = (direction.y / length).clamp(-1.0, 1.0);
@@ -215,19 +229,19 @@ final class SkyPreset {
   /// The colour distance settles to, level with the horizon and ninety degrees
   /// from the sun.
   ///
-  /// It is [colourAt] of exactly that direction, and that is the point: the far
+  /// It is [colorAt] of exactly that direction, and that is the point: the far
   /// side of the circuit fades into the same colour the sky is, so there is no
   /// band where the ground ends and no way for the two to be authored apart.
   /// The generator writes this into the level's `fogColor` by computing it the
   /// same way, which is why `fogColor` is not a field anybody types.
-  Vector3 get horizonFogColour {
+  Vector3 get horizonFogColor {
     final toSun = directionToSun;
     // Perpendicular to the sun in the ground plane, so the neutral haze is not
     // the sun's own glow. A sun straight overhead has no azimuth worth speaking
     // of, and any horizontal direction will do — hence the fallback.
     var across = Vector3(toSun.z, 0.0, -toSun.x);
     if (across.length2 < 1e-9) across = Vector3(1.0, 0.0, 0.0);
-    return colourAt(across.normalized());
+    return colorAt(across.normalized());
   }
 
   /// The haze colour for a camera looking along [viewDir].
@@ -237,7 +251,7 @@ final class SkyPreset {
   /// is taken, and a car ahead in the distance is a silhouette into the sun and
   /// a shape away from it.
   Vector3 inScatterAlong(Vector3 viewDir) {
-    final base = horizonFogColour;
+    final base = horizonFogColor;
     final length = viewDir.length;
     if (length <= 0.0) return base;
     final toSun = directionToSun;
@@ -264,11 +278,16 @@ final class SkyPreset {
       return value is num ? value.toDouble() : fallbackValue;
     }
 
+    double angle(String degreesKey, double fallbackRadians) {
+      final value = json[degreesKey];
+      return value is num ? value.toDouble() * _degrees : fallbackRadians;
+    }
+
     // **A colour with a word in it used to come out partly black**, because
     // each component that was not a number became nought on its own. The
     // shared reader takes all three or none, which for a preset means the time
     // of day it was falling back to anyway.
-    Vector3 colour(String key, Vector3 fallbackValue) {
+    Vector3 color(String key, Vector3 fallbackValue) {
       final out = Vector3.zero();
       return readVector(json[key], out) ? out : fallbackValue;
     }
@@ -276,13 +295,15 @@ final class SkyPreset {
     final name = json['name'];
     return SkyPreset(
       name: name is String ? name : fallback.name,
-      sunElevationDeg: number('sunElevationDeg', fallback.sunElevationDeg),
-      sunAzimuthDeg: number('sunAzimuthDeg', fallback.sunAzimuthDeg),
-      sunColor: colour('sunColor', fallback.sunColor),
+      // A track file keeps its degrees (`sunElevationDeg`, `sunAzimuthDeg`);
+      // the engine takes radians, converted here at the reader.
+      sunElevation: angle('sunElevationDeg', fallback.sunElevation),
+      sunAzimuth: angle('sunAzimuthDeg', fallback.sunAzimuth),
+      sunColor: color('sunColor', fallback.sunColor),
       sunIntensity: number('sunIntensity', fallback.sunIntensity),
-      zenith: colour('zenith', fallback.zenith),
-      horizon: colour('horizon', fallback.horizon),
-      belowHorizon: colour('belowHorizon', fallback.belowHorizon),
+      zenith: color('zenith', fallback.zenith),
+      horizon: color('horizon', fallback.horizon),
+      belowHorizon: color('belowHorizon', fallback.belowHorizon),
       glowWide: number('glowWide', fallback.glowWide),
       glowStrength: number('glowStrength', fallback.glowStrength),
       fogDensity: number('fogDensity', fallback.fogDensity),

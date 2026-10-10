@@ -30,15 +30,11 @@ _twoBoxes() {
   );
   MeshNode box(String name, double x) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: Vector3.all(3.0)).build()),
-    Material(name: name, lighting: LightingModel.unlit),
+    RenderMaterial(name: name, lighting: LightingModel.unlit),
     name: name,
   )..setPosition(x, 0.0, -6.0);
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.1,
-      far: 100.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 100.0),
   );
   camera.lookAt(Vector3(0.0, 0.0, -1.0));
   final scene = Scene()
@@ -91,7 +87,7 @@ void main() {
     final it = _twoBoxes();
     final near = MeshNode(
       DeviceMesh.upload(it.device, CuboidShape(size: Vector3.all(0.6)).build()),
-      Material(name: 'near', lighting: LightingModel.unlit),
+      RenderMaterial(name: 'near', lighting: LightingModel.unlit),
       name: 'near',
     )..setPosition(-1.23, 0.0, -3.0);
     it.scene.add(near);
@@ -113,7 +109,7 @@ void main() {
     }
     final batch = InstancedMeshNode(
       DeviceMesh.upload(it.device, CuboidShape(size: Vector3.all(3.0)).build()),
-      Material(name: 'batch', lighting: LightingModel.unlit),
+      RenderMaterial(name: 'batch', lighting: LightingModel.unlit),
       capacity: 2,
       name: 'batch',
     );
@@ -159,19 +155,19 @@ void main() {
       pixels: ByteData.sublistView(
         Uint8List.fromList(<int>[255, 255, 255, 255, 255, 255, 255, 0]),
       ),
-    )!;
+    );
     final fence =
         MeshNode(
             DeviceMesh.upload(
               it.device,
               const PlaneShape(width: 3.0, depth: 3.0).build(),
             ),
-            Material(
+            RenderMaterial(
               name: 'fence',
               lighting: LightingModel.unlit,
-              baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+              baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 1.0),
               albedo: holes,
-              albedoSampler: SamplerOptions.nearestClamp,
+              albedoSampler: SamplerDescriptor.nearestClamp,
               alphaMode: MaterialAlphaMode.mask,
               alphaCutoff: 0.5,
             ),
@@ -196,9 +192,9 @@ void main() {
     expect((await solid)?.name, 'fence');
     expect((await hole)?.name, 'left');
 
-    final pixels = (await it.device.readPixels(
+    final pixels = (await it.device.readback(
       result.frame,
-    ))!.buffer.asUint8List();
+    )).buffer.asUint8List();
     int channel(double u, int c) =>
         pixels[((_height ~/ 2) * _width + (u * _width).floor()) * 4 + c];
     // Red against green rather than green against zero: the tone curve pulls
@@ -237,10 +233,10 @@ void main() {
               it.device,
               const PlaneShape(width: 2.0, depth: 5.0).build(),
             ),
-            Material(
+            RenderMaterial(
               name: 'glass',
               lighting: LightingModel.unlit,
-              baseColor: Vector4(1.0, 0.0, 0.0, 0.5),
+              baseColor: LinearColor.fromSrgb(1.0, 0.0, 0.0, 0.5),
               alphaMode: MaterialAlphaMode.blend,
             ),
             name: 'glass',
@@ -268,9 +264,9 @@ void main() {
     // disagreement worth naming: the pane over the box is far brighter in
     // green than the same pane over the background, because the box's white
     // is what is coming through.
-    final pixels = (await it.device.readPixels(
+    final pixels = (await it.device.readback(
       result.frame,
-    ))!.buffer.asUint8List();
+    )).buffer.asUint8List();
     int channel(double u, double v, int c) =>
         pixels[(((v * _height).floor() * _width) + (u * _width).floor()) * 4 +
             c];
@@ -344,9 +340,7 @@ void main() {
       scene: it.scene,
       views: <RenderView>[it.view],
     );
-    final before = (await it.device.readPixels(
-      plain.frame,
-    ))!.buffer.asUint8List();
+    final before = (await it.device.readback(plain.frame)).buffer.asUint8List();
     it.renderer.pickPixel(0.25, 0.5).ignore();
     final picked = it.renderer.render(
       width: _width,
@@ -354,9 +348,7 @@ void main() {
       scene: it.scene,
       views: <RenderView>[it.view],
     );
-    final after = (await it.device.readPixels(
-      picked.frame,
-    ))!.buffer.asUint8List();
+    final after = (await it.device.readback(picked.frame)).buffer.asUint8List();
     expect(after, equals(before));
   });
 }

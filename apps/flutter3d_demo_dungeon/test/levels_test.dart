@@ -16,9 +16,10 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -108,7 +109,7 @@ void main() {
       );
       final layout = LightmapLayout.plan(
         step.level,
-        texelsPerMetre: map.texelsPerMetre,
+        texelsPerMeter: map.texelsPerMeter,
       );
       expect(
         (layout.width, layout.height),
@@ -177,8 +178,8 @@ void main() {
         for (final key in level.entities.where(
           (EntityDef e) => e.type == EntityTypes.key,
         ))
-          if (key.properties['color'] case final String colour)
-            (colour, key.position),
+          if (key.properties['color'] case final String color)
+            (color, key.position),
       ];
 
       var held = <String>{};
@@ -191,8 +192,8 @@ void main() {
           break;
         }
         final within = <String>{
-          for (final (colour, at) in keys)
-            if (_walkable(nav, spawn, at)) colour,
+          for (final (color, at) in keys)
+            if (_walkable(nav, spawn, at)) color,
         };
         if (within.length == held.length) break;
         held = within;
@@ -370,15 +371,15 @@ void main() {
         for (final brush in level.brushes) {
           if (!brush.solid) continue;
           final dx = math.max(
-            (at.x - brush.centre.x).abs() - brush.size.x / 2,
+            (at.x - brush.center.x).abs() - brush.size.x / 2,
             0.0,
           );
           final dy = math.max(
-            (at.y - brush.centre.y).abs() - brush.size.y / 2,
+            (at.y - brush.center.y).abs() - brush.size.y / 2,
             0.0,
           );
           final dz = math.max(
-            (at.z - brush.centre.z).abs() - brush.size.z / 2,
+            (at.z - brush.center.z).abs() - brush.size.z / 2,
             0.0,
           );
           nearest = math.min(nearest, math.sqrt(dx * dx + dy * dy + dz * dz));
@@ -412,9 +413,9 @@ void main() {
         var floor = double.negativeInfinity;
         for (final brush in level.brushes) {
           if (!brush.solid) continue;
-          if ((at.x - brush.centre.x).abs() > brush.size.x / 2) continue;
-          if ((at.z - brush.centre.z).abs() > brush.size.z / 2) continue;
-          final top = brush.centre.y + brush.size.y / 2;
+          if ((at.x - brush.center.x).abs() > brush.size.x / 2) continue;
+          if ((at.z - brush.center.z).abs() > brush.size.z / 2) continue;
+          final top = brush.center.y + brush.size.y / 2;
           if (top > base + 0.05) continue; // a ceiling is not a floor
           floor = math.max(floor, top);
         }
@@ -557,9 +558,9 @@ bool _walkable(Navigation nav, Vector3 from, Vector3 to) =>
 bool _solidAt(Level level, Vector3 point) {
   for (final brush in level.brushes) {
     if (!brush.solid) continue;
-    if ((point.x - brush.centre.x).abs() > brush.size.x / 2) continue;
-    if ((point.y - brush.centre.y).abs() > brush.size.y / 2) continue;
-    if ((point.z - brush.centre.z).abs() > brush.size.z / 2) continue;
+    if ((point.x - brush.center.x).abs() > brush.size.x / 2) continue;
+    if ((point.y - brush.center.y).abs() > brush.size.y / 2) continue;
+    if ((point.z - brush.center.z).abs() > brush.size.z / 2) continue;
     return true;
   }
   return false;

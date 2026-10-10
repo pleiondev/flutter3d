@@ -8,7 +8,7 @@
 library;
 
 import 'package:flutter/material.dart' as m show Material;
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 
 /// The banner, and the button that makes the mesh.

@@ -52,6 +52,10 @@ final class DeviceClass {
   static const List<DeviceClass> values = <DeviceClass>[phone, web, desktop];
 
   /// The class named [text], or null when no class is called that.
+  ///
+  /// **Null is "absent", not an error**: this is a lookup by name, and the
+  /// readers that take a class from a file (the build manifest, the device
+  /// memory) say what to do about an unknown one themselves.
   static DeviceClass? parse(String text) {
     for (final value in values) {
       if (value.name == text) return value;
@@ -101,11 +105,13 @@ final class DeviceTraits {
       DeviceTraits(
         web: web,
         samplesBc:
-            device.supportsTextureFormat(TextureFormat.bc1RGBAUNormInt) ||
-            device.supportsTextureFormat(TextureFormat.bc7RGBAUNormInt),
+            device
+                .textureFormatSupport(TextureFormat.bc1RGBAUNormInt)
+                .sampled ||
+            device.textureFormatSupport(TextureFormat.bc7RGBAUNormInt).sampled,
         samplesMobileBlocks:
-            device.supportsTextureFormat(TextureFormat.astc4x4LDR) ||
-            device.supportsTextureFormat(TextureFormat.etc2RGB8UNormInt),
+            device.textureFormatSupport(TextureFormat.astc4x4LDR).sampled ||
+            device.textureFormatSupport(TextureFormat.etc2RGB8UNormInt).sampled,
       );
 
   /// Whether this is a browser.
@@ -203,7 +209,16 @@ Future<int> measureFrameMicros(
 /// An interface rather than a file, because where an application keeps a
 /// setting is its own business — shared preferences, a save file, a
 /// `localStorage` key — and this package names none of them.
-abstract interface class DeviceClassMemory {
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base class DeviceClassMemory {
+  /// A memory; a subclass says where it keeps the class.
+  const DeviceClassMemory();
+
   /// What [write] last stored, or null when nothing was.
   Future<String?> read();
 
@@ -213,7 +228,7 @@ abstract interface class DeviceClassMemory {
 
 /// A [DeviceClassMemory] that lasts as long as the process — the default, and
 /// what a test uses.
-final class InMemoryDeviceClassMemory implements DeviceClassMemory {
+final class InMemoryDeviceClassMemory extends DeviceClassMemory {
   InMemoryDeviceClassMemory([this._value]);
 
   String? _value;

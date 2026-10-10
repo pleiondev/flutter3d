@@ -3,7 +3,9 @@
 /// `RangeSliderField`, `EnumField`, `TextureSlotRow`, `TexturePathField`,
 /// `ColorSwatchField`, `HintTextBox`/`NumbersRow` and `FieldRow` so far, all
 /// reading `Theme.of(context)` for colour and [EditorWidgetsTheme] for
-/// row-level sizing.
+/// row-level sizing. And the shell an editor's window is made of: panels
+/// docked around a picture (`DockLayout`) and a command palette
+/// (`showCommandPalette`).
 ///
 /// Depends on `flutter` and `flutter3d_formats`, for the `RangeHint`/
 /// `ColorHint`/`TextureHint`/`EnumHint`/`EnumHintValue`/`MaterialHint` a
@@ -14,6 +16,8 @@ library;
 
 export 'src/color_field.dart';
 export 'src/color_swatch_field.dart';
+export 'src/command_palette.dart';
+export 'src/dock_layout.dart';
 export 'src/editor_widgets_theme.dart';
 export 'src/enum_field.dart';
 export 'src/field_row.dart';

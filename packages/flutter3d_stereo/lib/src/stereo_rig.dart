@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'head_pose.dart';
 
@@ -61,11 +60,15 @@ final class StereoRig {
   /// Where the tracker says the head is, relative to [stage].
   final SceneNode head = SceneNode(name: 'head');
 
-  /// The distance between the eyes, in metres. The average adult is around
-  /// 63 mm; a headset states its own and should overwrite this.
+  /// The distance between the eyes, in metres: 0.064 by default. Adults
+  /// average 63 to 64 mm (Dodgson 2004 gives a mean of 63 mm, wider for
+  /// men than women); a headset states its own and should overwrite this.
   final double interpupillaryDistance;
 
+  /// Each eye's near clip plane, in metres from the eye.
   final double near;
+
+  /// Each eye's far clip plane, in metres from the eye.
   final double far;
 
   final CameraNode _left = CameraNode(name: 'eye.left');
@@ -78,7 +81,9 @@ final class StereoRig {
 
   CameraNode camera(Eye eye) => identical(eye, Eye.left) ? _left : _right;
 
-  /// The pair, side by side in one target.
+  /// The pair, side by side in one target: two [RenderView]s kept for the
+  /// rig's life, so each eye keeps its own last frame for the reprojection
+  /// (the history is per view since 1.0, not per camera).
   ///
   /// Left in the left half, right in the right, which is the arrangement a
   /// projection layer expects and the one a phone in a holder needs.
@@ -92,6 +97,14 @@ final class StereoRig {
       viewportFraction: const ViewportRect(0.5, 0.0, 0.5, 1.0),
     ),
   ];
+
+  /// Gives back what the two views own — the history each renderer kept
+  /// for each eye (item 26: a view is an object, and each eye is one).
+  void dispose() {
+    for (final view in views) {
+      view.dispose();
+    }
+  }
 
   void _placeEyes() {
     final half = interpupillaryDistance / 2.0;
@@ -134,12 +147,12 @@ final class StereoRig {
   void fitToViewport({
     required int width,
     required int height,
-    double verticalFieldOfView = 1.0,
+    double fovY = 1.0,
   }) {
     if (_projectionsAreGiven) return;
     final aspect = height <= 0 ? 1.0 : (width / 2) / height;
     final projection = OffAxisProjection.symmetric(
-      fovYRadians: verticalFieldOfView,
+      fovY: fovY,
       aspect: aspect,
       near: near,
       far: far,
@@ -169,7 +182,7 @@ final class StereoRig {
     return result;
   }
 
-  /// The angle each eye sees vertically, for anything sizing against the frame.
-  double get verticalFieldOfView =>
-      _left.projection.verticalFieldOfView ?? math.pi / 4;
+  /// The angle each eye sees vertically, in radians, for anything sizing
+  /// against the frame.
+  double get fovY => _left.projection.verticalFieldOfView ?? math.pi / 4;
 }

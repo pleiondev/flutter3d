@@ -17,7 +17,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -33,9 +32,9 @@ Future<ByteData> _frame(RenderSettings settings) async {
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.4).build()),
-        Material(
+        RenderMaterial(
           name: 'hot',
-          baseColor: Vector4(8.0, 8.0, 8.0, 1.0),
+          baseColor: LinearColor.fromSrgb(8.0, 8.0, 8.0, 1.0),
           lighting: LightingModel.unlit,
         ),
       ),
@@ -49,21 +48,18 @@ Future<ByteData> _frame(RenderSettings settings) async {
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,
   );
-  return (await device.readPixels(frame.frame))!;
+  return device.readback(frame.frame);
 }
 
-/// The same frame with and without one named pass.
-Future<PassContribution> _contributionOf(String pass) async {
+/// The same frame with and without one step.
+Future<PassContribution> _contributionOf(RenderStep step) async {
   const with_ = RenderSettings(bloom: BloomSettings(intensity: 0.8));
-  final without = RenderSettings(
-    bloom: const BloomSettings(intensity: 0.8),
-    disabledPasses: <String>{pass},
-  );
+  final without = with_.without(<RenderStep>{step});
   return contributionBetween(
     await _frame(without),
     await _frame(with_),
@@ -76,7 +72,7 @@ void main() {
   test('a pass that ran shows up as a measurable difference', () async {
     // One settings value produces both frames, which is what makes this a
     // contribution rather than two renders somebody hopes are comparable.
-    final bloom = await _contributionOf('bloom');
+    final bloom = await _contributionOf(RenderStep.bloom);
 
     expect(bloom.isIdentical, isFalse);
     expect(bloom.changedPixels, greaterThan(0));
@@ -93,7 +89,7 @@ void main() {
       // A pass that moves every pixel by one is a rounding; a pass that moves
       // forty pixels to black is a hole in the picture. Neither number can tell
       // those apart on its own, which is why the type carries both.
-      final bloom = await _contributionOf('bloom');
+      final bloom = await _contributionOf(RenderStep.bloom);
       expect(bloom.changedFraction, greaterThan(0.0));
       expect(bloom.changedFraction, lessThanOrEqualTo(1.0));
       expect(
@@ -110,7 +106,7 @@ void main() {
     // A glow around a ball in the middle should not reach the frame's edge.
     // This is the shape of the check that catches an effect wrapping or
     // bleeding somewhere it was never meant to be.
-    final bloom = await _contributionOf('bloom');
+    final bloom = await _contributionOf(RenderStep.bloom);
     final bounds = bloom.bounds!;
 
     expect(bounds.left, lessThan(bounds.right));
@@ -125,11 +121,11 @@ void main() {
   });
 
   test('a pass with nothing to do contributes exactly nothing', () async {
-    // Ambient occlusion is off in these settings, so disabling it by name
+    // Ambient occlusion is off in these settings, so switching its step off
     // cannot change a pixel — and the difference has to be exactly zero
     // rather than nearly so, or the measure has noise in it and every number
     // above is suspect.
-    final ao = await _contributionOf('ssao');
+    final ao = await _contributionOf(RenderStep.ambientOcclusion);
     expect(ao.isIdentical, isTrue);
     expect(ao.bounds, isNull);
     expect(ao.meanChannelDelta, 0.0);

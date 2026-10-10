@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -60,7 +61,11 @@ final class GroundSample {
 /// drivable on a test fixture that is one flat plane, and later on whatever a
 /// second kind of track turns out to be. The alternative — a car that reaches
 /// into a [TrackSpline] directly — makes every vehicle test build a circuit.
-abstract interface class GroundField {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class GroundField {
   /// Finds the ground under [position], searching near [nearHint] metres along
   /// the track.
   ///
@@ -117,17 +122,19 @@ final class TrackField implements GroundField {
 
   /// How far above the car the off-track ray starts, so that a car resting on
   /// the ground still has ground beneath the ray's origin.
+  /// In metres.
   final double probeAbove;
 
   /// How far down the off-track ray reaches before giving up and calling it a
   /// fall.
+  /// In metres.
   final double probeBelow;
 
   final int offTrackMask;
 
   @override
   bool sample(Vector3 position, double nearHint, GroundSample out) {
-    final s = track.centre.closestS(
+    final s = track.center.closestS(
       position,
       nearS: nearHint,
       window: searchWindow,

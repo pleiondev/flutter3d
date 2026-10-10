@@ -1,7 +1,7 @@
 /// The engine's shaders, written in Dart.
 ///
 /// **Every one of them, and the count is checked rather than written down
-/// here.** `kRequiredShaders` in `flutter3d_shaders` is the list — the mesh
+/// here.** `requiredShaders` in `flutter3d_shaders` is the list — the mesh
 /// vertex stages, the lighting models and the flat one the x-ray stage draws
 /// with, the shadow passes and the atlas tile reset, the bloom chain, the
 /// composite, reflections, occlusion, the sky, the probe pair, object id,
@@ -51,13 +51,17 @@ import 'cpu_shaders_bloom.dart';
 import 'cpu_shaders_compute.dart';
 import 'cpu_shaders_contact_shadow.dart';
 import 'cpu_shaders_debug.dart';
+import 'cpu_shaders_decal.dart';
 import 'cpu_shaders_evsm.dart';
+import 'cpu_shaders_high_contrast.dart';
 import 'cpu_shaders_impostor.dart';
 import 'cpu_shaders_irradiance.dart';
+import 'cpu_shaders_lens.dart';
 import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_motion_blur.dart';
 import 'cpu_shaders_particles.dart';
+import 'cpu_shaders_planar.dart';
 import 'cpu_shaders_polyline.dart';
 import 'cpu_shaders_post.dart';
 import 'cpu_shaders_probe.dart';
@@ -65,6 +69,7 @@ import 'cpu_shaders_reactive.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
+import 'cpu_shaders_smaa.dart';
 import 'cpu_shaders_ssao.dart';
 import 'cpu_shaders_temporal.dart';
 import 'cpu_shaders_velocity.dart';
@@ -75,13 +80,17 @@ export 'cpu_shaders_bloom.dart';
 export 'cpu_shaders_color.dart';
 export 'cpu_shaders_contact_shadow.dart';
 export 'cpu_shaders_debug.dart';
+export 'cpu_shaders_decal.dart';
+export 'cpu_shaders_high_contrast.dart';
 export 'cpu_shaders_irradiance.dart';
 export 'cpu_shaders_layout.dart';
+export 'cpu_shaders_lens.dart';
 export 'cpu_shaders_lighting.dart';
 export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
 export 'cpu_shaders_motion_blur.dart';
 export 'cpu_shaders_particles.dart';
+export 'cpu_shaders_planar.dart';
 export 'cpu_shaders_post.dart';
 export 'cpu_shaders_probe.dart';
 export 'cpu_shaders_reactive.dart';
@@ -90,6 +99,7 @@ export 'cpu_shaders_shadow_directional.dart';
 export 'cpu_shaders_shadow_passes.dart';
 export 'cpu_shaders_shadow_point.dart';
 export 'cpu_shaders_sky.dart';
+export 'cpu_shaders_smaa.dart';
 export 'cpu_shaders_ssao.dart';
 export 'cpu_shaders_surface.dart';
 export 'cpu_shaders_temporal.dart';
@@ -104,25 +114,33 @@ export 'cpu_shaders_volumetric_fog.dart';
 /// them at `Renderer.create` and throws on the first missing one, so a backend
 /// with gaps cannot start at all. Answering with something that draws would be
 /// worse than answering with something that says no.
-final class _Unimplemented implements CpuVertexShader, CpuFragmentShader {
-  const _Unimplemented(this.name);
+final class _UnimplementedVertex extends CpuVertexShader {
+  const _UnimplementedVertex(this.name);
   final String name;
 
   @override
   int get varyingCount => 0;
 
   @override
-  Vector4 run(
-    Float32List a,
-    ShaderBindings b, [
-    Object? out,
-    Object? context,
-  ]) => throw UnsupportedError(
-    '$name is not written in Dart. This backend answers to every name the '
-    'engine asks for so that it can start, and refuses the ones it cannot '
-    'draw rather than drawing something else.',
-  );
+  Vector4 run(Float32List a, ShaderBindings b, Float32List out) =>
+      throw _refusal(name);
 }
+
+/// The fragment half of [_UnimplementedVertex].
+final class _UnimplementedFragment extends CpuFragmentShader {
+  const _UnimplementedFragment(this.name);
+  final String name;
+
+  @override
+  Vector4? run(Float32List a, ShaderBindings b, FragmentContext context) =>
+      throw _refusal(name);
+}
+
+UnsupportedError _refusal(String name) => UnsupportedError(
+  '$name is not written in Dart. This backend answers to every name the '
+  'engine asks for so that it can start, and refuses the ones it cannot '
+  'draw rather than drawing something else.',
+);
 
 /// The stages that are not written in Dart, by name.
 ///
@@ -143,11 +161,24 @@ Map<String, CpuStage> builtinCpuShaders() {
     'FullscreenVertex': const CpuStage.vertex(FullscreenVertexShader()),
     'Unlit': const CpuStage.fragment(UnlitShader()),
     'Xray': const CpuStage.fragment(XrayShader()),
+    'PlanarReflection': const CpuStage.fragment(PlanarReflectionShader()),
     'Lambert': const CpuStage.fragment(LambertShader()),
     'BlinnPhong': const CpuStage.fragment(BlinnPhongShader()),
     'Pbr': const CpuStage.fragment(PbrShader()),
     'PbrLayered': const CpuStage.fragment(PbrShader.layered()),
     'Toon': const CpuStage.fragment(ToonShader()),
+    // `A1.2`: the lit models' opaque variants, which leave the alpha cut to
+    // the depth pre-draw. The same transcriptions: a fragment this rasteriser
+    // reaches through one has already passed that pre-draw's `equal` test,
+    // so the cut it still makes throws away nothing the variant would have
+    // drawn, and there is no early depth here for a `discard` to cost.
+    'UnlitOpaque': const CpuStage.fragment(UnlitShader()),
+    'LambertOpaque': const CpuStage.fragment(LambertShader()),
+    'BlinnPhongOpaque': const CpuStage.fragment(BlinnPhongShader()),
+    'PbrOpaque': const CpuStage.fragment(PbrShader()),
+    'PbrLayeredOpaque': const CpuStage.fragment(PbrShader.layered()),
+    'ToonOpaque': const CpuStage.fragment(ToonShader()),
+    'DepthPredraw': const CpuStage.fragment(DepthPredrawShader()),
     'Normals': const CpuStage.fragment(NormalsShader()),
     'ObjectId': const CpuStage.fragment(ObjectIdShader()),
     'Luminance': const CpuStage.fragment(LuminanceShader()),
@@ -222,22 +253,34 @@ Map<String, CpuStage> builtinCpuShaders() {
     'VelocityNeighborMax': const CpuStage.fragment(VelocityNeighborMaxShader()),
     'MotionBlur': const CpuStage.fragment(MotionBlurShader()),
     'ViewportShade': const CpuStage.fragment(ViewportShadeShader()),
+    'OutlineMask': const CpuStage.fragment(OutlineMaskShader()),
+    'HighContrast': const CpuStage.fragment(HighContrastShader()),
+    'Decal': const CpuStage.fragment(DecalShader()),
     'ShadowDepthMasked': const CpuStage.fragment(ShadowDepthMaskedShader()),
     'ShadowDistanceMasked': const CpuStage.fragment(
       ShadowDistanceMaskedShader(),
     ),
     'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
+    'RenderTextureEncode': const CpuStage.fragment(RenderTextureEncodeShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'WboitResolve': const CpuStage.fragment(WboitResolveShader()),
     'SceneColourCopy': const CpuStage.fragment(SceneColourCopyShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'Easu': const CpuStage.fragment(EasuShader()),
     'Fxaa': const CpuStage.fragment(FxaaShader()),
+    'SmaaEdges': const CpuStage.fragment(SmaaEdgesShader()),
+    'SmaaWeights': const CpuStage.fragment(SmaaWeightsShader()),
+    'SmaaBlend': const CpuStage.fragment(SmaaBlendShader()),
+    'LensFlare': const CpuStage.fragment(LensFlareShader()),
     'LocalExposure': const CpuStage.fragment(LocalExposureShader()),
     'LocalExposureBlur': const CpuStage.fragment(LocalExposureBlurShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowCopy': const CpuStage.fragment(ShadowCopyShader()),
+    'ShadowTransmittance': const CpuStage.fragment(ShadowTransmittanceShader()),
+    'CausticSurface': const CpuStage.fragment(CausticSurfaceShader()),
+    'CausticPhotonVertex': const CpuStage.vertex(CausticPhotonVertexShader()),
+    'CausticPhoton': const CpuStage.fragment(CausticPhotonShader()),
     'EvsmFilter': const CpuStage.fragment(EvsmFilterShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
     'ShadowTileResetVertex': const CpuStage.vertex(
@@ -247,13 +290,17 @@ Map<String, CpuStage> builtinCpuShaders() {
     'SkyCubeVertex': const CpuStage.vertex(SkyCubeVertexShader()),
     'Sky': const CpuStage.fragment(SkyShader()),
     'SkyCube': const CpuStage.fragment(SkyCubeShader()),
+    // `P5`. The same pass-through vertex stage as the gradient's: see
+    // [SkyPhysicalShader] for why one class answers to both names.
+    'SkyPhysicalVertex': const CpuStage.vertex(SkyVertexShader()),
+    'SkyPhysical': const CpuStage.fragment(SkyPhysicalShader()),
   };
 
   for (final name in kUnimplementedCpuVertexShaders) {
-    stages[name] = CpuStage.vertex(_Unimplemented(name));
+    stages[name] = CpuStage.vertex(_UnimplementedVertex(name));
   }
   for (final name in kUnimplementedCpuFragmentShaders) {
-    stages[name] = CpuStage.fragment(_Unimplemented(name));
+    stages[name] = CpuStage.fragment(_UnimplementedFragment(name));
   }
   return stages;
 }

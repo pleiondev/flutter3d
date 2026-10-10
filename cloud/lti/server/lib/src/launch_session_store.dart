@@ -1,4 +1,4 @@
-import 'package:flutter3d_lti/flutter3d_lti.dart';
+import 'package:flutter3d_education/lti.dart';
 
 /// A launch this service has verified, kept long enough for the lesson
 /// viewer to load and — once `lti-04` wires it up — to report a `check`

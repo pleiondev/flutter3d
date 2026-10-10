@@ -39,9 +39,9 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
   final formats = <TextureFormat>[
     TextureFormat.r16g16b16a16Float,
     TextureFormat.r32g32b32a32Float,
-  ].where(device.supportsTextureFormat).toList();
+  ].where((TextureFormat f) => device.textureFormatSupport(f).sampled).toList();
   if (formats.isEmpty) {
-    throw const ConformanceDeclined(
+    throw const ConformanceDeclinedException(
       'this device supports neither float format as a render target, so a '
       'field has nowhere to live here',
     );
@@ -55,7 +55,11 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
 
   for (final format in formats) {
-    final spec = RenderTargetSpec(width: _size, height: _size, format: format);
+    final spec = RenderTargetDescriptor(
+      width: _size,
+      height: _size,
+      format: format,
+    );
     var current = device.createTexture(spec);
     var next = device.createTexture(spec);
 
@@ -89,7 +93,7 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
           kernel,
           'field_texture',
           current,
-          sampler: SamplerOptions.nearestClamp,
+          sampler: SamplerDescriptor.nearestClamp,
         )
         ..bindUniformBlock(kernel, 'FieldDecayInfo', <String, Float32List>{
           'params': Float32List.fromList(<double>[0.5, 0.1, 0.0, 0.0]),
@@ -105,7 +109,7 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
 
     // Read back through a vertex stage, into a target anything can read.
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: _size,
         height: _size,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -131,7 +135,7 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
         probeVertex,
         'probe_texture',
         current,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       )
       ..bindVertexData(
         ByteData.sublistView(
@@ -147,9 +151,8 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
       ..draw()
       ..submit();
 
-    final read = await device.readPixels(target);
-    require(read != null, 'the probe target could not be read back');
-    final red = read!.getUint8(0);
+    final read = await device.readback(target);
+    final red = read.getUint8(0);
     require(
       (red - 108).abs() <= 2,
       'three steps of the decay kernel in $format read back $red where 108 '

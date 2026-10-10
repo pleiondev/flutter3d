@@ -11,6 +11,10 @@
     "type": "fragment",
     "file": "shaders/lighting/xray.frag"
   },
+  "PlanarReflection": {
+    "type": "fragment",
+    "file": "shaders/lighting/planar_reflection.frag"
+  },
   "Lambert": {
     "type": "fragment",
     "file": "shaders/lighting/lambert.frag"
@@ -30,6 +34,34 @@
   "Toon": {
     "type": "fragment",
     "file": "shaders/lighting/toon.frag"
+  },
+  "UnlitOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/unlit_opaque.frag"
+  },
+  "LambertOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/lambert_opaque.frag"
+  },
+  "BlinnPhongOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/blinn_phong_opaque.frag"
+  },
+  "PbrOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/pbr_opaque.frag"
+  },
+  "PbrLayeredOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/pbr_layered_opaque.frag"
+  },
+  "ToonOpaque": {
+    "type": "fragment",
+    "file": "shaders/lighting/toon_opaque.frag"
+  },
+  "DepthPredraw": {
+    "type": "fragment",
+    "file": "shaders/lighting/depth_predraw.frag"
   },
   "Normals": {
     "type": "fragment",
@@ -78,6 +110,22 @@
   "Fxaa": {
     "type": "fragment",
     "file": "shaders/post/fxaa.frag"
+  },
+  "SmaaEdges": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_edges.frag"
+  },
+  "SmaaWeights": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_weights.frag"
+  },
+  "SmaaBlend": {
+    "type": "fragment",
+    "file": "shaders/post/smaa_blend.frag"
+  },
+  "LensFlare": {
+    "type": "fragment",
+    "file": "shaders/post/lens_flare.frag"
   },
   "MrtProbe": {
     "type": "fragment",
@@ -239,9 +287,25 @@
     "type": "fragment",
     "file": "shaders/post/viewport_shade.frag"
   },
+  "OutlineMask": {
+    "type": "fragment",
+    "file": "shaders/post/outline_mask.frag"
+  },
+  "HighContrast": {
+    "type": "fragment",
+    "file": "shaders/post/high_contrast.frag"
+  },
+  "Decal": {
+    "type": "fragment",
+    "file": "shaders/post/decal.frag"
+  },
   "ProbePrefilter": {
     "type": "fragment",
     "file": "shaders/post/probe_prefilter.frag"
+  },
+  "RenderTextureEncode": {
+    "type": "fragment",
+    "file": "shaders/post/render_texture_encode.frag"
   },
   "ShadowDistance": {
     "type": "fragment",
@@ -254,6 +318,22 @@
   "ShadowDistanceMasked": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance_masked.frag"
+  },
+  "CausticSurface": {
+    "type": "fragment",
+    "file": "shaders/lighting/caustic_surface.frag"
+  },
+  "CausticPhotonVertex": {
+    "type": "vertex",
+    "file": "shaders/lighting/caustic_photon.vert"
+  },
+  "CausticPhoton": {
+    "type": "fragment",
+    "file": "shaders/lighting/caustic_photon.frag"
+  },
+  "ShadowTransmittance": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_transmittance.frag"
   },
   "ShadowCopy": {
     "type": "fragment",
@@ -286,6 +366,14 @@
   "SkyCube": {
     "type": "fragment",
     "file": "shaders/sky_cube.frag"
+  },
+  "SkyPhysicalVertex": {
+    "type": "vertex",
+    "file": "shaders/sky_physical.vert"
+  },
+  "SkyPhysical": {
+    "type": "fragment",
+    "file": "shaders/sky_physical.frag"
   },
   "Luminance": {
     "type": "fragment",

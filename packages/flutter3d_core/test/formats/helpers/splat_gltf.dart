@@ -168,6 +168,6 @@ Uint8List splatGlb({
   return GlbContainer.encode(json, binary: bin);
 }
 
-/// The zeroth-band coefficient that decodes to [colour], the inverse of
+/// The zeroth-band coefficient that decodes to [color], the inverse of
 /// `splatChannel`.
-double coefficientFor(double colour) => (colour - 0.5) / kSplatShC0;
+double coefficientFor(double color) => (color - 0.5) / splatShC0;

@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ProceduralShapesDemo extends ShowcaseDemo {
   final List<MeshNode> _shapes = <MeshNode>[];
@@ -42,14 +41,14 @@ final class ProceduralShapesDemo extends ShowcaseDemo {
 
     // #region build
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.55, 0.62, 0.78)
-      ..ambientIntensity = 0.16;
+      ..ambientColor = LinearColor(0.55, 0.62, 0.78)
+      ..ambientIntensity = 0.16 * Photometric.legacyUnit;
     for (var i = 0; i < descriptions.length; i++) {
       final (String name, Shape shape) = descriptions[i];
       final MeshData data = shape.build();
-      final Material material = Material(
+      final RenderMaterial material = RenderMaterial(
         name: '$name material',
-        baseColor: Vector4(
+        baseColor: LinearColor.fromSrgb(
           0.28 + i * 0.12,
           0.68 - i * 0.07,
           0.82 - i * 0.1,
@@ -72,13 +71,13 @@ final class ProceduralShapesDemo extends ShowcaseDemo {
     // #region lighting
     scene
       ..add(
-        LightNode(name: 'key', intensity: 3.4)
+        LightNode(name: 'key', intensity: 3.4 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.45, -0.8, -0.38)),
       )
       ..add(
         LightNode(
           type: LightType.point,
-          intensity: 10.0,
+          intensity: 10.0 * Photometric.legacyUnit,
           range: 12.0,
           name: 'fill',
         )..setPosition(-3.0, 3.5, 3.0),

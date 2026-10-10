@@ -1,6 +1,6 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
-version: 0.8.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -17,6 +17,7 @@ resolution: workspace
 # `flutter3d_hardware`, not understanding the renderer.
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
 
 # Declared rather than left to pub.dev's detector, because the answer is a
 # design fact: Flutter GPU is Metal and Vulkan, so this backend runs on every
@@ -37,7 +38,10 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^1.0.0-rc.1
+
+  # `ResourceException`, which `ShaderBundleBuildException` extends.
+  flutter3d_foundation: ^1.0.0-rc.1
 
   # Named directly because the HAL's own signatures do: a clear value and a
   # blend constant are `Vector4`, and an implementation of `PassEncoder` cannot
@@ -51,7 +55,7 @@ dependencies:
   # `package_config.json`, so an external consumer's own `dart pub get`
   # puts `flutter3d_shaders` where the hook can find it too.
   hooks: ^2.0.0
-  flutter3d_shaders: ^0.8.1
+  flutter3d_shaders: ^1.0.0-rc.1
 
   # `@visibleForTesting` on `flutterSdkRootFrom`, the one seam a test can
   # hand a Windows-shaped path to without running on Windows to get one.

@@ -2,7 +2,7 @@
 ///
 /// The hazard this exists for: a wrong mapping compiles, runs, and renders
 /// wrong only for the values a scene happens to use. The goldens cover the
-/// values the seventy-eight scenes exercise and nothing else — `BlendFactor` has
+/// values the 96 scenes exercise and nothing else — `BlendFactor` has
 /// fifteen members and the engine draws with two of them — so a mistake in the
 /// other thirteen would be found by a user rather than by us.
 ///
@@ -18,14 +18,17 @@
 ///     other direction: flutter_gpu gaining a value we have not mirrored.
 ///  3. **The round trip is identity**, wherever a reverse mapping exists.
 ///
-/// It runs off-device. The enums are const and flutter_gpu's `SamplerOptions`
+/// It runs off-device. The enums are const and flutter_gpu's `SamplerDescriptor`
 /// is a plain Dart object, so nothing here needs a GPU context — the same
 /// property `render_target_spec_test.dart` and `composite_mix_test.dart` rely
 /// on.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_impeller/src/gpu_formats.dart';
+import 'package:flutter3d_impeller/src/gpu_texture.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,7 +37,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// [toGpu] is passed as a function rather than looked up, because the mapping
 /// under test is the thing being pinned and reaching it through anything
 /// clever would let the test agree with a bug.
-void checkForward<E extends Enum, G extends Enum>(
+void checkForward<E extends Object, G extends Enum>(
   String name,
   List<E> ours,
   List<G> theirs,
@@ -50,15 +53,15 @@ void checkForward<E extends Enum, G extends Enum>(
             'engine has ${ours.length}. Adding or dropping one silently is '
             'how the two stop meaning the same thing.',
       );
-      expect(ours.map((e) => e.name), theirs.map((e) => e.name));
+      expect(ours.map(_nameOf), theirs.map((e) => e.name));
     });
 
     test('every value maps to the flutter_gpu value of the same name', () {
       for (final value in ours) {
         expect(
           toGpu(value).name,
-          value.name,
-          reason: '$name.${value.name} maps to ${toGpu(value).name}',
+          _nameOf(value),
+          reason: '$name.${_nameOf(value)} maps to ${toGpu(value).name}',
         );
       }
     });
@@ -71,7 +74,7 @@ void checkForward<E extends Enum, G extends Enum>(
           seen[mapped],
           isNull,
           reason:
-              '$name.${value.name} and $name.${seen[mapped]?.name} both '
+              '$name.${_nameOf(value)} and $name.${_nameOf(seen[mapped])} both '
               'map to ${mapped.name}',
         );
         seen[mapped] = value;
@@ -81,7 +84,7 @@ void checkForward<E extends Enum, G extends Enum>(
 }
 
 /// Checks that a value survives a trip through flutter_gpu and back.
-void checkRoundTrip<E extends Enum, G extends Enum>(
+void checkRoundTrip<E extends Object, G extends Enum>(
   String name,
   List<E> ours,
   List<G> theirs,
@@ -103,6 +106,21 @@ void checkRoundTrip<E extends Enum, G extends Enum>(
   });
 }
 
+/// The values flutter_gpu has, in declaration order — every value but the
+/// `extended*` tails, which `flutter3d_hardware` names so this need not.
+final List<TextureFormat> mirroredFormats = <TextureFormat>[
+  for (final format in TextureFormat.values)
+    if (format.isMirrored) format,
+];
+final List<BlendFactor> mirroredFactors = <BlendFactor>[
+  for (final factor in BlendFactor.values)
+    if (!factor.isDualSource) factor,
+];
+final List<BlendOperation> mirroredOperations = <BlendOperation>[
+  for (final operation in BlendOperation.values)
+    if (!extendedBlendOperations.contains(operation)) operation,
+];
+
 void main() {
   // -- Resource description --------------------------------------------------
 
@@ -123,19 +141,96 @@ void main() {
   // The one type whose *name* differs from flutter_gpu's, because `dart:ui`
   // already exports a `PixelFormat`. The value names are identical, which is
   // what keeps the check below meaningful.
+  //
+  // Over the mirrored values only: `extendedTextureFormats` is the tail
+  // flutter_gpu does not have, and the group after this one holds that each
+  // of those is refused by name instead.
   checkForward(
     'TextureFormat',
-    TextureFormat.values,
+    mirroredFormats,
     gpu.PixelFormat.values,
     (v) => v.toGpu(),
   );
   checkRoundTrip(
     'TextureFormat',
-    TextureFormat.values,
+    mirroredFormats,
     gpu.PixelFormat.values,
     (v) => v.toGpu(),
     (v) => v.toEngine(),
   );
+
+  group('the values flutter_gpu does not have', () {
+    test('every extended TextureFormat is refused by name', () {
+      // Mutation: map an extended format onto the nearest PixelFormat (say
+      // r16Float onto r16g16b16a16Float). It compiles, allocates, and every
+      // texel lands in the wrong place; only this asks.
+      for (final format in extendedTextureFormats) {
+        expect(
+          () => format.toGpu(),
+          throwsA(
+            isA<UnsupportedError>().having(
+              (e) => e.message,
+              'message',
+              contains('TextureFormat.${format.name}'),
+            ),
+          ),
+          reason: format.name,
+        );
+      }
+    });
+
+    test('every extended BlendFactor is refused as dual-source blending', () {
+      // Mutation: map source1Color onto sourceColor. The draw blends with
+      // the first output twice and looks almost right.
+      for (final factor in extendedBlendFactors) {
+        expect(
+          () => factor.toGpu(),
+          throwsA(
+            isA<UnsupportedCapability>()
+                .having(
+                  (e) => e.feature,
+                  'feature',
+                  DeviceFeature.dualSourceBlending,
+                )
+                .having((e) => e.backend, 'backend', 'Impeller'),
+          ),
+          reason: factor.name,
+        );
+      }
+    });
+
+    test('min and max are refused as min-max blending', () {
+      // Mutation: map max onto add. Additive is a plausible picture of max.
+      for (final operation in extendedBlendOperations) {
+        expect(
+          () => operation.toGpu(),
+          throwsA(
+            isA<UnsupportedCapability>()
+                .having((e) => e.feature, 'feature', DeviceFeature.minMaxBlend)
+                .having((e) => e.backend, 'backend', 'Impeller'),
+          ),
+          reason: operation.name,
+        );
+      }
+    });
+
+    test('the mirrored and extended lists cover every value once', () {
+      // Mutation: drop a value from `isMirrored`'s complement. The same-name
+      // checks above would then skip a value nothing else maps.
+      expect(
+        mirroredFormats.length + extendedTextureFormats.length,
+        TextureFormat.values.length,
+      );
+      expect(
+        mirroredFactors.length + extendedBlendFactors.length,
+        BlendFactor.values.length,
+      );
+      expect(
+        mirroredOperations.length + extendedBlendOperations.length,
+        BlendOperation.values.length,
+      );
+    });
+  });
 
   // `TextureCoordinateSystem` used to be checked here. flutter_gpu 3.47 deleted
   // the type, so the engine did too — see `gpu_device.createTextureFromPixels`
@@ -170,7 +265,7 @@ void main() {
     };
 
     test('is true for exactly the block-compressed values', () {
-      for (final format in TextureFormat.values) {
+      for (final format in mirroredFormats) {
         expect(
           format.toGpu().isCompressed,
           compressed.contains(format),
@@ -188,7 +283,7 @@ void main() {
     // the check that makes the second statement worth having: a hand-written
     // number that only ever agreed with itself would not be evidence of
     // anything.
-    for (final format in TextureFormat.values) {
+    for (final format in mirroredFormats) {
       test('$format agrees on isCompressed', () {
         expect(format.isCompressed, format.toGpu().isCompressed);
       });
@@ -309,15 +404,16 @@ void main() {
     gpu.CompareFunction.values,
     (v) => v.toGpu(),
   );
+  // The mirrored values only, as for TextureFormat above.
   checkForward(
     'BlendFactor',
-    BlendFactor.values,
+    mirroredFactors,
     gpu.BlendFactor.values,
     (v) => v.toGpu(),
   );
   checkForward(
     'BlendOperation',
-    BlendOperation.values,
+    mirroredOperations,
     gpu.BlendOperation.values,
     (v) => v.toGpu(),
   );
@@ -386,7 +482,7 @@ void main() {
     test('every field is carried across, and none is crossed with another', () {
       // Deliberately asymmetric in every axis, so a mapping that swapped min
       // for mag, or width for height, could not produce the same answer.
-      const ours = SamplerOptions(
+      const ours = SamplerDescriptor(
         minFilter: MinMagFilter.linear,
         magFilter: MinMagFilter.nearest,
         mipFilter: MipFilter.linear,
@@ -408,29 +504,29 @@ void main() {
       // A different default would be a silent behaviour change at every call
       // site that leaves a field out.
       final defaults = gpu.SamplerOptions().toEngine();
-      expect(defaults, const SamplerOptions());
+      expect(defaults, const SamplerDescriptor());
     });
 
     test('the named samplers say what they are named after', () {
-      expect(SamplerOptions.linearRepeat.minFilter, MinMagFilter.linear);
-      expect(SamplerOptions.linearRepeat.magFilter, MinMagFilter.linear);
+      expect(SamplerDescriptor.linearRepeat.minFilter, MinMagFilter.linear);
+      expect(SamplerDescriptor.linearRepeat.magFilter, MinMagFilter.linear);
       expect(
-        SamplerOptions.linearRepeat.widthAddressMode,
+        SamplerDescriptor.linearRepeat.widthAddressMode,
         SamplerAddressMode.repeat,
       );
       expect(
-        SamplerOptions.linearRepeat.heightAddressMode,
+        SamplerDescriptor.linearRepeat.heightAddressMode,
         SamplerAddressMode.repeat,
       );
 
-      expect(SamplerOptions.linearClamp.minFilter, MinMagFilter.linear);
-      expect(SamplerOptions.linearClamp.magFilter, MinMagFilter.linear);
+      expect(SamplerDescriptor.linearClamp.minFilter, MinMagFilter.linear);
+      expect(SamplerDescriptor.linearClamp.magFilter, MinMagFilter.linear);
       expect(
-        SamplerOptions.linearClamp.widthAddressMode,
+        SamplerDescriptor.linearClamp.widthAddressMode,
         SamplerAddressMode.clampToEdge,
       );
       expect(
-        SamplerOptions.linearClamp.heightAddressMode,
+        SamplerDescriptor.linearClamp.heightAddressMode,
         SamplerAddressMode.clampToEdge,
       );
     });
@@ -438,11 +534,11 @@ void main() {
     test('equal descriptions share one flutter_gpu object', () {
       // The point of the value equality: `bindTexture` runs several times per
       // draw, and there are hundreds of draws in a frame.
-      const a = SamplerOptions(minFilter: MinMagFilter.linear);
-      const b = SamplerOptions(minFilter: MinMagFilter.linear);
+      const a = SamplerDescriptor(minFilter: MinMagFilter.linear);
+      const b = SamplerDescriptor(minFilter: MinMagFilter.linear);
       expect(identical(a.toGpu(), b.toGpu()), isTrue);
 
-      const c = SamplerOptions(minFilter: MinMagFilter.nearest);
+      const c = SamplerDescriptor(minFilter: MinMagFilter.nearest);
       expect(identical(a.toGpu(), c.toGpu()), isFalse);
     });
 
@@ -450,7 +546,7 @@ void main() {
       // Mutation: leave `maxAnisotropy` out of `toGpu`. flutter_gpu's default
       // is one, every bind is isotropic, and the only thing that says so is
       // the far half of `anisotropic-floor` being blurrier than recorded.
-      final eight = SamplerOptions.trilinearRepeat.withAnisotropy(8);
+      final eight = SamplerDescriptor.trilinearRepeat.withAnisotropy(8);
       final theirs = eight.toGpu();
       expect(theirs.maxAnisotropy, 8);
       expect(theirs.minFilter, gpu.MinMagFilter.linear);
@@ -460,7 +556,7 @@ void main() {
     });
 
     test('the default is flutter_gpu\'s: one tap', () {
-      expect(const SamplerOptions().toGpu().maxAnisotropy, 1);
+      expect(const SamplerDescriptor().toGpu().maxAnisotropy, 1);
       expect(gpu.SamplerOptions().maxAnisotropy, 1);
     });
 
@@ -468,7 +564,7 @@ void main() {
       // The cache is keyed on the description, so the field has to be part
       // of what "same description" means — otherwise eight taps and one
       // would share an object and whichever was asked for first would win.
-      final one = SamplerOptions.trilinearRepeat;
+      final one = SamplerDescriptor.trilinearRepeat;
       final eight = one.withAnisotropy(8);
       expect(identical(one.toGpu(), eight.toGpu()), isFalse);
       expect(identical(eight.toGpu(), one.withAnisotropy(8).toGpu()), isTrue);
@@ -523,3 +619,12 @@ void main() {
     });
   });
 }
+
+/// The stable name of an engine value: an enum's, or an open class's
+/// (`TextureFormat` and `VertexFormat` are open sets since 1.0).
+String _nameOf(Object? value) => switch (value) {
+  Enum(:final name) => name,
+  TextureFormat(:final name) => name,
+  VertexFormat(:final name) => name,
+  _ => '$value',
+};

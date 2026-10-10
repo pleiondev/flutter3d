@@ -23,7 +23,7 @@ import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A grid of cubes, deterministic so a failure reproduces.
 Scene gridScene(int count, {double spacing = 3.0}) {
@@ -34,7 +34,7 @@ Scene gridScene(int count, {double spacing = 3.0}) {
     final x = (i % side) - side / 2;
     final z = (i ~/ side) - side / 2;
     scene
-        .add(MeshNode(mesh, Material(), name: 'cube $i'))
+        .add(MeshNode(mesh, RenderMaterial(), name: 'cube $i'))
         .setPosition(x * spacing, ((i * 7) % 5) - 2.0, z * spacing);
   }
   return scene;
@@ -132,7 +132,13 @@ void main() {
     expect(list.bvh.rebuildCount, 1);
 
     scene
-        .add(MeshNode(CpuMesh(CuboidShape().build()), Material(), name: 'late'))
+        .add(
+          MeshNode(
+            CpuMesh(CuboidShape().build()),
+            RenderMaterial(),
+            name: 'late',
+          ),
+        )
         .setPosition(0.0, 0.0, 0.0);
     buildFor(list, scene, camera);
 

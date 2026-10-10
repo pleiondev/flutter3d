@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -188,7 +189,7 @@ void main() {
               ProjectMaterial(
                 surface: SurfaceMaterial(
                   name: 'brass',
-                  baseColor: Vector4(0.8, 0.6, 0.2, 1),
+                  baseColor: LinearColor.fromSrgb(0.8, 0.6, 0.2, 1),
                 ),
               ),
             ],

@@ -1,35 +1,22 @@
-/// Registers this backend with `flutter3d_hardware`'s device registry, so an
-/// assembly layer can open and present it without naming it.
-///
-/// **Idempotent and called from [ensureGpuBackendRegistered], not run at
-/// library load.** Dart only runs a top-level initializer when something
-/// reads it, so registering *this* backend still needs one line at the call
-/// site that wants it available — the difference from naming the backend
-/// directly is that the line says "make sure Impeller can be chosen" rather
-/// than "here is how Impeller opens and here is its widget", which stays
-/// exactly here.
+/// Impeller as a backend an engine can open.
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'gpu_device.dart';
 
-bool _registered = false;
-
-/// Registers [GpuRenderBackend] as an opener and a frame presenter, once.
-///
-/// Not a fallback: Impeller is the backend a native build prefers, and
-/// whatever calls this registers the software rasteriser as the fallback
-/// separately.
-void ensureGpuBackendRegistered() {
-  if (_registered) return;
-  _registered = true;
-  registerBackendOpener(
+/// Adds Impeller to [registry] — preferred over anything added before it —
+/// with the presenter that shows its frames. The registration takes both
+/// out again. Since 1.0 it is added to the engine's own registry rather than
+/// to a global one (it was `ensureGpuBackendRegistered`).
+Registration registerGpuBackend(DeviceRegistry registry) {
+  final opener = registry.addBackend(
     'Impeller',
-    ({required int width, required int height}) => GpuRenderBackend.create(),
+    ({required int width, required int height}) => GpuRenderBackend.open(),
   );
-  registerDevicePresenter<GpuRenderBackend>(
+  final presenter = registry.addPresenter<GpuRenderBackend>(
     (
       GraphicsDevice device,
       TextureHandle frame, {
@@ -37,4 +24,8 @@ void ensureGpuBackendRegistered() {
       FilterQuality quality = FilterQuality.none,
     }) => GpuFrameImage(frame: frame, fit: fit, quality: quality),
   );
+  return Registration(() {
+    opener.cancel();
+    presenter.cancel();
+  });
 }

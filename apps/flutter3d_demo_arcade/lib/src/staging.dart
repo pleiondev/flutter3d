@@ -28,7 +28,7 @@ extension ArcadeGameStaging on ArcadeGame {
     // a dark floor near zero. At 2.0 the shadowed floor is about 40% of the
     // lit one on screen.
     scene
-      ..ambientIntensity = 2.0
+      ..ambientIntensity = 2.0 * Photometric.legacyUnit
       ..add(_groundMesh(device))
       ..add(
         _prop(
@@ -67,7 +67,7 @@ extension ArcadeGameStaging on ArcadeGame {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.2)
+        LightNode(name: 'sun', intensity: 3.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.2, -1.0, -0.12)),
       );
 
@@ -104,6 +104,15 @@ extension ArcadeGameStaging on ArcadeGame {
     spawned = true;
   }
 
+  /// Starts the meteors over the yard built by [spawnWorld]: what the
+  /// application turns on, and a test of the yard's own rules leaves off.
+  void rainMeteors() => meteors = MeteorShower(
+    device: _device,
+    scene: _scene,
+    halfWidth: arenaHalfWidth,
+    halfDepth: arenaHalfDepth,
+  );
+
   MeshNode _groundMesh(GraphicsDevice device) => MeshNode(
     DeviceMesh.upload(
       device,
@@ -112,10 +121,10 @@ extension ArcadeGameStaging on ArcadeGame {
         depth: arenaHalfDepth * 2.0,
       ).build(),
     ),
-    engine.Material(
+    engine.RenderMaterial(
       name: 'yard floor',
       lighting: LightingModel.pbr,
-      baseColor: Vector4(0.14, 0.15, 0.19, 1.0),
+      baseColor: LinearColor.fromSrgb(0.14, 0.15, 0.19, 1.0),
       roughness: 0.95,
     ),
     name: 'ground',
@@ -129,10 +138,10 @@ extension ArcadeGameStaging on ArcadeGame {
     String name,
   ) => MeshNode(
     DeviceMesh.upload(device, shape.build()),
-    engine.Material(
+    engine.RenderMaterial(
       name: name,
       lighting: LightingModel.pbr,
-      baseColor: color,
+      baseColor: _fromSrgb(color),
       roughness: 0.85,
     ),
     name: name,
@@ -186,10 +195,10 @@ extension ArcadeGameStaging on ArcadeGame {
         device,
         CuboidShape(size: Vector3(0.85, 0.5, 0.95)).build(),
       ),
-      engine.Material(
+      engine.RenderMaterial(
         name: 'ship',
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.3, 0.78, 0.95, 1.0),
+        baseColor: LinearColor.fromSrgb(0.3, 0.78, 0.95, 1.0),
         roughness: 0.3,
       ),
       name: 'ship primitive',
@@ -237,8 +246,8 @@ extension ArcadeGameStaging on ArcadeGame {
   /// so a player can tell which ones will come for the ship.
   void _spawnBots(GraphicsDevice device, Scene scene) {
     final level = this.level;
-    final botTuning = MovementTuning(
-      gravity: 0.0,
+    // No gravity of its own: it flies in the arcade's world, which has none.
+    final botTuning = MovementSettings(
       walkSpeed: level.botSpeed,
       groundAcceleration: 30.0,
     );
@@ -280,16 +289,16 @@ extension ArcadeGameStaging on ArcadeGame {
 
       final mesh = MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.42).build()),
-        engine.Material(
+        engine.RenderMaterial(
           name: 'bot $i',
           lighting: LightingModel.pbr,
           baseColor: hunter
-              ? Vector4(0.85, 0.25, 0.75, 1.0)
-              : Vector4(0.92, 0.38, 0.22, 1.0),
+              ? LinearColor.fromSrgb(0.85, 0.25, 0.75, 1.0)
+              : LinearColor.fromSrgb(0.92, 0.38, 0.22, 1.0),
           roughness: 0.4,
           emissive: hunter
-              ? Vector3(0.3, 0.05, 0.25)
-              : Vector3(0.25, 0.08, 0.02),
+              ? const LinearColor(0.3, 0.05, 0.25)
+              : const LinearColor(0.25, 0.08, 0.02),
         ),
         name: 'bot $i primitive',
       );
@@ -307,3 +316,6 @@ extension ArcadeGameStaging on ArcadeGame {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

@@ -11,8 +11,9 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_core/src/engine/render/engine_tables.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/src/cpu_shaders_ltc.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 /// The engine's LTC table as the software rasteriser samples it.
 BoundTexture _table() {
@@ -24,7 +25,7 @@ BoundTexture _table() {
   final pixels = device.readHdrPixels(EngineTables.of(device).ltc);
   final texture = CpuTexture(64, 128, TextureFormat.r32g32b32a32Float)
     ..pixels.setAll(0, pixels);
-  return BoundTexture(texture, SamplerOptions.linearClamp);
+  return BoundTexture(texture, SamplerDescriptor.linearClamp);
 }
 
 /// The split sum of `pbr.glsl`'s own lobe — GGX of alpha `roughness²` with
@@ -113,8 +114,8 @@ Float32List _furnace(double roughness, int size) {
     ..add(
       MeshNode(
         DeviceMesh.upload(device, const SphereShape().build()),
-        Material(
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        RenderMaterial(
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           metallic: 1.0,
           roughness: roughness,
         ),
@@ -128,7 +129,7 @@ Float32List _furnace(double roughness, int size) {
       mipLevels: EnvironmentMap.prefilter(faces, size: cube, levels: levels),
     )
     ..environmentLevels = levels
-    ..ambientIntensity = 1.0
+    ..ambientIntensity = 1.0 * Photometric.legacyUnit
     ..defaultLightWhenUnlit = false;
   return _render(size: size, scene: scene, camera: camera, device: device);
 }
@@ -162,10 +163,10 @@ void main() {
 
   test('a white metal in a white furnace reflects its lobe\'s albedo', () {
     const size = 64;
-    const centre = size ~/ 2;
+    const center = size ~/ 2;
     for (final roughness in <double>[0.5, 1.0]) {
       final hdr = _furnace(roughness, size);
-      final head = _red(hdr, size, centre, centre);
+      final head = _red(hdr, size, center, center);
       expect(head, closeTo(_splitSum(roughness, 1.0).albedo, 0.03));
     }
     // A rough metal brightens towards its rim, as its albedo rises towards
@@ -175,9 +176,9 @@ void main() {
     // The last pixel of the sphere along the middle row: the background is
     // the one-texel black a scene's sky leaves, far below any of it.
     final rim = <double>[
-      for (var x = centre; x < size; x++) _red(rough, size, x, centre),
+      for (var x = center; x < size; x++) _red(rough, size, x, center),
     ].lastWhere((value) => value > 0.1);
-    expect(rim, greaterThan(_red(rough, size, centre, centre) * 1.3));
+    expect(rim, greaterThan(_red(rough, size, center, center) * 1.3));
   });
 
   test('energy compensation barely moves a polished metal', () {
@@ -192,14 +193,19 @@ void main() {
         ..add(
           MeshNode(
             DeviceMesh.upload(device, const SphereShape().build()),
-            Material(
-              baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+            RenderMaterial(
+              baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
               metallic: 1.0,
               roughness: 0.3,
             ),
           ),
         )
-        ..add(LightNode(intensity: 3.0, castsShadow: false))
+        ..add(
+          LightNode(
+            intensity: 3.0 * Photometric.legacyUnit,
+            castsShadow: false,
+          ),
+        )
         ..add(camera)
         ..ambientIntensity = 0.0;
       final hdr = _render(
@@ -235,7 +241,7 @@ void main() {
       final camera =
           CameraNode(
               projection: const PerspectiveProjection(
-                fovYRadians: 0.2,
+                fovY: 0.2,
                 near: 0.5,
                 far: 10.0,
               ),
@@ -249,8 +255,8 @@ void main() {
               device,
               const PlaneShape(width: 4.0, depth: 4.0).build(),
             ),
-            Material(
-              baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+            RenderMaterial(
+              baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
               metallic: 1.0,
               roughness: roughness,
             ),
@@ -258,8 +264,10 @@ void main() {
         )
         // Dim, so the peak of the narrowest lobe stays inside a half float.
         ..add(
-          LightNode(intensity: 0.01, castsShadow: false)
-            ..setRotationYawPitchRoll(0.0, -math.pi / 2, 0.0),
+          LightNode(
+            intensity: 0.01 * Photometric.legacyUnit,
+            castsShadow: false,
+          )..setRotationYawPitchRoll(0.0, -math.pi / 2, 0.0),
         )
         ..add(camera)
         ..ambientIntensity = 0.0;

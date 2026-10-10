@@ -15,6 +15,9 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -92,6 +95,7 @@ void main() {
       tape: recorder.tape,
       buildStamp: 'tpl-02-sample',
       checkpoints: checkpoints,
+      physics: usePhysics().name,
     );
 
     final outFile = File('../../site/assets/samples/racing.f3drun');

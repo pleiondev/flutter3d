@@ -86,7 +86,7 @@ abstract final class StandardGamepad {
     required List<bool> pressed,
     required List<double> values,
   }) {
-    out.connected = true;
+    out.isConnected = true;
 
     for (var i = 0; i < buttons.length; i++) {
       final button = buttons[i];

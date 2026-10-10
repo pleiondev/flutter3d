@@ -6,7 +6,10 @@
 /// `graphics/formats.dart` for why the directory exists.
 library;
 
+import 'format_info.dart';
 import 'formats.dart';
+import 'render_target_pool.dart';
+import 'resources.dart';
 
 /// A texture some backend owns, described in the engine's own vocabulary.
 ///
@@ -43,7 +46,8 @@ import 'formats.dart';
 /// Every one of those would otherwise be a downcast to the backend type at the
 /// use site, which is the same coupling in a less visible place.
 final class TextureHandle {
-  TextureHandle({
+  TextureHandle._(
+    this._release, {
     required this.backend,
     required this.width,
     required this.height,
@@ -51,7 +55,51 @@ final class TextureHandle {
     this.sampleCount = 1,
     this.storageMode = StorageMode.devicePrivate,
     this.type = TextureType.texture2D,
-  });
+    TextureDimension? dimension,
+    int? depthOrArrayLayers,
+    this.mipLevelCount = 1,
+    this.usage = TextureUsage.standard,
+  }) : dimension =
+           dimension ??
+           (type == TextureType.textureCube
+               ? TextureDimension.cube
+               : TextureDimension.d2),
+       depthOrArrayLayers =
+           depthOrArrayLayers ?? (type == TextureType.textureCube ? 6 : 1);
+
+  final void Function(TextureHandle)? _release;
+
+  /// Gives this back to the device that made it, once: what `dispose` means
+  /// on every handle. A second call does nothing. A handle a backend made
+  /// without naming its device (a test's fake) has nothing to give back.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _release?.call(this);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+  bool _disposed = false;
+
+  /// The shape a view of it binds as — derived from [type] for every texture
+  /// made before 1.0, so a handle built the old way answers correctly.
+  final TextureDimension dimension;
+
+  /// Layers, counted as `TextureDescriptor.depthOrArrayLayers` counts them:
+  /// six for a cube, six per cube of a cube array, the layer count of an
+  /// array, the depth of a 3D texture, one for a 2D texture. A handle that
+  /// does not say gets six when [type] is a cube and one otherwise, so the
+  /// pre-1.0 creators answer the same way the descriptor does.
+  final int depthOrArrayLayers;
+
+  /// Levels counting the base, as the creator was asked for them. One for
+  /// every handle that does not say — which is what the pool's targets are.
+  final int mipLevelCount;
+
+  /// What it may be used for. [TextureUsage.standard] unless made through
+  /// `GraphicsDevice.createTexture` with something narrower.
+  final TextureUsage usage;
 
   /// The backend's own object for this texture.
   ///
@@ -75,7 +123,7 @@ final class TextureHandle {
 
   /// What shape this is: a plain 2D image, or six faces sampled by direction.
   ///
-  /// Here and **not** on `RenderTargetSpec`, which is deliberate. That spec is
+  /// Here and **not** on `RenderTargetDescriptor`, which is deliberate. That spec is
   /// the key of the render target pool's map, and two textures with equal specs
   /// are by definition interchangeable — so a cube that matched a 2D target on
   /// every other field would be lent out in its place, and nothing about the
@@ -86,8 +134,74 @@ final class TextureHandle {
   /// How many faces this texture has: six for a cube, one otherwise.
   int get sliceCount => type == TextureType.textureCube ? 6 : 1;
 
+  /// What this texture holds, in bytes: every level of [mipLevelCount],
+  /// every layer of [depthOrArrayLayers], every sample.
+  ///
+  /// **What the texels need, never what a driver allocates.** A device pads
+  /// rows, aligns levels and keeps tiles of its own, and none of the
+  /// backends says by how much, so this is the floor a budget is set
+  /// against. A compressed format is counted in its blocks, a level smaller
+  /// than one block as one block. [TextureFormat.unknown] counts nothing.
+  int get estimatedBytes {
+    final layers = depthOrArrayLayers < 1 ? 1 : depthOrArrayLayers;
+    final levels = mipLevelCount < 1 ? 1 : mipLevelCount;
+    final compressed = format.isCompressed ? format.blockLayout : null;
+    final perTexel = format.bytesPerTexel;
+    int levelBytes(int level) {
+      final w = width >> level < 1 ? 1 : width >> level;
+      final h = height >> level < 1 ? 1 : height >> level;
+      return switch (compressed) {
+        final TextureBlockLayout block =>
+          ((w + block.blockWidth - 1) ~/ block.blockWidth) *
+              ((h + block.blockHeight - 1) ~/ block.blockHeight) *
+              block.bytesPerBlock,
+        null => w * h * perTexel,
+      };
+    }
+
+    return Iterable<int>.generate(
+          levels,
+          levelBytes,
+        ).fold(0, (int sum, int bytes) => sum + bytes) *
+        layers *
+        (sampleCount < 1 ? 1 : sampleCount);
+  }
+
   @override
   String toString() =>
       'TextureHandle(${width}x$height, ${format.name}, '
       'x$sampleCount, ${storageMode.name})';
 }
+
+/// A [TextureHandle] over a backend's own [backend] texture — for a backend's
+/// implementation of `GraphicsDevice`, from `package:flutter3d_hardware/
+/// backend.dart`. Application code never makes a handle; a device hands one
+/// out. [owner] is the device whose `releaseTexture` the handle's `dispose`
+/// calls.
+TextureHandle wrapTexture({
+  required Object backend,
+  required int width,
+  required int height,
+  required TextureFormat format,
+  int sampleCount = 1,
+  StorageMode storageMode = StorageMode.devicePrivate,
+  TextureType type = TextureType.texture2D,
+  TextureDimension? dimension,
+  int? depthOrArrayLayers,
+  int mipLevelCount = 1,
+  TextureUsage usage = TextureUsage.standard,
+  TextureAllocator? owner,
+}) => TextureHandle._(
+  owner?.releaseTexture,
+  backend: backend,
+  width: width,
+  height: height,
+  format: format,
+  sampleCount: sampleCount,
+  storageMode: storageMode,
+  type: type,
+  dimension: dimension,
+  depthOrArrayLayers: depthOrArrayLayers,
+  mipLevelCount: mipLevelCount,
+  usage: usage,
+);

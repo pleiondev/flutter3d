@@ -1,0 +1,164 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: game-SettingsCubit'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'SettingsCubit'
+    changes:
+      - kind: 'rename'
+        newName: 'GameSettingsController'
+  - title: 'flutter3d 1.0.0-rc.1: game-configureForTouch'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      function: 'configureForTouch'
+    changes:
+      - kind: 'rename'
+        newName: 'lockLandscapeForTouch'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-AutomapPainter-AutomapPainter'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'AutomapPainter'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresAcross'
+        newName: 'metersAcross'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-AutomapPainter-metresAcross'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      field: 'metresAcross'
+      inClass: 'AutomapPainter'
+    changes:
+      - kind: 'rename'
+        newName: 'metersAcross'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-AutomapView-AutomapView'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'AutomapView'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresAcross'
+        newName: 'metersAcross'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-AutomapView-metresAcross'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      field: 'metresAcross'
+      inClass: 'AutomapView'
+    changes:
+      - kind: 'rename'
+        newName: 'metersAcross'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Credit-Credit'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      constructor: ''
+      inClass: 'Credit'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'licence'
+        newName: 'license'
+      - kind: 'renameParameter'
+        oldName: 'licenceUrl'
+        newName: 'licenseUrl'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Credit-licence'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      field: 'licence'
+      inClass: 'Credit'
+    changes:
+      - kind: 'rename'
+        newName: 'license'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Credit-licenceUrl'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      field: 'licenceUrl'
+      inClass: 'Credit'
+    changes:
+      - kind: 'rename'
+        newName: 'licenseUrl'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Bindings-takeFrom'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'takeFrom'
+      inClass: 'Bindings'
+    changes:
+      - kind: 'rename'
+        newName: 'copyFrom'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-DragLook-take'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'take'
+      inClass: 'DragLook'
+    changes:
+      - kind: 'rename'
+        newName: 'drain'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-DesktopInput-release'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'release'
+      inClass: 'DesktopInput'
+    changes:
+      - kind: 'rename'
+        newName: 'releaseMouse'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-RunSession-open'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'open'
+      inClass: 'RunSession'
+    changes:
+      - kind: 'rename'
+        newName: 'loadLevel'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-RunSession-close'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'close'
+      inClass: 'RunSession'
+    changes:
+      - kind: 'rename'
+        newName: 'disposeLevel'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Credit-traced'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      getter: 'traced'
+      inClass: 'Credit'
+    changes:
+      - kind: 'rename'
+        newName: 'isTraced'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-Playing-dragLook'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      getter: 'dragLook'
+      inClass: 'Playing'
+    changes:
+      - kind: 'rename'
+        newName: 'usesDragLook'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game-GameConfig'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      class: 'GameConfig'
+    changes:
+      - kind: 'rename'
+        newName: 'GameSettings'

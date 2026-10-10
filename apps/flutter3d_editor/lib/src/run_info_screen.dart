@@ -43,6 +43,18 @@ final class RunInfoScreen extends StatelessWidget {
           _row('Recorded by', run.recordedBy ?? '(not recorded)'),
           _row('Steps', '${run.tape.frames.length}'),
           _row('Checkpoints', '${run.checkpoints.steps.length}'),
+          // What replaying it needs, and what shows it when that is not
+          // this build: the pose record plays on any simulation.
+          _row(
+            'Simulation',
+            run.simulation?.describe() ?? '(not recorded; read as 1)',
+          ),
+          _row('Poses', switch (run.poses) {
+            null => '(none)',
+            final PoseRecord poses =>
+              '${poses.frames.length} frames of ${poses.bodies.length} '
+                  'bodies, every ${poses.every} steps',
+          }),
         ],
       ),
     ),

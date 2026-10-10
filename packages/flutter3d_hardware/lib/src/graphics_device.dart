@@ -7,14 +7,23 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
+import 'package:meta/meta.dart';
+
+import 'capabilities.dart';
 import 'command_encoder.dart';
 import 'compute.dart';
+import 'device_exceptions.dart';
 import 'formats.dart';
 import 'geometry_buffer.dart';
 import 'gpu_timings.dart';
 import 'render_target_pool.dart';
+import 'resources.dart';
+import 'sampler.dart';
 import 'shader.dart';
 import 'texture.dart';
+import 'transfer.dart';
 import 'vertex_layout_spec.dart';
 
 /// Everything the engine needs a graphics backend for.
@@ -23,7 +32,7 @@ import 'vertex_layout_spec.dart';
 /// `gpu.gpuContext` — and reaching it from a top-level function was how the
 /// renderer and its nodes made textures and command buffers. Nothing above the
 /// backend does that any more: a device arrives through `Renderer.create` and
-/// travels to the passes in `NodeFrame` and `ContributorFrame`. Two things
+/// travels to the passes in `RenderFrame` and `ContributorFrame`. Two things
 /// depend on that being true. A backend cannot be a separate package while the
 /// core reaches into it, and a **fake** backend — the only way a node's drawing
 /// is ever testable off a device — cannot displace a singleton.
@@ -31,7 +40,13 @@ import 'vertex_layout_spec.dart';
 /// It implements [TextureAllocator] rather than owning a second way to make a
 /// texture, so `RenderTargetPool` takes the device directly and every texture
 /// in the engine is created by one rule.
-abstract interface class GraphicsDevice implements TextureAllocator {
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base class GraphicsDevice with TextureAllocator {
   /// The colour format this device prefers.
   ///
   /// A property of the running context and not a constant: the answer differs
@@ -80,73 +95,6 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// count, or that would rather not, has somewhere to say so.
   int get preferredSampleCount;
 
-  /// Whether a multisampled offscreen target is available at all.
-  ///
-  /// Kept beside [preferredSampleCount] rather than folded into it: a device
-  /// may report a count it can multisample *with* while still being unable to
-  /// give the engine an offscreen target to use it on.
-  bool get supportsOffscreenMsaa;
-
-  /// Whether `PassEncoder.setBlendColor` reaches the hardware.
-  ///
-  /// The four [BlendFactor] values that read a blend constant are only usable
-  /// where this is true. It is not a property of the hardware — Metal, Vulkan
-  /// and GL all have the constant — but of what the backend can reach: the
-  /// Impeller backend goes through flutter_gpu, whose `RenderPass` exposes no
-  /// blend-constant setter at all, so it answers false and there is nothing it
-  /// can do about that from Dart.
-  ///
-  /// **False carries a promise, and it is a refusal.** A backend that answers
-  /// false throws an [UnsupportedError] from `PassEncoder.setBlendColor`, and
-  /// throws from `PassEncoder.setBlend` when the state names one of the four —
-  /// see `BlendState.usesBlendColor`. Drawing the term as zero instead is the
-  /// exact failure this capability was added to end: a plausible picture with a
-  /// term missing from it, and nothing anywhere saying so.
-  bool get supportsBlendColor;
-
-  /// Whether a texture built with a hand-supplied mip chain samples correctly.
-  ///
-  /// Asked rather than assumed, and the failure it guards against is not a
-  /// missing feature but a silent one: flutter_gpu reports this as
-  /// `doesSupportManuallyMippedTextures`, and its own documentation says that
-  /// on OpenGL ES 2 devices without `GL_APPLE_texture_max_level` such a texture
-  /// **samples as black**. Not blurrier, not unfiltered — black. A caller that
-  /// did not ask would see an effect disappear on one class of device with
-  /// nothing logged anywhere.
-  bool get supportsMipmaps;
-
-  /// Whether a cube texture can be created and sampled.
-  ///
-  /// Asked rather than assumed for the same reason as [supportsMipmaps]: no
-  /// backend here reports it as a capability, so the honest answer is a probe
-  /// or a constant, and which of the two it is belongs to the backend. A caller
-  /// that gets false has to have something to fall back to — for the sky that
-  /// is the procedural gradient, which is why the textured sky is an option on
-  /// top of it rather than a replacement for it.
-  bool get supportsCubeTextures;
-
-  /// Whether a pass can draw into a mip level below the base — see
-  /// `ColorTarget.mipLevel`.
-  ///
-  /// Asked rather than assumed, and it is the one capability here that splits
-  /// a single backend by platform: flutter_gpu reports it as
-  /// `doesSupportFramebufferRenderMipmap`, true on Metal and Vulkan and false
-  /// on its OpenGL ES path, where an attachment naming a level other than zero
-  /// is refused. WebGL2 attaches any level with `framebufferTexture2D`, and
-  /// the software rasteriser writes into whichever array it is pointed at.
-  ///
-  /// Rendering into a cube *face* is not gated by this — every backend that
-  /// answers true to [supportsCubeTextures] can attach a face at the base
-  /// level. What this decides is whether a probe's roughness chain can be
-  /// filtered on the device: a reflection probe renders six views into a cube
-  /// and then convolves them into the levels below, and the second half needs
-  /// a level to draw into. A device that says no gets **no probe at all** —
-  /// see `ReflectionProbeNode.supportedOn`, which asks this and
-  /// [supportsCubeTextures] together — because a cube with a base level only
-  /// is a mirror at every roughness, which is a picture nobody asked for; the
-  /// material there goes on reading the scene's environment.
-  bool get supportsRenderToMip;
-
   /// Allocates a cube texture a pass can draw into, face by face and level by
   /// level, with nothing in it yet.
   ///
@@ -162,123 +110,21 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// keeps its range. A depth attachment for a face is an ordinary 2D texture
   /// of the face's size from [createTexture], not part of the cube.
   ///
-  /// Null when the device cannot make cubes — ask [supportsCubeTextures] — and
-  /// a chain longer than the device will allocate is trimmed to what it will,
-  /// the same rule the upload path follows. Ask [supportsRenderToMip] before
-  /// drawing into any level but the base.
+  /// Throws `UnsupportedCapability` when the device cannot make cubes — ask
+  /// `features.has(DeviceFeature.cubeTextures)` — and a chain longer than the
+  /// device will allocate is trimmed to what it will, the same rule the upload
+  /// path follows. Ask `features.has(DeviceFeature.renderToMipLevel)` before
+  /// drawing into any level but the base. (It answered null before 1.0.)
   ///
-  /// Not from the render target pool, and deliberately: `RenderTargetSpec` is
+  /// Not from the render target pool, and deliberately: `RenderTargetDescriptor` is
   /// the pool's key and carries no shape, so a cube in the pool would be lent
   /// out in a 2D target's place — see `TextureHandle.type`. Probes are few and
   /// long-lived, and the renderer holds them itself.
-  TextureHandle? createCubeRenderTarget({
+  TextureHandle createCubeRenderTarget({
     required int size,
     required TextureFormat format,
     int mipLevels = 1,
   });
-
-  /// Whether [PolygonMode.line] can be drawn.
-  ///
-  /// False on OpenGL ES, which has no `glPolygonMode` — wireframe there means
-  /// drawing line primitives from an index buffer built for the purpose, which
-  /// is a decision for whoever owns the geometry and not a substitution a
-  /// backend may make on its own.
-  ///
-  /// Ask before requesting it. A backend that cannot draw it **throws an
-  /// [UnsupportedError]** rather than filling the triangles instead, because a
-  /// silent substitution here looks exactly like the wireframe setting having
-  /// no effect. Typed, and not a bare exception, because the caller asking is
-  /// choosing between two ways of drawing and cannot act on "something went
-  /// wrong".
-  ///
-  /// Both halves are held by the conformance check `wireframe is drawn as edges
-  /// or refused, never filled`, which counts what a triangle painted: a backend
-  /// answering false must throw, and one answering true must leave the interior
-  /// alone. It is the one capability here that differs across all three
-  /// backends, and until that check existed neither answer was tested — a
-  /// backend that said true and filled the triangles passed the whole suite.
-  bool get supportsWireframe;
-
-  /// Whether the depth attachment this device hands out carries a stencil
-  /// that `PassEncoder.setStencil` can test against.
-  ///
-  /// Ask before requesting it, as with [supportsWireframe]: a stencil test
-  /// configured against an attachment that has none passes always on one API
-  /// and is an invalid descriptor on another, and neither is the silhouette
-  /// somebody asked for. The renderer's x-ray stage draws nothing at all on a
-  /// device that answers false, which is a picture without silhouettes rather
-  /// than a frame with something wrong in it.
-  ///
-  /// True on all three backends here — every depth format the engine names
-  /// packs eight stencil bits beside the depth, and the software rasteriser
-  /// keeps a byte per pixel for the purpose. It is a question rather than a
-  /// constant because [defaultDepthStencilFormat] is allowed to be
-  /// [TextureFormat.unknown], and a device with no depth-stencil format has
-  /// no stencil either.
-  bool get supportsStencil;
-
-  /// Whether a texture uploaded in [format] can be created and sampled here.
-  ///
-  /// **The question a block-compressed format needs asked, and the one no
-  /// backend was asking.** Every value of `TextureFormat` has a name on every
-  /// backend, and that is where the agreement ends: BC is a desktop family,
-  /// ETC2 a mobile and WebGL2 one, ASTC newer still, and the software
-  /// rasteriser samples raw texels and decodes none of them. Impeller answers
-  /// from flutter_gpu's own per-family capability, WebGL2 from the extensions
-  /// its context handed back, the software backend with a constant no for
-  /// anything compressed. A loader asks here before it uploads, and a false
-  /// is a texture left out with a reason — not an `ArgumentError` out of an
-  /// allocation, and not a texture full of block bytes read as RGBA.
-  ///
-  /// About sampling only. A render target is asked for through
-  /// [hdrColorFormat], [defaultColorFormat] and [createTexture], and a
-  /// compressed format is never one anywhere.
-  bool supportsTextureFormat(TextureFormat format);
-
-  /// The most taps a sampler may take along a foreshortened axis, or 1 for a
-  /// device that filters isotropically and nothing else.
-  ///
-  /// Asked rather than assumed, and a number rather than a boolean for the
-  /// same reason [preferredSampleCount] is: "does anisotropic filtering work"
-  /// and "how far" are different questions. Impeller answers from
-  /// flutter_gpu's `maxSamplerAnisotropy`, WebGL2 from
-  /// `EXT_texture_filter_anisotropic` when the context hands it back and 1
-  /// when it does not, and the software rasteriser with a constant 1 — it
-  /// picks one level per triangle and takes one tap, and says so.
-  ///
-  /// A `SamplerOptions.anisotropy` above this is clamped by the backend
-  /// rather than refused, so a caller may ask for sixteen without asking
-  /// first. The reason to ask anyway is to *decide* — the bridge asks so it
-  /// can hand a level's materials `min(8, maxAnisotropy)` once rather than
-  /// per bind, and a setting that offers the choice to a player has to know
-  /// whether there is one.
-  int get maxAnisotropy;
-
-  /// How many colour attachments one render pass may open — `gfx-50n`.
-  ///
-  /// One, or more. **Asked rather than assumed, and the failure it guards
-  /// against is the worst kind this interface has:** on Impeller's OpenGL ES
-  /// path a second attachment reaches an `FML_CHECK`, so the process aborts
-  /// in release. It does not draw the wrong picture, log a warning or fall
-  /// back — it stops. Every other capability here guards against something
-  /// that produces a frame somebody can look at.
-  ///
-  /// A number rather than a boolean for the reason [maxAnisotropy] is one:
-  /// "does MRT work" and "how many" are different questions, and a deferred
-  /// pass wanting four attachments has to be able to find out that it may
-  /// have two.
-  ///
-  /// **What the engine does with a one**: the scene pass stops declaring that
-  /// it writes the surface buffer, so every node that reads it — occlusion,
-  /// reflections, the shafts, the lens — is culled by the frame graph and
-  /// reported as `PassSkip.starved`. Those effects are then off on that
-  /// device and the frame is otherwise the frame it always was. A caller who
-  /// wants to know why asks `CompiledFrameGraph.skipped`, which names the
-  /// pass and the reason; nothing has to guess from a picture.
-  ///
-  /// Opening more attachments than this throws rather than aborting, which is
-  /// the promise that makes the number worth publishing.
-  int get maxColorAttachments;
 
   /// The compiled bundle this device was built with.
   ///
@@ -309,7 +155,7 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// **Refused by name, never answered with nothing.** Bytes that are not a
   /// bundle, a bundle with no section for this backend, a compiled section
   /// from an SDK other than the running one, and — on the backend that cannot
-  /// compile — a stage it has no Dart for all throw `ShaderBundleRefused`
+  /// compile — a stage it has no Dart for all throw `ShaderBundleException`
   /// carrying the bundle's name. A device that returned an empty library
   /// instead would produce a renderer failing at the first draw for want of a
   /// stage, which names the stage and not the file to rebuild. The SDK check
@@ -348,7 +194,7 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
-    VertexLayoutSpec? layout,
+    VertexLayoutDescriptor? layout,
   });
 
   /// Uploads geometry that will outlive the frame.
@@ -396,9 +242,11 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// staging copy, a particular storage mode or a flipped origin to get the
   /// bytes there is its own business.
   ///
-  /// Null when [pixels] is not the size the device wants for a texture of that
-  /// description — which is how a decoder that disagreed about the dimensions
-  /// degrades to "no texture" rather than taking the whole model down.
+  /// Throws a [DeviceResourceException] when [pixels] is not the size the
+  /// device wants for a texture of that description (it answered null before
+  /// 1.0). A loader that would rather lose one texture than the model catches
+  /// it where it uploads, which is where a decoder that disagreed about the
+  /// dimensions can still be named.
   ///
   /// [mipLevels] are the smaller copies, from half size downwards, and the
   /// texture is built with a chain exactly as long as the list. **They are
@@ -409,10 +257,10 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// attribute to the filter. `MipChain.build` makes them once, above the seam,
   /// and every backend uploads the same bytes.
   ///
-  /// Ask [supportsMipmaps] first. A device that answers false is not merely
-  /// slower with a chain; on OpenGL ES 2 without `GL_APPLE_texture_max_level` a
-  /// hand-built chain samples as black.
-  TextureHandle? createTextureFromPixels({
+  /// Ask `features.has(DeviceFeature.manualMipmaps)` first. A device that
+  /// answers false is not merely slower with a chain; on OpenGL ES 2 without
+  /// `GL_APPLE_texture_max_level` a hand-built chain samples as black.
+  TextureHandle createTextureFromPixels({
     required int width,
     required int height,
     required TextureFormat format,
@@ -470,10 +318,11 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Every face is [size] by [size] — cube faces are square by definition, and
   /// a rectangular one is a mistake worth refusing rather than resizing.
   ///
-  /// Null when the device cannot do it, or when a face is not the size its
-  /// description says. Null rather than a throw for the same reason
-  /// [createTextureFromPixels] returns null: an asset that disagrees about its
-  /// own dimensions should cost a texture, not the frame.
+  /// Throws `UnsupportedCapability` when the device cannot make cubes, and a
+  /// [DeviceResourceException] when there are not six faces or a face is not
+  /// the size its description says — the same rule as
+  /// [createTextureFromPixels], whose caller decides whether an asset that
+  /// disagrees about its own dimensions costs a texture or the frame.
   ///
   /// [mipLevels] are the smaller copies, from half size downwards: one entry
   /// per level, each holding six faces in the same order as [faces]. Null or
@@ -491,8 +340,8 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// `flutter_gpu` has no `generateMipmap` — so both backends receive the same
   /// bytes and the two golden sets stay comparable.
   ///
-  /// Ask [supportsCubeTextures] first.
-  TextureHandle? createCubeTextureFromPixels({
+  /// Ask `features.has(DeviceFeature.cubeTextures)` first.
+  TextureHandle createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
@@ -544,73 +393,54 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// attachment` and `a pass does not inherit the previous pass's scissor`.
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
 
-  /// The texture's pixels: **premultiplied** RGBA8, row-major from the
-  /// top-left.
+  /// The pixels of [region] — the whole texture by default — **as they stand
+  /// at this point in the queue**: premultiplied RGBA8, row-major from the
+  /// top-left, the region's own width times four per row.
   ///
   /// One layout, named, because the only thing anybody does with these is
   /// compare them against pixels that came from somewhere else — and two sides
   /// of a comparison that disagree about premultiplication differ on every
   /// translucent texel while looking identical on screen.
   ///
-  /// Separate from presenting a frame because it is a different question with
-  /// a different cost. Presenting happens every frame and must be nearly free;
-  /// reading back happens when something wants to *look* at what a pass wrote —
-  /// the golden suite comparing a frame, the MRT probe checking that a second
-  /// attachment was honoured — and is affordable on both backends precisely
-  /// because it stops at CPU memory.
-  ///
-  /// Null when the texture cannot be read: `deviceTransient` lives in tile
-  /// memory, and there is nothing there to read once the pass has ended.
-  Future<ByteData?> readPixels(TextureHandle texture);
-
-  /// The pixels of [region] — the whole texture by default — **as they stand
-  /// at this point in the queue**, without waiting for the GPU to get there.
-  ///
-  /// Same bytes as [readPixels]: premultiplied RGBA8, rows from the top, the
-  /// region's own width times four per row. What differs is *when* the
-  /// question is answered, and that is the whole reason this exists beside
-  /// it. [readPixels] is for looking at a finished picture: a golden run, a
-  /// probe, a test — a caller that has stopped drawing and can afford to wait.
-  /// This is for a caller that is still drawing and wants last frame's answer
-  /// while this frame goes on: an exposure meter reading a luminance target,
-  /// an editor reading the id under the cursor. Two promises make that work:
+  /// **The one way to read a texture back, since 1.0.** `readPixels` was a
+  /// second call for the same bytes that answered null where this throws; a
+  /// finished picture (a golden run, a probe, a test) and last frame's answer
+  /// while this frame goes on (an exposure meter, the id under the cursor)
+  /// are both this. Two promises make the second work:
   ///
   ///  * **The copy is queued where it was asked for.** A pass submitted after
   ///    this call, drawing into the same texture, does not reach the bytes:
   ///    they are the texture as the passes before this call left it. The
   ///    conformance check `a readback returns the frame before` clears red,
   ///    asks, clears blue, and gets red.
-  ///  * **Nothing here stalls the caller.** The hardware backends copy on the
-  ///    GPU and resolve the future when the queue reports the copy done —
-  ///    flutter_gpu through `submit`'s completion callback, WebGL2 through a
-  ///    pixel-pack buffer and a fence — so the frame being encoded is not
-  ///    held up by a frame the GPU is still on. The software rasteriser has
-  ///    nothing to wait for and answers at once, which is the truth there.
+  ///  * **Nothing here stalls the caller** for an eight-bit texture. The
+  ///    hardware backends copy on the GPU and resolve the future when the
+  ///    queue reports the copy done — flutter_gpu through `submit`'s
+  ///    completion callback, WebGL2 through a pixel-pack buffer and a fence —
+  ///    so the frame being encoded is not held up by a frame the GPU is still
+  ///    on. The software rasteriser has nothing to wait for and answers at
+  ///    once, which is the truth there.
   ///
-  /// The future therefore usually completes a frame or two later, and a caller
-  /// that wants this frame's picture has asked the wrong question. Ask for
-  /// [readPixels] instead.
+  /// The future therefore usually completes a frame or two later.
   ///
   /// [region] is stated from the top left, in the texture's own pixels, like
   /// every rectangle in this interface, and must lie inside the texture. One
   /// pixel is a legitimate region and the cheapest one: the editor's pick reads
   /// exactly that.
   ///
-  /// Throws an [ArgumentError] rather than answering null for what cannot be
-  /// read — a `deviceTransient` texture, a multisampled one, a cube, a region
-  /// outside the texture, and a texture in any format but the two linear
-  /// eight-bit RGBA layouts (`readbackFormats`: `r8g8b8a8UNormInt` and
-  /// `b8g8r8a8UNormInt`). The handle carries every one of those facts, so the
-  /// caller can ask before requesting; a null here would have to be told apart
-  /// from a copy the driver refused, and those are different mistakes. The
-  /// format is refused rather than converted because the three backends would
-  /// convert differently — one of them into a picture of zeros with no error —
-  /// and the bytes above are promised to be the same bytes everywhere. A float
-  /// target is read through [readPixels], or drawn into an eight-bit one
-  /// first, which is what the exposure meter's luminance pass is. An sRGB
-  /// target is refused for the same reason with a message of its own: the
-  /// encoding is what the three would disagree about, one handing back the
-  /// stored bytes and another the linear values they stand for.
+  /// **A whole texture in another format is converted**, which is how a float
+  /// target (the engine's HDR colour) is looked at: each backend draws or
+  /// converts it into eight-bit RGBA on its own path, which may wait for the
+  /// GPU. See [readbackConverts]. A *region* of one is refused, because a
+  /// partial conversion is the place three backends would disagree.
+  ///
+  /// Throws an [ArgumentError] for what cannot be read at all — a
+  /// `deviceTransient` texture, a multisampled one, a cube, a region outside
+  /// the texture, a region of a texture outside `readbackFormats` — because
+  /// the handle carries every one of those facts and the caller can ask before
+  /// requesting. Throws a [DeviceResourceException] when the device has the
+  /// texture and still cannot hand its pixels over: a format this backend has
+  /// no conversion for.
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
 
   /// Releases one geometry buffer, rather than waiting for the whole device to
@@ -652,64 +482,39 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   // false or empty, and its creators throw an [UnsupportedError].
   // ------------------------------------------------------------------------
 
-  /// Whether this device measures how long the GPU spends in each labelled
-  /// pass — `H2`. When true, [onGpuTimings] is called with them.
-  ///
-  /// False on Impeller (flutter_gpu has no timer query), on the software
-  /// rasteriser (whose passes run on the CPU and are timed where they are
-  /// encoded) and on WebGL2, which does not yet read
-  /// `EXT_disjoint_timer_query_webgl2`. WebGPU answers from whether the
-  /// adapter granted `timestamp-query`.
-  bool get supportsGpuTimestamps;
-
   /// Sets where each frame's GPU timings go, a frame or two after it was
   /// encoded; null stops them. Never called on a device whose
   /// [supportsGpuTimestamps] is false.
-  void onGpuTimings(void Function(GpuFrameTimings timings)? listener);
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
 
-  /// Whether compute pipelines can be created and dispatched — `H6`. The
-  /// members below it throw an [UnsupportedError] where this is false.
-  bool get supportsCompute;
-
-  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer].
+  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer];
+  /// [bindableAsIndices] gives it a `StorageBuffer.asIndices` a draw can
+  /// bind as 32-bit indices once a compute pass has written them — `H11`.
   StorageBuffer createStorageBuffer(
     ByteData bytes, {
     bool hostReadable = false,
-  });
+    bool bindableAsIndices = false,
+  }) => throw refuse(DeviceFeature.compute);
 
   /// A pipeline from a compute stage of this device's shader library.
-  ComputePipelineHandle createComputePipeline(ShaderHandle shader);
+  ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
+      throw refuse(DeviceFeature.compute);
 
   /// Opens a compute pass; [label] names it to a debugger and to
-  /// [onGpuTimings].
-  ComputeEncoder beginComputePass({String? label});
+  /// [onGpuTimings]. [timestampWrites] (since 1.0) names where the pass
+  /// writes its start and end GPU times — `DeviceFeature.timestampQuery`.
+  ComputeEncoder beginComputePass({
+    String? label,
+    PassTimestampWrites? timestampWrites,
+  }) => throw refuse(DeviceFeature.compute);
 
   /// The contents of [buffer], once every pass submitted before this call has
   /// finished writing it. [buffer] must be `hostReadable`.
-  Future<ByteData> readBuffer(StorageBuffer buffer);
+  Future<ByteData> readBuffer(StorageBuffer buffer) =>
+      Future<ByteData>.error(refuse(DeviceFeature.compute));
 
   /// Releases one storage buffer, as [releaseGeometry] releases geometry.
-  void releaseStorageBuffer(StorageBuffer buffer);
-
-  /// Whether a 32-bit float texture can be drawn into and sampled with
-  /// linear filtering.
-  ///
-  /// Asked by the shadow filter that stores moments in one (`S2`), which
-  /// declines on a device answering false and falls back to the fixed
-  /// kernel. Both halves are one answer because that filter needs both: a
-  /// target it can render its moments into, and a sampler that blends
-  /// neighbouring texels of it.
-  bool get supportsFloat32Filtering;
-
-  /// Whether a pass with several colour targets can blend each differently.
-  ///
-  /// Asked by weighted blended transparency (`R8`), whose two targets blend
-  /// additively and multiplicatively in one draw; without it the draws go
-  /// twice, once per target. True on Impeller, WebGPU and the software
-  /// rasteriser (for its first two attachments), and on WebGL2 where the
-  /// context offers `OES_draw_buffers_indexed`. See `PassEncoder.setBlend` for
-  /// what the index means where it is honoured.
-  bool get supportsIndependentBlend;
+  void releaseStorageBuffer(StorageBuffer buffer) {}
 
   /// The formats this device can present an extended-range frame in, empty
   /// when it can only present standard range.
@@ -719,5 +524,328 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// `rgba16float` on a display that reports a high dynamic range. A frame
   /// rendered with `OutputTransform.extendedSrgb` is drawn in the first of
   /// these.
-  List<TextureFormat> get hdrOutputFormats;
+  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+
+  // ------------------------------------------------------------------------
+  // 1.0: capabilities as one answer, and the rest of a modern GPU.
+  //
+  // **[features] and [limits] replaced the `supportsX` getters** of 0.8,
+  // which are gone since 1.0 — see "Capabilities and stability" in this
+  // package's README.
+  //
+  // Everything a [DeviceFeature] gates throws `UnsupportedCapability` on a
+  // device without it. All of it is the 1.0 contract under strict semver: a
+  // backend that gains a capability starts listing the feature, and nothing
+  // here changes.
+  // ------------------------------------------------------------------------
+
+  /// What this device can do — every optional capability, as one set.
+  ///
+  /// Ask this rather than the `supportsX` getters, which read it. A feature
+  /// this version of the contract does not name cannot be in it; a feature it
+  /// names and this device lacks answers false, and every call that feature
+  /// gates throws `UnsupportedCapability`.
+  DeviceFeatures get features;
+
+  /// How much of everything this device has. See [DeviceLimits].
+  DeviceLimits get limits;
+
+  /// What [format] can be used for here: sampled, filtered, rendered,
+  /// blended, multisampled, resolved, used as depth, bound as storage.
+  ///
+  /// A format this device cannot allocate at all answers
+  /// [TextureFormatSupport.none].
+  TextureFormatSupport textureFormatSupport(TextureFormat format);
+
+  /// Writes [data] into [region] (the whole level by default) of level
+  /// [mipLevel] of [target], in [target]'s own format, rows [bytesPerRow]
+  /// apart (tightly packed by default; a compressed format counts rows of
+  /// blocks). Visible starting the next pass, as [overwriteGeometry].
+  ///
+  /// The general form of [overwriteTexture], which takes RGBA8 at the base
+  /// level only. `DeviceFeature.textureWrites`.
+  void writeTexture(
+    TextureHandle target,
+    ByteData data, {
+    TextureRegion? region,
+    int mipLevel = 0,
+    int? bytesPerRow,
+  }) => throw refuse(DeviceFeature.textureWrites);
+
+  /// A buffer of [BufferDescriptor.lengthInBytes] bytes, for the usages it
+  /// names, holding [contents] (zeros by default).
+  ///
+  /// The general form of [createStorageBuffer] and [uploadGeometry]: one
+  /// allocation a compute pass writes, an indirect draw reads its counts
+  /// from, and a draw binds as vertices (`StorageBuffer.asVertices`) or
+  /// indices (`StorageBuffer.asIndices`). `DeviceFeature.buffers`; a
+  /// [BufferUsage.storage] buffer needs `compute` or `renderStageStorage`,
+  /// and a [BufferUsage.indirect] one `indirectDraw` or `indirectDispatch`.
+  /// Released through [releaseStorageBuffer].
+  StorageBuffer createBuffer(
+    BufferDescriptor descriptor, {
+    ByteData? contents,
+  }) => throw refuse(DeviceFeature.buffers);
+
+  /// Writes [bytes] into [target] at [offsetInBytes], in place. Visible
+  /// starting the next pass, as [overwriteGeometry]; an offset and length
+  /// that do not fit throw an [ArgumentError] before anything is written.
+  ///
+  /// The call a simulation makes every step to feed a compute pass its
+  /// inputs. Any buffer [createStorageBuffer] or [createBuffer] made with
+  /// [BufferUsage.copyDestination]. Gated by `compute` or `buffers`,
+  /// whichever made the buffer possible.
+  void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) =>
+      throw refuse(DeviceFeature.buffers);
+
+  /// A set of [count] queries of [type] — `DeviceFeature.occlusionQuery` or
+  /// `DeviceFeature.timestampQuery`.
+  QuerySet createQuerySet(QueryType type, int count) =>
+      throw refuse(type.feature);
+
+  /// The results of [count] queries of [querySet] from [first], once every
+  /// pass submitted before this call has finished: sample counts for
+  /// occlusion, nanoseconds for timestamps. A query no pass wrote reads zero.
+  Future<List<int>> readQueryResults(
+    QuerySet querySet, {
+    int first = 0,
+    int? count,
+  }) => Future<List<int>>.error(refuse(DeviceFeature.occlusionQuery));
+
+  /// Releases one query set, as [releaseStorageBuffer] releases a buffer.
+  void releaseQuerySet(QuerySet querySet) {}
+
+  /// Opens a pass of copies between buffers and textures. Never refused —
+  /// each copy is gated by its own feature. See [TransferEncoder].
+  TransferEncoder beginTransferPass({String? label}) =>
+      throw refuse(DeviceFeature.bufferCopy);
+
+  /// Maps [sizeInBytes] bytes (to the end by default) of [buffer] from
+  /// [offsetInBytes] into host memory, once every pass submitted before this
+  /// call is done with it — `DeviceFeature.mappedBuffers`.
+  ///
+  /// The staging-buffer path, both ways: [MapMode.read] on a
+  /// [BufferUsage.hostReadable] buffer that a transfer pass copied results
+  /// into, [MapMode.write] on a [BufferUsage.hostWritable] one the host
+  /// fills and a transfer pass copies onward. See [MappedBuffer] for how long
+  /// the bytes are valid. [readBuffer] is this, copied out and unmapped, for
+  /// a whole buffer.
+  Future<MappedBuffer> mapBuffer(
+    StorageBuffer buffer,
+    MapMode mode, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  }) => Future<MappedBuffer>.error(refuse(DeviceFeature.mappedBuffers));
+
+  /// Opens an encoder whose draws are kept as a [RenderBundle], to be
+  /// replayed into any pass whose attachments match [descriptor] —
+  /// `DeviceFeature.renderBundles`. See [RenderBundleEncoder] for what a
+  /// bundle cannot record.
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) => throw refuse(DeviceFeature.renderBundles);
+
+  // ------------------------------------------------------------------------
+  // 1.0, wave 3: a base class with defaults. Every member below has a body,
+  // so a backend written against 1.0.0 keeps compiling when one is added in
+  // a minor. A feature-gated member's default refuses with
+  // [UnsupportedCapability]; anything that is only a courtesy to a debugger
+  // does nothing.
+  // ------------------------------------------------------------------------
+
+  /// The name a refusal from this device gives as its backend. The runtime
+  /// type by default; a backend overrides it with the name a person knows it
+  /// by ("WebGPU", "Impeller").
+  String get backendName => '$runtimeType';
+
+  /// The refusal for [feature] on this device, for a default body or a
+  /// backend's own gate to throw: `throw refuse(DeviceFeature.compute)`.
+  @protected
+  UnsupportedCapability refuse(DeviceFeature feature, {String? reason}) =>
+      UnsupportedCapability(feature, backend: backendName, reason: reason);
+
+  /// The refusal for a request this device has the feature for and still
+  /// cannot honour, for a backend to throw from [operation]:
+  /// `throw refuseResource('createTextureFromPixels', 'the pixels are …')`.
+  @protected
+  DeviceResourceException refuseResource(
+    String operation,
+    String reason, {
+    Object? cause,
+  }) => DeviceResourceException(
+    operation: operation,
+    backend: backendName,
+    reason: reason,
+    cause: cause,
+  );
+
+  /// [createPipeline] without holding up the caller: the future completes
+  /// when the pipeline is linked.
+  ///
+  /// **Where a backend can compile off the thread, this is where it does.**
+  /// WebGPU's `createRenderPipelineAsync` is the model. The default links in
+  /// the calling turn and hands back a completed future, which is what a
+  /// backend without asynchronous compilation (Impeller, WebGL2 without
+  /// `KHR_parallel_shader_compile`, the software rasteriser) can honestly do.
+  /// A refused link completes the future with the error instead of throwing.
+  Future<PipelineHandle> createPipelineAsync(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+  }) async => createPipeline(vertex, fragment, layout: layout);
+
+  /// [createComputePipeline], asynchronously; see [createPipelineAsync]. For a
+  /// caller warming a compute pass up behind a loading screen.
+  Future<ComputePipelineHandle> createComputePipelineAsync(
+    ShaderHandle shader,
+  ) async => createComputePipeline(shader);
+
+  /// Releases a pipeline [createPipeline] made. Does nothing by default: a
+  /// backend whose pipelines are reclaimed with their last reference is
+  /// right to.
+  void releasePipeline(PipelineHandle pipeline) {}
+
+  /// Releases a pipeline [createComputePipeline] made, as [releasePipeline].
+  void releaseComputePipeline(ComputePipelineHandle pipeline) {}
+
+  /// Releases a bundle [createRenderBundleEncoder] recorded.
+  void releaseRenderBundle(RenderBundle bundle) {}
+
+  /// Gives back what this device made to sample with [sampler], if it made
+  /// anything.
+  ///
+  /// **A sampler is a value here, not a handle**: a [SamplerDescriptor] is
+  /// handed to every bind, and has nothing of its own to dispose. A backend
+  /// whose API wants an object for it makes one per distinct description
+  /// and keeps it — WebGPU a `GPUSampler`, Impeller a `SamplerOptions` —
+  /// and this drops that one, so a tool that swept through many anisotropy
+  /// levels or level clamps does not keep every one for the device's life.
+  /// The next bind of an equal description makes it again. A draw already
+  /// encoded keeps what it was bound with.
+  ///
+  /// Does nothing by default, which is the whole of it on a backend that
+  /// samples by value (WebGL2 sets the texture's parameters at each bind; the
+  /// software rasteriser reads the description itself).
+  void releaseSampler(SamplerDescriptor sampler) {}
+
+  /// Each time the device stops working: a WebGPU device lost, a WebGL
+  /// context lost or restored. An external source, so a [Stream].
+  ///
+  /// **What a loss means for the caller.** Every handle this device made is
+  /// spent; a frame drawn after it draws nothing. A [DeviceLoss] that
+  /// [DeviceLoss.isRecoverable] (a WebGL context that the browser restores)
+  /// is followed by another event with [DeviceLoss.restored] true, after
+  /// which the application rebuilds its renderer on the same device; any
+  /// other loss means opening a new device.
+  ///
+  /// **Every backend's, not WebGL's alone.** This is the one place a caller
+  /// learns of a loss, whichever backend it opened, so each backend reports
+  /// here whatever its API lets it see: WebGPU its `device.lost` and the
+  /// errors it would otherwise only log, WebGL its context events, Impeller
+  /// and the software rasteriser at least their own [dispose] as
+  /// [DeviceLossReason.destroyed]. A caller listens once, on whatever it
+  /// opened, and never asks which backend it was. A backend from outside
+  /// this repository owes the same; the empty default is only what one
+  /// inherits before it says anything, and it reads as "never lost".
+  Stream<DeviceLoss> get lost => const Stream<DeviceLoss>.empty();
+
+  /// Whether the device is lost now, and not restored — the state [lost]
+  /// reports the changes of, so a caller that subscribed late can ask. Every
+  /// backend that reports on [lost] answers here too.
+  bool get isLost => false;
+
+  /// Names [resource] — a [TextureHandle], [GeometryBuffer], [StorageBuffer],
+  /// [PipelineHandle], [QuerySet] or [RenderBundle] this device made — for a
+  /// GPU debugger, a frame capture and the memory report.
+  ///
+  /// A backend whose API carries labels (WebGPU's `label`) passes it on; the
+  /// default keeps it where [labelOf] reads it, and does nothing else.
+  void setLabel(Object resource, String label) => _labels[resource] = label;
+
+  /// The label [setLabel] gave [resource], or null when it has none.
+  String? labelOf(Object resource) => _labels[resource];
+
+  final Expando<String> _labels = Expando<String>('resource labels');
+}
+
+/// A device that reads a buffer back in the calling turn —
+/// `DeviceFeature.synchronousReadback`.
+///
+/// **A capability a device opts into, not a member every device carries**,
+/// since 1.0 (E.12 of the API review): WebGPU has no such call by design, and
+/// a member every device had to answer was a member three of four answered
+/// with a refusal. Asked with `device is SynchronousBufferReadback`; a device
+/// that is one lists [DeviceFeature.synchronousReadback] in its features.
+/// The software rasteriser and WebGL2 are.
+base mixin SynchronousBufferReadback on GraphicsDevice {
+  /// The bytes of [buffer] (a range of them), read back in the calling turn.
+  ///
+  /// **A stall, on purpose.** The call waits for every pass submitted before
+  /// it, which is the price WebGL2's `getBufferSubData` charges and the
+  /// reason WebGPU has no such call. For a tool or a test that would rather
+  /// block than restructure; a frame loop wants
+  /// [GraphicsDevice.readBuffer] or [GraphicsDevice.mapBuffer]. [buffer]
+  /// must be [BufferUsage.hostReadable].
+  ByteData readBufferSync(
+    StorageBuffer buffer, {
+    int offsetInBytes = 0,
+    int? sizeInBytes,
+  });
+}
+
+/// Why a device stopped working — `GraphicsDevice.lost`.
+@immutable
+final class DeviceLoss {
+  /// A loss for [reason], as the backend described it in [message].
+  const DeviceLoss({
+    required this.reason,
+    this.message = '',
+    this.isRecoverable = false,
+    this.restored = false,
+  });
+
+  /// What happened.
+  final DeviceLossReason reason;
+
+  /// The backend's own words, for a log.
+  final String message;
+
+  /// Whether the same device can come back: a WebGL context the browser may
+  /// restore. A WebGPU device lost is not; a new one has to be opened.
+  final bool isRecoverable;
+
+  /// True on the event that says a recoverable loss is over: the context is
+  /// back, and every resource has to be made again.
+  final bool restored;
+
+  @override
+  String toString() =>
+      'DeviceLoss(${reason.name}${restored ? ', restored' : ''}'
+      '${message.isEmpty ? '' : ': $message'})';
+}
+
+/// The reasons a [DeviceLoss] can give. An open set: a backend may report a
+/// reason a later minor names.
+@immutable
+final class DeviceLossReason {
+  const DeviceLossReason._(this.name);
+
+  /// The reason's stable name, as reports and logs spell it.
+  final String name;
+
+  /// The application destroyed the device itself.
+  static const DeviceLossReason destroyed = DeviceLossReason._('destroyed');
+
+  /// The platform took it away: a driver reset, a GPU removed, a WebGL
+  /// context the browser reclaimed.
+  static const DeviceLossReason unknown = DeviceLossReason._('unknown');
+
+  /// Every reason this version names.
+  static const List<DeviceLossReason> values = <DeviceLossReason>[
+    destroyed,
+    unknown,
+  ];
+
+  @override
+  String toString() => 'DeviceLossReason.$name';
 }

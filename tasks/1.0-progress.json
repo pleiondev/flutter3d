@@ -1,0 +1,44 @@
+{
+  "updated": "2026-10-10",
+  "note": "Status of every row of 1.0-rc1-plan.md and 1.0-api-migrations.md, by `<wave>/<row>`: done, partial, active, blocked or todo (the default). Each wave's integration updates it with the plan's status lines; tool/progress.dart draws the dashboard from both.",
+  "rows": {
+    "0/0.1": "done",
+    "0/0.2": "done",
+    "0/0.3": "done",
+    "0/0.4": "done",
+    "0/0.5": "partial",
+    "1/1A": "done",
+    "1/1B": "done",
+    "1/1C": "done",
+    "1/1D": "done",
+    "1/1E": "done",
+    "1/1F": "done",
+    "1/1G": "done",
+    "1/1H": "done",
+    "1/1I": "done",
+    "1/1Z": "done",
+    "M/M1": "done",
+    "M/M2": "done",
+    "M/M3": "done",
+    "M/M4": "done",
+    "M/M5": "done",
+    "M/M6": "done"
+  },
+  "notes": {
+    "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
+    "3.2/3R": "found in wave 1: spine and neck cones too stiff in flexion, arm struts; to do with the inelastic group",
+    "M/M4": "nine formats owned by Flutter packages are reported, not lifted",
+    "M/M6": "the 0.8.5 site corpus fails on 14 names, handed to wave 2"
+  },
+  "goals": {
+    "P1": "todo",
+    "P2": "todo",
+    "P3": "todo",
+    "P4": "todo",
+    "P5": "todo",
+    "Nightly": "todo",
+    "Games": "todo",
+    "Twins": "todo",
+    "Laboratories": "todo"
+  }
+}

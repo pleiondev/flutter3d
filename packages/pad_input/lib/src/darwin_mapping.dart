@@ -85,7 +85,7 @@ final class DarwinPadState implements PadMirror {
       return;
     }
     out.clear();
-    out.connected = true;
+    out.isConnected = true;
 
     for (var i = 0; i < axes.length; i++) {
       final axis = axes[i];

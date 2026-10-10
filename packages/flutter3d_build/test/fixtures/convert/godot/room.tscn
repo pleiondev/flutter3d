@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3 uid="uid://room"]
+
+[ext_resource type="PackedScene" path="res://props/crate.tscn" id="1_crate"]
+[ext_resource type="Material" path="res://props/painted.tres" id="2_paint"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_floor"]
+size = Vector3(8, 0.2, 8)
+
+[node name="Room" type="Node3D"]
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+mesh = SubResource("BoxMesh_floor")
+material_override = ExtResource("2_paint")
+
+[node name="Crate1" parent="." instance=ExtResource("1_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -1)
+
+[node name="Body" parent="Crate1"]
+surface_material_override/0 = ExtResource("2_paint")
+
+[node name="Crate2" parent="." instance=ExtResource("1_crate")]
+transform = Transform3D(0, 0, 0.5, 0, 0.5, 0, -0.5, 0, 0, -2, 0, 1)
+
+[node name="Hidden" type="MeshInstance3D" parent="."]
+visible = false
+mesh = SubResource("BoxMesh_floor")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]

@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(x, y, z), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(x, y, z), size: Vector3(sx, sy, sz));
 
 /// Rooms A (x 0..8), B (x 10..18) and C (x 20..28); a doorway between A and
 /// B, a solid wall between B and C.
@@ -38,7 +38,7 @@ Level _rooms() => Level(
 
 MeshNode _node(String name) => MeshNode(
   CpuMesh(CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build()),
-  Material(),
+  RenderMaterial(),
   name: name,
 );
 
@@ -62,9 +62,9 @@ void main() {
     final hidden = culler.apply(Vector3(2.0, 1.5, 4.0));
 
     expect(hidden, 1);
-    expect(a.node.visible, isTrue);
-    expect(b.node.visible, isTrue, reason: 'through the doorway');
-    expect(c.node.visible, isFalse, reason: 'behind the wall');
+    expect(a.node.isVisible, isTrue);
+    expect(b.node.isVisible, isTrue, reason: 'through the doorway');
+    expect(c.node.isVisible, isFalse, reason: 'behind the wall');
     expect(culler.cell, greaterThanOrEqualTo(0));
   });
 
@@ -72,12 +72,12 @@ void main() {
     final c = room('c', 20.5, 27.5);
     final culler = VisibilityCuller(table, <VisibilityBatch>[c])
       ..apply(Vector3(2.0, 1.5, 4.0));
-    expect(c.node.visible, isFalse);
+    expect(c.node.isVisible, isFalse);
 
     final hidden = culler.apply(Vector3(19.0, 2.0, 4.0));
 
     expect(hidden, 0, reason: 'inside the wall, the table has no opinion');
-    expect(c.node.visible, isTrue);
+    expect(c.node.isVisible, isTrue);
     expect(culler.cell, -1);
   });
 
@@ -164,11 +164,11 @@ void main() {
     final c = room('c', 20.5, 27.5);
     final culler = VisibilityCuller(table, <VisibilityBatch>[c])
       ..apply(Vector3(2.0, 1.5, 4.0));
-    expect(c.node.visible, isFalse);
+    expect(c.node.isVisible, isFalse);
 
     culler.showAll();
 
-    expect(c.node.visible, isTrue);
+    expect(c.node.isVisible, isTrue);
     expect(culler.hidden, 0);
   });
 }

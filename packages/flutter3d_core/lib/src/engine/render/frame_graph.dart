@@ -159,7 +159,7 @@ abstract base class FrameGraphNode {
   ///
   /// Asked once at compile, beside [isActive], and reported as
   /// [PassSkip.unsupported].
-  bool get supported => true;
+  bool get isSupported => true;
 }
 
 /// Why a pass that was registered did not run — `gfx-39n`.
@@ -172,13 +172,12 @@ abstract base class FrameGraphNode {
 /// and is the *graph* being clever, and [starved] means something upstream
 /// could not run and this is the consequence rather than the cause.
 ///
-/// **This is the thing no other engine reports.** three.js, Unity URP, Godot,
-/// Bevy, Filament and Unreal all expose a per-pass switch and none of them
-/// will say what became of it — their `enabled` and `isActive`
-/// read back the input, which answers "did I ask for this" rather than "what
-/// happened". This engine has one caller for whom that is not a nicety: an
-/// agent handed a 256-pixel picture cannot look at it and infer that the
-/// occlusion it asked for was dropped because nothing consumed it.
+/// **It reports what happened, not what was asked.** A per-pass switch that
+/// only reads back its own input answers "did I ask for this"; the frame's
+/// skip list answers "did it run, and if not, why". This engine has one
+/// caller for whom that is not a nicety: an agent handed a 256-pixel picture
+/// cannot look at it and infer that the occlusion it asked for was dropped
+/// because nothing consumed it.
 ///
 /// A [starved] pass is the one to read first when a frame is wrong, because
 /// it names a consequence and some other pass is the cause.
@@ -199,7 +198,9 @@ final class PassSkip {
   /// bloom at zero intensity, occlusion switched off in the settings.
   static const PassSkip settings = PassSkip._('settings');
 
-  /// A caller named it in `RenderSettings.disabledPasses`.
+  /// A caller named it in [FrameGraph.compile]'s `disabled`. The renderer's
+  /// own frames never do: a step is switched off through
+  /// `RenderSettings.without`, and reported as [switchedOff].
   static const PassSkip disabled = PassSkip._('disabled');
 
   /// It could have run, and nothing downstream wanted what it produces.
@@ -224,14 +225,51 @@ final class PassSkip {
   /// probe.
   static const PassSkip unsupported = PassSkip._('unsupported');
 
-  /// All of them, in the order a reader should try them: the two a caller
-  /// asked for, then the two the frame decided, then the one the device did.
+  /// The pass belongs to a `RenderStep` the caller switched off through
+  /// `RenderSettings.without` or `RenderSettings.only`.
+  ///
+  /// **A narrower [settings], not a different mechanism.** The step was
+  /// switched off by changing its own setting, and the pass is inactive for
+  /// exactly the reason a pass off by default is. What this adds is who said
+  /// so: a frame built with `without({RenderStep.bloom})` reports its bloom
+  /// as switched off, and a frame that never asked for light shafts reports
+  /// them as [settings], so a caller reading the list can tell the steps they
+  /// removed from the ones that were never on.
+  ///
+  /// A step that has no pass of its own — the tone curve, the grade, the
+  /// distance fog, all of them arithmetic inside another pass — is reported
+  /// under the step's own name with this reason, in `FrameResult.skipped`.
+  static const PassSkip switchedOff = PassSkip._('switched off');
+
+  /// Something the frame was asked for and did not give, which is not a
+  /// pass at all: the polygon mode, a coverage mode, the multisampling, a
+  /// cube shadow row. Only `FrameResult.skipped` reports it, under the names
+  /// in `FrameResult.declinedNames`.
+  ///
+  /// **The same four facts `FrameResult` already carried as fields**, each
+  /// its own convention — `wireframeDeclined`, `alphaToCoverageDeclined`,
+  /// `antiAliasing.msaaDeclined`, `shadowsDenied`. They stay; this lists
+  /// them where everything else that did not happen is listed, so a caller
+  /// walking `skipped` (or a `RenderListener` handed it entry by entry)
+  /// meets them without knowing four field names.
+  ///
+  /// Not [unsupported]: two of the four are the frame's decision rather
+  /// than the device's — multisampling given up because a pass reads the
+  /// surface buffer, a light refused a row because the atlas was full — and
+  /// a caller can change both.
+  static const PassSkip declined = PassSkip._('declined');
+
+  /// All of them, in the order a reader should try them: the three a caller
+  /// asked for, then the two the frame decided, then the two the device or
+  /// the frame refused.
   static const List<PassSkip> values = <PassSkip>[
     settings,
+    switchedOff,
     disabled,
     unconsumed,
     starved,
     unsupported,
+    declined,
   ];
 
   @override

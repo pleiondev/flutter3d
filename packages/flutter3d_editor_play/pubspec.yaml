@@ -1,0 +1,51 @@
+name: flutter3d_editor_play
+description: "Play from a level editor: the game a level belongs to run with `flutter run --machine`, reloaded, stopped, and handed a saved level while it runs."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - level-editor
+  - hot-reload
+  - tooling
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: it runs `flutter run
+# --machine` as a process and talks to the VM service, so it lives on the
+# desktop an editor runs on.
+platforms:
+  linux:
+  macos:
+  windows:
+
+dependencies:
+  # `Level.digestHex`, which the game checks a level it is sent against.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The running game's VM service, where `ext.flutter3d.level.apply` is.
+  vm_service: ^15.3.0
+
+  # The socket to that service, in a browser as well as on a desktop:
+  # `vmServiceConnectUri` opens a `dart:io` `WebSocket`, and the web editor
+  # attaches to a game through nothing else. See `src/vm_connect.dart`.
+  web_socket_channel: ^3.0.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **Plain Dart with `dart:io` in it, and a package of its own for that.**
+#
+# Play starts a process and talks to it, which is exactly what
+# `flutter3d_editor_core` is written never to do: that package opens a level
+# with no disk and no process, so a validator or a web build can use it. The
+# editor application had this code under `lib/src/play`, where the editor's
+# MCP server, which wants the same Play for an agent, could not reach it
+# without depending on an application. Here both depend on it, and neither
+# depends on the other. The `dart:io` stays out of `lib/attach.dart` and what
+# it exports, which is the part of Play a web build has: attaching to a game
+# that is already running.

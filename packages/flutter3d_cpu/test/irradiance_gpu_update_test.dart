@@ -12,7 +12,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_cpu/flutter3d_cpu.dart' hide encodeOctahedral;
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,9 +33,12 @@ _Room _room() {
     height: _size,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  MeshNode slab(Vector3 size, Vector3 at, Vector4 colour) => MeshNode(
+  MeshNode slab(Vector3 size, Vector3 at, Vector4 color) => MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: size).build()),
-    Material(baseColor: colour, lighting: LightingModel.lambert),
+    RenderMaterial(
+      baseColor: _fromSrgb(color),
+      lighting: LightingModel.lambert,
+    ),
   )..setPosition(at.x, at.y, at.z);
   final field =
       IrradianceField(
@@ -67,8 +71,11 @@ _Room _room() {
       ),
     )
     ..add(
-      LightNode(type: LightType.point, intensity: 40.0, range: 12.0)
-        ..setPosition(0.0, 0.0, 0.0),
+      LightNode(
+        type: LightType.point,
+        intensity: 40.0 * Photometric.legacyUnit,
+        range: 12.0,
+      )..setPosition(0.0, 0.0, 0.0),
     )
     ..add(camera)
     ..irradianceField = field;
@@ -166,3 +173,6 @@ void main() {
     expect(it.renderer.frameWorkBudget.deferred, 1);
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

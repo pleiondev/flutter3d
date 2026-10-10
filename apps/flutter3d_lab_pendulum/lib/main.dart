@@ -13,12 +13,11 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_lab/flutter3d_lab.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
+import 'package:flutter3d_education/lab.dart';
 
 import 'src/pendulum_lab_panel.dart';
 
@@ -60,6 +59,9 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     startAngle: 0.9,
   );
   final ValueNotifier<double> _length = ValueNotifier<double>(1.2);
+
+  /// Turns the display's frames into the lab's fixed steps.
+  final LabClock _clock = LabClock();
   final Raycaster _raycaster = Raycaster();
 
   Renderer? _renderer;
@@ -103,15 +105,18 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     scene.add(camera);
 
     scene.add(
-      LightNode(type: LightType.point, intensity: 8.0, name: 'sun')
-        ..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
+      LightNode(
+        type: LightType.point,
+        intensity: 8.0 * Photometric.legacyUnit,
+        name: 'sun',
+      )..setPositionFrom(Vector3(1.0, 4.0, -3.0)),
     );
 
     final pivotMesh = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.06).build()),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.unlit,
-        baseColor: Vector4(0.6, 0.62, 0.66, 1.0),
+        baseColor: LinearColor.fromSrgb(0.6, 0.62, 0.66, 1.0),
       ),
       name: 'pivot',
     )..setPositionFrom(_pivot);
@@ -119,9 +124,9 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     final bob = MeshNode(
       DeviceMesh.upload(device, const SphereShape(radius: 0.16).build()),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.86, 0.71, 0.32, 1.0),
+        baseColor: LinearColor.fromSrgb(0.86, 0.71, 0.32, 1.0),
         roughness: 0.4,
       ),
       name: 'bob',
@@ -143,9 +148,9 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
           capped: false,
         ).build(),
       ),
-      Material(
+      RenderMaterial(
         lighting: LightingModel.unlit,
-        baseColor: Vector4(0.75, 0.75, 0.72, 1.0),
+        baseColor: LinearColor.fromSrgb(0.75, 0.75, 0.72, 1.0),
       ),
       name: 'string',
     );
@@ -241,7 +246,10 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     // The first callback's `elapsed` is already nonzero (a ticker's clock
     // starts when the scheduler binding did, not when this one started), so
     // clamping is what stands in for "skip the first frame" without a bool.
-    _pendulum.step(dt.clamp(0.0, 0.05));
+    // Stepped by the lab's own fixed step, through the clock, never by the
+    // frame's: the swing on screen is the one a recorded run of this lab
+    // has, on a 60 Hz display and a 120 Hz one alike.
+    _clock.advance(_pendulum, dt.clamp(0.0, 0.05));
     _placeBob();
     _placeString();
     unawaited(_panel.tick());

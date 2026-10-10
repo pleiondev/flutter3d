@@ -211,3 +211,15 @@ abstract base class EntityKind {
     );
   }
 }
+
+/// A kind for a type nobody here has been taught: it accepts the type and
+/// gives it no meaning.
+///
+/// **A level names things a reader does not spawn**, and a registry that has
+/// never heard of them refuses the document at all. An editor that knows no
+/// game, or a game walking a level it has no actors for yet, reads every
+/// entity of an unknown type as what it is to them: a coordinate with a word
+/// attached, and checks nothing about it of its own.
+final class OpenKind extends EntityKind {
+  const OpenKind(super.type);
+}

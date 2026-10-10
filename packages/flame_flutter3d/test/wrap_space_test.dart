@@ -7,8 +7,8 @@ import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,7 +19,7 @@ final class _Rock extends Object3dComponent with CollisionCallbacks {
     : super(
         node: MeshNode(
           CpuMesh(CuboidShape(size: Vector3.all(1.0)).build()),
-          engine.Material(),
+          engine.RenderMaterial(),
         ),
         scene: scene,
         plane: BridgePlane.ground(),

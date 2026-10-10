@@ -17,14 +17,17 @@ enum WedgeUphill {
 
   const WedgeUphill(this.x, this.z);
 
-  /// The horizontal direction the surface rises towards, as a unit vector.
+  /// The horizontal direction the surface rises towards, as a unit vector:
+  /// its x component, unitless (-1, 0 or 1).
   final double x;
+
+  /// The z component of that unit vector, unitless (-1, 0 or 1).
   final double z;
 
   /// Which axis this climbs along: 0 for x, 2 for z.
   int get axis => x != 0.0 ? 0 : 2;
 
-  /// The sign along that axis.
+  /// The sign along that axis, unitless: -1 or 1.
   double get sign => x != 0.0 ? x : z;
 }
 
@@ -145,6 +148,33 @@ final class CollisionWedge extends CollisionShape {
       normal.x * position.x + normal.y * position.y + normal.z * position.z,
     );
     return 5;
+  }
+
+  /// The furthest of the wedge's six corners: the floor's four and the top
+  /// edge's two over its uphill side.
+  @override
+  void supportPoint(double dx, double dy, double dz, Vector3 out) {
+    final h = halfExtents;
+    final axis = uphill.axis;
+    final high = uphill.sign * h[axis];
+    var best = -double.infinity;
+    for (var corner = 0; corner < 6; corner++) {
+      final top = corner >= 4;
+      // On the top edge the side coordinate takes the corner's low bit.
+      final sideLow = top ? corner & 1 == 0 : corner & 2 == 0;
+      final x = top && axis == 0 ? high : (corner & 1 == 0 ? -h.x : h.x);
+      final z = top && axis == 2
+          ? high
+          : top
+          ? (sideLow ? -h.z : h.z)
+          : (corner & 2 == 0 ? -h.z : h.z);
+      final y = top ? h.y : -h.y;
+      final reach = x * dx + y * dy + z * dz;
+      if (reach > best) {
+        best = reach;
+        out.setValues(x, y, z);
+      }
+    }
   }
 
   @override

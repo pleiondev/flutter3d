@@ -5,12 +5,12 @@
 /// Quoted by `flipbook.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FlipbookDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -38,7 +38,7 @@ final class FlipbookDemo extends ShowcaseDemo {
   /// Four cells in a row, each a solid colour: a stand-in for four drawn
   /// frames of a burning-out spark, from bright to dark.
   ByteData _atlas() {
-    const List<List<int>> colours = <List<int>>[
+    const List<List<int>> colors = <List<int>>[
       <int>[255, 255, 220],
       <int>[255, 190, 90],
       <int>[220, 90, 40],
@@ -48,12 +48,12 @@ final class FlipbookDemo extends ShowcaseDemo {
     final int width = _cellSize * _frames;
     for (var y = 0; y < _cellSize; y++) {
       for (var frame = 0; frame < _frames; frame++) {
-        final List<int> colour = colours[frame];
+        final List<int> color = colors[frame];
         for (var x = 0; x < _cellSize; x++) {
           final int at = (y * width + frame * _cellSize + x) * 4;
-          bytes[at] = colour[0];
-          bytes[at + 1] = colour[1];
-          bytes[at + 2] = colour[2];
+          bytes[at] = color[0];
+          bytes[at + 1] = color[1];
+          bytes[at + 2] = color[2];
           bytes[at + 3] = 255;
         }
       }
@@ -69,7 +69,7 @@ final class FlipbookDemo extends ShowcaseDemo {
       height: _cellSize,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: _atlas(),
-    )!;
+    );
 
     // #region flipbook
     _flipbook = Flipbook(columns: _frames, rows: 1);
@@ -78,7 +78,10 @@ final class FlipbookDemo extends ShowcaseDemo {
     _particles = ParticleSystem(capacity: _count, seed: 606);
     _sparksEffect = ParticleEffect(
       count: _count,
-      emitter: const ConeEmitter(speed: Range(1.0, 2.2), halfAngleDegrees: 20),
+      emitter: const ConeEmitter(
+        speed: Range(1.0, 2.2),
+        halfAngle: 20.0 * math.pi / 180.0,
+      ),
       lifetime: const Range(0.8, 1.2),
       size: const Range(0.09, 0.13),
       color: Vector4(1.0, 1.0, 1.0, 1.0),
@@ -89,12 +92,12 @@ final class FlipbookDemo extends ShowcaseDemo {
       direction: Vector3(0.0, 1.0, 0.0),
     );
 
-    context.renderer.addContributor(
+    context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles, texture: atlas, flipbook: _flipbook),
     );
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

@@ -1,3 +1,226 @@
+## 1.0.0-rc.1
+
+- **A rocket's launcher survives a rewind.** `FiredBy` is saved under
+  `firedBy`, where it was excluded. An actor's launcher is named by its
+  entity; anything else is named through `ProjectileSystem.nameOwner`, and
+  `GameSimulation` names the player. After a rollback a rocket in the air
+  used to hit its own launcher a step out of the muzzle and credit nobody,
+  so the resimulated step differed from the live one. A save with a rocket
+  in flight is one component longer, and a checkpoint taken then moves.
+
+- **`shooterWorld`, the shooter's world at 24 m/s²**, the gravity its
+  characters always had, now the crypt's bodies, fire and sparks' too.
+- **`ShooterPlugin.headless` is the base's nullable field**, passed as
+  `super.headless`, as every genre's is.
+- **The tests written against the unpublished demo content moved to
+  `flutter3d_demo_content`**; no dev dependency on it any more, so pana
+  resolves the package.
+
+- **The run is in the loop's snapshots, and its monsters in published
+  state.** `ShooterPlugin` captures and restores its run as a part of the
+  engine's snapshots and publishes the run's world, so a rollback restores
+  the run and a view reads the monsters from `PublishedState`. It installs
+  `shooterKinds()` — a secret and a note — unless the game hands its own.
+
+- **Breaking: `GameSimulation.events` is gone; the run publishes onto the
+  bus.** `GameSimulation.publishTo` hands the run a bus, which
+  `ShooterPlugin` does when its `simulation` is set, and each event is
+  published at the moment it happens, in the order it always was; a
+  cutscene's signals are published as they fire, where the drain used to
+  put them. A game that drained the buffer subscribes on the loop's bus, or
+  reads `StepEventSummary.events` at the step's end; a test that steps a
+  run by hand hands it a `DirectBus`. The events are declared with codecs
+  under camel-case names, `shooter.shotFired`, `shooter.shotLanded`,
+  `shooter.playerHurt`, `shooter.playerDied`, `shooter.secretFound` and
+  `shooter.mechanismUsed`, which are now also their `name`s, so a run's
+  event digest folds in what each event carries. `shotEvents` is unchanged.
+
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `ChaseBrain.resting` is `isResting`; `PatrolBrain.resting` is `isResting`;
+  `TreeBrain.resting` is `isResting`; `ShotHit.struckSomething` is
+  `didStrikeSomething`. `dart fix` carries the renames.
+- **Breaking: units in names (docs/CONTRACTS.md).**
+  `MeleeBehavior.arcDegrees` is `arc`, in radians. `WeaponDef.cooldown` is a
+  `double` of seconds, and `cooldownSeconds`, which was the same number, is
+  gone. `FirstPersonCamera(fov:)` and its getter are `fovY`.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `addArmour` is `addArmor`, `armour` is `armor`, `ArmourGift` is
+  `ArmorGift`, `behaviour` is `behavior`, `BehaviourKinds` is
+  `BehaviorKinds`, `BehaviourTree` is `BehaviorTree`, `centre` is `center`,
+  `colour` is `color`, `colours` is `colors`, `HasBehaviourTree` is
+  `HasBehaviorTree`, `HitscanBehaviour` is `HitscanBehavior`, `maxArmour`
+  is `maxArmor`, `MeleeBehaviour` is `MeleeBehavior`, `ProjectileBehaviour`
+  is `ProjectileBehavior`, `WeaponBehaviour` is `WeaponBehavior`. Only the
+  Dart names changed: a file keeps the keys it was written with, and `dart
+  fix` carries the renames.
+- **The shooter declares its actions.** `ShooterActions.set` is the
+  engine's common set with fire, alternate fire, reload and crouch, for an
+  action map and a rebinding screen.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **A first-person camera.** `FirstPersonCamera` puts the view at
+  `Player.eyeFrom` looking along `Player.aim`, recoil included, on
+  `FirstPersonFraming` from `flutter3d_addon_camera`: no smoothing and no
+  walls, the same picture as placing the camera from those two calls by
+  hand, plus a rig for kicks and shakes and a `virtualCamera` a
+  `CameraDirector` can blend out of the head and back.
+
+- **The shooter is a plugin.** `ShooterPlugin` installs into an
+  `EngineLoop`: one system, `shooter.step`, in the engine's `physics` phase,
+  which steps the `GameSimulation` it is handed (`simulation`, set again for
+  each level). `ShooterPhases` and `GameSimulation.systems` are sub-phases of
+  that one system, and the order inside the step is unchanged, so a run
+  recorded before replays to the bit. The genre declares its own events
+  under `shooter.` names, and the simulation publishes them onto the bus.
+  The entity kinds it is given
+  go into the engine's `EntityKinds` while it is on. A host pairs it with
+  `ShooterHeadlessGame` through `headless`. Everything it registers goes when
+  it is switched off.
+
+- **`shooterSimulationVersion`**, and `ShooterHeadlessGame` says it
+  (`VersionedSimulation`): a tool refuses a run recorded on other shooter
+  rules before playing it. A minor that changes the rules bumps it; a patch
+  never does.
+
+- **Breaking: `Collector` can no longer be implemented outside their own
+  library: it is an `abstract base mixin class` now, so a game or a test mixes
+  it in (`with`) and its class is `final` or `base`. A member added to it in a
+  1.x release arrives with a body, which an `implements` could not have taken
+  without breaking somebody.
+
+- **The crypt's water answers to its world.** Wading is slowed under the
+  world's gravity: `CryptHarm.wadingShare` takes a `g`, and the crypt passes
+  its world's `gravityMagnitude` in place of its own 9.81. The vault is
+  flooded at the world's air temperature, and the shins are dragged by the
+  same water preset the core flows, not a density written beside it. A run
+  under the default world is the run it was, to the bit.
+
+- **The crypt's fire, water and loose wood are the package's.**
+  `package:flutter3d_game_shooter/crypt.dart` holds `CryptWorld`: the
+  torches as burners, the crates and barrels, the flooded vault, stepped on
+  `GameSimulation.systems` and saved in the run's snapshot. It was the
+  dungeon's, so `ShooterHeadlessGame`, a session and the `.f3drun` verifier
+  stood the level without it, and a run recorded with the elements diverged
+  before its first step. `ShooterHeadlessGame` now stands it on the physics
+  core, and takes `dress` for state the host's game hangs on a run itself,
+  such as the dungeon's monster strides. A run the game records retraces
+  headless to the bit. A torch's flame is worked out from the level
+  (`CryptTorch.flameOf`), not read off the drawn scene, and `Staged.fixtures`
+  lists what the level spawned.
+
+- **A rule hung on the step can hurt the player and read the shot.**
+  `GameSimulation.hurtPlayer` scales by the difficulty and reports
+  `PlayerHurt`/`PlayerDied`, as every other harm does. `shotEvents` gives the
+  player's shot this step without draining `events`. The crypt's heat and
+  its crates use both, where before they kept their own copy of the first
+  and drained and refilled the event buffer for the second.
+
+- **A chase goes through a breach.** `followBreaches` keeps the flow
+  field's grid in step with the level, as it already did for the meshes.
+  Before, a monster that had seen the player walked into the wall that a
+  patrolling guard next to it walked through.
+
+- **The shooter stages onto the run's physics.** `stage` defaults to
+  `shooterDynamics`: the backend's dynamics on the core, none on the
+  reference. The game, a headless tool and a server replaying a run now
+  all build the same world.
+
+- **Monsters rest by behaviour trees.** A `monster` entity naming a
+  `behaviour` the level has gets a `TreeBrain`: the tree walks it while it
+  rests, with the entity's `board` on its blackboard, and the chase takes
+  over the moment sight, a noise or pain wakes it. `sampleRules` checks the
+  trees with `BehaviorsRead`.
+
+- **A guard on its beat notices the player.** `ChaseBrain.resting` is
+  what sight, a noise and pain wake from; each compared with idle, so a
+  `PatrolBrain` walked past a player in plain view and past a shot in the
+  next room. `PatrolBrain` and `TreeBrain` rest in `patrolling`.
+
+- **A cutscene's signals are the run's events.** Each step the
+  simulation moves every cutscene's signals into `GameSimulation.events`,
+  on the step they fired, where sounds and reactions already listen.
+
+- **Cutscenes in the shooter.** `sampleRegistry` reads `cutscene`
+  entities for sixty steps a second, and `GameSimulation.cutscene` is the
+  one playing. While one plays the player's input moves, turns, fires and
+  uses nothing; the controls come back on the step it ends.
+
+- **Monsters learn the way through a broken wall.** The navigation meshes
+  are baked in four-metre tiles (`routeConfig`), and `followBreaches`
+  bakes again the part of every mesh a hole changed as the hole is blown,
+  in the step, and bakes the authored meshes again for every saved hole on
+  a restore. A guard whose post is behind a wall with no way round waits
+  until a rocket breaks it and then goes through; a restored breach gives
+  the meshes the digests the live ones had.
+
+- **Monsters walk to a point by a route, and round each other.**
+  `stageRoutes` sets a navigation mesh per width in the roster on the
+  actor system, on the grid's quarter-metre lattice, and avoidance; both
+  stagings call it. A guard whose next post is behind a wall walks round
+  the wall's end, where it walked into the wall; two guards meeting in a
+  corridor step round each other, where they pushed against each other
+  and stayed. A monster fighting another routes to it the same way.
+
+- **`stage(dynamicsFor:)`** makes a level's dynamics before anybody is
+  spawned and hands them to the simulation. None by default.
+
+- **A save carries what the dynamics need beyond the bodies.** The
+  simulation's snapshot holds `RigidDynamics.saveState()` under
+  `dynamics` and gives it back after the bodies are restored. For
+  `Dynamics` that is nothing, so a reference run's saves and digests are
+  unchanged. For the native core it is the core's own state, without which
+  a rewind stepped on from a keyframe would not repeat the run.
+
+- **Breaking: the shipped game's roster left the package.** `sample.dart`,
+  `crypt.dart` and `staging.dart` (`Monsters`, `Weapons`, `sampleRegistry`,
+  `sampleArsenal`, `CryptWorld`, `stage()`, `Staged`,
+  `ShooterHeadlessGame` and the rest) were one game's content, held to the
+  genre's semver as if a second game would build on its monsters. They live
+  in the repository's unpublished `flutter3d_demo_content` now, beside the
+  dungeon that ships them; a game copies what it wants. The second,
+  smaller `stage()` and `Staged` that `sample.dart` declared beside
+  `staging.dart`'s are gone, with `agentStartingInventory`: the one
+  `stage()` takes `sampleRegistry()` and `startingInventory()`. The package
+  no longer depends on `flutter3d_physics_native`.
+
+- **Breaking: `ReadoutStyle` is `ShooterReadoutStyle`, and `KeyKind` is
+  `ShooterKeyKind`.** The platformer and racing declare their own, so a
+  file importing two genres met two of each. `dart fix` renames them.
+
+- **Breaking: `ShooterPlugin` is a `GenrePlugin<GameSimulation>`**, the
+  shape every genre has: `kinds`, `simulation`, `install` and `uninstall`
+  are inherited, `replaceKinds` is new, and the constructor reads
+  `ShooterPlugin({kinds, replaceKinds, headless})` as before. A kind
+  another genre already added is shared when it is the same kind instead
+  of refused.
+
+- **Breaking: `Gift.announce` returns a `GiftAnnouncement`, not an English
+  sentence.** A message id (`pickedUp`, `key`, `poweredUp`, or a game's
+  own) with the gift, the amount and the detail, worded by the game in its
+  language; `english` is the old wording. `Pickup.announcement` carries it,
+  and `Pickup.message` still says it in English.
+
+- **Breaking: `GameState` is a class with constants, not an enum**, so a
+  state added in a minor release is not a break in every exhaustive
+  `switch`. `playing`, `dead`, `complete`, `values` and `name` are as they
+  were; `outcome` is a field, and `byName` reads a snapshot's word. There
+  is no `paused`: pausing is the loop's.
+
+- **`FirstPersonCamera(reframe:)`** replaces the camera's framing with one
+  of the game's own, given the preset to wrap.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.1
 
 **A claw that catches the player beside the one it swung at has caught

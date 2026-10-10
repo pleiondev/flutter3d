@@ -9,7 +9,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MorphTargetsDemo extends ShowcaseDemo {
   double weight = 0.7;
@@ -46,7 +45,7 @@ final class MorphTargetsDemo extends ShowcaseDemo {
 
     // #region texture
     final MorphTexture packed = MorphTexture.pack(withBump)!;
-    final TextureHandle? deltaTexture = context.device.createTextureFromPixels(
+    final TextureHandle deltaTexture = context.device.createTextureFromPixels(
       width: packed.width,
       height: packed.height,
       format: TextureFormat.r32g32b32a32Float,
@@ -54,9 +53,9 @@ final class MorphTargetsDemo extends ShowcaseDemo {
     );
     // #endregion texture
 
-    final Material sheetMaterial = Material(
+    final RenderMaterial sheetMaterial = RenderMaterial(
       name: 'sheet',
-      baseColor: Vector4(0.3, 0.6, 0.85, 1.0),
+      baseColor: LinearColor.fromSrgb(0.3, 0.6, 0.85, 1.0),
       doubleSided: true,
     );
     final MeshNode sheet = MeshNode(
@@ -64,21 +63,19 @@ final class MorphTargetsDemo extends ShowcaseDemo {
       sheetMaterial,
       name: 'sheet',
     );
-    if (deltaTexture != null) {
-      // #region morph
-      sheet.morph = MorphState(
-        texture: deltaTexture,
-        targetCount: packed.targetCount,
-        reaches: packed.reaches,
-      )..setWeights(<double>[weight]);
-      // #endregion morph
-    }
+    // #region morph
+    sheet.morph = MorphState(
+      texture: deltaTexture,
+      targetCount: packed.targetCount,
+      reaches: packed.reaches,
+    )..setWeights(<double>[weight]);
+    // #endregion morph
     _sheet = sheet;
 
     return Scene()
       ..add(sheet)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.3)),
       );
   }

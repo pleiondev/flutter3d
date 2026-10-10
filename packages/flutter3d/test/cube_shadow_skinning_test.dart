@@ -89,7 +89,7 @@ final class _CountingJoint extends SceneNode {
         device,
         const PlaneShape(width: 10.0, depth: 10.0).build(),
       ),
-      Material(name: 'floor'),
+      RenderMaterial(name: 'floor'),
       name: 'floor',
     )..setPosition(0.0, -1.5, 0.0),
   );
@@ -101,7 +101,7 @@ final class _CountingJoint extends SceneNode {
         size: Vector3.all(2.0),
       ).build(layout: skinned ? VertexLayout.skinned : VertexLayout.standard),
     ),
-    Material(name: 'box'),
+    RenderMaterial(name: 'box'),
     name: 'box',
   )..skinReach = 1.8;
   scene.add(box);
@@ -118,7 +118,7 @@ final class _CountingJoint extends SceneNode {
 
   scene.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 12.0
+      ..intensity = 12.0 * Photometric.legacyUnit
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),
@@ -133,7 +133,7 @@ final class _CountingJoint extends SceneNode {
 }
 
 TextureHandle _texel(FakeBackend device) => device.createTexture(
-  const RenderTargetSpec(
+  const RenderTargetDescriptor(
     width: 1,
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,

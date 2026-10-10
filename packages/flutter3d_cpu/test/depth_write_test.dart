@@ -39,15 +39,15 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
     height: 8,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  final colour = device.createTexture(
-    const RenderTargetSpec(
+  final color = device.createTexture(
+    const RenderTargetDescriptor(
       width: 8,
       height: 8,
       format: TextureFormat.r16g16b16a16Float,
     ),
   );
   final depth = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: 8,
       height: 8,
       format: TextureFormat.d32FloatS8UInt,
@@ -58,7 +58,7 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
     RenderPassDescriptor(
       colors: <ColorTarget>[
         ColorTarget(
-          texture: colour,
+          texture: color,
           loadAction: LoadAction.clear,
           clearValue: Vector4.zero(),
         ),
@@ -77,7 +77,7 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
   pass.setCullMode(CullMode.none);
   pass.setBlend(BlendState.additive);
   pass.setDepthCompare(CompareFunction.less);
-  if (askForDepthWriteOff) pass.setDepthWrite(false);
+  if (askForDepthWriteOff) pass.setDepthWrite(enabled: false);
   pass.bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
     'view_projection': Float32List.fromList(Matrix4.identity().storage),
   });
@@ -94,7 +94,7 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
   }
   pass.submit();
 
-  return (colour.backend as CpuTexture).pixels[0];
+  return (color.backend as CpuTexture).pixels[0];
 }
 
 void main() {

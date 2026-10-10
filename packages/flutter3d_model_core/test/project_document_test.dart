@@ -12,6 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:test/test.dart';
@@ -421,7 +422,10 @@ void main() {
         fromModelDocument(document),
       ).computeBounds();
       final scaled = toModelDocument(
-        fromModelDocument(document, options: const ImportOptions(scale: 0.001)),
+        fromModelDocument(
+          document,
+          options: const ImportSettings(scale: 0.001),
+        ),
       ).computeBounds();
 
       final before = unscaled.max - unscaled.min;
@@ -438,7 +442,7 @@ void main() {
       final document = cubeAt(Vector3(0.0, 0.0, 1.0));
       final project = fromModelDocument(
         document,
-        options: const ImportOptions(upAxis: UpAxis.z),
+        options: const ImportSettings(upAxis: UpAxis.z),
       );
       final placed = project.objects.single.transform.getTranslation();
       // Mutation: rotate +90 instead of -90, or about the wrong axis. Both
@@ -468,7 +472,7 @@ void main() {
         );
         final project = fromModelDocument(
           document,
-          options: const ImportOptions(upAxis: UpAxis.z),
+          options: const ImportSettings(upAxis: UpAxis.z),
         );
         final child = project.objects.firstWhere((o) => o.name == 'child');
         // The child's own local transform is untouched — the rotation lives on
@@ -693,12 +697,15 @@ void main() {
       materials: <SurfaceMaterial>[
         SurfaceMaterial(
           name: 'steel',
-          baseColor: Vector4(0.2, 0.3, 0.4, 1.0),
+          baseColor: LinearColor.fromSrgb(0.2, 0.3, 0.4, 1.0),
           metallic: 1.0,
           roughness: 0.25,
           baseColorTexture: const TextureBinding(imageIndex: 0),
         ),
-        SurfaceMaterial(name: 'paint', baseColor: Vector4(0.9, 0.1, 0.1, 1.0)),
+        SurfaceMaterial(
+          name: 'paint',
+          baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
+        ),
       ],
       images: <EncodedImage>[
         EncodedImage(bytes: Uint8List.fromList(<int>[1, 2, 3]), name: 'atlas'),
@@ -784,10 +791,16 @@ void main() {
 
       expect(reopened.materials, hasLength(2));
       expect(reopened.images, hasLength(1));
-      expect(
-        reopened.materials.first.surface.baseColor,
-        project.materials.first.surface.baseColor,
-      );
+      // `.f3d` keeps the tint as sRGB float32, so a linear colour comes back
+      // to float32's precision and no closer. Mutation: write the linear
+      // channels where the sRGB ones go, and the tint comes back darker by
+      // far more than that.
+      final written = project.materials.first.surface.baseColor.toSrgb();
+      final read = reopened.materials.first.surface.baseColor.toSrgb();
+      expect(read.r, closeTo(written.r, 1e-7));
+      expect(read.g, closeTo(written.g, 1e-7));
+      expect(read.b, closeTo(written.b, 1e-7));
+      expect(read.a, written.a);
       expect(reopened.materials.first.surface.metallic, 1.0);
       expect(
         reopened.objects.map((ModelObject o) => o.materialSlots),
@@ -839,7 +852,10 @@ void main() {
         ],
         roots: <int>[0],
         materials: <SurfaceMaterial>[
-          SurfaceMaterial(name: 'steel', baseColor: Vector4(0.2, 0.3, 0.4, 1)),
+          SurfaceMaterial(
+            name: 'steel',
+            baseColor: LinearColor.fromSrgb(0.2, 0.3, 0.4, 1),
+          ),
         ],
       );
 
@@ -867,7 +883,7 @@ void main() {
       expect(after.materials.length, before.materials.length);
       expect(
         after.materials.single.surface.baseColor,
-        Vector4(0.2, 0.3, 0.4, 1),
+        LinearColor.fromSrgb(0.2, 0.3, 0.4, 1),
       );
     });
   });

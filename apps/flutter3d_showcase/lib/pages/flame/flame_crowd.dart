@@ -43,20 +43,23 @@ final class FlameCrowdDemo extends ShowcaseDemo {
   Scene build(DemoContext context) {
     _context = context;
     _scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.5, 0.6)
-      ..ambientIntensity = 0.25
+      ..ambientColor = LinearColor(0.45, 0.5, 0.6)
+      ..ambientIntensity = 0.25 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
             context.device,
             CuboidShape(size: Vector3(10.0, 0.1, 10.0)).build(),
           ),
-          Material(name: 'floor', baseColor: Vector4(0.5, 0.52, 0.5, 1.0)),
+          RenderMaterial(
+            name: 'floor',
+            baseColor: LinearColor.fromSrgb(0.5, 0.52, 0.5, 1.0),
+          ),
           name: 'floor',
         )..setPosition(0.0, -0.05, 0.0),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.0)
+        LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.4)),
       );
     _game = _Brazier(context.camera)..open3d(context.device, scene: _scene);
@@ -98,11 +101,11 @@ final class _Brazier extends FlameGame with HasFlutter3d {
   /// are; each spark takes a slot in it while it is in the game.
   late final InstancedMeshNode batch = InstancedMeshNode(
     DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.12)).build()),
-    Material(
+    RenderMaterial(
       name: 'spark',
-      baseColor: Vector4(1.0, 0.8, 0.4, 1.0),
-      emissive: Vector3(1.0, 0.6, 0.2),
-      emissiveStrength: 3.0,
+      baseColor: LinearColor.fromSrgb(1.0, 0.8, 0.4, 1.0),
+      emissive: LinearColor(1.0, 0.6, 0.2),
+      emissiveStrength: 3.0 * Photometric.legacyNits,
     ),
     capacity: _sparks,
     name: 'sparks',
@@ -168,7 +171,10 @@ final class _Brazier extends FlameGame with HasFlutter3d {
 
   static ParticleEffect get _flame => ParticleEffect(
     count: 4,
-    emitter: const ConeEmitter(speed: Range(1.0, 2.5), halfAngleDegrees: 25.0),
+    emitter: const ConeEmitter(
+      speed: Range(1.0, 2.5),
+      halfAngle: 25.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(0.4, 0.7),
     size: const Range(0.8, 1.1),
     color: Vector4(3.0, 1.6, 0.4, 1.0),
@@ -177,7 +183,10 @@ final class _Brazier extends FlameGame with HasFlutter3d {
 
   static ParticleEffect get _soot => ParticleEffect(
     count: 1,
-    emitter: const ConeEmitter(speed: Range(0.6, 1.2), halfAngleDegrees: 20.0),
+    emitter: const ConeEmitter(
+      speed: Range(0.6, 1.2),
+      halfAngle: 20.0 * math.pi / 180.0,
+    ),
     lifetime: const Range(2.0, 2.6),
     size: const Range(0.9, 1.2),
     color: Vector4(0.25, 0.27, 0.32, 1.0),

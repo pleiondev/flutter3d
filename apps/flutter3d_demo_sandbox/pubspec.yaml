@@ -1,0 +1,74 @@
+name: flutter3d_demo_sandbox
+description: "A first-person sandbox of blocks: walk the hills, dig, build, and find the world as you left it."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer, and what every application repeats over it: the device
+  # `openDevice` picks, the frame surface and clock, and storage.
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_app: ^1.0.0-rc.1
+
+  # The keyboard and the walk: `DesktopInput` and `LevelWalk`, which this
+  # sandbox's body is.
+  flutter3d_game: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The blocks: the world, its meshes, its boxes and its navigation.
+  flutter3d_voxel: ^1.0.0-rc.1
+
+  # The physics core the body is moved by and its rays cast on: C built by
+  # its hook for each target, WebAssembly in the browser.
+  # `FLUTTER3D_PHYSICS=dart` at build time moves it with flutter3d_physics'
+  # reference instead.
+  flutter3d_physics_native: ^1.0.0-rc.1
+
+  # Water over the blocks, and fire through the planks, drawn.
+  flutter3d_effects: ^1.0.0-rc.1
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The game parts other games use too (`tasks/1.0-addons.md`).
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+  flutter3d_game_kit:
+    path: ../../packages/flutter3d_game_kit
+  flutter3d_game_physics:
+    path: ../../packages/flutter3d_game_physics
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # A device with no GPU behind it, for the frame test.
+  flutter3d_cpu: ^1.0.0-rc.1
+
+  # The foundation's value types a test names.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+flutter:
+  uses-material-design: true
+
+  # A picture a block face: Kenney's CC0 voxel tiles, and a gold one made
+  # from them. Where each came from is in assets/blocks/CREDITS.md.
+  assets:
+    - assets/blocks/

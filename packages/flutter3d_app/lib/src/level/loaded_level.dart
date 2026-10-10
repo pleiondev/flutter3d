@@ -1,9 +1,10 @@
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
+import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
+import '../hot_swap/hot_swap.dart';
 import 'visibility_culler.dart';
 
 /// A loaded level, in the two forms the game needs it.
@@ -23,6 +24,9 @@ final class LoadedLevel {
     Map<String, TextureHandle?>? materialTextures,
     List<DeviceMesh>? brushMeshes,
     List<ReflectionProbeNode>? probes,
+    this.decals = const <DecalNode>[],
+    this.reflectors = const <PlanarReflectorNode>[],
+    this.screens = const <RenderView>[],
     this.culler,
     this.batching = LevelBatching.perMaterial,
   }) : issues = List.unmodifiable(issues),
@@ -44,6 +48,21 @@ final class LoadedLevel {
   /// The reflection probes the document placed, in [scene] — one per
   /// `reflection_probe` entity, kept rather than rolling.
   final List<ReflectionProbeNode> probes;
+
+  /// The decals the document placed, in [scene]. A game draws them by
+  /// turning `RenderSettings.decals` on, which it does when this is not
+  /// empty — see [wantsDecals].
+  final List<DecalNode> decals;
+
+  /// The mirrors the document placed, in [scene].
+  final List<PlanarReflectorNode> reflectors;
+
+  /// The cameras the document placed, drawing into the materials they
+  /// name; given back in [dispose].
+  final List<RenderView> screens;
+
+  /// Whether the level has decals for the frame to paint.
+  bool get wantsDecals => decals.isNotEmpty;
 
   /// Whether every probe has been drawn whole — or never will be, on a device
   /// that builds none, which must not be waited for.
@@ -111,6 +130,11 @@ final class LoadedLevel {
   /// all because [dispose] is the only place they can be given back.
   final List<TextureHandle> boundTextures = <TextureHandle>[];
 
+  /// [materialTextures] as `HotSwap` watches them, so an image repainted
+  /// under a running game is swapped in. Forgotten by [dispose]: a swap after
+  /// the level is gone would release what [dispose] already released.
+  final List<SwappableTexture> watchedTextures = <SwappableTexture>[];
+
   /// The baked lightmap the brush batches sample, when the level came with
   /// one that matched it. Uploaded by the loader, released by [dispose].
   TextureHandle? lightmap;
@@ -132,7 +156,16 @@ final class LoadedLevel {
   /// share these texture objects rather than copies. The same contract as
   /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
   /// `gl.delete*` per resource on WebGL2.
+  /// The backend [collision] was attached to when the level was loaded —
+  /// the world's own — let go of in [dispose].
+  PhysicsBackend get physics => collision.backend;
+
   void dispose(GraphicsDevice device) {
+    physics.release(collision);
+    for (final screen in screens) {
+      screen.dispose();
+    }
+    watchedTextures.forEach(HotSwap.instance.forgetTexture);
     for (final mesh in brushMeshes) {
       device.releaseGeometry(mesh.vertices);
       device.releaseGeometry(mesh.indices);

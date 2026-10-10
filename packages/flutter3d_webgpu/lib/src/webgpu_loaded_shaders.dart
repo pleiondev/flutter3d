@@ -26,7 +26,10 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart' show forgetShader;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/translate.dart'
+    show BundleSectionFormatException;
 
 import 'webgpu_bundle_section.dart';
 import 'webgpu_shaders.dart';
@@ -37,7 +40,7 @@ import 'webgpu_shaders.dart';
 /// `GPUShaderModule` is compiled once from one text and cannot be edited, so
 /// the code behind each handle already handed out is replaced instead. See
 /// [WebGpuShader.code].
-final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
+final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   WebGpuLoadedShaderLibrary._(this._compiler, this._name, this._stages);
 
   /// The shape of the section document this reader knows.
@@ -72,7 +75,7 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
   static WebGpuSectionStages _stagesOf(ShaderBundle bundle) {
     final section = bundle.section(ShaderBundle.webgpuSection);
     if (section == null) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'it has no "${ShaderBundle.webgpuSection}" section, so there is '
@@ -84,8 +87,8 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     _refuseUnknownVersion(bundle.name, section);
     try {
       return decodeWebGpuSection(section);
-    } on FormatException catch (error) {
-      throw ShaderBundleRefused(
+    } on BundleSectionFormatException catch (error) {
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'its "${ShaderBundle.webgpuSection}" section is not the JSON '
@@ -125,16 +128,22 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
       return;
     }
     if (document is! Map<String, dynamic>) return;
-    final said = document['version'] ?? sectionVersion;
-    if (said != sectionVersion) {
-      throw ShaderBundleRefused(
+    // Every section version up to this build's; only a newer one is refused,
+    // and as stale, since the bundle is a build artifact the next build
+    // remakes. Mutation: compare with `!=` and bump the constant, and every
+    // bundle already built is refused.
+    final said = document['version'] ?? 1;
+    if (said is! int || said < 1 || said > sectionVersion) {
+      throw ShaderBundleException(
         name: bundleName,
         reason:
             'its "${ShaderBundle.webgpuSection}" section says it is version '
-            '$said and this backend reads version $sectionVersion. The '
+            '$said and this backend reads up to version $sectionVersion. The '
             'container is still format version ${ShaderBundle.formatVersion} '
             'because the other backends read their own sections unchanged; '
-            'repack this one with a packer of the same age as this build.',
+            'rebuild the bundle with this flutter3d (flutter3d_build does so '
+            'on the next build).',
+        stale: true,
       );
     }
   }
@@ -155,7 +164,14 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
     final isVertex = _stages.vertex.containsKey(name);
     final stage = isVertex ? _stages.vertex[name] : _stages.fragment[name];
     if (stage == null) return null;
-    return compileWebGpuStage(_compiler, name, stage, isVertex: isVertex);
+    return compileWebGpuStage(
+      _compiler,
+      name,
+      stage,
+      isVertex: isVertex,
+      kept: stage.declared,
+      release: (ShaderHandle h) => forgetShader(_handles, h),
+    );
   }
 
   @override
@@ -180,7 +196,7 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
                   : stages.fragment[handle.name]
             : null;
         if (stage == null) {
-          throw ShaderBundleRefused(
+          throw ShaderBundleException(
             name: bundle.name,
             reason:
                 'it no longer has the '
@@ -199,7 +215,7 @@ final class WebGpuLoadedShaderLibrary implements LoadedShaderLibrary {
       // objects nobody else holds, and dropping the map is the whole of letting
       // them go — where the WebGL2 backend has to delete each shader it made by
       // hand before it rethrows.
-      throw ShaderBundleRefused(name: bundle.name, reason: error.message);
+      throw ShaderBundleException(name: bundle.name, reason: error.message);
     }
 
     // The swap. A `PipelineHandle` the renderer already holds keeps its own

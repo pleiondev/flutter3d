@@ -14,6 +14,13 @@
 /// at all — a green scan behind a broken detector is worse than a red one.
 library;
 
+import 'api.dart';
+import 'boundaries.dart';
+import 'layers.dart';
+import 'migration.dart';
+import 'naming.dart';
+import 'schema.dart';
+
 /// One thing a rule found, with enough to act on it.
 final class Finding {
   const Finding(this.where, this.what);
@@ -72,6 +79,17 @@ const List<String> kGenreWords = <String>[
   // A racer's.
   'lap', 'nitro', 'chicane', 'pit stop',
 ];
+
+/// Names another program chose, which this repository calls by them and
+/// cannot rename, each exempt from [kGenreWords] whole and only whole.
+///
+///   * `reloadSources` is the service the flutter tool registers on a game's
+///     VM service for a hot reload (`flutter3d_editor_play`'s `AttachedRun`
+///     calls it, as DevTools does). Spelling it any other way is a call that
+///     finds nothing; `reloadAll` of our own still fires.
+///   * `shouldReload` is Flutter's `LocalizationsDelegate` member, which
+///     `Flutter3dGameLocalizations.delegate` has to override by that name.
+const Set<String> kProtocolNames = <String>{'reloadSources', 'shouldReload'};
 
 final RegExp _camel = RegExp(r'[A-Z]+(?![a-z])|[A-Z][a-z0-9]*|[a-z0-9]+');
 final RegExp _identifier = RegExp(r'[A-Za-z_][A-Za-z0-9_]*');
@@ -286,6 +304,7 @@ bool _sameWords(List<String> a, List<String> b) {
 List<String> genreWordsIn(String source, {List<String> words = kGenreWords}) {
   final found = <String>[];
   for (final match in _identifier.allMatches(codeOf(source))) {
+    if (kProtocolNames.contains(match.group(0))) continue;
     final said = _words(match.group(0)!);
     for (final forbidden in words) {
       final wanted = forbidden.split(' ');
@@ -345,6 +364,329 @@ String? unrepeatableIn(String source) {
   return null;
 }
 
+// ------------------------------------------------------------ a world's numbers
+
+/// The numbers that belong to a world or to a substance, by what they are.
+///
+/// **A world's gravity, its air and its sea are read from the world**, and a
+/// substance's density, viscosity and heat from its preset; a consumer that
+/// writes one of these as a literal has a world of its own nobody can set.
+/// Each pattern is the number with nothing glued to it — `19.81` and `9.812`
+/// are other numbers — and only in code: a comment explaining why 9.81 is
+/// what it is is the rule being kept.
+///
+/// `9.8` is ambiguous on its own — a fog ten metres away is `9.8` too — so it
+/// counts only on a line that names gravity, which is where it is gravity.
+/// The air's density to two or three figures (1.16 to 1.25, a fire's 1.18,
+/// a handbook's 1.2) is as ambiguous, and counts only on a line that names a
+/// density or declares a value called `air`.
+final Map<RegExp, String> kWorldLiterals = <RegExp, String>{
+  RegExp(r'(?<![\w.])9\.81(?![\d.])'): 'standard gravity',
+  RegExp(r'(?<![\w.])9\.80665(?![\d.])'): 'standard gravity',
+  RegExp(r'(?<![\w.])101325(?:\.0)?(?![\d.])'): 'the standard atmosphere',
+  RegExp(r'(?<![\w.])101\.325(?![\d.])'): 'the standard atmosphere',
+  RegExp(r'(?<![\w.])293\.15(?![\d.])'): 'the air of a room',
+  RegExp(r'(?<![\w.])288\.15(?![\d.])'): 'the standard atmosphere',
+  RegExp(r'(?<![\w.])1\.204(?![\d.])'): 'the air of a room',
+  RegExp(r'(?<![\w.])1\.225(?![\d.])'): 'the standard atmosphere',
+  RegExp(r'(?<![\w.])1025\.0(?![\d.])'): 'the sea',
+  RegExp(r'(?<![\w.])343\.0(?![\d.])'): 'sound in the air of a room',
+};
+
+final RegExp _looseGravity = RegExp(r'(?<![\w.])9\.8(?![\d.])');
+final RegExp _namesGravity = RegExp('gravity', caseSensitive: false);
+final RegExp _looseAirDensity = RegExp(
+  r'(?<![\w.])1\.(?:1[6-9]|2[0-5]?)(?![\d.])',
+);
+final RegExp _namesAirDensity = RegExp(
+  r'density|\b(?:const|final|var|double)\s+(?:double\s+)?_?air\b',
+  caseSensitive: false,
+);
+
+/// **A gravity written as a default, by any number.** Not only 9.81: a
+/// dynamics that fell at 22, a character tuned at 24 and a car at 20 were
+/// three worlds in one game, each with a number nobody could set from a
+/// level (decision 1 of `tasks/1.0-physics-audit.md`). So a gravity-named
+/// value given a number — `this.gravity = 24.0`, `gravity: 20.0`,
+/// `runGravity = 24.0` — and a down vector on a line that names gravity —
+/// `Vector3(0.0, -22.0, 0.0)` — count, whatever the number. Nought does not:
+/// "no gravity" is a switch, not a world.
+final RegExp _gravityDefault = RegExp(
+  r'\b\w*[Gg]ravity\b\s*(?:=(?![=>])|:)\s*(-?\d+(?:\.\d+)?)(?![\d.\w])',
+);
+final RegExp _downVector = RegExp(
+  r'Vector3\(\s*0(?:\.0)?\s*,\s*-\s*(\d+(?:\.\d+)?)\s*,\s*0(?:\.0)?\s*\)',
+);
+
+/// **A buoyancy as an acceleration.** A swimmer lifted at 6 m/s² rises on
+/// the Moon, where 6 is more than gravity. A buoyancy is a share of the
+/// world's g, or comes from the densities; a number of two or more given
+/// to one is an acceleration of its own.
+final RegExp _absoluteBuoyancy = RegExp(
+  r'\b\w*[Bb]uoyancy\b\s*(?:=(?![=>])|:)\s*(\d+(?:\.\d+)?)(?![\d.\w])',
+);
+
+/// **A spark that falls like a stone falls by the world.** A particle's
+/// gravity of eight or more downward is a ballistic fall — shrapnel, spray,
+/// a thrown droplet — and is `ParticleGravity()`, the world's; a smaller one
+/// is a drift that only looks like falling (smoke, embers, dust), which the
+/// effect's author may tune freely.
+final RegExp _ballisticParticles = RegExp(
+  r'ParticleGravity\(\s*-\s*(\d+(?:\.\d+)?)\s*\)',
+);
+
+/// Every world's or substance's number [source] writes in code, as the
+/// literal, the line it is on and what it is.
+List<({String literal, int line, String what})> worldLiteralsIn(String source) {
+  final lines = codeOf(source).split('\n');
+  bool nonzero(String number) => double.parse(number) != 0.0;
+  return <({String literal, int line, String what})>[
+    for (
+      var i = 0;
+      i < lines.length;
+      i++
+    ) ...<({String literal, int line, String what})>[
+      for (final entry in kWorldLiterals.entries)
+        for (final match in entry.key.allMatches(lines[i]))
+          (literal: match.group(0)!, line: i + 1, what: entry.value),
+      if (_namesGravity.hasMatch(lines[i]))
+        for (final match in _looseGravity.allMatches(lines[i]))
+          (literal: match.group(0)!, line: i + 1, what: 'gravity'),
+      if (_namesAirDensity.hasMatch(lines[i]))
+        for (final match in _looseAirDensity.allMatches(lines[i]))
+          (literal: match.group(0)!, line: i + 1, what: 'the air\'s density'),
+      for (final match in _gravityDefault.allMatches(lines[i]))
+        if (nonzero(match.group(1)!) &&
+            !kWorldLiterals.keys.any(
+              (RegExp known) => known.hasMatch(match.group(1)!),
+            ) &&
+            !_looseGravity.hasMatch(match.group(1)!))
+          (literal: match.group(1)!, line: i + 1, what: 'a gravity of its own'),
+      if (_namesGravity.hasMatch(lines[i]))
+        for (final match in _downVector.allMatches(lines[i]))
+          if (nonzero(match.group(1)!) &&
+              !_looseGravity.hasMatch(match.group(1)!) &&
+              !kWorldLiterals.keys.any(
+                (RegExp known) => known.hasMatch(match.group(1)!),
+              ) &&
+              !_gravityDefault.hasMatch(lines[i]))
+            (
+              literal: match.group(1)!,
+              line: i + 1,
+              what: 'a gravity of its own',
+            ),
+      for (final match in _absoluteBuoyancy.allMatches(lines[i]))
+        if (double.parse(match.group(1)!) >= 2.0)
+          (
+            literal: match.group(1)!,
+            line: i + 1,
+            what: 'a buoyancy as an acceleration of its own',
+          ),
+      for (final match in _ballisticParticles.allMatches(lines[i]))
+        if (double.parse(match.group(1)!) >= 8.0)
+          (
+            literal: match.group(1)!,
+            line: i + 1,
+            what: 'a particle falling by a gravity of its own',
+          ),
+    ],
+  ];
+}
+
+// --------------------------------------------- the core's copies of a number
+
+/// What a `#define` in the C core may not be, outside the header generated
+/// from the catalogue (`csrc/src/f3d_materials.g.h`).
+///
+/// **The core reads a substance's number, nature's constant and the standard
+/// world from the generated header**, so a `#define` of its own for one is a
+/// second copy that drifts — as water's specific heat did, 4186 in the heat
+/// model against 4182 everywhere else. Two ways to be one:
+///
+/// * a name that says it is the world's or water's or air's —
+///   `…WATER…`, `…AIR_…`, `…SEAWATER…`, `…STEFAN…`, `…GAS_CONSTANT…`,
+///   `…GRAVITY…`, `…ATMOSPHERE…` — whatever its number, since a different
+///   number under that name is the worst case;
+/// * Stefan–Boltzmann's value under any name.
+///
+/// A material's own name (`…WOOD…`) with the catalogue's number for it is
+/// the third, which needs the catalogue and is [cDefinesCopyingMaterialsIn].
+final RegExp _cDefine = RegExp(
+  r'^\s*#\s*define\s+(\w+)\s+F3D_R\(\s*([-+0-9.eE]+)\s*\)',
+  multiLine: true,
+);
+final RegExp _worldWord = RegExp(
+  r'WATER|(?:^|_)AIR_|SEAWATER|STEFAN|GAS_CONSTANT|GRAVITY|ATMOSPHERE',
+);
+
+/// Every `#define` in [source] that copies a world's, water's, air's or
+/// nature's number: the name and the line.
+List<({String name, int line})> cDefinesCopyingTheWorldIn(String source) {
+  final code = codeOf(source);
+  return <({String name, int line})>[
+    for (final match in _cDefine.allMatches(code))
+      if (_worldWord.hasMatch(match.group(1)!) ||
+          (double.tryParse(match.group(2)!) ?? 0.0) == 5.670374419e-8)
+        (
+          name: match.group(1)!,
+          line: '\n'.allMatches(code.substring(0, match.start)).length + 1,
+        ),
+  ];
+}
+
+/// Every `#define` in [source] whose name has one of [materials]' names in
+/// it (upper snake case, `WOOD`, `OLIVE_OIL`) and whose number is one of
+/// that material's in [values]: the name and the line.
+List<({String name, int line})> cDefinesCopyingMaterialsIn(
+  String source, {
+  required Map<String, Set<double>> values,
+}) {
+  final code = codeOf(source);
+  return <({String name, int line})>[
+    for (final match in _cDefine.allMatches(code))
+      for (final MapEntry(key: material, value: numbers) in values.entries)
+        if (RegExp('(?:^|_)$material(?:_|\$)').hasMatch(match.group(1)!) &&
+            numbers.contains(double.tryParse(match.group(2)!)))
+          (
+            name: match.group(1)!,
+            line: '\n'.allMatches(code.substring(0, match.start)).length + 1,
+          ),
+  ];
+}
+
+/// The numbers the generated header gives each built-in material, by the
+/// material's upper-snake name: `F3D_MAT_WOOD_RADIANT_FRACTION F3D_R(0.3)`
+/// is 0.3 under `WOOD`. Read from the header's own text, so the rule needs
+/// no Dart of the catalogue's.
+Map<String, Set<double>> materialValuesIn(String header, Set<String> names) {
+  final found = <String, Set<double>>{};
+  for (final match in _cDefine.allMatches(header)) {
+    final name = match.group(1)!;
+    if (!name.startsWith('F3D_MAT_')) continue;
+    final rest = name.substring('F3D_MAT_'.length);
+    // The longest material name the define starts with: OLIVE_OIL before OIL.
+    final material =
+        (names.where((String n) => rest.startsWith('${n}_')).toList()
+              ..sort((String a, String b) => b.length.compareTo(a.length)))
+            .firstOrNull;
+    final value = double.tryParse(match.group(2)!);
+    if (material == null || value == null) continue;
+    (found[material] ??= <double>{}).add(value);
+  }
+  return found;
+}
+
+/// The built-in materials' upper-snake names in [header]'s
+/// `/* f3d.<name>: … */` lines: `f3d.oliveOil` is `OLIVE_OIL`.
+Set<String> materialNamesIn(String header) => <String>{
+  for (final match in RegExp(r'/\* f3d\.(\w+):').allMatches(header))
+    match
+        .group(1)!
+        .replaceAllMapped(
+          RegExp('([a-z0-9])([A-Z])'),
+          (Match m) => '${m[1]}_${m[2]}',
+        )
+        .toUpperCase(),
+};
+
+// ---------------------------------------------------------- a light's number
+
+/// Below this, a light's intensity written as a literal reads as the
+/// renderer's pre-1.0 unit (one of which is about 5 790 lux) rather than the
+/// lux or candela it has been since 1.0. In lux or candela.
+///
+/// Fifty is a candle's worth of candela at most and a deep dusk in lux: a
+/// light meant to be that dim is rare enough to say so, and every pre-1.0
+/// number a scene was lit with, 0.1 to 20, is below it.
+const double kSmallestLightIntensity = 50.0;
+
+final RegExp _lightConstructor = RegExp(
+  r'\b(?:LightNode|Light3D|ModelLight)(?:\.\w+)?\s*\(',
+);
+final RegExp _intensityArgument = RegExp(
+  r'\bintensity:\s*(\d[\d_]*(?:\.\d+)?(?:[eE]-?\d+)?)(?=\s*[,)\n])',
+);
+final RegExp _intensitySetter = RegExp(
+  r'\.intensity\s*=\s*(\d[\d_]*(?:\.\d+)?(?:[eE]-?\d+)?)\s*;',
+);
+final RegExp _namesLightUnit = RegExp(
+  r'//.*\b(?:lux|candela|cd)\b',
+  caseSensitive: false,
+);
+
+/// Every light intensity [source] writes as a literal below
+/// [kSmallestLightIntensity], with the line it is on.
+///
+/// **What counts as a light's intensity:** an `intensity:` argument inside a
+/// `LightNode`, `Light3D` or `ModelLight` constructor call, and an
+/// `.intensity = <number>;` assignment, which in this repository is a light's
+/// (a bloom's or a probe's intensity is a settings field, set through a
+/// constructor). Nought is a light switched off, and a literal times
+/// something (`2.5 * Photometric.legacyUnit`) is a conversion, not a number
+/// in the wrong unit; neither counts.
+///
+/// **A literal whose line, or the line above, has a comment naming lux,
+/// candela or cd is annotated** and kept: a light meant to be that dim says in
+/// what unit it is that dim.
+List<({String literal, int line})> smallLightIntensitiesIn(String source) {
+  final raw = source.split('\n');
+  final code = codeOf(source);
+  bool annotated(int line) =>
+      _namesLightUnit.hasMatch(raw[line - 1]) ||
+      (line >= 2 && _namesLightUnit.hasMatch(raw[line - 2]));
+  int lineAt(int offset) =>
+      '\n'.allMatches(code.substring(0, offset)).length + 1;
+  bool small(String literal) {
+    final value = double.tryParse(literal.replaceAll('_', ''));
+    return value != null && value > 0.0 && value < kSmallestLightIntensity;
+  }
+
+  final hits = <int, String>{};
+  for (final call in _lightConstructor.allMatches(code)) {
+    // The call's own parentheses: from the one the match ends on to the one
+    // that closes it, so a nested call's `intensity:` is the nested call's.
+    var depth = 0;
+    var end = call.end - 1;
+    for (; end < code.length; end++) {
+      final c = code[end];
+      if (c == '(') depth++;
+      if (c == ')' && --depth == 0) break;
+    }
+    // With the closing parenthesis, which ends the last argument.
+    final span = code.substring(call.end, end < code.length ? end + 1 : end);
+    for (final argument in _intensityArgument.allMatches(span)) {
+      final literal = argument.group(1)!;
+      if (small(literal)) hits[call.end + argument.start] = literal;
+    }
+  }
+  for (final setter in _intensitySetter.allMatches(code)) {
+    final literal = setter.group(1)!;
+    if (small(literal)) hits[setter.start] = literal;
+  }
+  return <({String literal, int line})>[
+    for (final entry in hits.entries)
+      if (!annotated(lineAt(entry.key)))
+        (literal: entry.value, line: lineAt(entry.key)),
+  ];
+}
+
+/// The Dart in [markdown]'s fenced code blocks, with every other line blank,
+/// so that a line number in the result is the line in the file.
+String dartBlocksOf(String markdown) {
+  final out = <String>[];
+  var inside = false;
+  for (final line in markdown.split('\n')) {
+    final fence = line.trimLeft().startsWith('```');
+    if (fence) {
+      inside = !inside && line.trimLeft().startsWith('```dart');
+      out.add('');
+      continue;
+    }
+    out.add(inside ? line : '');
+  }
+  return out.join('\n');
+}
+
 // ------------------------------------------------------------- pubspec depends
 
 /// Every package [pubspec] depends on, run-time and dev alike.
@@ -383,11 +725,280 @@ Set<String> pubspecDependencies(String pubspec) {
   return found;
 }
 
+/// The packages one section of [pubspec] names: `dependencies` (what the
+/// package needs at run time) or `dev_dependencies` (what its tests and
+/// tools need), each alone, where [pubspecDependencies] takes both.
+Set<String> pubspecSection(String pubspec, String section) {
+  final found = <String>{};
+  var inside = false;
+  for (final line in pubspec.split('\n')) {
+    if (line.startsWith('$section:')) {
+      inside = true;
+      continue;
+    }
+    if (line.isNotEmpty && !line.startsWith(' ') && !line.startsWith('#')) {
+      inside = false;
+      continue;
+    }
+    if (!inside) continue;
+    final match = RegExp(r'^  ([a-z_][a-z_0-9]*):').firstMatch(line);
+    if (match != null) found.add(match.group(1)!);
+  }
+  return found;
+}
+
+/// One step of the publishing order: the packages it names, in the order
+/// they are published, and whether the step is published at all (the last
+/// one, the repository's own content, is not).
+typedef PublishingLayer = ({List<String> names, bool published});
+
+/// The steps of the numbered list in [block], each the packages its item
+/// names in code, continuation lines included. An item saying "Not
+/// published" is the packages that never go to pub.dev.
+List<PublishingLayer> publishingLayers(String block) {
+  final layers = <PublishingLayer>[];
+  final names = RegExp('`([a-z0-9_]+)`');
+  for (final line in block.split('\n')) {
+    final starts = RegExp(r'^\s*\d+\.').hasMatch(line);
+    if (starts) {
+      layers.add((
+        names: <String>[],
+        published: !line.contains('Not published'),
+      ));
+    }
+    if (layers.isEmpty) continue;
+    layers.last.names.addAll(
+      names.allMatches(line).map((Match m) => m.group(1)!),
+    );
+  }
+  return layers;
+}
+
+/// What is wrong with [layers] as an order to publish [graph] in, one
+/// sentence each: the runtime and dev dependencies of every package,
+/// siblings only.
+///
+/// **A package goes in a later step than everything it needs at run time**,
+/// because `pub publish` resolves its constraints against pub.dev, and a
+/// sibling that is not there yet at `^1.0.0-rc.1` fails it. **A dev
+/// dependency comes earlier in the order too**, because pana resolves dev
+/// dependencies when it scores the upload; one published later is allowed
+/// only with its reason in [devAllowed] (`'<package> -> <dependency>'`),
+/// and an entry there that no longer inverts is reported, so the list only
+/// holds what is true. Nothing published may depend on a package that is
+/// not, even as a dev dependency.
+List<String> publishingOrderBreaks(
+  List<PublishingLayer> layers,
+  Map<String, ({Set<String> runtime, Set<String> dev})> graph,
+  Map<String, String> devAllowed,
+) {
+  final step = <String, int>{};
+  final position = <String, int>{};
+  final unpublished = <String>{};
+  for (final (index, layer) in layers.indexed) {
+    for (final name in layer.names) {
+      step[name] = index;
+      position[name] = position.length;
+      if (!layer.published) unpublished.add(name);
+    }
+  }
+  final out = <String>[];
+  final inverted = <String>{};
+  for (final MapEntry(key: name, value: deps) in graph.entries) {
+    final at = step[name];
+    if (at == null || unpublished.contains(name)) continue;
+    for (final need in deps.runtime.toList()..sort()) {
+      final there = step[need];
+      if (there == null) continue;
+      if (unpublished.contains(need)) {
+        out.add('$name depends on $need, which is not published');
+      } else if (there >= at) {
+        out.add(
+          '$name is in step ${at + 1} and needs $need at run time, which is '
+          'in step ${there + 1}: it goes after',
+        );
+      }
+    }
+    for (final need in deps.dev.toList()..sort()) {
+      final there = position[need];
+      if (there == null) continue;
+      if (unpublished.contains(need)) {
+        out.add(
+          '$name has a dev dependency on $need, which is not published: pana '
+          'resolves dev dependencies against pub.dev',
+        );
+      } else if (there > position[name]!) {
+        final key = '$name -> $need';
+        inverted.add(key);
+        if (!devAllowed.containsKey(key)) {
+          out.add(
+            '$name has a dev dependency on $need, published after it: move '
+            'it, or say why in `devDependencyPublishedLater`',
+          );
+        }
+      }
+    }
+  }
+  for (final key in devAllowed.keys.toList()..sort()) {
+    if (!inverted.contains(key)) {
+      out.add(
+        '`devDependencyPublishedLater` names $key, which the order no longer '
+        'inverts: take it out',
+      );
+    }
+  }
+  return out;
+}
+
 /// Whether [pubspec] asks for the Flutter SDK itself.
 bool dependsOnFlutterSdk(String pubspec) {
   final names = pubspecDependencies(pubspec);
   return names.contains('flutter') || names.contains('flutter_test');
 }
+
+/// The platforms [pubspec] declares in its top-level `platforms:` block, or
+/// null when it has none.
+///
+/// **Top level only.** A plugin also lists platforms under `flutter: plugin:`,
+/// indented, and that list says where native code is registered rather than
+/// where the package runs: `pad_input` reaches the browser's Gamepad API from
+/// Dart and has no plugin entry for the web. Reading the nested list would
+/// call its `platforms:` declared when it was not.
+Set<String>? declaredPlatforms(String pubspec) {
+  final block = RegExp(
+    r'^platforms:[ \t]*\n((?:[ \t]+[a-z]+:[^\n]*\n?)*)',
+    multiLine: true,
+  ).firstMatch(pubspec);
+  if (block == null) return null;
+  return <String>{
+    for (final line in RegExp(
+      r'^[ \t]+([a-z]+):',
+      multiLine: true,
+    ).allMatches(block.group(1)!))
+      line.group(1)!,
+  };
+}
+
+/// The names pub.dev accepts under `platforms:`.
+const Set<String> knownPlatforms = <String>{
+  'android',
+  'ios',
+  'linux',
+  'macos',
+  'web',
+  'windows',
+};
+
+/// The plugins a pubspec's `flutter3d_plugins:` marker names, each as
+/// `<import>#<Class>` the way discovery reads it, or null when there is no
+/// marker. The marker of before 1.0, `flutter3d: plugin:`, is read the same
+/// way, as discovery still reads it; [usesLegacyPluginMarker] says which.
+///
+/// **The three forms discovery takes**, read without a YAML parser: one
+/// entry, a list of entries, or a map from a library to the class or the
+/// classes it declares, in flow (`[A, B]`) or block style. Only under the
+/// top-level keys: Flutter's own `flutter: plugin:` block names platforms
+/// and native classes, and reading it would call every native plugin a
+/// flutter3d one.
+List<String>? pluginMarkerEntries(String pubspec) {
+  final lines = pubspec.split('\n');
+  int keyAt(String key) =>
+      lines.indexWhere((String l) => RegExp('^$key:\\s*(#.*)?\$').hasMatch(l));
+  final current = keyAt('flutter3d_plugins');
+  final top = current >= 0 ? current : keyAt('flutter3d');
+  if (top < 0) return null;
+  for (var i = top + 1; i < lines.length; i++) {
+    final line = lines[i];
+    if (_blankYaml(line)) continue;
+    if (!line.startsWith(' ')) return null;
+    final head = RegExp(r'^  plugin:(.*)$').firstMatch(line);
+    if (head == null) continue;
+    return _markerValue(lines, i, head.group(1)!, '    ');
+  }
+  return null;
+}
+
+/// Whether [pubspec] marks its plugins with the key of before 1.0,
+/// `flutter3d: plugin:`, and not with `flutter3d_plugins:` (decision D of
+/// `tasks/1.0-arch-review.md`).
+bool usesLegacyPluginMarker(String pubspec) =>
+    !RegExp(r'^flutter3d_plugins:', multiLine: true).hasMatch(pubspec) &&
+    pluginMarkerEntries(pubspec) != null;
+
+bool _blankYaml(String l) => l.trim().isEmpty || l.trimLeft().startsWith('#');
+
+String _cleanYaml(String v) {
+  final hash = v.indexOf(' #');
+  final bare = (hash < 0 ? v : v.substring(0, hash)).trim();
+  return bare.length >= 2 &&
+          (bare.startsWith("'") && bare.endsWith("'") ||
+              bare.startsWith('"') && bare.endsWith('"'))
+      ? bare.substring(1, bare.length - 1)
+      : bare;
+}
+
+/// A marker's value: [rest] when the key's own line holds it, otherwise the
+/// block after line [at], whose entries are indented by [indent].
+List<String> _markerValue(
+  List<String> lines,
+  int at,
+  String rest,
+  String indent,
+) {
+  final inline = _cleanYaml(rest);
+  if (inline.isNotEmpty) return <String>[inline];
+  final out = <String>[];
+  String? library;
+  final item = RegExp('^$indent- (.+)\$');
+  final key = RegExp('^$indent(\\S+):(?:\\s+(.*))?\$');
+  final nested = RegExp('^$indent  - (.+)\$');
+  for (var j = at + 1; j < lines.length; j++) {
+    final l = lines[j];
+    if (_blankYaml(l)) continue;
+    if (!l.startsWith(indent)) break;
+    final isItem = item.firstMatch(l);
+    final isKey = key.firstMatch(l);
+    final isNested = nested.firstMatch(l);
+    if (isItem != null) {
+      out.add(_cleanYaml(isItem.group(1)!));
+    } else if (isKey != null) {
+      library = _cleanYaml(isKey.group(1)!);
+      final value = _cleanYaml(isKey.group(2) ?? '');
+      if (value.startsWith('[') && value.endsWith(']')) {
+        for (final c in value.substring(1, value.length - 1).split(',')) {
+          if (_cleanYaml(c).isNotEmpty) out.add('$library#${_cleanYaml(c)}');
+        }
+      } else if (value.isNotEmpty) {
+        out.add('$library#$value');
+      }
+    } else if (isNested != null && library != null) {
+      out.add('$library#${_cleanYaml(isNested.group(1)!)}');
+    }
+  }
+  return out;
+}
+
+/// Whether [source] declares a class that implements `GraphicsDevice`, which
+/// is what makes a package a backend. The declaration may span lines, as
+/// `CpuDevice`'s `with` clause makes it.
+bool implementsGraphicsDevice(String source) => RegExp(
+  r'^(?:[a-z]+ )*class \w+[^{;]*?\bimplements\b[^{;]*?\bGraphicsDevice\b(?!\w)',
+  multiLine: true,
+).hasMatch(source);
+
+/// The rows of a Markdown table whose first cell is a package name in code,
+/// as `package → the set its second cell lists`, comma separated.
+Map<String, Set<String>> packagePlatformRows(String markdown) =>
+    <String, Set<String>>{
+      for (final row in RegExp(
+        r'^\| `([a-z_0-9]+)` \| ([a-z, ]*) \|[ \t]*$',
+        multiLine: true,
+      ).allMatches(markdown))
+        row.group(1)!: <String>{
+          for (final name in row.group(2)!.split(','))
+            if (name.trim().isNotEmpty) name.trim(),
+        },
+    };
 
 // ------------------------------------------------------------------- reaching
 
@@ -398,6 +1009,17 @@ bool reaches(String source, String what) =>
       return (trimmed.startsWith('import ') || trimmed.startsWith('export ')) &&
           trimmed.contains(what);
     });
+
+/// The packages whose `lib/src/` [source] imports or exports, other than
+/// [own]: a reach past another package's public libraries, which no
+/// version constraint can make safe, since `src/` is not in its API.
+Set<String> foreignSrcImports(String source, String own) => <String>{
+  for (final match in RegExp(
+    r'''^\s*(?:import|export)\s+['"]package:(\w+)/src/''',
+    multiLine: true,
+  ).allMatches(source))
+    if (match.group(1) != own) match.group(1)!,
+};
 
 // ---------------------------------------------------- the published boundary
 
@@ -428,6 +1050,144 @@ List<String> enumDeclarationsIn(String source) => <String>[
 List<String> unexemptedEnumsIn(String source, Set<String> exempt) => <String>[
   for (final name in enumDeclarationsIn(source))
     if (!exempt.contains(name)) name,
+];
+
+/// The subcommands (`== convert ==`) and flags (`--dry-run`) a CLI surface
+/// snapshot names, as `convert` and `convert --dry-run`.
+Set<String> cliSurfaceWords(String surface) {
+  final words = <String>{};
+  var command = 'flutter3d';
+  for (final line in surface.split('\n')) {
+    final heading = RegExp(r'^== (\S+) ==$').firstMatch(line);
+    if (heading != null) {
+      command = heading[1]!;
+      words.add(command);
+      continue;
+    }
+    for (final flag in RegExp(
+      r'(?<![\w-])--[a-z][a-z0-9-]*',
+    ).allMatches(line)) {
+      words.add('$command ${flag[0]}');
+    }
+  }
+  return words;
+}
+
+/// A format as its `FormatSpec` declaration in the source says it: the id,
+/// the version it writes (resolved when it names a constant of the same
+/// file), the oldest it reads, the fixture pattern from the package root,
+/// and which constant the version came from, if any.
+typedef DeclaredFormat = ({
+  String id,
+  int? version,
+  String? versionConstant,
+  int since,
+  String? fixture,
+});
+
+/// Every `FormatSpec(...)` [source] declares: the registry as the code says
+/// it, read without running anything.
+///
+/// **What the format-fixture rule reads**, rather than guessing a format from
+/// the name of an `int` constant. A format is what declares itself one, with
+/// its id and its fixture beside the reader; the name pattern missed
+/// `FrameCapture.fileVersion` and every format whose constant was not
+/// spelled `formatVersion`.
+List<DeclaredFormat> formatSpecsIn(String source) {
+  final code = codeOf(source);
+  final constants = <String, int>{
+    for (final m in RegExp(
+      r'\bconst\s+int\s+(\w+)\s*=\s*(\d+)\s*;',
+    ).allMatches(code))
+      m[1]!: int.parse(m[2]!),
+  };
+  final strings = <String, String>{
+    for (final m in RegExp(
+      r'''\bconst\s+String\s+(\w+)\s*=\s*['"]([^'"]*)['"]\s*;''',
+    ).allMatches(code))
+      m[1]!: m[2]!,
+  };
+  final found = <DeclaredFormat>[];
+  for (final start in RegExp(r'\bFormatSpec\s*\(').allMatches(code)) {
+    // The argument list, to its closing parenthesis.
+    var depth = 0;
+    var end = start.end - 1;
+    for (; end < code.length; end++) {
+      final c = code[end];
+      if (c == '(') depth++;
+      if (c == ')' && --depth == 0) break;
+    }
+    final args = code.substring(start.end, end);
+    String? named(String name) =>
+        RegExp('\\b$name\\s*:\\s*([^,\\n)]+)').firstMatch(args)?[1]?.trim();
+    String? text(String name) => switch (named(name)) {
+      final String v when v.length >= 2 && "'\"".contains(v[0]) => v.substring(
+        1,
+        v.length - 1,
+      ),
+      _ => null,
+    };
+    // An id written as a constant of the same file is resolved; one this
+    // cannot resolve is still a format, named by its expression.
+    final id =
+        text('id') ??
+        switch (named('id')) {
+          final String ref => strings[ref.split('.').last] ?? ref,
+          null => null,
+        };
+    if (id == null) continue;
+    final versionText = named('version');
+    final literal = int.tryParse(versionText ?? '');
+    final constant = literal == null && versionText != null
+        ? versionText.split('.').last
+        : null;
+    found.add((
+      id: id,
+      version: literal ?? constants[constant],
+      versionConstant: constant,
+      since: int.tryParse(named('since') ?? '') ?? 1,
+      fixture: text('fixture'),
+    ));
+  }
+  return found;
+}
+
+/// An `int` constant that numbers a file format's version: `formatVersion`,
+/// `sectionVersion`, `fileVersion`, or a top-level `k…Version`. The net
+/// under [formatSpecsIn]: a constant like this that no `FormatSpec` names
+/// and no table lists is a format nobody declared.
+final RegExp _formatVersionConstant = RegExp(
+  r'\bconst\s+int\s+(formatVersion|sectionVersion|fileVersion|'
+  r'(?![a-z]*Abi|abi|api|engine|genre|base|\w*Schema)[a-z]\w*[a-z0-9]Version)\s*=\s*'
+  r'(\d+)\s*;',
+);
+
+/// Every format version constant [source] declares, by name, with its value.
+///
+/// Read from the code alone, so a comment that quotes the old number while
+/// explaining a bump is not taken for the constant.
+Map<String, int> formatVersionsIn(String source) => <String, int>{
+  for (final match in _formatVersionConstant.allMatches(codeOf(source)))
+    match.group(1)!: int.parse(match.group(2)!),
+};
+
+/// A version read from a file, compared for equality with the version this
+/// build writes: `version != formatVersion`, `said != f3dVersion`. Since
+/// 1.0 the constants are lowerCamelCase (`f3dVersion`, was `kF3dVersion`),
+/// so the names that are not a file's version are left out by name: an ABI
+/// number, an API or a genre version compared for compatibility, the
+/// engine's own simulation version and a schema's.
+final RegExp _exactVersionGate = RegExp(
+  r'\b\w+\s*!=\s*(?:\w+\.)?(formatVersion|sectionVersion|'
+  r'(?![a-z]*Abi|abi|api|engine|genre|base|\w*Schema)[a-z]\w*[a-z0-9]Version)\b',
+);
+
+/// The 1-based lines of [source] that gate a read on the exact version —
+/// decision 8 of `tasks/1.0-stability.md` reads every older version, so an
+/// equality there refuses every file the previous release wrote.
+List<int> exactVersionGatesIn(String source) => <int>[
+  for (final (index, line) in codeOf(source).split('\n').indexed)
+    if (_exactVersionGate.hasMatch(line)) index + 1,
 ];
 
 // --------------------------------------------------------------- self-checks
@@ -478,6 +1238,17 @@ List<Finding> proveDetectorsWork() {
     genreWordsIn('// ammo, weapons: all elsewhere.').isEmpty,
     'a line comment',
     'prose explaining the rule must not break it',
+  );
+  quiet(
+    'genre words',
+    genreWordsIn("const swapService = 'reloadSources';").isEmpty,
+    'a protocol method name',
+    'a name another program chose is called by its name',
+  );
+  fires(
+    'genre words',
+    genreWordsIn('Future<void> reloadAll() async {}').isNotEmpty,
+    'reloadAll (one of ours)',
   );
   quiet(
     'genre words',
@@ -637,6 +1408,250 @@ List<Finding> proveDetectorsWork() {
     'prose explaining the rule must not break it',
   );
 
+  // A world's numbers. Mutation: drop the `(?![\d.])` from the 9.81 pattern
+  // and `9.812` fires; drop the gravity-on-the-line test and the fog fires.
+  fires(
+    'world literals',
+    worldLiteralsIn('final g = 9.81;').single.literal == '9.81',
+    '9.81',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('Vector3(0.0, -9.81, 0.0)').isNotEmpty,
+    'a gravity vector',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('const double p = 101325.0;').isNotEmpty,
+    'the standard atmosphere',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('water(temperature: 293.15)').isNotEmpty,
+    'a room\'s air',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('const ParticleGravity(-9.8)').isNotEmpty,
+    '9.8 where gravity is named',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('final lift = 1025.0 * g;').isNotEmpty,
+    'the sea',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('const double _airDensity = 1.18;').isNotEmpty,
+    'a density of air by two figures',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('  const air = 1.2;').isNotEmpty,
+    'a value called air',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('air * 1.2 + lift').isEmpty,
+    '1.2 beside the air that is not a density',
+    'a wind scaled by a fifth is not the air\'s density',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('..distance = 9.8').isEmpty,
+    '9.8 on a line that does not name gravity',
+    'a fog ten metres off is not the Earth',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('final x = 19.81 + 9.812 + 1.2045;').isEmpty,
+    'numbers that merely contain one',
+    'a number with digits glued to it is a different number',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn(
+      '/// 9.81 m/s², as the core has it.\nfinal g = w.g;',
+    ).isEmpty,
+    'a doc comment',
+    'prose explaining the rule must not break it',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('const g = standardGravity;').isEmpty,
+    'the constant by name',
+    'the fix must not be reported as the fault',
+  );
+
+  // A gravity of a game's own, by any number. Mutation: drop the `\w*`
+  // before `[Gg]ravity` and `runGravity = 24.0` passes; drop the nonzero
+  // test and the arcade's weightless bots fire.
+  fires(
+    'world literals',
+    worldLiteralsIn('    this.gravity = 24.0,').single.literal == '24.0',
+    'a gravity default',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('  static const double runGravity = 24.0;').isNotEmpty,
+    'a gravity-named constant',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn("    gravity: 20.0,").isNotEmpty,
+    'a gravity argument',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn(
+      ': gravity = gravity ?? Vector3(0.0, -22.0, 0.0) {',
+    ).isNotEmpty,
+    'a down vector where gravity is named',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('    this.buoyancy = 6.0,').isNotEmpty,
+    'a buoyancy as an acceleration',
+  );
+  fires(
+    'world literals',
+    worldLiteralsIn('      const ParticleGravity(-14.0),').isNotEmpty,
+    'a ballistic particle fall',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('    gravity: 0.0,').isEmpty,
+    'a gravity of nought',
+    'no gravity is a switch, not a world',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('if (gravity == 24.0) return;').isEmpty,
+    'a comparison',
+    'reading a number is not writing a default',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('final up = Vector3(0.0, -1.0, 0.0);').isEmpty,
+    'a down vector where gravity is not named',
+    'a direction is not a gravity',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('    this.buoyancyShare = 0.25,').isEmpty,
+    'a buoyancy as a share of g',
+    'the fix must not be reported as the fault',
+  );
+  quiet(
+    'world literals',
+    worldLiteralsIn('      const ParticleGravity(-3.0),').isEmpty,
+    'a drift that only looks like falling',
+    'smoke and embers are the effect author\'s to tune',
+  );
+
+  // The core's copies. Mutation: drop `WATER` from the world words and
+  // F3D_WATER_HEAT passes; drop the σ value test and a renamed σ passes.
+  fires(
+    'core copies',
+    cDefinesCopyingTheWorldIn(
+          '#define F3D_WATER_HEAT F3D_R(4186.0)',
+        ).single.name ==
+        'F3D_WATER_HEAT',
+    'water under its own name',
+  );
+  fires(
+    'core copies',
+    cDefinesCopyingTheWorldIn('#define SIGMA F3D_R(5.670374419e-8)').isNotEmpty,
+    'σ under another name',
+  );
+  fires(
+    'core copies',
+    cDefinesCopyingTheWorldIn('#define F3D_AIR_HEAT F3D_R(1005.0)').isNotEmpty,
+    'the air under its own name',
+  );
+  quiet(
+    'core copies',
+    cDefinesCopyingTheWorldIn(
+      '/* #define F3D_WATER_HEAT F3D_R(4186.0) */\n'
+      '#define F3D_SAT_T F3D_R(373.15)\n'
+      '#define F3D_HAIR_SPRAY F3D_R(2.0)',
+    ).isEmpty,
+    'a comment, a saturation table and a word that only contains AIR',
+    'prose and the 100 °C table are not copies of the catalogue',
+  );
+  fires(
+    'core copies',
+    cDefinesCopyingMaterialsIn(
+      '#define F3D_WOOD_RADIANT F3D_R(0.30)',
+      values: <String, Set<double>>{
+        'WOOD': <double>{0.3},
+      },
+    ).isNotEmpty,
+    'a material\'s number under its name',
+  );
+  quiet(
+    'core copies',
+    cDefinesCopyingMaterialsIn(
+      '#define F3D_SPREAD_MINIMUM_WOOD F3D_R(393.15)\n'
+      '#define F3D_PLYWOOD F3D_R(0.3)',
+      values: <String, Set<double>>{
+        'WOOD': <double>{0.3},
+      },
+    ).isEmpty,
+    'a fire-model number of wood\'s, and WOOD inside another word',
+    'what the catalogue does not hold is the fire model\'s own',
+  );
+  fires(
+    'core copies',
+    materialValuesIn(
+      '/* f3d.oliveOil: olive oil, at 293.15 K. */\n'
+      '#define F3D_MAT_OLIVE_OIL_DENSITY F3D_R(911.0)',
+      materialNamesIn('/* f3d.oliveOil: olive oil, at 293.15 K. */'),
+    )['OLIVE_OIL']!.contains(911.0),
+    'the header read back by material',
+  );
+
+  // A light's number. The first is the starter project that was black: a
+  // point light of 16, which since 1.0 is 16 candela.
+  fires(
+    'light intensities',
+    smallLightIntensitiesIn(
+          'Light3D.point(\n  position: p,\n  intensity: 16.0,\n  range: 20.0,\n)',
+        ).single.line ==
+        3,
+    'Light3D.point(intensity: 16.0)',
+  );
+  fires(
+    'light intensities',
+    smallLightIntensitiesIn(
+      "LightNode(name: 'sun', intensity: 2.5)",
+    ).isNotEmpty,
+    "LightNode(intensity: 2.5)",
+  );
+  fires(
+    'light intensities',
+    smallLightIntensitiesIn('stage.sun\n  ..intensity = 3.0;').isNotEmpty,
+    '..intensity = 3.0;',
+  );
+  quiet(
+    'light intensities',
+    smallLightIntensitiesIn(
+      'LightNode(intensity: 2.5 * Photometric.legacyUnit)\n'
+      'LightNode(intensity: 17000.0)\nLightNode(intensity: 0.0)',
+    ).isEmpty,
+    'a conversion, a light in lux and a light off',
+    'none of them is a number in the old unit',
+  );
+  quiet(
+    'light intensities',
+    smallLightIntensitiesIn(
+      'LightNode(\n  // Candela: a candle.\n  intensity: 1.0,\n)\n'
+      'BloomSettings(intensity: 0.06)',
+    ).isEmpty,
+    'an annotated candle and a bloom',
+    'a light that says its unit is kept, and a bloom is not a light',
+  );
+
   // Prose. The wrap is the whole reason this exists — the claim that went
   // uncounted for eight recordings was written across two lines — so the wrap
   // is the first thing proved. Mutation: join the lines with '\n' instead of
@@ -767,6 +1782,45 @@ List<Finding> proveDetectorsWork() {
     'a mention is not an import',
   );
 
+  // Another package's `src/`. The four backends and the renderer reached the
+  // shaders' tables this way until `internal.dart` published them.
+  fires(
+    'foreign src',
+    foreignSrcImports(
+      "import 'package:flutter3d_shaders/src/stage_bindings.dart';\n",
+      'flutter3d_cpu',
+    ).contains('flutter3d_shaders'),
+    "an import of another package's src/",
+  );
+  fires(
+    'foreign src',
+    foreignSrcImports(
+      "export 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart'\n"
+          '    show builtinCpuShaders;\n',
+      'flutter3d_app',
+    ).contains('flutter3d_cpu'),
+    "an export of another package's src/, over two lines",
+  );
+  quiet(
+    'foreign src',
+    foreignSrcImports(
+      "import 'package:flutter3d_cpu/src/cpu_device.dart';\n",
+      'flutter3d_cpu',
+    ).isEmpty,
+    "a package's own src/ through its package URI",
+    'a package may arrange its own files however it likes',
+  );
+  quiet(
+    'foreign src',
+    foreignSrcImports(
+      "import 'package:flutter3d_shaders/internal.dart';\n"
+          '// see package:flutter3d_shaders/src/typed_blocks.dart\n',
+      'flutter3d_core',
+    ).isEmpty,
+    'a published library, and a src/ path in a comment',
+    'a comment imports nothing',
+  );
+
   // The published-enum boundary. `qa-06`'s own row: a skeleton with an enum,
   // and a skeleton with the `LightingModel` alternative, both prove the rule
   // out on fixtures nobody has ever added to `boundaryEnumExempt` by hand.
@@ -871,5 +1925,835 @@ List<Finding> proveDetectorsWork() {
         'call every package with assets a Flutter package',
   );
 
+  // Plugin markers. The trap is Flutter's own `flutter: plugin:` block, one
+  // letter and a digit away. Mutation: drop the `3d` from the key the
+  // reader looks for, and every native plugin's platforms read as classes.
+  fires(
+    'plugin markers',
+    (pluginMarkerEntries(
+                  'name: post\n'
+                  'flutter3d:\n'
+                  '  plugin:\n'
+                  '    light.dart: [Bloom, Flare]\n'
+                  '    package:post/fog.dart: Fog\n'
+                  '    style.dart:\n'
+                  '      - Toon\n'
+                  '\n'
+                  'dependencies:\n',
+                ) ??
+                const <String>[])
+            .join(' ') ==
+        'light.dart#Bloom light.dart#Flare package:post/fog.dart#Fog '
+            'style.dart#Toon',
+    'a marker per library, in flow, scalar and block style',
+  );
+  fires(
+    'plugin markers',
+    (pluginMarkerEntries(
+                  'flutter3d:\n'
+                  '  plugin:\n'
+                  '    - trails.dart#Trails\n'
+                  '    - trails.dart#Wake\n',
+                ) ??
+                const <String>[])
+            .length ==
+        2,
+    'a list of entries',
+  );
+  // The key since 1.0. Mutation: look only for `flutter3d:` and the marker
+  // reads as nothing.
+  fires(
+    'plugin markers',
+    (pluginMarkerEntries(
+                  'name: post\n'
+                  'flutter3d_plugins:\n'
+                  '  plugin:\n'
+                  '    light.dart: [Bloom, Flare]\n'
+                  '    style.dart:\n'
+                  '      - Toon\n'
+                  'dependencies:\n',
+                ) ??
+                const <String>[])
+            .join(' ') ==
+        'light.dart#Bloom light.dart#Flare style.dart#Toon',
+    'the flutter3d_plugins: key, in flow and block style',
+  );
+  fires(
+    'plugin markers',
+    usesLegacyPluginMarker('flutter3d:\n  plugin: trails.dart#Trails\n'),
+    'the key of before 1.0',
+  );
+  quiet(
+    'plugin markers',
+    !usesLegacyPluginMarker(
+      'flutter3d_plugins:\n  plugin: trails.dart#Trails\n',
+    ),
+    'the key since 1.0',
+    'only the old key is the one to move',
+  );
+  quiet(
+    'plugin markers',
+    pluginMarkerEntries(
+          'name: pad_input\n'
+          'flutter:\n'
+          '  plugin:\n'
+          '    platforms:\n'
+          '      android:\n'
+          '        pluginClass: GamepadPlugin\n',
+        ) ==
+        null,
+    'Flutter\'s own `flutter: plugin:` block',
+    'it registers native code; discovery never reads it',
+  );
+
+  // The publishing order. Mutation: compare steps with `>` instead of `>=`
+  // and a runtime dependency published beside its dependent passes; drop the
+  // allowance lookup and every documented dev inversion fails.
+  final order = publishingLayers(
+    '1. L0: `a`, `b`\n'
+    '2. L1: `c`,\n'
+    '   `d`\n'
+    '3. Not published: `e`\n',
+  );
+  fires(
+    'publishing order',
+    order.length == 3 &&
+        order[1].names.join(' ') == 'c d' &&
+        !order[2].published,
+    'steps, a wrapped step, and the unpublished one',
+  );
+  fires(
+    'publishing order',
+    publishingOrderBreaks(
+      order,
+      <String, ({Set<String> runtime, Set<String> dev})>{
+        'b': (runtime: <String>{'a'}, dev: <String>{}),
+      },
+      const <String, String>{},
+    ).isNotEmpty,
+    'a runtime dependency in the same step',
+  );
+  quiet(
+    'publishing order',
+    publishingOrderBreaks(
+      order,
+      <String, ({Set<String> runtime, Set<String> dev})>{
+        'c': (runtime: <String>{'a'}, dev: <String>{'b'}),
+      },
+      const <String, String>{},
+    ).isEmpty,
+    'runtime and dev dependencies published earlier',
+    'that is the order working',
+  );
+  fires(
+    'publishing order',
+    publishingOrderBreaks(
+      order,
+      <String, ({Set<String> runtime, Set<String> dev})>{
+        'a': (runtime: <String>{}, dev: <String>{'d'}),
+      },
+      const <String, String>{},
+    ).isNotEmpty,
+    'a dev dependency published later, with no reason',
+  );
+  quiet(
+    'publishing order',
+    publishingOrderBreaks(
+      order,
+      <String, ({Set<String> runtime, Set<String> dev})>{
+        'a': (runtime: <String>{}, dev: <String>{'d'}),
+      },
+      const <String, String>{'a -> d': 'a test'},
+    ).isEmpty,
+    'a dev dependency published later, with its reason',
+    'a documented inversion is allowed',
+  );
+  fires(
+    'publishing order',
+    publishingOrderBreaks(
+      order,
+      <String, ({Set<String> runtime, Set<String> dev})>{
+        'c': (runtime: <String>{}, dev: <String>{'e'}),
+      },
+      const <String, String>{},
+    ).isNotEmpty,
+    'a dev dependency on a package that is not published',
+  );
+  fires(
+    'publishing order',
+    publishingOrderBreaks(
+      order,
+      <String, ({Set<String> runtime, Set<String> dev})>{
+        'd': (runtime: <String>{}, dev: <String>{'a'}),
+      },
+      const <String, String>{'d -> a': 'stale'},
+    ).isNotEmpty,
+    'an allowance that no longer inverts',
+  );
+
+  // Platforms. The trap is the plugin's own list, nested under `flutter:`:
+  // it names where native code registers, not where the package runs.
+  // Mutation: drop the `^` anchor and the plugin's list counts as declared.
+  const declaredSpec =
+      'name: flutter3d_geometry\n'
+      'platforms:\n'
+      '  linux:\n'
+      '  web:\n'
+      '\n'
+      'dependencies:\n'
+      '  vector_math: ^2.2.0\n';
+  const pluginSpec =
+      'name: pad_input\n'
+      'dependencies:\n'
+      '  flutter:\n'
+      '    sdk: flutter\n'
+      'flutter:\n'
+      '  plugin:\n'
+      '    platforms:\n'
+      '      android:\n'
+      '        pluginClass: GamepadPlugin\n';
+  fires(
+    'platforms',
+    declaredPlatforms(declaredSpec)?.containsAll(<String>{'linux', 'web'}) ??
+        false,
+    'a top-level platforms block',
+  );
+  quiet(
+    'platforms',
+    declaredPlatforms(declaredSpec)?.length == 2,
+    'the line after the block',
+    'the block ends at the first line that is not indented',
+  );
+  quiet(
+    'platforms',
+    declaredPlatforms(pluginSpec) == null,
+    'a plugin\'s platforms under flutter: plugin:',
+    'where native code registers is not where the package runs',
+  );
+  fires(
+    'backend',
+    implementsGraphicsDevice(
+      'final class CpuDevice\n'
+      '    with DeviceCapabilityForwarders\n'
+      '    implements GraphicsDevice {\n',
+    ),
+    'a device declared over three lines',
+  );
+  quiet(
+    'backend',
+    !implementsGraphicsDevice(
+      'final class Probe implements GraphicsDeviceFactory {}\n',
+    ),
+    'a longer name that starts the same',
+    'a factory of devices is not a device',
+  );
+  quiet(
+    'backend',
+    !implementsGraphicsDevice(
+      'final class Frame implements Pass {\n'
+      '  final GraphicsDevice device;\n',
+    ),
+    'a field of the type inside another class',
+    'holding a device is not being one',
+  );
+  final rows = packagePlatformRows(
+    '| Package | Platforms |\n'
+    '|---|---|\n'
+    '| `flutter3d_webgl` | web |\n'
+    '| `pointer_lock` | linux, macos, web, windows |\n',
+  );
+  fires(
+    'support table',
+    rows['pointer_lock']?.length == 4 &&
+        (rows['flutter3d_webgl']?.join(',') ?? '') == 'web',
+    'two rows of a package table',
+  );
+  quiet(
+    'support table',
+    !rows.containsKey('Package'),
+    'the header row',
+    'a header is not a package',
+  );
+
+  // The public API: the semver classifier, the CHANGELOG label and the
+  // deprecation format. Their fixtures live beside them in `api.dart`,
+  // because each is a table of cases the classifier's own rules are read
+  // against.
+  for (final (what, detail) in proveApiDetectorsWork()) {
+    broken.add(Finding(what, detail));
+  }
+
+  // The tools for agents and the VM service: the same verdicts over the
+  // `.mcp` and `.vm` snapshots, with their fixtures beside them in
+  // `schema.dart`.
+  for (final (what, detail) in proveSchemaDetectorsWork()) {
+    broken.add(Finding(what, detail));
+  }
+
+  // The migration table: its reader without a YAML parser, and which breaks
+  // its entries cover — with the classifier's three non-breaks to a caller
+  // (an inherited member, a re-exported move, a constructor every call
+  // still fits), fixtures beside them in `migration.dart`.
+  for (final (what, detail) in proveNamingDetectorsWork()) {
+    broken.add(Finding(what, detail));
+  }
+  for (final (what, detail) in proveMigrationDetectorsWork()) {
+    broken.add(Finding(what, detail));
+  }
+
+  // Format versions: the constant a reader is held to, and the gate that
+  // refuses every older file. The traps are the comment that quotes an old
+  // number and a version that is not a format's — an object's edit counter
+  // compared with the one a cache was baked at.
+  final versions = formatVersionsIn(
+    '  static const int formatVersion = 3;\n'
+    'const int f3dVersion = 1;\n'
+    '/// was `const int fmatVersion = 0;` before the bump\n',
+  );
+  fires(
+    'format versions',
+    versions['formatVersion'] == 3 && versions['f3dVersion'] == 1,
+    'a static formatVersion and a top-level f3dVersion',
+  );
+  quiet(
+    'format versions',
+    !versions.containsKey('fmatVersion'),
+    'a doc comment quoting an old constant',
+    'prose about a bump must not be read as the constant',
+  );
+  final specs = formatSpecsIn(
+    '  static const int formatVersion = 3;\n'
+    '  static const FormatSpec spec = FormatSpec(\n'
+    "    id: 'f3d.level',\n"
+    '    version: Level.formatVersion,\n'
+    "    fixture: 'test/fixtures/v<N>/first.level.json',\n"
+    '    migrations: <FormatMigration>[_a, _b],\n'
+    '  );\n'
+    "  // FormatSpec(id: 'f3d.old', version: 9)\n"
+    "const FormatSpec other = FormatSpec(id: 'x.y', version: 2, since: 2);\n",
+  );
+  fires(
+    'declared formats',
+    specs.length == 2 &&
+        specs.first.id == 'f3d.level' &&
+        specs.first.version == 3 &&
+        specs.first.versionConstant == 'formatVersion' &&
+        specs.first.fixture == 'test/fixtures/v<N>/first.level.json' &&
+        specs.last.version == 2 &&
+        specs.last.since == 2 &&
+        specs.last.fixture == null,
+    'a spec naming its constant, and one with a literal version',
+  );
+  final cli = cliSurfaceWords(
+    '== flutter3d ==\nUsage: flutter3d <command>\n'
+    '== convert ==\n  --dry-run   write nothing\n  -o, --output <dir>\n'
+    '  see dart run flutter3d_build:convert\n',
+  );
+  fires(
+    'cli surface',
+    cli.containsAll(<String>[
+          'convert',
+          'convert --dry-run',
+          'convert --output',
+        ]) &&
+        !cli.contains('convert --build'),
+    'a subcommand and its flags, not a package name with a dash',
+  );
+  quiet(
+    'format versions',
+    formatVersionsIn('const int abiVersion = 36;').isEmpty,
+    'the C core\'s ABI number',
+    'an ABI is matched exactly by design, and is not a file a reader opens',
+  );
+  fires(
+    'exact version gates',
+    exactVersionGatesIn(
+      'final v = 1;\n    if (version != formatVersion) {\n',
+    ).contains(2),
+    'version != formatVersion',
+  );
+  fires(
+    'exact version gates',
+    exactVersionGatesIn(
+      'if (said != ShaderBundle.sectionVersion) {}',
+    ).isNotEmpty,
+    'a qualified constant',
+  );
+  quiet(
+    'exact version gates',
+    exactVersionGatesIn('if (object.version != baseVersion) {}').isEmpty,
+    'an edit counter against a cache stamp',
+    'not every version is a file format\'s',
+  );
+  quiet(
+    'exact version gates',
+    exactVersionGatesIn('// once: version != formatVersion').isEmpty,
+    'a comment recalling the old gate',
+    'prose explaining the rule must not break it',
+  );
+
+  fires(
+    'a temporary mute',
+    temporaryMutesIn(
+      '// $temporaryMuteMarker: in a meeting\nsoloud.setGlobalVolume(0);',
+    ).contains(1),
+    'the marker in a line comment',
+  );
+  fires(
+    'a temporary mute',
+    temporaryMutesIn('volume = 0; # $temporaryMuteMarker').isNotEmpty,
+    'the marker in a shell comment',
+  );
+  quiet(
+    'a temporary mute',
+    temporaryMutesIn('// a temporary silence while testing').isEmpty,
+    'prose about silence',
+    'only the marker is the promise to revert',
+  );
+
+  fires(
+    'an enum ordinal in a file',
+    enumOrdinalsIn(
+      'view.setUint32(o, material.alphaMode.index, Endian.little);',
+    ).contains(1),
+    'an enum written by its ordinal',
+  );
+  fires(
+    'an enum ordinal in a file',
+    enumOrdinalsIn(
+      'final a = 1;\npath: AnimationPath.values[pathIndex],',
+    ).contains(2),
+    'an enum read back by its ordinal',
+  );
+  quiet(
+    'an enum ordinal in a file',
+    enumOrdinalsIn(
+      '// once: material.alphaMode.index\n'
+      '/// [TextureWrap.values] in order\n'
+      'record.setUint32(28, track.values.length, Endian.little);',
+    ).isEmpty,
+    'a comment recalling the ordinal and a list named values',
+    'prose explaining the rule, and a length, are not an ordinal',
+  );
+
+  // The layers. A made-up tree: a foundation, a contract over it, a core
+  // over that, and a shell that may not have the core's sibling.
+  const toyLayers = <String, int>{'f': 0, 'c': 1, 'r': 2, 's': 2, 'x': 3};
+  const toyForbidden = <String, Map<String, String>>{
+    'x': <String, String>{'s': 'the shell names no simulation'},
+  };
+  List<(String, String?, String)> layered(Map<String, Set<String>> deps) =>
+      layerProblems(deps, layers: toyLayers, forbidden: toyForbidden);
+  fires(
+    'the layers',
+    layered(<String, Set<String>>{
+      'f': <String>{'c'},
+      'c': <String>{},
+    }).any(((String, String?, String) p) => p.$1 == 'f' && p.$2 == 'c'),
+    'the foundation depending on the contract above it',
+  );
+  fires(
+    'the layers',
+    layered(<String, Set<String>>{
+      'r': <String>{'s'},
+      's': <String>{},
+    }).any(((String, String?, String) p) => p.$1 == 'r' && p.$2 == 's'),
+    'a package depending on its own layer',
+  );
+  fires(
+    'the layers',
+    layered(<String, Set<String>>{
+      'x': <String>{'s'},
+      's': <String>{},
+    }).any(((String, String?, String) p) => p.$1 == 'x' && p.$2 == 's'),
+    'a dependency the map forbids though the layers allow it',
+  );
+  fires(
+    'the layers',
+    layered(<String, Set<String>>{
+      'new': <String>{},
+    }).any(((String, String?, String) p) => p.$1 == 'new' && p.$2 == null),
+    'a package with no layer',
+  );
+  quiet(
+    'the layers',
+    layered(<String, Set<String>>{
+      'x': <String>{'r', 'f', 'vector_math'},
+      'r': <String>{'c'},
+      'c': <String>{'f'},
+      'f': <String>{},
+    }).isEmpty,
+    'every dependency in a layer below, and one from pub.dev',
+    'a dependency downwards is the rule, and pub.dev is not a layer',
+  );
+
+  // The runtime is not a tool (rule 7): a game on an editor is found, the
+  // same tool under a tool, and a runtime package on the simulation, are not.
+  List<(String, String)> runtimeOnTools(Map<String, Set<String>> deps) =>
+      runtimeToolDependencies(
+        deps,
+        runtime: isRuntimePackage,
+        tools: runtimeMayNotDependOn.keys.toSet(),
+      );
+  fires(
+    'the runtime is not a tool',
+    runtimeOnTools(<String, Set<String>>{
+      'flutter3d_app': <String>{'flutter3d_editor_core', 'flutter3d_sim'},
+    }).contains(('flutter3d_app', 'flutter3d_editor_core')),
+    'the application depending on the editor\'s core',
+  );
+  fires(
+    'the runtime is not a tool',
+    runtimeOnTools(<String, Set<String>>{
+      'flutter3d_game_ui': <String>{'flutter3d_mcp'},
+    }).isNotEmpty,
+    'a game package (by its prefix) depending on the agent servers',
+  );
+  quiet(
+    'the runtime is not a tool',
+    runtimeOnTools(<String, Set<String>>{
+      'flutter3d_mcp': <String>{'flutter3d_editor_core'},
+      'flutter3d_game': <String>{'flutter3d_sim', 'flutter3d_app'},
+    }).isEmpty,
+    'a tool on a tool, and a game on the runtime under it',
+    'only the runtime is held to it, and only against the tools',
+  );
+
+  // The simulation draws nothing (rule 6): an import of the core is found,
+  // one of the native physics or of a package whose name only starts like
+  // a forbidden one is not.
+  fires(
+    'the simulation stack',
+    simulationImportProblems(
+      <String, List<String>>{
+        'lib/src/step.dart': <String>[
+          'package:flutter3d_core/flutter3d_core.dart',
+        ],
+      },
+      forbidden: const <String>{'flutter3d_core'},
+    ).any(((String, String) p) => p.$2 == 'flutter3d_core'),
+    "import 'package:flutter3d_core/flutter3d_core.dart' in a step",
+  );
+  quiet(
+    'the simulation stack',
+    simulationImportProblems(
+      <String, List<String>>{
+        'lib/src/step.dart': <String>[
+          'package:flutter3d_physics_native/flutter3d_physics_native.dart',
+          'package:flutter3d_core_extras/x.dart',
+          'dart:math',
+        ],
+      },
+      forbidden: const <String>{'flutter3d_core'},
+    ).isEmpty,
+    'the native physics, a package named like the core, and dart:math',
+    'only the forbidden packages themselves are refused',
+  );
+
+  // The plugin contract's reach. `Lost` is named by nobody; `Handed` by a
+  // root's member, `Thrown` by its supertype, `Kept` by a re-export.
+  const contract = <String, ({String header, List<String> members})>{
+    'Root': (
+      header: 'abstract base class Root',
+      members: <String>['Handed get handed'],
+    ),
+    'Handed': (header: 'final class Handed', members: <String>[]),
+    'Thrown': (header: 'final class Thrown extends Kept', members: <String>[]),
+    'Lost': (header: 'final class Lost', members: <String>['Root get root']),
+    'helper': (header: 'int helper()', members: <String>[]),
+  };
+  final lost = unreachableContractTypes(
+    contract,
+    roots: const <String>{'Root'},
+    reexported: const <String>{'Kept'},
+  );
+  fires(
+    'the plugin contract',
+    lost.contains('Lost'),
+    'a type that names a root but that no root names',
+  );
+  quiet(
+    'the plugin contract',
+    !lost.contains('Handed') &&
+        !lost.contains('Thrown') &&
+        !lost.contains('helper'),
+    'a type a root hands out, a subtype of a re-exported one, a function',
+    'reached through a signature or a supertype is the contract, and a '
+        'function is not a type',
+  );
+  fires(
+    'the plugin contract',
+    phasesNamedForAPackage(
+      declaredLoopPhases(
+        "static const LoopPhase elements = LoopPhase.step('elements');",
+      ),
+      const <String>['flutter3d_elements'],
+    ).contains('elements'),
+    "LoopPhase.step('elements') beside flutter3d_elements",
+  );
+  quiet(
+    'the plugin contract',
+    phasesNamedForAPackage(
+      declaredLoopPhases(
+        "static const LoopPhase fields = LoopPhase.step('fields');\n"
+        "static const LoopPhase ui = LoopPhase.frame( 'ui' );",
+      ),
+      const <String>['flutter3d_elements', 'flutter3d_game_ui'],
+    ).isEmpty,
+    'a phase named for what runs in it, and one a package name only ends with',
+    'only a package called flutter3d_<phase> claims a phase',
+  );
+
+  // One home per public name. `Brush` declared by two packages is the
+  // finding; a name one package declares in two libraries, a name another
+  // package only re-exports, and a name the allowlist names are not.
+  final homes = publicNameHomes(const <String, String>{
+    'mesh':
+        'library package:mesh/mesh.dart\n\nclass Brush\n  const Brush()\n\n'
+        'library package:mesh/sculpt.dart\n\nclass Brush\n  const Brush()\n',
+    'sim':
+        'library package:sim/sim.dart\n\nfinal class Brush\n\n'
+        'final class Level\n\n'
+        'export package:mesh/mesh.dart show Brush\n',
+    'game':
+        'library package:game/game.dart\n\nfinal class Level\n\n'
+        'export package:sim/sim.dart show Level\n',
+  });
+  fires(
+    'one home per public name',
+    namesWithTwoHomes(
+      homes,
+      allowed: const <String, String>{},
+    ).any(((String, List<String>) d) => d.$1 == 'Brush'),
+    'Brush declared by mesh and by sim',
+  );
+  quiet(
+    'one home per public name',
+    homes['Brush']!.length == 2 &&
+        namesWithTwoHomes(
+          homes,
+          allowed: const <String, String>{'Level': 'two games never meet'},
+        ).every(((String, List<String>) d) => d.$1 == 'Brush'),
+    'Brush in two libraries of mesh and re-exported by sim; Level allowed',
+    'two libraries of one package are one home, a re-export is not a '
+        'declaration, and an allowed name is allowed',
+  );
+
+  // The restricted libraries. A game reaching a backend's `testing.dart`
+  // from its `lib/` is the finding; a doc comment showing the import, a
+  // package's own, and an allowed user are not.
+  fires(
+    'restricted libraries',
+    restrictedLibraryProblems(<String, Set<String>>{
+      'game': restrictedLibrariesIn(
+        "import 'package:cpu/testing.dart';\n"
+        "import 'package:cpu/cpu.dart';",
+      ),
+    }, allowed: const <String, Map<String, String>>{}).any(
+      ((String, String, String) p) => p.$2 == 'package:cpu/testing.dart',
+    ),
+    "game's lib importing package:cpu/testing.dart",
+  );
+  quiet(
+    'restricted libraries',
+    restrictedLibraryProblems(
+      <String, Set<String>>{
+        'game': restrictedLibrariesIn(
+          "/// import 'package:cpu/testing.dart';\n"
+          "  export 'package:shaders/internal.dart' show x;",
+        ),
+        'cpu': restrictedLibrariesIn("import 'package:cpu/builtin.dart';"),
+      },
+      allowed: const <String, Map<String, String>>{
+        'package:shaders/internal.dart': <String, String>{'game': 'a test'},
+      },
+    ).isEmpty,
+    'an import in a doc comment, an allowed export, a package\'s own',
+    'prose is not a directive, an allowed user is allowed, and a package '
+        'reaches its own libraries',
+  );
+
+  // Re-exports (rule 3). The simulation handing on the physics is the
+  // finding, and so is an allowed facade admitting a whole library; a
+  // package's own library, pub.dev's, a doc comment and an allowed named
+  // re-export are not.
+  List<(String, String, String)> reexported(String package, String source) =>
+      reexportProblems(
+        <String, Map<String, List<({String uri, bool named})>>>{
+          package: <String, List<({String uri, bool named})>>{
+            'lib/$package.dart': packageExportsIn(source),
+          },
+        },
+        repository: const <String>{'sim', 'physics', 'game', 'shell'},
+        allowed: const <String, String>{
+          'game -> shell': 'the facade',
+          'game -> sim': 'the facade, by name',
+        },
+        whole: const <String, String>{'game -> shell': 'a list itself'},
+      );
+  fires(
+    're-exports',
+    reexported(
+      'sim',
+      "export 'package:physics/physics.dart'\n    show CollisionWorld;",
+    ).isNotEmpty,
+    "export 'package:physics/physics.dart' show CollisionWorld from sim",
+  );
+  fires(
+    're-exports',
+    reexported('game', "export 'package:sim/sim.dart';").isNotEmpty,
+    'an allowed facade re-exporting a whole library it should name',
+  );
+  quiet(
+    're-exports',
+    reexported(
+      'game',
+      "/// export 'package:physics/physics.dart';\n"
+          "export 'package:game/src/run.dart';\n"
+          "export 'package:vector_math/vector_math.dart';\n"
+          "export 'package:shell/shell.dart';\n"
+          "export 'package:sim/sim.dart'\n    show Level;",
+    ).isEmpty,
+    'a doc comment, its own, pub.dev, an allowed whole and named one',
+    'only another package of the repository, not on the list, is refused',
+  );
+
+  // A dependency held only to re-export it (rule 2): the shell depending on
+  // the simulation for an export is the finding; one it imports, and an
+  // allowed facade's, are not.
+  final handOn = reexportOnlyDependencies(
+    const <String, Set<String>>{
+      'shell': <String>{'sim', 'core'},
+      'game': <String>{'shell'},
+    },
+    imported: const <String, Set<String>>{
+      'shell': <String>{'core'},
+      'game': <String>{},
+    },
+    exported: const <String, Set<String>>{
+      'shell': <String>{'sim', 'core'},
+      'game': <String>{'shell'},
+    },
+    allowed: const <String, String>{'game -> shell': 'the facade'},
+  );
+  fires(
+    'dependencies held to re-export',
+    handOn.contains(('shell', 'sim')),
+    'a dependency the shell only exports',
+  );
+  quiet(
+    'dependencies held to re-export',
+    handOn.length == 1,
+    'a dependency also imported, and an allowed facade\'s',
+    'a dependency the code uses is used, and the list is the exception',
+  );
+
+  // Declare what you name (rule 4). A type named in code through a package
+  // the pubspec does not name is the finding; one in a comment or a
+  // string, one the package declares, one a dependency declares or a
+  // facade carries, and one the SDK has too are not.
+  final scanned = typeNamesIn(
+    "import 'package:sim/sim.dart';\n"
+    '/// [Comment] is prose.\n'
+    "final label = 'Quoted';\n"
+    'final world = CollisionWorld();\n'
+    'Level level = Level();\n'
+    'Match? m;\n'
+    'class Own {}\n',
+  );
+  fires(
+    'declare what you name',
+    scanned.named.contains('CollisionWorld') &&
+        scanned.declared.contains('Own'),
+    'a constructor call and a class declaration found by the scan',
+  );
+  quiet(
+    'declare what you name',
+    !scanned.named.contains('Comment') && !scanned.named.contains('Quoted'),
+    'a name in a doc comment and one in a string',
+    'only code names a type',
+  );
+  List<(String, String, String, String)> undeclared(Set<String> deps) =>
+      undeclaredNames(
+        <String, Map<String, Set<String>>>{
+          'app': <String, Set<String>>{'lib/main.dart': scanned.named},
+        },
+        declared: <String, Set<String>>{'app': scanned.declared},
+        homes: const <String, String>{
+          'CollisionWorld': 'physics',
+          'Level': 'sim',
+          'Match': 'strategy',
+          'Own': 'other',
+        },
+        dependencies: <String, Set<String>>{'app': deps},
+        carried: const <String, Set<String>>{
+          'game': <String>{'CollisionWorld', 'Level'},
+        },
+        sdk: const <String, String>{'Match': 'dart:core'},
+      );
+  fires(
+    'declare what you name',
+    undeclared(const <String>{
+      'sim',
+    }).any(((String, String, String, String) u) => u.$3 == 'CollisionWorld'),
+    'CollisionWorld named by an application that depends on sim alone',
+  );
+  quiet(
+    'declare what you name',
+    undeclared(const <String>{'sim', 'physics'}).isEmpty &&
+        undeclared(const <String>{'game'}).isEmpty,
+    'the physics declared, or the facade that carries it',
+    'a dependency or an allowed facade is the declaration; the SDK\'s name '
+        'and the package\'s own are not asked about',
+  );
+
   return broken;
+}
+
+/// The 1-based lines of [source] that write or read a Dart enum by its
+/// ordinal: `.index`, or `values[` indexed by a number from a file.
+///
+/// **A file outlives the enum's order.** `.f3d` wrote `alphaMode.index`,
+/// `wrapS.index` and a track's `path.index`, and read them back with
+/// `values[i]`; inserting a case anywhere but the end, in any major, would
+/// have changed what every existing file meant, and nothing would have said
+/// so. A format's code goes through an explicit table instead
+/// (`f3d_wire.dart`), whose writer is an exhaustive `switch`. Comment lines
+/// are not code and are skipped.
+List<int> enumOrdinalsIn(String source) {
+  final ordinal = RegExp(r'\.index\b|\bvalues\[');
+  final lines = source.split('\n');
+  return <int>[
+    for (var i = 0; i < lines.length; i++)
+      if (ordinal.hasMatch(_codeOf(lines[i]))) i + 1,
+  ];
+}
+
+/// [line] up to a `//` comment, or empty for a comment line.
+String _codeOf(String line) {
+  final trimmed = line.trimLeft();
+  if (trimmed.startsWith('//')) return '';
+  final comment = line.indexOf(' //');
+  return comment < 0 ? line : line.substring(0, comment);
+}
+
+/// The word a quick local mute is marked with, spelled in two pieces so this
+/// file, which looks for it, never holds it.
+const String temporaryMuteMarker =
+    'TEMP'
+    'SILENT';
+
+/// The 1-based lines of [source] that carry [temporaryMuteMarker].
+///
+/// **A whole game shipped silent from one of these once.** A line muting
+/// the audio engine was written for a meeting, marked to be reverted before
+/// committing, and stayed through a wave of commits, because nothing but a
+/// person's memory looked for the mark. Any tracked source, in any language,
+/// that carries it fails.
+List<int> temporaryMutesIn(String source) {
+  final lines = source.split('\n');
+  return <int>[
+    for (var i = 0; i < lines.length; i++)
+      if (lines[i].contains(temporaryMuteMarker)) i + 1,
+  ];
 }

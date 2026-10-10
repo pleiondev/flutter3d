@@ -13,32 +13,29 @@
 /// sixty-hertz step.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_demo_platformer/src/run_cubit.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunPlaying/RunFailed, SaveFile
-import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _first = 'assets/levels/first_steps.json';
 
 /// A storage that keeps everything in a map.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// A cubit over the shipped documents, with a real device and no window.
@@ -123,7 +120,7 @@ void main() {
     final it = _game();
     await it.run.begin();
     final first = it.run.state as RunPlaying<LevelReady>;
-    first.level.sim.step(1.0 / 60.0);
+    first.level.staged.step(1.0 / 60.0);
     expect(first.level.sim.elapsed, greaterThan(0.0));
 
     await it.run.restart();

@@ -12,15 +12,20 @@
 /// Nothing caught it because nothing asked. The golden sets are recorded with
 /// the default `FogSettings()`, whose density is zero — the one case where the
 /// bug and the fix agree exactly.
+///
+/// **Every fog here is flat**, `heightFalloff: 0.0`, though the default is a
+/// height fog since `P5`: the wall is hundreds of metres tall, so a falloff
+/// would thin the fog over most of the frame and these claims about distance
+/// would become claims about height. `sky_physical_test.dart` holds the
+/// height.
 library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 64;
@@ -43,7 +48,7 @@ const int _height = 64;
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -59,9 +64,9 @@ const int _height = 64;
         device,
         CuboidShape(size: Vector3(away * 4, away * 4, 0.5)).build(),
       ),
-      engine.Material(
+      engine.RenderMaterial(
         name: 'wall',
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
         lighting: LightingModel.unlit,
       ),
       name: 'wall',
@@ -69,11 +74,7 @@ const int _height = 64;
   );
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.0,
-      near: 0.3,
-      far: 2000.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.0, near: 0.3, far: 2000.0),
   )..lookAt(Vector3(0.0, 0.0, 1.0));
   scene.add(camera);
 
@@ -91,7 +92,10 @@ Future<double> _mean(
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     // Tone mapping off: it is a curve between the fog and the pixel, and this
     // test is about the fog.
@@ -101,9 +105,9 @@ Future<double> _mean(
       bloom: BloomSettings(enabled: false),
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
+  final bytes = pixels.buffer.asUint8List();
 
   var total = 0;
   var count = 0;
@@ -119,7 +123,11 @@ void main() {
     // Mutation: leave `_writeLit` returning the colour unfogged, which is what
     // it did. Both distances come back the same white and this fails on the
     // first expectation — which is the whole of what was wrong.
-    final fog = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.02);
+    final fog = FogSettings(
+      color: LinearColor(0.0, 0.0, 0.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
 
     final near = await _mean(_wall(away: 5.0), fog: fog);
     final far = await _mean(_wall(away: 200.0), fog: fog);
@@ -140,8 +148,16 @@ void main() {
     // Mutation: multiply by the transmittance instead of mixing toward the fog
     // colour. Distance would then always darken, and a car disappearing into a
     // pale morning would go black rather than white.
-    final white = FogSettings(color: Vector3(1.0, 1.0, 1.0), density: 0.02);
-    final black = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.02);
+    final white = FogSettings(
+      color: LinearColor(1.0, 1.0, 1.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
+    final black = FogSettings(
+      color: LinearColor(0.0, 0.0, 0.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
 
     final intoWhite = await _mean(_wall(away: 200.0), fog: white);
     final intoBlack = await _mean(_wall(away: 200.0), fog: black);
@@ -151,12 +167,12 @@ void main() {
 
   test('no fog is byte-identical to the fog nobody asked for', () async {
     // The early return at zero density is not an optimisation. The golden sets
-    // — seventy-eight scenes, zero-pixel threshold, three backends — are all
+    // — 96 scenes, zero-pixel threshold, three backends — are all
     // recorded with the default `FogSettings()`, and this is the property that
     // lets them stay recorded.
     final none = FogSettings();
     final explicitlyOff = FogSettings(
-      color: Vector3(1.0, 0.0, 0.0),
+      color: LinearColor(1.0, 0.0, 0.0),
       density: 0.0,
     );
 
@@ -168,8 +184,16 @@ void main() {
   });
 
   test('density decides how far the view carries', () async {
-    final thin = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.002);
-    final thick = FogSettings(color: Vector3(0.0, 0.0, 0.0), density: 0.02);
+    final thin = FogSettings(
+      color: LinearColor(0.0, 0.0, 0.0),
+      density: 0.002,
+      heightFalloff: 0.0,
+    );
+    final thick = FogSettings(
+      color: LinearColor(0.0, 0.0, 0.0),
+      density: 0.02,
+      heightFalloff: 0.0,
+    );
 
     final inThin = await _mean(_wall(away: 100.0), fog: thin);
     final inThick = await _mean(_wall(away: 100.0), fog: thick);

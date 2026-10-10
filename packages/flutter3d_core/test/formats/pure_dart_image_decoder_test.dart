@@ -45,23 +45,25 @@ void main() {
   test('a PNG decodes into an Rgba8Image the same size and colour', () async {
     final decoded = await decodeImagePure(_onePixelPng());
     expect(decoded, isNotNull);
-    expect(decoded!.width, 1);
+    expect(decoded.width, 1);
     expect(decoded.height, 1);
     expect(decoded.pixels, <int>[255, 0, 0, 255]);
   });
 
   test(
-    'bytes matching no known signature decode to null, not a throw',
+    'bytes matching no known signature are refused with a typed exception',
     () async {
-      final decoded = await decodeImagePure(
-        Uint8List.fromList(<int>[1, 2, 3, 4, 5, 6, 7, 8]),
+      await expectLater(
+        decodeImagePure(Uint8List.fromList(<int>[1, 2, 3, 4, 5, 6, 7, 8])),
+        throwsA(isA<ImageFormatException>()),
       );
-      expect(decoded, isNull);
     },
   );
 
-  test('a truncated PNG signature decodes to null, not a throw', () async {
-    final decoded = await decodeImagePure(_onePixelPng().sublist(0, 20));
-    expect(decoded, isNull);
+  test('a truncated PNG is refused with a typed exception', () async {
+    await expectLater(
+      decodeImagePure(_onePixelPng().sublist(0, 20)),
+      throwsA(isA<ImageFormatException>()),
+    );
   });
 }

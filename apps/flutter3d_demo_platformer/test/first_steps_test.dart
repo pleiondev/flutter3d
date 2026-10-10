@@ -25,7 +25,6 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // SaveFile
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -55,7 +54,7 @@ final class _Game {
 
   final EntityRegistry kinds = platformerRegistry();
   late final Staged staged;
-  Dynamics get dynamics => staged.dynamics;
+  RigidDynamics get dynamics => staged.dynamics;
   MechanismWorld get mechanisms => staged.mechanisms;
   ActorSystem get actors => staged.actors;
   Runner get runner => staged.runner;
@@ -78,7 +77,7 @@ final class _Game {
     _held
       ..clear()
       ..addAll(holding);
-    sim.step(_dt);
+    staged.step(_dt);
     input.endStep();
   }
 
@@ -152,7 +151,7 @@ bool _playThrough(_Game game, {int steps = 7200}) {
   return game.sim.state == RunState.finished;
 }
 
-void main() {
+void main() async {
   test('the level a player starts on has no errors in it', () {
     final issues = LevelValidator(
       registry: platformerRegistry(),
@@ -214,9 +213,9 @@ void main() {
     /// The top of every brush whose footprint covers [x], [z].
     List<double> topsAt(double x, double z) => <double>[
       for (final brush in _level().brushes)
-        if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
-            (brush.centre.z - z).abs() <= brush.size.z / 2.0)
-          brush.centre.y + brush.size.y / 2.0,
+        if ((brush.center.x - x).abs() <= brush.size.x / 2.0 &&
+            (brush.center.z - z).abs() <= brush.size.z / 2.0)
+          brush.center.y + brush.size.y / 2.0,
     ];
 
     test('a step in front of it turns one climb into two', () {
@@ -275,14 +274,14 @@ void main() {
       // is the geometry the design argument rests on.
       final shelf = <Brush>[
         for (final brush in _level().brushes)
-          if (brush.centre.z > 24.0 &&
-              brush.centre.z < 28.0 &&
-              brush.centre.x.abs() < 1.0)
+          if (brush.center.z > 24.0 &&
+              brush.center.z < 28.0 &&
+              brush.center.x.abs() < 1.0)
             brush,
       ];
 
       expect(shelf, isNotEmpty, reason: 'the shelf is gone');
-      final top = shelf.first.centre.y + shelf.first.size.y / 2.0;
+      final top = shelf.first.center.y + shelf.first.size.y / 2.0;
       expect(
         top,
         greaterThan(1.8),
@@ -390,16 +389,16 @@ void main() {
         final above = <(double, double)>[];
         final beside = <double>[];
         for (final brush in level.brushes) {
-          if ((brush.centre.z - door.position.z).abs() > 1.5) continue;
-          if (brush.centre.y + brush.size.y / 2.0 <= foot + 0.01) continue;
-          final apart = (brush.centre.x - door.position.x).abs();
+          if ((brush.center.z - door.position.z).abs() > 1.5) continue;
+          if (brush.center.y + brush.size.y / 2.0 <= foot + 0.01) continue;
+          final apart = (brush.center.x - door.position.x).abs();
           if (apart < (size.x + brush.size.x) / 2.0 - 0.01) {
             above.add((
-              brush.centre.y - brush.size.y / 2.0,
-              brush.centre.y + brush.size.y / 2.0,
+              brush.center.y - brush.size.y / 2.0,
+              brush.center.y + brush.size.y / 2.0,
             ));
           } else if (apart >= size.x / 2.0 - 0.01) {
-            beside.add(brush.centre.y + brush.size.y / 2.0);
+            beside.add(brush.center.y + brush.size.y / 2.0);
           }
         }
         if (beside.isEmpty) {
@@ -453,10 +452,10 @@ void main() {
     final tops = <double>[];
     final bottoms = <double>[];
     for (final brush in level.brushes) {
-      if ((brush.centre.z - 94.0).abs() > 4.0) continue;
-      if (brush.centre.x.abs() > 1.0) continue;
-      final top = brush.centre.y + brush.size.y / 2.0;
-      final bottom = brush.centre.y - brush.size.y / 2.0;
+      if ((brush.center.z - 94.0).abs() > 4.0) continue;
+      if (brush.center.x.abs() > 1.0) continue;
+      final top = brush.center.y + brush.size.y / 2.0;
+      final bottom = brush.center.y - brush.size.y / 2.0;
       if (top < 7.0) tops.add(top);
       if (bottom > 6.0) bottoms.add(bottom);
     }
@@ -497,9 +496,9 @@ void main() {
     /// The top of every brush whose footprint covers [x], [z].
     List<double> topsAt(double x, double z) => <double>[
       for (final brush in _level().brushes)
-        if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
-            (brush.centre.z - z).abs() <= brush.size.z / 2.0)
-          brush.centre.y + brush.size.y / 2.0,
+        if ((brush.center.x - x).abs() <= brush.size.x / 2.0 &&
+            (brush.center.z - z).abs() <= brush.size.z / 2.0)
+          brush.center.y + brush.size.y / 2.0,
     ];
 
     test('a step in the slot is reachable from the floor', () {
@@ -534,10 +533,10 @@ void main() {
       final step = topsAt(0.0, 48.0).reduce(math.max);
       final top = <double>[
         for (final brush in _level().brushes)
-          if (brush.centre.x.abs() > 1.0 &&
-              (brush.centre.z - 52.0).abs() < 5.0 &&
-              brush.centre.y > 2.0)
-            brush.centre.y + brush.size.y / 2.0,
+          if (brush.center.x.abs() > 1.0 &&
+              (brush.center.z - 52.0).abs() < 5.0 &&
+              brush.center.y > 2.0)
+            brush.center.y + brush.size.y / 2.0,
       ].reduce(math.max);
 
       expect(
@@ -559,11 +558,11 @@ void main() {
         for (final entity in level.entities)
           if (entity.position.z > 46.0 && entity.position.z < 58.0)
             for (final brush in level.brushes)
-              if ((brush.centre.x - entity.position.x).abs() <
+              if ((brush.center.x - entity.position.x).abs() <
                       brush.size.x / 2.0 &&
-                  (brush.centre.y - entity.position.y).abs() <
+                  (brush.center.y - entity.position.y).abs() <
                       brush.size.y / 2.0 &&
-                  (brush.centre.z - entity.position.z).abs() <
+                  (brush.center.z - entity.position.z).abs() <
                       brush.size.z / 2.0)
                 '${entity.type} at ${entity.position}',
       ];
@@ -603,53 +602,61 @@ void main() {
     }
   });
 
-  test('quitting halfway and coming back is the same run, through the file', () {
-    // **The end of E5, joined up.** The package proves that `save`/`restore`
-    // carries the state; this proves that the game's own path carries it —
-    // a real level, a real run, a real file on disk, and a second world built
-    // from scratch the way a relaunch builds one.
-    //
-    // Mutation: write `sim.save()` but restore into a world whose entities were
-    // never spawned, or drop the level name from the file. The purse survives
-    // and the world does not, which is exactly the class of bug the whole stage
-    // is about.
-    final temporary = Directory.systemTemp.createTempSync('platformer_resume');
-    addTearDown(() => temporary.deleteSync(recursive: true));
-    final saves = SaveFile(
-      appName: 'platformer',
-      storage: FileStorage(appName: 'platformer', directory: temporary),
-    );
+  test(
+    'quitting halfway and coming back is the same run, through the file',
+    () async {
+      // **The end of E5, joined up.** The package proves that `save`/`restore`
+      // carries the state; this proves that the game's own path carries it —
+      // a real level, a real run, a real file on disk, and a second world built
+      // from scratch the way a relaunch builds one.
+      //
+      // Mutation: write `sim.save()` but restore into a world whose entities were
+      // never spawned, or drop the level name from the file. The purse survives
+      // and the world does not, which is exactly the class of bug the whole stage
+      // is about.
+      final temporary = Directory.systemTemp.createTempSync(
+        'platformer_resume',
+      );
+      addTearDown(() => temporary.deleteSync(recursive: true));
+      final saves = SaveFile(
+        appName: 'platformer',
+        storage: FileStorage(appName: 'platformer', directory: temporary),
+      );
 
-    final first = _Game();
-    _playThrough(first, steps: 1800);
-    expect(
-      first.runner.purse['coin'],
-      greaterThan(0),
-      reason: 'nothing had happened yet, so nothing is under test',
-    );
+      final first = _Game();
+      _playThrough(first, steps: 1800);
+      expect(
+        first.runner.purse['coin'],
+        greaterThan(0),
+        reason: 'nothing had happened yet, so nothing is under test',
+      );
 
-    saves.write('assets/levels/first_steps.json', first.sim.save());
+      await saves.write('assets/levels/first_steps.json', first.sim.save());
 
-    final read = saves.read();
-    expect(read, isNotNull);
-    expect(read!.level, 'assets/levels/first_steps.json');
+      final read = await saves.read();
+      expect(read, isNotNull);
+      expect(read!.level, 'assets/levels/first_steps.json');
 
-    final second = _Game()..sim.restore(read.run);
+      final second = _Game()..sim.restore(read.run);
 
-    expect(second.runner.purse['coin'], first.runner.purse['coin']);
-    expect(second.sim.deaths, first.sim.deaths);
-    expect(second.sim.elapsed, closeTo(first.sim.elapsed, 1e-6));
-    expect(second.runner.position.z, closeTo(first.runner.position.z, 0.01));
-    expect(second.sim.respawnPoint.z, closeTo(first.sim.respawnPoint.z, 0.01));
+      expect(second.runner.purse['coin'], first.runner.purse['coin']);
+      expect(second.sim.deaths, first.sim.deaths);
+      expect(second.sim.elapsed, closeTo(first.sim.elapsed, 1e-6));
+      expect(second.runner.position.z, closeTo(first.runner.position.z, 0.01));
+      expect(
+        second.sim.respawnPoint.z,
+        closeTo(first.sim.respawnPoint.z, 0.01),
+      );
 
-    // And the world came back with it: a coin already taken is still gone, so
-    // walking the level again does not pay twice.
-    final taken = <Collectible>[
-      for (final m in second.mechanisms.all)
-        if (m is Collectible && m.isTaken) m,
-    ];
-    expect(taken, hasLength(first.runner.purse['coin']));
-  });
+      // And the world came back with it: a coin already taken is still gone, so
+      // walking the level again does not pay twice.
+      final taken = <Collectible>[
+        for (final m in second.mechanisms.all)
+          if (m is Collectible && m.isTaken) m,
+      ];
+      expect(taken, hasLength(first.runner.purse['coin']));
+    },
+  );
 
   test('nothing in it can kill you', () {
     // The claim the file's own header makes: every pit has a floor and a stair,

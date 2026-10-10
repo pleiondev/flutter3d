@@ -3,7 +3,7 @@
 ///     dart test test/transmission_glass_test.dart
 ///
 /// A frame that holds a transmissive draw splits the scene around a copy of
-/// itself: the opaque half, `scene colour copy`, then `transparent` with the
+/// itself: the opaque half, `scene color copy`, then `transparent` with the
 /// glass reading the copy. Read off the scene target and the copy on the
 /// software rasteriser, whose textures keep the floats a shader wrote, by a
 /// node of the test's own that reads them after the composite.
@@ -15,7 +15,11 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
@@ -46,7 +50,7 @@ final class _Probe extends RenderNode {
   String get name => 'probe ${id.name}';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => <ResourceId>[FrameResourceIds.frame, id];
@@ -55,7 +59,7 @@ final class _Probe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     final texture = frame.resources.texture(id);
     last = _device.readHdrPixels(texture);
     width = texture.width;
@@ -77,9 +81,9 @@ MeshNode _glass(
 }) =>
     MeshNode(
         quad,
-        Material(
+        RenderMaterial(
           lighting: LightingModel.pbrLayered,
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           roughness: roughness,
           extensions: MaterialExtensions(
             transmission: transmission,
@@ -104,6 +108,7 @@ _Frame _render({
   int size = _size,
   double seam = 0.0,
   bool readCopy = false,
+  Set<RenderStep> stepsOff = const <RenderStep>{},
   List<MeshNode Function(DeviceMesh quad)> extra =
       const <MeshNode Function(DeviceMesh)>[],
 }) {
@@ -120,8 +125,14 @@ _Frame _render({
     device,
     const PlaneShape(width: 3.0, depth: 6.0).build(),
   );
-  MeshNode wall(double x, Vector4 colour) =>
-      MeshNode(half, Material(lighting: LightingModel.unlit, baseColor: colour))
+  MeshNode wall(double x, Vector4 color) =>
+      MeshNode(
+          half,
+          RenderMaterial(
+            lighting: LightingModel.unlit,
+            baseColor: _fromSrgb(color),
+          ),
+        )
         ..setPosition(x, 0.0, -4.0)
         ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0);
   final camera = CameraNode();
@@ -133,16 +144,16 @@ _Frame _render({
   for (final node in extra) {
     scene.add(node(quad));
   }
-  final hdr = _Probe(device, FrameResourceIds.hdrColour);
-  final copy = _Probe(device, FrameResourceIds.sceneColour);
-  final renderer = Renderer.create(device: device)..addNode(hdr);
-  if (readCopy) renderer.addNode(copy);
+  final hdr = _Probe(device, FrameResourceIds.hdrColor);
+  final copy = _Probe(device, FrameResourceIds.sceneColor);
+  final renderer = Renderer.create(device: device)..renderSteps.addNode(hdr);
+  if (readCopy) renderer.renderSteps.addNode(copy);
   final result = renderer.render(
     width: size,
     height: size,
     scene: scene,
     views: <RenderView>[RenderView(camera: camera)],
-    settings: settings,
+    settings: settings.without(stepsOff),
   );
   return (hdr: hdr.last!, result: result, copy: copy.last);
 }
@@ -205,31 +216,29 @@ void main() {
   });
 
   test('a frame without glass draws the bytes it drew before', () {
-    // The default path: the same frame with the two nodes switched off by
-    // name is the frame as it was before they existed.
+    // The default path: the same frame with the two steps switched off is
+    // the frame as it was before they existed.
     MeshNode coated(DeviceMesh q) =>
         _glass(q, transmission: 0.0, clearcoat: 1.0);
     final now = _render(pane: coated).hdr;
     final before = _render(
       pane: coated,
-      settings: const RenderSettings(
-        bloom: BloomSettings(enabled: false),
-        disabledPasses: <String>{'scene colour copy', 'transparent'},
-      ),
+      stepsOff: const <RenderStep>{
+        RenderStep.sceneColorCopy,
+        RenderStep.transparent,
+      },
     ).hdr;
     expect(now, before);
   });
 
   test('switched off, the glass reads the environment as it did', () {
-    // Mutation: ignore `'transparent'` being disabled in `_SceneNode` (split
-    // on `transparent.active`). The frame throws or shows the wall.
+    // Mutation: ignore `RenderStep.transparent` in `_SceneNode` (split on
+    // `transparent.active`). The frame throws or shows the wall.
     final frame = _render(
       pane: _glass,
-      settings: const RenderSettings(
-        bloom: BloomSettings(enabled: false),
-        disabledPasses: <String>{'transparent'},
-      ),
+      stepsOff: const <RenderStep>{RenderStep.transparent},
     );
+    expect(frame.result.skipReasonOf('transparent'), PassSkip.switchedOff);
     // No environment and no copy: both halves see the same flat ambient.
     final left = _at(frame.hdr, _left.x, _left.y);
     final right = _at(frame.hdr, _right.x, _right.y);
@@ -237,6 +246,27 @@ void main() {
       expect(left[c], closeTo(right[c], 1e-6));
     }
     expect(left.x, lessThan(_linear(_red).x * 0.5));
+  });
+
+  test('the copy switched off keeps the split, reading the environment', () {
+    // Mutation: drop `RenderStep.sceneColorCopy.isOn` from the copy node's
+    // `active`. The copy runs, and the glass shows the wall behind it.
+    final frame = _render(
+      pane: _glass,
+      stepsOff: const <RenderStep>{RenderStep.sceneColorCopy},
+    );
+    final ran = frame.result.passes.map((p) => p.name);
+    expect(ran, contains('transparent'));
+    expect(ran, isNot(contains('scene colour copy')));
+    expect(
+      frame.result.skipReasonOf('scene colour copy'),
+      PassSkip.switchedOff,
+    );
+    final left = _at(frame.hdr, _left.x, _left.y);
+    final right = _at(frame.hdr, _right.x, _right.y);
+    for (var c = 0; c < 3; c++) {
+      expect(left[c], closeTo(right[c], 1e-6));
+    }
   });
 
   test('each level of the copy is the mean of the scene under it', () {
@@ -339,9 +369,9 @@ void main() {
     MeshNode veil(DeviceMesh q) =>
         MeshNode(
             q,
-            Material(
+            RenderMaterial(
               lighting: LightingModel.unlit,
-              baseColor: Vector4(0.0, 1.0, 0.0, 0.5),
+              baseColor: LinearColor.fromSrgb(0.0, 1.0, 0.0, 0.5),
               alphaMode: MaterialAlphaMode.blend,
               doubleSided: true,
             ),
@@ -369,6 +399,101 @@ void main() {
     }
   });
 
+  test('a thin blended pane shows the glass behind it, not the copy', () {
+    // A tinted volume behind a thin pane that blends. Both transmit, so
+    // neither is in the copy; the pane lets the target through instead,
+    // and the target by then holds the volume.
+    MeshNode volume(DeviceMesh quad) =>
+        MeshNode(
+            quad,
+            RenderMaterial(
+              lighting: LightingModel.pbrLayered,
+              baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
+              roughness: 0.0,
+              extensions: MaterialExtensions(
+                transmission: 1.0,
+                thickness: 0.1,
+                attenuationColor: LinearColor(0.1, 0.9, 0.1),
+                attenuationDistance: 0.1,
+              ),
+              doubleSided: true,
+            ),
+          )
+          ..setPosition(0.0, 0.0, -2.5)
+          ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0);
+    MeshNode pane(DeviceMesh quad) =>
+        MeshNode(
+            quad,
+            RenderMaterial(
+              lighting: LightingModel.pbrLayered,
+              baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 0.2),
+              roughness: 0.0,
+              alphaMode: MaterialAlphaMode.blend,
+              extensions: MaterialExtensions(transmission: 1.0),
+              doubleSided: true,
+            ),
+          )
+          ..setPosition(0.0, 0.0, -1.5)
+          ..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0);
+    final bare = _at(_render(pane: volume).hdr, _left.x, _left.y);
+    final paned = _at(
+      _render(pane: volume, extra: [pane]).hdr,
+      _left.x,
+      _left.y,
+    );
+    // Mutation: read the copy for a thin pane as before. A fifth of the
+    // red wall comes back over the green, and red more than doubles.
+    for (var c = 0; c < 3; c++) {
+      expect(paned[c], closeTo(bare[c], 0.01), reason: 'channel $c');
+    }
+    // And the volume is there to be seen: it takes most of the wall's red.
+    expect(bare.x, lessThan(_linear(_red).x * 0.2));
+  });
+
+  test('a convex volume is thinner where it is crossed at a slant', () {
+    // The same tinted pane as a slab and as a convex body. Head-on the ray
+    // crosses all of either; turned, the body's path is shortened by how
+    // squarely the bent ray meets it and the slab's is not.
+    MeshNode Function(DeviceMesh) tinted({
+      required bool convex,
+      double yaw = 0.0,
+    }) =>
+        (quad) =>
+            MeshNode(
+                quad,
+                RenderMaterial(
+                  lighting: LightingModel.pbrLayered,
+                  baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
+                  roughness: 0.0,
+                  extensions: MaterialExtensions(
+                    transmission: 1.0,
+                    ior: 1.5,
+                    thickness: 0.2,
+                    convexVolume: convex,
+                    attenuationColor: LinearColor(0.2, 0.2, 0.2),
+                    attenuationDistance: 0.2,
+                  ),
+                  doubleSided: true,
+                ),
+              )
+              ..setPosition(0.0, 0.0, -2.0)
+              ..setRotationYawPitchRoll(yaw, math.pi / 2, 0.0);
+    Vector4 seen(bool convex, double yaw) => _at(
+      _render(
+        pane: tinted(convex: convex, yaw: yaw),
+        seam: 1.0,
+      ).hdr,
+      _size ~/ 2,
+      _size ~/ 2,
+    );
+    expect(seen(true, 0.0).x, closeTo(seen(false, 0.0).x, 0.005));
+    // Turned by 0.9 the bent ray meets the body at a cosine of 0.85, so it
+    // keeps 0.2^0.85 of the red where the slab keeps 0.2: 1.27 times as much.
+    // Mutation: drop the `convexVolume` lane in `_encodeNode`, and the two
+    // turned panes are the same.
+    expect(seen(true, 0.9).x, greaterThan(seen(false, 0.9).x * 1.2));
+  });
+
   test('every declared slot is bound on a split frame', () {
     // `scene_colour_texture` is the layered stage's sixteenth sampler; a
     // draw that left it unbound is a crash on Metal.
@@ -394,3 +519,6 @@ void main() {
     expect(result.antiAliasing.msaaDeclined, contains('transmissive'));
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

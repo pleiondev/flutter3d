@@ -17,7 +17,6 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Small on purpose: what is being tested is the chain, and the chain runs at
 /// any size.
@@ -82,7 +81,7 @@ void main() {
 
     editing.nudge(Vector3(0.0, 4.0, 0.0));
 
-    expect(editing.level.brushes[0].centre.y, 4.0);
+    expect(editing.level.brushes[0].center.y, 4.0);
     expect(
       () async => LevelLoader().build(
         editing.level,

@@ -29,11 +29,8 @@ final Vector3 _eye = Vector3(0.0, 0.0, 10.0);
 final Vector3 _oblique = Vector3(7.0, 6.0, 8.0);
 
 /// The view a 720-pixel-tall viewport with a 0.9 radian field of view gives.
-GizmoView _view([Vector3? eye]) => GizmoView.perspective(
-  eye: eye ?? _eye,
-  fovYRadians: 0.9,
-  viewportHeight: 720.0,
-);
+GizmoView _view([Vector3? eye]) =>
+    GizmoView.perspective(eye: eye ?? _eye, fovY: 0.9, viewportHeight: 720.0);
 
 /// Which way [from] has to point to aim at [target].
 Vector3 _at(Vector3 target, [Vector3? from]) =>
@@ -339,15 +336,15 @@ void main() {
     void expectAxis(GizmoAxis axis, int r, int g, int b) {
       final handle = handles.firstWhere((GizmoHandle it) => it.axis == axis);
       expect(
-        ((handle.colour.x * 255.0).round() - r).abs(),
+        ((handle.color.x * 255.0).round() - r).abs(),
         lessThanOrEqualTo(2),
       );
       expect(
-        ((handle.colour.y * 255.0).round() - g).abs(),
+        ((handle.color.y * 255.0).round() - g).abs(),
         lessThanOrEqualTo(2),
       );
       expect(
-        ((handle.colour.z * 255.0).round() - b).abs(),
+        ((handle.color.z * 255.0).round() - b).abs(),
         lessThanOrEqualTo(2),
       );
     }

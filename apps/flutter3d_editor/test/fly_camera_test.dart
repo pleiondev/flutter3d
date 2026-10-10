@@ -205,4 +205,25 @@ void main() {
       reason: 'strafing sideways changed the height',
     );
   });
+
+  test('framing a thing looks straight at it, from the side already faced', () {
+    // What a double-click in the outliner does: the thing ends up dead
+    // ahead, and the camera stood back from it along its own heading rather
+    // than turned round to look from behind.
+    //
+    // Mutation: drop the `pitch =` line in `frame`. The camera looks level
+    // over the torch it was raised above, and the torch sits low in the
+    // picture rather than in the middle of it.
+    final camera = FlyCamera(at: Vector3(0.0, 1.7, 0.0), yaw: 0.6);
+    final torch = Vector3(10.0, 2.0, -4.0);
+
+    camera.frame(torch);
+
+    final towards = (torch - camera.position)..normalize();
+    expect(camera.forward.dot(towards), closeTo(1.0, 1e-6));
+    expect(camera.position.distanceTo(torch), closeTo(5.0 * 1.077, 0.01));
+    // Stood back the way it was facing: still facing that way, give or take
+    // the tilt down to the torch.
+    expect(camera.yaw, closeTo(0.6, 1e-6));
+  });
 }

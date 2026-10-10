@@ -26,7 +26,7 @@ TextureHandle _solidTexture(CpuDevice device, int width, int height, int rgba) {
     height: height,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: pixels,
-  )!;
+  );
 }
 
 /// The RGBA at ([x], [y]) of [texture]'s own CPU pixels, as bytes 0-255.
@@ -104,7 +104,7 @@ void main() {
       height: 4,
       format: TextureFormat.r16g16b16a16Float,
       pixels: ByteData(4 * 4 * 4 * 2),
-    )!;
+    );
     expect(
       () => device.overwriteTexture(handle, pixels),
       throwsUnsupportedError,

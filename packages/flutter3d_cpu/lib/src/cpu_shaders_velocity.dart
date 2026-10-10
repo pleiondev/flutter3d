@@ -74,7 +74,7 @@ Vector4 _velocityOut(
 
 /// `velocity.vert`: a moved mesh through this frame's and last frame's
 /// matrices. The pipeline's layout declares the position alone.
-final class VelocityVertexShader implements CpuVertexShaderByIndex {
+final class VelocityVertexShader extends CpuVertexShaderByIndex {
   const VelocityVertexShader();
 
   @override
@@ -115,7 +115,7 @@ final class VelocityVertexShader implements CpuVertexShaderByIndex {
 
 /// `velocity_skinned.vert`: skinned by this frame's palette and by last
 /// frame's, which arrives as a 4 × 64 float texture of columns.
-final class VelocitySkinnedVertexShader implements CpuVertexShaderByIndex {
+final class VelocitySkinnedVertexShader extends CpuVertexShaderByIndex {
   const VelocitySkinnedVertexShader();
 
   // Position, then joints, then weights: the layout declares these three.
@@ -195,7 +195,7 @@ final class VelocitySkinnedVertexShader implements CpuVertexShaderByIndex {
 
 /// `velocity_instanced.vert`: each instance placed by its transform now
 /// (slot 1) and by last frame's (slot 2).
-final class VelocityInstancedVertexShader implements CpuVertexShaderByIndex {
+final class VelocityInstancedVertexShader extends CpuVertexShaderByIndex {
   const VelocityInstancedVertexShader();
 
   // Position, then three rows now, then three rows then.
@@ -259,7 +259,7 @@ final class VelocityInstancedVertexShader implements CpuVertexShaderByIndex {
 
 /// `post/velocity.frag`: the two clip positions, divided here, differenced
 /// in UV — for a fragment the scene's surface buffer says is in front.
-final class VelocityShader implements CpuFragmentShader {
+final class VelocityShader extends CpuFragmentShader {
   const VelocityShader();
 
   @override
@@ -282,7 +282,7 @@ final class VelocityShader implements CpuFragmentShader {
 }
 
 /// `camera_velocity.frag`: how far this pixel moved because the camera did.
-final class CameraVelocityShader implements CpuFragmentShader {
+final class CameraVelocityShader extends CpuFragmentShader {
   const CameraVelocityShader();
 
   /// No motion, full weight: a fresh one each time, since a caller owns it.

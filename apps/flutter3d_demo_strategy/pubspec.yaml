@@ -11,11 +11,34 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.8.0
-  flutter3d_app: ^0.8.0
-  flutter3d_game: ^0.8.0
-  flutter3d_sim: ^0.8.0
-  flutter3d_game_strategy: ^0.8.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_game: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_game_strategy: ^1.0.0-rc.1
+
+  # `MapWorld`: this map's pond, river, fires and stones, which are this
+  # game's content and not the genre's.
+  flutter3d_demo_content: ^1.0.0-rc.1
+
+  # The water, the fires and the thrown stones over the map: a world of
+  # their own, fed from what the match does and never feeding back.
+  flutter3d_physics_native: ^1.0.0-rc.1
+
+  # `Portable`'s sines and powers, for the arithmetic of that world's step:
+  # `dart:math`'s are each platform's own, and a match replayed on another
+  # machine must come out the same.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # That world drawn — the pond and the stream, the flames and the smoke —
+  # and what it sounds like.
+  flutter3d_effects: ^1.0.0-rc.1
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements: ^1.0.0-rc.1
+
+  # The voices the fires, the stream and the splashes are played through.
+  flutter3d_audio: ^1.0.0-rc.1
 
   # Where `RunSession` lives. Named here rather than reached through the
   # `flutter3d_app` barrel above, because `src/run.dart` imports it by name and
@@ -24,12 +47,30 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # The game parts other games use too (`tasks/1.0-addons.md`): the HUD, the
+  # screens, the capture strip, and how a match ends said to a screen reader
+  # — `SpokenEvents` over the genre's `MatchDecided`.
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter:
+    path: ../../packages/flutter3d_matter
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   # A device with no GPU behind it, for the frame test.
-  flutter3d_cpu: ^0.8.0
+  flutter3d_cpu: ^1.0.0-rc.1
   flutter_lints: ^6.0.0
 
   # Real-device e2e — see `apps/flutter3d_demo_platformer/pubspec.yaml` for the
@@ -46,3 +87,4 @@ flutter:
   assets:
     - assets/levels/
     - assets/models/
+    - assets/textures/

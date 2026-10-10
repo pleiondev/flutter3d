@@ -4,13 +4,13 @@ import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A unit cube on the CPU: no GPU anywhere in this file, which is the point of
 /// [MeshGeometry].
 MeshNode cubeNode({String? name, Vector3? size}) => MeshNode(
   CpuMesh(CuboidShape(size: size ?? Vector3.all(1.0)).build()),
-  Material(),
+  RenderMaterial(),
   name: name,
 );
 
@@ -34,7 +34,7 @@ MeshNode triangleNode({String? name}) {
     texcoord: Vector2(0.0, 1.0),
   );
   builder.addTriangle(a, b, c);
-  return MeshNode(CpuMesh(builder.build()), Material(), name: name);
+  return MeshNode(CpuMesh(builder.build()), RenderMaterial(), name: name);
 }
 
 /// A camera at +Z looking at the origin, the arrangement the demo starts in.
@@ -234,7 +234,7 @@ void main() {
           CpuMesh(
             triangleNode().mesh.source!.transformed(Matrix4.rotationX(0.9)),
           ),
-          Material(),
+          RenderMaterial(),
           name: 'tilted',
         ),
       )..setScale(1.0, 4.0, 1.0);
@@ -272,7 +272,7 @@ void main() {
       // Three cubes in a line away from the camera: the nearest is hidden, the
       // middle one sits on a different layer, the far one is ordinary.
       final scene = Scene();
-      final hidden = scene.add(cubeNode(name: 'hidden'))..visible = false;
+      final hidden = scene.add(cubeNode(name: 'hidden'))..isVisible = false;
       final layered = scene.add(cubeNode(name: 'layered'))
         ..setPosition(0.0, 0.0, -2.0)
         ..layerMask = 1 << 3;
@@ -307,7 +307,9 @@ void main() {
     test('an empty mesh is not a candidate', () {
       final builder = MeshBuilder(VertexLayout.positionNormalTexcoord);
       final scene = Scene()
-        ..add(MeshNode(CpuMesh(builder.build()), Material(), name: 'empty'));
+        ..add(
+          MeshNode(CpuMesh(builder.build()), RenderMaterial(), name: 'empty'),
+        );
       final caster = Raycaster()
         ..ray.setFrom(Vector3(0.0, 0.0, 5.0), Vector3(0.0, 0.0, -1.0));
       expect(caster.intersectScene(scene), isNull);
@@ -330,7 +332,9 @@ void main() {
   group('meshes with no CPU geometry', () {
     test('fall back to the bounding box and say so', () {
       final scene = Scene();
-      scene.add(MeshNode(_BoundsOnlyMesh(), Material(), name: 'streamed'));
+      scene.add(
+        MeshNode(_BoundsOnlyMesh(), RenderMaterial(), name: 'streamed'),
+      );
 
       final caster = Raycaster()
         ..ray.setFrom(Vector3(0.0, 0.0, 5.0), Vector3(0.0, 0.0, -1.0));
@@ -346,7 +350,7 @@ void main() {
 
 /// Geometry that reports bounds but has no triangles, the way a mesh uploaded
 /// with `keepSourceData: false` behaves.
-final class _BoundsOnlyMesh implements MeshGeometry {
+final class _BoundsOnlyMesh with MeshGeometry {
   @override
   final Aabb3 bounds = Aabb3.minMax(
     Vector3(-0.5, -0.5, -0.5),

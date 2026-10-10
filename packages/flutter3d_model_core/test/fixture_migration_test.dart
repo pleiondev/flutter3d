@@ -12,7 +12,7 @@
 /// **What to do when it fails**, because the tempting repair is the wrong one.
 /// Re-minting the fixture makes it green and throws away the guarantee. Either
 /// the change was a mistake and belongs undone, or it genuinely changes what a
-/// record means — in which case `kProjectVersion` moves, this fixture stays and
+/// record means — in which case `projectVersion` moves, this fixture stays and
 /// keeps being read by whatever migration the new reader carries, and a v2
 /// fixture joins it. `doc-28`: the fixtures live for ever.
 library;
@@ -185,7 +185,7 @@ void main() {
     for (final int version in versions) {
       expect(
         version,
-        lessThanOrEqualTo(kProjectVersion),
+        lessThanOrEqualTo(projectVersion),
         reason: 'a fixture from a version this build cannot read',
       );
       expect(fixtureOpened(version).objects, isNotEmpty);
@@ -194,16 +194,76 @@ void main() {
     // The other direction, and the one `doc-28` actually asks for: a bump
     // with no fixture is a red test, not a silent gap somebody notices when
     // an old file stops opening on somebody else's machine. Mutation: drop
-    // this assertion and bump `kProjectVersion` to 2 with no `v2/` — every
+    // this assertion and bump `projectVersion` to 2 with no `v2/` — every
     // check above still passes, since there is nothing at version 2 to be
     // wrong about.
     expect(
       versions,
-      contains(kProjectVersion),
+      contains(projectVersion),
       reason:
-          'kProjectVersion is $kProjectVersion and test/fixtures has no '
-          'v$kProjectVersion/ — a version bump needs a fixture minted at the '
+          'kProjectVersion is $projectVersion and test/fixtures has no '
+          'v$projectVersion/ — a version bump needs a fixture minted at the '
           'moment it happens, not after',
     );
+  });
+
+  group('a file a later minor wrote', () {
+    // `unknown_keys.f3dproj` is the v1 workshop with two manifest keys no
+    // build of this version writes, as a later minor would add them
+    // (`docs/CONTRACTS.md`: unknown keys are kept). Minted once, by hand.
+    const later = <String, Object?>{
+      'laterMinor': <String, Object?>{
+        'note': 'written by a build newer than this one',
+        'weights': <Object?>[1, 2.5, true, null],
+      },
+      'zz': 'kept as it was',
+    };
+
+    ModelProject opened(Uint8List bytes) => switch (readProject(bytes)) {
+      ProjectOpened(:final project) => project,
+      final ProjectRefused refused => fail(refused.because),
+    };
+
+    test('opens, with what it does not read kept aside', () {
+      // Mutation: read only the known keys and drop the rest — `unknown` is
+      // empty and the next save loses them.
+      final project = opened(
+        File('test/fixtures/v1/unknown_keys.f3dproj').readAsBytesSync(),
+      );
+      expect(project.unknown, later);
+      expect(
+        project.objects.map((ModelObject o) => o.name),
+        fixtureOpened(1).objects.map((ModelObject o) => o.name),
+        reason: 'what it does read is read as before',
+      );
+    });
+
+    test('saves them back, through an edit and a save', () {
+      // Mutation: build the renamed project without `unknown` in
+      // `withObject` — the edit sheds the keys before the save.
+      final project = opened(
+        File('test/fixtures/v1/unknown_keys.f3dproj').readAsBytesSync(),
+      );
+      final history = ModelHistory(project);
+      expect(
+        history.run(Rename(id: project.objects.first.id, to: 'renamed')),
+        isNull,
+      );
+      final saved = writeProject(history.project, history: history);
+      final again = opened(saved);
+      expect(again.unknown, later);
+      expect(again.objects.first.name, 'renamed');
+    });
+
+    test('a key this build writes is never taken from them', () {
+      // Mutation: spread `unknown` after the known keys — a stale
+      // `nextId` from a later build overrides this one's count.
+      final project = fixtureOpened(1).copyWith(
+        unknown: const <String, Object?>{'nextId': 1, 'extra': 'kept'},
+      );
+      final again = opened(writeProject(project));
+      expect(again.nextId, project.nextId);
+      expect(again.unknown, const <String, Object?>{'extra': 'kept'});
+    });
   });
 }

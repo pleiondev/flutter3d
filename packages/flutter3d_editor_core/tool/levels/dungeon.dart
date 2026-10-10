@@ -127,7 +127,7 @@ Map<String, String> crypt(GeneratorSource _) {
       <num>[-4.4, 3.0, -28.0],
       name: 'stair_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 5.0,
     )
     ..pickup('armour', <num>[3.0, 0.8, -24.0], amount: 25)
@@ -285,7 +285,7 @@ Map<String, String> vaults(GeneratorSource _) {
       <num>[-5.4, 3.0, -26.0],
       name: 'shaft_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 5.0,
     )
     ..lift(
@@ -337,7 +337,7 @@ Map<String, String> deep(GeneratorSource _) {
       <num>[-3.4, 2.4, 5.0],
       name: 'arrival_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 4.5,
     )
     ..note(<num>[
@@ -421,7 +421,7 @@ Map<String, String> deep(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 4.2, -34.0],
       name: 'last_lamp',
-      colour: _dawn,
+      color: _dawn,
       intensity: 6.0,
       range: 18.0,
     )
@@ -523,6 +523,24 @@ Map<String, String> cistern(GeneratorSource _) {
       solid: false,
       casts: false,
     )
+    // The water is still, and shows the hall above it: a mirror on its
+    // surface, faint, since dark water gives back little. And where the
+    // landing meets the stair down, the stone is wet with it.
+    ..entity(<String, Object?>{
+      'type': 'reflector',
+      'name': 'basin_mirror',
+      'at': <num>[0.0, -depth + 0.35, -6.0],
+      'material': 'water',
+      'reflectance': 0.35,
+      'strength': 0.8,
+    })
+    ..entity(<String, Object?>{
+      'type': 'decal',
+      'name': 'landing_wet',
+      'at': <num>[0.0, 0.0, 1.0],
+      'size': <num>[3.0, 0.6, 2.0],
+      'material': 'water',
+    })
     // A pier from each doorway, and a flight down into the water.
     ..block(<num>[0.0, -depth / 2.0, 1.5], <num>[4.0, depth, 5.0], 'stone')
     ..stair(
@@ -566,7 +584,7 @@ Map<String, String> cistern(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 4.0, -6.0],
       name: 'basin_lamp',
-      colour: wet,
+      color: wet,
       intensity: 6.0,
       range: 18.0,
     )
@@ -615,7 +633,7 @@ Map<String, String> cistern(GeneratorSource _) {
       <num>[-16.4, 1.0, 2.0],
       name: 'alcove',
       yaw: _west,
-      colour: wet,
+      color: wet,
       intensity: 3.0,
       range: 8.0,
     )
@@ -680,20 +698,31 @@ Map<String, String> cistern(GeneratorSource _) {
       <num>[-5.4, 2.8, -25.0],
       name: 'drain_west',
       yaw: _west,
-      colour: wet,
+      color: wet,
       intensity: 5.0,
     )
     ..torch(
       <num>[5.4, 2.8, -31.0],
       name: 'drain_east',
       yaw: _east,
-      colour: wet,
+      color: wet,
       intensity: 5.0,
     )
     ..pillar(<num>[-3.0, 2.0, -28.0])
     ..pillar(<num>[3.0, 2.0, -28.0])
     ..monster('tank', <num>[0.0, 0.0, -30.0])
-    ..monster('runner', <num>[-4.0, 0.0, -25.0])
+    // A guard on a beat along the drain's south wall, written as a tree
+    // the level carries: from one post to the other, a look round at each.
+    ..monster(
+      'runner',
+      <num>[-4.0, 0.0, -25.0],
+      name: 'drain_guard',
+      behavior: 'drain_watch',
+      board: <String, Object?>{
+        'west': <num>[-4.5, 0.9, -24.5],
+        'east': <num>[4.5, 0.9, -24.5],
+      },
+    )
     ..monster('runner', <num>[4.0, 0.0, -31.0])
     ..pickup('health', <num>[-4.0, 0.8, -24.0], amount: 25)
     ..pickup('shells', <num>[4.0, 0.8, -24.0], amount: 8)
@@ -728,11 +757,20 @@ Map<String, String> cistern(GeneratorSource _) {
       <num>[-4.4, 3.0, -43.0],
       name: 'outflow_west',
       yaw: _west,
-      colour: _dawn,
+      color: _dawn,
       intensity: 5.0,
     )
     ..pickup('armour', <num>[3.0, 0.8, -41.0], amount: 25)
     ..exitAt('the_sanctum', <num>[0.0, 0.0, -45.0]);
+  k.behaviors['drain_watch'] = <String, Object?>{
+    'kind': 'sequence',
+    'children': <Object?>[
+      <String, Object?>{'kind': 'goTo', 'key': 'west', 'within': 0.6},
+      <String, Object?>{'kind': 'wait', 'seconds': 1.5},
+      <String, Object?>{'kind': 'goTo', 'key': 'east', 'within': 0.6},
+      <String, Object?>{'kind': 'wait', 'seconds': 1.5},
+    ],
+  };
   return <String, String>{
     '$_levels/cistern.json': k.write(
       file: 'cistern.json',
@@ -750,6 +788,70 @@ Map<String, String> cistern(GeneratorSource _) {
 /// the other, a choir, and an altar hall thirty-two metres across under a
 /// grid of reflection probes — the room `LevelSketch.probeReach` was written
 /// for. A second secret, behind a column in the reliquary.
+/// The sanctum's one cutscene, seven seconds long.
+final Map<String, Object?> _altarScene = <String, Object?>{
+  'seconds': 7,
+  'camera': <String, Object?>{
+    'ease': true,
+    'keys': <Object?>[
+      <String, Object?>{
+        't': 0,
+        'at': <num>[0.0, 2.2, -42.0],
+        'look': <num>[0.0, 1.5, -64.0],
+      },
+      <String, Object?>{
+        't': 2.5,
+        'at': <num>[5.0, 7.0, -49.0],
+        'look': <num>[0.0, 1.0, -64.0],
+      },
+      <String, Object?>{
+        't': 5,
+        'at': <num>[-8.0, 5.0, -57.0],
+        'look': <num>[0.0, 1.5, -63.0],
+      },
+      <String, Object?>{
+        't': 7,
+        'at': <num>[0.0, 1.6, -41.0],
+        'look': <num>[0.0, 1.6, -60.0],
+      },
+    ],
+  },
+  'fade': <Object?>[
+    <String, Object?>{'t': 0, 'value': 1},
+    <String, Object?>{'t': 0.6, 'value': 0},
+  ],
+  'subtitles': <Object?>[
+    <String, Object?>{
+      'from': 0.8,
+      'to': 3.2,
+      'text': 'The altar. What the wardens kept from the world stands on it.',
+    },
+    <String, Object?>{'from': 3.6, 'to': 6.2, 'text': 'It knows you are here.'},
+  ],
+  'signals': <Object?>[
+    <String, Object?>{
+      't': 3.6,
+      'name': 'altar_wakes',
+      'data': <String, Object?>{
+        'sound': 'stone_move',
+        'at': <num>[0.0, 1.0, -64.0],
+      },
+    },
+  ],
+  'actors': <Object?>[
+    for (final (name, at) in <(String, List<num>)>[
+      ('altar_west', <num>[-4.0, 0.9, -56.0]),
+      ('altar_east', <num>[4.0, 0.9, -56.0]),
+      ('altar_north', <num>[0.0, 0.9, -55.0]),
+    ]) ...<Object?>[
+      // They wake with a start, then come down.
+      <String, Object?>{'t': 3.6, 'actor': name, 'do': 'play', 'clip': 'Jump'},
+      <String, Object?>{'t': 4.6, 'actor': name, 'do': 'goTo', 'at': at},
+      <String, Object?>{'t': 6.5, 'actor': name, 'do': 'release'},
+    ],
+  ],
+};
+
 Map<String, String> sanctum(GeneratorSource _) {
   const tool = 'apps/flutter3d_demo_dungeon/tool/make_sanctum.py';
   const vestibule = <num>[0.0, 0.0, 14.0];
@@ -803,14 +905,14 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 6.2, -14.0],
       name: 'nave_north',
-      colour: candle,
+      color: candle,
       intensity: 7.0,
       range: 20.0,
     )
     ..lamp(
       <num>[0.0, 6.2, -2.0],
       name: 'nave_south',
-      colour: candle,
+      color: candle,
       intensity: 7.0,
       range: 20.0,
     )
@@ -881,7 +983,7 @@ Map<String, String> sanctum(GeneratorSource _) {
       <num>[-21.4, 2.0, -21.0],
       name: 'hidden',
       yaw: _west,
-      colour: candle,
+      color: candle,
       intensity: 3.5,
       range: 8.0,
     )
@@ -924,7 +1026,7 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 4.2, -33.0],
       name: 'choir_lamp',
-      colour: candle,
+      color: candle,
       intensity: 5.0,
       range: 14.0,
     )
@@ -960,14 +1062,14 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..lamp(
       <num>[0.0, 8.2, -50.0],
       name: 'altar_south',
-      colour: candle,
+      color: candle,
       intensity: 9.0,
       range: 24.0,
     )
     ..lamp(
       <num>[0.0, 8.2, -64.0],
       name: 'altar_north',
-      colour: candle,
+      color: candle,
       intensity: 9.0,
       range: 24.0,
     )
@@ -978,7 +1080,7 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..torch(
       <num>[0.0, 3.0, -71.4],
       name: 'dawn',
-      colour: _dawn,
+      color: _dawn,
       intensity: 6.0,
       range: 16.0,
     )
@@ -986,9 +1088,9 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..block(<num>[0.0, 0.15, -64.0], <num>[16.0, 0.3, 12.0], 'stone')
     ..block(<num>[0.0, 0.45, -64.0], <num>[14.0, 0.3, 10.0], 'stone')
     ..block(<num>[0.0, 0.75, -64.0], <num>[12.0, 0.3, 8.0], 'stone')
-    ..monster('tank', <num>[-4.0, 0.9, -65.0])
-    ..monster('tank', <num>[4.0, 0.9, -65.0])
-    ..monster('tank', <num>[0.0, 0.9, -62.0])
+    ..monster('tank', <num>[-4.0, 0.9, -65.0], name: 'altar_west')
+    ..monster('tank', <num>[4.0, 0.9, -65.0], name: 'altar_east')
+    ..monster('tank', <num>[0.0, 0.9, -62.0], name: 'altar_north')
     ..monster('shooter', <num>[-12.0, 0.0, -66.0])
     ..monster('shooter', <num>[12.0, 0.0, -66.0])
     ..monster('shooter', <num>[0.0, 0.0, -71.0])
@@ -1003,7 +1105,17 @@ Map<String, String> sanctum(GeneratorSource _) {
     ..pickup('bullets', <num>[14.0, 0.8, -62.0], amount: 20)
     ..pickup('invulnerability', <num>[0.0, 0.8, -46.0], amount: 20)
     ..pickup('berserk', <num>[0.0, 0.8, -58.0], amount: 30)
-    ..exitAt('the_light', <num>[0.0, 0.9, -66.0]);
+    ..exitAt('the_light', <num>[0.0, 0.9, -66.0])
+    // The first sight of the altar: from the corridor, over the hall and
+    // round to the dais, while the three on it come down to meet whoever
+    // came this far. Started once, on the way in.
+    ..trigger(
+      'the_altar',
+      <num>[0.0, 1.5, -40.0],
+      size: <num>[6.0, 3.0, 2.0],
+      once: true,
+    )
+    ..cutscene('the_altar', <num>[0.0, 0.0, -41.0], _altarScene);
   return <String, String>{
     '$_levels/sanctum.json': k.write(
       file: 'sanctum.json',

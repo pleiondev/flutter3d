@@ -22,7 +22,7 @@ final class _Module {
   final int serial;
 }
 
-final class _Compiler implements WgslModuleCompiler {
+final class _Compiler with WgslModuleCompiler {
   final List<String> compiled = <String>[];
   final Set<String> rejected = <String>{};
 
@@ -107,6 +107,46 @@ ByteData _withVersion(ByteData section, int? version) {
 ByteData _bytes(List<int> raw) => Uint8List.fromList(raw).buffer.asByteData();
 
 void main() {
+  test(
+    'a loaded stage says what it declares, so the renderer binds it — P8',
+    () {
+      // A lit material from the material language declares the metal-rough
+      // map through `material_maps.glsl` and reads nothing of it. On this
+      // backend the layout is built from the section's lists, so the map must
+      // be bound; without `kept` the renderer asked the lighting model, which
+      // said no, and the draw was refused.
+      //
+      // Mutation: drop `kept: stage.declared` from the loaded library.
+      final section = encodeWebGpuSection(
+        vertex: const <String, WebGpuStage>{},
+        fragment: <String, WebGpuStage>{
+          'ToonHook': WebGpuStage(
+            wgsl: 'f0',
+            attributes: const <WebGpuAttribute>[],
+            blocks: const <WebGpuBlock>[],
+            samplers: const <WebGpuSampler>[
+              WebGpuSampler(
+                name: 'metallic_roughness_texture',
+                group: 1,
+                textureBinding: 0,
+                samplerBinding: 1,
+                dimension: WebGpuTextureDimension.twoDimensional,
+              ),
+            ],
+          ),
+        },
+      );
+      final library = WebGpuLoadedShaderLibrary.load(
+        _Compiler(),
+        _bundle(section: section, claims: <String>['ToonHook']),
+      );
+      expect(
+        library['ToonHook']!.kept?.samplers,
+        contains('metallic_roughness_texture'),
+      );
+    },
+  );
+
   group('loading', () {
     test('answers the names the section carries', () {
       final library = WebGpuLoadedShaderLibrary.load(
@@ -143,10 +183,10 @@ void main() {
           ).encode(),
         ),
         throwsA(
-          isA<ShaderBundleRefused>()
-              .having((ShaderBundleRefused r) => r.name, 'name', 'no-webgpu')
+          isA<ShaderBundleException>()
+              .having((ShaderBundleException r) => r.name, 'name', 'no-webgpu')
               .having(
-                (ShaderBundleRefused r) => r.reason,
+                (ShaderBundleException r) => r.reason,
                 'reason',
                 contains('has no "webgpu" section'),
               ),
@@ -161,10 +201,10 @@ void main() {
           _bundle(section: _bytes(utf8.encode('{"vertex": 7}'))),
         ),
         throwsA(
-          isA<ShaderBundleRefused>()
-              .having((ShaderBundleRefused r) => r.name, 'name', 'materials')
+          isA<ShaderBundleException>()
+              .having((ShaderBundleException r) => r.name, 'name', 'materials')
               .having(
-                (ShaderBundleRefused r) => r.reason,
+                (ShaderBundleException r) => r.reason,
                 'reason',
                 contains('is not the JSON document'),
               ),
@@ -179,8 +219,8 @@ void main() {
           _bundle(section: _bytes(<int>[0xff, 0xfe, 0x00, 0x01])),
         ),
         throwsA(
-          isA<ShaderBundleRefused>().having(
-            (ShaderBundleRefused r) => r.name,
+          isA<ShaderBundleException>().having(
+            (ShaderBundleException r) => r.name,
             'name',
             'materials',
           ),
@@ -216,15 +256,18 @@ void main() {
           _bundle(vertex: <String, String>{'MeshVertex': 'v0'}, version: 2),
         ),
         throwsA(
-          isA<ShaderBundleRefused>()
-              .having((ShaderBundleRefused r) => r.name, 'name', 'materials')
+          isA<ShaderBundleException>()
+              .having((ShaderBundleException r) => r.name, 'name', 'materials')
+              // A newer section is a bundle built by a newer packer, which a
+              // rebuild cures. Mutation: drop `stale: true` from the refusal.
+              .having((ShaderBundleException r) => r.stale, 'stale', isTrue)
               .having(
-                (ShaderBundleRefused r) => r.reason,
+                (ShaderBundleException r) => r.reason,
                 'reason',
                 allOf(
                   contains('version 2'),
                   contains(
-                    'reads version '
+                    'reads up to version '
                     '${WebGpuLoadedShaderLibrary.sectionVersion}',
                   ),
                 ),
@@ -245,7 +288,7 @@ void main() {
             _Compiler(),
             _bundle(vertex: <String, String>{'MeshVertex': 'v0'}, version: 9),
           );
-        } on ShaderBundleRefused catch (error) {
+        } on ShaderBundleException catch (error) {
           return error;
         }
         return null;
@@ -264,7 +307,7 @@ void main() {
         () => library.refresh(
           _bundle(vertex: <String, String>{'MeshVertex': 'v1'}, version: 2),
         ),
-        throwsA(isA<ShaderBundleRefused>()),
+        throwsA(isA<ShaderBundleException>()),
       );
       expect(identical(library['MeshVertex'], handle), isTrue);
       expect((handle.backend as WebGpuShader).stage.wgsl, 'v0');
@@ -352,8 +395,8 @@ void main() {
           _bundle(vertex: <String, String>{'MeshVertex': 'v1'}),
         ),
         throwsA(
-          isA<ShaderBundleRefused>().having(
-            (ShaderBundleRefused r) => r.reason,
+          isA<ShaderBundleException>().having(
+            (ShaderBundleException r) => r.reason,
             'reason',
             allOf(contains('fragment stage "Pbr"'), contains('already in use')),
           ),
@@ -379,8 +422,8 @@ void main() {
           ),
         ),
         throwsA(
-          isA<ShaderBundleRefused>().having(
-            (ShaderBundleRefused r) => r.reason,
+          isA<ShaderBundleException>().having(
+            (ShaderBundleException r) => r.reason,
             'reason',
             contains('MeshVertex'),
           ),
@@ -409,8 +452,8 @@ void main() {
           ),
         ),
         throwsA(
-          isA<ShaderBundleRefused>().having(
-            (ShaderBundleRefused r) => r.reason,
+          isA<ShaderBundleException>().having(
+            (ShaderBundleException r) => r.reason,
             'reason',
             contains('did not compile'),
           ),

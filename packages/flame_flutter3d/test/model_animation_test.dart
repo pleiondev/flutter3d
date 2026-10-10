@@ -59,7 +59,7 @@ void main() {
     (game) async {
       final a = CpuMesh(CuboidShape(size: Vector3.all(1.0)).build());
       final b = CpuMesh(CuboidShape(size: Vector3.all(2.0)).build());
-      final node = MeshNode(a, Material());
+      final node = MeshNode(a, RenderMaterial());
       final book = MeshFlipbookComponent(
         node: node,
         frames: <MeshGeometry>[a, b],

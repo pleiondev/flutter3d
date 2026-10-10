@@ -8,9 +8,8 @@ import 'package:flame_flutter3d/src/camera/camera_sync_controller.dart';
 import 'package:flame_flutter3d/src/transform/object3d_component.dart'
     show SyncDirection;
 import 'package:flame_flutter3d/src/transform/plane.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Plane;
 
 void main() {
   test('sceneToFlame moves the viewfinder position to the camera, through the '
@@ -177,7 +176,7 @@ void main() {
     //
     // Mutation: ignore the offset.
     final camera = CameraNode(
-      projection: const PerspectiveProjection(fovYRadians: 0.9),
+      projection: const PerspectiveProjection(fovY: 0.9),
     );
     final viewfinder = Viewfinder()
       ..position = Vector2(3.0, -4.0)
@@ -248,7 +247,7 @@ void main() {
     // The rest was the rotation at construction, and a camera pointed with
     // lookAt afterwards read as rolled by the difference.
     //
-    // Mutation: make takeRest do nothing.
+    // Mutation: make captureRest do nothing.
     final camera = CameraNode()..setPosition(0.0, 10.0, 0.0);
     final controller = CameraSyncController(
       camera: camera,
@@ -258,7 +257,7 @@ void main() {
     );
     camera.lookAt(Vector3(-5.0, 10.0, -5.0));
     controller
-      ..takeRest()
+      ..captureRest()
       ..advance(0.0);
     expect(controller.viewfinder.angle, closeTo(0.0, 1e-5));
   });

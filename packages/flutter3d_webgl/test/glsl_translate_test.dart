@@ -7,7 +7,7 @@
 /// at offsets nobody wrote to.
 library;
 
-import 'package:flutter3d_webgl/src/glsl_translate.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -52,7 +52,7 @@ void main() {
       expect(
         () => resolveIncludes('#include <a.glsl>', sources, from: 'top.frag'),
         throwsA(
-          isA<GlslTranslateError>().having(
+          isA<GlslTranslateException>().having(
             (e) => e.message,
             'message',
             contains('cycle'),
@@ -69,7 +69,7 @@ void main() {
           from: 'a.frag',
         ),
         throwsA(
-          isA<GlslTranslateError>().having(
+          isA<GlslTranslateException>().having(
             (e) => e.message,
             'message',
             allOf(contains('a.frag'), contains('gone')),

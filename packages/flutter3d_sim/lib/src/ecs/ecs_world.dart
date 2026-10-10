@@ -10,31 +10,51 @@
 /// spread across systems that each had to be asked, by hand, in a method that
 /// grew a line per subsystem and would silently miss the next one.
 ///
-/// That is the payoff and it is the only payoff claimed. Cache locality is not
-/// claimed: this stores components in maps keyed by entity index, which is the
-/// simple thing. Archetype storage buys contiguous iteration and matters at a
-/// hundred thousand entities; **the condition to revisit is written here so it
-/// is not a matter of taste later** — when a query walks more than a few
-/// thousand entities per step and shows up in a profile.
+/// Since 1.0 it is also **the simulation's model** (item 27): the world every
+/// `EngineLoop` system is handed as `LoopContext.world`, implementing the
+/// plugin API's [SimWorld], with every component written through a versioned
+/// [ComponentCodec] (item 30).
+///
+/// Cache locality is not claimed: this stores components in maps keyed by
+/// entity index, which is the simple thing. Archetype storage buys contiguous
+/// iteration and matters at a hundred thousand entities; **the condition to
+/// revisit is written here so it is not a matter of taste later** — when a
+/// query walks more than a few thousand entities per step and shows up in a
+/// profile. It can arrive in a minor: nothing here promises a layout.
+///
+/// ## One way to say how a component is written
+///
+/// `components.register(codec)`, with a [ComponentCodec] that carries its id
+/// and version, or an [InPlaceCodec] for a component written back into the
+/// instance already there; `components.exclude` for one deliberately not
+/// saved. The world's own shorthands from before 1.0 (`register(name,
+/// encode:, decode:)`, `registerInPlace`, `exclude`) were a second door to
+/// the same registry without a version, and are gone.
 ///
 /// ## Nothing is dropped quietly
 ///
 /// A component type that is neither registered nor deliberately excluded makes
 /// [save] throw, naming the type. A save file missing a field is a bug that
-/// appears on load, hours later, as a game that is subtly wrong — and this
-/// repository has already spent a session finding one of those. The moment to
+/// appears on load, hours later, as a game that is subtly wrong. The moment to
 /// hear about it is while writing the save.
 library;
 
-import 'component_store.dart';
-import 'entity.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
-final class EcsWorld {
+import '../save/snapshot.dart' show SnapshotFormatException;
+import 'component_store.dart';
+
+/// The simulation's world. See the library doc.
+final class EcsWorld extends SimWorld {
+  EcsWorld() {
+    _components = _Components(this, null);
+  }
+
   final List<int> _generations = <int>[];
 
   /// Freed indices, waiting to be handed out again.
   ///
-  /// A set and not a list, because [alive] asks whether an index is in it and
+  /// A set and not a list, because [isAlive] asks whether an index is in it and
   /// a linear scan there would make every component read cost the length of
   /// the free list. Dart's default set keeps insertion order, so which index
   /// is reused next is the same on two runs of the same game — which matters
@@ -42,96 +62,48 @@ final class EcsWorld {
   final Set<int> _free = <int>{};
   final Map<Type, ComponentStore> _stores = <Type, ComponentStore>{};
   final Map<String, Type> _byName = <String, Type>{};
+  final Map<Type, Object> _resources = <Type, Object>{};
+  final List<void Function()> _commands = <void Function()>[];
+
+  late final _Components _components;
+  late final _Commands _commandQueue = _Commands(this);
 
   int _live = 0;
+  int _changeStep = 0;
 
   /// How many entities exist right now.
+  @override
   int get length => _live;
 
-  /// Says how a component type is written down.
-  ///
-  /// [decode] receives whatever [encode] produced, after a round trip through
-  /// JSON if one happened — so it must accept the JSON forms of what it wrote:
-  /// a `List<double>` comes back as a `List<dynamic>`.
-  ///
-  /// **It may answer null, and that means "not this one".** The row is left
-  /// unrestored, exactly as a component this build does not know is — the
-  /// neighbouring rule in [restore]. It was non-nullable, and the one decoder
-  /// that could not be written honestly under that signature threw instead: the
-  /// shooter's projectiles read a required field with `!` and a save missing it
-  /// took the whole game down rather than one rocket. A decoder that answers
-  /// null for a row it cannot read is the shape that lets it be lenient.
-  void register<T extends Object>(
-    String name, {
-    required Object? Function(T value) encode,
-    required T? Function(Object? data) decode,
-  }) {
-    final existing = _byName[name];
-    if (existing != null && existing != T) {
-      throw StateError(
-        'component name "$name" is already used by $existing; two components '
-        'sharing a name would overwrite each other in every save file',
-      );
+  @override
+  ComponentRegistry get components => _components;
+
+  @override
+  SimCommands get commands => _commandQueue;
+
+  @override
+  int get changeStep => _changeStep;
+
+  /// Moves the step changes are marked with. Called by `EngineLoop` at the
+  /// start of every step; a world stepped by hand calls it the same way.
+  void beginStep(int step) => _changeStep = step;
+
+  /// Runs the commands queued since the last call, in the order they were
+  /// queued, including any a command queues in turn. `EngineLoop` calls it
+  /// after every phase.
+  void applyCommands() {
+    var i = 0;
+    while (i < _commands.length) {
+      _commands[i]();
+      i++;
     }
-    final store = _storeOf<T>();
-    store
-      ..name = name
-      // A block body, not an arrow. A cascade written after `=> expr` binds to
-      // *expr* rather than to the cascade target, so `..decode` below would
-      // have been an assignment on the result of calling `encode`.
-      ..encode = ((Object value) {
-        return encode(value as T);
-      })
-      ..decode = decode;
-    _byName[name] = T;
+    _commands.clear();
   }
 
-  /// Says how a component type is written down when it cannot be *rebuilt*
-  /// from what was written.
-  ///
-  /// A `CharacterController` owns a collider in a live collision world; a brain
-  /// is code as much as data. Neither can be constructed from a save file, and
-  /// neither needs to be: **a snapshot restores a world that already exists**,
-  /// which is the boundary the whole mechanism is drawn around. So this form
-  /// writes the numbers back into the component that is already on the entity,
-  /// and an entity that does not have one is skipped.
-  ///
-  /// The alternative was to declare such components unsaved and write their
-  /// state by hand somewhere else — which is exactly the hand-written save this
-  /// was built to remove, wearing a different hat.
-  void registerInPlace<T extends Object>(
-    String name, {
-    required Object? Function(T value) encode,
-    required void Function(T value, Object? data) restore,
-  }) {
-    final existing = _byName[name];
-    if (existing != null && existing != T) {
-      throw StateError(
-        'component name "$name" is already used by $existing; two components '
-        'sharing a name would overwrite each other in every save file',
-      );
-    }
-    final store = _storeOf<T>();
-    store
-      ..name = name
-      ..encode = ((Object value) {
-        return encode(value as T);
-      })
-      ..restoreInPlace = ((Object value, Object? data) {
-        restore(value as T, data);
-      });
-    _byName[name] = T;
-  }
+  /// Whether the world holds nothing at all: no entity and no resource.
+  bool get isEmpty => _live == 0 && _resources.isEmpty;
 
-  /// Says that a component type is deliberately not saved, and why.
-  ///
-  /// A renderer handle, a cache, anything rebuilt from what is saved. The
-  /// reason is required because the alternative — a type that is simply absent
-  /// from the format — is indistinguishable from one somebody forgot.
-  void exclude<T extends Object>(String because) {
-    _storeOf<T>().excludedBecause = because;
-  }
-
+  @override
   Entity spawn() {
     _live++;
     if (_free.isNotEmpty) {
@@ -158,14 +130,12 @@ final class EcsWorld {
   /// things builds them again: [restore] puts the allocation back, the game
   /// builds each entity the save recorded *under that entity* (see
   /// `ActorSystem.spawn`'s `entity`, which asks this first), and a second
-  /// [restore] pours the numbers into what was just built. Same index, same
-  /// generation, so everything that reads [Entity.index] — the order things
-  /// think in — agrees with the run that was saved.
+  /// [restore] pours the numbers into what was just built.
   bool vacant(Entity entity) {
-    if (!alive(entity)) return false;
+    if (!isAlive(entity)) return false;
     final index = entity.index;
     for (final store in _stores.values) {
-      if (store.restoreInPlace == null) continue;
+      if (!store.inPlace) continue;
       if (store.values.containsKey(index)) return false;
     }
     return true;
@@ -174,20 +144,23 @@ final class EcsWorld {
   /// Removes an entity and everything on it.
   ///
   /// The generation moves on, which is what makes every handle anybody still
-  /// holds answer `false` to [alive] rather than pointing at whoever gets the
+  /// holds answer `false` to [isAlive] rather than pointing at whoever gets the
   /// index next.
+  @override
   void despawn(Entity entity) {
-    if (!alive(entity)) return;
+    if (!isAlive(entity)) return;
     final index = entity.index;
     for (final store in _stores.values) {
       store.values.remove(index);
+      store.changedAt.remove(index);
     }
     _generations[index]++;
     _free.add(index);
     _live--;
   }
 
-  bool alive(Entity entity) {
+  @override
+  bool isAlive(Entity entity) {
     if (entity.isNone) return false;
     final index = entity.index;
     if (index < 0 || index >= _generations.length) return false;
@@ -195,39 +168,54 @@ final class EcsWorld {
     return !_free.contains(index);
   }
 
+  @override
   void set<T extends Object>(Entity entity, T component) {
-    if (!alive(entity)) return;
-    _storeOf<T>().values[entity.index] = component;
+    if (!isAlive(entity)) return;
+    final store = _storeOf<T>();
+    store.values[entity.index] = component;
+    store.changedAt[entity.index] = _changeStep;
   }
 
+  @override
   T? get<T extends Object>(Entity entity) {
-    if (!alive(entity)) return null;
+    if (!isAlive(entity)) return null;
     return _stores[T]?.values[entity.index] as T?;
   }
 
+  @override
   bool has<T extends Object>(Entity entity) =>
-      alive(entity) && (_stores[T]?.values.containsKey(entity.index) ?? false);
+      isAlive(entity) &&
+      (_stores[T]?.values.containsKey(entity.index) ?? false);
 
+  @override
   void remove<T extends Object>(Entity entity) {
-    if (!alive(entity)) return;
+    if (!isAlive(entity)) return;
     _stores[T]?.values.remove(entity.index);
+    _stores[T]?.changedAt.remove(entity.index);
   }
 
-  /// Every live entity carrying an [A].
-  Iterable<Entity> query<A extends Object>() sync* {
+  /// Every live entity carrying an [A], in the order the component was first
+  /// put on each.
+  ///
+  /// **Not a second [query].** It is the order every game written before
+  /// [SimQuery] steps by, and a recorded run's checkpoints depend on it: an
+  /// actor stepped before another lands first. So it stays, for the systems
+  /// whose order is already on tape; a new system walks [query], whose index
+  /// order is the one the plugin API promises.
+  Iterable<Entity> queryOf<A extends Object>() sync* {
     final store = _stores[A];
     if (store == null) return;
     for (final index in store.values.keys.toList(growable: false)) {
       final entity = Entity.of(index, _generations[index]);
-      if (alive(entity)) yield entity;
+      if (isAlive(entity)) yield entity;
     }
   }
 
-  /// Every live entity carrying both.
+  /// Every live entity carrying both, in the order [A]'s or [B]'s store holds
+  /// them — the smaller of the two.
   ///
-  /// Walks the smaller of the two, which is the whole of this storage's
-  /// cleverness and is enough at this scale: a query for the four entities
-  /// that have a `Door` does not touch the thousand that have a position.
+  /// Walks the smaller store, which is the whole of this storage's
+  /// cleverness and is enough at this scale.
   Iterable<Entity> query2<A extends Object, B extends Object>() sync* {
     final a = _stores[A];
     final b = _stores[B];
@@ -237,8 +225,50 @@ final class EcsWorld {
     for (final index in smaller.values.keys.toList(growable: false)) {
       if (!larger.values.containsKey(index)) continue;
       final entity = Entity.of(index, _generations[index]);
-      if (alive(entity)) yield entity;
+      if (isAlive(entity)) yield entity;
     }
+  }
+
+  @override
+  SimQuery query() => _Query(this);
+
+  @override
+  R? resource<R extends Object>() => _resources[R] as R?;
+
+  @override
+  void setResource<R extends Object>(R value) => _resources[R] = value;
+
+  @override
+  void removeResource<R extends Object>() => _resources.remove(R);
+
+  /// The published components of every live entity, encoded by their
+  /// codecs, by codec id: what `PublishedState.components` holds. Positions
+  /// ([WorldPosition] components) are read separately by [publishedPositions].
+  Map<String, Map<Entity, Object?>> publishedComponents() {
+    final out = <String, Map<Entity, Object?>>{};
+    for (final store in _stores.values) {
+      final codec = store.codec;
+      if (!store.published || codec == null) continue;
+      if (store.type == WorldPosition) continue;
+      final rows = <Entity, Object?>{};
+      for (final MapEntry(:key, :value) in store.values.entries) {
+        final entity = Entity.of(key, _generations[key]);
+        if (isAlive(entity)) rows[entity] = codec.encode(value);
+      }
+      out[codec.id] = rows;
+    }
+    return out;
+  }
+
+  /// Every live entity with a [WorldPosition] component, where it is.
+  Map<Entity, WorldPosition> publishedPositions() {
+    final store = _stores[WorldPosition];
+    if (store == null) return const <Entity, WorldPosition>{};
+    return <Entity, WorldPosition>{
+      for (final MapEntry(:key, :value) in store.values.entries)
+        if (isAlive(Entity.of(key, _generations[key])))
+          Entity.of(key, _generations[key]): value as WorldPosition,
+    };
   }
 
   /// The whole world, written down.
@@ -246,30 +276,63 @@ final class EcsWorld {
   /// Throws when a component type has values and has neither been registered
   /// nor excluded — see the note at the top of this file about what a silently
   /// missing field costs.
-  Map<String, Object?> save() {
+  ///
+  /// **The shape is the one every save since 0.6 has**: `generations`,
+  /// `free`, `components` by codec id. A codec at a version past 1 adds its
+  /// number under `componentVersions`, and a resource with a codec is written
+  /// under `resources`; a world with neither writes the same bytes it always
+  /// did, so a recorded run's digests still hold.
+  ///
+  /// [withChanges] adds `changedAt`: by codec id, the step each entity's
+  /// component was last set at, what `query().changed<T>(since:)` reads. The
+  /// loop's own capture writes them (`WorldSnapshotPart`), so a resimulated
+  /// step sees the changes the live one saw; a save a game writes for itself,
+  /// and every digest taken of one, stays without them.
+  Map<String, Object?> save({bool withChanges = false}) {
     final components = <String, Object?>{};
+    final changed = <String, Object?>{};
+    final versions = <String, Object?>{};
     for (final entry in _stores.entries) {
       final store = entry.value;
       if (store.values.isEmpty) continue;
       if (!store.isRegistered) {
         throw StateError(
           'component ${entry.key} is on ${store.values.length} entities and '
-          'has no codec. Call register<${entry.key}>() to save it, or '
-          'exclude<${entry.key}>() and say why it is not saved.',
+          'has no codec. Register a ComponentCodec<${entry.key}> to save it '
+          '(components.register), or components.exclude<${entry.key}>() and '
+          'say why it is not saved.',
         );
       }
-      if (store.excludedBecause != null) continue;
-      final encode = store.encode!;
+      final codec = store.codec;
+      if (store.excludedBecause != null || codec == null) continue;
       final rows = <String, Object?>{};
       for (final value in store.values.entries) {
-        rows['${value.key}'] = encode(value.value);
+        rows['${value.key}'] = codec.encode(value.value);
       }
-      components[store.name!] = rows;
+      components[codec.id] = rows;
+      if (codec.version != 1) versions[codec.id] = codec.version;
+      if (withChanges) {
+        final stamps = <String, Object?>{
+          for (final MapEntry(:key, :value) in store.changedAt.entries)
+            if (store.values.containsKey(key)) '$key': value,
+        };
+        if (stamps.isNotEmpty) changed[codec.id] = stamps;
+      }
+    }
+    final resources = <String, Object?>{};
+    for (final MapEntry(:key, :value) in _resources.entries) {
+      final codec = _stores[key]?.codec;
+      if (codec == null || codec is InPlaceCodec<Object>) continue;
+      resources[codec.id] = codec.encode(value);
+      if (codec.version != 1) versions[codec.id] = codec.version;
     }
     return <String, Object?>{
       'generations': List<int>.of(_generations),
       'free': List<int>.of(_free),
       'components': components,
+      if (versions.isNotEmpty) 'componentVersions': versions,
+      if (resources.isNotEmpty) 'resources': resources,
+      if (changed.isNotEmpty) 'changedAt': changed,
     };
   }
 
@@ -281,13 +344,49 @@ final class EcsWorld {
   ];
 
   /// Replaces everything with what [from] describes.
+  ///
+  /// **Lenient, because a save from another build is expected.** A row it
+  /// cannot read and a component type it has never heard of are left
+  /// unrestored rather than thrown about: one from an older build simply has
+  /// less in it.
+  ///
+  /// **Except for a newer codec.** A component or resource written at a
+  /// version past the one this build registers throws a
+  /// [SnapshotFormatException] naming it, before anything is changed: left
+  /// out, a 1.1 save opened in 1.0 came up without those entities' state, and
+  /// the next save wrote it out for good (decisions 8 and 9 of
+  /// `tasks/1.0-stability.md`).
+  ///
+  /// `changedAt`, when [from] has it ([save]'s `withChanges`), puts back the
+  /// step each component was last set at; without it no component counts as
+  /// changed until it is set again.
   void restore(Map<String, Object?> from) {
-    // **Both of these read `value! as num`**, in a method whose own comments
-    // three lines below explain that a save from another build is expected and
-    // survivable. A null or a string in either list — a truncated write, a hand
-    // edit — was a `TypeError` thrown out of a restore, which is the one thing
-    // this method is written not to do. A row it cannot read is dropped, the
-    // same answer it already gives a component type it has never heard of.
+    final versions = switch (from['componentVersions']) {
+      final Map<Object?, Object?> map => map,
+      _ => const <Object?, Object?>{},
+    };
+    int versionOf(String name) => switch (versions[name]) {
+      final num n => n.toInt(),
+      _ => 1,
+    };
+    final components = from['components'];
+    final resources = from['resources'];
+    for (final name in <Object?>{
+      if (components is Map) ...components.keys,
+      if (resources is Map) ...resources.keys,
+    }) {
+      final codec = _stores[_byName['$name']]?.codec;
+      if (codec == null) continue;
+      final version = versionOf('$name');
+      if (version > codec.version) {
+        throw SnapshotFormatException(
+          'the component "$name" was written at version $version and this '
+          'build reads up to ${codec.version}: update the plugin or the '
+          'flutter3d release that registers it',
+        );
+      }
+    }
+
     _generations
       ..clear()
       ..addAll(_integers(from['generations']));
@@ -297,47 +396,275 @@ final class EcsWorld {
     _live = _generations.length - _free.length;
 
     for (final store in _stores.values) {
+      store.changedAt.clear();
       // In-place components keep their instances: a save file cannot rebuild a
       // body that is registered in a collision world, and clearing here would
       // throw away the only one there is.
-      if (store.restoreInPlace == null) store.values.clear();
+      if (!store.inPlace) store.values.clear();
     }
-    final components = from['components'];
-    if (components is! Map) return;
-    for (final entry in components.entries) {
-      final type = _byName[entry.key];
-      final store = type == null ? null : _stores[type];
-      // A component this build does not know is skipped rather than fatal: a
-      // save from a newer build is refused by its version, and one from an
-      // older build simply has less in it.
-      if (store == null) continue;
-      final decode = store.decode;
-      final inPlace = store.restoreInPlace;
-      if (decode == null && inPlace == null) continue;
-      final rows = entry.value;
-      if (rows is! Map) continue;
-      for (final row in rows.entries) {
-        final index = int.tryParse('${row.key}');
-        if (index == null) continue;
-        if (decode != null) {
+    if (components is Map) {
+      for (final entry in components.entries) {
+        final type = _byName[entry.key];
+        final store = type == null ? null : _stores[type];
+        final codec = store?.codec;
+        if (store == null || codec == null) continue;
+        final version = versionOf('${entry.key}');
+        final rows = entry.value;
+        if (rows is! Map) continue;
+        for (final row in rows.entries) {
+          final index = int.tryParse('${row.key}');
+          if (index == null) continue;
+          if (codec is InPlaceCodec<Object>) {
+            // Whatever is there keeps its identity and takes the numbers.
+            // Nothing there means this world does not have that actor, which
+            // is the documented edge of what a snapshot restores.
+            final present = store.values[index];
+            if (present != null) codec.restoreInto(present, row.value, version);
+            continue;
+          }
           // Null means the decoder could not read this row, and the component
-          // is simply not restored — the same answer this loop gives a
-          // component type it has never heard of. A store of non-null values
-          // is what makes that expressible: the slot stays empty rather than
-          // holding a half-read thing.
-          final value = decode(row.value);
+          // is simply not restored.
+          final value = codec.decode(row.value, version);
           if (value != null) store.values[index] = value;
-          continue;
         }
-        // In place: whatever is there keeps its identity and takes the numbers.
-        // Nothing there means this world does not have that actor, which is
-        // the documented edge of what a snapshot restores.
-        final present = store.values[index];
-        if (present != null) inPlace!(present, row.value);
+      }
+    }
+    for (final store in _stores.values) {
+      final codec = store.codec;
+      if (codec == null || codec is InPlaceCodec<Object>) continue;
+      if (!_resources.containsKey(store.type)) continue;
+      // A resource with a codec that the save does not hold is one the world
+      // did not have when it was saved: the origin, written only while it is
+      // away from the world origin, stayed far after a rewind to before the
+      // shift.
+      if (resources is! Map || !resources.containsKey(codec.id)) {
+        _resources.remove(store.type);
+        continue;
+      }
+      final value = codec.decode(resources[codec.id], versionOf(codec.id));
+      if (value != null) _resources[store.type] = value;
+    }
+    if (resources is Map) {
+      for (final entry in resources.entries) {
+        final type = _byName[entry.key];
+        if (type == null || _resources.containsKey(type)) continue;
+        final codec = _stores[type]?.codec;
+        if (codec == null || codec is InPlaceCodec<Object>) continue;
+        final value = codec.decode(entry.value, versionOf('${entry.key}'));
+        if (value != null) _resources[type] = value;
+      }
+    }
+    if (from['changedAt'] case final Map<Object?, Object?> changed) {
+      for (final MapEntry(:key, :value) in changed.entries) {
+        final store = _stores[_byName['$key']];
+        if (store == null || value is! Map) continue;
+        for (final row in value.entries) {
+          final index = int.tryParse('${row.key}');
+          final step = row.value;
+          if (index == null || step is! num) continue;
+          if (store.values.containsKey(index)) {
+            store.changedAt[index] = step.toInt();
+          }
+        }
       }
     }
   }
 
   ComponentStore _storeOf<T extends Object>() =>
-      _stores.putIfAbsent(T, () => ComponentStore());
+      _stores.putIfAbsent(T, () => ComponentStore(T));
+}
+
+/// The registry an [EcsWorld] files its codecs in, as the plugin API's
+/// [ComponentRegistry].
+final class _Components extends ComponentRegistry {
+  _Components(this._world, this._scope);
+
+  final EcsWorld _world;
+  final PluginScope? _scope;
+
+  String get _by => _scope?.manifest.id ?? 'app';
+
+  @override
+  Registration register<T extends Object>(
+    ComponentCodec<T> codec, {
+    bool published = false,
+  }) {
+    final name = codec.id;
+    final existing = _world._byName[name];
+    if (existing != null && existing != T) {
+      throw ArgumentError.value(
+        name,
+        'codec.id',
+        'component name "$name" is already used by $existing; two components '
+            'sharing a name would overwrite each other in every save file',
+      );
+    }
+    final store = _world._storeOf<T>();
+    final previous = store.codec;
+    if (previous != null && previous.id != name) {
+      _world._byName.remove(previous.id);
+    }
+    store
+      ..codec = codec
+      ..published = published
+      ..declaredBy = _by
+      ..excludedBecause = null;
+    _world._byName[name] = T;
+    final registration = Registration(() {
+      if (!identical(store.codec, codec)) return;
+      store
+        ..codec = null
+        ..published = false;
+      _world._byName.remove(name);
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+
+  @override
+  Registration exclude<T extends Object>(String because) {
+    final store = _world._storeOf<T>()
+      ..excludedBecause = because
+      ..declaredBy = _by;
+    final registration = Registration(() {
+      if (store.excludedBecause == because) store.excludedBecause = null;
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+
+  @override
+  ComponentCodec<T>? codecOf<T extends Object>() {
+    final codec = _world._stores[T]?.codec;
+    return codec is ComponentCodec<T> ? codec : null;
+  }
+
+  @override
+  ComponentCodec<Object>? codecNamed(String id) {
+    final type = _world._byName[id];
+    return type == null ? null : _world._stores[type]?.codec;
+  }
+
+  @override
+  bool isPublished<T extends Object>() => _world._stores[T]?.published ?? false;
+
+  @override
+  List<ComponentInfo> get registered => <ComponentInfo>[
+    for (final store in _world._stores.values)
+      if (store.isRegistered)
+        ComponentInfo(
+          type: store.type,
+          id: store.codec?.id ?? '${store.type}',
+          version: store.codec?.version ?? 0,
+          published: store.published,
+          declaredBy: store.declaredBy,
+          excludedBecause: store.excludedBecause,
+        ),
+  ];
+
+  @override
+  ComponentRegistry forPlugin(PluginScope scope) => _Components(_world, scope);
+}
+
+final class _Commands extends SimCommands {
+  _Commands(this._world);
+
+  final EcsWorld _world;
+
+  @override
+  int get pending => _world._commands.length;
+
+  @override
+  void spawn(void Function(SimWorld world, Entity entity) build) =>
+      _world._commands.add(() => build(_world, _world.spawn()));
+
+  @override
+  void despawn(Entity entity) =>
+      _world._commands.add(() => _world.despawn(entity));
+
+  @override
+  void set<T extends Object>(Entity entity, T component) =>
+      _world._commands.add(() => _world.set<T>(entity, component));
+
+  @override
+  void remove<T extends Object>(Entity entity) =>
+      _world._commands.add(() => _world.remove<T>(entity));
+
+  @override
+  void run(void Function(SimWorld world) change) =>
+      _world._commands.add(() => change(_world));
+}
+
+final class _Query extends SimQuery {
+  _Query(this._world);
+
+  final EcsWorld _world;
+  final List<Type> _having = <Type>[];
+  final List<Type> _without = <Type>[];
+  final List<(Type, int?)> _changed = <(Type, int?)>[];
+
+  @override
+  SimQuery having<T extends Object>() {
+    _having.add(T);
+    return this;
+  }
+
+  @override
+  SimQuery without<T extends Object>() {
+    _without.add(T);
+    return this;
+  }
+
+  @override
+  SimQuery changed<T extends Object>({int? since}) {
+    _changed.add((T, since));
+    return this;
+  }
+
+  @override
+  Iterable<Entity> get entities {
+    final world = _world;
+    final required = <Type>{..._having, for (final (type, _) in _changed) type};
+    final List<int> candidates;
+    if (required.isEmpty) {
+      candidates = <int>[
+        for (var i = 0; i < world._generations.length; i++)
+          if (!world._free.contains(i)) i,
+      ];
+    } else {
+      ComponentStore? smallest;
+      for (final type in required) {
+        final store = world._stores[type];
+        if (store == null) return const <Entity>[];
+        if (smallest == null || store.values.length < smallest.values.length) {
+          smallest = store;
+        }
+      }
+      candidates = smallest!.values.keys.toList()..sort();
+    }
+    final out = <Entity>[];
+    for (final index in candidates) {
+      final entity = Entity.of(index, world._generations[index]);
+      if (!world.isAlive(entity)) continue;
+      if (!required.every(
+        (type) => world._stores[type]!.values.containsKey(index),
+      )) {
+        continue;
+      }
+      if (_without.any(
+        (type) => world._stores[type]?.values.containsKey(index) ?? false,
+      )) {
+        continue;
+      }
+      if (!_changed.every((entry) {
+        final (type, since) = entry;
+        final at = world._stores[type]!.changedAt[index];
+        return at != null && at >= (since ?? world._changeStep);
+      })) {
+        continue;
+      }
+      out.add(entity);
+    }
+    return out;
+  }
 }

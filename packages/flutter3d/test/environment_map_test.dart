@@ -9,16 +9,18 @@
 /// what most of this file is about.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const int _size = 8;
 
 /// Six faces, each a flat colour, so a direction's answer names its face.
 List<ByteData> _colouredFaces([int side = _size]) {
-  const colours = <List<int>>[
+  const colors = <List<int>>[
     <int>[255, 0, 0], // +X
     <int>[0, 255, 0], // −X
     <int>[0, 0, 255], // +Y
@@ -27,13 +29,13 @@ List<ByteData> _colouredFaces([int side = _size]) {
     <int>[0, 255, 255], // −Z
   ];
   return <ByteData>[
-    for (final colour in colours)
+    for (final color in colors)
       () {
         final face = ByteData(side * side * 4);
         for (var i = 0; i < side * side; i++) {
-          face.setUint8(i * 4, colour[0]);
-          face.setUint8(i * 4 + 1, colour[1]);
-          face.setUint8(i * 4 + 2, colour[2]);
+          face.setUint8(i * 4, color[0]);
+          face.setUint8(i * 4 + 1, color[1]);
+          face.setUint8(i * 4 + 2, color[2]);
           face.setUint8(i * 4 + 3, 255);
         }
         return face;
@@ -141,12 +143,12 @@ void main() {
       )!;
 
       double spreadOf(List<ByteData> level, int side) {
-        final centre = _texel(level, 0, side, side ~/ 2, side ~/ 2);
+        final center = _texel(level, 0, side, side ~/ 2, side ~/ 2);
         // The six faces average to (170, 170, 170) — each channel is full on
         // four of the six.
-        return (centre[0] - 170).abs().toDouble() +
-            (centre[1] - 170).abs() +
-            (centre[2] - 170).abs();
+        return (center[0] - 170).abs().toDouble() +
+            (center[1] - 170).abs() +
+            (center[2] - 170).abs();
       }
 
       final sharp = spreadOf(chain[0], 8);
@@ -299,6 +301,71 @@ void main() {
       expect(
         EnvironmentMap.equirectToCubeFaces(ok, width: 4, height: 2, size: 0),
         isNull,
+      );
+    });
+  });
+
+  group('an environment from a file', () {
+    final device = CpuDevice(
+      width: 4,
+      height: 4,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+
+    /// A two-by-one Radiance file, every pixel twice as bright as white.
+    final hdr = Uint8List.fromList(<int>[
+      ...utf8.encode('#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 1 +X 2\n'),
+      for (var i = 0; i < 2; i++) ...<int>[128, 128, 128, 130],
+    ]);
+
+    test('reads a .hdr itself and anything else through the decoder', () async {
+      // Mutation: hand every file to the decoder and a `.hdr`, which
+      // `dart:ui` does not read, never lights anything.
+      final decoded = <int>[];
+      Future<Rgba8Image?> decode(Uint8List bytes) async {
+        decoded.add(bytes.length);
+        return Rgba8Image(width: 2, height: 1, pixels: Uint8List(8));
+      }
+
+      final fromHdr = await EnvironmentMap.fromEncoded(
+        device,
+        hdr,
+        decodeImage: decode,
+        size: 4,
+        levels: 2,
+      );
+      expect(fromHdr.levels, 2);
+      expect(decoded, isEmpty);
+
+      final fromPng = await EnvironmentMap.fromEncoded(
+        device,
+        Uint8List.fromList(<int>[0x89, 0x50, 0x4e, 0x47]),
+        decodeImage: decode,
+        size: 4,
+        levels: 2,
+      );
+      expect(fromPng, isNotNull);
+      expect(decoded, <int>[4]);
+    });
+
+    test('refuses bytes neither reader takes', () async {
+      await expectLater(
+        EnvironmentMap.fromEncoded(
+          device,
+          Uint8List.fromList(<int>[1, 2, 3]),
+          decodeImage: (Uint8List bytes) async => null,
+        ),
+        throwsA(isA<PanoramaFormatException>()),
+      );
+    });
+
+    test('clamps a Radiance value above one to white', () {
+      // Mutation: scale by 255 without the clamp and the byte runs past
+      // white, so the brightest part of the sky lights least.
+      final pixels = EnvironmentMap.hdrToRgba8(readHdr(hdr));
+      expect(
+        <int>[for (var i = 0; i < 4; i++) pixels.getUint8(i)],
+        <int>[255, 255, 255, 255],
       );
     });
   });

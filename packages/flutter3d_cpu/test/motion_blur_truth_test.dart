@@ -23,6 +23,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
@@ -61,7 +63,7 @@ _Staged _stage(SceneNode Function(CpuDevice device, Scene scene) fill) {
     ..add(
       // No shadow: a shadow has no motion of its own to blur it by, so it
       // would be an error the gather cannot answer for.
-      LightNode(intensity: 3.0, castsShadow: false)
+      LightNode(intensity: 3.0 * Photometric.legacyUnit, castsShadow: false)
         ..setLocalForward(Vector3(-2.0, -3.0, -4.0).normalized()),
     )
     ..add(camera);
@@ -85,11 +87,11 @@ _Staged _wheel() => _stage((device, scene) {
     wheel.add(
       MeshNode(
         spoke,
-        Material(
-          baseColor: <Vector4>[
-            Vector4(0.9, 0.8, 0.2, 1.0),
-            Vector4(0.2, 0.7, 0.9, 1.0),
-            Vector4(0.9, 0.3, 0.3, 1.0),
+        RenderMaterial(
+          baseColor: <LinearColor>[
+            LinearColor.fromSrgb(0.9, 0.8, 0.2, 1.0),
+            LinearColor.fromSrgb(0.2, 0.7, 0.9, 1.0),
+            LinearColor.fromSrgb(0.9, 0.3, 0.3, 1.0),
           ][i],
         ),
       )..setRotationYawPitchRoll(0.0, 0.0, i * math.pi / 3),
@@ -103,7 +105,7 @@ _Staged _wheel() => _stage((device, scene) {
 _Staged _box() => _stage((device, scene) {
   final box = MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.8)).build()),
-    Material(baseColor: Vector4(0.9, 0.3, 0.2, 1.0)),
+    RenderMaterial(baseColor: LinearColor.fromSrgb(0.9, 0.3, 0.2, 1.0)),
   );
   scene.add(box);
   final tile = DeviceMesh.upload(
@@ -115,10 +117,10 @@ _Staged _box() => _stage((device, scene) {
       scene.add(
         MeshNode(
           tile,
-          Material(
+          RenderMaterial(
             baseColor: (x + y).isOdd
-                ? Vector4(0.8, 0.8, 0.75, 1.0)
-                : Vector4(0.15, 0.3, 0.5, 1.0),
+                ? LinearColor.fromSrgb(0.8, 0.8, 0.75, 1.0)
+                : LinearColor.fromSrgb(0.15, 0.3, 0.5, 1.0),
           ),
         )..setPosition(x * 0.5 + 0.25, y * 0.5 + 0.25, -8.0),
       );
@@ -140,13 +142,16 @@ Future<List<int>> _draw(_Staged it, RenderSettings settings) async {
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );
-  final bytes = await it.device.readPixels(frame.frame);
+  final bytes = await it.device.readback(frame.frame);
   return <int>[
-    for (var i = 0; i < _width * _height * 4; i++) bytes!.getUint8(i),
+    for (var i = 0; i < _width * _height * 4; i++) bytes.getUint8(i),
   ];
 }
 

@@ -22,34 +22,31 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 const int _width = 160;
 const int _height = 100;
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// The crypt, loaded and dressed — the same assembly `frame_test.dart` uses,
@@ -108,11 +105,7 @@ Future<Uint8List> _drawOne(
     ..eye(eye)
     ..aim(aim);
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.2,
-      near: 0.05,
-      far: 200.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.2, near: 0.05, far: 200.0),
   )..setPositionFrom(eye);
   camera.lookAt(eye + aim);
   scene.add(camera);
@@ -121,15 +114,12 @@ Future<Uint8List> _drawOne(
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: const RenderSettings(),
   );
-  final pixels = await shown.device.readPixels(result.frame);
+  final pixels = await shown.device.readback(result.frame);
   scene.remove(camera);
-  if (pixels == null) {
-    throw StateError('the frame could not be read back');
-  }
   return pixels.buffer.asUint8List();
 }
 

@@ -6,7 +6,7 @@
 /// **What this genre could not do, in one sentence: hurt anybody.** The words
 /// health, attack, damage and kill appeared in this package only in doc
 /// comments explaining why they were absent — `UnitOrder` had two constructors,
-/// `Unit` had no health and no kind, the step had no phase for a fight, and
+/// `StrategyUnit` had no health and no kind, the step had no phase for a fight, and
 /// production stamped out one nameless default. So a match had one way to end,
 /// a policy had one lever, and half the genre was a promise in prose.
 ///
@@ -74,7 +74,7 @@ void main() {
     });
 
     test('gives a unit its width, its pace and its eyes', () {
-      final unit = Unit(position: Vector3.zero(), type: UnitType.tank);
+      final unit = StrategyUnit(position: Vector3.zero(), type: UnitType.tank);
 
       expect(unit.radius, UnitType.tank.radius);
       expect(unit.speed, UnitType.tank.speed);
@@ -86,7 +86,7 @@ void main() {
     test('survives a document as the same kind', () {
       // Kinds travel as their own numbers rather than as a name, so a build
       // that has never heard of this one still restores it exactly. Mutation:
-      // drop `type` from `Unit.save` — a restored army comes back as workers,
+      // drop `type` from `StrategyUnit.save` — a restored army comes back as workers,
       // stops shooting, and the match it was winning is drawn.
       final made = UnitType.soldier.copyWith(name: 'sharpshooter', range: 11.0);
 
@@ -100,9 +100,11 @@ void main() {
       // The whole of what `unit.dart` asked for: the step still only asks where
       // an order points, and where it points is the quarry's own position.
       final sim = _world();
-      final quarry = sim.add(Unit(position: Vector3(40.0, 0.0, 10.0), side: 1));
+      final quarry = sim.add(
+        StrategyUnit(position: Vector3(40.0, 0.0, 10.0), side: 1),
+      );
       final hunter = sim.add(
-        Unit(position: Vector3(8.0, 0.0, 10.0), type: UnitType.soldier),
+        StrategyUnit(position: Vector3(8.0, 0.0, 10.0), type: UnitType.soldier),
       );
       hunter.order = UnitOrder.attack(quarry);
 
@@ -135,14 +137,14 @@ void main() {
       // make this measure the shape of the field rather than the following.
       final sim = _world(samples: 61);
       final quarry = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(30.0, 0.0, 30.0),
           side: 1,
           type: _unarmedGuard.copyWith(speed: 2.0),
         ),
       );
       final hunter = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(30.0, 0.0, 10.0),
           type: UnitType.soldier.copyWith(damage: 0.0, range: 0.0, speed: 3.0),
         ),
@@ -170,12 +172,17 @@ void main() {
       // — reading the tape throws rather than replaying a different match,
       // which is what that reader is strict for.
       final sim = _world();
-      final quarry = sim.add(Unit(position: Vector3(20.0, 0.0, 20.0), side: 1));
+      final quarry = sim.add(
+        StrategyUnit(position: Vector3(20.0, 0.0, 20.0), side: 1),
+      );
       final hunter = sim.add(
-        Unit(position: Vector3(24.0, 0.0, 20.0), type: UnitType.soldier),
+        StrategyUnit(
+          position: Vector3(24.0, 0.0, 20.0),
+          type: UnitType.soldier,
+        ),
       );
 
-      sim.orders.attackWith(<Unit>[hunter], quarry);
+      sim.orders.attackWith(<StrategyUnit>[hunter], quarry);
       final Map<String, Object?> written = sim.orders.waiting.single.toJson();
       sim.step(_step);
 
@@ -192,16 +199,18 @@ void main() {
       // and left on its job would carry on digging and look disobedient.
       final sim = _world();
       final hall = sim.build(
-        Building(centre: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
       );
       final seam = sim.addResource(
         ResourceNode(at: Vector3(26.0, 0.0, 16.0), amount: 100.0),
       );
-      final quarry = sim.add(Unit(position: Vector3(30.0, 0.0, 30.0), side: 1));
-      final digger = sim.add(Unit(position: Vector3(20.0, 0.0, 16.0)))
+      final quarry = sim.add(
+        StrategyUnit(position: Vector3(30.0, 0.0, 30.0), side: 1),
+      );
+      final digger = sim.add(StrategyUnit(position: Vector3(20.0, 0.0, 16.0)))
         ..job = HarvestJob(node: seam, dropOff: hall);
 
-      sim.orders.attackWith(<Unit>[digger], quarry);
+      sim.orders.attackWith(<StrategyUnit>[digger], quarry);
       sim.step(_step);
 
       expect(digger.job, isNull, reason: 'it is still on the payroll');
@@ -211,7 +220,7 @@ void main() {
 
   group('a fight', () {
     /// Two units of different sides, [apart] metres from each other.
-    ({StrategySimulation sim, Unit hunter, Unit quarry}) pair({
+    ({StrategySimulation sim, StrategyUnit hunter, StrategyUnit quarry}) pair({
       double apart = 3.0,
       UnitType hunter = UnitType.soldier,
       UnitType quarry = UnitType.worker,
@@ -219,10 +228,10 @@ void main() {
     }) {
       final sim = _world();
       final one = sim.add(
-        Unit(position: Vector3(20.0, 0.0, 20.0), type: hunter),
+        StrategyUnit(position: Vector3(20.0, 0.0, 20.0), type: hunter),
       );
       final other = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0 + apart, 0.0, 20.0),
           side: quarrySide,
           type: quarry,
@@ -285,11 +294,16 @@ void main() {
       // and the unit it was actually sent for is never touched.
       final sim = _world();
       final bystander = sim.add(
-        Unit(position: Vector3(22.0, 0.0, 20.0), side: 1),
+        StrategyUnit(position: Vector3(22.0, 0.0, 20.0), side: 1),
       );
-      final quarry = sim.add(Unit(position: Vector3(60.0, 0.0, 20.0), side: 1));
+      final quarry = sim.add(
+        StrategyUnit(position: Vector3(60.0, 0.0, 20.0), side: 1),
+      );
       final hunter = sim.add(
-        Unit(position: Vector3(20.0, 0.0, 20.0), type: UnitType.soldier),
+        StrategyUnit(
+          position: Vector3(20.0, 0.0, 20.0),
+          type: UnitType.soldier,
+        ),
       );
       hunter.order = UnitOrder.attack(quarry);
 
@@ -310,15 +324,20 @@ void main() {
       // would miss the pair straddling a boundary; one that walked the crowd
       // would find them and cost the square of it.
       final sim = _world(samples: 61);
-      final marks = <Unit>[
+      final marks = <StrategyUnit>[
         for (var i = 0; i < 8; i++)
-          sim.add(Unit(position: Vector3(10.0 + i * 12.0, 0.0, 30.0), side: 1)),
+          sim.add(
+            StrategyUnit(
+              position: Vector3(10.0 + i * 12.0, 0.0, 30.0),
+              side: 1,
+            ),
+          ),
       ];
       for (var i = 0; i < 8; i++) {
         // Just under the soldier's reach, and deliberately not on the bucket
         // grid: half of these pairs sit either side of a boundary.
         sim.add(
-          Unit(
+          StrategyUnit(
             position: Vector3(10.0 + i * 12.0 + 5.0, 0.0, 30.0),
             type: UnitType.soldier,
           ),
@@ -338,21 +357,22 @@ void main() {
   });
 
   group('a death', () {
-    ({StrategySimulation sim, List<Unit> crowd, Unit doomed}) line() {
+    ({StrategySimulation sim, List<StrategyUnit> crowd, StrategyUnit doomed})
+    line() {
       final sim = _world();
-      final crowd = <Unit>[
+      final crowd = <StrategyUnit>[
         for (var i = 0; i < 5; i++)
-          sim.add(Unit(position: Vector3(4.0 + i * 6.0, 0.0, 4.0))),
+          sim.add(StrategyUnit(position: Vector3(4.0 + i * 6.0, 0.0, 4.0))),
       ];
       final doomed = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(30.0, 0.0, 30.0),
           side: 1,
           type: UnitType.worker.copyWith(health: 12.0),
         ),
       );
       sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(32.0, 0.0, 30.0),
           type: UnitType.soldier.copyWith(damage: 40.0),
         ),
@@ -376,7 +396,7 @@ void main() {
         it.crowd,
         reason: 'the survivors came back in a different order',
       );
-      expect(it.sim.entities.alive(it.doomed.entity), isFalse);
+      expect(it.sim.entities.isAlive(it.doomed.entity), isFalse);
     });
 
     test('cuts the order that was pointing at it', () {
@@ -386,20 +406,23 @@ void main() {
       // the corpse last stood for the rest of the match.
       final sim = _world();
       final doomed = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(24.0, 0.0, 20.0),
           side: 1,
           type: UnitType.worker.copyWith(health: 10.0),
         ),
       );
       final killer = sim.add(
-        Unit(position: Vector3(20.0, 0.0, 20.0), type: UnitType.soldier),
+        StrategyUnit(
+          position: Vector3(20.0, 0.0, 20.0),
+          type: UnitType.soldier,
+        ),
       );
       killer.order = UnitOrder.attack(doomed);
 
       _steps(sim, 60);
 
-      expect(sim.units, <Unit>[killer]);
+      expect(sim.units, <StrategyUnit>[killer]);
       expect(killer.order.target, isNull, reason: 'it is still hunting a body');
       expect(killer.order.goal, isNull, reason: 'it is walking to a grave');
     });
@@ -409,7 +432,7 @@ void main() {
       // one joins the crowd after the burial rather than being swept up by it.
       final sim = _world();
       final hall = sim.build(
-        Building(centre: Vector3(30.0, 0.0, 8.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(30.0, 0.0, 8.0), width: 6.0, depth: 6.0),
       );
       sim.addProducer(
         Producer(building: hall, cost: 1.0, seconds: 0.4)
@@ -417,20 +440,24 @@ void main() {
       );
       sim.stock[0].amount = 40.0;
       final doomed = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0, 0.0, 20.0),
           type: UnitType.worker.copyWith(health: 8.0),
         ),
       );
       sim.add(
-        Unit(position: Vector3(23.0, 0.0, 20.0), side: 1, type: UnitType.tank),
+        StrategyUnit(
+          position: Vector3(23.0, 0.0, 20.0),
+          side: 1,
+          type: UnitType.tank,
+        ),
       );
 
       _steps(sim, 120);
 
       expect(sim.units.contains(doomed), isFalse);
       expect(
-        sim.units.where((Unit it) => it.side == 0).length,
+        sim.units.where((StrategyUnit it) => it.side == 0).length,
         4,
         reason: 'the hall lost the units it made to the burial',
       );
@@ -446,27 +473,32 @@ void main() {
       final sim = _world();
       final theirs = sim.build(
         Building(
-          centre: Vector3(30.0, 0.0, 8.0),
+          center: Vector3(30.0, 0.0, 8.0),
           width: 4.0,
           depth: 4.0,
           side: 1,
         ),
       );
       final ours = sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       // Ore nobody is digging, so that the exhaustion ending stays out of the
       // way and what is measured here is the field alone.
       sim.addResource(ResourceNode(at: Vector3(64.0, 0.0, 64.0), amount: 80.0));
       sim.addProducer(Producer(building: ours));
       sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0, 0.0, 20.0),
           side: 1,
           type: UnitType.worker.copyWith(health: 10.0),
         ),
       );
-      sim.add(Unit(position: Vector3(23.0, 0.0, 20.0), type: UnitType.soldier));
+      sim.add(
+        StrategyUnit(
+          position: Vector3(23.0, 0.0, 20.0),
+          type: UnitType.soldier,
+        ),
+      );
       final match = Match(
         simulation: sim,
         bots: const <Bot>[],
@@ -498,10 +530,10 @@ void main() {
       // then the match stops stepping, so the fog stops being tested at all.
       final sim = _world();
       sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       sim.addResource(ResourceNode(at: Vector3(30.0, 0.0, 8.0), amount: 90.0));
-      sim.add(Unit(position: Vector3(12.0, 0.0, 8.0)));
+      sim.add(StrategyUnit(position: Vector3(12.0, 0.0, 8.0)));
       final match = Match(
         simulation: sim,
         bots: const <Bot>[],
@@ -525,16 +557,21 @@ void main() {
       // dug out — which is most of them, late on.
       final sim = _world();
       sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       final doomed = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0, 0.0, 20.0),
           side: 1,
           type: UnitType.worker.copyWith(health: 30.0),
         ),
       );
-      sim.add(Unit(position: Vector3(23.0, 0.0, 20.0), type: UnitType.soldier));
+      sim.add(
+        StrategyUnit(
+          position: Vector3(23.0, 0.0, 20.0),
+          type: UnitType.soldier,
+        ),
+      );
       final match = Match(
         simulation: sim,
         bots: const <Bot>[],
@@ -563,26 +600,30 @@ void main() {
       // match comes back won by the side that was behind.
       final sim = _world();
       sim.build(
-        Building(centre: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(8.0, 0.0, 8.0), width: 4.0, depth: 4.0),
       );
       sim.build(
         Building(
-          centre: Vector3(30.0, 0.0, 8.0),
+          center: Vector3(30.0, 0.0, 8.0),
           width: 4.0,
           depth: 4.0,
           side: 1,
         ),
       );
       final doomed = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(20.0, 0.0, 20.0),
           type: UnitType.worker.copyWith(health: 6.0),
         ),
       );
       sim.add(
-        Unit(position: Vector3(22.0, 0.0, 20.0), side: 1, type: UnitType.tank),
+        StrategyUnit(
+          position: Vector3(22.0, 0.0, 20.0),
+          side: 1,
+          type: UnitType.tank,
+        ),
       );
-      sim.add(Unit(position: Vector3(28.0, 0.0, 8.0), side: 1));
+      sim.add(StrategyUnit(position: Vector3(28.0, 0.0, 8.0), side: 1));
       final match = Match(
         simulation: sim,
         bots: const <Bot>[],
@@ -610,7 +651,7 @@ void main() {
       final sim = _world();
       final base = sim.build(
         Building(
-          centre: Vector3(20.0, 0.0, 10.0),
+          center: Vector3(20.0, 0.0, 10.0),
           width: 4.0,
           depth: 4.0,
           sight: 12.0,
@@ -651,17 +692,17 @@ void main() {
       final sim = _world(samples: 61);
       final base = sim.build(
         Building(
-          centre: Vector3(10.0, 0.0, 10.0),
+          center: Vector3(10.0, 0.0, 10.0),
           width: 4.0,
           depth: 4.0,
           sight: 6.0,
         ),
       );
       final mine = sim.add(
-        Unit(position: Vector3(14.0, 0.0, 10.0), type: blind),
+        StrategyUnit(position: Vector3(14.0, 0.0, 10.0), type: blind),
       );
       final theirs = sim.add(
-        Unit(position: Vector3(100.0, 0.0, 100.0), side: 1),
+        StrategyUnit(position: Vector3(100.0, 0.0, 100.0), side: 1),
       );
       final match = Match(
         simulation: sim,
@@ -697,12 +738,17 @@ void main() {
       // anything would pass it for the wrong reason.
       final sim = _world();
       final base = sim.build(
-        Building(centre: Vector3(10.0, 0.0, 10.0), width: 4.0, depth: 4.0),
+        Building(center: Vector3(10.0, 0.0, 10.0), width: 4.0, depth: 4.0),
       );
       final mine = sim.add(
-        Unit(position: Vector3(14.0, 0.0, 10.0), type: UnitType.soldier),
+        StrategyUnit(
+          position: Vector3(14.0, 0.0, 10.0),
+          type: UnitType.soldier,
+        ),
       );
-      final theirs = sim.add(Unit(position: Vector3(22.0, 0.0, 10.0), side: 1));
+      final theirs = sim.add(
+        StrategyUnit(position: Vector3(22.0, 0.0, 10.0), side: 1),
+      );
       final match = Match(
         simulation: sim,
         bots: <Bot>[
@@ -733,14 +779,14 @@ void main() {
         it.match.step(_step);
       }
 
-      final List<Unit> mine = it.sim.units;
+      final List<StrategyUnit> mine = it.sim.units;
       expect(
-        mine.where((Unit u) => !u.type.isArmed).length,
+        mine.where((StrategyUnit u) => !u.type.isArmed).length,
         2,
         reason: 'it kept making diggers past its plan',
       );
       expect(
-        mine.where((Unit u) => u.type.isArmed).length,
+        mine.where((StrategyUnit u) => u.type.isArmed).length,
         3,
         reason: 'it never raised the army it planned',
       );
@@ -790,7 +836,7 @@ void main() {
       final sim = _world(samples: 51);
       final mine = sim.build(
         Building(
-          centre: Vector3(20.0, 0.0, 10.0),
+          center: Vector3(20.0, 0.0, 10.0),
           width: 4.0,
           depth: 4.0,
           sight: 12.0,
@@ -798,7 +844,7 @@ void main() {
       );
       final theirs = sim.build(
         Building(
-          centre: Vector3(20.0, 0.0, 60.0),
+          center: Vector3(20.0, 0.0, 60.0),
           width: 4.0,
           depth: 4.0,
           side: 1,
@@ -813,7 +859,7 @@ void main() {
       sim.stock[0].amount = 120.0;
       for (var i = 0; i < 2; i++) {
         sim.add(
-          Unit(
+          StrategyUnit(
             position: Vector3(18.0 + i * 2.0, 0.0, 64.0),
             side: 1,
             type: UnitType.soldier,
@@ -846,7 +892,7 @@ void main() {
       expect(steps, lessThan(6000), reason: 'the war never finished');
       expect(match.standing.winner, 0);
       expect(
-        sim.units.where((Unit u) => u.side == 1),
+        sim.units.where((StrategyUnit u) => u.side == 1),
         isEmpty,
         reason: 'somebody was still standing on the losing side',
       );

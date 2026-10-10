@@ -1,3 +1,177 @@
+## 1.0.0-rc.1
+
+- **Hashed alpha is anchored on the world.** `surface.glsl` and
+  `depth_predraw.frag` share `HashedAlphaNoise`, which takes the scene's
+  origin out of the cutoff, so a shift of the origin keeps every speck, and
+  replaces `fract(sin(…) · 43758)` with a `sin`-free hash that every GPU
+  computes alike. Hashed surfaces draw a different pattern than before.
+- **Lambert's opaque stage declares no metallic-roughness sampler.**
+  `F3D_NO_METALLIC_ROUGHNESS_MAP` leaves it out, since a declared but
+  unread sampler was dropped by Metal's compiler while its reflection still
+  listed the slot.
+
+- **Depends on `flutter3d_foundation` instead of the plugin API**, for the
+  exceptions its refusals extend.
+
+- **`sky_physical` absorbs by ozone**, from the amount in `v_stars.w`, and
+  documents `v_sun.w` as the sunlight on the luminance scale.
+- **A spot's falloff is squared** in `surface.glsl`, `contributor_lights.glsl`
+  and `volumetric_fog.frag`, as `KHR_lights_punctual`'s reference is.
+- **Breaking: a WebGL section that will not read throws
+  `BundleSectionFormatException`**, a `Flutter3dFormatException`, where
+  `decodeWebGlSection` threw the SDK's `FormatException`;
+  `decodeSectionJson` reads a section's JSON the same way for the WebGPU
+  backend.
+
+- **`internal.dart`**: the stage bindings, the uniform block layouts and the
+  typed blocks the renderer and the four backends read, as a library of
+  their own rather than `src/` imports. For engine backends; not covered by
+  semver for applications.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kComputeShaders` is `computeShaders`,
+  `kCubeDimension` is `cubeDimension`, `kFragmentGroup` is `fragmentGroup`,
+  `kGlslang` is `glslangExecutable`, `kMaxInterStageVariables` is
+  `maxInterStageVariables`, `kNaga` is `nagaExecutable`, `kRequiredShaders`
+  is `requiredShaders`, `kSectionVersion` is `sectionVersion`,
+  `kTwoDimensional` is `twoDimensional`, `kVertexGroup` is `vertexGroup`.
+  The values are the same; `dart fix` carries the renames.
+- **Breaking: the generated uniform tables are not API.**
+  `typed_blocks.dart`, `uniform_blocks.dart` and `stage_bindings.dart` moved
+  under `lib/src`: they are the engine's and its backends' own, and a
+  change to a shader is no longer a major release.
+
+- **The translator's refusals are exceptions, named as such.**
+  `GlslTranslateException`, `WgslPrepareException`, `WgslCompileException` and
+  `WgslSectionException` (called `*Error` earlier in this cycle) extend
+  `Flutter3dFormatException` from `flutter3d_plugin_api`. A shader the
+  translator cannot read is something a correct program meets, and `*Error` is
+  kept for programmer mistakes.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **`WriteDebugView` draws nine more views and a wipe between two.**
+  `FragInfo.debug_view` now carries the right view, the wipe's column in
+  pixels, the left view and the draw's identity; the composite's
+  `lens.y` says which sides of the wipe hold display values.
+
+- **The lit models have opaque variants and a depth pre-draw — `A1.2`.**
+  `PbrOpaque`, `PbrLayeredOpaque`, `BlinnPhongOpaque`, `LambertOpaque`,
+  `ToonOpaque` and `UnlitOpaque` are the six models with `F3D_OPAQUE`
+  defined, which leaves the alpha cut's `discard` out of `ReadSurface`;
+  `DepthPredraw` makes the cut and a level of detail's share of a
+  cross-fade in depth only. A hundred and five entry points, and
+  `PredrawInfoBlock` for the new block. The four simple models moved into
+  `lib/` headers so each variant is the same text.
+
+- **The sun's shadow map may keep its depth the other way round — `A2.8`.**
+  `lib/shadow_storage.glsl` turns it back for every reader and takes the
+  bias's floor at a fragment's own depth; `FragInfo.shadow_params.y`, which
+  nothing read, carries the mode.
+
+- **The sky draws at the depth its vertices give** — the far plane less a
+  hair, or nought reversed — instead of a constant in the stage.
+
+- **Material stages run their colour arithmetic at mediump — `A1.1`.**
+  The twelve lit stages define `F3D_MEDIUMP`; a few functions whose numbers
+  are colours and factors (`F_Schlick`, `SrgbToLinear`, the octahedral
+  encode, the map reads) run at mediump on a phone, and everything carrying
+  a position, a coordinate, a depth, light or noise stays highp.
+  `shaders/PRECISION.md` is the contract. Desktop GPUs compute at full
+  precision whatever the qualifier, so no desktop golden moves.
+
+- **`SplatSortCount`, `SplatSortScan` and `SplatSortScatter`**, the compute
+  stages of the GPU splat sort (`H11`): a digit count per tile of 256
+  keys, a scan of the counts in one workgroup, and a stable scatter whose
+  last pass writes six indices a splat. A computing backend may leave them
+  out, and the software rasteriser does.
+
+- **`OutlineMask` and `HighContrast`**, the stages of
+  `RenderSettings.highContrast`: a marked node's ring colour, drawn through
+  the velocity vertex stages and dropped behind the surface buffer, and the
+  look over the finished frame.
+
+- **`CausticSurface`, `CausticPhotonVertex` and `CausticPhoton`**, the stages
+  of `ShadowSettings.caustics`; `ShadowTransmittance` stops a caster's light
+  when its photons are followed.
+- `ShadowTransmittance` reads the material's base colour map, and neither it
+  nor the stored transmittance is held to one; `ShadowFactor` reads up to
+  four, so a caster can brighten as well as darken.
+
+- **`ShadowTransmittance`**, the stage a see-through caster is drawn into the
+  sun's atlas with (`ShadowSettings.translucentCasters`), and
+  `light_transmittance` in `surface.glsl`, which `ShadowFactor` sets and the
+  light loop multiplies the sun by.
+
+- **A masked cutoff above one is drawn as coverage** — `P7`: `ReadSurface`
+  keeps the fragment and sharpens its alpha over a pixel with `fwidth`. A
+  plain cutoff leaves the surviving fragment's alpha at one.
+
+- **`FogInfo.projection`, `Orthographic`, `TowardsEye`** — `P7`: the lit
+  models, the planar reflection's Fresnel and `EyeDistance` ask whether the
+  camera is orthographic. `light_shafts.frag` starts its march on the eye's
+  plane.
+
+- **`FragInfo.debug_view` and `WriteDebugView`** in `surface.glsl` — `P6`:
+  every lit model asks it before writing its light. NaN is found by
+  comparison, because `impellerc`'s GLSL ES output has no bit casts.
+  `CompositeInfo.lens` y and z say whether a debug view is on and where it
+  starts.
+
+- **`LensFlare`**, with the `LensFlareInfo` block, and a `lens` member
+  appended to `CompositeInfo` for the distortion.
+
+- **Three stages for SMAA 1x**: `SmaaEdges`, `SmaaWeights` and `SmaaBlend`,
+  with the `SmaaInfo` block. A bundle must answer to them; the renderer falls
+  back to FXAA when one does not.
+
+**A decal stage.** `post/decal.frag` (`Decal`) paints up to sixteen
+projected boxes, reading four pictures, over the point the surface buffer
+names under each pixel. It writes a factor and a term for two blends, the
+albedo swapped under the light the albedo buffer lets it read back, and the
+colour an unlit surface and an emissive decal add.
+
+**Two stages for `P4`.** `lighting/planar_reflection.frag` lays a mirrored
+picture over a reflector's surface, read by the fragment's place in its view
+and weighted by Schlick's Fresnel; it declares no surface buffer, as
+`xray.frag` does not. `post/render_texture_encode.frag` turns a camera's
+light into the sRGB bytes a material's map is read as, turning the rows over
+where the backend draws its first row at the bottom. Both are in the bundle,
+in `requiredShaders` and in `stageBindings`, `uniformBlocks` and
+`typed_blocks.dart`.
+
+**`SkyPhysical` and `SkyPhysicalVertex`**, the physical sky: single
+scattering by molecules and haze marched per pixel, sixteen samples along the
+view and eight towards the sun from each, the disc and the stars dimmed by the
+air, and the ground below the horizon. The air travels on the vertices, as the
+gradient's preset does.
+
+**`ApplyFog` integrates a height fog.** `FogInfo.eye.w` carries the falloff
+and `FogInfo.fog.w` the density at the eye; a falloff of nought takes the old
+path unchanged.
+
+**The WebGL2 and WebGPU translators live here now, behind
+`translate.dart` and `compile.dart`.** `flutter3d_build`'s material step has
+to translate a project's materials from a hook process that cannot resolve a
+package declaring the Flutter SDK, and `flutter3d_webgl` and
+`flutter3d_webgpu` both declare one. None of the moved files ever needed the
+SDK. `translate.dart` holds the pure parts: `translateGlsl` and
+`resolveIncludes`, `prepareStage`, and the writers for both sections.
+`compile.dart` adds the parts that need a machine: `loadShaders` (which now
+takes `from:`, and whose `ShaderSet` carries the `root` it read),
+`compileStage` through glslang and naga, and `bundleVaryingLocations`, which
+used to be private to `pack_wgsl_section.dart`. The barrel exports neither,
+so an application carries no compiler.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

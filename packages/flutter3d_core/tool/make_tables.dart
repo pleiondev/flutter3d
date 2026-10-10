@@ -86,6 +86,136 @@ void main() {
     format: 'r16g16b16a16Float',
     bytes: ltcTable(),
   );
+
+  _write(
+    'smaa_area.dart',
+    name: 'smaaArea',
+    doc: '''
+/// How much of each pixel along an edge the line behind it covers — `P1`,
+/// SMAA 1x's orthogonal area table: 80×80 rgba8, red and green used.
+///
+/// An edge is a run of pixels between two ends, and at each end a crossing
+/// edge may stand on either side of it or on both. Those two ends pick one
+/// of 5×5 cells 16 texels square (only the cells at 0, 1, 3 and 4 are ever
+/// read, the codes `round(4·e)` a crossing's bilinear fetch gives), and
+/// inside a cell the texel at (i, j) is the pixel `i²` from the run's first
+/// end and `j²` from its last: the square root, so a short run gets a texel
+/// per pixel and a long one shares them. Red is how much of the pixel on the
+/// near side of the edge takes the far side's colour; green, the far
+/// pixel's share of the near one.
+///
+/// The lines are the ones Jimenez, Echevarria, Sousa and Gutierrez
+/// reconstruct in "SMAA: Enhanced Subpixel Morphological Antialiasing",
+/// Eurographics 2012, for the sixteen patterns of crossing edges, without
+/// the subsample offsets of the 2x and 4x modes and without the diagonal
+/// half of their table, which this engine does not search.''',
+    width: 80,
+    height: 80,
+    format: 'r8g8b8a8UNormInt',
+    bytes: smaaAreaTable(),
+  );
+}
+
+/// SMAA's orthogonal area table — `P1`. See the doc written above it.
+Uint8List smaaAreaTable() {
+  const cell = 16;
+  const size = cell * 5;
+  // The crossing codes of the two ends, per pattern. A pattern's bits:
+  // 1 a crossing below the first end, 2 below the last, 4 above the first,
+  // 8 above the last; below is 3 and above is 1 in a code, both 4.
+  const codes = <(int, int)>[
+    (0, 0), (3, 0), (0, 3), (3, 3), (1, 0), (4, 0), (1, 3), (4, 3), //
+    (0, 1), (3, 1), (0, 4), (3, 4), (1, 1), (4, 1), (1, 4), (4, 4),
+  ];
+  final table = Uint8List(size * size * 4);
+  for (var pattern = 0; pattern < 16; pattern++) {
+    final (first, last) = codes[pattern];
+    for (var j = 0; j < cell; j++) {
+      for (var i = 0; i < cell; i++) {
+        final (near, far) = smaaOrthogonalArea(
+          pattern,
+          (i * i).toDouble(),
+          (j * j).toDouble(),
+        );
+        final at = ((last * cell + j) * size + first * cell + i) * 4;
+        table[at] = (near.clamp(0.0, 1.0) * 255.0).round();
+        table[at + 1] = (far.clamp(0.0, 1.0) * 255.0).round();
+      }
+    }
+  }
+  return table;
+}
+
+/// The area a pixel [left] pixels from a run's first end and [right] from
+/// its last keeps of the line [pattern] reconstructs, as (near, far): the
+/// share of the pixel on the near side of the edge that the far colour
+/// takes, and the far pixel's share of the near colour. One of the two is
+/// always nought except where the line crosses the edge inside the pixel.
+(double, double) smaaOrthogonalArea(int pattern, double left, double right) {
+  final d = left + right + 1.0;
+  // Half a pixel above the edge and half a pixel below it: where a run's
+  // line starts at an end with a crossing on that side.
+  const above = 0.5;
+  const below = -0.5;
+  (double, double) at((double, double) a, (double, double) b) =>
+      _smaaArea(a, b, left);
+  (double, double) smooth((double, double) a, (double, double) b) {
+    // A U turns its corners less sharply the longer it is: the square root
+    // of the area for a short run, the area itself from 32 pixels on.
+    final p = (d / 32.0).clamp(0.0, 1.0);
+    double soften(double v) {
+      final rounded = math.sqrt(v * 2.0) * 0.5;
+      return rounded + (v - rounded) * p;
+    }
+
+    return (soften(a.$1) + soften(b.$1), soften(a.$2) + soften(b.$2));
+  }
+
+  final middle = (d / 2.0, 0.0);
+  return switch (pattern) {
+    1 => left <= right ? at((0.0, below), middle) : (0.0, 0.0),
+    2 => left >= right ? at(middle, (d, below)) : (0.0, 0.0),
+    3 => smooth(at((0.0, below), middle), at(middle, (d, below))),
+    4 => left <= right ? at((0.0, above), middle) : (0.0, 0.0),
+    6 => at((0.0, above), (d, below)),
+    7 => at((0.0, above), (d, below)),
+    8 => left >= right ? at(middle, (d, above)) : (0.0, 0.0),
+    9 => at((0.0, below), (d, above)),
+    11 => at((0.0, below), (d, above)),
+    12 => smooth(at((0.0, above), middle), at(middle, (d, above))),
+    13 => at((0.0, below), (d, above)),
+    14 => at((0.0, above), (d, below)),
+    // Nothing to smooth: no crossing at all (0), a crossing on both sides of
+    // one end (5, 10), or of both (15).
+    _ => (0.0, 0.0),
+  };
+}
+
+/// The area the line from [p1] to [p2] keeps of the pixel from [x] to
+/// `x + 1` along the edge, signed by side, as SMAA's reference generator
+/// computes it.
+(double, double) _smaaArea((double, double) p1, (double, double) p2, double x) {
+  final dx = p2.$1 - p1.$1;
+  final dy = p2.$2 - p1.$2;
+  final x1 = x;
+  final x2 = x + 1.0;
+  final y1 = p1.$2 + dy * (x1 - p1.$1) / dx;
+  final y2 = p1.$2 + dy * (x2 - p1.$1) / dx;
+  final inside = (x1 >= p1.$1 && x1 < p2.$1) || (x2 > p1.$1 && x2 <= p2.$1);
+  if (!inside) return (0.0, 0.0);
+  final trapezoid = y1.sign == y2.sign || y1.abs() < 1e-4 || y2.abs() < 1e-4;
+  if (trapezoid) {
+    final a = (y1 + y2) / 2.0;
+    return a < 0.0 ? (a.abs(), 0.0) : (0.0, a.abs());
+  }
+  // The line crosses the edge inside the pixel: two triangles, one on each
+  // side.
+  final crossing = -p1.$2 * dx / dy + p1.$1;
+  final fraction = crossing - crossing.truncateToDouble();
+  final a1 = crossing > p1.$1 ? y1 * fraction / 2.0 : 0.0;
+  final a2 = crossing < p2.$1 ? y2 * (1.0 - fraction) / 2.0 : 0.0;
+  final a = a1.abs() > a2.abs() ? a1 : -a2;
+  return a < 0.0 ? (a1.abs(), a2.abs()) : (a2.abs(), a1.abs());
 }
 
 /// The two published LTC tables, headers dropped, one under the other.

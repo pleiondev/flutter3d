@@ -1,6 +1,6 @@
 name: flutter3d_app
 description: "What any Flutter application on flutter3d is assembled from: which backend to open and the runtime fallback, the surface a frame reaches Flutter through, widgets drawn in the scene, a level loaded into a scene, and storage."
-version: 0.8.1+1
+version: 1.0.0-rc.1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -18,6 +18,18 @@ topics:
 # loading. What they had that only a game needs went to `flutter3d_game`.
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# The web too: `src/storage/atomic_write.dart` chooses its filesystem half by
+# `if (dart.library.js_interop)`, as `storage.dart` does for the rest, and
+# `tool/structure.dart` checks nothing reaches `dart:io` in a browser build.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
@@ -25,35 +37,47 @@ dependencies:
 
   # The renderer: the `Scene` and `RenderSettings` a surface hands over, and
   # the mesh nodes, lights and probes a level becomes.
-  flutter3d: ^0.8.0
+  flutter3d: ^1.0.0-rc.1
+  # The material language's parser and evaluator, for the software stage a
+  # bundle built from a `.f3dmat` is compiled into — `P8`. `flutter3d`
+  # carries it already; named here because this package imports its formats
+  # library directly.
+  flutter3d_core: ^1.0.0-rc.1
 
   # The vocabulary the backend choice is made in. Neither backend appears in
   # any signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^1.0.0-rc.1
 
   # The two implementations the conditional export in `backend_native.dart`/
   # `backend_web.dart` picks between by `dart.library.js_interop`, because the
   # two pull in incompatible worlds — `flutter_gpu` does not compile for the
   # web and `dart:js_interop` does not compile for macOS.
-  flutter3d_impeller: ^0.8.0
-  flutter3d_webgl: ^0.8.0
+  flutter3d_impeller: ^1.0.0-rc.1
+  flutter3d_webgl: ^1.0.0-rc.1
 
   # Two more that are not branches of that export — each is what one half
   # falls back to, or up to, at runtime, because the question each answers is
   # one no `dart.library.*` check can see.
-  flutter3d_cpu: ^0.8.0
-  flutter3d_webgpu: ^0.8.0
+  flutter3d_cpu: ^1.0.0-rc.1
+  flutter3d_webgpu: ^1.0.0-rc.1
 
   # The level document `LevelLoader` reads, and the collision world it builds.
   # Plain Dart, so an application that loads no level pays a resolve for it
   # and nothing else.
-  flutter3d_sim: ^0.8.0
+  flutter3d_sim: ^1.0.0-rc.1
+  # `P10`: `Particles3D` owns a ParticleSystem and draws it through the
+  # package's contributor.
+  flutter3d_particles: ^1.0.0-rc.1
+  # `Flutter3dPlugin` and `PluginRegistry`, which `Flutter3dView` installs
+  # into the loop it owns.
+  flutter3d_plugin_api: ^1.0.0-rc.1
 
   # `LevelScene`: the part of loading a level that needs no Flutter — brushes
   # into meshes, materials, lights and probes — which `LevelLoader` hands the
   # textures it decoded and wraps in a `LoadedLevel`. It lives there so a
-  # program started by `dart run` can draw a level too.
-  flutter3d_editor_core: ^0.8.0
+  # program started by `dart run` can draw a level too, and so loading a
+  # level resolves no editor.
+  flutter3d_level_scene: ^1.0.0-rc.1
 
   # The wall clock `FrameClock.tick` reads. Not a `Stopwatch`: this one is
   # what `flutter_test` fakes, so a widget test's `pump` advances the frame
@@ -67,6 +91,15 @@ dependencies:
   # `localStorage`, which is where a browser build keeps what a user changed.
   web: ^1.1.0
 
+  # The collision world and its bodies, named here directly.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -79,4 +112,4 @@ dev_dependencies:
   # written in the material language, and `MaterialProgramStage` is what lets
   # the software backend draw one. Not a real dependency: nothing in `lib/`
   # reaches it.
-  flutter3d_testing: ^0.8.0
+  flutter3d_testing: ^1.0.0-rc.1

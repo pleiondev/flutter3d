@@ -59,7 +59,7 @@ void main() {
         final fromDartUi = await _decodeWithDartUi(path);
         final ours = decodePng(File(path).readAsBytesSync());
         expect(ours, isNotNull);
-        expect(ours!.width, fromDartUi.width);
+        expect(ours.width, fromDartUi.width);
         expect(ours.height, fromDartUi.height);
         expect(ours.rgba, orderedEquals(fromDartUi.rgba));
       });
@@ -77,7 +77,7 @@ void main() {
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
       expect(ours, isNotNull);
-      expect(ours!.width, fromDartUi.width);
+      expect(ours.width, fromDartUi.width);
       expect(ours.height, fromDartUi.height);
       expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
@@ -88,7 +88,7 @@ void main() {
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
       expect(ours, isNotNull);
-      expect(_maxDelta(ours!.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
+      expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
 
     test('gray_16x16.jpg — single component, no chroma at all', () async {
@@ -97,7 +97,7 @@ void main() {
       final fromDartUi = await _decodeWithDartUi(path);
       final ours = decodeJpeg(File(path).readAsBytesSync());
       expect(ours, isNotNull);
-      expect(_maxDelta(ours!.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
+      expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(4));
     });
 
     // 4:2:0 — chroma is subsampled, so this decoder's own nearest-neighbour
@@ -115,7 +115,7 @@ void main() {
         final fromDartUi = await _decodeWithDartUi(path);
         final ours = decodeJpeg(File(path).readAsBytesSync());
         expect(ours, isNotNull);
-        expect(ours!.width, fromDartUi.width);
+        expect(ours.width, fromDartUi.width);
         expect(ours.height, fromDartUi.height);
         expect(_maxDelta(ours.rgba, fromDartUi.rgba), lessThanOrEqualTo(20));
       },

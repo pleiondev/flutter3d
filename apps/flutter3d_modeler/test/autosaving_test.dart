@@ -8,8 +8,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/autosaving.dart';
@@ -22,7 +23,7 @@ import 'support/fake_graphics_backend.dart';
 
 /// A storage kept in memory, counting every attempt so a test can ask how
 /// many actually happened rather than only whether the document is there.
-final class FakeBinaryStorage implements BinaryStorage {
+final class FakeBinaryStorage extends BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
   int writeCount = 0;
   bool refuse = false;

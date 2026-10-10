@@ -66,4 +66,18 @@ void main(List<String> args) {
   print('buildStamp: ${demo.buildStamp}');
   print('platform:   ${demo.platform ?? '(unknown)'}');
   print('recordedBy: ${demo.recordedBy ?? '(anonymous)'}');
+  for (final swap in demo.levelSwaps) {
+    print('levelSwap:  step ${swap.step}, ${swap.levelHash}');
+  }
+  // What the run needs to be replayed, and what plays when it cannot be.
+  print(
+    'simulation: ${demo.simulation?.describe() ?? '(not recorded; read as 1)'}',
+  );
+  final poses = demo.poses;
+  print(
+    poses == null
+        ? 'poses:      (none)'
+        : 'poses:      ${poses.frames.length} frames of '
+              '${poses.bodies.length} bodies, every ${poses.every} steps',
+  );
 }

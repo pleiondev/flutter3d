@@ -25,7 +25,7 @@ final class KeyRing with KeyHolder {
   Set<String> get keys => UnmodifiableSetView<String>(_held);
 
   /// Adds one, and says whether it was new.
-  bool take(String key) => _held.add(key);
+  bool add(String key) => _held.add(key);
 
   bool has(String key) => _held.contains(key);
 

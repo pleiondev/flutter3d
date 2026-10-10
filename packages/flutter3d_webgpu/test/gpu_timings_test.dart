@@ -23,16 +23,18 @@ import 'quad_stages.dart';
 
 void main() {
   test('a labelled pass comes back with a time, a frame later', () async {
-    final device = await WebGpuDevice.create(
-      width: 16,
-      height: 16,
-      stages: quadStages,
-    );
-    if (device == null) {
+    final WebGpuDevice device;
+    try {
+      device = await WebGpuDevice.open(
+        width: 16,
+        height: 16,
+        stages: quadStages,
+      );
+    } on DeviceUnavailableException {
       markTestSkipped('this browser has no WebGPU');
       return;
     }
-    if (!device.supportsGpuTimestamps) {
+    if (!device.features.has(DeviceFeature.gpuTimestamps)) {
       markTestSkipped('the adapter did not grant timestamp-query');
       return;
     }
@@ -43,7 +45,7 @@ void main() {
     });
 
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: 16,
         height: 16,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -59,7 +61,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(<int>[0, 255, 0, 255])),
-    )!;
+    );
     device.beginFrame();
     device.beginRenderPass(
         RenderPassDescriptor(

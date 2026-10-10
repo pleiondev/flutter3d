@@ -17,8 +17,8 @@ const int _count = 1024;
 /// before it was written or written back somewhere else each leave a wrong
 /// number, and the message names the first one.
 Future<void> checkPrefixSum(GraphicsDevice device) async {
-  if (!device.supportsCompute) {
-    throw const ConformanceDeclined(
+  if (!device.features.has(DeviceFeature.compute)) {
+    throw const ConformanceDeclinedException(
       'this device answers false to supportsCompute, which is a legitimate '
       'answer: compute is optional, and FieldPass is the path every backend '
       'has',

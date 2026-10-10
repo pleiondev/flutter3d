@@ -14,7 +14,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One small white-hot ball on black, bloomed.
 ///
@@ -35,9 +34,9 @@ Future<({List<int> red, List<int> blue})> _glow({
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.35).build()),
-        Material(
+        RenderMaterial(
           name: 'hot',
-          baseColor: Vector4(12.0, 12.0, 12.0, 1.0),
+          baseColor: LinearColor.fromSrgb(12.0, 12.0, 12.0, 1.0),
           lighting: LightingModel.unlit,
         ),
       ),
@@ -51,7 +50,7 @@ Future<({List<int> red, List<int> blue})> _glow({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     // Undithered, so the core is compared byte for byte: the per-level ratio
@@ -63,11 +62,11 @@ Future<({List<int> red, List<int> blue})> _glow({
     ),
   );
 
-  final bytes = await device.readPixels(frame.frame);
+  final bytes = await device.readback(frame.frame);
   return (
-    red: <int>[for (var i = 0; i < width * width; i++) bytes!.getUint8(i * 4)],
+    red: <int>[for (var i = 0; i < width * width; i++) bytes.getUint8(i * 4)],
     blue: <int>[
-      for (var i = 0; i < width * width; i++) bytes!.getUint8(i * 4 + 2),
+      for (var i = 0; i < width * width; i++) bytes.getUint8(i * 4 + 2),
     ],
   );
 }
@@ -83,11 +82,11 @@ int _warmth(({List<int> red, List<int> blue}) frame, Iterable<int> at) {
 
 void main() {
   const width = 96;
-  const centre = (width ~/ 2) * width + (width ~/ 2);
+  const center = (width ~/ 2) * width + (width ~/ 2);
 
   test('zero is an exact identity, and is the default', () async {
     // The multiplier is one on every channel at zero, so the chain comes out
-    // byte for byte as it did — which is what seventy-eight goldens need.
+    // byte for byte as it did — which is what 96 goldens need.
     expect(const BloomSettings().halation, 0.0);
     final a = await _glow(halation: 0.0);
     final b = await _glow(halation: 0.0);
@@ -127,8 +126,8 @@ void main() {
     final warm = await _glow(halation: 1.0);
 
     expect(
-      warm.red[centre] - warm.blue[centre],
-      plain.red[centre] - plain.blue[centre],
+      warm.red[center] - warm.blue[center],
+      plain.red[center] - plain.blue[center],
       reason:
           'a warm core means the amount was applied to every level, which '
           'is a colour cast on the glow rather than a halo around it',

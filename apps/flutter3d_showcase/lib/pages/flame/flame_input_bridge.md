@@ -1,7 +1,7 @@
 # One key, read by both engines
 
 `FlameInputBridge` does not invent its own key-to-action map. It looks a
-Flame key event up in the very same `Bindings` table `flutter3d_game`'s own
+Flame key event up in the very same `ActionMap` `flutter3d_game`'s own
 `DesktopInput` reads, and writes into the very same `InputState` — so a
 player who rebinds a key in one build keeps that rebind in the other.
 

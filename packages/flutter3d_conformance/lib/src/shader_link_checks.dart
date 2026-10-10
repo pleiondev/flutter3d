@@ -12,7 +12,7 @@ Future<void> checkShaderNames(GraphicsDevice device) async {
   // Named individually rather than counted: "seventeen of twenty-three" sends
   // somebody to diff two lists by hand.
   final missing = <String>[];
-  for (final shader in kRequiredShaders) {
+  for (final shader in requiredShaders) {
     if (device.shaders[shader.name] == null) missing.add(shader.name);
   }
   require(
@@ -81,6 +81,9 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // plain ones do not, so they are a different link.
       (vertex, 'ShadowDepthMasked'),
       (vertex, 'ShadowDistanceMasked'),
+      // `ShadowSettings.translucentCasters`: a see-through mesh into the
+      // sun's atlas, reading the normal the others ignore.
+      (vertex, 'ShadowTransmittance'),
     ],
     // The picking pass draws every mesh again through the stage its layout
     // needs — plain, skinned or instanced; a lightmapped mesh has the plain
@@ -89,21 +92,37 @@ Future<void> checkLinking(GraphicsDevice device) async {
     //
     // The x-ray stage reaches the same three, for the same reason. It declares
     // one output where the others declare two, which is the pairing least like
-    // the rest of this table and the one most worth linking here.
+    // the rest of this table and the one most worth linking here. `P4`'s
+    // planar reflection is drawn over its surfaces the same way, and declares
+    // one output for the same reason.
     for (final vertex in <String>[
       'MeshVertex',
       'MeshSkinnedVertex',
       'MeshInstancedVertex',
-    ]) ...<(String, String)>[(vertex, 'ObjectId'), (vertex, 'Xray')],
+    ]) ...<(String, String)>[
+      (vertex, 'ObjectId'),
+      (vertex, 'Xray'),
+      (vertex, 'PlanarReflection'),
+    ],
+    // `ShadowSettings.caustics`: a refracting caster's faces into its maps,
+    // through the static stage, and its photons, whose vertex stage reads
+    // three textures and draws one quad per instance.
+    ('MeshVertex', 'CausticSurface'),
+    ('CausticPhotonVertex', 'CausticPhoton'),
     // `R1`: the three stages a moved node is drawn through into the velocity
     // buffer, each with the one fragment stage that differences them.
     // `R4`: and with the stage that marks a blended surface reactive, which
-    // reads one of the three things they hand on.
+    // reads one of the three things they hand on. `N9`: and with the stage
+    // that writes a node's ring colour, which reads the same one.
     for (final vertex in <String>[
       'VelocityVertex',
       'VelocitySkinnedVertex',
       'VelocityInstancedVertex',
-    ]) ...<(String, String)>[(vertex, 'Velocity'), (vertex, 'Reactive')],
+    ]) ...<(String, String)>[
+      (vertex, 'Velocity'),
+      (vertex, 'Reactive'),
+      (vertex, 'OutlineMask'),
+    ],
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     // Every post stage the renderer builds a pipeline for, through the one
     // vertex stage they all share. The probe's convolution reads a cube through
@@ -115,6 +134,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
       // `C3`: the surface buffer reduced for the occlusion readback.
       'DepthPyramid',
       'ProbePrefilter',
+      // `P4`: a render texture's light into the bytes a material reads.
+      'RenderTextureEncode',
       'BloomThreshold',
       'BloomDownsample',
       'BloomUpsample',
@@ -145,6 +166,11 @@ Future<void> checkLinking(GraphicsDevice device) async {
       'VelocityNeighborMax',
       'MotionBlur',
       'ViewportShade',
+      // `N9`: the high-contrast look, over the frame, the surface buffer
+      // and the marks.
+      'HighContrast',
+      // `P3`: the decals, over the surface and albedo buffers.
+      'Decal',
       'MrtProbe',
       // `H5`: the field kernel the conformance suite steps `FieldPass` with.
       'FieldDecay',
@@ -199,6 +225,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     // and nothing ran them.
     ('SkyVertex', 'Sky'),
     ('SkyCubeVertex', 'SkyCube'),
+    // `P5`: the air's pair, whose seven varyings are new on both sides.
+    ('SkyPhysicalVertex', 'SkyPhysical'),
   ];
 
   for (final (vertexName, fragmentName) in pairs) {
@@ -211,7 +239,7 @@ Future<void> checkLinking(GraphicsDevice device) async {
     try {
       device.createPipeline(vertex!, fragment!);
     } catch (error) {
-      throw ConformanceFailure(
+      throw ConformanceFailureException(
         '$vertexName + $fragmentName does not link: '
         '$error',
       );

@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<materialx version="1.38">
+  <!-- Constants and an image scaled by a constant: parameters, an .fmat. -->
+  <standard_surface name="SR_gold" type="surfaceshader">
+    <input name="base_color" type="color3" value="1.0, 0.766, 0.336" />
+    <input name="metalness" type="float" value="1.0" />
+    <input name="specular_roughness" type="float" value="0.25" />
+    <input name="coat" type="float" value="0.5" />
+  </standard_surface>
+  <surfacematerial name="Gold" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="SR_gold" />
+  </surfacematerial>
+
+  <nodegraph name="NG_tinted">
+    <image name="wood" type="color3">
+      <input name="file" type="filename" value="wood.png" />
+    </image>
+    <multiply name="tint" type="color3">
+      <input name="in1" type="color3" nodename="wood" />
+      <input name="in2" type="float" value="0.8" />
+    </multiply>
+    <output name="out" type="color3" nodename="tint" />
+  </nodegraph>
+  <standard_surface name="SR_tinted" type="surfaceshader">
+    <input name="base_color" type="color3" nodegraph="NG_tinted" output="out" />
+  </standard_surface>
+  <surfacematerial name="TintedWood" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="SR_tinted" />
+  </surfacematerial>
+
+  <!-- A graph: two colours mixed across the surface. A program, an .f3dmat. -->
+  <nodegraph name="NG_gradient">
+    <texcoord name="uv" type="vector2" />
+    <extract name="u" type="float">
+      <input name="in" type="vector2" nodename="uv" />
+      <input name="index" type="integer" value="0" />
+    </extract>
+    <mix name="blend" type="color3">
+      <input name="bg" type="color3" value="0.1, 0.2, 0.8" />
+      <input name="fg" type="color3" value="0.9, 0.3, 0.1" />
+      <input name="mix" type="float" nodename="u" />
+    </mix>
+    <output name="out" type="color3" nodename="blend" />
+  </nodegraph>
+  <standard_surface name="SR_gradient" type="surfaceshader">
+    <input name="base_color" type="color3" nodegraph="NG_gradient" output="out" />
+    <input name="specular_roughness" type="float" value="0.5" />
+  </standard_surface>
+  <surfacematerial name="Gradient" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="SR_gradient" />
+  </surfacematerial>
+
+  <!-- A node the language has no word for: the nearest metal-rough surface. -->
+  <nodegraph name="NG_noisy">
+    <noise2d name="noise" type="color3">
+      <input name="amplitude" type="vector3" value="1, 1, 1" />
+    </noise2d>
+    <output name="out" type="color3" nodename="noise" />
+  </nodegraph>
+  <standard_surface name="SR_noisy" type="surfaceshader">
+    <input name="base_color" type="color3" nodegraph="NG_noisy" output="out" />
+  </standard_surface>
+  <surfacematerial name="Noisy" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="SR_noisy" />
+  </surfacematerial>
+</materialx>

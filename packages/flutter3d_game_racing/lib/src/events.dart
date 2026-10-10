@@ -1,9 +1,15 @@
 /// What a step of this game did, for a game that wants to hear about it.
 ///
-/// Drained from `RacingSimulation.events` after each step. See [GameEvent] for
-/// why this is a drained buffer rather than a stream, and for why nothing here
-/// names a sound: these say what happened, and what to do about it is the
-/// game's.
+/// Published onto the engine's bus from inside the step that raised them
+/// (`RacingSimulation.publishTo`, which `RacingPlugin` calls), each under the
+/// name `RacingPlugin` declares it with and with its codec. See [GameEvent]
+/// for why nothing here names a sound: these say what happened, and what to
+/// do about it is the game's.
+///
+/// **A racer's event reads back as null.** Its codec writes the car's
+/// [RacerProgress.index] and the event's own numbers, which is what a digest
+/// and a trace need; the [RacerProgress] it carries is live race state, which
+/// no plain value rebuilds.
 ///
 /// **Every one of these carries the racer it happened to**, which the flags
 /// they replace did not have to: a flag lived on one [RacerProgress], so a
@@ -16,6 +22,7 @@
 /// open, and nothing here dispatches on the type.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'racer_progress.dart';
@@ -44,24 +51,52 @@ abstract base class RacerEvent extends GameEvent {
 final class LapCompleted extends RacerEvent {
   const LapCompleted(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.lapCompleted';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<LapCompleted> codec = EventCodec<LapCompleted>.of(
+    encode: (LapCompleted e) => e.racer.index,
+    decode: (Object? data, int version) => null,
+  );
+
   @override
-  String get name => 'lap completed (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// The lap just completed was this car's quickest.
 final class BestLapSet extends RacerEvent {
   const BestLapSet(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.bestLapSet';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<BestLapSet> codec = EventCodec<BestLapSet>.of(
+    encode: (BestLapSet e) => e.racer.index,
+    decode: (Object? data, int version) => null,
+  );
+
   @override
-  String get name => 'best lap (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// A checkpoint was passed.
 final class CheckpointPassed extends RacerEvent {
   const CheckpointPassed(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.checkpointPassed';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<CheckpointPassed> codec =
+      EventCodec<CheckpointPassed>.of(
+        encode: (CheckpointPassed e) => e.racer.index,
+        decode: (Object? data, int version) => null,
+      );
+
   @override
-  String get name => 'checkpoint (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// The car started going the wrong way round.
@@ -71,8 +106,17 @@ final class CheckpointPassed extends RacerEvent {
 final class WentWrongWay extends RacerEvent {
   const WentWrongWay(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.wentWrongWay';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<WentWrongWay> codec = EventCodec<WentWrongWay>.of(
+    encode: (WentWrongWay e) => e.racer.index,
+    decode: (Object? data, int version) => null,
+  );
+
   @override
-  String get name => 'wrong way (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// The car left the road.
@@ -82,24 +126,51 @@ final class WentWrongWay extends RacerEvent {
 final class LeftTheRoad extends RacerEvent {
   const LeftTheRoad(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.leftTheRoad';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<LeftTheRoad> codec = EventCodec<LeftTheRoad>.of(
+    encode: (LeftTheRoad e) => e.racer.index,
+    decode: (Object? data, int version) => null,
+  );
+
   @override
-  String get name => 'left the road (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// The car was put back on the road.
 final class Respawned extends RacerEvent {
   const Respawned(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.respawned';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<Respawned> codec = EventCodec<Respawned>.of(
+    encode: (Respawned e) => e.racer.index,
+    decode: (Object? data, int version) => null,
+  );
+
   @override
-  String get name => 'respawned (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// The car crossed the line for the last time.
 final class RacerFinished extends RacerEvent {
   const RacerFinished(super.racer);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.racerFinished';
+
+  /// Its codec: the car's index. Reads back as null; see the library doc.
+  static final EventCodec<RacerFinished> codec = EventCodec<RacerFinished>.of(
+    encode: (RacerFinished e) => e.racer.index,
+    decode: (Object? data, int version) => null,
+  );
+
   @override
-  String get name => 'finished (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// The starting light changed.
@@ -109,27 +180,56 @@ final class RacerFinished extends RacerEvent {
 final class CountdownTicked extends GameEvent {
   const CountdownTicked(this.remaining);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.countdownTicked';
+
+  /// Its codec: the lights left. Reads back whole.
+  static final EventCodec<CountdownTicked> codec =
+      EventCodec<CountdownTicked>.of(
+        encode: (CountdownTicked e) => e.remaining,
+        decode: (Object? data, int version) =>
+            data is int ? CountdownTicked(data) : null,
+      );
+
   /// How many lights are left, counting down to zero.
   final int remaining;
 
   @override
-  String get name => 'countdown ($remaining)';
+  String get name => eventName;
 }
 
 /// The lights went out and the race is running.
 final class RaceStarted extends GameEvent {
   const RaceStarted();
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.raceStarted';
+
+  /// Its codec: nothing to write. Reads back whole.
+  static final EventCodec<RaceStarted> codec = EventCodec<RaceStarted>.of(
+    encode: (RaceStarted e) => null,
+    decode: (Object? data, int version) => const RaceStarted(),
+  );
+
   @override
-  String get name => 'race started';
+  String get name => eventName;
 }
 
 /// The race is over for everybody.
 final class RaceFinished extends GameEvent {
   const RaceFinished();
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.raceFinished';
+
+  /// Its codec: nothing to write. Reads back whole.
+  static final EventCodec<RaceFinished> codec = EventCodec<RaceFinished>.of(
+    encode: (RaceFinished e) => null,
+    decode: (Object? data, int version) => const RaceFinished(),
+  );
+
   @override
-  String get name => 'race finished';
+  String get name => eventName;
 }
 
 /// A sector was finished.
@@ -146,6 +246,22 @@ final class RaceFinished extends GameEvent {
 final class SectorCompleted extends RacerEvent {
   const SectorCompleted(super.racer, this.sector, this.time, this.delta);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.sectorCompleted';
+
+  /// Its codec: the car's index, the sector, its time and the delta. Reads
+  /// back as null; see the library doc.
+  static final EventCodec<SectorCompleted> codec =
+      EventCodec<SectorCompleted>.of(
+        encode: (SectorCompleted e) => <Object?>[
+          e.racer.index,
+          e.sector,
+          e.time,
+          e.delta,
+        ],
+        decode: (Object? data, int version) => null,
+      );
+
   /// Which sector, counting from nought at the line.
   final int sector;
 
@@ -155,10 +271,11 @@ final class SectorCompleted extends RacerEvent {
   /// How much slower than this driver's best for this sector, or null when
   /// there was no best to compare against — which is every sector of a first
   /// lap. Negative is quicker, and quicker is what has just become the best.
+  /// In simulated seconds.
   final double? delta;
 
   @override
-  String get name => 'sector $sector in $time (car ${racer.index})';
+  String get name => eventName;
 }
 
 /// A slide ended, and here is what it was worth.
@@ -170,12 +287,24 @@ final class SectorCompleted extends RacerEvent {
 final class DriftScored extends RacerEvent {
   const DriftScored(super.racer, this.score, this.seconds);
 
+  /// The name it is declared and published under.
+  static const String eventName = 'racing.driftScored';
+
+  /// Its codec: the car's index, the score and how long the slide was held.
+  /// Reads back as null; see the library doc.
+  static final EventCodec<DriftScored> codec = EventCodec<DriftScored>.of(
+    encode: (DriftScored e) => <Object?>[e.racer.index, e.score, e.seconds],
+    decode: (Object? data, int version) => null,
+  );
+
   /// What it was worth. Grows with how far sideways and how fast.
+  /// In radian-metres, as `RacerProgress.driftScore` is.
   final double score;
 
   /// How long it was held.
+  /// In simulated seconds.
   final double seconds;
 
   @override
-  String get name => 'drift worth $score over $seconds (car ${racer.index})';
+  String get name => eventName;
 }

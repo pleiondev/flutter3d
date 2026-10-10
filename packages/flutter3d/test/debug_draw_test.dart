@@ -6,6 +6,7 @@ import 'package:flutter3d_core/src/engine/render/debug_draw.dart';
 import 'package:flutter3d_core/src/engine/render/debug_draw_gizmos.dart';
 import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -23,8 +24,14 @@ import 'package:vector_math/vector_math.dart';
   );
 }
 
+/// [color] as the buffer holds it: encoded for the display, in float32.
+Vector4 _drawn(LinearColor color) {
+  final (:r, :g, :b, :a) = color.toSrgb();
+  return Vector4(r, g, b, a);
+}
+
 void main() {
-  final red = Vector4(1.0, 0.0, 0.0, 1.0);
+  const red = LinearColor(1.0, 0.0, 0.0);
 
   group('line buffer', () {
     test('a segment writes two vertices carrying the same colour', () {
@@ -38,8 +45,8 @@ void main() {
       final b = _vertexAt(draw, 1);
       expect(a.position, Vector3(1.0, 2.0, 3.0));
       expect(b.position, Vector3(4.0, 5.0, 6.0));
-      expect(a.color, red);
-      expect(b.color, red);
+      expect(a.color, _drawn(red));
+      expect(b.color, _drawn(red));
     });
 
     test('clear rewinds without shrinking the buffer', () {
@@ -200,12 +207,12 @@ void main() {
 
   group('options', () {
     test('nothing enabled means nothing to build', () {
-      expect(const DebugDrawOptions().anyEnabled, isFalse);
-      expect(const DebugDrawOptions(bounds: true).anyEnabled, isTrue);
+      expect(const DebugDrawSettings().anyEnabled, isFalse);
+      expect(const DebugDrawSettings(bounds: true).anyEnabled, isTrue);
     });
 
     test('copyWith changes one flag and keeps the rest', () {
-      const base = DebugDrawOptions(bounds: true, normalLength: 0.5);
+      const base = DebugDrawSettings(bounds: true, normalLength: 0.5);
       final next = base.copyWith(normals: true);
       expect(next.bounds, isTrue);
       expect(next.normals, isTrue);
@@ -250,7 +257,7 @@ void main() {
         ..addLine(
           Vector3(0.0, 0.0, 5.0), // behind the camera
           Vector3(0.0, 0.0, -5.0), // in front of it
-          Vector4(1.0, 1.0, 1.0, 1.0),
+          LinearColor.white,
         );
 
       draw.clipToNearPlane(lookingDownNegativeZ());
@@ -274,7 +281,7 @@ void main() {
         ..addLine(
           Vector3(-2.0, 0.0, 5.0),
           Vector3(2.0, 0.0, 7.0),
-          Vector4(1.0, 1.0, 1.0, 1.0),
+          LinearColor.white,
         );
 
       draw.clipToNearPlane(lookingDownNegativeZ());
@@ -289,7 +296,7 @@ void main() {
         ..addLine(
           Vector3(-1.0, 0.0, -3.0),
           Vector3(1.0, 0.0, -9.0),
-          Vector4(1.0, 1.0, 1.0, 1.0),
+          LinearColor.white,
         );
 
       draw.clipToNearPlane(lookingDownNegativeZ());
@@ -307,7 +314,7 @@ void main() {
     // scene in this repository holds one camera, and the one camera is always
     // the one being rendered — which the overlay skips, because drawing the
     // frustum of the camera you are looking through outlines the screen. So
-    // `DebugDrawOptions.cameraFrustums` could be switched on anywhere in the
+    // `DebugDrawSettings.cameraFrustums` could be switched on anywhere in the
     // tree and draw nothing, and no picture and no test would differ. That is
     // what the site's caption for `debug-overlay` described for as long as it
     // did: a frustum in a frame whose scene held one camera. The demo now hangs
@@ -341,7 +348,7 @@ void main() {
           // Axes as well, so the builder is definitely past `anyEnabled` and
           // into the frustum branch — three lines is "reached and answered
           // nothing", and an empty buffer would not have told them apart.
-          const DebugDrawOptions(cameraFrustums: true, axes: true),
+          const DebugDrawSettings(cameraFrustums: true, axes: true),
           activeCamera: eye,
         );
 
@@ -356,7 +363,7 @@ void main() {
       final draw = DebugDraw()
         ..buildForScene(
           scene,
-          const DebugDrawOptions(cameraFrustums: true),
+          const DebugDrawSettings(cameraFrustums: true),
           activeCamera: scene.cameras.first,
         );
 
@@ -368,7 +375,7 @@ void main() {
       final draw = DebugDraw()
         ..buildForScene(
           scene,
-          const DebugDrawOptions(),
+          const DebugDrawSettings(),
           activeCamera: scene.cameras.first,
         );
 
@@ -382,7 +389,7 @@ void main() {
       final axesOnly = DebugDraw()
         ..buildForScene(
           scene,
-          const DebugDrawOptions(axes: true),
+          const DebugDrawSettings(axes: true),
           activeCamera: scene.cameras.first,
         );
 
@@ -471,10 +478,10 @@ void main() {
       ];
       expect(cross, hasLength(6));
       for (final vertex in bone) {
-        expect(vertex.color, DebugColors.jointProblem);
+        expect(vertex.color, _drawn(DebugColors.jointProblem));
       }
       for (final vertex in cross) {
-        expect(vertex.color, red);
+        expect(vertex.color, _drawn(red));
       }
     });
 
@@ -508,7 +515,7 @@ void main() {
         ],
       );
       scene.root.add(
-        MeshNode(CpuMesh(CuboidShape().build()), Material())
+        MeshNode(CpuMesh(CuboidShape().build()), RenderMaterial())
           ..skeleton = skeleton,
       );
       return (scene: scene, root: root, mid: mid);
@@ -517,7 +524,7 @@ void main() {
     test('a skinned mesh draws one bone and one leaf cross', () {
       final it = skinnedScene();
       final draw = DebugDraw()
-        ..buildForScene(it.scene, const DebugDrawOptions(skeletons: true));
+        ..buildForScene(it.scene, const DebugDrawSettings(skeletons: true));
 
       // Root has a child: one bone, twelve edges. Mid has none: one cross,
       // three edges. Fifteen in all, an endpoint at each joint.
@@ -541,7 +548,7 @@ void main() {
       it.root.setPosition(5.0, 0.0, 0.0);
 
       final draw = DebugDraw()
-        ..buildForScene(it.scene, const DebugDrawOptions(skeletons: true));
+        ..buildForScene(it.scene, const DebugDrawSettings(skeletons: true));
 
       var sawMovedRoot = false;
       for (var i = 0; i < draw.vertexCount; i++) {
@@ -555,16 +562,18 @@ void main() {
     test('the option off draws nothing for a rigged scene', () {
       final it = skinnedScene();
       final draw = DebugDraw()
-        ..buildForScene(it.scene, const DebugDrawOptions());
+        ..buildForScene(it.scene, const DebugDrawSettings());
       expect(draw.isEmpty, isTrue);
     });
 
     test('an unskinned mesh in the same scene contributes nothing', () {
       final scene = Scene(name: 'plain');
-      scene.root.add(MeshNode(CpuMesh(CuboidShape().build()), Material()));
+      scene.root.add(
+        MeshNode(CpuMesh(CuboidShape().build()), RenderMaterial()),
+      );
 
       final draw = DebugDraw()
-        ..buildForScene(scene, const DebugDrawOptions(skeletons: true));
+        ..buildForScene(scene, const DebugDrawSettings(skeletons: true));
       expect(draw.isEmpty, isTrue);
     });
   });

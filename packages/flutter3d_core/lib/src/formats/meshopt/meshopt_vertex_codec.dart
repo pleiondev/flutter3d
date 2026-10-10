@@ -27,6 +27,7 @@ library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
+import '../format_exceptions.dart';
 
 /// The one header byte a version-0 vertex buffer starts with.
 const int kMeshoptVertexHeaderV0 = 0xa0;
@@ -53,7 +54,7 @@ int _maxBlockElements(int byteStride) =>
 /// reference decoder's `decodeVertexBuffer` with its filters and its
 /// version-1 channel logic removed, since this codec produces neither.
 ///
-/// Throws [FormatException] for anything it cannot decode, a truncated
+/// Throws [MeshoptFormatException] for anything it cannot decode, a truncated
 /// stream included.
 Uint8List decodeMeshoptVertexBufferV0(
   Uint8List source,
@@ -61,14 +62,14 @@ Uint8List decodeMeshoptVertexBufferV0(
   int byteStride,
 ) {
   if (source.isEmpty || source[0] != kMeshoptVertexHeaderV0) {
-    throw const FormatException(
+    throw const MeshoptFormatException(
       'not a version-0 meshopt vertex buffer (wrong header byte)',
     );
   }
   // Past 256 bytes a block holds no elements, and the block loop below would
   // never advance.
   if (byteStride <= 0 || byteStride > 256 || elementCount < 0) {
-    throw FormatException(
+    throw MeshoptFormatException(
       'meshopt vertex buffer: $elementCount elements of $byteStride bytes',
     );
   }
@@ -77,7 +78,7 @@ Uint8List decodeMeshoptVertexBufferV0(
   } on RangeError {
     // A truncated stream indexes past its own end somewhere in the block
     // loop; the caller was promised one kind of exception.
-    throw const FormatException(
+    throw const MeshoptFormatException(
       'meshopt vertex buffer: the stream ends part way through',
     );
   }
@@ -168,7 +169,7 @@ Uint8List _decodeVertexBufferV0(
   }
 
   if (srcOffs != source.length - tailSizePadded) {
-    throw const FormatException(
+    throw const MeshoptFormatException(
       'meshopt vertex buffer: data did not end where its own tail begins',
     );
   }

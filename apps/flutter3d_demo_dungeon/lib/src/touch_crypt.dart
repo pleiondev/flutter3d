@@ -1,8 +1,8 @@
 /// The crypt under two thumbs.
 ///
-/// **`TouchControls` does not fit this game any more, and that is a statement
-/// about the game rather than about the widget.** It is a stick and a row of
-/// buttons — a platformer's hands, and the shape the crypt borrowed when it
+/// **A stick and a row of buttons does not fit this game any more, and that
+/// is a statement about the game rather than about the widget.** That is a
+/// platformer's hands, and the shape the crypt borrowed when it
 /// had two verbs to offer. Two was what it offered: `use` and `fire`. The
 /// arsenal is four weapons deep and only the one already in hand could be
 /// fired; the automap, which the whole of `Automap` and `AutomapView` exist
@@ -34,11 +34,15 @@
 /// `Positioned.fill` underneath all of this, so every pixel a control covers
 /// is a pixel the player cannot turn the view with. That is why the map and
 /// the weapons hug the edges rather than sitting where they would read best.
+///
+/// The layout is `TouchControls`, from `flutter3d_game_ui`, with its slots
+/// and its corner filled in, which other games with many verbs use too. What is here is the crypt's: which verbs, in which
+/// order, and the arsenal read into the slot row.
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Everything the crypt can be played with, on a device with no keyboard.
@@ -89,50 +93,23 @@ class TouchCrypt extends StatelessWidget {
       arsenal.isEmpty ? -1 : arsenal.slots.indexOf(arsenal.current);
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: Stack(
-      children: <Widget>[
-        Positioned(left: 28, bottom: 28, child: TouchStick(state: state)),
-        // The corner nothing else uses, and the control that is set rather
-        // than pressed. The map does not pause the crypt — see the M key — so
-        // it is opened and left open, and a button that had to be held would
-        // be a hand that cannot fight while it reads.
-        Positioned(
-          right: 28,
-          top: 28,
-          child: TouchToggle(label: 'map', on: mapOn, onTap: onMap),
-        ),
-        // Up the right edge and clear of the cluster: far enough that a thumb
-        // coming off the trigger cannot brush it, near enough to be reached
-        // without letting go of the stick.
-        Positioned(
-          right: 28,
-          bottom: 116,
-          child: TouchSlots(state: state, slots: _slots, current: _held),
-        ),
-        Positioned(
-          right: 28,
-          bottom: 28,
-          child: Wrap(
-            spacing: 14,
-            alignment: WrapAlignment.end,
-            children: <Widget>[
-              // Aimed: it reads whatever is under the crosshair, so it is the
-              // one of the three that wants the view pointed first — and the
-              // furthest from the thumb's resting place for that reason.
-              TouchButton(state: state, action: GameAction.use, label: 'use'),
-              TouchButton(state: state, action: GameAction.jump, label: 'jump'),
-              // Nearest the thumb, because it is the one held for the whole
-              // corridor.
-              TouchButton(
-                state: state,
-                action: ShooterActions.fire,
-                label: 'fire',
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => TouchControls(
+    state: state,
+    // The corner nothing else uses, and the control that is set rather than
+    // pressed. The map does not pause the crypt — see the M key — so it is
+    // opened and left open, and a button that had to be held would be a hand
+    // that cannot fight while it reads.
+    corner: TouchToggle(label: 'map', on: mapOn, onTap: onMap),
+    slots: _slots,
+    current: _held,
+    buttons: const <TouchAction>[
+      // Aimed: it reads whatever is under the crosshair, so it is the one of
+      // the three that wants the view pointed first — and the furthest from
+      // the thumb's resting place for that reason.
+      TouchAction(GameAction.use, 'use'),
+      TouchAction(GameAction.jump, 'jump'),
+      // Nearest the thumb, because it is the one held for the whole corridor.
+      TouchAction(ShooterActions.fire, 'fire'),
+    ],
   );
 }

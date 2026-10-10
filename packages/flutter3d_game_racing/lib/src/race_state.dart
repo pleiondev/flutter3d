@@ -35,6 +35,7 @@ final class RaceState {
   /// How many laps a race is. Ignored in the modes that do not end.
   final int laps;
 
+  /// How long the countdown before the start lasts, in seconds.
   final double countdownSeconds;
 
   /// One per car, in the order the cars were given. Nought is the player.
@@ -66,14 +67,15 @@ final class RaceState {
   }
 
   bool _isAhead(RacerProgress other, RacerProgress mine) {
-    if (other.finished && mine.finished) {
+    if (other.isFinished && mine.isFinished) {
       return other.finishedAt! < mine.finishedAt!;
     }
-    if (other.finished != mine.finished) return other.finished;
+    if (other.isFinished != mine.isFinished) return other.isFinished;
     return other.progressAlong(track.length) > mine.progressAlong(track.length);
   }
 
   /// The quickest lap anybody has done, or null before there is one.
+  /// In seconds.
   double? get bestLap {
     double? best;
     for (final racer in progress) {
@@ -105,7 +107,7 @@ final class RaceState {
   /// the snapshot machinery keeps, so that a save from a build with a smaller
   /// grid loads rather than refuses.
   void restore(Map<String, Object?> from) {
-    phase = from.enumOf('phase', RacePhase.values, phase);
+    phase = RacePhase.byName(from['phase']) ?? phase;
     countdown = from.number('countdown', countdown);
     elapsed = from.number('elapsed');
     final rows = from['progress'];

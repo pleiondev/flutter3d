@@ -32,6 +32,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'flutter3d_cpu.dart';
+import 'src/cpu_shaders_builtin.dart' show UnlitShader;
 
 /// A one-pixel texture of [rgba], on [device].
 ///
@@ -44,7 +45,7 @@ TextureHandle texelOn(CpuDevice device, List<int> rgba) =>
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
 
 /// A [CpuDevice] with the builtin shaders, and the fallbacks a renderer needs.
 ///
@@ -69,3 +70,8 @@ TextureHandle texelOn(CpuDevice device, List<int> rgba) =>
     normal: texelOn(device, <int>[128, 128, 255, 255]),
   );
 }
+
+/// An unlit stage, for a test that hands the software rasteriser a
+/// material stage the engine does not ship (a game's `Liquid`) and wants it
+/// drawn in its base colour: `'Liquid': cpuUnlitStage`.
+const CpuStage cpuUnlitStage = CpuStage.fragment(UnlitShader());

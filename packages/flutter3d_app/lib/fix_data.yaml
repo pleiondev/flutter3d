@@ -1,0 +1,63 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: testing-MaterialProgramStage (MaterialProgramStage)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_testing/flutter3d_testing.dart']
+      class: 'MaterialProgramStage'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_app/flutter3d_app.dart']
+          class: 'MaterialProgramStage'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-WidgetSurface-WidgetSurface'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      constructor: ''
+      inClass: 'WidgetSurface'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'pixelsPerMetre'
+        newName: 'pixelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-TerrainTiles-TerrainTiles'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      constructor: ''
+      inClass: 'TerrainTiles'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresPerTexture'
+        newName: 'metersPerTexture'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-TerrainTiles-metresPerTexture'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      field: 'metresPerTexture'
+      inClass: 'TerrainTiles'
+    changes:
+      - kind: 'rename'
+        newName: 'metersPerTexture'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-app-kFixedResolution'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart']
+      variable: 'kFixedResolution'
+    changes:
+      - kind: 'rename'
+        newName: 'fixedResolution'
+  - title: 'flutter3d 1.0.0-rc.1: f1-rename-app-DocumentText'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      typedef: 'DocumentText'
+    changes:
+      - kind: 'rename'
+        newName: 'LevelDocumentText'

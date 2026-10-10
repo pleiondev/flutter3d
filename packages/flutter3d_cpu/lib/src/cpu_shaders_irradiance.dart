@@ -33,7 +33,7 @@ Vector2 _octahedral(Vector3 d) {
 
 /// `probe/irradiance_convolve.frag` — `L4`: one probe's two tiles updated
 /// from its capture, everything else copied through.
-final class IrradianceConvolveShader implements CpuFragmentShader {
+final class IrradianceConvolveShader extends CpuFragmentShader {
   const IrradianceConvolveShader();
 
   /// `CubeTexel`, normalised, with its solid angle, for every texel of a

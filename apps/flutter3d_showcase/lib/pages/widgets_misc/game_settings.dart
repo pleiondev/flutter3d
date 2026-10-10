@@ -1,16 +1,13 @@
 /// What a player has changed about how the game behaves for them, and where
 /// a run in progress is kept between launches.
 ///
-/// **`flutter3d_game`'s real `GameConfig`, `SaveFile` and `SettingsPanel` are
-/// not a dependency of this app.** `GameConfig` is two maps of numbers with
-/// no file and no platform behind it; this page reimplements exactly that
-/// shape. `SaveFile` is thinner still — underneath its own few lines it is
-/// entirely the real `Storage` and `Snapshot` this app already depends on
-/// through `flutter3d_app` and `flutter3d_sim`, so this page's version calls
-/// those directly rather than reimplementing anything of substance.
-/// `SettingsPanel` itself is a Flutter widget over a `Bindings` and a
-/// gamepad's dead zone, both of which live in packages this app does not
-/// have; it is described in the guide rather than built here.
+/// `flutter3d_game`'s `GameSettings` is a value: a volume per audio bus,
+/// typed settings under namespaced keys, and the player's action map, each
+/// change a copy. It is written in the format envelope as `f3d.settings`.
+/// `SaveFile` is thin enough that this page calls the real `Storage` and
+/// `Snapshot` under it directly. `SettingsPanel` is the widget over a
+/// `GameSettingsController`, made of `SettingsSection`s; it is described in
+/// the guide rather than built here.
 ///
 /// Quoted by `game_settings.md` and shown whole in the Source tab.
 library;
@@ -20,27 +17,19 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart' show AudioBus;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show GameSettingKeys, GameSettings, SettingKey;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region config
-/// Everything a player has changed, as two maps of numbers: no file, no
-/// path, no platform. Where the bytes go is the application's business.
-final class _GameConfig {
-  _GameConfig({Map<String, double>? volumes, Map<String, double>? settings})
-    : volumes = <String, double>{...?volumes},
-      settings = <String, double>{...?settings};
-
-  final Map<String, double> volumes;
-  final Map<String, double> settings;
-
-  double volumeOf(String bus) => volumes[bus] ?? 1.0;
-  void setVolume(String bus, double volume) =>
-      volumes[bus] = volume.clamp(0.0, 1.0);
-  double settingOf(String name, double fallback) => settings[name] ?? fallback;
-  void setSetting(String name, double value) => settings[name] = value;
-}
+/// A setting of this game's own: typed, under its own namespace, with what it
+/// is when the player has not chosen.
+const SettingKey<bool> _subtitles = SettingKey<bool>(
+  'showcase.subtitles',
+  fallback: true,
+);
 // #endregion config
 
 // #region save
@@ -52,8 +41,8 @@ final class _SaveFile {
   final Storage _storage;
   static const String _name = 'save.json';
 
-  ({String level, Snapshot run})? read() {
-    final text = _storage.read(_name);
+  Future<({String level, Snapshot run})?> read() async {
+    final text = await _storage.read(_name);
     if (text == null) return null;
     final json = jsonDecode(text) as Map<String, Object?>;
     return (
@@ -62,12 +51,12 @@ final class _SaveFile {
     );
   }
 
-  bool write(String level, Snapshot run) => _storage.write(
+  Future<void> write(String level, Snapshot run) => _storage.write(
     _name,
     jsonEncode(<String, Object?>{'level': level, 'run': run.toJson()}),
   );
 
-  void clear() => _storage.remove(_name);
+  Future<void> clear() => _storage.remove(_name);
 }
 // #endregion save
 
@@ -80,7 +69,7 @@ final class GameSettingsDemo extends ShowcaseDemo {
   late final bool _clearedSaveIsGone;
 
   @override
-  Scene build(DemoContext context) {
+  Future<void> prepare(DemoContext context) async {
     final (
       String report,
       double musicVolume,
@@ -88,16 +77,20 @@ final class GameSettingsDemo extends ShowcaseDemo {
       String? resumedLevel,
       double? resumedX,
       bool clearedSaveIsGone,
-    ) = _run();
+    ) = await _run();
     _report = report;
     _musicVolume = musicVolume;
     _sfxVolume = sfxVolume;
     _resumedLevel = resumedLevel;
     _resumedX = resumedX;
     _clearedSaveIsGone = clearedSaveIsGone;
-    final material = Material(
+  }
+
+  @override
+  Scene build(DemoContext context) {
+    final material = RenderMaterial(
       name: 'panel',
-      baseColor: Vector4(0.5, 0.7, 0.5, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.7, 0.5, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -106,27 +99,31 @@ final class GameSettingsDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
 
-  static (String, double, double, String?, double?, bool) _run() {
+  static Future<(String, double, double, String?, double?, bool)> _run() async {
     // #region use
-    final config = _GameConfig()
-      ..setVolume('music', 0.6)
-      ..setSetting('a11y.cameraMotion', 0.0);
-    final musicVolume = config.volumeOf('music');
-    final sfxVolume = config.volumeOf('sfx');
-    final cameraMotion = config.settingOf('a11y.cameraMotion', 1.0);
+    final config = const GameSettings()
+        .withVolume(AudioBus.music, 0.6)
+        .withValue(GameSettingKeys.cameraMotion, 0.0)
+        .withValue(_subtitles, false);
+    final musicVolume = config.volumeOf(AudioBus.music);
+    final sfxVolume = config.volumeOf(AudioBus.sfx);
+    final cameraMotion = config.valueOf(GameSettingKeys.cameraMotion);
+    // The file, in the envelope, read back.
+    final read = GameSettings.fromJson(config.toJson());
+    assert(!read.valueOf(_subtitles), 'a setting of its own came back');
     // #endregion use
 
     final save = _SaveFile(appName: 'flutter3d-showcase-demo');
     final snapshot = Snapshot(<String, Object?>{'x': 4.5});
-    save.write('levels/one.json', snapshot);
-    final resumed = save.read();
-    save.clear();
-    final afterClear = save.read();
+    await save.write('levels/one.json', snapshot);
+    final resumed = await save.read();
+    await save.clear();
+    final afterClear = await save.read();
 
     final resumedX = (resumed?.run.data['x'] as num?)?.toDouble();
     final report =

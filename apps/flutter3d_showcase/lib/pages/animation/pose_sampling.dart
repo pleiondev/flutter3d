@@ -15,7 +15,7 @@ import 'package:vector_math/vector_math.dart';
 final class PoseSamplingDemo extends ShowcaseDemo {
   double _time = 0.3;
 
-  late final Pose _pose;
+  late final AnimationPose _pose;
   late final AnimationClip _swing;
   late final MeshNode _rootMarker;
   late final MeshNode _tipMarker;
@@ -30,7 +30,7 @@ final class PoseSamplingDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region pose
-    _pose = Pose(
+    _pose = AnimationPose(
       parents: <int>[-1, 0],
       restTranslations: Float32List.fromList(<double>[
         0.0,
@@ -89,12 +89,18 @@ final class PoseSamplingDemo extends ShowcaseDemo {
     );
     _rootMarker = MeshNode(
       bead,
-      Material(name: 'root', baseColor: Vector4(0.6, 0.6, 0.65, 1.0)),
+      RenderMaterial(
+        name: 'root',
+        baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.65, 1.0),
+      ),
       name: 'root marker',
     );
     _tipMarker = MeshNode(
       bead,
-      Material(name: 'tip', baseColor: Vector4(0.9, 0.5, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'tip',
+        baseColor: LinearColor.fromSrgb(0.9, 0.5, 0.2, 1.0),
+      ),
       name: 'tip marker',
     );
 
@@ -102,7 +108,7 @@ final class PoseSamplingDemo extends ShowcaseDemo {
       ..add(_rootMarker)
       ..add(_tipMarker)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.7, -0.5)),
       );
   }

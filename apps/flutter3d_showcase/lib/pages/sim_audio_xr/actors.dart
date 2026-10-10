@@ -7,9 +7,10 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region brain
 /// A brain with one bit of memory: whether it has ever been hurt.
@@ -37,7 +38,7 @@ final class ActorsDemo extends ShowcaseDemo {
   late final _WaryBrain _brain;
   late final MeshNode _body;
   late final MeshNode _bar;
-  late final Material _skin;
+  late final RenderMaterial _skin;
   double _hitAsked = 0.0;
   bool _resetAsked = false;
   double _flash = 0.0;
@@ -66,7 +67,7 @@ final class ActorsDemo extends ShowcaseDemo {
     _rememberedBeingHurt = rememberedBeingHurt;
 
     _spawn();
-    _skin = Material(name: 'goblin', baseColor: _healthy);
+    _skin = RenderMaterial(name: 'goblin', baseColor: _fromSrgb(_healthy));
     _body = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),
       _skin,
@@ -74,7 +75,7 @@ final class ActorsDemo extends ShowcaseDemo {
     );
     MeshNode block(String name, Vector3 size, Vector4 color) => MeshNode(
       DeviceMesh.upload(context.device, CuboidShape(size: size).build()),
-      Material(name: name, baseColor: color),
+      RenderMaterial(name: name, baseColor: _fromSrgb(color)),
       name: name,
     );
     _bar = block(
@@ -83,8 +84,8 @@ final class ActorsDemo extends ShowcaseDemo {
       Vector4(0.3, 0.8, 0.3, 1.0),
     );
     return Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(
         block('floor', Vector3(6.0, 0.1, 6.0), Vector4(0.36, 0.4, 0.38, 1.0))
           ..setPosition(0.0, -0.05, 0.0),
@@ -99,7 +100,7 @@ final class ActorsDemo extends ShowcaseDemo {
       ..add(_body)
       ..add(_bar)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -144,7 +145,7 @@ final class ActorsDemo extends ShowcaseDemo {
     _bar
       ..setScale(math.max(fraction, 0.001), 1.0, 1.0)
       ..setPosition(-(1.0 - fraction) * _barWidth / 2, 1.5, 0.05);
-    _bar.material.baseColor.setValues(
+    _bar.material.baseColor = LinearColor.fromSrgb(
       1.0 - fraction * 0.7,
       0.2 + 0.6 * fraction,
       0.2,
@@ -157,13 +158,13 @@ final class ActorsDemo extends ShowcaseDemo {
       _body
         ..setScale(1.0 + 0.2 * _flash, squash, 1.0 + 0.2 * _flash)
         ..setPosition(0.0, 0.5 * squash, 0.0);
-      _skin.baseColor.setFrom(_brain.everHurt ? _wary : _healthy);
+      _skin.baseColor = _fromSrgb(_brain.everHurt ? _wary : _healthy);
     } else {
       // Dead: flat on the floor and grey.
       _body
         ..setScale(1.2, 0.2, 1.2)
         ..setPosition(0.0, 0.1, 0.0);
-      _skin.baseColor.setValues(0.35, 0.35, 0.37, 1.0);
+      _skin.baseColor = LinearColor.fromSrgb(0.35, 0.35, 0.37, 1.0);
     }
   }
 
@@ -216,7 +217,7 @@ final class ActorsDemo extends ShowcaseDemo {
   /// `Mind`, and a `Mind` only needs a system to ask `focus` of, which this
   /// page never calls. A throwaway system is enough to build one.
   static ActorSystem _stubSystem() =>
-      ActorSystem(world: CollisionWorld(), random: GameRandom(1));
+      ActorSystem(world: onRunPhysics(CollisionWorld()), random: GameRandom(1));
 
   @override
   void verify(Scene scene, FrameResult frame) {
@@ -238,3 +239,6 @@ final class ActorsDemo extends ShowcaseDemo {
     }
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

@@ -2,9 +2,9 @@
 ///
 /// All in one place and all plain units, so that tuning a car is reading a
 /// table rather than hunting through a step function — the same reason the
-/// platformer's `MovementTuning` and `RunnerTuning` exist.
-final class VehicleTuning {
-  const VehicleTuning({
+/// platformer's `MovementSettings` and `RunnerSettings` exist.
+final class VehicleSettings {
+  const VehicleSettings({
     this.radius = 0.7,
     this.rideHeight = 0.55,
     this.maxSpeed = 52.0,
@@ -20,7 +20,6 @@ final class VehicleTuning {
     this.maxSteer = 0.62,
     this.steerFalloff = 26.0,
     this.wheelBase = 2.7,
-    this.gravity = 20.0,
     this.impactShrugged = 6.0,
     this.impactCost = 0.017,
     this.powerLostWhenWrecked = 0.45,
@@ -31,15 +30,70 @@ final class VehicleTuning {
     this.wheelInertia = 0.25,
   });
 
+  /// A copy with the given fields replaced.
+  VehicleSettings copyWith({
+    double? radius,
+    double? rideHeight,
+    double? maxSpeed,
+    double? maxReverse,
+    double? enginePush,
+    double? brakeStrength,
+    double? rollingDrag,
+    double? rollingResistance,
+    double? holdSpeed,
+    double? holdSlope,
+    double? airDrag,
+    double? slipstream,
+    double? maxSteer,
+    double? steerFalloff,
+    double? wheelBase,
+    double? impactShrugged,
+    double? impactCost,
+    double? powerLostWhenWrecked,
+    double? speedLostWhenWrecked,
+    double? groundStick,
+    double? suspensionRate,
+    double? slideAlignment,
+    double? wheelInertia,
+  }) => VehicleSettings(
+    radius: radius ?? this.radius,
+    rideHeight: rideHeight ?? this.rideHeight,
+    maxSpeed: maxSpeed ?? this.maxSpeed,
+    maxReverse: maxReverse ?? this.maxReverse,
+    enginePush: enginePush ?? this.enginePush,
+    brakeStrength: brakeStrength ?? this.brakeStrength,
+    rollingDrag: rollingDrag ?? this.rollingDrag,
+    rollingResistance: rollingResistance ?? this.rollingResistance,
+    holdSpeed: holdSpeed ?? this.holdSpeed,
+    holdSlope: holdSlope ?? this.holdSlope,
+    airDrag: airDrag ?? this.airDrag,
+    slipstream: slipstream ?? this.slipstream,
+    maxSteer: maxSteer ?? this.maxSteer,
+    steerFalloff: steerFalloff ?? this.steerFalloff,
+    wheelBase: wheelBase ?? this.wheelBase,
+    impactShrugged: impactShrugged ?? this.impactShrugged,
+    impactCost: impactCost ?? this.impactCost,
+    powerLostWhenWrecked: powerLostWhenWrecked ?? this.powerLostWhenWrecked,
+    speedLostWhenWrecked: speedLostWhenWrecked ?? this.speedLostWhenWrecked,
+    groundStick: groundStick ?? this.groundStick,
+    suspensionRate: suspensionRate ?? this.suspensionRate,
+    slideAlignment: slideAlignment ?? this.slideAlignment,
+    wheelInertia: wheelInertia ?? this.wheelInertia,
+  );
+
   /// The body's collision radius. One sphere, because a car that is a box has
   /// corners, and a corner catching on a kerb at ninety metres a second is a
   /// car on its roof.
   final double radius;
 
   /// How far the body floats above the road.
+  /// In metres.
   final double rideHeight;
 
+  /// The fastest the wheels drive the car forwards, in metres per second.
   final double maxSpeed;
+
+  /// The fastest they drive it backwards, in metres per second.
   final double maxReverse;
 
   /// How quickly the driven wheels spin up, in metres per second squared. Not
@@ -47,14 +101,26 @@ final class VehicleTuning {
   /// does about that is up to the tyres.
   final double enginePush;
 
+  /// How quickly full brake slows the wheels, in metres per second squared.
   final double brakeStrength;
 
   /// How quickly the wheels fall back to the car's speed with nothing pressed:
   /// engine braking, near enough.
+  /// In metres per second squared.
   final double rollingDrag;
 
-  /// Drag per unit of speed squared. What gives the car a top speed without one
-  /// having to be enforced.
+  /// The air's drag on the car, per metre: the car loses airDrag · v² of
+  /// speed a second at v metres a second — ½ρC_dA/m folded into one number,
+  /// in standard air. It answers to the air the car drives through: in a
+  /// world whose air is thinner or denser (`WorldProperties.airDensity`, or
+  /// its medium's density), it scales by that density over the standard
+  /// air's, so a race on a mountain pass runs freer.
+  ///
+  /// **Not what sets the top speed.** At [maxSpeed], 52 m/s, the default
+  /// takes 1.6 m/s² — a tenth of what the engine pushes with — so the car
+  /// reaches its top speed where the wheels stop being driven faster, which
+  /// is the clamp in [maxSpeed]; drag shapes how it gets there and how hard
+  /// a tow ([slipstream]) helps.
   final double airDrag;
 
   /// How much of the air drag a car in a perfect tow escapes, from nought to
@@ -71,7 +137,12 @@ final class VehicleTuning {
   /// How hard a coasting car slows down, in metres per second squared.
   ///
   /// Rolling resistance: tyres deforming, bearings turning, a transmission
-  /// spinning. [airDrag] cannot stand in for it — drag goes as the square of the
+  /// spinning. **Not the physics core's coefficient**: the core's wheel
+  /// (`F3D_WHEEL_ROLLING_DEFAULT`, 0.015) is a coefficient C_rr, a force
+  /// over the load, which slows a car by C_rr · g — 0.29 m/s² at this
+  /// game's 20 m/s², 0.15 on the Earth. This is the deceleration itself,
+  /// and three times the core's at 20 m/s² because it stands for the
+  /// driveline as well as the tyres. [airDrag] cannot stand in for it — drag goes as the square of the
   /// speed, so at walking pace it is almost nothing, and a car nudged to 3 m/s
   /// on the flat kept 2.9 of it.
   final double rollingResistance;
@@ -102,14 +173,12 @@ final class VehicleTuning {
   /// Without this the car is undriveable fast and unturnable slow: full lock at
   /// a hundred and eighty kilometres an hour asks the tyres for a corner they
   /// cannot hold, and the car simply spins every time.
+  /// In metres per second.
   final double steerFalloff;
 
   /// Front axle to rear axle. Sets how quickly steering turns the car.
+  /// In metres.
   final double wheelBase;
-
-  /// Deliberately above the real figure. Arcade cars jump, and a jump under
-  /// real gravity hangs long enough to feel like a bug.
-  final double gravity;
 
   /// How much speed an impact can take out of the car, in metres per second,
   /// before it counts as damage at all.
@@ -134,10 +203,12 @@ final class VehicleTuning {
   final double speedLostWhenWrecked;
 
   /// How far below the car the ground still counts as under it.
+  /// In metres.
   final double groundStick;
 
   /// How quickly the body settles to its ride height. Stands in for suspension
   /// until there is suspension.
+  /// A rate per second, eased over each step.
   final double suspensionRate;
 
   /// How strongly a slide pulls the nose round with it.
@@ -146,6 +217,7 @@ final class VehicleTuning {
   /// without something standing in for that the nose only ever moves where the
   /// steering puts it — which makes a spin impossible and a caught slide
   /// unsatisfying.
+  /// Per second: radians per second of yaw for each radian of slip angle.
   final double slideAlignment;
 
   /// How much the tyre's grip holds the driven wheels back, as a fraction of

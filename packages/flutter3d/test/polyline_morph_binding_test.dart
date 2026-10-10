@@ -3,7 +3,7 @@
 ///
 ///     flutter test test/polyline_morph_binding_test.dart
 ///
-/// **Every `Material.polyline` threw on Impeller at its first draw**, in
+/// **Every `RenderMaterial.polyline` threw on Impeller at its first draw**, in
 /// 0.7.0 and 0.7.1 alike: the renderer bound the morph block and texture to
 /// whichever vertex stage drew, and `PolylineVertex` declares neither. A
 /// missing block is skipped, but flutter_gpu refuses a texture bound to a slot
@@ -16,7 +16,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// How many times the frame bound `morph_texture`, drawing [mesh].
 int _morphBinds(MeshNode Function(FakeBackend device) mesh) {
@@ -51,7 +50,7 @@ void main() {
             Vector3(1.0, 0.0, 0.0),
           ], width: 4.0),
         ),
-        Material.polyline(viewportWidth: 64.0, viewportHeight: 64.0),
+        RenderMaterial.polyline(viewportWidth: 64.0, viewportHeight: 64.0),
       ),
     );
     expect(binds, 0);
@@ -62,7 +61,7 @@ void main() {
     final binds = _morphBinds(
       (FakeBackend device) => MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-        Material(name: 'ball', lighting: LightingModel.unlit),
+        RenderMaterial(name: 'ball', lighting: LightingModel.unlit),
       ),
     );
     expect(binds, greaterThan(0));
@@ -79,7 +78,7 @@ void main() {
     final binds = _morphBinds(
       (FakeBackend device) => MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-        Material(
+        RenderMaterial(
           name: 'displaced',
           lighting: const LightingModel(
             'Displaced',

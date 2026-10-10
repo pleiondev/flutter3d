@@ -68,7 +68,9 @@ extension _F3dMaterials on F3dDocument {
     );
     o += 8;
 
-    final baseColor = Vector4(
+    // The file holds the tint sRGB-encoded, as it always has; the engine
+    // holds it linear.
+    final baseColor = LinearColor.fromSrgb(
       _view.getFloat32(o, Endian.little),
       _view.getFloat32(o + 4, Endian.little),
       _view.getFloat32(o + 8, Endian.little),
@@ -82,7 +84,7 @@ extension _F3dMaterials on F3dDocument {
     final occlusionStrength = _view.getFloat32(o + 12, Endian.little);
     o += 16;
 
-    final emissive = Vector3(
+    final emissive = LinearColor(
       _view.getFloat32(o, Endian.little),
       _view.getFloat32(o + 4, Endian.little),
       _view.getFloat32(o + 8, Endian.little),
@@ -90,7 +92,7 @@ extension _F3dMaterials on F3dDocument {
     final emissiveStrength = _view.getFloat32(o + 12, Endian.little);
     o += 16;
 
-    final alphaModeIndex = _view.getUint32(o, Endian.little);
+    final alphaModeWord = _view.getUint32(o, Endian.little);
     final alphaCutoff = _view.getFloat32(o + 4, Endian.little);
     final doubleSided = _view.getUint32(o + 8, Endian.little) != 0;
     final unlit = _view.getUint32(o + 12, Endian.little) != 0;
@@ -116,13 +118,13 @@ extension _F3dMaterials on F3dDocument {
       emissiveTexture: bindings[4],
       emissive: emissive,
       emissiveStrength: emissiveStrength,
-      alphaMode: alphaModeIndex < SurfaceAlphaMode.values.length
-          ? SurfaceAlphaMode.values[alphaModeIndex]
-          : SurfaceAlphaMode.opaque,
+      alphaMode: alphaModeOf(alphaModeWord) ?? SurfaceAlphaMode.opaque,
       alphaCutoff: alphaCutoff,
       doubleSided: doubleSided,
       unlit: unlit,
       extensions: extensions,
+      lightingModel: _lighting[index],
+      extras: _extrasOf(F3dExtrasOwner.material, index),
     );
   }
 
@@ -140,9 +142,7 @@ extension _F3dMaterials on F3dDocument {
   TextureSampling _samplingFrom(int flags) {
     TextureWrap wrap(int shift) {
       final value = (flags >> shift) & F3dSamplingFlags.wrapMask;
-      return value < TextureWrap.values.length
-          ? TextureWrap.values[value]
-          : TextureWrap.repeat;
+      return textureWrapOf(value) ?? TextureWrap.repeat;
     }
 
     return TextureSampling(

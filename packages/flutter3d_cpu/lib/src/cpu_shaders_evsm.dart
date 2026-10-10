@@ -73,7 +73,29 @@ double evsmVisibility(Vector4 moments, double depth, double bleed) {
 
 /// `evsm_filter.frag`: one axis of the separable blur over the directional
 /// atlas, warping depth into moments on the first of the two.
-final class EvsmFilterShader implements CpuFragmentShader {
+/// `ShadowStored` from `lib/shadow_storage.glsl` — `A2.8`: the depth along
+/// the light that [stored] stands for in the sun's map, kept in [mode].
+///
+/// Mode nought is the map as it is drawn; one and two are turned round, so
+/// one at the light and nought at the far end, which is where a half float
+/// keeps its finest steps. This backend keeps full floats in any format, so
+/// the turn changes nothing it stores, and is undone here all the same: the
+/// parity suite compares this backend's picture with the GPU's, and the
+/// shader undoes it.
+double shadowStored(double stored, double mode) =>
+    mode > 0.5 ? 1.0 - stored : stored;
+
+/// `ShadowStoredStep` from `lib/shadow_storage.glsl`: the step between two
+/// neighbouring half floats near what [depth] is stored as in mode one — the
+/// least a bias can be there.
+double shadowStoredStep(double depth) {
+  final stored = math.max(1.0 - depth, 6.103515625e-05);
+  return math
+      .pow(2.0, (math.log(stored) / math.ln2).floorToDouble() - 10.0)
+      .toDouble();
+}
+
+final class EvsmFilterShader extends CpuFragmentShader {
   const EvsmFilterShader();
 
   @override
@@ -104,7 +126,7 @@ final class EvsmFilterShader implements CpuFragmentShader {
         (v[0] + axis.x * offset).clamp(loU, hiU),
         (v[1] + axis.y * offset).clamp(loV, hiV),
       );
-      final value = warp ? evsmMoments(texel.x) : texel;
+      final value = warp ? evsmMoments(shadowStored(texel.x, tile.w)) : texel;
       final weight = math.exp(-(offset * offset) / (2.0 * sigma * sigma));
       total.addScaled(value, weight);
       weightSum += weight;

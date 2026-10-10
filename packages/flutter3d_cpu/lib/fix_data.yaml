@@ -1,0 +1,27 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-cpu-DepthOfFieldShader-circleOfConfusion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_cpu/flutter3d_cpu.dart']
+      method: 'circleOfConfusion'
+      inClass: 'DepthOfFieldShader'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'texelsPerMetre'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: f2-cpu-CpuDevice-readPixels'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_cpu/flutter3d_cpu.dart']
+      method: 'readPixels'
+      inClass: 'CpuDevice'
+    changes:
+      - kind: 'rename'
+        newName: 'readback'

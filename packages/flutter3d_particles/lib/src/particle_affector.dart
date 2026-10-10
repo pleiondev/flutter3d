@@ -30,21 +30,53 @@ abstract base class ParticleAffector {
 }
 
 /// Pulls particles down. Sparks and debris; not smoke.
+///
+/// **With no [acceleration], the world's gravity**: what the
+/// [Particle.gravity] of the system stepping the particle says, which the
+/// system reads from its world (`ParticleSystem.world`) and which is
+/// `standardGravity` for a system nobody gave a world. A splinter off a crate
+/// then falls as the crate does, on the Moon as on the Earth.
+///
+/// **A ballistic thing falls by the world** — a spark, a chip of stone, a
+/// drop of spray — and a fall made faster or slower for the look says so as
+/// a multiple of the world's ([ParticleGravity.world]'s [scale]), so on the
+/// Moon it is still the Moon's. A fixed [acceleration] is for what does not
+/// fall at all but drifts by a look of its own: smoke rising, an ember
+/// lifting, a snowflake sinking slower than anything ballistic would.
 final class ParticleGravity extends ParticleAffector {
-  const ParticleGravity([this.acceleration = -9.8]);
+  /// [acceleration], m/s² up y, as a look of its own; or, with none, the
+  /// world's gravity downward.
+  const ParticleGravity([this.acceleration]) : scale = 1.0;
 
-  /// Metres per second squared. Negative is downwards, and a fraction of real
-  /// gravity usually looks better than the real figure — nine-eighty reads as
-  /// heavy for something the size of a spark.
-  final double acceleration;
+  /// The world's gravity downward times [scale]: a spark's fall made a
+  /// little quicker for the eye, say, that stays a multiple of the world's.
+  const ParticleGravity.world({this.scale = 1.0}) : acceleration = null;
+
+  /// Metres per second squared, up the y axis, or null for the world's
+  /// gravity downward. Negative is downwards. A number here is a look, not
+  /// a fall: see the class's doc.
+  final double? acceleration;
+
+  /// What the world's gravity is multiplied by when there is no
+  /// [acceleration]. One by default; no unit.
+  final double scale;
 
   @override
   void apply(Particle particle, double dt) {
-    particle.velocity.y += acceleration * dt;
+    particle.velocity.y +=
+        (acceleration ??
+            (scale == 1.0 ? -particle.gravity : -scale * particle.gravity)) *
+        dt;
   }
 }
 
 /// Bleeds off speed, so a burst slows into a drift instead of flying away.
+///
+/// **Against the air, which moves with the world's wind**: the speed bled off
+/// is the particle's relative to [Particle.wind], which the system hands each
+/// particle from its world (`ParticleSystem.world`). In still air — every
+/// world nobody gave a wind — that is its speed, as it always was; in a
+/// wind, smoke and sparks slowed by drag are carried off with it.
 final class ParticleDrag extends ParticleAffector {
   const ParticleDrag(this.perSecond);
 
@@ -56,7 +88,16 @@ final class ParticleDrag extends ParticleAffector {
     // Exponential rather than linear: linear drag reaches zero and then pushes
     // the particle backwards, which is a very recognisable bug.
     final factor = math.exp(-perSecond * dt);
-    particle.velocity.scale(factor);
+    final wind = particle.wind;
+    if (wind.x == 0.0 && wind.y == 0.0 && wind.z == 0.0) {
+      particle.velocity.scale(factor);
+      return;
+    }
+    final v = particle.velocity;
+    v
+      ..x = wind.x + (v.x - wind.x) * factor
+      ..y = wind.y + (v.y - wind.y) * factor
+      ..z = wind.z + (v.z - wind.z) * factor;
   }
 }
 
@@ -122,9 +163,14 @@ final class ParticleTurbulence extends ParticleAffector {
 
   /// The three ABC coefficients. Equal values give the symmetric flow; making
   /// one zero collapses the field into two-dimensional rolls, which is what a
-  /// draught along a corridor looks like.
+  /// draught along a corridor looks like. Each a unitless multiplier on
+  /// [strength].
   final double a;
+
+  /// The second ABC coefficient, a unitless multiplier on [strength].
   final double b;
+
+  /// The third ABC coefficient, a unitless multiplier on [strength].
   final double c;
 
   @override
@@ -173,7 +219,8 @@ final class ParticleColorOverLife extends ParticleAffector {
 final class ParticleFade extends ParticleAffector {
   const ParticleFade({this.startsAt = 0.0});
 
-  /// Point in the particle's life where the fade begins, in `[0, 1)`.
+  /// Point in the particle's life where the fade begins, in `[0, 1)`: a
+  /// fraction of its life.
   final double startsAt;
 
   @override
@@ -190,8 +237,10 @@ final class ParticleFade extends ParticleAffector {
 final class ParticleSizeOverLife extends ParticleAffector {
   const ParticleSizeOverLife({this.from = 1.0, this.to = 0.0});
 
-  /// Multipliers on the size the particle was born with.
+  /// The multiplier on the size the particle was born with, at birth.
   final double from;
+
+  /// The multiplier on the size the particle was born with, at death.
   final double to;
 
   @override

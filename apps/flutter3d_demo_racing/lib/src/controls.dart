@@ -26,8 +26,27 @@ abstract final class Drive {
 
   /// Change tyres. A verb the car has rather than a screen, so it can be
   /// rebound like every other one and so a pad has it too.
-  static const GameAction tyres = GameAction('tyres');
+  static const GameAction tireSet = GameAction('tyres');
 }
+
+/// What this game declares, in the order the panel lists it: [Drive]'s
+/// verbs, every one rebindable.
+const ActionSet driveActions = ActionSet('racing.demo', <ActionDeclaration>[
+  ActionDeclaration(Drive.throttle),
+  ActionDeclaration(Drive.brake),
+  ActionDeclaration(Drive.left, label: 'steer left'),
+  ActionDeclaration(Drive.right, label: 'steer right'),
+  ActionDeclaration(Drive.handbrake),
+  ActionDeclaration(Drive.tireSet),
+]);
+
+/// The driving keys and the driving pad, as one action map over
+/// [driveActions].
+ActionMap driveActionMap() => PadInput.addDrivingDefaultsTo(
+  ActionMap(actions: driveActions, buttons: padBindings(driveKeys())),
+  steerLeft: Drive.left,
+  steerRight: Drive.right,
+);
 
 /// What a player can move, in the order the panel lists it.
 ///
@@ -39,7 +58,7 @@ const List<GameAction> rebindableActions = <GameAction>[
   Drive.left,
   Drive.right,
   Drive.handbrake,
-  Drive.tyres,
+  Drive.tireSet,
 ];
 
 /// The driving pad.
@@ -52,7 +71,7 @@ Bindings padBindings(Bindings bindings) => bindings
   ..bind(InputSource.pad(PadButton.triggerRight.id), Drive.throttle)
   ..bind(InputSource.pad(PadButton.triggerLeft.id), Drive.brake)
   ..bind(InputSource.pad(PadButton.faceSouth.id), Drive.handbrake)
-  ..bind(InputSource.pad(PadButton.faceNorth.id), Drive.tyres)
+  ..bind(InputSource.pad(PadButton.faceNorth.id), Drive.tireSet)
   ..bind(InputSource.pad(PadButton.dpadLeft.id), Drive.left)
   ..bind(InputSource.pad(PadButton.dpadRight.id), Drive.right);
 
@@ -76,6 +95,6 @@ Bindings driveKeys() {
   bind(LogicalKeyboardKey.keyD, Drive.right);
   bind(LogicalKeyboardKey.arrowRight, Drive.right);
   bind(LogicalKeyboardKey.space, Drive.handbrake);
-  bind(LogicalKeyboardKey.keyT, Drive.tyres);
+  bind(LogicalKeyboardKey.keyT, Drive.tireSet);
   return bindings;
 }

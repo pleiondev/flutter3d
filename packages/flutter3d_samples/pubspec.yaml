@@ -3,7 +3,7 @@ description: >-
   The models flutter3d's decoders are tested against and its demo browses: the
   official Khronos glTF sample assets, the Utah teapot, and the .f3d files
   converted from them.
-version: 0.8.0
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -32,6 +32,18 @@ resolution: workspace
 # which travels with them. Everything there is CC0 or public domain.
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   # For `flutter.assets` below, and for nothing else: there is no Dart here

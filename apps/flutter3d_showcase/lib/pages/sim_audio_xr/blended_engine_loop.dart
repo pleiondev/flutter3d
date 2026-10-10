@@ -7,7 +7,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BlendedEngineLoopDemo extends ShowcaseDemo {
   double revs = 0.5;
@@ -25,23 +24,23 @@ final class BlendedEngineLoopDemo extends ShowcaseDemo {
       bands: <LoopBand>[
         LoopBand(
           sound: const SoundDef(name: 'idle', asset: 'idle.wav', loop: true),
-          centre: 0.2,
+          center: 0.2,
         ),
         LoopBand(
           sound: const SoundDef(name: 'mid', asset: 'mid.wav', loop: true),
-          centre: 0.6,
+          center: 0.6,
         ),
         LoopBand(
           sound: const SoundDef(name: 'high', asset: 'high.wav', loop: true),
-          centre: 1.0,
+          center: 1.0,
         ),
       ],
     );
     // #endregion bands
 
-    final material = Material(
+    final material = RenderMaterial(
       name: 'engine',
-      baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -50,7 +49,7 @@ final class BlendedEngineLoopDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

@@ -6,14 +6,17 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_camera/flutter3d_camera.dart'
+    show CameraRig, RigSettings;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 // #region tuning
 /// The six numbers `CameraRig` needs to place itself, gathered under a name
 /// this page's own view uses.
-final class _ChaseTuning extends RigTuning {
+final class _ChaseTuning extends RigSettings {
   const _ChaseTuning()
     : super(
         distance: 4.0,
@@ -36,12 +39,12 @@ final class CameraShakeDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region rig
-    _rig = CameraRig(world: CollisionWorld());
+    _rig = CameraRig(world: onRunPhysics(CollisionWorld()));
     // #endregion rig
 
-    final material = Material(
+    final material = RenderMaterial(
       name: 'runner',
-      baseColor: Vector4(0.6, 0.6, 0.9, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.9, 1.0),
     );
     _ball = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -50,7 +53,7 @@ final class CameraShakeDemo extends ShowcaseDemo {
     return Scene()
       ..add(_ball)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

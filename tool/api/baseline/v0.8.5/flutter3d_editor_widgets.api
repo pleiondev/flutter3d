@@ -1,0 +1,145 @@
+# The public API of flutter3d_editor_widgets.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart
+
+class ColorField extends StatefulWidget
+  State<ColorField> createState()
+  const ColorField({super.key, required this.value, required this.channels, required this.onChanged, this.linear = false, this.enabled = true})
+  final List<double> value
+  final ValueChanged<List<double>> onChanged
+  final bool enabled
+  final bool linear
+  final int channels
+  static (double r, double g, double b) hsvToRgb(double hue, double saturation, double value)
+  static ({double hue, double saturation, double value}) rgbToHsv(double r, double g, double b)
+  static List<double>? parseHex(String said)
+  static String hexOf(List<double> displaySrgb)
+  static double decodeSrgb(double encoded)
+  static double encodeSrgb(double linear)
+
+final class ColorPaletteDialog extends StatelessWidget
+  Widget build(BuildContext context)
+  const ColorPaletteDialog({super.key})
+
+final class ColorSwatchField extends StatelessWidget
+  Widget build(BuildContext context)
+  const ColorSwatchField({super.key, required this.hint, required this.values, required this.onWrite})
+  final ColorHint hint
+  final List<num> values
+  final void Function(Object? value) onWrite
+
+@immutable final class EditorWidgetsTheme extends ThemeExtension<EditorWidgetsTheme>
+  EdgeInsets fieldPadding({double horizontal = 9})
+  EditorWidgetsTheme copyWith({double? rowHeight, double? labelWidth, double? fieldRadius, double? thumbnailSize})
+  EditorWidgetsTheme lerp(EditorWidgetsTheme? other, double t)
+  bool get denseFields
+  const EditorWidgetsTheme({required this.rowHeight, required this.labelWidth, required this.fieldRadius, required this.thumbnailSize})
+  final double fieldRadius
+  final double labelWidth
+  final double rowHeight
+  final double thumbnailSize
+  static EditorWidgetsTheme of(BuildContext context)
+  static const EditorWidgetsTheme defaults = EditorWidgetsTheme(rowHeight: 32, labelWidth: 96, fieldRadius: 6, thumbnailSize: 26)
+
+final class EnumField extends StatelessWidget
+  Widget build(BuildContext context)
+  const EnumField({super.key, this.value, required this.options, required this.onChanged, this.unknownLabel})
+  final List<EnumHintValue> options
+  final String Function(String value)? unknownLabel
+  final String? value
+  final ValueChanged<String> onChanged
+
+final class FieldRow extends StatelessWidget
+  Widget build(BuildContext context)
+  const FieldRow({super.key, required this.name, required this.value, required this.onWrite, this.hint, this.faded = false, this.offers = nothingToOffer})
+  final MaterialHint? hint
+  final Object? value
+  final PathOffers offers
+  final String name
+  final bool faded
+  final void Function(Object? value) onWrite
+
+final class FilePickerDialog extends StatelessWidget
+  Widget build(BuildContext context)
+  const FilePickerDialog({super.key, required this.paths})
+  final List<String> paths
+
+final class HintTextBox extends StatefulWidget
+  State<HintTextBox> createState()
+  const HintTextBox({super.key, required this.text, required this.onWrite})
+  final String text
+  final void Function(String text) onWrite
+
+class NumberField extends StatefulWidget
+  State<NumberField> createState()
+  const NumberField({super.key, required this.label, required this.value, required this.onChanged, this.enabled = true, this.showLabel = true, this.semanticLabel, this.labelWidth = 18, this.unit = NumberUnit.plain, this.step = 0.1})
+  final NumberUnit unit
+  final String label
+  final String? semanticLabel
+  final ValueChanged<double> onChanged
+  final bool enabled
+  final bool showLabel
+  final double labelWidth
+  final double step
+  final double value
+  static String show(double value)
+  static double? parse(String said, {NumberUnit unit = NumberUnit.plain})
+
+enum NumberUnit
+  values: plain, metres, degrees
+
+final class NumbersRow extends StatelessWidget
+  Widget build(BuildContext context)
+  const NumbersRow({super.key, required this.values, required this.onWrite})
+  final List<num> values
+  final void Function(List<num> values) onWrite
+
+typedef PathOffers = List<String> Function(List<String> suffixes);
+
+final class RangeSliderField extends StatefulWidget
+  State<RangeSliderField> createState()
+  const RangeSliderField({super.key, this.label, required this.value, required this.min, required this.max, this.step, required this.onChanged, this.enabled = true, this.editable = false})
+  final String? label
+  final ValueChanged<double> onChanged
+  final bool editable
+  final bool enabled
+  final double max
+  final double min
+  final double value
+  final double? step
+
+final class SectionLabel extends StatelessWidget
+  Widget build(BuildContext context)
+  const SectionLabel(this.said, {super.key, this.style, this.padding})
+  final EdgeInsetsGeometry? padding
+  final String said
+  final TextStyle? style
+
+final class TexturePathField extends StatelessWidget
+  Widget build(BuildContext context)
+  const TexturePathField({super.key, required this.hint, required this.path, required this.offers, required this.onWrite})
+  final PathOffers offers
+  final String path
+  final TextureHint hint
+  final void Function(Object? value) onWrite
+
+final class TextureSlotRow extends StatelessWidget
+  Widget build(BuildContext context)
+  const TextureSlotRow({super.key, required this.label, this.name, this.subtitle, this.badge, this.thumbnail, required this.onChoose, this.onClear})
+  final String label
+  final String? badge
+  final String? name
+  final String? subtitle
+  final Uint8List? thumbnail
+  final VoidCallback onChoose
+  final VoidCallback? onClear
+
+double? evaluateNumber(String said, {NumberUnit unit = NumberUnit.plain})
+
+const double kLabelBesideFrom = 150
+
+List<String> nothingToOffer(List<String> suffixes)
+
+String numberText(num it)

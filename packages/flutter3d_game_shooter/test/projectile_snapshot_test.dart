@@ -12,6 +12,8 @@
 library;
 
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -34,7 +36,7 @@ void main() {
     final loaded = _system()..entities.restore(saved);
 
     final rocket = loaded.entities
-        .query<InFlight>()
+        .queryOf<InFlight>()
         .map((Entity e) => loaded.entities.get<InFlight>(e)!)
         .single;
     expect(rocket.position.x, closeTo(1.0, 1e-6));
@@ -59,7 +61,7 @@ void main() {
     final loaded = _system();
     expect(() => loaded.entities.restore(saved), returnsNormally);
     expect(
-      loaded.entities.query<InFlight>(),
+      loaded.entities.queryOf<InFlight>(),
       isEmpty,
       reason: 'a rocket that cannot be read is not a rocket at the origin',
     );
@@ -85,7 +87,81 @@ void main() {
 
     final loaded = _system()..entities.restore(saved);
 
-    expect(loaded.entities.query<InFlight>(), isEmpty);
+    expect(loaded.entities.queryOf<InFlight>(), isEmpty);
+  });
+
+  group('a rewind across a shot', () {
+    // The launcher stands in the rocket's path, as a player's own capsule
+    // does at the muzzle; the wall is where the rocket should land.
+    (CollisionWorld, Collider) room() {
+      final world = CollisionWorld();
+      final launcher = world.addBox(Vector3(0.0, 0.0, 0.0), Vector3.all(1.0));
+      world
+        ..addBox(Vector3(0.0, 0.0, 6.0), Vector3(4.0, 4.0, 0.5))
+        ..update();
+      return (world, launcher);
+    }
+
+    Detonation flyFrom(ProjectileSystem system) {
+      for (var i = 0; i < 60; i++) {
+        system.step(1.0 / 60.0);
+        if (system.detonations.isNotEmpty) return system.detonations.single;
+      }
+      fail('the rocket never landed');
+    }
+
+    test('still ignores its launcher and still credits it', () {
+      // Mutation: `components.exclude<FiredBy>` again, as it was — restore
+      // clears the store, the rocket meets its own launcher a step out and
+      // the blast credits nobody, so a resimulated step is another step.
+      final (world, launcher) = room();
+      final system = ProjectileSystem(world: world)
+        ..nameOwner('player', launcher);
+      system.spawn(
+        position: Vector3(0.0, 0.0, -1.0),
+        direction: Vector3(0.0, 0.0, 1.0),
+        speed: 30.0,
+        blast: const Blast(radius: 2.0, damage: 10.0),
+        owner: launcher,
+      );
+      final saved = system.entities.save();
+      system.step(1.0 / 60.0);
+      system.entities.restore(saved);
+
+      final landed = flyFrom(system);
+      expect(landed.position.z, greaterThan(5.0));
+      expect(landed.owner, same(launcher));
+    });
+
+    test("and an actor's rocket is the actor's, found by its entity", () {
+      // Mutation: name every owner through `nameOwner` only — a monster's
+      // rocket loses its owner on a rewind and the crowd stops turning on
+      // itself in the replay.
+      final (world, _) = room();
+      final entities = EcsWorld();
+      registerActorComponents(entities);
+      final body = CharacterController(
+        world: world,
+        position: Vector3(0.0, 0.0, 0.0),
+      );
+      final actor = entities.spawn();
+      entities.set(actor, Body(body));
+      // What `ActorSystem.spawn` does: the collider says who it is.
+      body.collider.userData = Actor(entities, actor);
+      final system = ProjectileSystem(world: world, entities: entities);
+      system.spawn(
+        position: Vector3(0.0, 0.0, -1.0),
+        direction: Vector3(0.0, 0.0, 1.0),
+        speed: 30.0,
+        blast: const Blast(radius: 2.0, damage: 10.0),
+        owner: body.collider,
+      );
+      final saved = entities.save();
+      system.step(1.0 / 60.0);
+      entities.restore(saved);
+
+      expect(flyFrom(system).owner, same(body.collider));
+    });
   });
 
   test('and a row that is not a row at all is the same', () {
@@ -101,6 +177,6 @@ void main() {
       }),
       returnsNormally,
     );
-    expect(loaded.entities.query<InFlight>(), isEmpty);
+    expect(loaded.entities.queryOf<InFlight>(), isEmpty);
   });
 }

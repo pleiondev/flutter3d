@@ -252,7 +252,7 @@ void main() {
 
       expect(report.merged, 4);
       expect(report.droppedCoincident, 2);
-      expect(report.worthReporting, isTrue);
+      expect(report.isWorthReporting, isTrue);
     });
 
     test('a mesh with nothing to weld comes back unchanged', () {
@@ -262,7 +262,7 @@ void main() {
 
       expect(merged.vertexCount, 8);
       expect(merged.faceCount, 6);
-      expect(report.worthReporting, isFalse);
+      expect(report.isWorthReporting, isFalse);
       expect(report.merged, 0);
       merged.validate();
     });

@@ -174,6 +174,44 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     packages: <String>['flutter3d_sim'],
   ),
   Feature(
+    id: 'procedural-levels',
+    title: 'Levels from a seed',
+    category: Category.simAudioXr,
+    summary:
+        'Rooms and corridors laid out from a seed and a few rules, the player '
+        'in one room and the exit in the farthest, and refused unless the '
+        'exit can be walked to.',
+    since: '1.0.0-rc.1',
+    evidence: 'Levels from a seed and some rules (N11).',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['generateLevel', 'ExitReachable'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/procgen/generate_level.dart',
+      'packages/flutter3d_sim/lib/src/procgen/wfc.dart',
+      'packages/flutter3d_sim/lib/src/procgen/exit_reachable.dart',
+    ],
+  ),
+  Feature(
+    id: 'voxel-world',
+    title: 'A world of blocks',
+    category: Category.simAudioXr,
+    summary:
+        'Ground of blocks drawn from a seed, dug into and built on, each edit '
+        'meshing its chunk again and replacing its collision boxes, and a '
+        'save that holds only the edits.',
+    since: '1.0.0-rc.1',
+    evidence: 'A world of blocks, kept as a seed and the edits since.',
+    evidenceFile: 'packages/flutter3d_voxel/CHANGELOG.md',
+    keywords: <String>['VoxelWorld'],
+    packages: <String>['flutter3d_voxel'],
+    engineFiles: <String>[
+      'packages/flutter3d_voxel/lib/src/voxel_world.dart',
+      'packages/flutter3d_voxel/lib/src/voxel_mesher.dart',
+      'packages/flutter3d_voxel/lib/src/voxel_collision.dart',
+    ],
+  ),
+  Feature(
     id: 'level-format',
     title: 'The level format',
     category: Category.simAudioXr,
@@ -352,7 +390,8 @@ const List<Feature> simAudioXrFeatures = <Feature>[
         'changes a run, and a digest that finds exactly where two runs part.',
     since: '0.7.0',
     evidence: 'is a damped pendulum stepped with',
-    evidenceFile: 'packages/flutter3d_lab/CHANGELOG.md',
+    evidenceFile:
+        'packages/flutter3d_education/doc/changelogs/flutter3d_lab.md',
     packages: <String>['flutter3d_sim'],
   ),
   Feature(
@@ -402,5 +441,116 @@ const List<Feature> simAudioXrFeatures = <Feature>[
     evidence: "points the head with the device's own rotation sensor",
     evidenceFile: 'packages/flutter3d_stereo/CHANGELOG.md',
     packages: <String>['flutter3d_stereo'],
+  ),
+  Feature(
+    id: 'replay-tests',
+    title: 'Replays as tests',
+    category: Category.simAudioXr,
+    summary:
+        'A recorded run played back with no screen, its digests checked at the steps it took them, so a change to the game fails at the step it first shows.',
+    since: '1.0.0-rc.1',
+    evidence: 'turns a recorded run into a test that needs no GPU',
+    evidenceFile: 'packages/flutter3d_testing/CHANGELOG.md',
+    packages: <String>['flutter3d_sim'],
+  ),
+  Feature(
+    id: 'navmesh-crowds',
+    title: 'Navigation meshes and crowds',
+    category: Category.simAudioXr,
+    summary:
+        'A level baked into convex polygons, a route round a wall pulled tight by the funnel, a jump onto a ledge, a broken wall baked again by its tiles, and a crowd that never touches.',
+    since: '1.0.0-rc.1',
+    evidence: 'A level bakes into a navigation mesh as well as a grid.',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['NavMesh', 'Avoidance'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/nav/navmesh/navmesh.dart',
+      'packages/flutter3d_sim/lib/src/nav/navmesh/route.dart',
+      'packages/flutter3d_sim/lib/src/nav/navmesh/mesh_links.dart',
+      'packages/flutter3d_sim/lib/src/nav/avoidance.dart',
+    ],
+  ),
+  Feature(
+    id: 'behaviour-trees',
+    title: 'Behaviour trees',
+    category: Category.simAudioXr,
+    summary:
+        'A guard\'s mind read from JSON: patrol until the target comes into sight, then chase, with the path the tree took drawn over it.',
+    since: '1.0.0-rc.1',
+    evidence: 'Behaviour trees and utility choices as data.',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['BehaviourTree', 'Blackboard', 'BehaviourOverlay'],
+    packages: <String>['flutter3d_sim', 'flutter3d_game'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/actors/behaviour_tree.dart',
+      'packages/flutter3d_sim/lib/src/actors/behaviour_kinds.dart',
+      'packages/flutter3d_sim/lib/src/actors/behaviour_brain.dart',
+      'packages/flutter3d_game/lib/src/visuals/behaviour_overlay.dart',
+    ],
+  ),
+  Feature(
+    id: 'cutscenes',
+    title: 'Cutscenes',
+    category: Category.simAudioXr,
+    summary:
+        'A scene written as a document: a camera on a curve, subtitles, a fade and signals the game answers, played in the fixed step and skipped to the same end.',
+    since: '1.0.0-rc.1',
+    evidence: 'A cutscene is a document played in the fixed step.',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['SequencePlayer'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/cinema/sequence.dart',
+      'packages/flutter3d_sim/lib/src/cinema/sequence_player.dart',
+    ],
+  ),
+  Feature(
+    id: 'sharing-ghosts',
+    title: 'Sharing runs and racing ghosts',
+    category: Category.simAudioXr,
+    summary:
+        'A level and a run through it filed behind a short code, refused when the run is for another version of the level, and played again as a ghost to race.',
+    since: '1.0.0-rc.1',
+    evidence: 'A level can be shared behind a short code.',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['ShareBundle', 'RunService'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/share/share_bundle.dart',
+      'packages/flutter3d_sim/lib/src/share/run_service.dart',
+    ],
+  ),
+  Feature(
+    id: 'terrain-erosion',
+    title: 'Terrain erosion',
+    category: Category.simAudioXr,
+    summary:
+        'One hill before and after scree has slid off it and rain has run down it, with none of the ground lost.',
+    since: '1.0.0-rc.1',
+    evidence:
+        '`erodeThermally` and `erodeHydraulically` shape a `Heightfield`.',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['erodeThermally', 'erodeHydraulically'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/procgen/erosion.dart',
+    ],
+  ),
+  Feature(
+    id: 'playtest-heatmaps',
+    title: 'Playtest heatmaps',
+    category: Category.simAudioXr,
+    summary:
+        'Recorded runs played again through the same simulation, and where they went and where they were lost drawn over the level.',
+    since: '1.0.0-rc.1',
+    evidence: 'bins trails into cells, counting samples and distinct runs',
+    evidenceFile: 'packages/flutter3d_sim/CHANGELOG.md',
+    keywords: <String>['resimulate', 'Heatmap'],
+    packages: <String>['flutter3d_sim'],
+    engineFiles: <String>[
+      'packages/flutter3d_sim/lib/src/telemetry/resimulation.dart',
+      'packages/flutter3d_sim/lib/src/telemetry/heatmap.dart',
+    ],
   ),
 ];

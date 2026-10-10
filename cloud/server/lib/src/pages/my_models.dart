@@ -74,8 +74,16 @@ class MyModelsPage extends StatelessComponent {
             Component.text(plural(models.length, 'model')),
           ], classes: 'count'),
         ], classes: 'page-head'),
-        if (uploads)
+        if (uploads) ...[
           _UploadZone(csrf: csrf, limit: uploadLimitBytes, projects: projects),
+          p([
+            Component.text(
+              'A Unity prefab, a Godot scene, USD, MaterialX, STL or PLY? ',
+            ),
+            a([Component.text('Convert it first')], href: '/convert'),
+            Component.text(', then save the model here.'),
+          ], classes: 'cabinet-convert'),
+        ],
         if (models.isEmpty && projects.isEmpty)
           p([
             Component.text(
@@ -226,12 +234,12 @@ class ModelCard extends StatelessComponent {
             Component.text(model.isPublic ? 'public' : 'private'),
           ], classes: model.isPublic ? 'badge public' : 'badge'),
         ], classes: 'meta'),
-        if (model.category != null || (model.isPublic && model.licence != null))
+        if (model.category != null || (model.isPublic && model.license != null))
           div([
             if (model.category case final category?)
               span([Component.text(category.label)], classes: 'badge'),
-            if (model.licence case final licence? when model.isPublic)
-              span([Component.text(licence.spdx)], classes: 'badge'),
+            if (model.license case final license? when model.isPublic)
+              span([Component.text(license.spdx)], classes: 'badge'),
           ], classes: 'badges'),
       ], classes: 'body'),
     ],

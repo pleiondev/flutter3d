@@ -4,6 +4,13 @@
 /// opened, so a demo's own state never survives a visit.
 library;
 
+import 'package:flutter3d_showcase/pages/sim_audio_xr/behaviour_trees.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/cutscenes.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/navmesh_crowds.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/playtest_heatmaps.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/replay_tests.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/sharing_ghosts.dart';
+import 'package:flutter3d_showcase/pages/sim_audio_xr/terrain_erosion.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 import 'actors.dart';
@@ -28,6 +35,7 @@ import 'nav_grid.dart';
 import 'pendulum_lab.dart';
 import 'portable_math.dart';
 import 'positional_audio.dart';
+import 'procedural_levels.dart';
 import 'replay_digest.dart';
 import 'rewind.dart';
 import 'splines.dart';
@@ -37,6 +45,7 @@ import 'stereo_rig.dart';
 import 'terrain_tiles.dart';
 import 'viewer_profiles.dart';
 import 'voice_limit.dart';
+import 'voxel_world.dart';
 
 final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'fixed-step': FixedStepDemo.new,
@@ -52,6 +61,8 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'lightmap-bake': LightmapBakeDemo.new,
   'baked-visibility': BakedVisibilityDemo.new,
   'terrain-tiles': TerrainTilesDemo.new,
+  'procedural-levels': ProceduralLevelsDemo.new,
+  'voxel-world': VoxelWorldDemo.new,
   'splines': SplinesDemo.new,
   'level-format': LevelFormatDemo.new,
   'level-mechanisms': LevelMechanismsDemo.new,
@@ -70,4 +81,11 @@ final Map<String, DemoBuilder> simAudioXrDemos = <String, DemoBuilder>{
   'viewer-profiles': ViewerProfilesDemo.new,
   'stereo-lesson': StereoLessonDemo.new,
   'head-tracking': HeadTrackingDemo.new,
+  'replay-tests': ReplayTestsDemo.new,
+  'navmesh-crowds': NavmeshCrowdsDemo.new,
+  'behaviour-trees': BehaviourTreesDemo.new,
+  'cutscenes': CutscenesDemo.new,
+  'sharing-ghosts': SharingGhostsDemo.new,
+  'terrain-erosion': TerrainErosionDemo.new,
+  'playtest-heatmaps': PlaytestHeatmapsDemo.new,
 };

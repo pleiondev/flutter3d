@@ -1,0 +1,24 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: conformance-ConformanceDeclined'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_conformance/flutter3d_conformance.dart']
+      class: 'ConformanceDeclined'
+    changes:
+      - kind: 'rename'
+        newName: 'ConformanceDeclinedException'
+  - title: 'flutter3d 1.0.0-rc.1: conformance-ConformanceFailure'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_conformance/flutter3d_conformance.dart']
+      class: 'ConformanceFailure'
+    changes:
+      - kind: 'rename'
+        newName: 'ConformanceFailureException'

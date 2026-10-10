@@ -25,17 +25,15 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/run_cubit.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart'; // RunSession, SettingsOverlay
-import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const String _crypt = 'assets/levels/crypt.json';
 
@@ -48,20 +46,19 @@ const int _width = 200;
 const int _height = 130;
 
 /// Storage that keeps everything in a map, so no run touches the disk.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// The crypt, loaded and dressed by the game's own assembly.
@@ -125,17 +122,13 @@ Future<Uint8List> _drawFromTheStart(
     ..aim(aim);
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.2,
-      near: 0.05,
-      far: 200.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.2, near: 0.05, far: 200.0),
   )..setPositionFrom(eye);
   camera.lookAt(eye + aim);
   scene.add(camera);
 
   final views = <RenderView>[
-    RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
   ];
 
   Future<Uint8List> once() async {
@@ -146,9 +139,9 @@ Future<Uint8List> _drawFromTheStart(
       views: views,
       settings: const RenderSettings(),
     );
-    final pixels = await it.device.readPixels(result.frame);
+    final pixels = await it.device.readback(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
-    return pixels!.buffer.asUint8List();
+    return pixels.buffer.asUint8List();
   }
 
   for (var i = 1; i < frames; i++) {

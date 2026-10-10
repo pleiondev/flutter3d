@@ -70,7 +70,7 @@ class BendSliderBar extends StatefulWidget {
   /// The rest/reference data [jointIndex] is read against. Never mutated by
   /// this widget: [Pose] itself is scene-graph-free, and only [joint] (a
   /// live [SceneNode]) ever changes here.
-  final Pose pose;
+  final AnimationPose pose;
 
   /// The skeleton [joint] belongs to, read only for [Skeleton.poseVersion]
   /// after a change — never mutated directly.

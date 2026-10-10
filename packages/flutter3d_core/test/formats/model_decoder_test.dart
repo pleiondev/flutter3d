@@ -12,7 +12,7 @@ import 'package:test/test.dart';
 
 /// A decoder claiming every file with [suffix], the way an application adds
 /// a format — or replaces one.
-final class _Claims implements ModelDecoder {
+final class _Claims extends ModelDecoder {
   const _Claims(this.suffix);
 
   final String suffix;

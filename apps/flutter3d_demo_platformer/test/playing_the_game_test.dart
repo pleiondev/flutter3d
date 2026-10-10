@@ -10,9 +10,9 @@
 /// eyes; several were changed, in this repository, without either being able to
 /// say whether the game still ran.
 ///
-/// One optional field — `PlatformerApp.openGraphics` — closes that, and the
-/// device handed in is `CpuDevice`, which is what `frame_test.dart` already
-/// draws with.
+/// One optional field — `PlatformerApp.device`, which the game's
+/// `Flutter3dView` borrows — closes that, and the device handed in is
+/// `CpuDevice`, which is what `frame_test.dart` already draws with.
 ///
 /// ## Played as a touch build, and that is the useful half
 ///
@@ -27,10 +27,10 @@ library;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/main.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A renderer with no GPU under it, as small as it can be and still be one.
@@ -41,7 +41,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// draft asked for 320 by 180 across a thousand frames and had produced no
 /// output at all after ten minutes. Nothing here looks at the picture; what is
 /// being tested is that the game runs, and it runs at any size.
-Future<GraphicsDevice> _cpuDevice() async => CpuDevice(
+GraphicsDevice _cpuDevice() => CpuDevice(
   width: 96,
   height: 54,
   shaders: CpuShaderLibrary(builtinCpuShaders()),
@@ -50,7 +50,7 @@ Future<GraphicsDevice> _cpuDevice() async => CpuDevice(
 /// How much time one pump carries.
 ///
 /// A tenth of a second rather than a frame's sixteenth, which is not a cheat:
-/// `GameLoop` takes the elapsed time and runs however many fixed steps fit, so
+/// `EngineLoop` takes the elapsed time and runs however many fixed steps fit, so
 /// a hundred milliseconds is six steps of simulation for one frame of drawing.
 /// That is exactly what a slow machine does, and it is the difference between a
 /// second of game time costing ten software frames and sixty.
@@ -63,7 +63,7 @@ const Duration _tick = Duration(milliseconds: 100);
 /// world assembled by the test.
 Future<void> _launch(WidgetTester tester) async {
   // **The window, and this is the number the file used to be wrong about.**
-  // `SceneSurface` renders at the size it is laid out at, not at the size the
+  // The view renders at the size it is laid out at, not at the size the
   // device was made with — so a test window of the default 800 × 600 drew
   // 480,000 software pixels a frame however small `CpuDevice` was told to be.
   // That is four and a half seconds a pump. Ninety-six by fifty-four is nine
@@ -72,7 +72,7 @@ Future<void> _launch(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(const PlatformerApp(openGraphics: _cpuDevice));
+  await tester.pumpWidget(PlatformerApp(device: _cpuDevice()));
 
   // **Waited for in real time, once, rather than pumped at.** Opening the
   // device and reading a level are asynchronous and resolve on the clock the
@@ -238,7 +238,7 @@ void main() {
   // **Routes already tried, so nobody tries them twice.** Mounting inside
   // `runAsync` — works, and took twenty-one minutes before the window was
   // shrunk. Loading the level outside the zone and handing it in through a seam
-  // like `openGraphics` — gets past the load and still does not finish, and the
+  // like `device` — gets past the load and still does not finish, and the
   // seam was reverted because a seam that buys a skipped test is production
   // surface for nothing. A `ShadowSettings` seam for the same purpose — reverted
   // for the same reason, and the measurement above says it would not have

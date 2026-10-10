@@ -22,7 +22,10 @@
 ///
 /// ## What it does not do
 ///
-/// No rotation, no joints, no continuous collision. A body moving fast enough
+/// No contact that turns a body — a body built with `canRotate` spins from the
+/// impulses a game gives it and keeps its angular momentum, but the solver
+/// below pushes only along the normal, through the centre. No joints, no
+/// continuous collision. A body moving fast enough
 /// to cross a wall between two steps will cross it; the sweep that stops that
 /// happening for the character controller is not applied here, and stage two is
 /// where it belongs. Stated rather than discovered, and the numbers are in
@@ -31,18 +34,23 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
 import 'contact.dart';
+import 'push.dart';
 import 'rigid_body.dart';
+import 'rigid_dynamics.dart';
 import 'tolerances.dart';
 
 /// What a contact needed last step.
 final class _Held {
   _Held(this.normal);
+
+  /// The normal impulse it ended with, in newton-seconds.
   final double normal;
 }
 
@@ -61,6 +69,8 @@ final class _Pair {
   Collider? against;
 
   final Vector3 normal = Vector3.zero();
+
+  /// How far the pair overlaps along [normal], in metres.
   double depth = 0.0;
 
   /// Identifies this contact between steps, so its impulses can be carried
@@ -69,10 +79,14 @@ final class _Pair {
 
   /// The running total, so the clamp is on the sum rather than on each
   /// increment. This is the difference between a stack that stands and a stack
-  /// that is pulled into the floor.
+  /// that is pulled into the floor. In newton-seconds.
   double normalImpulse = 0.0;
+
+  /// The friction impulse so far, in newton-seconds.
   double tangentImpulse = 0.0;
 
+  /// The pair's friction coefficient, a unitless ratio of tangential to
+  /// normal impulse.
   double friction = 0.0;
 
   /// The speed the solver is aiming to *end* with, from restitution.
@@ -85,16 +99,34 @@ final class _Pair {
   double bounce = 0.0;
 }
 
-final class Dynamics {
-  Dynamics({required this.world, Vector3? gravity, this.iterations = 20})
-    : gravity = gravity ?? Vector3(0.0, -22.0, 0.0);
+/// The reference [RigidDynamics]: sequential impulses in Dart doubles.
+final class Dynamics extends RigidDynamics {
+  /// Steps [world]'s bodies under [world]'s gravity
+  /// (`CollisionWorld.properties`).
+  ///
+  /// [gravity], when given, is the world's from now on: it sets
+  /// `world.properties` to the same world with that gravity, as a game
+  /// setting its world would. A convenience for a world made only to drop
+  /// something in; a game sets its world where it stages it.
+  Dynamics({required this.world, Vector3? gravity, this.iterations = 20}) {
+    if (gravity != null) {
+      world.properties = world.properties.copyWith(gravity: gravity);
+    }
+  }
 
+  @override
   final CollisionWorld world;
 
-  /// Metres per second squared. The default matches the character controller's,
-  /// because a crate that falls slower than the player who dropped it reads as
-  /// a bug in the crate.
-  final Vector3 gravity;
+  /// Metres per second squared: the world's (`world.properties.gravity`),
+  /// read every step, so a level set on the Moon drops its crates as it
+  /// drops its runner. A fresh vector each call; a world's gravity is
+  /// changed through `world.properties`, never by scaling this in place.
+  ///
+  /// It was a field of its own, 22 down when nobody said, under characters
+  /// falling at 24 and sparks at 9.81: three gravities in one game. One
+  /// gravity per game now (decision 1 of `tasks/1.0-physics-audit.md`).
+  @override
+  Vector3 get gravity => world.properties.gravity;
 
   /// How many times the velocity solver goes round.
   final int iterations;
@@ -107,14 +139,18 @@ final class Dynamics {
   /// and throws the pile apart.
   int positionIterations = 6;
 
+  @override
   final List<RigidBody> bodies = <RigidBody>[];
 
   /// Below this speed for [sleepAfter] seconds, a body stops being simulated.
+  /// In metres per second.
   double sleepSpeed = 0.08;
+
+  /// How long a body must stay below [sleepSpeed] to sleep, in seconds.
   double sleepAfter = 0.5;
 
-  /// How much overlap is tolerated before it is corrected. Correcting the last
-  /// millimetre is what makes a resting box hum.
+  /// How much overlap is tolerated before it is corrected, in metres.
+  /// Correcting the last millimetre is what makes a resting box hum.
   double slop = 0.005;
 
   /// What fraction of the excess penetration is corrected per step.
@@ -129,6 +165,7 @@ final class Dynamics {
 
   /// Below this approach speed, a bounce is not a bounce. Without it a crate
   /// resting on the floor re-bounces on its own settling velocity for ever.
+  /// In metres per second.
   double restitutionThreshold = 1.0;
 
   final List<_Pair> _pairs = <_Pair>[];
@@ -148,12 +185,14 @@ final class Dynamics {
   final Contact _contact = Contact();
   final Vector3 _scratch = Vector3.zero();
 
+  @override
   RigidBody add(RigidBody body) {
     bodies.add(body);
     _byCollider[body.collider] = body;
     return body;
   }
 
+  @override
   void remove(RigidBody body) {
     bodies.remove(body);
     _byCollider.remove(body.collider);
@@ -167,6 +206,7 @@ final class Dynamics {
   /// broadphase loop, where a linear scan makes the cost of a step quadratic in
   /// the number of bodies. The platformer's shipped level has thirty-four
   /// crates in it, which is where that stopped being theoretical.
+  @override
   RigidBody? bodyOf(Collider collider) {
     _lookups++;
     return _byCollider[collider];
@@ -184,6 +224,7 @@ final class Dynamics {
   final Map<Collider, RigidBody> _byCollider = <Collider, RigidBody>{};
 
   /// One fixed step.
+  @override
   void step(double dt) {
     if (dt <= 0.0) return;
     _lookupsLastStep = _lookups;
@@ -199,6 +240,7 @@ final class Dynamics {
       if (body.isAsleep && body.isMovable && _shouldWake(body)) body.wake();
     }
 
+    final gravity = world.properties.gravity;
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
       body.velocity.addScaled(gravity, dt);
@@ -213,6 +255,9 @@ final class Dynamics {
         ..setFrom(body.velocity)
         ..scale(dt);
       body.collider.moveTo(body.position + _scratch);
+      // After the solve, like the position: the spin this step ends with is
+      // the one the body turns by. Nothing for a body that cannot turn.
+      body.integrateOrientation(dt);
     }
 
     _separate();
@@ -228,63 +273,27 @@ final class Dynamics {
     world.reindex();
   }
 
-  /// Shoves whatever [by] is walking into.
-  ///
-  /// ## Why a character does not push a crate on its own
-  ///
-  /// A `CharacterController` is kinematic: it sweeps, it slides, and it is
-  /// never moved by anything. That is what makes a first-person game feel
-  /// solid, and it also means walking into a crate does exactly nothing to the
-  /// crate — the sweep stops the player and no momentum goes the other way.
-  ///
-  /// So the transfer is explicit, and it is a *speed* rather than a force. A
-  /// crate is given just enough velocity to move away at the speed the walker
-  /// is approaching it, and no more: that is what makes pushing feel like
-  /// pushing rather than like a bat. A force proportional to mass would let a
-  /// player launch a light crate across the room by brushing it.
-  ///
-  /// Horizontal only. Walking into a crate must not press it into the floor,
-  /// and standing on one must not drive it downwards.
-  void push(Collider by, Vector3 velocity, {double strength = 1.0}) {
-    final speed = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-    if (speed < Nearly.moving) return;
+  /// Shoves whatever [by] is walking into, as [Pusher] says.
+  @override
+  void push(Collider by, Vector3 velocity, {double strength = 1.0}) =>
+      _pusher.push(by, velocity, strength: strength, margin: margin);
 
-    world.overlap(
-      _inflated(by.shape),
-      by.position,
-      _nearby,
-      ignore: by,
-      includeTriggers: false,
-    );
-    for (final other in _nearby) {
-      final body = bodyOf(other);
-      if (body == null || !body.isMovable) continue;
+  late final Pusher _pusher = Pusher(this);
 
-      contactBetween(
-        body.collider.shape,
-        body.position,
-        by.shape,
-        by.position,
-        _contact,
-        margin: margin,
-      );
-      if (!_contact.touching) continue;
+  /// The world it steps in, `world.properties`, as JSON: the warm starts
+  /// held between steps were never part of a save, and the runs' digests are
+  /// what they are without them — but the world's gravity and air are part
+  /// of what the next step computes, so a run rewound across a change of
+  /// gravity steps on under the gravity it was saved with.
+  @override
+  Object? saveState() => <String, Object?>{'world': world.properties.toJson()};
 
-      // Which way the crate would go, flattened: the normal points out of the
-      // walker, which is exactly the direction to shove.
-      _scratch.setValues(_contact.normal.x, 0.0, _contact.normal.z);
-      final flat = _scratch.length;
-      if (flat < Nearly.moving) continue;
-      _scratch.scale(1.0 / flat);
-
-      // Only if the walker is actually heading into it.
-      final into = velocity.x * _scratch.x + velocity.z * _scratch.z;
-      if (into <= 0.0) continue;
-
-      final already = body.velocity.dot(_scratch);
-      final wanted = into * strength;
-      if (already >= wanted) continue;
-      body.applyImpulse(_scratch * ((wanted - already) / body.inverseMass));
+  /// Puts the world's properties back as [saveState] wrote them; a save from
+  /// before they were saved (null) leaves the world as it is.
+  @override
+  void restoreState(Object? saved) {
+    if (saved case {'world': final Map<String, Object?> properties}) {
+      world.properties = WorldProperties.fromJson(properties);
     }
   }
 
@@ -334,7 +343,7 @@ final class Dynamics {
             other.position,
             _contact,
           );
-          if (!_contact.touching) continue;
+          if (!_contact.isTouching) continue;
           _pairs.add(
             _Pair(body, null)
               ..key = _keyOf(body.collider, other)
@@ -342,10 +351,11 @@ final class Dynamics {
               ..normal.setFrom(_contact.normal)
               ..depth = _contact.depth
               ..bounce = _bounceFor(
-                body.restitution,
+                _pairOf(body.collider, other)?.restitution ?? body.restitution,
                 body.velocity.dot(_contact.normal),
               )
-              ..friction = body.friction,
+              ..friction =
+                  _pairOf(body.collider, other)?.friction ?? body.friction,
           );
         }
       }
@@ -365,7 +375,7 @@ final class Dynamics {
           _contact,
           margin: margin,
         );
-        if (!_contact.touching) continue;
+        if (!_contact.isTouching) continue;
         // Something actually *moving* wakes what it hits, or a crate shoved
         // into a sleeping pile passes straight through it. Something merely
         // settling does not, or nothing in a stack ever sleeps: each crate
@@ -384,13 +394,31 @@ final class Dynamics {
             ..normal.setFrom(_contact.normal)
             ..depth = _contact.depth
             ..bounce = _bounceFor(
-              math.max(body.restitution, other.restitution),
+              _pairOf(body.collider, other.collider)?.restitution ??
+                  math.max(body.restitution, other.restitution),
               approach,
             )
-            ..friction = math.sqrt(body.friction * other.friction),
+            ..friction =
+                _pairOf(body.collider, other.collider)?.friction ??
+                math.sqrt(body.friction * other.friction),
         );
       }
     }
+  }
+
+  /// The pair measured between [a]'s and [b]'s materials in the world's
+  /// catalogue, or null — and null without asking when either has none, so a
+  /// world of bodies without materials steps to the bits it always did.
+  ///
+  /// **Only a measured pair overrides the bodies' own numbers.** Without one,
+  /// a body made of a material already holds the material's friction and
+  /// restitution, and the solver combines them by the catalogue's rule
+  /// (`MaterialCatalog.contact`: the geometric mean of μ, the larger e), so
+  /// a number a game set on the body itself still counts.
+  MaterialPair? _pairOf(Collider a, Collider b) {
+    final ma = a.material, mb = b.material;
+    if (ma == null || mb == null) return null;
+    return world.materials.pairOf(ma.id, mb.id);
   }
 
   /// Whether a sleeping body has any business waking up.
@@ -591,7 +619,7 @@ final class Dynamics {
         _contact,
         margin: margin,
       );
-      if (!_contact.touching) continue;
+      if (!_contact.isTouching) continue;
 
       final excess = _contact.depth - slop;
       if (excess <= 0.0) continue;

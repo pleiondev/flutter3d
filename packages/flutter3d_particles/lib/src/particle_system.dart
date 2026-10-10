@@ -1,6 +1,10 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show Scene;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show WorldProperties, standardGravity;
 import 'package:vector_math/vector_math.dart';
 
 import 'emission.dart';
@@ -34,6 +38,19 @@ export 'particle_effect.dart';
 /// whole budget. It is also why smoke here is a dark additive haze rather than
 /// a proper alpha-blended puff: the second needs sorting, and it is not worth a
 /// second pipeline yet.
+///
+/// ## Where particles are
+///
+/// **In scene space**: float32 offsets from the drawn scene's origin
+/// (`Scene.origin`), the space a node's transform is in and the GPU draws in
+/// — see "Space" in `docs/CONTRACTS.md`. Every `Vector3` a burst or an
+/// emission is placed at, and every particle's position, is there; a point
+/// read off a node's `worldMatrix` already is. A place in the world, a
+/// [WorldPosition] in doubles, comes in through [burstInWorld],
+/// [emitInWorld] and [emitTimedInWorld], which narrow it with
+/// `Scene.toScene`. When the scene's origin moves, [shiftOrigin] moves the
+/// particles with it; [followOrigin] calls it on every shift of a scene, once
+/// however many owners ask.
 final class ParticleSystem {
   /// [seed] makes the whole simulation reproducible: the same seed and the
   /// same sequence of `advance` calls give byte-identical particles, which is
@@ -59,6 +76,39 @@ final class ParticleSystem {
 
   final List<Particle> _pool;
   final ParticleRandom _random;
+
+  /// The world these particles are in: its gravity, which a
+  /// [ParticleGravity] with no acceleration of its own falls by, and its
+  /// wind, which a [ParticleDrag] slows them against.
+  /// [WorldProperties.standard] until a game hands it its own —
+  /// `CollisionWorld.properties`, a level's world.
+  ///
+  /// **The world's, and the particles only read it.** Each step hands its
+  /// gravity and wind to every live particle, so a spark drops by the world
+  /// it is in; an affector with an acceleration of its own keeps it, as a
+  /// look rather than a law.
+  WorldProperties get world => _world;
+  WorldProperties _world = WorldProperties.standard;
+  set world(WorldProperties value) {
+    _world = value;
+    _gravity = value.gravityMagnitude;
+    _wind.setFrom(value.wind);
+  }
+
+  /// How hard [world] pulls the particles down, m/s².
+  double get gravity => _gravity;
+  double _gravity = standardGravity;
+
+  /// Sets [world]'s gravity to [value] m/s² straight down, leaving the rest
+  /// of it: for a game that has only a number — a `NativeWorld`'s
+  /// `gravityMagnitude`.
+  set gravity(double value) {
+    if (value == _gravity) return;
+    world = _world.copyWith(gravity: Vector3(0.0, -value, 0.0));
+  }
+
+  /// [world]'s wind, kept so the step does not copy it out of the world.
+  final Vector3 _wind = Vector3.zero();
 
   /// Distinct per system when nobody says otherwise, so two systems in one
   /// application do not emit the same burst.
@@ -90,6 +140,53 @@ final class ParticleSystem {
   /// being played. Nothing here calls it, because nothing here plays twice.
   void resetDropped() => _dropped = 0;
 
+  /// The scene's origin moved by (`dx`, `dy`, `dz`) metres: every live
+  /// particle moves the other way in scene space, so none moves in the
+  /// world.
+  ///
+  /// The particles' hook of item 18: an `EngineLoop.onOriginShift` handler
+  /// calls it with `OriginShifted.offset`, as `CollisionWorld.shiftOrigin`
+  /// is called for the bodies. Emitters placed in the local frame are the
+  /// game's to move, as it moves everything else it placed.
+  void shiftOrigin(double dx, double dy, double dz) {
+    if (dx == 0.0 && dy == 0.0 && dz == 0.0) return;
+    for (var i = 0; i < _alive; i++) {
+      final p = _pool[i].position;
+      p.setValues(p.x - dx, p.y - dy, p.z - dz);
+    }
+  }
+
+  /// Moves the particles with every `Scene.shiftOrigin` of [scene], until
+  /// the registration is cancelled: [shiftOrigin] with the shift's offset.
+  ///
+  /// **The one way a system follows an origin.** A system can be wanted by
+  /// two owners at once — the declarative `Particles3D` that draws it and a
+  /// game that bursts into it and asks the engine to follow it too — and two
+  /// handlers on one shift would move it twice. So the handler is this
+  /// system's, one per scene: following a scene it already follows adds a
+  /// holder, not a handler, and the handler goes when the last holder
+  /// cancels.
+  Registration followOrigin(Scene scene) {
+    final following = _following[scene] ??= _Following(
+      scene.onOriginShift((shift) {
+        final offset = shift.offset;
+        shiftOrigin(offset.x, offset.y, offset.z);
+      }),
+    );
+    following.holders++;
+    var cancelled = false;
+    return Registration(() {
+      if (cancelled) return;
+      cancelled = true;
+      if (--following.holders == 0) {
+        following.handler.cancel();
+        _following.remove(scene);
+      }
+    });
+  }
+
+  final Map<Scene, _Following> _following = Map<Scene, _Following>.identity();
+
   /// How many of [_pool] are alive. **The live ones are always `_pool[0.._alive)`.**
   ///
   /// A dense prefix rather than an `alive` flag scanned for. Death swaps the
@@ -114,56 +211,16 @@ final class ParticleSystem {
   /// the system already knew — see `tool/bench/particle_bench.dart`.
   int get aliveCount => _alive;
 
-  /// Keeps [effect] emitting at [origin], at [perSecond] particles a second.
-  ///
-  /// [key] identifies the source — a torch, a smoking wreck — so each keeps its
-  /// own fractional remainder. Without that, a rate below one particle per
-  /// frame rounds to zero every frame and the flame never lights; and rounding
-  /// up instead would tie the rate to the frame rate, so a fast machine would
-  /// burn brighter than a slow one.
-  ///
-  /// This is what a flame is. A cone is a cone however orange it is painted.
-  ///
-  /// **Emits immediately, at the frame's own rate**, which is why it is
-  /// deprecated: everything a frame owes is born at the instant the frame
-  /// begins, so a burst at 30 Hz is one fat clump where 120 Hz gives four thin
-  /// ones. The comment above about not tying the rate to the frame rate is
-  /// true of the *count* and was never true of the *shape*.
-  @Deprecated(
-    'Use emit() plus advance(), which spends the rate across fixed sub-steps. '
-    'This emits a whole frame at once, so the result depends on the frame rate.',
-  )
-  int emitFor(
-    Object key,
-    ParticleEffect effect,
-    Vector3 origin,
-    double dt, {
-    required double perSecond,
-    Vector3? direction,
-  }) {
-    if (perSecond <= 0.0 || dt <= 0.0) return 0;
-    // Only what asked to be measured. See [LightEmitter].
-    if (key is LightEmitter) _emitters.add(key);
-    final owed = (_owed[key] ?? 0.0) + perSecond * dt;
-    final whole = owed.floor();
-    _owed[key] = owed - whole;
-    if (whole <= 0) return 0;
-
-    var emitted = 0;
-    for (var i = 0; i < whole; i++) {
-      emitted += _emitOne(effect, origin, direction, key);
-    }
-    return emitted;
-  }
-
   /// Keeps [effect] emitting from [key] until told otherwise.
   ///
-  /// The deferred half of [emitFor], and the one [advance] drains. Nothing is
-  /// emitted here: the rate is recorded for this frame and spent inside each
-  /// sub-step, so a burst at 30 Hz is not one fat clump where 120 Hz gives four
-  /// thin ones. That is what [emitFor]'s doc already claimed and could not
-  /// deliver, because it emitted everything the frame owed at the instant the
-  /// frame began.
+  /// What [advance] drains. Nothing is emitted here: the rate is recorded for
+  /// this frame and spent inside each sub-step, so a burst at 30 Hz is not one
+  /// fat clump where 120 Hz gives four thin ones — what a frame-at-once
+  /// emission (`emitFor`, removed in 1.0) could not deliver.
+  ///
+  /// [key] identifies the source — a torch, a smoking wreck — so each keeps
+  /// its own fractional remainder: a rate below one particle per sub-step
+  /// still lights.
   ///
   /// Re-stating a rate replaces the previous one, so calling this every frame —
   /// which is what a game does — is how a torch stays lit, and *not* calling it
@@ -173,7 +230,7 @@ final class ParticleSystem {
   void emit(
     Object key,
     ParticleEffect effect,
-    Vector3 origin, {
+    Vector3 at, {
     required double perSecond,
     Vector3? direction,
   }) {
@@ -182,8 +239,25 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] = Emission(effect, origin.clone(), perSecond, direction, null);
+    _rates[key] = Emission(effect, at.clone(), perSecond, direction, null);
   }
+
+  /// [emit] from a place in the world: [at] narrowed to [scene]'s space with
+  /// `Scene.toScene`, the difference taken in doubles first.
+  void emitInWorld(
+    Object key,
+    ParticleEffect effect,
+    WorldPosition at, {
+    required Scene scene,
+    required double perSecond,
+    Vector3? direction,
+  }) => emit(
+    key,
+    effect,
+    scene.toScene(at),
+    perSecond: perSecond,
+    direction: direction,
+  );
 
   /// Emits from [key] for [seconds] and then stops on its own.
   ///
@@ -206,7 +280,7 @@ final class ParticleSystem {
   void emitTimed(
     Object key,
     ParticleEffect effect,
-    Vector3 origin, {
+    Vector3 at, {
     required double perSecond,
     required double seconds,
     Vector3? direction,
@@ -216,14 +290,28 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] = Emission(
-      effect,
-      origin.clone(),
-      perSecond,
-      direction,
-      seconds,
-    );
+    _rates[key] = Emission(effect, at.clone(), perSecond, direction, seconds);
   }
+
+  /// [emitTimed] from a place in the world: [at] narrowed to [scene]'s space
+  /// with `Scene.toScene`. For a game that keeps where things happened as
+  /// `WorldPosition`s: the plume over a wreck it placed in the world.
+  void emitTimedInWorld(
+    Object key,
+    ParticleEffect effect,
+    WorldPosition at, {
+    required Scene scene,
+    required double perSecond,
+    required double seconds,
+    Vector3? direction,
+  }) => emitTimed(
+    key,
+    effect,
+    scene.toScene(at),
+    perSecond: perSecond,
+    seconds: seconds,
+    direction: direction,
+  );
 
   /// Advances the simulation by [dt] in fixed sub-steps.
   ///
@@ -280,7 +368,7 @@ final class ParticleSystem {
       if (left != null) {
         if (left < slice) slice = left;
         emission.remaining = left - h;
-        if (emission.spent) (spent ??= <Object>[]).add(entry.key);
+        if (emission.isSpent) (spent ??= <Object>[]).add(entry.key);
       }
 
       final owed = (_owed[entry.key] ?? 0.0) + emission.perSecond * slice;
@@ -353,7 +441,7 @@ final class ParticleSystem {
     return 1;
   }
 
-  /// Emits one burst of [effect] at [origin].
+  /// Emits one burst of [effect] at [at], in scene space.
   ///
   /// [direction] matters only to emitters that use it; it is normalised here so
   /// callers can pass a surface normal or a velocity without thinking about it.
@@ -369,7 +457,7 @@ final class ParticleSystem {
   /// Returns how many particles were actually emitted.
   int burst(
     ParticleEffect effect,
-    Vector3 origin, {
+    Vector3 at, {
     Vector3? direction,
     Object? source,
   }) {
@@ -386,12 +474,22 @@ final class ParticleSystem {
         _dropped += effect.count - i;
         break;
       }
-      _initialise(particle, effect, origin, axis);
+      _initialise(particle, effect, at, axis);
       particle.source = source;
       emitted++;
     }
     return emitted;
   }
+
+  /// [burst] at a place in the world: [at] narrowed to [scene]'s space with
+  /// `Scene.toScene`, so a burst ten kilometres out lands where it is.
+  int burstInWorld(
+    ParticleEffect effect,
+    WorldPosition at, {
+    required Scene scene,
+    Vector3? direction,
+    Object? source,
+  }) => burst(effect, scene.toScene(at), direction: direction, source: source);
 
   /// The next free slot, or null when the pool is full.
   ///
@@ -411,7 +509,7 @@ final class ParticleSystem {
     effect.emitter.emit(particle, origin, axis, _random);
     _random.reseed(ordinal, ParticleSalt.birth);
     particle
-      ..alive = true
+      ..isAlive = true
       // Cleared, not left. A slot is reused, and [source] is the only field
       // here that a *previous* occupant sets and this method did not — so a
       // burst landing in a slot a torch's flame had just vacated inherited the
@@ -444,13 +542,15 @@ final class ParticleSystem {
 
       particle.age += dt;
       if (particle.age >= particle.lifetime) {
-        particle.alive = false;
+        particle.isAlive = false;
         _alive--;
         _pool[i] = _pool[_alive];
         _pool[_alive] = particle;
         continue;
       }
 
+      particle.gravity = _gravity;
+      particle.wind.setFrom(_wind);
       for (final affector in particle.affectors) {
         affector.apply(particle, dt);
       }
@@ -502,7 +602,7 @@ final class ParticleSystem {
 
   void clear() {
     for (var i = 0; i < _alive; i++) {
-      _pool[i].alive = false;
+      _pool[i].isAlive = false;
     }
     _alive = 0;
   }
@@ -651,15 +751,15 @@ final class ParticleSystem {
     return written;
   }
 
-  /// Writes the middle of the live particles' box into [centre] and returns
+  /// Writes the middle of the live particles' box into [center] and returns
   /// the radius of a sphere around it holding every quad — `N6`.
   ///
   /// What a lit draw of them asks the renderer for its lights with, as a mesh
-  /// is asked by its bounds. Nought, with [centre] at the origin, when nothing
+  /// is asked by its bounds. Nought, with [center] at the origin, when nothing
   /// is alive.
-  double boundsInto(Vector3 centre) {
+  double boundsInto(Vector3 center) {
     if (_alive == 0) {
-      centre.setZero();
+      center.setZero();
       return 0.0;
     }
     final low = Vector3.all(double.infinity);
@@ -671,13 +771,49 @@ final class ParticleSystem {
       Vector3.max(high, particle.position, high);
       largest = math.max(largest, particle.size);
     }
-    centre
+    center
       ..setFrom(low)
       ..add(high)
       ..scale(0.5);
     // Half the largest quad's diagonal past the box, which holds every corner
     // whichever way the quad turns.
     return high.distanceTo(low) * 0.5 + largest * math.sqrt1_2;
+  }
+
+  /// The box every live particle draws in, in scene space: each one's
+  /// [footprint] — the shape a particle of size one covers, about its
+  /// centre — scaled by its size and put at its position. Empty, minimum
+  /// past maximum, when none is alive.
+  ///
+  /// What a contributor answers `PassContributor.boundsFor` with, so a
+  /// near plane fitted under reversed depth stops in front of the nearest
+  /// particle: a billboard's footprint is a cube of half-side √½, which
+  /// holds the quad's corners however it faces and turns; a mesh
+  /// particle's is the mesh's own bounds.
+  Aabb3 boundsOf(Aabb3 footprint) {
+    final min = Vector3.all(double.infinity);
+    final max = Vector3.all(double.negativeInfinity);
+    final low = footprint.min;
+    final high = footprint.max;
+    for (var i = 0; i < _alive; i++) {
+      final particle = _pool[i];
+      final p = particle.position;
+      final s = particle.size;
+      // A negative size mirrors the footprint; the box is the same either way.
+      final a = s >= 0.0 ? low : high;
+      final b = s >= 0.0 ? high : low;
+      min.setValues(
+        math.min(min.x, p.x + a.x * s),
+        math.min(min.y, p.y + a.y * s),
+        math.min(min.z, p.z + a.z * s),
+      );
+      max.setValues(
+        math.max(max.x, p.x + b.x * s),
+        math.max(max.y, p.y + b.y * s),
+        math.max(max.z, p.z + b.z * s),
+      );
+    }
+    return Aabb3.minMax(min, max);
   }
 
   /// The live particles' pool indices, farthest along [axis] first.
@@ -700,4 +836,13 @@ final class ParticleSystem {
 
   Float64List? _depth;
   final List<int> _order = <int>[];
+}
+
+/// A system's one handler on a scene's origin shifts, and how many
+/// [ParticleSystem.followOrigin] registrations hold it.
+final class _Following {
+  _Following(this.handler);
+
+  final Registration handler;
+  int holders = 0;
 }

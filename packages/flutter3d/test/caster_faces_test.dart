@@ -35,11 +35,12 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -58,9 +59,9 @@ const int _height = 72;
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
 
-  Material grey(String name) => Material(
+  RenderMaterial grey(String name) => RenderMaterial(
     name: name,
-    baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+    baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
     lighting: LightingModel.lambert,
   );
 
@@ -85,7 +86,7 @@ const int _height = 72;
       type: LightType.directional,
       // Low enough that the lit floor is not at the top of the tone curve,
       // where a shadow has no room to be darker than what is around it.
-      intensity: 0.55,
+      intensity: 0.55 * Photometric.legacyUnit,
       castsShadow: true,
       name: 'sun',
     )..setLocalForward(Vector3(-0.15, -1.0, 0.2)),
@@ -115,9 +116,9 @@ Future<List<int>> _grid(ShadowSettings shadows) async {
       shadows: shadows,
     ),
   );
-  final pixels = await it.device.readPixels(frame.frame);
+  final pixels = await it.device.readback(frame.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return parityGrid(pixels!.buffer.asUint8List(), _width, _height);
+  return parityGrid(pixels.buffer.asUint8List(), _width, _height);
 }
 
 /// Cells that are floor lying in shadow.
@@ -219,11 +220,11 @@ void main() {
         ),
       ),
     );
-    final pixels = await it.device.readPixels(frame.frame);
+    final pixels = await it.device.readback(frame.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
 
     expect(
-      _shadowed(parityGrid(pixels!.buffer.asUint8List(), _width, _height)),
+      _shadowed(parityGrid(pixels.buffer.asUint8List(), _width, _height)),
       isNotEmpty,
       reason:
           'the sheet asked to cast from every face and the setting that would '

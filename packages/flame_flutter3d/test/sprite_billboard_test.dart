@@ -10,7 +10,7 @@ import 'package:flame/game.dart';
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/painting.dart' show TextStyle;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -87,7 +87,7 @@ void main() {
         views: <RenderView>[
           RenderView(
             camera: game.camera3d,
-            clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
           ),
         ],
         settings: const RenderSettings(
@@ -95,7 +95,7 @@ void main() {
           bloom: BloomSettings(enabled: false),
         ),
       );
-      return _middle(await cpu.device.readPixels(result.frame));
+      return _middle(await cpu.device.readback(result.frame));
     }
 
     game.update(0.0);
@@ -214,7 +214,7 @@ void main() {
 
     MeshNode card() => sign.visual.childrenView.whereType<MeshNode>().single;
     final said = card().material;
-    expect(said.albedoSampler, SamplerOptions.linearClamp);
+    expect(said.albedoSampler, SamplerDescriptor.linearClamp);
     final wide = card().readScale().x;
 
     sign.sprite = empty;
@@ -223,7 +223,7 @@ void main() {
     });
     game.update(0.0);
     expect(card().material, isNot(same(said)));
-    expect(card().material.albedoSampler, SamplerOptions.linearClamp);
+    expect(card().material.albedoSampler, SamplerDescriptor.linearClamp);
     expect(card().readScale().x, isNot(closeTo(wide, 1e-6)));
     expect(sign.currentSprite, same(empty));
   });
@@ -241,8 +241,8 @@ void main() {
         await atlas.materialOf(image, smooth: true),
       );
     }))!;
-    expect(sharp!.albedoSampler, SamplerOptions.nearestClamp);
-    expect(smooth!.albedoSampler, SamplerOptions.linearClamp);
+    expect(sharp!.albedoSampler, SamplerDescriptor.nearestClamp);
+    expect(smooth!.albedoSampler, SamplerDescriptor.linearClamp);
   });
 
   testWidgets('an atlas disposed while an image is still being read makes '

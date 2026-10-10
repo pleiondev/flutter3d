@@ -24,7 +24,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 48;
 
@@ -44,19 +43,19 @@ final class _DeclaresSurface extends RenderNode {
   ];
 
   @override
-  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     // The version it read, handed back untouched: a link in the chain that
     // changes no pixel, so anything the frame does differently is the
     // declaration's doing and not this node's.
     frame.resources.provide(
-      FrameResourceIds.hdrColour,
-      frame.resources.texture(FrameResourceIds.hdrColour),
+      FrameResourceIds.hdrColor,
+      frame.resources.texture(FrameResourceIds.hdrColor),
     );
   }
 }
@@ -66,6 +65,7 @@ final class _DeclaresSurface extends RenderNode {
 Future<({List<int> pixels, FrameResult result})> _frame(
   RenderSettings settings, {
   List<RenderNode> nodes = const <RenderNode>[],
+  RenderStep? step,
 }) async {
   final device = CpuDevice(
     width: _size,
@@ -73,19 +73,23 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final renderer = Renderer.create(device: device);
+  if (step != null) renderer.renderSteps.addStep(step);
   for (final node in nodes) {
-    renderer.nodes.add(node);
+    renderer.renderSteps.addNode(node, step: step);
   }
 
   final scene = Scene()
     ..add(
       MeshNode(
         DeviceMesh.upload(device, SphereShape(radius: 0.6).build()),
-        Material(name: 'ball', baseColor: Vector4(0.9, 0.3, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'ball',
+          baseColor: LinearColor.fromSrgb(0.9, 0.3, 0.2, 1.0),
+        ),
       ),
     )
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -98,15 +102,15 @@ Future<({List<int> pixels, FrameResult result})> _frame(
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(0.05, 0.05, 0.08, 1.0),
+        clearColorSrgb: Vector4(0.05, 0.05, 0.08, 1.0),
       ),
     ],
     settings: settings,
   );
-  final bytes = await device.readPixels(result.frame);
+  final bytes = await device.readback(result.frame);
   return (
     pixels: <int>[
-      for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+      for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
     ],
     result: result,
   );
@@ -119,11 +123,11 @@ Future<({List<int> pixels, FrameResult result})> _frame(
 FrameResult _recorded({List<RenderNode> nodes = const <RenderNode>[]}) {
   final renderer = Renderer.create(device: FakeBackend());
   for (final node in nodes) {
-    renderer.nodes.add(node);
+    renderer.renderSteps.addNode(node);
   }
   final scene = Scene()
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -166,31 +170,33 @@ void main() {
       },
     );
 
-    test('off by its own flag and off by name are the same frame', () async {
+    test('off by its own flag and off as a step are the same frame', () async {
       // `gfx-37n`'s claim as an anchor: two ways to say "no bloom", one
-      // picture. A toggle that was almost-off would make every golden
+      // picture. A step that was almost-off would make every golden
       // recorded against the flag stop describing the frame a caller gets
-      // from the name.
+      // from `without`.
       final byFlag = await _frame(
         const RenderSettings(bloom: BloomSettings(enabled: false)),
       );
-      final byName = await _frame(
-        const RenderSettings(disabledPasses: <String>{'bloom'}),
+      final byStep = await _frame(
+        const RenderSettings().without(<RenderStep>{RenderStep.bloom}),
       );
 
-      expect(byFlag.pixels, byName.pixels);
+      expect(byFlag.pixels, byStep.pixels);
     });
 
     test('a node registered and disabled is a node never registered', () async {
       // `gfx-28n`'s key space as an anchor: registering an effect and
-      // switching it off by name has to leave the frame a caller would get
+      // switching its step off has to leave the frame a caller would get
       // without the effect at all. A node that changed the frame by existing
       // would make every toggle a guess — and this node is the one most able
       // to, because what it costs is paid by declaring rather than by
       // drawing.
+      const declaring = RenderStep('declares surface');
       final disabled = await _frame(
-        const RenderSettings(disabledPasses: <String>{'declares surface'}),
+        const RenderSettings().without(<RenderStep>{declaring}),
         nodes: <RenderNode>[_DeclaresSurface()],
+        step: declaring,
       );
       final absent = await _frame(const RenderSettings());
 

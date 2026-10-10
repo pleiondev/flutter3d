@@ -28,7 +28,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     return Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -81,7 +81,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
 
     final renderer = Renderer.create(
       device: device,
@@ -141,7 +141,10 @@ void main() {
     // depth is not chosen: a texture comes back when the backend says the work
     // that read it is done.
     final device = FakeBackend()..completesImmediately = false;
-    final renderer = Renderer.create(device: device);
+    // Drawn however far behind the GPU is: holding a frame (`A1.4`) would
+    // hand back a texture already counted, and this is about the ring.
+    final renderer = Renderer.create(device: device)
+      ..pacing = const FramePacing(holdWhenBehind: false);
     final scene = Scene()..add(CameraNode());
     final view = RenderView(camera: scene.cameras.single);
 

@@ -594,7 +594,7 @@ void main() {
       );
     });
 
-    test('but opposing pushes still both count', () {
+    test('but opposing pushes of two statics still both count', () {
       // **Not an oversight, and the crushing test caught it.** Written as "only
       // what is still needed along this normal", the second of two opposing
       // pushes overwrites the first — so a body being closed on by a platform
@@ -623,6 +623,38 @@ void main() {
         closeTo(0.1, 1e-6),
         reason: 'the two faces did not net out: ${correction.y}',
       );
+    });
+
+    test('a static holds against a mover closing on it', () {
+      // Two statics net out (above); a floor and a platform coming down do
+      // not, because a net jumps the body across the middle of the gap every
+      // step, and once the gap is shut the middle is under the floor.
+      // Mutation: drop the static-wins rule in `depenetrate` and the first
+      // correction nets to a tenth downward; drop the `moverOnly` give-back
+      // and the second sets the body 0.4 m into the floor.
+      final world = CollisionWorld();
+      world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(10.0, 1.0, 10.0));
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(5.0, 0.5, 5.0)),
+          position: Vector3(0.0, 2.0, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      world.update();
+      final half = Vector3(0.5, 0.9, 0.5);
+      final correction = Vector3.zero();
+
+      // Inside both: 0.1 m into the floor, 0.2 m into the platform.
+      world.depenetrate(Vector3(0.0, 0.8, 0.0), half, correction);
+      expect(correction.y, closeTo(0.1, 1e-6));
+
+      // Standing on the floor, the platform 0.4 m into the head: pushed out
+      // of the platform only as far as the floor allows, which is nowhere.
+      platform.moveTo(Vector3(0.0, 1.9, 0.0));
+      world.update();
+      world.depenetrate(Vector3(0.0, 0.9, 0.0), half, correction);
+      expect(correction.y, closeTo(0.0, 1e-6));
     });
 
     test('reports nothing when clear', () {

@@ -875,6 +875,51 @@
   },
   "animSkeleton": "Скелет",
   "animConstraints": "Ограничения",
+  "animGraphs": "Графы анимации",
+  "@animGraphs": {
+    "description": "Раздел панели анимации: графы состояний персонажей."
+  },
+  "animGraphsNone": "Графов пока нет. Задайте имя и граф в JSON.",
+  "@animGraphsNone": {
+    "description": "Пустой список графов анимации."
+  },
+  "animGraphName": "Имя графа",
+  "@animGraphName": {
+    "description": "Поле имени графа анимации."
+  },
+  "animGraphJson": "Граф (JSON)",
+  "@animGraphJson": {
+    "description": "Поле JSON графа анимации."
+  },
+  "animGraphSet": "Задать граф",
+  "@animGraphSet": {
+    "description": "Кнопка: задать граф анимации по имени."
+  },
+  "animGraphRemove": "Удалить граф",
+  "@animGraphRemove": {
+    "description": "Подсказка кнопки удаления графа анимации."
+  },
+  "animGraphSummary": "{states} сост. · {transitions} перех.",
+  "@animGraphSummary": {
+    "description": "Сводка графа анимации: число состояний и переходов.",
+    "placeholders": {
+      "states": {
+        "type": "int"
+      },
+      "transitions": {
+        "type": "int"
+      }
+    }
+  },
+  "animGraphNotJson": "Это не JSON: {error}",
+  "@animGraphNotJson": {
+    "description": "Ошибка разбора JSON графа анимации.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "crashTitle": "Что-то пошло не так",
   "crashDismiss": "Закрыть",
   "crashReport": "Сообщить о проблеме",

@@ -70,6 +70,29 @@ final class AdaptiveQualitySettings {
        assert(smoothing > 0.0 && smoothing <= 1.0),
        assert(correctionSmoothing >= 0.0 && correctionSmoothing <= 1.0);
 
+  /// A copy with the given fields replaced.
+  AdaptiveQualitySettings copyWith({
+    bool? enabled,
+    int? budgetMicros,
+    double? headroom,
+    double? climbHeadroom,
+    int? climbFrames,
+    double? smoothing,
+    double? correctionSmoothing,
+    double? motionThreshold,
+    double? motionScale,
+  }) => AdaptiveQualitySettings(
+    enabled: enabled ?? this.enabled,
+    budgetMicros: budgetMicros ?? this.budgetMicros,
+    headroom: headroom ?? this.headroom,
+    climbHeadroom: climbHeadroom ?? this.climbHeadroom,
+    climbFrames: climbFrames ?? this.climbFrames,
+    smoothing: smoothing ?? this.smoothing,
+    correctionSmoothing: correctionSmoothing ?? this.correctionSmoothing,
+    motionThreshold: motionThreshold ?? this.motionThreshold,
+    motionScale: motionScale ?? this.motionScale,
+  );
+
   /// Off by default: an application that has not asked for its settings to
   /// move should not find them moving.
   final bool enabled;
@@ -97,6 +120,7 @@ final class AdaptiveQualitySettings {
 
   /// Screen motion, as [screenMotion] measures it, above which the picture
   /// is taken to be moving too fast to resolve. Nought is never.
+  /// A fraction of the screen's width.
   final double motionThreshold;
 
   /// The largest render scale a row may have while in motion.

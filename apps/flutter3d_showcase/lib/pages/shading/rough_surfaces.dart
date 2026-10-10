@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class RoughSurfacesDemo extends ShowcaseDemo {
   bool compensate = true;
@@ -29,17 +28,18 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
       context.device,
       SphereShape(radius: 0.5, segments: 48, rings: 24).build(),
     );
-    final Scene scene = Scene()..ambientIntensity = 0.1;
+    final Scene scene = Scene()
+      ..ambientIntensity = 0.1 * Photometric.legacyUnit;
 
     // #region metals
     for (var i = 0; i < _metalRoughness.length; i++) {
       scene.add(
         MeshNode(
           ball,
-          Material(
+          RenderMaterial(
             name: 'gold ${_metalRoughness[i]}',
             lighting: LightingModel.pbr,
-            baseColor: Vector4(1.0, 0.78, 0.34, 1.0),
+            baseColor: LinearColor.fromSrgb(1.0, 0.78, 0.34, 1.0),
             metallic: 1.0,
             roughness: _metalRoughness[i],
           ),
@@ -54,10 +54,10 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
       scene.add(
         MeshNode(
           ball,
-          Material(
+          RenderMaterial(
             name: 'clay ${_clayRoughness[i]}',
             lighting: LightingModel.pbr,
-            baseColor: Vector4(0.42, 0.42, 0.42, 1.0),
+            baseColor: LinearColor.fromSrgb(0.42, 0.42, 0.42, 1.0),
             roughness: _clayRoughness[i],
           ),
           name: 'clay',
@@ -68,7 +68,7 @@ final class RoughSurfacesDemo extends ShowcaseDemo {
 
     // #region light
     return scene..add(
-      LightNode(name: 'key', intensity: 3.0)
+      LightNode(name: 'key', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.4, -1.0).normalized()),
     );
     // #endregion light

@@ -1,3 +1,352 @@
+## 1.0.0-rc.1
+
+- **`flutter3d migrate --data` moves data files to the current format on
+  disk.** It walks a project by the suffixes of every format the engine's
+  plain-Dart packages declare, lifts each JSON document below its version
+  through the format's chain (a level through its reader, which turns old
+  overrides into id paths) and writes it in place, reporting
+  `file: format vN → vM` and what it did not carry over: a format owned by
+  a Flutter package, a version newer than the build, a run or an input
+  tape, which the engine writes at the lowest version that holds it so
+  older builds still play it. `--dry-run` writes nothing; `--backup` keeps `<file>.v<N>.bak`.
+  `doctor`, run in a project, names the files that are behind.
+- **`legacyPluginMarkerKey` is no longer public.** A pubspec that
+  declares its plugins under `flutter3d: plugin:` is still read, with the
+  same warning; the constant was the reader's, not the API's.
+
+- **A converted document reads only inside its own folder.** A glTF buffer
+  or image, an OBJ `mtllib`, a USD reference or texture, a Godot `res://`
+  path or a MaterialX image that climbs out with `..` or is absolute is
+  refused and reported, where it used to be read. `flutter3d convert` holds
+  each input to its own directory and `convertFiles` to the upload;
+  `decodeModelFile` and `fileUriResolverFor` take a `root:`, and
+  `ConvertContext` a `root`.
+- **The migration table names what went internal.** A new `internal` kind
+  (380 entries) marks a symbol a package no longer exports, listed in the
+  guide on one line per package, so the 344 `manual` entries are the ones a
+  person has to carry. The table and the lints plugin also understand
+  `regroup`, `enumToClass`, `recordToClass` and `nullToThrow` entries, and
+  the guide says how many entries are left by hand.
+- **`migrate` fixes.** Removing a renamed dependency no longer deletes the
+  line after it, the URIs of a conditional import or export are rewritten
+  and counted, and `--help` (or `-h`) prints the usage to stdout with exit
+  code 0.
+- **`flutter3d convert` reports a relative glob's files as they were
+  typed**, without a leading `./`, and plugin discovery no longer sorts the
+  dependency graph's own lists in place.
+
+- **Breaking: `DeviceClass` and `deviceClassPath` are not re-exported, nor is
+  `flutter3d_build_hooks`.** The device classes are `flutter3d_core`'s, and
+  `compileMaterial`, `MaterialCompilers` and `MaterialBuildException` are the
+  build hooks' package's; a file that names them imports it.
+
+- **The plugin author server's suite version is its own**: it no longer
+  exports a `conformanceSuiteVersion` beside `flutter3d_conformance`'s.
+- **`create project` lights its sphere.** The template's point light was
+  16, which since 1.0 is 16 candela and a black screen; it is 92 650 cd,
+  the light it was.
+- **`migrate` renames the plugin key**: a top-level `flutter3d:` in the
+  pubspec becomes `flutter3d_plugins:` (decision D), with what is under it
+  unchanged. A pubspec with both keys keeps both, and the report says to
+  merge them.
+- **Breaking: `--json` starts with the format envelope.** `"format":
+  "f3d.cli"`, `"version"`, `"requires"` and `"generator"` replace
+  `"schema"` and `"schemaVersion"`; `cliJsonSchemaVersion` is
+  `cliJsonVersion`. Each subcommand's keys are in `cliJsonBodies` and in
+  `flutter3d help --surface`, so `api/flutter3d_build.cli` snapshots them.
+- **Breaking: `convert --report` writes the envelope** (`f3d.convertReport`)
+  with the reports under `reports`, where it wrote a bare list.
+  `convertReportsFrom` reads both.
+- **Breaking: the argument parsers throw a `ConvertUsageException` saying
+  what was wrong** instead of answering null: `ConvertSettings.parse`,
+  `TextureFamily.parse` and `parseLodRatios`. `TextureFamily.tryParse`
+  answers null for a caller with a fallback.
+- **`flutter3d --version` reads the version from the package's pubspec**,
+  where it printed a number written into the command.
+- **The asset and material caches carry the envelope**; a cache from before
+  reads as empty, and everything builds again once.
+- **The plugin marker is `flutter3d_plugins:`** (decision D); `flutter3d:`
+  is still read, with a warning, until 2.0. New: `pluginMarkerKey`, the
+  deprecated `legacyPluginMarkerKey`, `markerOf`, `PluginDiscovery.warnings`,
+  and a `warnings` key in `plugins --json`.
+- **An application picks which plugins it installs.** Its own pubspec may
+  narrow its dependencies' plugins under `flutter3d_plugins:`, with
+  `include:` and `exclude:` lists of a package (`flutter3d_post`), a library
+  (`flutter3d_post/motion.dart`) or one class
+  (`flutter3d_post/style.dart#ToonLightingAddon`), so depending on
+  `flutter3d_post` no longer has to mean all twenty-three effects. An entry
+  that matches nothing is a warning rather than silence. New:
+  `PluginSelector`, `selectPlugins`, `PluginDiscovery.excluded`, and an
+  `excluded` key in `plugins --json`.
+- **The plugin author's server announces schema version 1.0.0**, and
+  `plugin_mcp` exits 2 on a wrong argument (`CliExit.usage`), not 64.
+
+- **A plugin marker per library.** `flutter3d: plugin:` may be a map from
+  one of the package's libraries to the class or the list of classes it
+  declares, beside the single entry and the list it already took; all three
+  read into the same `plugins.g.dart`. `markerEntries` is the reading, for
+  a tool that wants the same answer. `flutter3d_post` marks its six
+  families this way.
+- **`migrate` follows packages that merged.** Twenty-seven packages went
+  into seven (`flutter3d_game_kit`, `flutter3d_game_physics`,
+  `flutter3d_game_ui`, `flutter3d_camera`, `flutter3d_post`,
+  `flutter3d_mcp`, `flutter3d_education`). A pubspec that named several of them is left
+  naming their new package once, an `import` entry may move a whole
+  directory (`package:flutter3d_addon_hud/src/` to
+  `package:flutter3d_game_ui/src/hud/`), and the generated `fix_data.yaml`
+  goes to the package a name lives in now, matching it by both its old and
+  its new library.
+- **The material compiler is `flutter3d_build_hooks`'.** `compileMaterial`,
+  `MaterialCompilers`, `MaterialBuildException` and
+  `generateMaterialAccessors` moved to that light package, so a package's
+  own build hook (`flutter3d_effects`') compiles its materials without
+  resolving this one's converters and servers into every game. This
+  package depends on it and exports the four under the same names.
+- **The MCP kit is `flutter3d_mcp`'s.** The plugin author's server is built
+  on `package:flutter3d_mcp/kit.dart`, so this package depends on
+  `flutter3d_mcp` where it depended on `flutter3d_mcp_kit`.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `ConvertCommandOptions` is `ConvertCommandSettings`,
+  `ModelOptions` is `ModelSettings`. Every settings class is `final` with a
+  `const` constructor and a `copyWith` over every field; a nullable field
+  is reset with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kAssetPipelineVersion` is
+  `assetPipelineVersion`, `kDartFloor` is `dartFloor`, `kDartTested` is
+  `dartTested`, `kDefaultChunkThreshold` is `defaultChunkThreshold`,
+  `kFlutter3dBuildVersionConstraint` is `flutter3dBuildVersionConstraint`,
+  `kFlutterFloor` is `flutterFloor`, `kFlutterTested` is `flutterTested`,
+  `kGitignoreEntry` is `gitignoreEntry`, `kHookBuildContent` is
+  `hookBuildContent`. The values are the same; `dart fix` carries the
+  renames.
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `ConversionResult.ok` is `isOk`. `dart fix` carries the renames.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `recognisedExtensions` is `recognizedExtensions`. Only the Dart
+  names changed: a file keeps the keys it was written with, and `dart fix`
+  carries the renames.
+- **Breaking: `flutter3d convert` writes one `.f3d` per input.** The model
+  with its lights and cameras, its materials and textures, its `.f3dmat`
+  programs and its scene as prefab documents travel in one bundle (the
+  sections are `flutter3d_core`'s), and a scene's other models ride inside
+  it, so a converted asset can no longer be shipped with a file left behind.
+  The new `--split` flag writes the separate files as before (`.fmat`,
+  `.f3dmat`, `textures/`, `models/`, `.level.json`). `convertFiles` takes
+  `bundle:` (true by default; `false` is the split layout) with its signature
+  otherwise unchanged; `ConversionTarget.materials` and `scenes` pick from
+  the split layout, since a bundle is a model (`build-convert-bundle`).
+- **The plugin author's server says what its tools do.** It announces
+  itself as `flutter3d.plugins` (schema 1.1.0), marks `plugin.conformance`
+  and `plugin.report` read-only, and answers `flutter3d.schema`. A tool
+  plugin made by `flutter3d create plugin --kind tool` asks for the `tools`
+  permission, declares its schema version, and is written against
+  `ToolSpec`/`ToolResult` with no dependency on the MCP library.
+- **The `flutter3d` command is a contract, held like the API.** Its
+  subcommands, flags, exit codes and `--json` output are frozen for 1.x and
+  listed in the README; `api/flutter3d_build.cli` is the whole surface as
+  `flutter3d help --surface` prints it, and the repository's structure check
+  fails when the two differ or a command or flag disappears without a
+  **Breaking:** entry. `CliExit`, `cliJsonSchemaVersion`, `cliJson` and every
+  subcommand's usage text are in `package:flutter3d_build/cli.dart`.
+
+- **Breaking: one set of exit codes.** 0 ok, 1 failed, 2 usage, 3 refused or
+  out of date, 4 would overwrite. `flutter3d` and `create` used to answer a
+  usage error with 64 and a non-empty target with 73; they answer 2 and 3.
+  `init --check` with changes pending exits 3, not 1, so a CI job can tell
+  "out of date" from "broke".
+
+- **Breaking: `--json` output carries its schema.** Every document starts
+  with `"schema": "f3d.cli"`, `"schemaVersion": 1` and `"command"`. `doctor
+  --json` prints `{"checks": [...]}` inside it instead of a bare list;
+  `convert --json` keeps its keys after the three new ones.
+
+- **`flutter3d_assets.yaml` takes `format: 1`.** The manifest's version, the
+  YAML spelling of the format envelope; a manifest without it is version 1,
+  and a newer one is refused with the version that reads it.
+
+- **The plugin author server names the badge with its suite:**
+  `conformant@1.0`, and `ConformanceRun.badge` answers it.
+
+- **`flutter3d plugins --check`** writes nothing and exits 3 when
+  `lib/plugins.g.dart` is missing or is not what the dependencies declare.
+  `plugins --json` prints what it found.
+
+- **Assets from other tools come in with `flutter3d convert`.** A new
+  `flutter3d` executable (`dart pub global activate flutter3d_build`) runs
+  every tool of this package as a subcommand, and its `convert` reads glTF,
+  GLB, OBJ with MTL, STL, PLY meshes and splat captures, USDA and USDZ,
+  MaterialX, Unity `.prefab`, `.unity` and `.mat`, Godot `.tscn` and
+  `.tres`, and FBX and `.blend` through FBX2glTF or Blender when they are
+  installed. Models become `.f3d`. A material that is parameters of a
+  built-in lighting model becomes `.fmat`; a MaterialX graph that computes
+  an input becomes a `.f3dmat` program beside an `.fmat` that names it.
+  Scenes and prefabs become level documents with `prefabs`, a nested
+  instance an instance row with its overrides, and Unity's left-handed
+  transforms are mirrored into the engine's frame. Every input gets a
+  report of what mapped and what was dropped and why; `--dry-run` writes
+  nothing, nothing is written over a file with other contents without
+  `--overwrite`, and the output is the same bytes on every run.
+  `convertFiles` in `package:flutter3d_build/convert.dart` is the same
+  conversion with bytes in and bytes out, for a server: plain Dart, no
+  external program.
+
+- **`flutter3d doctor` checks the toolchain.** Dart and Flutter against the
+  floors and the versions CI runs, and the optional programs: impellerc,
+  glslangValidator, naga, FBX2glTF, Blender and usdcat.
+
+- **`flutter3d create project <dir>` starts a game.** One lit sphere, the
+  build hook wired and `assets_src/` ready.
+
+- **`convertDocument` runs the model steps on a document in memory.** Levels
+  of detail, chunks, impostors and texture encoding, then the `.f3d` bytes,
+  read back and compared; `convertOne` is it with a file on either side.
+  `decodeModelFile` decodes a model as `convertOne` does.
+
+- **Breaking:** `ManifestFormatException` extends `Flutter3dFormatException`
+  instead of implementing `Exception` directly. The name and members are
+  unchanged and every `on` clause that caught it still does; every exception
+  the engine throws now hangs from `Flutter3dException` in
+  `flutter3d_plugin_api`, in one of four families: format, capability, plugin
+  and resource. The migration table marks it as nothing to do.
+- **The build's other refusals joined the same root.**
+  `MaterialBuildException` and `F3dRoundTripException` are
+  `Flutter3dFormatException`s; `BuildStepException`, `MissingToolException`
+  and `ToolFailedException` are `ResourceException`s, the first with the
+  step's own error as its `cause`; `PluginDiscoveryException` is a
+  `PluginException`, so its `message` is inherited.
+- **Breaking: the build's own readers throw their own exceptions.** A
+  source file the converter cannot read (PLY, USD, Godot and Unity text,
+  XML, a ZIP, a file `decodeModelFile` has no reader for) throws
+  `SourceFormatException`, a command line `ConvertCommandSettings.parse`
+  cannot read throws `ConvertUsageException`, and a damaged migration table
+  `MigrationTableException`, all `Flutter3dFormatException`s, where each
+  threw `dart:core`'s bare `FormatException`. `flutter3d convert` still
+  answers a bad command line with the usage and exit code 2, and still
+  reports an unreadable input in its row. An `on FormatException` around
+  one of them no longer catches; the migration table flags it
+  (`build-format-exceptions`, `build-decodeModelFile-exception`).
+- **Material language version 2, built for every GPU backend.** A `vertex`
+  block becomes `<Name>Vertex` and `<Name>VertexSkinned` beside the fragment
+  stage, in every section. A `fullscreen` source builds like a material. A
+  `compute` source fails the build with the reason: no GPU backend loads a
+  compute stage from a bundle.
+- **Typed material accessors.** `generateMaterialAccessors` writes an
+  extension type per material that has uniforms (`SeabedParams(material
+  .parameters).time = t`), and the materials step writes them to
+  `lib/materials.g.dart` in a package whose pubspec names `vector_math`. The
+  string map stays as it was.
+- **`dart run flutter3d_build:migrate` moves a 0.8 project to 1.0.** It
+  moves the pubspec constraints, rewrites imports of libraries that moved
+  between packages, runs `dart fix` and `flutter3d_lints:migrate`, adds the
+  dependencies the new imports need, and prints what changed and what is left
+  to do by hand. Each item left by hand also gets a
+  `// TODO(flutter3d-1.0):` in the code, with a link to its line in the
+  guide. Run it globally activated, with `--dry-run` first. Everything it
+  and the other two tools do comes from one table,
+  `lib/migrations/0.8_to_1.0.yaml`. That table also generates each
+  package's `fix_data.yaml` and the guide on the site.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **The build is a list of steps, and a project adds its own.** The hook
+  was a fixed sequence: models, then materials, then the plugin list. Each
+  is now a named `BuildStep` (`models`, `materials`, `plugins`), and
+  `buildAssetsWith([...])` puts a project's importers and bakers among them
+  by `after` and `before`, ordered as the loop orders its systems — a cycle
+  names its members. A step says what it read and wrote, its inputs are
+  declared to the hook so an edit to one reruns the build, and a step that
+  throws fails the build with its name. `buildAssets` is `buildAssetsWith`
+  with no steps of the project's and does exactly what it did;
+  `runBuildSteps` runs them on a plain directory. Steps run in the hook, not
+  in an engine, so a plugin package exports its steps and the application's
+  `hook/build.dart` names them.
+
+- **A flutter3d update rebuilds every material bundle that needs it.** The
+  material cache's stamp now includes the F3SB container version, the
+  WebGPU and material section versions and the material language version.
+  An update that moves any of them recompiles every `.f3dmat` on the next
+  build, so the runtime never meets a bundle it would refuse as stale.
+
+- **The build hook finds the plugins.** Dependencies whose pubspec says
+  `flutter3d: plugin: <import>#<Class>` are written into the application's
+  `lib/plugins.g.dart` as `installedPlugins`. The walk starts from the
+  application's own dependencies and not from everything the workspace
+  resolved. The hook declares the package graph and the pubspecs it read,
+  so a new plugin dependency reruns it. `dart run flutter3d_build:plugins`
+  does the same by hand. An application with no plugin dependency gets no
+  file.
+
+- **`flutter3d create plugin`: a new plugin from a template.** `dart run
+  flutter3d_build:create plugin --kind <kind> --name <name>` writes a
+  package for one of five kinds — `render-step`, `effect`, `genre`,
+  `element`, `tool` — with the plugin, the discovery marker, a test that
+  installs it and `test/conformance_test.dart`. Each template's manifest
+  says what it touches and declares a budget, and the two kinds that run in
+  the step enable the `flutter3d_lints` analyzer plugin. `pluginTemplate`
+  and `PluginKind` are the same files as a library.
+
+- **An MCP server for a plugin's author.** `dart run
+  flutter3d_build:plugin_mcp` offers `plugin.create`, `plugin.conformance`
+  and `plugin.report`: create a plugin, run its conformance suite and read
+  it test by test, and say whether it earns the badge — every check run and
+  passed, none declined. Its tools are held to `api/flutter3d_build.mcp`,
+  schema 1.0.0. The skill `flutter3d-build-authoring-a-plugin` ships beside
+  it.
+
+- **The six-way smoke baker moved to `flutter3d_particles`,** beside the
+  `SixWayMaterial` it bakes for: `bakeSixWay` and `smokePuff` are no longer
+  exported here.
+
+- **A material's bundle carries its source** in the material section, and
+  `assetPipelineVersion` is 3, so bundles built before it are built again.
+
+**A material written in the material language compiles at build time into
+a shader bundle every GPU backend loads.** The hook finds
+`assets_src/**/*.f3dmat` and writes `flutter3d_generated/**/*.f3dshaders` at
+the same relative path. It parses each source, emits GLSL through
+`flutter3d_core`'s emitter, resolves the engine's headers from
+`flutter3d_shaders`, and packs one `ShaderBundle` with three sections:
+`impellerc` output for Impeller, GLSL ES 3.00 for WebGL2, and WGSL with its
+reflection for WebGPU. `GraphicsDevice.loadShaders` takes the file on any
+backend; the software backend evaluates the same source on the CPU and needs
+no section. Before this, the language emitted GLSL that nothing built, so a
+material could be evaluated on the CPU and could not be drawn by a GPU.
+
+A mistake in a material fails the build with the file, line and column
+(`fx/rim.f3dmat:3:13: ...`). A compiler refusing the GLSL generated from a
+valid source names the source and keeps the generated `.frag` under
+`.dart_tool/flutter3d_build/materials/`, so the line in the compiler's
+message can be opened. Nothing compiles at run time.
+
+The WebGPU section needs glslangValidator and naga. On a machine without
+them the bundle gets the other two sections and the log says so, and the
+WebGPU backend refuses that bundle by name. Failing the whole build over one
+backend's tooling would make it a requirement for everyone. A missing
+`impellerc` is an error, because it ships in the Flutter SDK that runs the
+hook.
+
+Every material source and every engine shader header is declared as a hook
+dependency, so editing `surface.glsl` rebuilds the bundles that include it.
+A bundle whose inputs did not change is not compiled again, and a bundle
+whose source is gone is deleted. A project without materials does not look
+for a compiler or for the engine's sources at all.
+
+A manifest rule's `glob` and `exclude` apply to materials as they do to
+models.
+
+`init` writes `^1.0.0` for this package (`flutter3dBuildVersionConstraint`).
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 **Every cached model converts again once.** `kAssetPipelineVersion` is 2,

@@ -59,9 +59,9 @@ final class SkinningDemo extends ShowcaseDemo {
     // #endregion weights
 
     // #region mesh
-    final Material fabric = Material(
+    final RenderMaterial fabric = RenderMaterial(
       name: 'banner',
-      baseColor: Vector4(0.82, 0.24, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.82, 0.24, 0.2, 1.0),
       roughness: 0.7,
       doubleSided: true,
     );
@@ -75,7 +75,7 @@ final class SkinningDemo extends ShowcaseDemo {
     return Scene()
       ..add(banner)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.7)),
       );
   }

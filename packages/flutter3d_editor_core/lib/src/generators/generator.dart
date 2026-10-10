@@ -1,3 +1,4 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// A program that writes documents: the files it owns, by path, as text.
@@ -10,7 +11,11 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 typedef LevelGenerator = Map<String, String> Function(GeneratorSource source);
 
 /// What a generator may read, and which of a directory's files exist.
-abstract interface class GeneratorSource {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class GeneratorSource {
   /// The text of the file at [path], relative to the repository root.
   String read(String path);
 
@@ -23,13 +28,14 @@ abstract interface class GeneratorSource {
 /// Thrown at generate time rather than left for the loader, which would say
 /// the same in front of a player: a generator is run far more often than a
 /// level is loaded.
-final class GeneratorRefused implements Exception {
-  const GeneratorRefused(this.message);
+final class GeneratorException extends Flutter3dFormatException {
+  const GeneratorException(this.message);
 
+  @override
   final String message;
 
   @override
-  String toString() => 'GeneratorRefused: $message';
+  String toString() => 'GeneratorException: $message';
 }
 
 /// [value] to [digits] places the way a document's own numbers are, keeping

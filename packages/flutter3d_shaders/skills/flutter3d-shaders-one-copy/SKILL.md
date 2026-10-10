@@ -20,7 +20,7 @@ here; let each backend build from it.
 ## The manifest is the contract
 
 `shaders/flutter3d.shaderbundle.json` lists every entry point, and
-`kRequiredShaders` exposes the same list to Dart. That list is the one
+`requiredShaders` exposes the same list to Dart. That list is the one
 requirement `GraphicsDevice` cannot express — no signature says which entry
 points must exist, so a backend written from the interface alone compiles and
 draws nothing. `flutter3d_conformance` reads it and tells a new backend which

@@ -1,13 +1,12 @@
 /// What one pass actually did to a frame — `gfx-42n`.
 ///
 /// **Two frames that differ by exactly one pass, differenced exactly.**
-/// `RenderSettings.disabledPasses` produces the pair from one settings value,
-/// and a deterministic software rasteriser makes the difference arithmetic
-/// rather than a screenshot comparison. Both halves are needed, which is why
-/// this is a thing this engine can answer and the engines it is measured
-/// against cannot: a per-pass switch without a reference implementation gives
-/// two pictures somebody has to eyeball, and a reference implementation
-/// without the switch gives no pair to difference.
+/// `RenderSettings.without` produces the pair from one settings value, and a
+/// deterministic software rasteriser makes the difference arithmetic rather
+/// than a screenshot comparison. Both halves are needed: a per-pass switch
+/// without a reference implementation gives two pictures somebody has to
+/// eyeball, and a reference implementation without the switch gives no pair
+/// to difference.
 ///
 /// The question it answers is the one asked of every effect that ships off by
 /// default: *what is this actually doing to my picture*. Not "is it on" and

@@ -13,9 +13,9 @@ library;
 
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
 import 'package:flutter3d_modeler/src/ui/lathe_dialog.dart';
 import 'package:flutter3d_modeler/src/ui/material_studio_dialog.dart';
@@ -26,7 +26,6 @@ import 'package:flutter3d_modeler/src/ui/shell_tablet.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/tools.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'support/fake_graphics_backend.dart';
 
@@ -395,9 +394,9 @@ void main() {
                   onPressed: () => showMaterialStudioDialog(
                     context,
                     renderer: renderer,
-                    material: engine.Material(
+                    material: engine.RenderMaterial(
                       name: 'clay',
-                      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+                      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
                     ),
                   ),
                   child: const Text('open'),

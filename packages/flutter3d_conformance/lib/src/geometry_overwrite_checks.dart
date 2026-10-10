@@ -28,7 +28,7 @@ Future<Uint8List> _draw(
   int size = 16,
 }) async {
   final target = device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -61,9 +61,8 @@ Future<Uint8List> _draw(
     ..draw();
   pass.submit();
 
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the target could not be read back');
-  return pixels!.buffer.asUint8List();
+  final pixels = await device.readback(target);
+  return pixels.buffer.asUint8List();
 }
 
 /// Draws a single quad (already bound) into a fresh target and reads it back.

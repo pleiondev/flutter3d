@@ -23,9 +23,15 @@ const double sectionLength = 180.0;
 /// How far either side of the valley's middle the water may ever reach.
 const double riverReach = 17.0;
 
-/// How far either side the land is drawn: past what the camera sees at the
-/// far end of the view, so the valley has no edge on screen.
+/// How far either side of the middle the trees and houses stand.
 const double valleyReach = 46.0;
+
+/// How far either side the grass is drawn: as far as the camera sees at
+/// all. The stretches ahead reach a few hundred units up the river, and a
+/// wide window sees about as far across up there, so land that stopped at
+/// [valleyReach] left the sky showing in both top corners. Only the outer
+/// quads of each row get wider; the valley has no more vertices for it.
+const double landReach = 400.0;
 
 /// Half the water's width under a bridge, and where each stretch starts.
 const double narrowHalf = 4.5;
@@ -301,15 +307,24 @@ final class Section {
     while (distance < section.end - 32.0) {
       final kind = mix.kindFor(random.nextDouble());
       final heading = random.nextBool() ? 1 : -1;
-      final moves = random.nextDouble() < mix.moving;
+      final rolledMoving = random.nextDouble() < mix.moving;
       final gunner =
           kind == TargetKind.helicopter && random.nextDouble() < mix.gunners;
+      final row = section.rowAt(distance);
       final double? x = switch (kind) {
         // A jet comes in from off the side and crosses the whole valley.
         TargetKind.jet => -heading * (riverReach + 6.0),
-        _ => _placeOnWater(section.rowAt(distance), kind.halfLength, random),
+        _ => _placeOnWater(row, kind.halfLength, random),
       };
       if (x != null) {
+        // **A mover needs water to move across.** One put on a channel
+        // barely longer than itself turned at each bank several times a
+        // second and read as a craft shaking in place, not moving.
+        final room = switch (row.channelAt(x)) {
+          (final from, final to) => to - from - 2.0 * kind.halfLength,
+          null => 0.0,
+        };
+        final moves = rolledMoving && room >= _roomToMove;
         targets.add(
           TargetPlan(
             kind: kind,
@@ -332,6 +347,10 @@ final class Section {
     }
     return targets;
   }
+
+  /// How far a tanker or a helicopter must be able to travel across its
+  /// channel to be given a speed at all.
+  static const double _roomToMove = 3.0;
 
   /// Somewhere on one of the row's channels, clear of both banks, or null
   /// when the channel picked is too narrow for it.

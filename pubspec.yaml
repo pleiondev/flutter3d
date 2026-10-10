@@ -9,21 +9,28 @@ publish_to: 'none'
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# For `test/structure_test.dart`, the one suite the root has: `dart test` run
+# here used to find no test at all and exit 79, which a check that runs it
+# reads as a failure rather than as an empty directory.
+dev_dependencies:
+  test: ^1.25.0
+
 workspace:
   - packages/flutter3d
   - packages/flutter3d_core
   - packages/flutter3d_build
+  - packages/flutter3d_build_hooks
   - packages/flutter3d_mesh
   - packages/flutter3d_model_core
-  - packages/flutter3d_model_mcp
-  - packages/flutter3d_mcp_kit
   - packages/flutter3d_samples
+  - packages/flutter3d_demo_content
   - packages/flutter3d_app
   - packages/flutter3d_app/example
-  - packages/education/chemlab
   - packages/flutter3d_conformance
   - packages/flutter3d_cpu
   - packages/flutter3d_particles
+  - packages/flutter3d_elements
+  - packages/flutter3d_effects
   - packages/flutter3d_hardware
   - packages/flutter3d_shaders
   - packages/flutter3d_testing
@@ -41,20 +48,34 @@ workspace:
   - packages/flame_flutter3d_audio
   - packages/flame_multiplayer
   - packages/flame_multiplayer_dashwire
+  - packages/flutter3d_foundation
+  - packages/flutter3d_matter
+  - packages/flutter3d_plugin_api
+  - packages/flutter3d_plugin_runtime
+  - packages/flutter3d_lints
   - packages/flutter3d_sim
-  - packages/flutter3d_lab
-  - packages/flutter3d_lti
+  - packages/flutter3d_camera
+  - packages/flutter3d_post
+  - packages/flutter3d_game_kit
+  - packages/flutter3d_game_physics
+  - packages/flutter3d_game_ui
+  - packages/flutter3d_mcp
+  - packages/flutter3d_education
+  - packages/flutter3d_education/example
   - packages/flutter3d_net
   - packages/flutter3d_net_webrtc
   - packages/flutter3d_sim_mcp
   - packages/flutter3d_editor_core
+  - packages/flutter3d_level_scene
   - packages/flutter3d_editor_widgets
-  - packages/flutter3d_editor_mcp
+  - packages/flutter3d_editor_play
   - packages/flutter3d_game_shooter
   - packages/flutter3d_game_strategy
   - packages/flutter3d_game_platformer
   - packages/flutter3d_game_racing
   - packages/flutter3d_physics
+  - packages/flutter3d_physics_native
+  - packages/flutter3d_voxel
   - packages/flutter3d_stereo
   - packages/flutter3d_stereo/example
   - packages/pad_input
@@ -70,6 +91,10 @@ workspace:
   - apps/flutter3d_demo_platformer
   - apps/flutter3d_demo_racing
   - apps/flutter3d_demo_strategy
+  - apps/flutter3d_demo_sandbox
+  - apps/flutter3d_demo_water
+  - apps/flutter3d_demo_hollow
+  - apps/flutter3d_demo_reef
   - apps/flutter3d_lesson_viewer
   - apps/flutter3d_stereo_lesson_viewer
   - apps/flutter3d_lab_incident
@@ -84,3 +109,4 @@ workspace:
   - tool/tutorial
   - tool/godot_check
   - tool/release_dashboard
+  - tool/api

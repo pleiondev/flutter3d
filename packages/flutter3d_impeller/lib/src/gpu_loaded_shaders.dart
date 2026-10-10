@@ -13,6 +13,7 @@ library;
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
@@ -32,7 +33,7 @@ String get runningSdk => Platform.version.split(' ').first;
 ByteData impellerSectionOf(ShaderBundle bundle, {required String running}) {
   final section = bundle.section(ShaderBundle.impellerSection);
   if (section == null) {
-    throw ShaderBundleRefused(
+    throw ShaderBundleException(
       name: bundle.name,
       reason:
           'it has no "${ShaderBundle.impellerSection}" section, so there is '
@@ -41,13 +42,14 @@ ByteData impellerSectionOf(ShaderBundle bundle, {required String running}) {
     );
   }
   if (!bundle.compiledFor(running)) {
-    throw ShaderBundleRefused(
+    throw ShaderBundleException(
       name: bundle.name,
       reason:
           'its compiled section is for Dart SDK "${bundle.sdk}" and this '
           'application runs on "$running". The bundle format is tied to the '
           'Flutter version; rebuild the bundle with the SDK the application '
           'is built with.',
+      stale: true,
     );
   }
   return section;
@@ -67,7 +69,7 @@ ByteData impellerSectionOf(ShaderBundle bundle, {required String running}) {
 /// after that name was asked for stays absent until the application restarts.
 /// Editing a stage that exists is the case a hot reload is for, and that case
 /// works.
-final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
+final class GpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   GpuLoadedShaderLibrary._(this._name, this._library, this.running);
 
   /// Builds the library from a whole bundle, or refuses it by name.
@@ -87,13 +89,13 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
     } catch (error) {
       // flutter_gpu throws a bare `Exception` with its parser's words; the
       // caller wants the bundle's name beside them.
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason: 'flutter_gpu could not parse its compiled section: $error',
       );
     }
     if (library == null) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason: 'flutter_gpu returned no library for its compiled section',
       );
@@ -115,7 +117,13 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
   @override
   ShaderHandle? operator [](String name) => _handles.putIfAbsent(name, () {
     final shader = _library[name];
-    return shader == null ? null : ShaderHandle(backend: shader, name: name);
+    return shader == null
+        ? null
+        : wrapShader(
+            backend: shader,
+            name: name,
+            release: (ShaderHandle h) => forgetShader(_handles, h),
+          );
   });
 
   @override
@@ -131,7 +139,7 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
         if (entry.value != null && !bundle.names.contains(entry.key)) entry.key,
     ];
     if (dropped.isNotEmpty) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason:
             'it no longer has the stage${dropped.length == 1 ? '' : 's'} '
@@ -143,7 +151,7 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
     // which is the contract here too: a refused reload changes nothing.
     final error = _library.reinitializeFromBytes(section);
     if (error != null) {
-      throw ShaderBundleRefused(
+      throw ShaderBundleException(
         name: bundle.name,
         reason: 'flutter_gpu could not reparse its compiled section: $error',
       );

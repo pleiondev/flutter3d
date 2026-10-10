@@ -263,6 +263,7 @@ final class Arsenal {
   final Map<String, int> _magazines = <String, int>{};
 
   /// How long the reload has left, or zero when none is running.
+  /// In seconds.
   double get reloading => _reloading;
   double _reloading = 0.0;
 
@@ -343,7 +344,7 @@ final class Arsenal {
         _ammo[weapon.ammo] = ammoOf(weapon.ammo) - weapon.ammoPerShot;
       }
     }
-    _cooldown = weapon.cooldownSeconds;
+    _cooldown = weapon.cooldown;
     return weapon;
   }
 

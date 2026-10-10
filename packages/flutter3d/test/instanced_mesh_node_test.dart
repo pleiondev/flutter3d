@@ -23,11 +23,15 @@ void main() {
       // The layout the vertex stage declares, byte for byte: sixteen floats,
       // rows first, colour last. A stage reading the wrong float reads a
       // translation as a colour and the batch draws black somewhere else.
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 2);
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 2,
+      );
       final transform = Matrix4.translationValues(1.0, 2.0, 3.0)
         ..scaleByDouble(2.0, 2.0, 2.0, 1.0);
 
-      node.addInstance(transform, color: Vector4(0.5, 0.25, 0.125, 1.0));
+      node.addInstance(transform, color: LinearColor(0.5, 0.25, 0.125, 1.0));
 
       final data = node.instanceData;
       expect(data.sublist(0, 4), <double>[2.0, 0.0, 0.0, 1.0]);
@@ -38,7 +42,11 @@ void main() {
     });
 
     test('reads a transform back as it was written', () {
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1);
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 1,
+      );
       final written = Matrix4.identity()
         ..rotateY(0.7)
         ..setTranslationRaw(4.0, -1.0, 2.5);
@@ -55,24 +63,78 @@ void main() {
     test('an unset instance is the identity with a white tint', () {
       // Not zeros: a matrix of zeros collapses the mesh to a point and a
       // colour of zeros draws it black, and both look like a missing draw.
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 3)
+      final node = InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 3)
         ..count = 3;
       final read = Matrix4.zero();
       node.readTransform(2, read);
 
       expect(read, Matrix4.identity());
-      expect(node.instanceData.sublist(44, 48), <double>[1.0, 1.0, 1.0, 1.0]);
+      const at = 2 * InstancedMeshNode.floatsPerInstance;
+      expect(node.instanceData.sublist(at + 12, at + 16), <double>[
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+      ]);
+      expect(node.instanceData.sublist(at + 16, at + 20), <double>[
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+      ], reason: 'an instance\'s own numbers start at nought');
+    });
+
+    test('holds four numbers of the game\'s own after the colour — P8', () {
+      // What `i_data` reads, at byte 64 of the record: a material's
+      // `instance`. Mutation: write them at the colour's offset.
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 2,
+      );
+      node.addInstance(
+        Matrix4.identity(),
+        color: LinearColor(0.5, 0.5, 0.5, 1.0),
+        data: Vector4(0.1, 0.2, 0.3, 0.4),
+      );
+      expect(node.instanceData.sublist(12, 16), <double>[0.5, 0.5, 0.5, 1.0]);
+      final data = node.instanceData.sublist(16, 20);
+      for (final (i, value) in <double>[0.1, 0.2, 0.3, 0.4].indexed) {
+        expect(data[i], closeTo(value, 1e-6));
+      }
+      final read = Vector4.zero();
+      node.readInstanceData(0, read);
+      expect(read.y, closeTo(0.2, 1e-6));
+      expect(InstancedMeshNode.strideInBytes, 80);
+    });
+
+    test('a slot taken again starts from nought, and a released one carries '
+        'its numbers to where it moved', () {
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 2,
+      );
+      final first = node.acquire(data: Vector4(1.0, 0.0, 0.0, 0.0));
+      final second = node.acquire(data: Vector4(0.0, 2.0, 0.0, 0.0));
+      node.release(first);
+      final read = Vector4.zero();
+      node.readInstanceData(second.index, read);
+      expect(read.y, 2.0, reason: 'the moved slot kept its numbers');
+      final third = node.acquire();
+      node.readInstanceData(third.index, read);
+      expect(read, Vector4.zero(), reason: 'a fresh slot starts at nought');
     });
 
     test('refuses what it cannot hold', () {
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1)
+      final node = InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 1)
         ..addInstance(Matrix4.identity());
 
       expect(() => node.addInstance(Matrix4.identity()), throwsStateError);
       expect(() => node.count = 2, throwsRangeError);
       expect(() => node.setTransform(1, Matrix4.identity()), throwsRangeError);
       expect(
-        () => InstancedMeshNode(_unitCube(), Material(), capacity: 0),
+        () => InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 0),
         throwsAssertionError,
       );
     });
@@ -80,7 +142,7 @@ void main() {
 
   group('the bounds', () {
     test('are the union of the placed instances', () {
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 4)
+      final node = InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 4)
         ..addInstance(Matrix4.translationValues(10.0, 0.0, 0.0))
         ..addInstance(Matrix4.translationValues(-10.0, 0.0, 0.0))
         ..addInstance(
@@ -100,7 +162,7 @@ void main() {
       // A cube turned by 45 degrees about Y reaches sqrt(2) / 2 further along
       // X and Z than its extents say; taking the extents through the rotation
       // is only right for the axis-aligned case.
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1)
+      final node = InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 1)
         ..addInstance(Matrix4.rotationY(math.pi / 4));
 
       expect(node.localBounds.max.x, closeTo(math.sqrt(2.0) / 2.0, 1e-6));
@@ -108,7 +170,7 @@ void main() {
 
     test('follow a write, through the world bounds the renderer culls by', () {
       final scene = Scene();
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1)
+      final node = InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 1)
         ..addInstance(Matrix4.identity());
       scene.root.add(node);
       final before = node.worldBoundsRadius;
@@ -117,11 +179,15 @@ void main() {
 
       expect(node.worldBounds.max.x, closeTo(100.5, 1e-6));
       expect(node.worldBoundsRadius, before, reason: 'one cube, moved');
-      expect(node.worldBoundsCentre.x, closeTo(100.0, 1e-6));
+      expect(node.worldBoundsCenter.x, closeTo(100.0, 1e-6));
     });
 
     test('an empty batch keeps the mesh\'s own bounds', () {
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 8);
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 8,
+      );
 
       expect(node.localBounds.max, Vector3(0.5, 0.5, 0.5));
     });
@@ -131,13 +197,13 @@ void main() {
     // The instances of a static batch are baked into the static shadow atlas,
     // and nothing else in a frame would notice one of them moving.
     final scene = Scene();
-    final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1)
+    final node = InstancedMeshNode(_unitCube(), RenderMaterial(), capacity: 1)
       ..shadowIsStatic = true;
     scene.root.add(node);
     node.addInstance(Matrix4.identity());
     final generation = scene.staticShadowGeneration;
 
-    node.setColor(0, Vector4(1.0, 0.0, 0.0, 1.0));
+    node.setColor(0, LinearColor(1.0, 0.0, 0.0, 1.0));
 
     expect(scene.staticShadowGeneration, greaterThan(generation));
   });
@@ -152,20 +218,24 @@ void main() {
         'handle follows', () {
       // Three shots in the air; the first hits something. The third still
       // has to be drawn, and its owner still has to find it.
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 4);
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 4,
+      );
       final first = node.acquire(
         transform: Matrix4.translationValues(1.0, 0.0, 0.0),
       );
       node.acquire(transform: Matrix4.translationValues(2.0, 0.0, 0.0));
       final third = node.acquire(
         transform: Matrix4.translationValues(3.0, 0.0, 0.0),
-        color: Vector4(1.0, 0.0, 0.0, 1.0),
+        color: LinearColor(1.0, 0.0, 0.0, 1.0),
       );
 
       node.release(first);
 
       expect(node.count, 2);
-      expect(first.live, isFalse);
+      expect(first.isLive, isFalse);
       expect(third.index, 0);
       expect(placeOf(node, 0).x, 3.0);
       expect(node.instanceData[12], 1.0);
@@ -176,7 +246,11 @@ void main() {
     });
 
     test('a full batch grows rather than refusing', () {
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 1);
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 1,
+      );
       final handles = [for (var i = 0; i < 5; i++) node.acquire()];
       expect(node.count, 5);
       expect(node.capacity, greaterThanOrEqualTo(5));
@@ -184,10 +258,14 @@ void main() {
     });
 
     test('clear lets go of every handle', () {
-      final node = InstancedMeshNode(_unitCube(), Material(), capacity: 2);
+      final node = InstancedMeshNode(
+        _unitCube(),
+        RenderMaterial(),
+        capacity: 2,
+      );
       final handle = node.acquire();
       node.clear();
-      expect(handle.live, isFalse);
+      expect(handle.isLive, isFalse);
       expect(node.acquire().index, 0);
     });
   });

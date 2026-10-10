@@ -6,13 +6,12 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
   double roughness = 0.05;
   double intensity = 1.0;
 
-  late final Material _floor;
+  late final RenderMaterial _floor;
 
   @override
   void configureView(DemoContext context) {
@@ -26,9 +25,9 @@ final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region floor
-    _floor = Material(
+    _floor = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.06, 0.06, 0.07, 1.0),
+      baseColor: LinearColor.fromSrgb(0.06, 0.06, 0.07, 1.0),
       roughness: roughness,
     );
     final MeshNode floorMesh = MeshNode(
@@ -47,11 +46,11 @@ final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3.all(1.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'beacon',
-        baseColor: Vector4(0.0, 0.0, 0.0, 1.0),
-        emissive: Vector3(1.0, 0.4, 0.1),
-        emissiveStrength: 2.0,
+        baseColor: LinearColor.fromSrgb(0.0, 0.0, 0.0, 1.0),
+        emissive: LinearColor(1.0, 0.4, 0.1),
+        emissiveStrength: 2.0 * Photometric.legacyNits,
       ),
       name: 'beacon',
     )..setPosition(0.0, 0.65, 0.0);
@@ -61,7 +60,7 @@ final class ScreenSpaceReflectionsDemo extends ShowcaseDemo {
       ..add(floorMesh)
       ..add(beacon)
       ..add(
-        LightNode(name: 'sun', intensity: 1.0)
+        LightNode(name: 'sun', intensity: 1.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }

@@ -15,12 +15,12 @@
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';
+import 'package:flutter3d_webgpu/src/webgpu_pipeline_cache.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// One buffer of interleaved position and normal, stepping per vertex — the
 /// layout every unskinned mesh in the engine has.
-const VertexLayoutSpec _perVertex = VertexLayoutSpec(<BufferLayout>[
+const VertexLayoutDescriptor _perVertex = VertexLayoutDescriptor(<BufferLayout>[
   BufferLayout(
     strideInBytes: 24,
     attributes: <InputAttribute>[
@@ -37,30 +37,32 @@ const VertexLayoutSpec _perVertex = VertexLayoutSpec(<BufferLayout>[
 /// The same vertices with a second buffer of per-instance transforms — what
 /// mesh particles bind, and the layout whose signature must differ from
 /// [_perVertex]'s.
-const VertexLayoutSpec _perInstance = VertexLayoutSpec(<BufferLayout>[
-  BufferLayout(
-    strideInBytes: 24,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'position', format: VertexFormat.float32x3),
-      InputAttribute(
-        name: 'normal',
-        format: VertexFormat.float32x3,
-        offsetInBytes: 12,
-      ),
-    ],
-  ),
-  BufferLayout(
-    strideInBytes: 16,
-    stepMode: VertexStepMode.instance,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
-    ],
-  ),
-]);
+const VertexLayoutDescriptor _perInstance = VertexLayoutDescriptor(
+  <BufferLayout>[
+    BufferLayout(
+      strideInBytes: 24,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'position', format: VertexFormat.float32x3),
+        InputAttribute(
+          name: 'normal',
+          format: VertexFormat.float32x3,
+          offsetInBytes: 12,
+        ),
+      ],
+    ),
+    BufferLayout(
+      strideInBytes: 16,
+      stepMode: VertexStepMode.instance,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
+      ],
+    ),
+  ],
+);
 
 WebGpuPipelineSignature _signature({
   String pipeline = 'MeshVertex+PbrFragment',
-  VertexLayoutSpec layout = _perVertex,
+  VertexLayoutDescriptor layout = _perVertex,
   String topology = 'triangle-list',
   String? stripIndexFormat,
   String cullMode = 'back',
@@ -73,7 +75,13 @@ WebGpuPipelineSignature _signature({
   List<String> colorFormats = const <String>['rgba16float'],
   String? depthFormat = 'depth24plus-stencil8',
   int sampleCount = 1,
+  DepthBias depthBias = DepthBias.none,
+  List<ColorWriteMask> writeMasks = const <ColorWriteMask>[],
+  bool unclippedDepth = false,
 }) => WebGpuPipelineSignature(
+  depthBias: depthBias,
+  writeMasks: writeMasks,
+  unclippedDepth: unclippedDepth,
   pipeline: pipeline,
   vertexLayout: webgpuVertexLayoutFingerprint(layout),
   topology: topology,
@@ -95,7 +103,7 @@ void main() {
       expect(
         webgpuVertexLayoutFingerprint(_perVertex),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 24,
               attributes: <InputAttribute>[
@@ -120,7 +128,7 @@ void main() {
         webgpuVertexLayoutFingerprint(_perVertex),
         webgpuVertexLayoutFingerprint(_perInstance),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 24,
               stepMode: VertexStepMode.instance,
@@ -139,7 +147,7 @@ void main() {
           ]),
         ),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 32,
               attributes: <InputAttribute>[
@@ -157,7 +165,7 @@ void main() {
           ]),
         ),
         webgpuVertexLayoutFingerprint(
-          const VertexLayoutSpec(<BufferLayout>[
+          const VertexLayoutDescriptor(<BufferLayout>[
             BufferLayout(
               strideInBytes: 24,
               attributes: <InputAttribute>[
@@ -313,6 +321,66 @@ void main() {
       };
       expect(seen, hasLength(11));
     });
+
+    test('separates the depth bias, the write masks and unclipped depth', () {
+      // The three per-draw setters of 1.0 that WebGPU bakes into a pipeline.
+      // A shadow caster drawn with a bias and the same mesh drawn without one
+      // must not share a pipeline, or the acne comes back.
+      //
+      // Mutation: drop `depthBias` (or `unclippedDepth`, or `_sameMasks`) from
+      // `==`. Two of these collapse into one and the set is short.
+      final seen = <WebGpuPipelineSignature>{
+        _signature(),
+        _signature(depthBias: const DepthBias(constant: 2, slopeScale: 1.5)),
+        _signature(writeMasks: const <ColorWriteMask>[ColorWriteMask.red]),
+        _signature(unclippedDepth: true),
+      };
+      expect(seen, hasLength(4));
+    });
+
+    test('reads an unset write mask as every channel', () {
+      // A list that stops early and one that spells `all` out are one key, so
+      // a pass that never calls setColorWriteMask builds what it built
+      // before 1.0.
+      //
+      // Mutation: compare `writeMasks` as lists. These two become different
+      // pipelines, and every pre-1.0 pass builds a second copy of each.
+      final unset = _signature();
+      final spelled = _signature(
+        writeMasks: const <ColorWriteMask>[ColorWriteMask.all],
+      );
+      expect(spelled, unset);
+      expect(spelled.hashCode, unset.hashCode);
+    });
+  });
+
+  group('the same state for another pair', () {
+    test('keeps every field of the state and takes the new stages', () {
+      // What warming a new pair rests on: the state is carried over whole.
+      // Mutation: leave `depthBias` out of `withStages`. The two differ.
+      final drawn = _signature(
+        cullMode: 'none',
+        depthBias: const DepthBias(constant: 2, slopeScale: 1.5),
+        blends: const <BlendState?>[BlendState.alphaBlend],
+      );
+      final moved = drawn.withStages(
+        pipeline: 'SpriteVertex+Unlit',
+        vertexModule: null,
+        fragmentModule: null,
+        vertexLayout: webgpuVertexLayoutFingerprint(_perInstance),
+      );
+      expect(
+        moved,
+        _signature(
+          pipeline: 'SpriteVertex+Unlit',
+          layout: _perInstance,
+          cullMode: 'none',
+          depthBias: const DepthBias(constant: 2, slopeScale: 1.5),
+          blends: const <BlendState?>[BlendState.alphaBlend],
+        ),
+      );
+      expect(moved, isNot(drawn));
+    });
   });
 
   group('the cache', () {
@@ -329,6 +397,18 @@ void main() {
       expect(cache.get(_signature(layout: _perInstance), build), 'pipeline 1');
       expect(built, 2);
       expect(cache.length, 2);
+    });
+
+    test('a pipeline built ahead of a draw is the one the draw finds', () {
+      // `createPipelineAsync`'s warming offers what it built; a draw that got
+      // there first keeps its own.
+      // Mutation: `offer` overwrites. The second expectation reads 'warm'.
+      final cache = WebGpuPipelineCache<String>();
+      expect(cache.contains(_signature()), isFalse);
+      expect(cache.offer(_signature(), 'warm'), 'warm');
+      expect(cache.get(_signature(), () => 'drawn'), 'warm');
+      expect(cache.offer(_signature(), 'late'), 'warm');
+      expect(cache.contains(_signature()), isTrue);
     });
 
     test('forgets everything when the device that owns it goes', () {

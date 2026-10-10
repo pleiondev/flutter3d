@@ -13,6 +13,8 @@ import 'dart:math';
 
 import 'package:flutter3d_demo_racing/src/net_race_session.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_net/flutter3d_net.dart' show relayRoom;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -81,6 +83,35 @@ void main() {
       expect(code.contains('1'), isFalse);
       expect(code.contains('I'), isFalse);
     }
+  });
+
+  test('asks for its room with the racing simulation, as relayRoom does', () {
+    final base = Uri.parse('ws://127.0.0.1:9000/');
+    final address = NetRaceSession.roomAddress(base, 'ABCDE');
+    // Mutation: build the address by hand with the terms alone, as this did.
+    // The relay hears no simulation, and a build on other rules joins a race
+    // that parts at its first contact instead of being closed with a reason.
+    expect(
+      address,
+      relayRoom(
+        base,
+        'ABCDE',
+        terms: NetRaceSession.terms,
+        simulation: racingSimulationVersion,
+      ),
+    );
+    expect(
+      address.queryParameters['simulation'],
+      '${NetRaceSession.relayVersion}',
+    );
+    expect(address.pathSegments, <String>['room', 'ABCDE']);
+    // Mutation: fold only the genre's number in. A new engine version that
+    // moves a car differently would still meet the old one.
+    expect(
+      NetRaceSession.relayVersion,
+      racingSimulationVersion.engine * 1000 +
+          racingSimulationVersion.genreVersion,
+    );
   });
 
   test('create and join over a real relay agree on car slots, converge, and '

@@ -113,7 +113,7 @@ void main() {
                   albedoImage: 0,
                   normalDepthImage: 0,
                   grid: 8,
-                  centre: Vector3.zero(),
+                  center: Vector3.zero(),
                   radius: 1,
                 ),
               ),

@@ -1,4 +1,4 @@
-/// `mesh-81n`'s own row, its `fillHoles` half: `EditMesh.makeConsistent`
+/// `mesh-81n`'s own row, its `fillHoles` half: `EditMesh.ensureConsistent`
 /// already covers `flipShells` (see its own doc comment); `splitNonManifoldEdges`
 /// and `fillHoles`'s own "fan" mode stay open — see `mesh_repair.dart`'s
 /// own doc comment for why.
@@ -98,10 +98,10 @@ void main() {
       });
       edit(mesh, () => fillHoles(mesh));
 
-      // A cube wound consistently outward has no closed island `makeConsistent`
+      // A cube wound consistently outward has no closed island `ensureConsistent`
       // needs to turn — if the new face came out backwards, this would flip it.
       var turned = false;
-      edit(mesh, () => turned = mesh.makeConsistent());
+      edit(mesh, () => turned = mesh.ensureConsistent());
       expect(
         turned,
         isFalse,

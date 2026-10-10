@@ -9,12 +9,11 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FabrikIkDemo extends ShowcaseDemo {
   double reach = 0.6;
 
-  late final Pose _pose;
+  late final AnimationPose _pose;
   late final List<SceneNode> _joints;
   late final MeshNode _targetMarker;
   double _lastError = 0.0;
@@ -47,7 +46,7 @@ final class FabrikIkDemo extends ShowcaseDemo {
       scales[i * 3 + 1] = 1.0;
       scales[i * 3 + 2] = 1.0;
     }
-    _pose = Pose(
+    _pose = AnimationPose(
       parents: parents,
       restTranslations: translations,
       restRotations: rotations,
@@ -64,11 +63,11 @@ final class FabrikIkDemo extends ShowcaseDemo {
     for (var i = 0; i < _jointCount; i++) {
       final MeshNode node = MeshNode(
         bead,
-        Material(
+        RenderMaterial(
           name: 'bead $i',
           baseColor: i == _jointCount - 1
-              ? Vector4(0.9, 0.5, 0.2, 1.0)
-              : Vector4(0.5, 0.65, 0.9, 1.0),
+              ? LinearColor.fromSrgb(0.9, 0.5, 0.2, 1.0)
+              : LinearColor.fromSrgb(0.5, 0.65, 0.9, 1.0),
         ),
         name: 'bead $i',
       );
@@ -85,7 +84,10 @@ final class FabrikIkDemo extends ShowcaseDemo {
         context.device,
         SphereShape(radius: 0.08, segments: 12, rings: 6).build(),
       ),
-      Material(name: 'target', baseColor: Vector4(0.9, 0.2, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'target',
+        baseColor: LinearColor.fromSrgb(0.9, 0.2, 0.2, 1.0),
+      ),
       name: 'target',
     );
 
@@ -93,7 +95,7 @@ final class FabrikIkDemo extends ShowcaseDemo {
       ..add(_joints.first)
       ..add(_targetMarker)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
   }

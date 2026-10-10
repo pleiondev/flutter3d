@@ -1,10 +1,9 @@
 import 'package:flame/game.dart'
     show FlameGame, GameWidget, OverlayWidgetBuilder;
 import 'package:flutter/foundation.dart' show setEquals;
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'bridge_clock.dart';
 import 'has_flutter3d.dart';
@@ -16,11 +15,10 @@ import 'transparent_flame_game.dart';
 /// **Both engines render their own layer.** [SceneSurface] draws the 3D
 /// scene [buildScene] returns; Flame's own [GameWidget] draws [game]. Neither
 /// engine's renderer is reimplemented, and neither drives the other's
-/// drawing — they sit in one `Stack`, [game]'s [GameWidget] on top, the same
-/// arrangement `apps/flutter3d_demo_platformer` already uses for its own HUD
-/// and input layer over a bare `SceneSurface`: on the web the 3D surface is a
-/// platform view that swallows pointer events, so whatever needs raw input —
-/// here, Flame itself — has to sit above it in the tree.
+/// drawing — they sit in one `Stack`, [game]'s [GameWidget] on top: on the
+/// web the 3D surface is a platform view that swallows pointer events, so
+/// whatever needs raw input — here, Flame itself — has to sit above it in
+/// the tree.
 ///
 /// **[game] must not paint an opaque background.** `GameWidget` paints
 /// `game.backgroundColor()` as a `DecoratedBox` behind its own canvas, and
@@ -115,8 +113,11 @@ class Flutter3dFlameWidget extends StatelessWidget {
   /// zero.
   final void Function(double dt)? onTick;
 
-  /// The 3D layer's clear color, behind whatever [buildScene] draws.
-  final Vector4? clearColor;
+  /// The 3D layer's clear colour, in linear light, behind whatever
+  /// [buildScene] draws; encoded to sRGB for the view once a frame. Null
+  /// draws the game's [HasFlutter3d.clearColor], or a dark grey for a game
+  /// without it.
+  final LinearColor? clearColor;
 
   /// What the 3D layer's frame is drawn with. Re-read every frame, after
   /// [onTick] — the same contract `SceneSurface.settings` already has.
@@ -173,13 +174,22 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
 
   late RenderView _view = _viewFor();
 
-  RenderView _viewFor() => RenderView(
-    camera: _camera,
-    clearColor:
-        _config.clearColor ??
-        _owner?.clearColor ??
-        Vector4(0.05, 0.05, 0.07, 1.0),
+  RenderView _viewFor() =>
+      RenderView(camera: _camera, clearColorSrgb: _clearSrgb(Vector4.zero()));
+
+  static final LinearColor _defaultClear = LinearColor.fromSrgb(
+    0.05,
+    0.05,
+    0.07,
   );
+
+  /// The clear colour as it is now, encoded into [out] for the view's
+  /// `clearColorSrgb`: the widget's, the game's, or the default.
+  Vector4 _clearSrgb(Vector4 out) {
+    final linear = _config.clearColor ?? _owner?.clearColor ?? _defaultClear;
+    final (:r, :g, :b, :a) = linear.toSrgb();
+    return out..setValues(r, g, b, a);
+  }
 
   /// The camera this state put in the scene, to take out again when a
   /// rebuild hands in another; a scene kept every camera it was ever given.
@@ -491,6 +501,10 @@ class _Flutter3dFlameHostState extends State<_Flutter3dFlameHost> {
                     if (owner != null) {
                       _view.viewportFraction = owner.viewport3d;
                     }
+                    // Read every frame: a game assigns a new colour (a day
+                    // turning, the next level's sky) rather than changing
+                    // one in place.
+                    _clearSrgb(_view.clearColorSrgb);
                   },
                   presentFrame: presentFrame,
                 ),

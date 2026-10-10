@@ -87,6 +87,35 @@ extension _F3dWriteScene on F3dWriter {
     return table;
   }
 
+  /// One record per `extras` block, owners in [F3dExtrasOwner] order and
+  /// each in its list's order, so two conversions of one source agree.
+  (Uint8List, int) _writeExtras() {
+    final blocks = <(int, int, Map<String, Object?>)>[
+      if (document.asset?.extras case final extras?)
+        (F3dExtrasOwner.document, 0, extras),
+      for (final (i, n) in document.nodes.indexed)
+        if (n.extras case final extras?) (F3dExtrasOwner.node, i, extras),
+      for (final (i, m) in document.materials.indexed)
+        if (m.extras case final extras?) (F3dExtrasOwner.material, i, extras),
+      for (final (i, s) in document.skins.indexed)
+        if (s.extras case final extras?) (F3dExtrasOwner.skin, i, extras),
+      for (final (i, a) in document.animations.indexed)
+        if (a.extras case final extras?) (F3dExtrasOwner.animation, i, extras),
+    ];
+    final table = Uint8List(blocks.length * F3dRecord.extras);
+    final view = ByteData.view(table.buffer);
+    for (final (i, (owner, index, extras)) in blocks.indexed) {
+      final (offset, length) = _string(jsonEncode(extras));
+      final o = i * F3dRecord.extras;
+      view
+        ..setUint32(o, owner, Endian.little)
+        ..setUint32(o + 4, index, Endian.little)
+        ..setUint32(o + 8, offset, Endian.little)
+        ..setUint32(o + 12, length, Endian.little);
+    }
+    return (table, blocks.length);
+  }
+
   /// Zero or one record — see `ModelDocument.asset`.
   (Uint8List, int) _writeAsset() {
     final generator = document.asset?.generator;
@@ -214,9 +243,9 @@ extension _F3dWriteScene on F3dWriter {
           ..setUint32(8, impostor.albedoImage, Endian.little)
           ..setUint32(12, impostor.normalDepthImage, Endian.little)
           ..setUint32(16, impostor.grid, Endian.little)
-          ..setFloat32(20, impostor.centre.x, Endian.little)
-          ..setFloat32(24, impostor.centre.y, Endian.little)
-          ..setFloat32(28, impostor.centre.z, Endian.little)
+          ..setFloat32(20, impostor.center.x, Endian.little)
+          ..setFloat32(24, impostor.center.y, Endian.little)
+          ..setFloat32(28, impostor.center.z, Endian.little)
           ..setFloat32(32, impostor.radius, Endian.little);
         records.add(record.buffer.asUint8List());
         count++;

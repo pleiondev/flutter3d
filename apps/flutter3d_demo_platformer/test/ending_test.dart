@@ -85,9 +85,9 @@ void main() {
       // The credits are here because the licence puts them here, and this is
       // the acceptance the plan asked for in as many words: the author's name
       // and a link to the licence.
-      for (final credit in Credits.owed) {
+      for (final credit in credits.owed) {
         expect(find.textContaining(credit.author!), findsWidgets);
-        expect(find.text(credit.licenceUrl!), findsWidgets);
+        expect(find.text(credit.licenseUrl!), findsWidgets);
       }
       expect(find.textContaining('Press R'), findsOneWidget);
     });
@@ -126,7 +126,7 @@ void main() {
       // question, and this one only asks whether it is mentioned at all.
       expect(find.textContaining('dash'), findsWidgets);
       expect(find.textContaining('jump'), findsWidgets);
-      for (final credit in Credits.owed) {
+      for (final credit in credits.owed) {
         expect(find.textContaining(credit.author!), findsWidgets);
       }
       expect(find.text('Click to take the mouse.'), findsOneWidget);

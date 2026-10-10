@@ -7,6 +7,7 @@
 /// else.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
@@ -41,6 +42,8 @@ TextureHandle createGpuTexture(
   bool enableShaderReadUsage = true,
   int mipLevelCount = 1,
   TextureType type = TextureType.texture2D,
+  TextureDimension? dimension,
+  TextureUsage usage = TextureUsage.standard,
 }) {
   final texture = gpu.gpuContext.createTexture(
     storageMode.toGpu(),
@@ -69,7 +72,7 @@ TextureHandle createGpuTexture(
     enableRenderTargetUsage: enableRenderTargetUsage,
     enableShaderReadUsage: enableShaderReadUsage,
   );
-  return TextureHandle(
+  return wrapTexture(
     backend: texture,
     width: width,
     height: height,
@@ -77,6 +80,11 @@ TextureHandle createGpuTexture(
     sampleCount: sampleCount,
     storageMode: storageMode,
     type: type,
+    // What was allocated, which after the trim above can be fewer levels
+    // than were asked for — the handle says what the texture has.
+    dimension: dimension,
+    mipLevelCount: texture.mipLevelCount,
+    usage: usage,
   );
 }
 

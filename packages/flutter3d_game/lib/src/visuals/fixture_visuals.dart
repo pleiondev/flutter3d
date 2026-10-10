@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'fixture_appearance.dart';
+import 'outline_marks.dart';
 
 export 'fixture_appearance.dart';
 
@@ -31,7 +32,7 @@ final class FixtureVisuals {
 
   /// The sampler a fixture's maps tile with — the level's own, sized to the
   /// device once here rather than once per door, key and torch.
-  late final SamplerOptions _tiling = LevelLoader.tilingSamplerFor(device);
+  late final SamplerDescriptor _tiling = LevelLoader.tilingSamplerFor(device);
 
   /// Where this says what it could not draw — a door's model that would not
   /// load, which leaves a box where a door should be.
@@ -63,10 +64,23 @@ final class FixtureVisuals {
   /// Materials whose emissive is driven every frame. Kept per fixture rather
   /// than shared, because two torches at different points of their flicker
   /// cannot be one material.
-  final Map<LightFixture, Material> _glowing = <LightFixture, Material>{};
+  final Map<LightFixture, RenderMaterial> _glowing =
+      <LightFixture, RenderMaterial>{};
 
   /// One uploaded mesh per distinct shape, shared with the game's silhouettes.
   final SharedMeshes meshes;
+
+  /// The colour each fixture is ringed in under the high-contrast look, or
+  /// null for none — `N9`. Asked every [sync], so a role colour the player
+  /// changes in the settings is the ring's colour on the next frame.
+  ///
+  /// The game's question, not this class's: which fixtures matter — the
+  /// pickups, a lever, the way out — and in which role's colour. Left null,
+  /// nothing is ringed and nothing is walked. A game can leave it set with
+  /// the look off: the engine reads no ring until the look is on.
+  Vector3? Function(Fixture fixture)? outlineOf;
+
+  final OutlineMarks _marks = OutlineMarks();
 
   /// Learns where the level's named lights are. Called once, after the scene
   /// is built.
@@ -139,17 +153,24 @@ final class FixtureVisuals {
   void _addLightFixture(Fixture fixture, LightFixture mechanism) {
     // Warm, because a light fixture the level said nothing about is a fire far
     // more often than it is anything else.
-    final colour = fixture.entity.vector('color') ?? Vector3(1.0, 0.72, 0.36);
+    final color = fixture.entity.vector('color') ?? Vector3(1.0, 0.72, 0.36);
 
-    final glow = Material(
+    final glow = RenderMaterial(
       name: '${fixture.entity.type} glow',
-      baseColor: Vector4(colour.x * 0.4, colour.y * 0.4, colour.z * 0.4, 1.0),
+      baseColor: LinearColor.fromSrgb(
+        color.x * 0.4,
+        color.y * 0.4,
+        color.z * 0.4,
+        1.0,
+      ),
       roughness: 0.9,
       // The light itself is a scene light; this is only the thing that looks
       // hot. Emissive rather than a bright base colour, so the bloom picks it
       // up — an unbloomed flame reads as a painted orange square.
-      emissive: Vector3(colour.x, colour.y, colour.z),
-      emissiveStrength: fixture.entity.number('glow') ?? 3.0,
+      emissive: LinearColor(color.x, color.y, color.z),
+      // The level's glow is in the engine's old unit; nits here.
+      emissiveStrength:
+          (fixture.entity.number('glow') ?? 3.0) * Photometric.legacyNits,
     );
     _glowing[mechanism] = glow;
     _baseGlow[mechanism] = glow.emissiveStrength;
@@ -219,12 +240,19 @@ final class FixtureVisuals {
   /// shading — a flat recolour would look like a sticker.
   ///
   /// A material built per fixture rather than shared, because two keys with
-  /// different tints cannot be the same Material object; the textures inside
+  /// different tints cannot be the same RenderMaterial object; the textures inside
   /// it are still shared, which is where the memory actually is.
-  void _tint(Material material, Fixture fixture) {
+  void _tint(RenderMaterial material, Fixture fixture) {
     final tint = fixture.entity.vector('tint');
     if (tint == null) return;
-    material.baseColor.multiply(Vector4(tint.x, tint.y, tint.z, 1.0));
+    // Multiplied in the encoded colour, as the tint was always applied.
+    final was = material.baseColor.toSrgb();
+    material.baseColor = LinearColor.fromSrgb(
+      was.r * tint.x,
+      was.g * tint.y,
+      was.b * tint.z,
+      was.a,
+    );
   }
 
   /// Puts a modelled fixture in the scene once its file has been read.
@@ -296,19 +324,22 @@ final class FixtureVisuals {
     for (final piece in _pieces) {
       final mechanism = piece.fixture.mechanism;
       if (appearance.isSpent(piece.fixture)) {
-        piece.node.visible = false;
+        piece.node.isVisible = false;
         continue;
       }
 
       final scale = appearance.scaleOf(piece.fixture);
       if (scale <= 0.0) {
-        piece.node.visible = false;
+        piece.node.isVisible = false;
         continue;
       }
       piece.node
-        ..visible = true
+        ..isVisible = true
         ..setScale(scale, scale, scale);
       piece.node.setPositionFrom(piece.fixture.position);
+      if (outlineOf case final ring?) {
+        _marks.mark(piece.node, ring(piece.fixture));
+      }
 
       final material = piece.node is MeshNode
           ? (piece.node as MeshNode).material
@@ -328,7 +359,9 @@ final class FixtureVisuals {
         final brightness = mechanism.brightness;
         final glow = _glowing[mechanism];
         if (glow != null) {
-          glow.emissiveStrength = (_baseGlow[mechanism] ?? 3.0) * brightness;
+          glow.emissiveStrength =
+              (_baseGlow[mechanism] ?? 3.0 * Photometric.legacyNits) *
+              brightness;
         }
 
         final name = mechanism.light;
@@ -368,13 +401,14 @@ final class FixtureVisuals {
       piece.node.removeFromParent();
     }
     _pieces.clear();
+    _marks.clear();
     _lights.clear();
     _baseIntensity.clear();
     _glowing.clear();
     _flames.clear();
     _baseGlow.clear();
     for (final pending in _models.values) {
-      unawaited(pending.then((asset) => asset?.release(device)));
+      unawaited(pending.then((asset) => asset?.dispose()));
     }
     _models.clear();
     meshes.dispose();

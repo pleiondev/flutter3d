@@ -13,7 +13,7 @@ file in a world of its own and names the first checkpoint where it stops
 matching, if there is one. Claims about what touched what are not possible,
 because game events are not saved in a run.
 
-Unlike `flutter3d_editor_mcp`/`flutter3d_model_mcp`, this server is
+Unlike `flutter3d_mcp/editor.dart`/`flutter3d_mcp/model.dart`, this server is
 genre-aware on purpose. It knows what a monster and a weapon are, because the
 question it answers ("what does the room look like from here, and is the
 player still alive") has no genre-agnostic version.

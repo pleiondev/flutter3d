@@ -7,9 +7,19 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader_bindings.dart';
+import 'cpu_storage_texture.dart';
+import 'cpu_texture.dart';
 
 /// Turns one vertex into a clip position and some varyings.
-abstract interface class CpuVertexShader {
+///
+/// **Implementable outside this package, and stays so through 1.x**: a
+/// Dart stage is something an application writes, the way it writes a
+/// shader. It does not grow within a major: a capability added later arrives
+/// beside it, as [CpuVertexShaderByIndex] did.
+abstract base class CpuVertexShader {
+  /// A stage with nothing to set up; a subclass adds its own fields.
+  const CpuVertexShader();
+
   /// How many floats of varying this stage writes, so the rasteriser knows how
   /// much to interpolate.
   int get varyingCount;
@@ -38,7 +48,15 @@ abstract interface class CpuVertexShader {
 /// `lib/morph.glsl` reads, and the copy being drawn, which is the row of the
 /// weights texture `lib/morph_instanced.glsl` reads. Every backend needed both
 /// and this one had no way to say either.
-abstract interface class CpuVertexShaderByIndex implements CpuVertexShader {
+///
+/// **Implementable outside this package, and stays so through 1.x**: a
+/// Dart stage is something an application writes, the way it writes a
+/// shader. It does not grow within a major: a capability added later arrives
+/// beside it, as this one did.
+abstract base class CpuVertexShaderByIndex extends CpuVertexShader {
+  /// A stage with nothing to set up; a subclass adds its own fields.
+  const CpuVertexShaderByIndex();
+
   /// The same as [CpuVertexShader.run], plus the vertex's and the instance's
   /// own indices.
   ///
@@ -115,6 +133,12 @@ final class FragmentContext {
   /// off, where the order does not matter.
   double? fragDepth;
 
+  /// The fragment's second colour output, for dual-source blending — what
+  /// GLSL declares as `layout(location = 0, index = 1) out vec4`. The four
+  /// `BlendFactor.source1…` factors read it on attachment zero; null reads
+  /// as transparent black. Cleared per fragment.
+  Vector4? source1;
+
   /// A picture a debug pass wants shown instead of the geometry.
   ///
   /// The stand-in for `g_debug_surface` and `g_debug_surface_on` in
@@ -143,13 +167,42 @@ final class FragmentContext {
 }
 
 /// Turns interpolated varyings into a colour.
-abstract interface class CpuFragmentShader {
+///
+/// **Implementable outside this package, and stays so through 1.x**: a
+/// Dart stage is something an application writes, the way it writes a
+/// shader. It does not grow within a major: a capability added later arrives
+/// beside it, as [CpuVertexShaderByIndex] did.
+abstract base class CpuFragmentShader {
+  /// A stage with nothing to set up; a subclass adds its own fields.
+  const CpuFragmentShader();
+
   /// Returns linear RGBA for attachment zero. Null discards the fragment.
   Vector4? run(
     Float32List varyings,
     ShaderBindings bindings,
     FragmentContext context,
   );
+}
+
+/// A Dart stage that reads storage buffers or storage textures, saying which
+/// by name.
+///
+/// **The one binding a Dart stage declares.** Blocks and samplers are read
+/// by name and checked against the compiled stage's table where there is
+/// one; storage arrived with 1.0 and has no such table, so a stage that wants
+/// some names it here, and a bind of anything else answers false, as a
+/// reflecting backend answers for a binding the stage never declared. A
+/// render stage that does not implement this declares none. A compute stage
+/// that does not is bound whatever it is handed, as every compute stage was
+/// before 1.0.
+///
+/// **Implementable outside this package, and stays so through 1.x**: a
+/// Dart stage is something an application writes, the way it writes a
+/// shader. It does not grow within a major: a capability added later arrives
+/// beside it, as [CpuVertexShaderByIndex] did.
+abstract base mixin class CpuStorageReader {
+  /// The storage buffers and storage textures the stage reads, by name.
+  Set<String> get storageBindings;
 }
 
 /// A stage, which is one or the other.
@@ -168,11 +221,23 @@ final class CpuStage {
 /// What a compute stage is handed: its storage buffers and uniform blocks,
 /// by the names the GLSL gives them.
 final class CpuComputeBindings {
-  CpuComputeBindings(this.storage, this.blocks);
+  CpuComputeBindings(
+    this.storage,
+    this.blocks, {
+    this.textures = const <String, BoundTexture>{},
+    this.storageTextures = const <String, CpuStorageTexture>{},
+  });
 
-  /// The buffers themselves, not copies: a stage writes into them.
+  /// The buffers themselves, not copies: a stage writes into them. A buffer
+  /// bound with a range is that range.
   final Map<String, ByteData> storage;
   final Map<String, Map<String, Float32List>> blocks;
+
+  /// Sampled textures with their samplers — `ComputeEncoder.bindTexture`.
+  final Map<String, BoundTexture> textures;
+
+  /// Storage textures — `ComputeEncoder.bindStorageTexture`.
+  final Map<String, CpuStorageTexture> storageTextures;
 }
 
 /// A compute stage in Dart, standing in for a `.comp` shader — `H6`.
@@ -184,7 +249,15 @@ final class CpuComputeBindings {
 /// what the first wrote after the barrier as if it had been there before. So
 /// the mirror is handed the whole group and runs the phases between barriers
 /// across all of its invocations in turn, which is what a barrier means.
-abstract interface class CpuComputeShader {
+///
+/// **Implementable outside this package, and stays so through 1.x**: a
+/// Dart stage is something an application writes, the way it writes a
+/// shader. It does not grow within a major: a capability added later arrives
+/// beside it, as [CpuVertexShaderByIndex] did.
+abstract base class CpuComputeShader {
+  /// A stage with nothing to set up; a subclass adds its own fields.
+  const CpuComputeShader();
+
   /// `local_size_x`, `local_size_y`, `local_size_z`.
   (int, int, int) get workgroupSize;
 

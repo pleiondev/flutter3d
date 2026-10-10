@@ -1,0 +1,46 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: f4-ui-StereoSurface-fovY-parameter'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      constructor: ''
+      inClass: 'StereoSurface'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'verticalFieldOfView'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: f4-ui-StereoSurface-fovY'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      field: 'verticalFieldOfView'
+      inClass: 'StereoSurface'
+    changes:
+      - kind: 'rename'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: f4-ui-StereoRig-fitToViewport'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      method: 'fitToViewport'
+      inClass: 'StereoRig'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'verticalFieldOfView'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: f4-ui-StereoRig-fovY'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      getter: 'verticalFieldOfView'
+      inClass: 'StereoRig'
+    changes:
+      - kind: 'rename'
+        newName: 'fovY'

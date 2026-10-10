@@ -48,16 +48,7 @@ out vec4 frag_color;
 uniform sampler2D six_way_positive;
 uniform sampler2D six_way_negative;
 
-/// Declared again, as in the other particle stages, since this shares none of
-/// the lit path's headers.
-uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
-  vec4 fog;
-
-  /// xyz: camera position in world space.
-  vec4 eye;
-}
-fog_info;
+#include <lib/contributor_eye.glsl>
 
 uniform SixWayInfo {
   /// xyz: the quad's right, which is the camera's, in world space.
@@ -120,7 +111,7 @@ void main() {
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
     fogged = clamp(
-        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        exp(-fog_info.fog.w * FogDistance(v_world_position)),
         0.0,
         1.0);
   }

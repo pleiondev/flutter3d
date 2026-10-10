@@ -28,15 +28,16 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart'
     show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import 'cpu_shapes_scene.dart';
 
@@ -148,7 +149,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(<int>[r, g, b, 255])),
-  )!;
+  );
 
   @override
   void dispose() {

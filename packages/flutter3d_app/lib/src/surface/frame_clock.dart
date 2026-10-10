@@ -32,8 +32,8 @@ import 'package:flutter/scheduler.dart' show Ticker;
 /// own, and for the tests.
 ///
 /// It does not clamp. A frame longer than a simulation will accept is the
-/// simulation's business — `GameLoop` refuses it and says how much it took —
-/// and a clock that quietly shortened a two-second stall would leave anything
+/// simulation's business — `EngineLoop` refuses it and announces how much it
+/// took — and a clock that quietly shortened a two-second stall would leave anything
 /// reading it in disagreement with anything reading the loop.
 final class FrameClock {
   /// A clock reading the wall, or [wallClock] to read another.

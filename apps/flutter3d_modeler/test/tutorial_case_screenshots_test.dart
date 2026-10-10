@@ -72,7 +72,7 @@ final class _FakePicker extends FileSelectorPlatform
 
 /// Where the six committed case documents live.
 const String _fixtures =
-    '../../packages/flutter3d_model_mcp/test/fixtures/tutorial';
+    '../../packages/flutter3d_mcp/test/model/fixtures/tutorial';
 
 /// The teapot case 1 actually imports — a real STL, which is what puts the
 /// import screen on the screen at all.
@@ -500,8 +500,9 @@ void main() {
           socket
             ..add(
               utf8.encode(
-                'POST /mcp?token=$token HTTP/1.1\r\n'
+                'POST /mcp HTTP/1.1\r\n'
                 'Host: 127.0.0.1:$port\r\n'
+                'Authorization: Bearer $token\r\n'
                 'Content-Type: application/json\r\n'
                 'Content-Length: ${payload.length}\r\n'
                 'Connection: close\r\n'

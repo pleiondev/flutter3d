@@ -1,3 +1,35 @@
+## 1.0.0-rc.1
+
+- **`WebRtcTransport` carries bytes as binary messages** on the data
+  channel (`sendBytes`), and delivers a binary message to `listenBytes`.
+- **Breaking: `WebRtcTransport` delivers through `PeerWire.deliver`**, so
+  any number of listeners hear it and each `listen` returns the
+  `Registration` that takes it away.
+- **Breaking: `WebRtcTransport.createOffer` and `awaitOffer` are
+  `openOffering` and `openAnswering`**: a transport is a connection, opened
+  asynchronously.
+- **Breaking: American spelling in identifiers, as Flutter and Dart
+  use.** `signalling` is `signaling`. Only the Dart names changed: a file
+  keeps the keys it was written with, and `dart fix` carries the renames.
+- **Breaking: `WebRtcTransport` is a `PeerWire`**, and its signalling any
+  `PeerWire`; `NetTransport` is gone.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
+`PassEncoder.draw` a window of the bound indices and every `PassEncoder`
+`setAlphaToCoverage`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

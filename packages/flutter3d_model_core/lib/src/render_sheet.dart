@@ -22,9 +22,9 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_core/flutter3d_core.dart' show GraphicsDevice;
 import 'package:flutter3d_core/formats.dart'
     show Rgba8Image, decodeImagePure, encodeCompressedPng;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'project.dart';
 import 'render_project.dart';
@@ -93,7 +93,7 @@ Future<Uint8List> renderSheet({
       ),
       deviceFactory: deviceFactory,
     );
-    tiles.add((await decodeImagePure(png))!);
+    tiles.add(await decodeImagePure(png));
   }
 
   final sheetWidth = tileWidth * columns;

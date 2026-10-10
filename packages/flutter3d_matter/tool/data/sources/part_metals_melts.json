@@ -1,0 +1,2651 @@
+{
+ "entries": [
+  {
+   "id": "mercury",
+   "catalogId": "f3d.mercury",
+   "name": "mercury",
+   "phase": "liquid",
+   "cas": "7439-97-6",
+   "molarMass": 0.20059,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 13546.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), density of mercury at 20 °C",
+      "note": "Assael et al. (2012) adopt the existing mercury density standard (Bettin and Fehlauer 2004) and give no new correlation",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        14264.8,
+        -2.4518
+       ],
+       "validRange": [
+        234.32,
+        373.15
+       ],
+       "source": "linearised from the 20 °C density and the CRC volumetric expansion 1.81e-4 1/K",
+       "fit": "derived by us; mercury expansion varies by <1 % over 0-100 °C"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001567,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc\", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 5 / Eq. (2)",
+      "note": "the CRC (2016) 20 °C value used in the catalog today is 1.55e-3 Pa*s, 1 % lower",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -7.49745,
+       "B": 304.609,
+       "validRange": [
+        234.0,
+        600.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc\", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf)",
+       "fit": "exact transform of the source form log10(mu/mPa*s) = -0.2561 + 132.29/T; deviation of the correlation 2.1 % (2 sigma)"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.4865,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), surface tension of liquids, 20 °C",
+      "note": "as in the current catalog; not re-fetched"
+     },
+     "bulkModulus": {
+      "value": 28520000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from the density and speed of sound in this entry",
+      "note": "adiabatic"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 139.5,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016)",
+      "note": "as in the current catalog"
+     },
+     "conductivity": {
+      "value": 8.3,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016)",
+      "note": "as in the current catalog"
+     },
+     "volumetricExpansion": {
+      "value": 0.000181,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016)"
+     },
+     "meltingPoint": {
+      "value": 234.31,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data (TRC), https://webbook.nist.gov/cgi/cbook.cgi?ID=C7439976&Mask=4 (Marsh 1987, thermometric fixed point)"
+     },
+     "boilingPoint": {
+      "value": 629.81,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data (TRC), https://webbook.nist.gov/cgi/cbook.cgi?ID=C7439976&Mask=4 (Marsh 1987)",
+      "note": "CRC gives 356.73 °C = 629.88 K"
+     },
+     "latentHeatOfFusion": {
+      "value": 11420.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 2.29 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 294700.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of vaporization of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_vaporization_of_the_elements_(data_page)): CRC 59.11 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1451.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), speed of sound in liquids, 20 °C"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 9.58e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C"
+     }
+    }
+   }
+  },
+  {
+   "id": "gallium",
+   "catalogId": null,
+   "name": "liquid gallium",
+   "phase": "liquid",
+   "cas": "7440-55-3",
+   "molarMass": 0.069723,
+   "referenceState": {
+    "temperature": 303.15,
+    "pressure": 101325.0,
+    "note": "30 °C, just above the 29.76 °C melting point; liquid gallium supercools readily and stays liquid at 20 °C for hours, where the laws extrapolate"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 6076.9,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc\", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 2 / Eq. (1)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        6262.08,
+        -0.611
+       ],
+       "validRange": [
+        303.0,
+        1500.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc\", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf)",
+       "fit": "rewritten from rho = 6077 - 0.611 (T - 302.914); 0.4 % (2 sigma)"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001685,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc\", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 5",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -7.93586,
+       "B": 469.796,
+       "validRange": [
+        304.0,
+        800.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc\", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf)",
+       "fit": "exact transform of the source form log10(mu/mPa*s) = -0.4465 + 204.03/T; deviation of the correlation 13.5 % (2 sigma)"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.724,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Keene, \"Review of data for the surface tension of pure metals\", Int. Mater. Rev. 38, 157-192 (1993), p. 174, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "oxide-free gallium; Iida and Guthrie (2015) give 724 - 0.07 (T - Tm) mN/m",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.745827,
+        -7.2e-05
+       ],
+       "validRange": [
+        303.0,
+        800.0
+       ],
+       "source": "Keene, \"Review of data for the surface tension of pure metals\", Int. Mater. Rev. 38, 157-192 (1993)"
+      }
+     }
+    },
+    "thermal": {
+     "meltingPoint": {
+      "value": 302.92,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data (TRC), https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440553&Mask=4 (Marsh 1987, ITS-90 fixed point)"
+     },
+     "boilingPoint": {
+      "value": 2477.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Boiling points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Boiling_points_of_the_elements_(data_page)): CRC 2204 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 80170.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 5.59 kJ/mol (CRC 5.576)"
+     },
+     "latentHeatOfVaporization": {
+      "value": 3643000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of vaporization of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_vaporization_of_the_elements_(data_page)): CRC 254 kJ/mol"
+     },
+     "conductivity": {
+      "value": 28.42,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, \"Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin\", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Yu et al. (2020) quote 30.54 at 29.8 °C; Iida and Guthrie (2015) fit gives 26.0",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        6.6247,
+        0.071896
+       ],
+       "validRange": [
+        303.0,
+        850.0
+       ],
+       "source": "Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, \"Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin\", High Temp. High Press. 46, 391-416 (2017)"
+      }
+     },
+     "specificHeat": {
+      "value": 397.3,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 519 Tab. 17.6a: 27.7 J/(mol K), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "conditions": "constant, 303-573 K"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 2.592e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 537 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Yu et al. (2020) quote 27.2e-8 at 29.8 °C",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2.15827e-07,
+        1.43234e-10
+       ],
+       "validRange": [
+        302.85,
+        573.15
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015)"
+      }
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 2950.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Physical Properties of Liquid Metals, Clarendon Press (1988) (sound speed at the melting point, -0.28 m/s/K), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Beyer and Ring (1972) give 2873 at the melting point; Blairs (2007) 2800 - 0.288 T = 2713"
+     }
+    }
+   }
+  },
+  {
+   "id": "galinstan",
+   "catalogId": null,
+   "name": "Galinstan (Ga-In-Sn eutectic)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "alloy; Plevachuk et al. composition in mole fraction Ga 0.772, In 0.144, Sn 0.084 (about 68.5 Ga / 21.5 In / 10 Sn by mass)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 6353.0,
+      "unit": "kg/m3",
+      "confidence": "measured",
+      "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+      "note": "the 293 K point itself is 6360 kg/m3; Yu et al. (2020) quote 6440",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        6583.23,
+        -0.787
+       ],
+       "validRange": [
+        293.0,
+        493.0
+       ],
+       "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+       "fit": "least squares by us over 18 points, max deviation 0.71 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.00215,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+      "note": "20 °C is 6 K below the first data point (299 K, 2.09e-3 Pa*s); the value is the fit extrapolated. The often-quoted 2.4e-3 Pa*s is a manufacturer figure not traced here",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -7.73278,
+       "B": 466.827,
+       "validRange": [
+        299.0,
+        598.0
+       ],
+       "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+       "fit": "least squares by us over 18 points, max deviation 2.4 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.585,
+      "unit": "N/m",
+      "confidence": "measured",
+      "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+      "conditions": "mean of 10 points, 306-573 K; no clear temperature trend",
+      "note": "Liu, Sen and Kim, J. Microelectromech. Syst. 21 (2012) measured 0.5346 N/m (pendant drop, N2 with <0.5 ppm O2, 28 °C); oxide skin in air makes the apparent value meaningless"
+     }
+    },
+    "thermal": {
+     "conductivity": {
+      "value": 24.6,
+      "unit": "W/(m*K)",
+      "confidence": "measured",
+      "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        11.098,
+        0.04616
+       ],
+       "validRange": [
+        292.0,
+        598.0
+       ],
+       "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+       "fit": "least squares by us over 32 points, max deviation 2.8 %"
+      }
+     },
+     "meltingPoint": {
+      "value": 283.85,
+      "unit": "K",
+      "confidence": "measured",
+      "source": "Yu et al., Adv. Sci. 7 (2020) 2000192 (DSC, 10.7 °C)",
+      "note": "the -19 °C often quoted is supercooling, per the same review"
+     },
+     "specificHeat": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found in a primary source in this pass"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 3.07e-07,
+      "unit": "Ohm*m",
+      "confidence": "measured",
+      "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml (electrical conductivity)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1.7351e-07,
+        4.563e-10
+       ],
+       "validRange": [
+        291.0,
+        723.0
+       ],
+       "source": "Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, \"Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy\", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml",
+       "fit": "least squares on 1/sigma by us over 29 points, max deviation 1.8 %"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "sodium",
+   "catalogId": null,
+   "name": "liquid sodium",
+   "phase": "liquid",
+   "cas": "7440-23-5",
+   "molarMass": 0.0229898,
+   "referenceState": {
+    "temperature": 400.0,
+    "pressure": 101325.0,
+    "note": "400 K, about 29 K above the melting point; a fast-reactor coolant"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 919.3,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.3-1 (919 kg/m3 at 400 K)",
+      "law": {
+       "kind": "expression",
+       "form": "rho = 219 + 275.32 (1 - T/Tc) + 511.58 (1 - T/Tc)^0.5, Tc = 2503.7 K",
+       "validRange": [
+        371.0,
+        2503.7
+       ],
+       "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Eq. (5) of section 1.3",
+       "note": "not one of the PropertyLaw kinds; tabulate if the catalog needs it"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0005992,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 2.2-1 (5.99e-4 at 400 K)",
+      "law": {
+       "kind": "expression",
+       "form": "ln(mu/Pa*s) = -6.4406 - 0.3958 ln T + 556.835/T",
+       "validRange": [
+        371.0,
+        2500.0
+       ],
+       "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf) (Shpil'rain et al.), section 2.2 Eq. (1)"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.1977,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.6-1 (197.7 mN/m at 400 K)",
+      "law": {
+       "kind": "expression",
+       "form": "sigma = 0.2405 (1 - T/2503.7)^1.126 N/m",
+       "validRange": [
+        371.0,
+        2503.7
+       ],
+       "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), section 1.6",
+       "note": "equation reproduces the report's table to 0.1 mN/m"
+      }
+     },
+     "bulkModulus": {
+      "value": 5714000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.4-1 adiabatic compressibility 1.75e-4 1/MPa at 400 K"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1372.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.1-5",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         371,
+         1383
+        ],
+        [
+         400,
+         1372
+        ],
+        [
+         500,
+         1334
+        ],
+        [
+         600,
+         1301
+        ],
+        [
+         700,
+         1277
+        ],
+        [
+         800,
+         1260
+        ],
+        [
+         900,
+         1252
+        ]
+       ],
+       "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.1-5"
+      }
+     },
+     "conductivity": {
+      "value": 87.22,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 2.1-1 (87.22 at 400 K)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T + c2*T^2 + c3*T^3",
+       "coefficients": [
+        124.67,
+        -0.11381,
+        5.5226e-05,
+        -1.1842e-08
+       ],
+       "validRange": [
+        371.0,
+        1500.0
+       ],
+       "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), section 2.1"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.000241,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.3-4"
+     },
+     "meltingPoint": {
+      "value": 370.96,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data (TRC), https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440235&Mask=4 (Marsh 1987)"
+     },
+     "boilingPoint": {
+      "value": 1154.7,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), section 1.2 (1154.7 +- 1.3 K)"
+     },
+     "latentHeatOfFusion": {
+      "value": 113100.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 2.60 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 3882000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), section 1.2.3 Eq. (7) at the boiling point",
+      "note": "4.51e6 J/kg at 400 K (Table 1.2-6)"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 2496.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Fink and Leibowitz, \"Thermodynamic and Transport Properties of Sodium Liquid and Vapor\", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.4-7"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 1.075e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 541 Tab. 17.11, quadratic fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        2.49727e-08,
+        8.41382e-11,
+        3.05451e-13
+       ],
+       "validRange": [
+        370.15,
+        1073.15
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015)"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "lead",
+   "catalogId": null,
+   "name": "liquid lead",
+   "phase": "liquid",
+   "cas": "7439-92-1",
+   "molarMass": 0.2072,
+   "referenceState": {
+    "temperature": 650.0,
+    "pressure": 101325.0,
+    "note": "650 K, about 50 K above the melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 10609.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2008)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        11441.0,
+        -1.2795
+       ],
+       "validRange": [
+        600.6,
+        2021.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.002356,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "law": {
+       "kind": "arrhenius",
+       "form": "mu = mu0*exp(B/T)",
+       "mu0": 0.000455,
+       "B": 1069.0,
+       "validRange": [
+        600.6,
+        1473.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.4525,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Jauch 1986)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.5259,
+        -0.000113
+       ],
+       "validRange": [
+        600.6,
+        1300.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "bulkModulus": {
+      "value": 34110000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from the NEA density and sound-speed correlations (adiabatic)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 147.1,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)",
+      "law": {
+       "kind": "expression",
+       "form": "cp = 176.2 - 4.923e-2 T + 1.544e-5 T^2 - 1.524e6 T^-2",
+       "validRange": [
+        600.6,
+        2000.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "conductivity": {
+      "value": 16.35,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        9.2,
+        0.011
+       ],
+       "validRange": [
+        600.6,
+        1300.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.0001206,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py): alpha = 1/(8942 - T)"
+     },
+     "meltingPoint": {
+      "value": 600.6,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); NIST TRC 600.64 K"
+     },
+     "boilingPoint": {
+      "value": 2021.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     },
+     "latentHeatOfFusion": {
+      "value": 23070.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     },
+     "latentHeatOfVaporization": {
+      "value": 858600.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1793.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1953.0,
+        -0.246
+       ],
+       "validRange": [
+        600.6,
+        2000.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 9.762e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        6.7e-07,
+        4.71e-10
+       ],
+       "validRange": [
+        600.6,
+        1273.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 9.412e-06,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)",
+      "law": {
+       "kind": "expression",
+       "form": "p = 5.76e9 exp(-22131/T) Pa",
+       "validRange": [
+        600.6,
+        2021.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "leadBismuthEutectic",
+   "catalogId": null,
+   "name": "lead-bismuth eutectic (LBE)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "alloy, 44.5 Pb / 55.5 Bi by mass",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 473.15,
+    "pressure": 101325.0,
+    "note": "200 °C, 75 K above the 398 K melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 10453.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)",
+      "note": "cross-checks: Assael et al. (2012) 10922 - 1.096 T gives 10403; Chusov et al. (2020) 11000 - 1.223 T gives 10421",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        11065.0,
+        -1.293
+       ],
+       "validRange": [
+        398.0,
+        1927.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.002432,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "note": "Assael et al. (2012) log10(mu/mPa s) = -0.3173 + 346.95/T gives 2.606e-03 Pa*s (14.2 %, 2 sigma)",
+      "law": {
+       "kind": "arrhenius",
+       "form": "mu = mu0*exp(B/T)",
+       "mu0": 0.000494,
+       "B": 754.1,
+       "validRange": [
+        398.0,
+        1300.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.4107,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "note": "Chusov et al. (2020): (441.1 - 0.0711 T) mN/m = 0.4075",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.4485,
+        -7.99e-05
+       ],
+       "validRange": [
+        398.0,
+        1400.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "bulkModulus": {
+      "value": 32180000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from the NEA density and sound-speed correlations (adiabatic)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 146.9,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)",
+      "note": "Chusov et al. (2020) recommend a constant 147.0",
+      "law": {
+       "kind": "expression",
+       "form": "cp = 164.8 - 3.94e-2 T + 1.25e-5 T^2 - 4.56e5 T^-2",
+       "validRange": [
+        400.0,
+        1927.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "conductivity": {
+      "value": 10.42,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        3.284,
+        0.01617,
+        -2.305e-06
+       ],
+       "validRange": [
+        398.0,
+        1200.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.0001237,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py): alpha = 1/(8558 - T)"
+     },
+     "meltingPoint": {
+      "value": 398.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     },
+     "boilingPoint": {
+      "value": 1927.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     },
+     "latentHeatOfFusion": {
+      "value": 38600.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     },
+     "latentHeatOfVaporization": {
+      "value": 856600.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1755.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)",
+      "note": "Chusov et al. (2020): 1855 - 0.257 T = 1733",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1855.0,
+        -0.212
+       ],
+       "validRange": [
+        400.0,
+        1100.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 1.136e-06,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "note": "Chusov et al. (2020): (88.71 + 0.052 T) 1e-8 = 1.1331e-06",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        9.09e-07,
+        4.8e-10
+       ],
+       "validRange": [
+        400.0,
+        1100.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 2.434e-11,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)",
+      "law": {
+       "kind": "expression",
+       "form": "p = 1.22e10 exp(-22552/T) Pa",
+       "validRange": [
+        398.0,
+        1927.0
+       ],
+       "source": "OECD/NEA, \"Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies\", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "tin",
+   "catalogId": null,
+   "name": "liquid tin",
+   "phase": "liquid",
+   "cas": "7440-31-5",
+   "molarMass": 0.11871,
+   "referenceState": {
+    "temperature": 550.0,
+    "pressure": 101325.0,
+    "note": "550 K, 45 K above the melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 6949.7,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, as quoted in Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (1)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        7308.31,
+        -0.652
+       ],
+       "validRange": [
+        506.0,
+        1950.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496",
+       "fit": "rewritten from rho = 6979 - 0.652 (T - 505.08)"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001646,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, as quoted in Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (16)",
+      "law": {
+       "kind": "arrhenius",
+       "form": "mu = mu0*exp(B/T)",
+       "mu0": 0.0003908,
+       "B": 790.7,
+       "validRange": [
+        506.0,
+        1280.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496",
+       "fit": "equivalent to log10(mu/mPa s) = -0.408 + 343.4/T"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.5559,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (15) (Kasama et al. 1976)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.606,
+        -9.1e-05
+       ],
+       "validRange": [
+        505.0,
+        1300.0
+       ],
+       "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf"
+      }
+     },
+     "bulkModulus": {
+      "value": 42160000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry (adiabatic)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 247.1,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (2) (Hultgren)",
+      "law": {
+       "kind": "expression",
+       "form": "cp = 182.7 + 5.177e-2 T + 1.086e7 T^-2",
+       "validRange": [
+        505.0,
+        1500.0
+       ],
+       "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf",
+       "note": "sign of the T^-2 term read from a PDF text layer; it gives 247 J/(kg K) at 550 K, in line with Hultgren's ~28.5 J/(mol K)"
+      }
+     },
+     "conductivity": {
+      "value": 29.67,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (14)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        13.9,
+        0.02868
+       ],
+       "validRange": [
+        505.0,
+        1200.0
+       ],
+       "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf"
+      }
+     },
+     "meltingPoint": {
+      "value": 505.08,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf; Wikipedia, \"Melting points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Melting_points_of_the_elements_(data_page))"
+     },
+     "boilingPoint": {
+      "value": 2875.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Boiling points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Boiling_points_of_the_elements_(data_page)): CRC 2602 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 59220.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 7.03 kJ/mol (CRC 7.173)"
+     },
+     "latentHeatOfVaporization": {
+      "value": 2494000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of vaporization of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_vaporization_of_the_elements_(data_page)): Lange 296.1 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 2463.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (4)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2605.0,
+        -0.258
+       ],
+       "validRange": [
+        505.0,
+        1500.0
+       ],
+       "source": "Humrickhouse, \"An Equation of State and Compendium of Thermophysical Properties of Liquid Tin\", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 4.848e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 542 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        3.43476e-07,
+        2.56947e-10
+       ],
+       "validRange": [
+        505.15,
+        1273.15
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015)"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "aluminumMelt",
+   "catalogId": null,
+   "name": "molten aluminium",
+   "phase": "liquid",
+   "cas": "7429-90-5",
+   "molarMass": 0.026982,
+   "referenceState": {
+    "temperature": 973.15,
+    "pressure": 101325.0,
+    "note": "700 °C, a casting temperature, 40 K above the melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 2365.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, as adopted in Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2667.31,
+        -0.311
+       ],
+       "validRange": [
+        933.47,
+        1270.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380",
+       "fit": "rewritten from rho = 2377 - 0.311 (T - 933.47); 0.7 % uncertainty"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.00124,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -8.59417,
+       "B": 1850.1,
+       "validRange": [
+        933.0,
+        1270.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380",
+       "fit": "exact transform of the source form log10(mu/mPa*s) = -0.7324 + 803.49/T; deviation of the correlation 13.7 % (2 sigma)"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.8602,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Brillo and Kolland 2016), oxygen-saturated surface",
+      "note": "an oxide-free surface is about 1.05 N/m at the melting point",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1.00229,
+        -0.000146
+       ],
+       "validRange": [
+        933.47,
+        1500.0
+       ],
+       "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618"
+      }
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1177.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (NIST-JANAF 4th ed.): 31.751 J/(mol K), constant in the liquid"
+     },
+     "conductivity": {
+      "value": 92.13,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Ho, Powell and Liley 1974)",
+      "law": {
+       "kind": "expression",
+       "form": "k = 90.726 + 36.0231e-3 (T - 933.47) - 13.2857e-6 (T - 933.47)^2",
+       "validRange": [
+        933.47,
+        2000.0
+       ],
+       "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618"
+      }
+     },
+     "meltingPoint": {
+      "value": 933.47,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (ITS-90 fixed point)"
+     },
+     "boilingPoint": {
+      "value": 2791.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618"
+     },
+     "latentHeatOfFusion": {
+      "value": 397000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (JANAF): 10.711 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 10900000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618: 71.8 (6800 - T)^0.17 kJ/mol at the boiling point",
+      "note": "CRC gives 294 kJ/mol"
+     },
+     "emissivity": {
+      "value": 0.12,
+      "unit": "1",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Totten and MacKenzie, Handbook of Aluminum, 2003)",
+      "note": "two data points (973 and 1273 K); oxide-sensitive",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        -0.0422,
+        0.000167
+       ],
+       "validRange": [
+        933.47,
+        1273.0
+       ],
+       "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 2.546e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Desai, James and Ho 1984)",
+      "law": {
+       "kind": "expression",
+       "form": "rho_e = (24.834 + 15.834e-3 (T - 933.47) - 2.1217e-6 (T - 933.47)^2) 1e-8 Ohm m",
+       "validRange": [
+        933.47,
+        2000.0
+       ],
+       "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618"
+      }
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 1.22e-06,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Yaws 2018)",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.3656,
+       "B": 14524.9,
+       "C": -80.9,
+       "validRange": [
+        933.47,
+        2800.0
+       ],
+       "source": "Tolias, Ratynskaia, Paschalidis, \"Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications\", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618, given as log10(p/Pa) = 10.3656 - 14524.9/(T - 80.9)"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "ironMelt",
+   "catalogId": null,
+   "name": "molten iron",
+   "phase": "liquid",
+   "cas": "7439-89-6",
+   "molarMass": 0.055845,
+   "referenceState": {
+    "temperature": 1823.15,
+    "pressure": 101325.0,
+    "note": "1550 °C, a steelmaking temperature, 12 K above the melting point; pure iron, not steel"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 7024.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, p. 289 Eq. (2), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        8711.95,
+        -0.926
+       ],
+       "validRange": [
+        1809.0,
+        2480.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380",
+       "fit": "rewritten from rho = 7034.96 - 0.926 (T - 1811); 0.8 % uncertainty"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.005719,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, p. 295 Eq. (20), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -8.56769,
+       "B": 6205.35,
+       "validRange": [
+        1809.0,
+        2480.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron\", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380",
+       "fit": "exact transform of the source form log10(mu/mPa*s) = -0.7209 + 2694.95/T; deviation of the correlation 5.7 % (2 sigma)"
+      }
+     },
+     "surfaceTension": {
+      "value": 1.899,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Keene, \"Review of data for the surface tension of pure metals\", Int. Mater. Rev. 38, 157-192 (1993), p. 176, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Brillo and Egry (2005): 1.92 - 3.97e-4 (T - 1811) N/m; oxygen and sulphur lower it sharply",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2.84664,
+        -0.00052
+       ],
+       "validRange": [
+        1803.0,
+        2100.0
+       ],
+       "source": "Keene, \"Review of data for the surface tension of pure metals\", Int. Mater. Rev. 38, 157-192 (1993)"
+      }
+     },
+     "bulkModulus": {
+      "value": 110500000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry (adiabatic)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 824.1,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "NIST-JANAF (Chase 1998) liquid Shomate equation, via NIST Chemistry WebBook condensed phase data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C7439896&Mask=2: 46.024 J/(mol K), 1809-3133 K",
+      "note": "Iida and Guthrie (1988) give 41.8 J/(mol K)"
+     },
+     "conductivity": {
+      "value": 36.47,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, \"Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin\", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        18.926,
+        0.0096207
+       ],
+       "validRange": [
+        1815.0,
+        2050.0
+       ],
+       "source": "Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, \"Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin\", High Temp. High Press. 46, 391-416 (2017)"
+      }
+     },
+     "meltingPoint": {
+      "value": 1811.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Melting points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Melting_points_of_the_elements_(data_page)): CRC 1538 °C"
+     },
+     "boilingPoint": {
+      "value": 3134.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Boiling points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Boiling_points_of_the_elements_(data_page)): CRC 2861 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 247300.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 13.81 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 6088000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of vaporization of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_vaporization_of_the_elements_(data_page)): Lange 340 kJ/mol",
+      "note": "WebElements 347 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 3966.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Blairs, \"Review of data for velocity of sound in pure liquid metals and metalloids\", Int. Mater. Rev. 52, 321-344 (2007), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        4876.0,
+        -0.499
+       ],
+       "validRange": [
+        1811.0,
+        2000.0
+       ],
+       "source": "Blairs, \"Review of data for velocity of sound in pure liquid metals and metalloids\", Int. Mater. Rev. 52, 321-344 (2007)"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 1.386e-06,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 538 Tab. 17.11, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "conditions": "at the melting point"
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 4.13,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 6.35272,
+       "B": 19574.0,
+       "C": 0.0,
+       "validRange": [
+        1808.0,
+        2100.0
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015): log10(p/atm) = 6.347 - 19574/T, converted to bar"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "copperMelt",
+   "catalogId": null,
+   "name": "molten copper",
+   "phase": "liquid",
+   "cas": "7440-50-8",
+   "molarMass": 0.063546,
+   "referenceState": {
+    "temperature": 1400.0,
+    "pressure": 101325.0,
+    "note": "1400 K, 42 K above the melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 7962.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, p. 033105-4 Eq. (1), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "CRC 85th ed. gives 8020 - 0.609 (T - 1357.77)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        9109.01,
+        -0.819
+       ],
+       "validRange": [
+        1356.0,
+        2500.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.003744,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, Eq. (3), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -7.87945,
+       "B": 3208.42,
+       "validRange": [
+        1356.0,
+        1970.0
+       ],
+       "source": "Assael et al., \"Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin\", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496",
+       "fit": "exact transform of the source form log10(mu/mPa*s) = -0.422 + 1393.4/T; deviation of the correlation 6.3 % (2 sigma)"
+      }
+     },
+     "surfaceTension": {
+      "value": 1.363,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Keene, \"Review of data for the surface tension of pure metals\", Int. Mater. Rev. 38, 157-192 (1993), p. 173, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Iida and Guthrie (2015) and Mills and Su (2006): 1320 - 0.28 (T - Tm) mN/m",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1.72712,
+        -0.00026
+       ],
+       "validRange": [
+        1358.0,
+        1900.0
+       ],
+       "source": "Keene, \"Review of data for the surface tension of pure metals\", Int. Mater. Rev. 38, 157-192 (1993)"
+      }
+     },
+     "bulkModulus": {
+      "value": 95410000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry (adiabatic)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 516.9,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "NIST-JANAF (Chase 1998) liquid Shomate equation, via NIST Chemistry WebBook condensed phase data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440508&Mask=2: 32.8445 J/(mol K), 1358-2843 K",
+      "note": "Iida and Guthrie (1988) give 31.38 J/(mol K)"
+     },
+     "conductivity": {
+      "value": 153.5,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, \"Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin\", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        54.889,
+        0.07041
+       ],
+       "validRange": [
+        1358.0,
+        1700.0
+       ],
+       "source": "Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, \"Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin\", High Temp. High Press. 46, 391-416 (2017)"
+      }
+     },
+     "meltingPoint": {
+      "value": 1357.77,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Melting points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Melting_points_of_the_elements_(data_page)): 1084.62 °C (ITS-90 fixed point)"
+     },
+     "boilingPoint": {
+      "value": 2835.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Boiling points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Boiling_points_of_the_elements_(data_page)): CRC 2562 °C",
+      "note": "yamdb lists 2903.15 K; sources differ"
+     },
+     "latentHeatOfFusion": {
+      "value": 208700.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 13.26 kJ/mol (CRC 12.93)"
+     },
+     "latentHeatOfVaporization": {
+      "value": 4727000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of vaporization of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_vaporization_of_the_elements_(data_page)): Lange 300.4 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 3462.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Blairs, \"Review of data for velocity of sound in pure liquid metals and metalloids\", Int. Mater. Rev. 52, 321-344 (2007), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        4093.0,
+        -0.451
+       ],
+       "validRange": [
+        1358.0,
+        1900.0
+       ],
+       "source": "Blairs, \"Review of data for velocity of sound in pure liquid metals and metalloids\", Int. Mater. Rev. 52, 321-344 (2007)"
+      }
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 2.046e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 536 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        6.09991e-08,
+        1.02598e-10
+       ],
+       "validRange": [
+        1356.15,
+        1873.15
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015)"
+      }
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 0.135,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.85472,
+       "B": 16415.0,
+       "C": 0.0,
+       "validRange": [
+        1356.0,
+        1850.0
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015): log10(p/atm) = 5.849 - 16415/T, converted to bar"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "lithium",
+   "catalogId": null,
+   "name": "liquid lithium",
+   "phase": "liquid",
+   "cas": "7439-93-2",
+   "molarMass": 0.006941,
+   "referenceState": {
+    "temperature": 500.0,
+    "pressure": 101325.0,
+    "note": "500 K, 47 K above the melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 512.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, Eq. (1)",
+      "note": "Iida and Guthrie (1988/2015): 518 - 0.10 (T - Tm) gives 513",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        562.0,
+        -0.1
+       ],
+       "validRange": [
+        453.7,
+        1600.0
+       ],
+       "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.000523,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Hirai (1992) as tabulated in Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II Tab. 17.9a, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Davison (1968) log10(mu/Pa s) = -3.080 + 57.63/T - 5.172e-4 T gives 5.979e-04 (his stated scatter is 19 %)",
+      "law": {
+       "kind": "arrhenius",
+       "form": "mu = mu0*exp(Ea/(R*T))",
+       "mu0": 0.0001386,
+       "Ea": 5521.0,
+       "R": 8.3144,
+       "validRange": [
+        453.7,
+        1000.0
+       ],
+       "source": "Hirai, ISIJ Int. 32 (1992) Tab. 1, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.392,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 528 Tab. 17.8, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Davison (1968) 0.447 - 1.07e-4 T - 1.351e-8 T^2 gives 0.3901 (the 1.07e-4 read from a poor scan, checked against his tabulated 0.396 and 0.240 at the melting and boiling points)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.467048,
+        -0.00015
+       ],
+       "validRange": [
+        453.7,
+        1600.0
+       ],
+       "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015)"
+      }
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 4340.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "NIST-JANAF (Chase 1998) liquid Shomate equation, via NIST Chemistry WebBook condensed phase data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C7439932&Mask=2, 453.69-700 K segment",
+      "note": "Davison (1968) recommends a constant 4169 J/(kg K)"
+     },
+     "conductivity": {
+      "value": 45.42,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, polynomial approximation of Eq. (8)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        21.874,
+        0.056255,
+        -1.8325e-05
+       ],
+       "validRange": [
+        453.7,
+        1600.0
+       ],
+       "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893"
+      }
+     },
+     "meltingPoint": {
+      "value": 453.69,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Melting points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Melting_points_of_the_elements_(data_page)): CRC 180.50 °C"
+     },
+     "boilingPoint": {
+      "value": 1615.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Boiling points of the elements (data page)\", CRC column (https://en.wikipedia.org/wiki/Boiling_points_of_the_elements_(data_page)): CRC 1342 °C",
+      "note": "Davison (1968): 1608 K"
+     },
+     "latentHeatOfFusion": {
+      "value": 432200.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of fusion of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_fusion_of_the_elements_(data_page)): 3.00 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 21190000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "Wikipedia, \"Heats of vaporization of the elements (data page)\", CRC / Lange / WebElements columns (https://en.wikipedia.org/wiki/Heats_of_vaporization_of_the_elements_(data_page)): Lange 147.1 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 4526.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 525 Tab. 17.7, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 2.669e-07,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, Eq. (2) (micro-ohm cm)",
+      "note": "Iida and Guthrie (2015) linear fit gives 2.741e-07",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T + c2*T^2 + c3*T^3",
+       "coefficients": [
+        2.256e-08,
+        6.665e-10,
+        -4.255e-13,
+        1.398e-16
+       ],
+       "validRange": [
+        453.7,
+        1600.0
+       ],
+       "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893"
+      }
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 7.69e-07,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, Eq. (9)",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.015,
+       "B": 8064.5,
+       "C": 0.0,
+       "validRange": [
+        453.7,
+        1608.0
+       ],
+       "source": "Davison, \"Compilation of thermophysical properties of liquid lithium\", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893: log10(p/Pa) = 10.015 - 8064.5/T"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "sodiumPotassium",
+   "catalogId": null,
+   "name": "NaK-78 (sodium-potassium eutectic)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "alloy, 22.2 Na / 77.8 K by mass",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 373.15,
+    "pressure": 101325.0,
+    "note": "100 °C, the lower edge of the handbook viscosity range; NaK-78 is liquid at 20 °C, where the laws extrapolate"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 850.6,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C) (ideal mixing of the Na and K densities)",
+      "note": "Na density correlation is stated for 210-1100 °C, so at 100 °C it is a small extrapolation"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.000527,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C)",
+      "law": {
+       "kind": "expression",
+       "form": "mu = 1.16e-4 rho^(1/3) exp(688 rho/T) Pa s below 400 °C, 0.82e-4 rho^(1/3) exp(979 rho/T) above; rho in g/cm3",
+       "validRange": [
+        373.15,
+        1000.0
+       ],
+       "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C)"
+      }
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 937.2,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C), eq. 1.59 in cal/(g °C), converted with 4.184",
+      "note": "MOOSE converts with 4200 and gets 0.4 % more",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T (°C)",
+       "form": "value = c0 + c1*t + c2*t^2, t in °C",
+       "coefficients": [
+        970.688,
+        -0.369029,
+        0.000343088
+       ],
+       "validRange": [
+        273.15,
+        1073.15
+       ],
+       "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C)"
+      }
+     },
+     "conductivity": {
+      "value": 23.25,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C), eq. 1.53 (W/(cm °C))",
+      "note": "stated range 150-680 °C, so 100 °C is extrapolated; very sensitive to composition",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T (°C)",
+       "form": "value = c0 + c1*t + c2*t^2, t in °C",
+       "coefficients": [
+        21.4,
+        0.0207,
+        -2.2e-05
+       ],
+       "validRange": [
+        423.15,
+        953.15
+       ],
+       "source": "Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C)"
+      }
+     },
+     "meltingPoint": {
+      "value": 260.55,
+      "unit": "K",
+      "confidence": "estimate",
+      "source": "commonly quoted -12.6 °C eutectic temperature (Foust 1972); not read from the handbook itself"
+     }
+    }
+   }
+  },
+  {
+   "id": "solarSalt",
+   "catalogId": null,
+   "name": "solar salt (60 NaNO3 / 40 KNO3)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "mixture of NaNO3 (7631-99-4) and KNO3 (7757-79-1)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 573.15,
+    "pressure": 101325.0,
+    "note": "300 °C, the cold tank of a solar tower"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1899.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2263.72,
+        -0.636
+       ],
+       "validRange": [
+        533.15,
+        873.15
+       ],
+       "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)",
+       "fit": "rewritten from rho = 2090 - 0.636 t(°C)"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.003263,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T (°C)",
+       "form": "value = c0 + c1*t + c2*t^2 + c3*t^3, t in °C, Pa*s",
+       "coefficients": [
+        0.022714,
+        -0.00012,
+        2.281e-07,
+        -1.474e-10
+       ],
+       "validRange": [
+        533.15,
+        873.15
+       ],
+       "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found for the mixture in this pass"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1495.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1396.02,
+        0.172
+       ],
+       "validRange": [
+        533.15,
+        873.15
+       ],
+       "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)"
+      }
+     },
+     "conductivity": {
+      "value": 0.5,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.391101,
+        0.00019
+       ],
+       "validRange": [
+        533.15,
+        873.15
+       ],
+       "source": "Zavoico, \"Solar Power Tower Design Basis Document\", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)"
+      }
+     },
+     "meltingPoint": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not read from a source in this pass (the mixture freezes over a range near 220-240 °C)"
+     }
+    }
+   }
+  },
+  {
+   "id": "flibe",
+   "catalogId": null,
+   "name": "FLiBe (LiF-BeF2, 66-34 mol%)",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "mixture of LiF (7789-24-4) and BeF2 (7787-49-7)",
+   "molarMass": 0.0331,
+   "referenceState": {
+    "temperature": 900.0,
+    "pressure": 101325.0,
+    "note": "900 K, a molten-salt-reactor temperature"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1973.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C)",
+      "note": "stated uncertainty 0.05 %",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2413.0,
+        -0.4884
+       ],
+       "validRange": [
+        732.0,
+        1673.0
+       ],
+       "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C)"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.007282,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Tasidou, Magnusson, Munro, Assael, \"Reference correlations for the viscosity of molten LiF-NaF-KF, LiF-BeF2, and Li2CO3-Na2CO3-K2CO3\", J. Phys. Chem. Ref. Data 48 (2019), Eq. (1) and Tab. 2, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Richard et al. (2014): 1.16e-4 exp(3755/T) gives 7.524e-03 (20 %); viscosity is very sensitive to the LiF/BeF2 ratio",
+      "law": {
+       "kind": "expression",
+       "form": "mu = 5.762e-5 exp(4670.28/T - 283383/T^2) Pa*s",
+       "validRange": [
+        793.0,
+        1573.0
+       ],
+       "source": "Tasidou, Magnusson, Munro, Assael, \"Reference correlations for the viscosity of molten LiF-NaF-KF, LiF-BeF2, and Li2CO3-Na2CO3-K2CO3\", J. Phys. Chem. Ref. Data 48 (2019), Eq. (1) and Tab. 2, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+       "note": "uncertainty 4.9 %"
+      }
+     },
+     "bulkModulus": {
+      "value": 11400000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C): d(rho)/dp = 1.7324e-7 kg/(m3 Pa)",
+      "note": "isothermal, rho / (d rho / d p)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2416.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C)",
+      "note": "constant; 2 % uncertainty"
+     },
+     "conductivity": {
+      "value": 1.08,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C)",
+      "note": "15 % uncertainty",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.63,
+        0.0005
+       ],
+       "validRange": [
+        732.0,
+        1673.0
+       ],
+       "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C)"
+      }
+     },
+     "meltingPoint": {
+      "value": 731.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C) (about 458 °C)"
+     },
+     "boilingPoint": {
+      "value": 1673.15,
+      "unit": "K",
+      "confidence": "estimate",
+      "source": "Richard, Wang, Scarlat, Peterson et al., \"Implementation of liquid salt working fluids into TRACE\", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C) (approximately 1400 °C)"
+     }
+    }
+   }
+  },
+  {
+   "id": "sodiumChlorideMelt",
+   "catalogId": null,
+   "name": "molten sodium chloride",
+   "phase": "liquid",
+   "cas": "7647-14-5",
+   "molarMass": 0.058443,
+   "referenceState": {
+    "temperature": 1100.0,
+    "pressure": 101325.0,
+    "note": "1100 K, 19 K above the melting point"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1542.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "CRC Handbook, 85th ed. (2005), p. 4-126, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Janz NSRDS-NBS 15 Tab.: 2.1393 - 0.5430e-3 T g/cm3 gives 1542",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        2139.1,
+        -0.543
+       ],
+       "validRange": [
+        1073.85,
+        1300.15
+       ],
+       "source": "CRC 85th ed."
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0009891,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Tasidou, Chliatzou, Assael, Antoniadis, Mylona, Huber, Wakeham, \"Reference correlations for the viscosity of 13 inorganic molten salts\", J. Phys. Chem. Ref. Data 48, 013101 (2019), Tab. 5, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Janz (1968): 1.860e-2 exp(9308/RT) cP (R in cal) gives 1.315e-03 Pa*s, 30 % higher; the 2019 reference correlation (2.4 %) is preferred",
+      "law": {
+       "kind": "arrhenius",
+       "form": "mu = mu0*exp(Ea/(R*T))",
+       "mu0": 9.73e-05,
+       "Ea": 21209.3,
+       "R": 8.314459848,
+       "validRange": [
+        1081.15,
+        1249.0
+       ],
+       "source": "Tasidou, Chliatzou, Assael, Antoniadis, Mylona, Huber, Wakeham, \"Reference correlations for the viscosity of 13 inorganic molten salts\", J. Phys. Chem. Ref. Data 48, 013101 (2019), Tab. 5, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.1136,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Chesser, Termini, Birri, \"Molten halide salt surface tension: methods and correlations\", Int. J. Thermophys. 47, 80 (2026), Tab. 7, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "Sato et al., J. Phys. Chem. 94 (1990): 189.45 - 0.0702 T mN/m gives 0.1122",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        0.19905,
+        -7.77e-05
+       ],
+       "validRange": [
+        1073.0,
+        1273.0
+       ],
+       "source": "Chesser et al. (2026)"
+      }
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1215.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Janz et al., \"Physical properties data compilations relevant to energy storage. II. Molten salts\", NSRDS-NBS 61 pt. II (1979), p. 54: 25.24 - 7.52e-3 T cal/(mol K), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value = c0 + c1*T",
+       "coefficients": [
+        1806.96,
+        -0.538365
+       ],
+       "validRange": [
+        1100.0,
+        1300.0
+       ],
+       "source": "Janz et al. (1979)"
+      }
+     },
+     "conductivity": {
+      "value": 0.4721,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Chliatzou, Assael, Antoniadis, Huber, Wakeham, \"Reference correlations for the thermal conductivity of 13 inorganic molten salts\", J. Phys. Chem. Ref. Data 47, 033104 (2018), Tab. 5, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "20 % uncertainty"
+     },
+     "meltingPoint": {
+      "value": 1081.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Chliatzou, Assael, Antoniadis, Huber, Wakeham, \"Reference correlations for the thermal conductivity of 13 inorganic molten salts\", J. Phys. Chem. Ref. Data 47, 033104 (2018), Tab. 5, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table (808 °C)"
+     },
+     "boilingPoint": {
+      "value": 1738.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "CRC Handbook, 97th ed. (2016), p. 4-85, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table"
+     }
+    },
+    "electrical": {
+     "resistivity": {
+      "value": 0.00271,
+      "unit": "Ohm*m",
+      "confidence": "handbook",
+      "source": "Grjotheim et al., Acta Chem. Scand. 24 (1970) 489, Tab. 3: kappa = 0.944 + 0.002492 T S/cm, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "note": "an ionic conductor; Janz (1968) equivalent conductance gives about 2.7e-3 Ohm*m too"
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 75.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Janz et al. (1979), p. 55 Eq. (5.7), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table",
+      "conditions": "extrapolated below the 1250 K lower limit",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.5708,
+       "B": 9565.0,
+       "C": 0.0,
+       "validRange": [
+        1250.0,
+        1530.0
+       ],
+       "source": "Janz et al. (1979): log10(p/mmHg) = 8.4459 - 9565/T, converted to bar"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "basaltMelt",
+   "catalogId": "f3d.basaltMelt",
+   "name": "molten basalt",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "natural silicate melt; composition of USGS BHVO-2 (Kilauea tholeiite)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 1473.15,
+    "pressure": 101325.0,
+    "note": "1200 °C, as the current catalog entry"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 2700.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Lesher and Spera, \"Thermodynamic and transport properties of silicate melts and magma\", Encyclopedia of Volcanoes, 2nd ed. (2015) (as in the current catalog; not re-read)"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 91.3,
+      "unit": "Pa*s",
+      "confidence": "estimate",
+      "source": "Giordano, Russell and Dingwell, \"Viscosity of magmatic liquids: A model\", Earth Planet. Sci. Lett. 271, 123-134 (2008); coefficients as implemented in MIMiC (Rasmussen et al., https://github.com/DJRgeoscience/MIMiC, mi_functions_Py3_V1.py), for BHVO-2 (USGS Geochemical Reference Material Information Sheet BHVO-2 (Hawaiian basalt), 2022, https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/media/files/USGS-BHVO-2-IS_2022-508.pdf)",
+      "note": "the current catalog value is 100 Pa*s, the log-middle of 10-1000 Pa*s; the model value is for a dry, crystal-free melt; crystals and bubbles in a real lava raise it by orders",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -4.55,
+       "B": 5553.07,
+       "C": 620.209,
+       "validRange": [
+        955.7,
+        1873.15
+       ],
+       "source": "Giordano, Russell and Dingwell, \"Viscosity of magmatic liquids: A model\", Earth Planet. Sci. Lett. 271, 123-134 (2008); coefficients as implemented in MIMiC (Rasmussen et al., https://github.com/DJRgeoscience/MIMiC, mi_functions_Py3_V1.py); composition: USGS Geochemical Reference Material Information Sheet BHVO-2 (Hawaiian basalt), 2022, https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/media/files/USGS-BHVO-2-IS_2022-508.pdf",
+       "fit": "GRD model evaluated by us for the anhydrous composition (FeO total from Fe2O3T/1.1113); model RMSE about 0.4 log units; valid for crystal- and bubble-free melt above the liquidus; lower bound is the model glass transition, Tg = 956 K"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.35,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Lesher and Spera (2015) (as in the current catalog; not re-read)"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not read from a source in this pass; silicate-liquid heat capacity models (Lange and Navrotsky 1992) could give it from the composition"
+     },
+     "conductivity": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not read from a source in this pass"
+     },
+     "meltingPoint": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "a melt freezes over a range (solidus to liquidus), not at a point; not read"
+     }
+    }
+   }
+  },
+  {
+   "id": "andesiteMelt",
+   "catalogId": null,
+   "name": "molten andesite",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "natural silicate melt; composition of USGS AGV-2",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 1473.15,
+    "pressure": 101325.0,
+    "note": "1200 °C; anhydrous andesite may be below its liquidus here, so a real lava carries crystals"
+   },
+   "groups": {
+    "fluid": {
+     "viscosity": {
+      "value": 4720.0,
+      "unit": "Pa*s",
+      "confidence": "estimate",
+      "source": "Giordano, Russell and Dingwell, \"Viscosity of magmatic liquids: A model\", Earth Planet. Sci. Lett. 271, 123-134 (2008); coefficients as implemented in MIMiC (Rasmussen et al., https://github.com/DJRgeoscience/MIMiC, mi_functions_Py3_V1.py), for AGV-2 (USGS Geochemical Reference Material Information Sheet AGV-2 (Guano Valley andesite), 2022, https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/media/files/USGS-AGV-2-IS_2022-508_4.pdf)",
+      "note": "dry, crystal-free melt; dissolved water lowers it by orders of magnitude",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -4.55,
+       "B": 8186.24,
+       "C": 477.707,
+       "validRange": [
+        972.3,
+        1873.15
+       ],
+       "source": "Giordano, Russell and Dingwell, \"Viscosity of magmatic liquids: A model\", Earth Planet. Sci. Lett. 271, 123-134 (2008); coefficients as implemented in MIMiC (Rasmussen et al., https://github.com/DJRgeoscience/MIMiC, mi_functions_Py3_V1.py); composition: USGS Geochemical Reference Material Information Sheet AGV-2 (Guano Valley andesite), 2022, https://d9-wret.s3.us-west-2.amazonaws.com/assets/palladium/production/s3fs-public/media/files/USGS-AGV-2-IS_2022-508_4.pdf",
+       "fit": "GRD model evaluated by us for the anhydrous composition (FeO total from Fe2O3T/1.1113); model RMSE about 0.4 log units; valid for crystal- and bubble-free melt above the liquidus; lower bound is the model glass transition, Tg = 972 K"
+      }
+     }
+    },
+    "mechanical": {
+     "density": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not read from a source in this pass"
+     }
+    }
+   }
+  },
+  {
+   "id": "sodaLimeGlassMelt",
+   "catalogId": null,
+   "name": "molten soda-lime glass",
+   "phase": "liquid",
+   "cas": null,
+   "casNote": "soda-lime-silica glass (NIST SRM 710a)",
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 1473.15,
+    "pressure": 101325.0,
+    "note": "1200 °C, a working temperature"
+   },
+   "groups": {
+    "fluid": {
+     "viscosity": {
+      "value": 106.0,
+      "unit": "Pa*s",
+      "confidence": "measured",
+      "source": "NIST Standard Reference Material 710a, Soda-Lime-Silica Glass, certificate (1991), consensus Fulcher fit log10(eta/poise) = -1.729 + 4560/(t/°C - 240.8), https://tsapps.nist.gov/srmext/certificates/archives/710a.pdf",
+      "note": "certified values: log10(eta/poise) 3.00 at 1205 °C, 2.00 at 1464 °C, 5.00 at 918 °C; softening point 730.6 °C (10^6.6 Pa*s)",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -2.729,
+       "B": 4560.0,
+       "C": 513.95,
+       "validRange": [
+        1191.15,
+        1737.15
+       ],
+       "source": "NIST Standard Reference Material 710a, Soda-Lime-Silica Glass, certificate (1991), consensus Fulcher fit log10(eta/poise) = -1.729 + 4560/(t/°C - 240.8), https://tsapps.nist.gov/srmext/certificates/archives/710a.pdf",
+       "fit": "the certificate Fulcher fit converted to Pa*s and kelvin (poise -> Pa*s is -1 in log10; 240.8 °C = 513.95 K); range is that of the certified table, 918-1464 °C"
+      }
+     }
+    },
+    "mechanical": {
+     "density": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not read from a source in this pass"
+     }
+    }
+   }
+  }
+ ]
+}

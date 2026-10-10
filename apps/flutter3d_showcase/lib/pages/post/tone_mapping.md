@@ -12,7 +12,7 @@ Three small emissive spheres in the primary colours, each with an `emissiveStren
 
 `RenderSettings.tonemapCurve` takes one of the `TonemapCurve` values. Open the Curve choice and step through them while you watch the lamps and the lit side of the shapes.
 
-`neutral` leaves the middle of the picture where the materials put it. `aces` gives a filmic shoulder and heavier midtones. `agx` keeps a gradient inside very bright saturated colour, which you can see on the blue lamp, and keeps its hue while it walks towards white; `agxFull` is the same transform under its older name. `reinhard` touches little except the highlights. `aces2` is the ACES 2.0 SDR tonescale at 100 nits with the hue held: the tonescale alone, without the gamut mapping of the full ACES 2.0 output transform. It is not a formula in the shader but a table the engine ships, read the way Step 4 reads one of your own.
+`neutral` leaves the middle of the picture where the materials put it. `aces` gives a filmic shoulder and heavier midtones. `agx` keeps a gradient inside very bright saturated colour, which you can see on the blue lamp, and keeps its hue while it walks towards white. `reinhard` touches little except the highlights. `aces2` is the ACES 2.0 SDR tonescale at 100 nits with the hue held: the tonescale alone, without the gamut mapping of the full ACES 2.0 output transform. It is not a formula in the shader but a table the engine ships, read the way Step 4 reads one of your own.
 
 {{code curve}}
 

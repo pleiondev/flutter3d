@@ -20,13 +20,12 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 240;
 const int _height = 160;
-const double _fovYRadians = 0.9;
+const double _fovY = 0.9;
 
-/// How many pixels in [row] read as [colour], scanning outward from
+/// How many pixels in [row] read as [color], scanning outward from
 /// [aroundColumn] — the ribbon's own measured width, in pixels, wherever it
 /// landed.
 int _spanWidth(
@@ -67,16 +66,16 @@ void main() {
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       );
       final renderer = Renderer.create(device: device);
-      final overlay = renderer.addContributor(
+      final overlay = renderer.renderSteps.addContributor(
         MeshOverlay(
-          vertexShader: renderer.debugLineVertexShader,
-          fragmentShader: renderer.debugLineFragmentShader,
+          vertexShader: renderer.shaders['DebugLineVertex']!,
+          fragmentShader: renderer.shaders['DebugLine']!,
         ),
       );
 
       // Looking down -Z from the origin — the plainest camera this file could
       // set up without an application's own staging behind it.
-      final pixel = 2.0 * math.tan(_fovYRadians * 0.5) / _height;
+      final pixel = 2.0 * math.tan(_fovY * 0.5) / _height;
       overlay.lookFrom(
         eye: Vector3.zero(),
         right: Vector3(1, 0, 0),
@@ -93,18 +92,18 @@ void main() {
       overlay.ribbon(
         Vector3(-1.0, -0.6, near),
         Vector3(-1.0, 0.6, near),
-        Vector4(1, 0, 0, 1),
+        const LinearColor(1, 0, 0),
         width: requestedWidth,
       );
       overlay.ribbon(
         Vector3(1.0, -0.6, far),
         Vector3(1.0, 0.6, far),
-        Vector4(0, 1, 0, 1),
+        const LinearColor(0, 1, 0),
         width: requestedWidth,
       );
 
       final camera = CameraNode(
-        projection: const PerspectiveProjection(fovYRadians: _fovYRadians),
+        projection: const PerspectiveProjection(fovY: _fovY),
       );
       final scene = Scene()..add(camera);
       final result = renderer.render(
@@ -117,9 +116,9 @@ void main() {
         // right, not to preserve the byte a caller asked for.
         settings: const RenderSettings(tonemap: false, exposure: 1.0),
       );
-      final pixels = await device.readPixels(result.frame);
+      final pixels = await device.readback(result.frame);
       expect(pixels, isNotNull, reason: 'the frame could not be read back');
-      final rgba = pixels!.buffer.asUint8List();
+      final rgba = pixels.buffer.asUint8List();
 
       // Columns are found by where each ribbon's own colour first appears in
       // the middle row, rather than assumed from the world positions above —

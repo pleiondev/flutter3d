@@ -5,12 +5,11 @@
 library;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class StereoLessonDemo extends ShowcaseDemo {
   final StereoRig _rig = StereoRig();
@@ -38,9 +37,9 @@ final class StereoLessonDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final material = f3d.Material(
+    final material = f3d.RenderMaterial(
       name: 'ball',
-      baseColor: Vector4(0.8, 0.5, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.3, 1.0),
     );
     final ball = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),
@@ -48,7 +47,10 @@ final class StereoLessonDemo extends ShowcaseDemo {
     )..setPosition(0, 0, -2);
     _detail = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 12).build()),
-      f3d.Material(name: 'detail', baseColor: Vector4(0.9, 0.9, 0.2, 1.0)),
+      f3d.RenderMaterial(
+        name: 'detail',
+        baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.2, 1.0),
+      ),
       name: 'detail',
     )..setPosition(0.4, 0, -2);
     _scene = Scene()
@@ -56,7 +58,7 @@ final class StereoLessonDemo extends ShowcaseDemo {
       ..add(ball)
       ..add(_detail)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
     return _scene;
@@ -79,10 +81,10 @@ final class StereoLessonDemo extends ShowcaseDemo {
     // #region apply
     // The first step hides the detail node; stepping forward shows it.
     _player.applyCurrent(_rig, nodes: <String, SceneNode>{'detail': _detail});
-    final hiddenAtStart = !_detail.visible;
+    final hiddenAtStart = !_detail.isVisible;
     _player.next();
     _player.applyCurrent(_rig, nodes: <String, SceneNode>{'detail': _detail});
-    final shownAtStepTwo = _detail.visible;
+    final shownAtStepTwo = _detail.isVisible;
     // #endregion apply
     if (!hiddenAtStart || !shownAtStepTwo) {
       throw StateError(

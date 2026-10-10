@@ -1,3 +1,19 @@
+## 0.5.0
+
+* **Breaking: `PointerLock.takeDelta` is `drainDelta`**, the verb the engine
+  uses for a read that empties what it reads. `release` stays: it is the
+  other half of `capture`, not a teardown, and its doc now says so; `dispose`
+  is the teardown.
+* **Windows and Linux capture the pointer.** On Windows the motion comes
+  from Raw Input, the mouse's own counts before acceleration and the screen's
+  edge, and the hidden cursor is clipped to the window's centre so a click
+  cannot land on another application. On Linux the seat is grabbed with a
+  blank cursor and the pointer warped back to the centre after each motion,
+  which X11 allows and Wayland does not: there the deltas stop at the
+  window's edge. Both let go when the window loses focus, as macOS does.
+  Neither could be built where this was written; the desktop jobs in CI
+  build them.
+
 ## 0.4.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

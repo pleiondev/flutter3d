@@ -6,4 +6,4 @@ import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 /// Impeller's frame as an image over the same GPU allocation, without a
 /// copy; null for the software rasteriser, whose frame is read back.
 ui.Image? frameImageNow(GraphicsDevice device, TextureHandle frame) =>
-    device is GpuRenderBackend ? frame.gpuTexture.asImage() : null;
+    device is GpuRenderBackend ? device.frameImage(frame) : null;

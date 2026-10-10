@@ -8,8 +8,13 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show ComponentCodec, Entity;
 import 'package:flutter3d_sim/src/ecs/ecs_world.dart';
-import 'package:flutter3d_sim/src/ecs/entity.dart';
+import 'package:flutter3d_sim/src/ecs/snapshots.dart';
+import 'package:flutter3d_sim/src/save/snapshot.dart'
+    show SnapshotFormatException;
+import 'package:flutter3d_sim/src/save/state_digest.dart' show StateDigest;
 import 'package:test/test.dart';
 
 final class _Position {
@@ -32,21 +37,25 @@ final class _Visual {
 
 EcsWorld _world() {
   return EcsWorld()
-    ..register<_Position>(
-      'position',
-      encode: (_Position p) => <double>[p.x, p.y],
-      decode: (Object? data) {
-        final row = data! as List;
-        return _Position(
-          (row[0] as num).toDouble(),
-          (row[1] as num).toDouble(),
-        );
-      },
+    ..components.register<_Position>(
+      ComponentCodec<_Position>.of(
+        id: 'position',
+        encode: (_Position p) => <double>[p.x, p.y],
+        decode: (Object? data, int _) {
+          final row = data! as List;
+          return _Position(
+            (row[0] as num).toDouble(),
+            (row[1] as num).toDouble(),
+          );
+        },
+      ),
     )
-    ..register<_Name>(
-      'name',
-      encode: (_Name n) => n.value,
-      decode: (Object? data) => _Name(data! as String),
+    ..components.register<_Name>(
+      ComponentCodec<_Name>.of(
+        id: 'name',
+        encode: (_Name n) => n.value,
+        decode: (Object? data, int _) => _Name(data! as String),
+      ),
     );
 }
 
@@ -75,7 +84,7 @@ void main() {
             'the index was reused, which '
             'is the whole point of the danger',
       );
-      expect(world.alive(first), isFalse);
+      expect(world.isAlive(first), isFalse);
       expect(world.get<_Name>(first), isNull);
       expect(world.get<_Name>(second)!.value, 'second');
     });
@@ -83,10 +92,10 @@ void main() {
     test('an entity is alive until it is not', () {
       final world = _world();
       final entity = world.spawn();
-      expect(world.alive(entity), isTrue);
+      expect(world.isAlive(entity), isTrue);
       expect(world.length, 1);
       world.despawn(entity);
-      expect(world.alive(entity), isFalse);
+      expect(world.isAlive(entity), isFalse);
       expect(world.length, 0);
     });
 
@@ -102,7 +111,7 @@ void main() {
     });
 
     test('nothing is not an entity', () {
-      expect(_world().alive(Entity.none), isFalse);
+      expect(_world().isAlive(Entity.none), isFalse);
     });
 
     test('despawning takes the components with it', () {
@@ -162,7 +171,7 @@ void main() {
         ..set(onlyName, _Name('name'));
 
       expect(world.query2<_Position, _Name>().toList(), <Entity>[both]);
-      expect(world.query<_Position>().length, 2);
+      expect(world.queryOf<_Position>().length, 2);
     });
 
     test('a query survives the loop despawning what it is walking', () {
@@ -174,7 +183,7 @@ void main() {
         world.set(world.spawn(), _Position(i.toDouble(), 0.0));
       }
 
-      for (final entity in world.query<_Position>()) {
+      for (final entity in world.queryOf<_Position>()) {
         if (world.get<_Position>(entity)!.x % 2 == 0) world.despawn(entity);
       }
 
@@ -182,7 +191,7 @@ void main() {
     });
 
     test('a query over a type nothing has is empty, not an error', () {
-      expect(_world().query<_Visual>(), isEmpty);
+      expect(_world().queryOf<_Visual>(), isEmpty);
     });
   });
 
@@ -223,7 +232,7 @@ void main() {
 
       final read = _world()..restore(world.save());
       expect(
-        read.alive(kept),
+        read.isAlive(kept),
         isFalse,
         reason: 'a handle that was stale before the save is stale after it',
       );
@@ -254,7 +263,9 @@ void main() {
 
     test('a component excluded on purpose is skipped in silence', () {
       final world = _world()
-        ..exclude<_Visual>('a mesh handle means nothing in another process');
+        ..components.exclude<_Visual>(
+          'a mesh handle means nothing in another process',
+        );
       world.set(world.spawn(), _Visual(Object()));
 
       final saved = world.save();
@@ -267,12 +278,14 @@ void main() {
       // the first sign of it would be a load that produced the wrong world.
       final world = _world();
       expect(
-        () => world.register<_Visual>(
-          'name',
-          encode: (_Visual v) => '',
-          decode: (Object? data) => _Visual(Object()),
+        () => world.components.register<_Visual>(
+          ComponentCodec<_Visual>.of(
+            id: 'name',
+            encode: (_Visual v) => '',
+            decode: (Object? data, int _) => _Visual(Object()),
+          ),
         ),
-        throwsA(isA<StateError>()),
+        throwsA(isA<ArgumentError>()),
       );
     });
 
@@ -284,6 +297,114 @@ void main() {
       final saved = world.save();
       (saved['components']! as Map)['ghost'] = <String, Object?>{'0': 1};
       expect(() => _world().restore(saved), returnsNormally);
+    });
+
+    test('a component a newer codec wrote is refused, and nothing moves', () {
+      // A 1.1 save opened in 1.0 used to come up without that component's
+      // entities, and a save from there wrote them out for good. Mutation:
+      // `continue` past the newer version again — no throw, and the name is
+      // gone from the world it was restored into.
+      final world = _world();
+      world.set(world.spawn(), _Name('kept'));
+      final saved = world.save()
+        ..['componentVersions'] = <String, Object?>{'position': 2};
+      (saved['components']! as Map)['position'] = <String, Object?>{
+        '0': <double>[1.0, 2.0],
+      };
+
+      final into = _world();
+      final here = into.spawn();
+      into.set(here, _Name('here'));
+      expect(
+        () => into.restore(saved),
+        throwsA(
+          isA<SnapshotFormatException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"position"'), contains('version 2')),
+          ),
+        ),
+      );
+      expect(into.get<_Name>(here)!.value, 'here');
+    });
+
+    test('a resource set after the save is gone after the restore', () {
+      // The origin is a resource, written only while it is away from the
+      // world origin. Mutation: leave a resource the save does not hold
+      // where it is — a rewind across a shift keeps the far origin.
+      final world = _world();
+      final saved = world.save();
+      world.setResource<_Name>(_Name('later'));
+      world.restore(saved);
+      expect(world.resource<_Name>(), isNull);
+    });
+
+    test('the step a component changed at comes back with it', () {
+      // `query().changed<T>(since:)` read stamps a restore had cleared, so a
+      // resimulated step saw nothing changed where the live one had. Mutation:
+      // drop `changedAt` from `save(withChanges: true)` — the query after the
+      // restore is empty.
+      final world = _world();
+      final early = world.spawn();
+      final late = world.spawn();
+      world
+        ..beginStep(3)
+        ..set(early, _Position(0.0, 0.0))
+        ..beginStep(7)
+        ..set(late, _Position(1.0, 1.0));
+      final saved = jsonDecode(jsonEncode(world.save(withChanges: true)));
+
+      final read = _world()
+        ..restore(saved as Map<String, Object?>)
+        ..beginStep(8);
+      expect(read.query().changed<_Position>(since: 5).entities, <Entity>[
+        late,
+      ]);
+      expect(read.query().changed<_Position>(since: 0).entities, <Entity>[
+        early,
+        late,
+      ]);
+      // And a save written without them is the bytes it always was.
+      expect(world.save().containsKey('changedAt'), isFalse);
+    });
+  });
+
+  group("the loop's capture of a world", () {
+    test('carries the change stamps, at the part version that has them', () {
+      // Mutation: capture `world.save()` without them — a rewind clears every
+      // stamp and a resimulated `changed<T>()` query finds nothing.
+      final world = _world();
+      final entity = world.spawn();
+      world
+        ..beginStep(4)
+        ..set(entity, _Position(0.0, 0.0));
+      final snapshots = Snapshots(world: world);
+      final captured = snapshots.capture();
+      expect(
+        (captured.data['world']! as Map<String, Object?>)['version'],
+        WorldSnapshotPart.changesVersion,
+      );
+
+      world
+        ..beginStep(9)
+        ..set(entity, _Position(1.0, 1.0));
+      snapshots.restore(captured);
+      world.beginStep(5);
+      expect(world.query().changed<_Position>(since: 4).entities, <Entity>[
+        entity,
+      ]);
+      expect(world.query().changed<_Position>(since: 5).entities, isEmpty);
+    });
+
+    test('and digests the world without them', () {
+      // Every checkpoint recorded before the stamps were captured is a digest
+      // of `save()` alone. Mutation: digest the capture — each of those
+      // checkpoints moves and every recorded run stops verifying.
+      final world = _world();
+      world
+        ..beginStep(2)
+        ..set(world.spawn(), _Name('n'));
+      expect(WorldSnapshotPart(world).digest(), StateDigest.of(world.save()));
     });
   });
 
@@ -322,7 +443,7 @@ void main() {
       handle = world.spawn();
     }
 
-    expect(world.alive(handle), isTrue);
+    expect(world.isAlive(handle), isTrue);
     expect(handle.generation, 256, reason: 'one per recycle of the index');
     expect(handle.index, 0, reason: 'the freed index is the one reused');
   });

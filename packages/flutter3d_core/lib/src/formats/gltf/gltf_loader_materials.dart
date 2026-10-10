@@ -114,10 +114,8 @@ extension _GltfMaterials on GltfLoader {
 
           return SurfaceMaterial(
             name: name is String ? name : null,
-            // Linear in the file, authored in the engine: converted once,
-            // here. Taken raw, the shader's own conversion ran on a value
-            // already linear, and a factor of 0.5 drew as 0.21.
-            baseColor: _authoredTint(_vec4(pbrMap['baseColorFactor'])),
+            // Linear in the file and in the engine, taken as it is.
+            baseColor: _linearTint(_vec4(pbrMap['baseColorFactor'])),
             metallic: _asDouble(pbrMap['metallicFactor']) ?? 1.0,
             roughness: _asDouble(pbrMap['roughnessFactor']) ?? 1.0,
             baseColorTexture: textureRef(pbrMap['baseColorTexture']),
@@ -133,7 +131,10 @@ extension _GltfMaterials on GltfLoader {
                 ? (_asDouble(occlusionTex['strength']) ?? 1.0)
                 : 1.0,
             emissiveTexture: textureRef(material['emissiveTexture']),
-            emissive: _vec3(material['emissiveFactor']),
+            emissive: switch (_vec3(material['emissiveFactor'])) {
+              final Vector3 c => LinearColor(c.x, c.y, c.z),
+              null => LinearColor.black,
+            },
             emissiveStrength: emissiveStrengthExt is Map
                 ? (_asDouble(emissiveStrengthExt['emissiveStrength']) ?? 1.0)
                 : 1.0,

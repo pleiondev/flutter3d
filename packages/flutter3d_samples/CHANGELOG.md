@@ -1,3 +1,26 @@
+## 1.0.0-rc.1
+
+- **Breaking: public constants are lowerCamelCase, without the k prefix,
+  as Effective Dart asks.** `kSamplesAsset` is `samplesAsset`,
+  `kSamplesPath` is `samplesPath`. The values are the same; `dart fix`
+  carries the renames.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
+`PassEncoder.draw` a window of the bound indices and every `PassEncoder`
+`setAlphaToCoverage`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 **Moves with the stack to 0.8.0**, whose `flutter3d_hardware` changes

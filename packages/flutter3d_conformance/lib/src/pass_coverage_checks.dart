@@ -37,7 +37,7 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
   final indices = Uint16List.fromList(<int>[0, 1, 2, 0, 2, 3]);
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -66,9 +66,8 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
     ..draw();
   pass.submit();
 
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the target could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
+  final pixels = await device.readback(target);
+  final bytes = pixels.buffer.asUint8List();
   int green(int x, int y) => bytes[((y * size + x) * 4) + 1];
 
   require(
@@ -121,7 +120,7 @@ Future<void> checkReadbackOfRegion(GraphicsDevice device) async {
   final indices = Uint16List.fromList(<int>[0, 1, 2, 0, 2, 3]);
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -219,7 +218,7 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
 
   Future<Uint8List> paintAll({ScreenRect? clippedTo}) async {
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: size,
         height: size,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -251,9 +250,8 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
       ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
       ..draw();
     pass.submit();
-    final pixels = await device.readPixels(target);
-    require(pixels != null, 'the target could not be read back');
-    return pixels!.buffer.asUint8List();
+    final pixels = await device.readback(target);
+    return pixels.buffer.asUint8List();
   }
 
   // A tile in the top-left corner, the shape a shadow atlas draws into.

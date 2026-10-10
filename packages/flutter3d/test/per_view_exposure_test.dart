@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 64;
 
@@ -126,11 +125,14 @@ void main() {
         ..add(
           MeshNode(
             DeviceMesh.upload(device, SphereShape(radius: 0.5).build()),
-            Material(name: 'ball', baseColor: Vector4(0.8, 0.4, 0.2, 1.0)),
+            RenderMaterial(
+              name: 'ball',
+              baseColor: LinearColor.fromSrgb(0.8, 0.4, 0.2, 1.0),
+            ),
           ),
         )
         ..add(
-          LightNode(intensity: 5.0)
+          LightNode(intensity: 5.0 * Photometric.legacyUnit)
             ..setPosition(2.0, 3.0, 4.0)
             ..lookAt(Vector3.zero()),
         )
@@ -143,9 +145,9 @@ void main() {
         views: <RenderView>[RenderView(camera: scene.cameras.single)],
         settings: settings,
       );
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return <int>[
-        for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+        for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
       ];
     }
 
@@ -157,7 +159,7 @@ void main() {
       // **The strongest form of "this costs nothing where it is not wanted".**
       // One view is the whole frame, so its rectangle is the whole histogram
       // and its exposure is the frame's. The composite takes its single-draw
-      // path, and seventy-eight goldens stay where they are.
+      // path, and 96 goldens stay where they are.
       final off = await frame(
         const RenderSettings(autoExposure: AutoExposureSettings(enabled: true)),
       );
@@ -196,11 +198,14 @@ void main() {
         ..add(
           MeshNode(
             DeviceMesh.upload(device, SphereShape(radius: 0.6).build()),
-            Material(name: 'ball', baseColor: Vector4(0.9, 0.9, 0.9, 1.0)),
+            RenderMaterial(
+              name: 'ball',
+              baseColor: LinearColor.fromSrgb(0.9, 0.9, 0.9, 1.0),
+            ),
           ),
         )
         ..add(
-          LightNode(intensity: 30.0)
+          LightNode(intensity: 30.0 * Photometric.legacyUnit)
             ..setPosition(0.0, 0.0, 3.0)
             ..lookAt(Vector3.zero()),
         )
@@ -234,10 +239,10 @@ void main() {
           ),
         ),
       );
-      final bytes = await device.readPixels(result.frame);
+      final bytes = await device.readback(result.frame);
       return (
         pixels: <int>[
-          for (var i = 0; i < _size * _size * 4; i++) bytes!.getUint8(i),
+          for (var i = 0; i < _size * _size * 4; i++) bytes.getUint8(i),
         ],
         result: result,
       );

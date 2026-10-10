@@ -1,0 +1,3510 @@
+{
+ "meta": {
+  "slice": "solvents and chemicals not in the NIST WebBook fluid list",
+  "schema": "matter_data/SCHEMA.txt",
+  "generatedBy": "solv_build.py"
+ },
+ "entries": [
+  {
+   "id": "ethanol",
+   "catalogId": "f3d.ethanol",
+   "name": "ethanol",
+   "phase": "liquid",
+   "cas": "64-17-5",
+   "molarMass": 0.0460684,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 789.3,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/702) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-246: 0.7893 g/cm3 at 20 °C",
+      "note": "Matches the catalog (789.3). Correlation gives 790.2 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        908.349,
+        0.0278084,
+        -0.00146961
+       ],
+       "validRange": [
+        253.0,
+        343.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.013 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001186,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 95th ed. p. 6-232 gives 1.074 mPa*s at 25 °C (HSDB); the correlation gives 1.077 there. Catalog has 1.2e-3 at 20 °C, consistent.",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -12.4675,
+       "B": 1676.03,
+       "validRange": [
+        253.0,
+        343.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 2.3 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02239,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0467761,
+        -8.32e-05
+       ],
+       "validRange": [
+        159.15,
+        351.15
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=24.05 mN/m, b=0.0832 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1065000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2398.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [159.05, 390.0] K"
+     },
+     "conductivity": {
+      "value": 0.169,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00105,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 159.01,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/702) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-246: -114.14 °C"
+     },
+     "boilingPoint": {
+      "value": 351.39,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/702) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-246: 78.24 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 107000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "4.931 kJ/mol at the melting point over M = 46.0684 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 837000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "38.56 kJ/mol at the normal boiling point 351.44 K over M = 46.0684 g/mol; 42.32 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 636.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/702) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-57: 363 °C"
+     },
+     "heatOfCombustion": {
+      "value": 29690000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C64175&Mask=2, Chao and Rossini (1965)",
+      "note": "gross (HHV), liquid, 25 °C: -1367.6 kJ/mol. HSDB quotes CRC 95th p. 5-68 as 1336.8 kJ/mol, likely a transposition of 1366.8; net (LHV) would be ~26.8 MJ/kg"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1162.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 1145 m/s at 25 °C and dc/dt = -3.3 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2128.89,
+        -3.3
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 917200.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3611,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/702) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-246: n_D 1.3611 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 286.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/702) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-57: 13 °C closed cup",
+      "note": "Sigma-Aldrich SDS: 14 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": 5861.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.33675,
+       "B": 1648.22,
+       "C": -42.232,
+       "validRange": [
+        276.5,
+        369.54
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.013 bar at the boiling point 351.39 K"
+      }
+     },
+     "criticalTemperature": {
+      "value": 514.0,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C64175&Mask=4",
+      "note": "NIST average of 37 values, ±7 K"
+     }
+    }
+   }
+  },
+  {
+   "id": "glycerol",
+   "catalogId": "f3d.glycerol",
+   "name": "glycerol",
+   "phase": "liquid",
+   "cas": "56-81-5",
+   "molarMass": 0.0920938,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1261.3,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/753) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-268: 1.2613 g/cm3 at 20 °C",
+      "note": "Catalog has 1261. Correlation gives 1261.2 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1416.36,
+        -0.424394,
+        -0.000357806
+       ],
+       "validRange": [
+        293.0,
+        373.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.001 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 1.433,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, PPDS9 saturated-liquid viscosity, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Catalog has 1.412 Pa*s (Segur and Oberstar, Ind. Eng. Chem. 43, 1951), 1.5 % below; not re-read here (web search quota ran out). Andrade is poor here (16 % over 0-100 °C), so the law is VFT. Viscosity drops about 9 %/K near 20 °C (from the VFT law) and rises steeply with traces of water.",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -5.3996,
+       "B": 788.87,
+       "C": 151.0,
+       "validRange": [
+        273.15,
+        373.15
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, PPDS9 saturated-liquid viscosity, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 21 points over the range; max deviation 2.36 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.06411,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, PPDS surface tension, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Catalog has 0.0634 (CRC 2016); not re-read here"
+     },
+     "bulkModulus": {
+      "value": 4696000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2377.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C56815&Mask=2, Bastos, Nilsson, et al. (1988): 218.9 J/(mol*K) at 298.15 K; CRC standard thermodynamic properties table gives the same",
+      "conditions": "25 °C",
+      "note": "Atalla et al. (1981) give 219.2 J/(mol*K) at 293.15 K (same page)"
+     },
+     "conductivity": {
+      "value": 0.291,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid thermal conductivity, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Catalog has 0.285 (CRC 2016)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000504,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 291.25,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/753) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-268: 18.1 °C",
+      "note": "supercools readily; usually liquid at 20 °C"
+     },
+     "boilingPoint": {
+      "value": 563.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/753) citing The Merck Index, 15th ed. (2013) (2006 ed.), p. 774: 290 °C (decomposes)"
+     },
+     "latentHeatOfFusion": {
+      "value": 198700.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "18.3 kJ/mol at the melting point over M = 92.0938 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 662400.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "61.0 kJ/mol at the normal boiling point 563.15 K over M = 92.0938 g/mol"
+     },
+     "autoignitionTemperature": {
+      "value": 665.9,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/753) citing Hawley's Condensed Chemical Dictionary, 12th ed. (1993), p. 566: 739 °F"
+     },
+     "heatOfCombustion": {
+      "value": 17960000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C56815&Mask=2, Bastos, Nilsson, et al. (1988)",
+      "note": "gross, liquid, 25 °C: -1654.3 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1930.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 1920 m/s at 25 °C and dc/dt = -1.9 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2486.48,
+        -1.9
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 2434000.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4746,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/753) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-268: n_D 1.4746 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 450.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem (Haz-Map): 177 °C"
+     },
+     "vaporPressure": {
+      "value": null,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C56815&Mask=4",
+      "note": "293.15 K lies outside the law's range; no value given at 20 °C",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 3.93737,
+       "B": 1411.531,
+       "C": -200.566,
+       "validRange": [
+        456.4,
+        533.6
+       ],
+       "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C56815&Mask=4, after Richardson (1886)",
+       "check": "gives 1.108 bar at the boiling point 563.15 K — outside its range; do not extrapolate"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "isopropanol",
+   "catalogId": null,
+   "name": "isopropanol (2-propanol)",
+   "phase": "liquid",
+   "cas": "67-63-0",
+   "molarMass": 0.060095,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 786.35,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        949.27,
+        -0.195402,
+        -0.00122883
+       ],
+       "validRange": [
+        253.0,
+        348.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.015 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.002381,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 91st ed. p. 6-230: 2.038 mPa*s at 25 °C (HSDB); correlation gives 2.049 there",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -15.0095,
+       "B": 2628.07,
+       "validRange": [
+        253.0,
+        348.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.75 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02132,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0444515,
+        -7.89e-05
+       ],
+       "validRange": [
+        183.65,
+        355.55
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=22.9 mN/m, b=0.0789 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1053000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and measured sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2546.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [185.26, 355.3] K"
+     },
+     "conductivity": {
+      "value": 0.138,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00116,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 185.25,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3776) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-442: -87.9 °C",
+      "note": "Merck gives -89.5 °C"
+     },
+     "boilingPoint": {
+      "value": 355.45,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3776) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-442: 82.3 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 90020.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "5.41 kJ/mol at the melting point over M = 60.095 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 663100.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "39.85 kJ/mol at the normal boiling point 355.45 K over M = 60.095 g/mol; 45.39 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 672.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3776) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-77: 399 °C"
+     },
+     "heatOfCombustion": {
+      "value": 33400000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C67630&Mask=2, Chao and Rossini (1965)",
+      "note": "gross, liquid, 25 °C: -2006.9 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1157.4,
+      "unit": "m/s",
+      "confidence": "measured",
+      "source": "J. Chem. Thermodyn. (2016), doi:10.1016/j.jct.2016.06.001, at 293.15 K and 0.1 MPa (tabulated in the Chemeo datasheet for 2-propanol, chemeo.com/cid/24-809-7)",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         253.15,
+         1300.97
+        ],
+        [
+         273.15,
+         1227.88
+        ],
+        [
+         293.15,
+         1157.36
+        ],
+        [
+         313.15,
+         1087.16
+        ],
+        [
+         333.15,
+         1015.96
+        ],
+        [
+         353.15,
+         940.5
+        ]
+       ],
+       "source": "same paper, ~0.1 MPa"
+      }
+     },
+     "impedance": {
+      "value": 910100.0,
+      "unit": "Pa*s/m",
+      "confidence": "measured",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3772,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3776) citing The Merck Index (1996), p. 889: n_D 1.37723 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 285.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3776) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-77: 12 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": 4414.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.24268,
+       "B": 1580.92,
+       "C": -53.54,
+       "validRange": [
+        281.28,
+        373.46
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.015 bar at the boiling point 355.45 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "butanol",
+   "catalogId": null,
+   "name": "1-butanol",
+   "phase": "liquid",
+   "cas": "71-36-3",
+   "molarMass": 0.0741216,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 809.8,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-78: 0.8098 at 20 °C/4 °C",
+      "note": " Correlation gives 809.8 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        977.006,
+        -0.32779,
+        -0.000826668
+       ],
+       "validRange": [
+        253.0,
+        373.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.018 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.002899,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 94th ed. p. 6-233 (HSDB): 5.186 mPa*s at 0 °C, 2.544 at 25 °C, 0.533 at 100 °C; the correlation gives 2.546 at 25 °C",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -13.6683,
+       "B": 2291.75,
+       "validRange": [
+        253.0,
+        373.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 1.75 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02538,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0517089,
+        -8.98e-05
+       ],
+       "validRange": [
+        183.65,
+        390.85
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=27.18 mN/m, b=0.0898 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1284000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2357.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [183.85, 391.9] K"
+     },
+     "conductivity": {
+      "value": 0.154,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.001,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 184.55,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-78: -88.6 °C"
+     },
+     "boilingPoint": {
+      "value": 390.75,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-78: 117.6 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 126400.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "9.37 kJ/mol at the melting point over M = 74.1216 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 584000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "43.29 kJ/mol at the normal boiling point 390.88 K over M = 74.1216 g/mol; 52.35 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 616.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-23: 343 °C"
+     },
+     "heatOfCombustion": {
+      "value": 36020000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C71363&Mask=2",
+      "note": "gross, liquid: NIST average of 10 values, -2670 ± 20 kJ/mol; Ullmann (via HSDB) gives 36.111 kJ/g"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1259.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 1242 m/s at 25 °C and dc/dt = -3.4 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2255.71,
+        -3.4
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 1020000.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3993,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-78: n_D 1.3993 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 310.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-23: 37 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": 585.9,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.6493,
+       "B": 1395.14,
+       "C": -90.411,
+       "validRange": [
+        310.18,
+        411.26
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.009 bar at the boiling point 390.75 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "acetone",
+   "catalogId": null,
+   "name": "acetone",
+   "phase": "liquid",
+   "cas": "67-64-1",
+   "molarMass": 0.0580791,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 791.16,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1053.02,
+        -0.661183,
+        -0.000792138
+       ],
+       "validRange": [
+        233.0,
+        323.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.01 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0003221,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Kirk-Othmer (via HSDB): 0.32 cP at 20 °C, 0.27 at 40 °C; the correlation gives 0.307 mPa*s at 25 °C",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -10.9737,
+       "B": 860.29,
+       "validRange": [
+        233.0,
+        323.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.51 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0237,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing Kirk-Othmer Encyclopedia of Chemical Technology, \"Acetone\" (2011): 23.7 mN/m at 20 °C",
+      "note": "Jasper (1972) linear law gives 24.0 mN/m at 20 °C",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0568528,
+        -0.000112
+       ],
+       "validRange": [
+        179.15,
+        329.15
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=26.26 mN/m, b=0.112 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1125000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2160.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [178.45, 329.44] K"
+     },
+     "conductivity": {
+      "value": 0.163,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00142,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 178.25,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-4: -94.9 °C"
+     },
+     "boilingPoint": {
+      "value": 329.23,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-4: 56.08 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 99350.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "5.77 kJ/mol at the melting point over M = 58.0791 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 501000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "29.1 kJ/mol at the normal boiling point 329.2 K over M = 58.0791 g/mol; 30.99 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 738.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-10: 465 °C"
+     },
+     "heatOfCombustion": {
+      "value": 30800000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 5-68: liquid -1789 kJ/mol",
+      "note": "gross, liquid, 25 °C"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1192.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 1170 m/s at 25 °C and dc/dt = -4.5 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2511.68,
+        -4.5
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 943100.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3588,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-4: n_D 1.3588 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 253.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-10: -20 °C closed cup",
+      "note": "Sigma-Aldrich SDS: -17 °C"
+     },
+     "vaporPressure": {
+      "value": 24710.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.2184,
+       "B": 1197.01,
+       "C": -45.09,
+       "validRange": [
+        247.38,
+        350.65
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.013 bar at the boiling point 329.23 K"
+      }
+     },
+     "densityNote": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "HSDB quotes CRC 95th p. 3-4 as 0.7845 g/cm3 \"at 20 °C\"; that is the 25 °C value. At 20 °C the VDI correlation gives 791.2 kg/m3, used here."
+     }
+    }
+   }
+  },
+  {
+   "id": "ethyleneGlycol",
+   "catalogId": null,
+   "name": "ethylene glycol",
+   "phase": "liquid",
+   "cas": "107-21-1",
+   "molarMass": 0.0620678,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1113.5,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-232: 1.1135 g/cm3 at 20 °C",
+      "note": " Correlation gives 1113.5 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1269.68,
+        -0.373816,
+        -0.000541777
+       ],
+       "validRange": [
+        273.0,
+        373.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.002 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.02074,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 91st ed. p. 6-230 (HSDB): 16.1 mPa*s at 25 °C, 6.554 at 50, 3.340 at 75, 1.975 at 100; correlation gives 16.7 at 25 °C (+4 %). ICSC: 21 mPa*s at 20 °C. Andrade misses by 14 % over 0-100 °C, so VFT.",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -4.5945,
+       "B": 441.86,
+       "C": 141.38,
+       "validRange": [
+        263.15,
+        373.15
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 21 points over the range; max deviation 0.08 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.04843,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0745203,
+        -8.9e-05
+       ],
+       "validRange": [
+        260.55,
+        470.45
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=50.21 mN/m, b=0.089 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 3107000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2380.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [260.15, 493.15] K"
+     },
+     "conductivity": {
+      "value": 0.253,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000622,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 260.46,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-232: -12.69 °C"
+     },
+     "boilingPoint": {
+      "value": 470.45,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-232: 197.3 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 160500.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "9.96 kJ/mol at the melting point over M = 62.0678 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 813600.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "50.5 kJ/mol at the normal boiling point 470.45 K over M = 62.0678 g/mol; 63.9 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 671.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-61: 398 °C"
+     },
+     "heatOfCombustion": {
+      "value": 19160000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 5-68: 1189.2 kJ/mol",
+      "note": "gross, liquid, 25 °C; NIST average -1191 ± 10"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1670.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 1660 m/s at 25 °C and dc/dt = -2.1 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2286.11,
+        -2.1
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 1860000.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4318,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-232: n_D 1.4318 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 384.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-61: 111 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": null,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C107211&Mask=4",
+      "note": "293.15 K lies outside the law's range; no value given at 20 °C",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.97012,
+       "B": 1914.951,
+       "C": -84.996,
+       "validRange": [
+        323.0,
+        473.0
+       ],
+       "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C107211&Mask=4, after Jones and Tamplin (1952)",
+       "check": "gives 1.005 bar at the boiling point 470.45 K"
+      }
+     },
+     "surfaceTensionCheck": {
+      "value": null,
+      "confidence": null,
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 6-181",
+      "note": "CRC: 47.99 mN/m at 25 °C, 45.76 at 50, 43.54 at 75, 41.31 at 100; Jasper law used above gives 48.4 at 20 °C"
+     }
+    }
+   }
+  },
+  {
+   "id": "propyleneGlycol",
+   "catalogId": null,
+   "name": "propylene glycol (1,2-propanediol)",
+   "phase": "liquid",
+   "cas": "57-55-6",
+   "molarMass": 0.0760944,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1036.1,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-444: 1.0361 g/cm3 at 20 °C",
+      "note": " Correlation gives 1036.3 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1195.02,
+        -0.330423,
+        -0.000718715
+       ],
+       "validRange": [
+        263.0,
+        373.0
+       ],
+       "source": "Perry's 8th ed., Table 2-32 (DIPPR eq. 105), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.008 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.05761,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Hawley's (via HSDB) gives 0.581 cP at 20 °C, which is wrong by two orders. The correlation gives 42.5 mPa*s at 25 °C. Andrade misses by 30 % over 0-100 °C, so VFT.",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -4.8464,
+       "B": 480.89,
+       "C": 159.66,
+       "validRange": [
+        263.15,
+        373.15
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 21 points over the range; max deviation 2.39 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0401,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing Hawley's Condensed Chemical Dictionary, 15th ed. (2007), p. 1050: 40.1 dyn/cm at 25 °C",
+      "conditions": "25 °C",
+      "note": "single source, and Hawley's viscosity in the same record is wrong; marked estimate until checked against a measurement (e.g. Fluid Phase Equilib. 2015, doi:10.1016/j.fluid.2014.12.040)"
+     },
+     "bulkModulus": {
+      "value": 2403000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and extrapolated sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2478.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [213.15, 460.75] K"
+     },
+     "conductivity": {
+      "value": 0.201,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000725,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the Perry's 8th ed. density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 213.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-444: -60 °C",
+      "note": "glass-forming; no sharp melting point in practice"
+     },
+     "boilingPoint": {
+      "value": 460.75,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-444: 187.6 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no enthalpy of fusion found (glass former)"
+     },
+     "latentHeatOfVaporization": {
+      "value": 688600.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "52.4 kJ/mol at the normal boiling point 460.75 K over M = 76.0944 g/mol"
+     },
+     "autoignitionTemperature": {
+      "value": 644.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing NFPA, Fire Protection Guide to Hazardous Materials, 13th ed. (2002), p. 325-102: 371 °C"
+     },
+     "heatOfCombustion": {
+      "value": 23960000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C57556&Mask=2, Knauth and Sabbah (1990)",
+      "note": "gross, liquid, 25 °C: -1822.9 ± 4.1 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1523.0,
+      "unit": "m/s",
+      "confidence": "estimate",
+      "source": "J. Chem. Thermodyn. (2016), doi:10.1016/j.jct.2016.06.001, via the Chemeo datasheet for propylene glycol",
+      "note": "measured 1494.4 m/s at 303.15 K and 1465.9 at 313.15 K (0.1 MPa); 20 °C is a 10 K linear extrapolation, hence estimate",
+      "law": {
+       "kind": "table",
+       "variable": "T",
+       "unit": "K",
+       "points": [
+        [
+         303.15,
+         1494.43
+        ],
+        [
+         313.15,
+         1465.86
+        ],
+        [
+         333.15,
+         1408.86
+        ],
+        [
+         353.15,
+         1350.89
+        ]
+       ],
+       "source": "same paper, ~0.1 MPa"
+      }
+     },
+     "impedance": {
+      "value": 1578000.0,
+      "unit": "Pa*s/m",
+      "confidence": "estimate",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4324,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-444: n_D 1.4324 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 372.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing NFPA, Fire Protection Guide to Hazardous Materials, 13th ed. (2002), p. 325-102: 99 °C closed cup",
+      "note": "Kirk-Othmer: 104 °C Pensky-Martens"
+     },
+     "vaporPressure": {
+      "value": null,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C57556&Mask=4",
+      "note": "293.15 K lies outside the law's range; no value given at 20 °C",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 6.07936,
+       "B": 2692.187,
+       "C": -17.94,
+       "validRange": [
+        318.7,
+        461.4
+       ],
+       "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C57556&Mask=4, after Stull (1947)",
+       "check": "gives 0.999 bar at the boiling point 460.75 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "diethylEther",
+   "catalogId": null,
+   "name": "diethyl ether",
+   "phase": "liquid",
+   "cas": "60-29-7",
+   "molarMass": 0.0741216,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 713.4,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing The Merck Index, 13th ed. (2001): 0.7134 at 20 °C/4 °C",
+      "note": " Correlation gives 714.2 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1010.41,
+        -0.816951,
+        -0.000660447
+       ],
+       "validRange": [
+        233.0,
+        303.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.007 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0002372,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Merck 13th ed. (via HSDB): 0.2448 cP at 20 °C (correlation 3 % lower)",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.0428,
+       "B": 791.93,
+       "validRange": [
+        233.0,
+        303.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 1.8 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0171,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.043722,
+        -9.08e-05
+       ],
+       "validRange": [
+        157.15,
+        307.75
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=18.92 mN/m, b=0.0908 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no speed of sound, so no adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2346.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [156.92, 460.0] K"
+     },
+     "conductivity": {
+      "value": 0.13,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00169,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 156.85,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing The Merck Index, 13th ed. (2001): -116.3 °C (stable crystals)"
+     },
+     "boilingPoint": {
+      "value": 307.75,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing The Merck Index, 13th ed. (2001): 34.6 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 97000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "7.19 kJ/mol at the melting point over M = 74.1216 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 357800.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "26.52 kJ/mol at the normal boiling point 307.65 K over M = 74.1216 g/mol; 27.1 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 453.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing NFPA, Fire Protection Guide to Hazardous Materials, 13th ed. (2002), p. 325-63: 180 °C"
+     },
+     "heatOfCombustion": {
+      "value": 36860000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C60297&Mask=2, Murrin and Goldhagen (1957)",
+      "note": "gross, liquid: -2732.1 ± 1.9 kJ/mol; Merck: 8.807 kcal/g (36.85 MJ/kg)"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no measured speed of sound near 20 °C found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3526,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing CRC Handbook, 86th ed. (2005), p. 3-168: n_D 1.3526 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 228.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing CRC Handbook of Analytical Toxicology (1969), p. 630: -45 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": 58600.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.10962,
+       "B": 1090.64,
+       "C": -41.95,
+       "validRange": [
+        229.71,
+        328.31
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.015 bar at the boiling point 307.75 K"
+      }
+     },
+     "note": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "boils at 34.6 °C; vapour pressure 58.6 kPa at 20 °C, so a pool evaporates fast"
+     }
+    }
+   }
+  },
+  {
+   "id": "aceticAcid",
+   "catalogId": null,
+   "name": "acetic acid (glacial)",
+   "phase": "liquid",
+   "cas": "64-19-7",
+   "molarMass": 0.060052,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1047.8,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1273.52,
+        -0.51086,
+        -0.000885051
+       ],
+       "validRange": [
+        293.0,
+        383.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.007 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001202,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 94th ed. p. 6-232 (HSDB): 1.056 mPa*s at 25 °C; the correlation gives 1.115 there (+5.6 %), so the 20 °C value is likely ~5 % high",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.2247,
+       "B": 1319.98,
+       "validRange": [
+        293.0,
+        383.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.19 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02759,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0567311,
+        -9.94e-05
+       ],
+       "validRange": [
+        289.85,
+        391.15
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=29.58 mN/m, b=0.0994 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1442000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed at 19.6 °C",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2045.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [289.81, 391.05] K"
+     },
+     "conductivity": {
+      "value": 0.16,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000991,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 289.78,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/176) citing Kirk-Othmer, \"Acetic Acid\" (2014): 16.635 °C",
+      "note": "freezes just below room temperature (glacial)"
+     },
+     "boilingPoint": {
+      "value": 391.05,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/176) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-4: 117.9 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 195300.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "11.73 kJ/mol at the melting point over M = 60.052 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 394700.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC lists 23.7 kJ/mol at the boiling point, low because the vapour is largely dimerised; the enthalpy to monomeric vapour is ~51.6 kJ/mol (NIST ΔvapH° 50.3, Verevkin 2000). Marked estimate because which one a model wants depends on it."
+     },
+     "autoignitionTemperature": {
+      "value": 736.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/176) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-9: 463 °C"
+     },
+     "heatOfCombustion": {
+      "value": 14570000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C64197&Mask=2, Steele, Chirico, et al. (1997)",
+      "note": "gross, liquid: -875.16 ± 0.34 kJ/mol; CRC 94th p. 5-68: 874.2"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1173,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "conditions": "19.6 °C",
+      "note": "no dc/dt given"
+     },
+     "impedance": {
+      "value": 1229000.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.372,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/176) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-4: n_D 1.3720",
+      "note": "temperature not shown in the HSDB extract; CRC tabulates n_D at 20 °C by default"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 312.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/176) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-9: 39 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": 1542.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.54456,
+       "B": 1555.12,
+       "C": -48.5,
+       "validRange": [
+        297.58,
+        414.97
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.011 bar at the boiling point 391.05 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "chloroform",
+   "catalogId": null,
+   "name": "chloroform (trichloromethane)",
+   "phase": "liquid",
+   "cas": "67-66-3",
+   "molarMass": 0.119378,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1487.9,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6212) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-520: 1.4788 g/cm3 at 25 °C",
+      "note": "CRC 25 °C value carried to 20 °C with the VDI expansion coefficient. Merck: 1.484 at 20/20 °C (1481 kg/m3); spread ~0.5 %. Correlation gives 1492.6 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1899.15,
+        -0.937211,
+        -0.00153436
+       ],
+       "validRange": [
+        233.0,
+        328.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.008 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0005668,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Prager (1995, via HSDB): 5.63 mP (0.563 mPa*s) at 20 °C, 0.510 at 30 °C",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -10.5469,
+       "B": 900.97,
+       "validRange": [
+        233.0,
+        328.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.51 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02732,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0652829,
+        -0.0001295
+       ],
+       "validRange": [
+        209.55,
+        334.25
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=29.91 mN/m, b=0.1295 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1492000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 948.4,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [233.15, 366.48] K"
+     },
+     "conductivity": {
+      "value": 0.118,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00123,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 209.68,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6212) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-520: -63.47 °C"
+     },
+     "boilingPoint": {
+      "value": 334.27,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6212) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-520: 61.12 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 79580.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "9.5 kJ/mol at the melting point over M = 119.378 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 244900.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "29.24 kJ/mol at the normal boiling point 334.32 K over M = 119.378 g/mol; 31.28 kJ/mol at 298.15 K"
+     },
+     "heatOfCombustion": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not flammable in air under ordinary conditions; a bomb-calorimeter enthalpy of combustion exists (NIST) but means nothing to a fire model, so none is given"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 1002.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 984 m/s at 25 °C and dc/dt = -3.5 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        2027.52,
+        -3.5
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 1491000.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4459,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6212) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-520: n_D 1.4459 at 20 °C",
+      "note": "another CRC page (3-380) gives 1.4476"
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 21030.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 3.96288,
+       "B": 1106.904,
+       "C": -54.598,
+       "validRange": [
+        250.1,
+        356.89
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.012 bar at the boiling point 334.27 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "dichloromethane",
+   "catalogId": null,
+   "name": "dichloromethane (methylene chloride)",
+   "phase": "liquid",
+   "cas": "75-09-2",
+   "molarMass": 0.084933,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1325.5,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing The Merck Index, 15th ed. (2013), p. 1124: 1.3255 at 20 °C/4 °C",
+      "note": " Correlation gives 1326.7 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1758.38,
+        -1.06168,
+        -0.00140181
+       ],
+       "validRange": [
+        233.0,
+        308.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.005 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0004334,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Ullmann, \"Chloromethanes\" (via HSDB): 0.437 mPa*s at 20 °C",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -10.6101,
+       "B": 840.22,
+       "validRange": [
+        233.0,
+        308.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.23 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02784,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0654825,
+        -0.0001284
+       ],
+       "validRange": [
+        178.15,
+        313.15
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=30.41 mN/m, b=0.1284 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no speed of sound, so no adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1183.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [180.0, 320.0] K"
+     },
+     "conductivity": {
+      "value": 0.141,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00142,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 178.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing The Merck Index, 15th ed. (2013), p. 1124: -95 °C",
+      "note": "NIST: 178.2 K (Moseeva 1978)"
+     },
+     "boilingPoint": {
+      "value": 312.9,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing The Merck Index, 15th ed. (2013), p. 1124: 39.75 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 54160.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "4.6 kJ/mol at the melting point over M = 84.933 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 330400.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "28.06 kJ/mol at the normal boiling point 313.15 K over M = 84.933 g/mol; 28.82 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 829.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-84: 556 °C"
+     },
+     "heatOfCombustion": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "hard to ignite, no flash point; not flammable in air under ordinary conditions; a bomb-calorimeter enthalpy of combustion exists (NIST) but means nothing to a fire model, so none is given"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no measured speed of sound near 20 °C found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4244,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing The Merck Index, 15th ed. (2013), p. 1124: n_D 1.4244 at 20 °C"
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 47530.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.07622,
+       "B": 1070.07,
+       "C": -49.91,
+       "validRange": [
+        235.2,
+        333.36
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.017 bar at the boiling point 312.9 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "carbonTetrachloride",
+   "catalogId": null,
+   "name": "carbon tetrachloride",
+   "phase": "liquid",
+   "cas": "56-23-5",
+   "molarMass": 0.153823,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1594.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/5943) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-496: 1.5940 g/cm3 at 20 °C",
+      "note": " Correlation gives 1592.9 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        2012.45,
+        -1.02201,
+        -0.00139604
+       ],
+       "validRange": [
+        253.0,
+        343.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.006 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0009739,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "the correlation gives 0.906 mPa*s at 25 °C; Daubert and Danner (via HSDB): 2.03 mPa*s at 250 K",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.2344,
+       "B": 1260.01,
+       "validRange": [
+        253.0,
+        343.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.35 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02704,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0629236,
+        -0.0001224
+       ],
+       "validRange": [
+        250.15,
+        349.85
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=29.49 mN/m, b=0.1224 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": 1396000000.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "derived: rho*c^2 from this entry's density and Kaye & Laby sound speed",
+      "note": "adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 856.5,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [250.33, 388.71] K"
+     },
+     "conductivity": {
+      "value": 0.101,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.00115,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 250.95,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/5943) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-496: -22.2 °C"
+     },
+     "boilingPoint": {
+      "value": 349.85,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/5943) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-496: 76.7 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 16640.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "2.56 kJ/mol at the melting point over M = 153.823 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 193900.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "29.82 kJ/mol at the normal boiling point 349.95 K over M = 153.823 g/mol; 32.43 kJ/mol at 298.15 K"
+     },
+     "heatOfCombustion": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not flammable in air under ordinary conditions; a bomb-calorimeter enthalpy of combustion exists (NIST) but means nothing to a fire model, so none is given"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": 936.0,
+      "unit": "m/s",
+      "confidence": "handbook",
+      "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+      "note": "Kaye & Laby give 921 m/s at 25 °C and dc/dt = -3.0 m/(s*K); carried to 20 °C with that slope",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "c/(m/s) = c0 + c1*T",
+       "coefficients": [
+        1815.45,
+        -3.0
+       ],
+       "validRange": null,
+       "source": "Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 \"Properties of sound in liquids\" (NPL online edition, web.archive.org snapshot 2007-01-17)",
+       "fit": "linear about 25 °C from the tabulated slope; range not stated by the table"
+      }
+     },
+     "impedance": {
+      "value": 1492000.0,
+      "unit": "Pa*s/m",
+      "confidence": "handbook",
+      "source": "derived: rho*c from this entry"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4601,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/5943) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-496: n_D 1.4601 at 20 °C"
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 12160.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.10445,
+       "B": 1265.632,
+       "C": -41.002,
+       "validRange": [
+        259.0,
+        373.76
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.015 bar at the boiling point 349.85 K"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "dimethylSulfoxide",
+   "catalogId": null,
+   "name": "dimethyl sulfoxide (DMSO)",
+   "phase": "liquid",
+   "cas": "67-68-5",
+   "molarMass": 0.078133,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1100.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing The Merck Index, 15th ed. (2013), p. 593: 1.100 at 20 °C/4 °C",
+      "note": " Correlation gives 1101.1 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1353.4,
+        -0.750897,
+        -0.000375009
+       ],
+       "validRange": [
+        293.0,
+        373.0
+       ],
+       "source": "Perry's 8th ed., Table 2-32 (DIPPR eq. 105), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.001 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.002187,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "Merck (via HSDB) gives 2.47 cP at 20 °C, 13 % above the correlation; DIPPR is preferred here (it gives 1.98 mPa*s at 25 °C, the commonly tabulated value)",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.5415,
+       "B": 1582.61,
+       "validRange": [
+        293.0,
+        373.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 1.76 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0421,
+      "unit": "N/m",
+      "confidence": "estimate",
+      "source": "pure-DMSO end point of a DMSO + 1,2,4-trimethylbenzene data set at 298.15 K as tabulated by Chemeo (chemeo.com/mid/16-867-c); original paper not read",
+      "conditions": "25 °C",
+      "note": "secondary source; marked estimate"
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no speed of sound, so no adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1958.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "CRC Handbook, \"Standard thermodynamic properties of chemical substances\": Cp(l) 153.0 J/(mol*K), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "conditions": "25 °C",
+      "note": "Perry 2-153 gives 1957 J/(kg*K) at 20 °C"
+     },
+     "conductivity": {
+      "value": 0.224,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000883,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the Perry's 8th ed. density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 291.6,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing The Merck Index, 15th ed. (2013), p. 593: 18.45 °C",
+      "note": "freezes just below room temperature"
+     },
+     "boilingPoint": {
+      "value": 462.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing The Merck Index, 15th ed. (2013), p. 593: 189 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 183900.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "14.37 kJ/mol at the melting point over M = 78.133 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 551600.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "43.1 kJ/mol at the normal boiling point 462.15 K over M = 78.133 g/mol"
+     },
+     "autoignitionTemperature": {
+      "value": 488.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-52: 215 °C"
+     },
+     "heatOfCombustion": {
+      "value": 25330000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing U.S. Coast Guard CHRIS, Hazardous Chemical Data, vol. II (1984-5): -10,890 Btu/lb",
+      "note": "converted at 2326 (J/kg)/(Btu/lb); gross vs net not stated"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no measured speed of sound near 20 °C found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4783,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing The Merck Index, 15th ed. (2013), p. 593: n_D 1.4783 at 20 °C",
+      "note": "CRC Handbook of Data on Organic Compounds (1994): 1.4770"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 368.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-52: 95 °C open cup"
+     },
+     "vaporPressure": {
+      "value": 55.8,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C67685&Mask=4",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 5.23039,
+       "B": 2239.161,
+       "C": -29.215,
+       "validRange": [
+        293.0,
+        323.0
+       ],
+       "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C67685&Mask=4, after Douglas (1948)",
+       "check": "gives 1.144 bar at the boiling point 462.15 K — outside its range; do not extrapolate"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "pXylene",
+   "catalogId": null,
+   "name": "p-xylene (1,4-dimethylbenzene)",
+   "phase": "liquid",
+   "cas": "106-42-3",
+   "molarMass": 0.106165,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 861.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing The Merck Index, 15th ed. (2013), p. 1876: 0.86104 at 20 °C/4 °C",
+      "note": " Correlation gives 860.7 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1047.92,
+        -0.442759,
+        -0.000667975
+       ],
+       "validRange": [
+        288.0,
+        373.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.004 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.0006444,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 95th ed. p. 6-234 (HSDB): 0.603 mPa*s at 25 °C; correlation gives 0.606 there",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.06,
+       "B": 1088.9,
+       "validRange": [
+        288.0,
+        373.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 0.29 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.02854,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0600263,
+        -0.0001074
+       ],
+       "validRange": [
+        286.15,
+        411.15
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=30.69 mN/m, b=0.1074 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no speed of sound, so no adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1692.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [286.41, 600.0] K"
+     },
+     "conductivity": {
+      "value": 0.131,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000973,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 286.45,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-550: 13.3 °C",
+      "note": "p-xylene freezes at 13 °C; commercial \"xylene\" is a mixture of isomers that stays liquid"
+     },
+     "boilingPoint": {
+      "value": 411.45,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-550: 138.3 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 161300.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "17.12 kJ/mol at the melting point over M = 106.165 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 336000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "35.67 kJ/mol at the normal boiling point 411.38 K over M = 106.165 g/mol; 42.4 kJ/mol at 298.15 K"
+     },
+     "autoignitionTemperature": {
+      "value": 801.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-117: 528 °C"
+     },
+     "heatOfCombustion": {
+      "value": 42870000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, condensed phase thermochemistry, https://webbook.nist.gov/cgi/cbook.cgi?ID=C106423&Mask=2, Coops, Mulder, et al. (1946), reanalysed by Cox and Pilcher (1970)",
+      "note": "gross, liquid: -4551.44 ± 0.50 kJ/mol"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no measured speed of sound near 20 °C found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4958,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing The Merck Index, 15th ed. (2013), p. 1876: n_D 1.49575 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 298.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-117: 25 °C closed cup"
+     },
+     "vaporPressure": {
+      "value": 867.8,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 4.10494,
+       "B": 1446.832,
+       "C": -58.523,
+       "validRange": [
+        307.81,
+        438.88
+       ],
+       "source": "Poling, Prausnitz and O'Connell, The Properties of Gases and Liquids, 5th ed. (2001), Antoine collection, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Poling gives log10(P/Pa); A here is that A minus 5",
+       "check": "gives 1.013 bar at the boiling point 411.45 K"
+      }
+     },
+     "isomerNote": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "para isomer chosen because it is the best tabulated; its sound speed near 20 °C was not found (one 306 K, 1 MPa point: 1281.8 m/s, J. Chem. Thermodyn. 2019, doi:10.1016/j.jct.2019.03.022)"
+     }
+    }
+   }
+  },
+  {
+   "id": "formicAcid",
+   "catalogId": null,
+   "name": "formic acid",
+   "phase": "liquid",
+   "cas": "64-18-6",
+   "molarMass": 0.0460254,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1220.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-262: 1.220 at 20 °C/4 °C",
+      "note": " Correlation gives 1219.9 at 293.15 K.",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "rho/(kg/m3) = c0 + c1*T + c2*T^2",
+       "coefficients": [
+        1474.42,
+        -0.524092,
+        -0.00117403
+       ],
+       "validRange": [
+        283.0,
+        373.0
+       ],
+       "source": "VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "quadratic fitted by us to the correlation over the range; max deviation 0.007 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001785,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "CRC 91st ed. p. 6-229 (HSDB): 1.607 mPa*s at 25 °C; correlation gives 1.610 there",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.9545,
+       "B": 1646.63,
+       "validRange": [
+        283.0,
+        373.0
+       ],
+       "source": "Perry's Chemical Engineers' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "fitted by us to the correlation at 17 points over the range; max deviation 3.25 %"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.03767,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "sigma/(N/m) = c0 + c1*T",
+       "coefficients": [
+        0.0698619,
+        -0.0001098
+       ],
+       "validRange": [
+        281.15,
+        374.15
+       ],
+       "source": "Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+       "fit": "Jasper a=39.87 mN/m, b=0.1098 mN/(m*K), rewritten in kelvin"
+      }
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no speed of sound, so no adiabatic bulk modulus"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2152.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-153 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "correlation at 293.15 K; valid [281.45, 380.0] K"
+     },
+     "conductivity": {
+      "value": 0.27,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Perry's 8th ed., Table 2-315 (DIPPR eq. 100), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)"
+     },
+     "volumetricExpansion": {
+      "value": 0.000998,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the VDI Heat Atlas density correlation at 293.15 K"
+     },
+     "meltingPoint": {
+      "value": 281.45,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-262: 8.3 °C"
+     },
+     "boilingPoint": {
+      "value": 374.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-262: 101 °C"
+     },
+     "latentHeatOfFusion": {
+      "value": 275500.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "12.68 kJ/mol at the melting point over M = 46.0254 g/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 493000.0,
+      "unit": "J/kg",
+      "confidence": "estimate",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "22.69 kJ/mol at the boiling point; low because the vapour is largely dimerised (Majer and Svoboda via NIST give 46.3 kJ/mol to the vapour as it is); estimate for that reason"
+     },
+     "autoignitionTemperature": {
+      "value": 812.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-66: 539 °C (90 % solution: 434 °C)"
+     },
+     "heatOfCombustion": {
+      "value": 5532000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 5-68: 254.6 kJ/mol (liquid, 25 °C)",
+      "note": "gross; formic acid burns weakly"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no measured speed of sound near 20 °C found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.3714,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-262: n_D 1.3714 at 20 °C"
+     }
+    },
+    "extra": {
+     "flashPoint": {
+      "value": 342.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing NFPA, Fire Protection Guide to Hazardous Materials, 14th ed. (2010), p. 325-66: 69 °C closed cup (90 % solution: 50 °C)"
+     },
+     "vaporPressure": {
+      "value": 4480.0,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C64186&Mask=4",
+      "note": "value is the law at 293.15 K",
+      "law": {
+       "kind": "antoine",
+       "form": "log10(P/bar) = A - B/(T + C)",
+       "A": 2.00121,
+       "B": 515.0,
+       "C": -139.408,
+       "validRange": [
+        273.7,
+        307.4
+       ],
+       "source": "NIST Chemistry WebBook, SRD 69, phase change data, https://webbook.nist.gov/cgi/cbook.cgi?ID=C64186&Mask=4, after Kahlbaum (1894)",
+       "check": "gives 0.642 bar at the boiling point 374.15 K — outside its range; do not extrapolate"
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "sulfuricAcid",
+   "catalogId": null,
+   "name": "sulfuric acid, concentrated (~100 %, anhydrous H2SO4)",
+   "phase": "liquid",
+   "cas": "7664-93-9",
+   "molarMass": 0.098078,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": "values are for 100 % H2SO4 unless a property says otherwise"
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1830.2,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1118) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-92: 1.8302 g/cm3",
+      "note": "temperature not shown in the HSDB extract. The commercial 98.3 % grade is ~1840 kg/m3 (Wikipedia, \"Sulfuric acid\", table of grades)."
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.021,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1118) citing Kirk-Othmer, \"Sulfuric Acid and Sulfur Trioxide\": 21 mPa*s at 25 °C",
+      "conditions": "25 °C",
+      "note": "Wikipedia gives 26.7 cP at 20 °C without a source"
+     },
+     "surfaceTension": {
+      "value": 0.0517,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1118) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 6-186: 51.7 mN/m at 50 °C",
+      "conditions": "50 °C"
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no sound speed found"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 1416.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "CRC Handbook, \"Standard thermodynamic properties of chemical substances\", coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals): Cp(l) 138.9 J/(mol*K)",
+      "conditions": "25 °C, 100 % H2SO4"
+     },
+     "conductivity": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found for the concentrated acid"
+     },
+     "meltingPoint": {
+      "value": 283.46,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1118) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-92: 10.31 °C",
+      "note": "100 % acid; 98 % acid freezes near 3 °C (not verified here)"
+     },
+     "boilingPoint": {
+      "value": 610.15,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1118) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-92: 337 °C",
+      "note": "decomposes to SO3 + H2O above ~300 °C; boiling loses SO3 until the 98.3 % azeotrope remains"
+     },
+     "latentHeatOfFusion": {
+      "value": 109200.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "10.71 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found"
+     }
+    },
+    "extra": {
+     "vaporPressure": {
+      "value": 0.13,
+      "unit": "Pa",
+      "confidence": "handbook",
+      "source": "NIOSH Pocket Guide to Chemical Hazards, as cited by Wikipedia \"Sulfuric acid\": 0.001 mmHg at 20 °C",
+      "note": "order of magnitude only"
+     },
+     "concentrationNote": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "asked for 98 %; no single 98 % table was found, so the entry is the anhydrous acid from CRC with 98 % differences noted. Not combustible; a strong dehydrating agent."
+     }
+    }
+   }
+  },
+  {
+   "id": "hydrogenPeroxide",
+   "catalogId": null,
+   "name": "hydrogen peroxide (anhydrous, 100 %)",
+   "phase": "liquid",
+   "cas": "7722-84-1",
+   "molarMass": 0.0340147,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1440.0,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-67: 1.44 g/cm3 at 25 °C",
+      "conditions": "25 °C",
+      "note": "30 % solution: ~1110 kg/m3 (Merck)"
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.001249,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing Ullmann, \"Hydrogen Peroxide\" (2017): 1.819 cP at 0 °C, 1.249 cP at 20 °C",
+      "law": {
+       "kind": "andrade",
+       "form": "ln(mu/Pa*s) = A + B/T",
+       "A": -11.8199,
+       "B": 1505.2,
+       "validRange": [
+        273.15,
+        293.15
+       ],
+       "source": "Ullmann (via HSDB)",
+       "fit": "through the two tabulated points; extrapolation outside 0-20 °C untested"
+      }
+     },
+     "surfaceTension": {
+      "value": 0.0804,
+      "unit": "N/m",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing Hawley's Condensed Chemical Dictionary, 16th ed. (2016), p. 735: 80.4 dyn/cm at 20 °C"
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no sound speed found"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 2619.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "CRC Handbook, \"Standard thermodynamic properties of chemical substances\", coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals): Cp(l) 89.1 J/(mol*K)",
+      "conditions": "25 °C"
+     },
+     "conductivity": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found"
+     },
+     "meltingPoint": {
+      "value": 272.72,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-67: -0.43 °C",
+      "note": "NIST: 272.26 K (Cuthbertson 1928)"
+     },
+     "boilingPoint": {
+      "value": 423.35,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-67: 150.2 °C",
+      "note": "decomposes; boiling the pure liquid is hazardous"
+     },
+     "latentHeatOfFusion": {
+      "value": 367500.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of fusion\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "note": "12.5 kJ/mol"
+     },
+     "latentHeatOfVaporization": {
+      "value": 1517000.0,
+      "unit": "J/kg",
+      "confidence": "handbook",
+      "source": "CRC Handbook of Chemistry and Physics, \"Enthalpy of vaporization\" table, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals)",
+      "conditions": "25 °C",
+      "note": "51.6 kJ/mol at 298.15 K"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": 1.4061,
+      "unit": "",
+      "confidence": "handbook",
+      "source": "PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 4-137: 1.4061 at 28 °C",
+      "conditions": "28 °C"
+     }
+    },
+    "extra": {
+     "hazardNote": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "strong oxidiser; concentrated H2O2 decomposes exothermically to water and oxygen. Pure chosen over 30 % because the handbook record is for the pure substance."
+     }
+    }
+   }
+  },
+  {
+   "id": "glycolCoolant50",
+   "catalogId": null,
+   "name": "ethylene glycol-water coolant, 50 % by mass",
+   "phase": "liquid",
+   "cas": null,
+   "molarMass": null,
+   "referenceState": {
+    "temperature": 293.15,
+    "pressure": 101325.0,
+    "note": null
+   },
+   "groups": {
+    "mechanical": {
+     "density": {
+      "value": 1064.9,
+      "unit": "kg/m3",
+      "confidence": "handbook",
+      "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value/(kg/m3) = c0*T^0 + c1*T^1 + c2*T^2",
+       "coefficients": [
+        1061.28,
+        0.54759,
+        -0.0018286
+       ],
+       "validRange": [
+        253.15,
+        373.15
+       ],
+       "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+       "fit": "fitted by us to the model at 25 points; max deviation 0.052 %"
+      }
+     }
+    },
+    "fluid": {
+     "viscosity": {
+      "value": 0.003693,
+      "unit": "Pa*s",
+      "confidence": "handbook",
+      "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+      "note": "Andrade over 253-373 K misses by 22.2 % (A=-14.4729, B=2636.2); VFT given as the law",
+      "law": {
+       "kind": "vft",
+       "form": "log10(mu/Pa*s) = A + B/(T - C)",
+       "A": -4.5058,
+       "B": 309.73,
+       "C": 144.33,
+       "validRange": [
+        253.15,
+        373.15
+       ],
+       "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+       "fit": "fitted by us to the correlation at 21 points over the range; max deviation 2.08 %"
+      }
+     },
+     "surfaceTension": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not taken from the model (it has none); MEGlobal guide Fig. 12 has a chart only"
+     },
+     "bulkModulus": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "no sound speed found"
+     }
+    },
+    "thermal": {
+     "specificHeat": {
+      "value": 3312.0,
+      "unit": "J/(kg*K)",
+      "confidence": "handbook",
+      "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value/(J/(kg*K)) = c0*T^0 + c1*T^1 + c2*T^2",
+       "coefficients": [
+        683.033,
+        12.7268,
+        -0.012805
+       ],
+       "validRange": [
+        253.15,
+        373.15
+       ],
+       "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+       "fit": "fitted by us to the model at 25 points; max deviation 0.090 %"
+      }
+     },
+     "conductivity": {
+      "value": 0.389,
+      "unit": "W/(m*K)",
+      "confidence": "handbook",
+      "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+      "law": {
+       "kind": "polynomial",
+       "variable": "T",
+       "form": "value/(W/(m*K)) = c0*T^0 + c1*T^1 + c2*T^2",
+       "coefficients": [
+        0.193947,
+        0.00071782,
+        -1.75344e-07
+       ],
+       "validRange": [
+        253.15,
+        373.15
+       ],
+       "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+       "fit": "fitted by us to the model at 25 points; max deviation 0.086 %"
+      }
+     },
+     "volumetricExpansion": {
+      "value": 0.0005,
+      "unit": "1/K",
+      "confidence": "handbook",
+      "source": "derived: -(1/rho) d rho/dT of the same model"
+     },
+     "meltingPoint": {
+      "value": 237.16,
+      "unit": "K",
+      "confidence": "handbook",
+      "source": "Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5",
+      "note": "freezing point of the solution (onset of ice crystals), not a sharp melt"
+     }
+    },
+    "acoustic": {
+     "speedOfSound": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not found"
+     }
+    },
+    "optical": {
+     "refractiveIndex": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "not taken; MEGlobal guide Fig. 14 has a chart only"
+     }
+    },
+    "extra": {
+     "mixtureNote": {
+      "value": null,
+      "confidence": null,
+      "source": null,
+      "note": "50 % by mass = 47.27 % by volume at 20 °C (MEGlobal, Ethylene Glycol Product Guide, Table 6). Typical automotive antifreeze also carries inhibitors, ignored here."
+     }
+    }
+   },
+   "casNote": "mixture; components ethylene glycol 107-21-1 and water 7732-18-5"
+  }
+ ]
+}

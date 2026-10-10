@@ -1,16 +1,19 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 /// An infinite flat floor of one named surface.
 ///
 /// Most of what a car does has nothing to do with the shape of a track, and a
 /// test about braking distance should not also be a test about a circuit. This
 /// is the reason [GroundField] is an interface.
-final class FlatGround implements GroundField {
+final class FlatGround with GroundField {
   FlatGround({this.height = 0.0, this.surface, this.extent = double.infinity});
 
   final double height;
@@ -40,11 +43,11 @@ final class FlatGround implements GroundField {
 ({SphereVehicle car, CollisionWorld world}) onFlat({
   String? surface,
   GripTable? grips,
-  Tyres? tyres,
-  VehicleTuning tuning = const VehicleTuning(),
+  TireSet? tireSet,
+  VehicleSettings tuning = const VehicleSettings(),
   double extent = double.infinity,
 }) {
-  final world = CollisionWorld();
+  final world = CollisionWorld(properties: racingWorld);
   final car = SphereVehicle(
     world: world,
     ground: FlatGround(surface: surface, extent: extent),
@@ -53,9 +56,9 @@ final class FlatGround implements GroundField {
     // A table on its own still reads as "what the surfaces are worth", which is
     // what most of this file is about; the tyres it belongs to are the road
     // ones unless a test says otherwise.
-    tyres:
-        tyres ??
-        (grips == null ? Tyres.road : Tyres(name: 'test', grips: grips)),
+    tireSet:
+        tireSet ??
+        (grips == null ? TireSet.road : TireSet(name: 'test', grips: grips)),
   );
   return (car: car, world: world);
 }
@@ -406,7 +409,7 @@ void main() {
       // Aimed at the wall rather than steered into it: holding the wheel over
       // would drive the car round in a circle, and what is being tested is the
       // contact, not the circle.
-      final world = CollisionWorld();
+      final world = CollisionWorld(properties: racingWorld);
       final car = SphereVehicle(
         world: world,
         ground: FlatGround(surface: 'asphalt'),
@@ -438,19 +441,19 @@ void main() {
       // Two seconds, not six: at full throttle six would have carried the car
       // off the far edge before the test had checked it was ever on it.
       drive(it.car, seconds: 2.0, throttle: 1.0);
-      expect(it.car.grounded, isTrue);
+      expect(it.car.isGrounded, isTrue);
       expect(it.car.position.z, lessThan(30.0));
 
       drive(it.car, seconds: 4.0, throttle: 1.0);
 
       expect(it.car.position.z, greaterThan(30.0));
-      expect(it.car.grounded, isFalse);
+      expect(it.car.isGrounded, isFalse);
       expect(it.car.position.y, lessThan(-5.0));
     });
 
     test('a banked corner leans the car with it', () {
       final track = TrackSpline(
-        centre: CatmullRom(<Vector3>[
+        center: CatmullRom(<Vector3>[
           for (var i = 0; i < 16; i++)
             Vector3(
               60 * math.cos(2 * math.pi * i / 16),
@@ -461,7 +464,7 @@ void main() {
         widths: List<double>.filled(16, 14.0),
         banks: List<double>.filled(16, 0.25),
       );
-      final world = CollisionWorld();
+      final world = CollisionWorld(properties: racingWorld);
       final start = Vector3.zero();
       final forward = Vector3.zero();
       track.startSlot(0, start, forward);
@@ -476,7 +479,7 @@ void main() {
       drive(car, seconds: 2.0, throttle: 0.6);
 
       // The body's own up follows the road rather than the world.
-      expect(car.grounded, isTrue);
+      expect(car.isGrounded, isTrue);
       expect(car.visualBasis.getColumn(1).y, lessThan(0.995));
     });
   });
@@ -491,7 +494,7 @@ void main() {
     })
     onCircuit() {
       const points = 20;
-      final centre = CatmullRom(<Vector3>[
+      final center = CatmullRom(<Vector3>[
         for (var i = 0; i < points; i++)
           Vector3(
             90 * math.cos(2 * math.pi * i / points),
@@ -500,13 +503,13 @@ void main() {
           ),
       ]);
       final track = TrackSpline(
-        centre: centre,
+        center: center,
         widths: List<double>.filled(points, 12.0),
         banks: List<double>.filled(points, 0.12),
         shoulder: 4.0,
       );
 
-      final world = CollisionWorld()
+      final world = CollisionWorld(properties: racingWorld)
         ..add(
           Collider(
             // Wide enough that a car running wide off a ninety-metre circuit
@@ -528,7 +531,7 @@ void main() {
       car.placeAt(
         car.position,
         car.headingYaw,
-        trackDistance: track.centre.wrap(track.grid.s),
+        trackDistance: track.center.wrap(track.grid.s),
       );
 
       final race = RaceState(
@@ -585,6 +588,7 @@ void main() {
       // last checkpoint, and does it again. Any single moment is somewhere in
       // that cycle.
       final it = onCircuit();
+      final heard = Heard(it.sim);
       var landedOnGrass = 0;
       var returned = 0;
       var highest = -1e9;
@@ -596,9 +600,9 @@ void main() {
         it.sim.step(1 / 60);
 
         highest = math.max(highest, it.car.position.y);
-        returned += it.sim.events.drain().whereType<Respawned>().length;
+        returned += heard.take().whereType<Respawned>().length;
         // The floor's top is at -5, and the car rides half a metre above it.
-        if (it.car.grounded &&
+        if (it.car.isGrounded &&
             (it.car.position.y - (-5.0 + 0.55)).abs() < 0.2) {
           landedOnGrass += 1;
         }

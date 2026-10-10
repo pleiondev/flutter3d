@@ -31,31 +31,34 @@ import 'package:flutter_test/flutter_test.dart';
 // storage's own promise.
 void main() {
   group('the storage this build actually gets', () {
-    test('keeps a document across two of its own instances', () {
+    test('keeps a document across two of its own instances', () async {
       // The real one, whichever it is: `localStorage` under chrome and a file
       // everywhere else. What is checked is the promise both make.
       final storage = defaultStorage('flutter3d_app_test');
       addTearDown(() => storage.remove('probe.json'));
 
-      expect(storage.write('probe.json', '{"kept":true}'), isTrue);
+      await storage.write('probe.json', '{"kept":true}');
 
       expect(
-        defaultStorage('flutter3d_app_test').read('probe.json'),
+        await defaultStorage('flutter3d_app_test').read('probe.json'),
         '{"kept":true}',
       );
     });
 
-    test('and forgets one when asked', () {
+    test('and forgets one when asked', () async {
       final storage = defaultStorage('flutter3d_app_test');
-      storage.write('probe.json', 'x');
+      await storage.write('probe.json', 'x');
 
-      storage.remove('probe.json');
+      await storage.remove('probe.json');
 
-      expect(storage.read('probe.json'), isNull);
+      expect(await storage.read('probe.json'), isNull);
     });
 
-    test('and reading what was never written is null, not a throw', () {
-      expect(defaultStorage('flutter3d_app_test').read('absent.json'), isNull);
+    test('and reading what was never written is null, not a throw', () async {
+      expect(
+        await defaultStorage('flutter3d_app_test').read('absent.json'),
+        isNull,
+      );
     });
   });
 }

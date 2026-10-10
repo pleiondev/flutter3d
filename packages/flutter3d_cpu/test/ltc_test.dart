@@ -23,7 +23,7 @@ BoundTexture _table() {
   final pixels = device.readHdrPixels(EngineTables.of(device).ltc);
   final texture = CpuTexture(64, 128, TextureFormat.r32g32b32a32Float)
     ..pixels.setAll(0, pixels);
-  return BoundTexture(texture, SamplerOptions.linearClamp);
+  return BoundTexture(texture, SamplerDescriptor.linearClamp);
 }
 
 /// ∫ D · Vis · (n · l) dω over the rectangle, by a grid of [steps]² points:
@@ -32,7 +32,7 @@ double _reference(
   Vector3 n,
   Vector3 v,
   double roughness,
-  Vector3 centre,
+  Vector3 center,
   Vector3 halfWidth,
   Vector3 halfHeight, {
   int steps = 256,
@@ -46,7 +46,7 @@ double _reference(
   for (var i = 0; i < steps; i++) {
     for (var j = 0; j < steps; j++) {
       final p =
-          centre +
+          center +
           halfWidth * ((i + 0.5) / steps * 2.0 - 1.0) +
           halfHeight * ((j + 0.5) / steps * 2.0 - 1.0);
       final r2 = p.length2;
@@ -76,24 +76,24 @@ void main() {
   final halfWidth = Vector3(0.5, 0.0, 0.0);
   final halfHeight = Vector3(0.0, 0.0, 0.5);
 
-  for (final centre in <Vector3>[
+  for (final center in <Vector3>[
     Vector3(0.0, 1.5, -1.5),
     Vector3(0.8, 1.2, -0.4),
   ]) {
     for (final roughness in <double>[0.3, 0.6, 0.9]) {
-      test('roughness $roughness, panel at $centre', () {
+      test('roughness $roughness, panel at $center', () {
         final corners = <Vector3>[
-          centre - halfWidth - halfHeight,
-          centre + halfWidth - halfHeight,
-          centre + halfWidth + halfHeight,
-          centre - halfWidth + halfHeight,
+          center - halfWidth - halfHeight,
+          center + halfWidth - halfHeight,
+          center + halfWidth + halfHeight,
+          center - halfWidth + halfHeight,
         ];
         final fit = ltcRectangle(table, n, v, roughness, corners);
         final expected = _reference(
           n,
           v,
           roughness,
-          centre,
+          center,
           halfWidth,
           halfHeight,
         );

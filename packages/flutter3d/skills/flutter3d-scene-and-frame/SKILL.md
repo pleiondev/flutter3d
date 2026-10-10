@@ -10,7 +10,7 @@ final device = await openDevice(width: 1280, height: 720);   // flutter3d_app
 final renderer = Renderer.create(device: device);
 
 final scene = Scene();
-final camera = CameraNode(projection: PerspectiveProjection(fovYRadians: 0.9));
+final camera = CameraNode(projection: PerspectiveProjection(fovY: 0.9));
 scene.root.add(camera);
 // A light points where its node points: place it and aim the node.
 scene.root.add(LightNode(type: LightType.directional, castsShadow: true)

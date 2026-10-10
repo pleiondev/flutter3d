@@ -10,7 +10,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class VoiceLimitDemo extends ShowcaseDemo {
   late final String _report;
@@ -92,7 +91,7 @@ final class VoiceLimitDemo extends ShowcaseDemo {
       asset: 'shout.wav',
       priority: 10,
     );
-    final List<SoundEmitter> steps = <SoundEmitter>[
+    final List<AudioEmitter> steps = <AudioEmitter>[
       for (var i = 0; i < asking.round(); i++)
         scene.play(
           footstep,
@@ -103,14 +102,14 @@ final class VoiceLimitDemo extends ShowcaseDemo {
           ),
         ),
     ];
-    final SoundEmitter? loud = shouting
+    final AudioEmitter? loud = shouting
         ? scene.play(shout, Vector3(0.0, 0.0, -3.0))
         : null;
     scene.update(AudioListener());
     // #endregion live
     for (var i = 0; i < _most; i++) {
       final bool asked = i < steps.length;
-      _balls[i].visible = asked;
+      _balls[i].isVisible = asked;
       if (!asked) continue;
       final double angle = i * 2.4;
       final double radius = 1.5 + 0.35 * i;
@@ -119,22 +118,22 @@ final class VoiceLimitDemo extends ShowcaseDemo {
         0.3,
         radius * math.sin(angle),
       );
-      _colour(_balls[i], steps[i].audibleGain > 0.0, const <double>[
+      _color(_balls[i], steps[i].audibleGain > 0.0, const <double>[
         0.9,
         0.75,
         0.3,
       ]);
     }
-    _shout.visible = loud != null;
+    _shout.isVisible = loud != null;
     if (loud != null) {
-      _colour(_shout, loud.audibleGain > 0.0, const <double>[0.85, 0.35, 0.3]);
+      _color(_shout, loud.audibleGain > 0.0, const <double>[0.85, 0.35, 0.3]);
     }
     _granted.set(scene.voiceCount / 10.0);
   }
 
   /// Lit in [lit] colours while it has a voice, dark once it has none.
-  void _colour(MeshNode node, bool has, List<double> lit) {
-    node.material.baseColor.setValues(
+  void _color(MeshNode node, bool has, List<double> lit) {
+    node.material.baseColor = LinearColor.fromSrgb(
       has ? lit[0] : 0.22,
       has ? lit[1] : 0.22,
       has ? lit[2] : 0.25,

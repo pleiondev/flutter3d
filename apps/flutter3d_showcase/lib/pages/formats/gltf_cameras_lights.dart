@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class GltfCamerasLightsDemo extends ShowcaseDemo {
   late final GltfAsset _readBack;
@@ -31,8 +30,9 @@ final class GltfCamerasLightsDemo extends ShowcaseDemo {
       lights: <ModelLight>[
         ModelLight(
           type: ModelLightType.directional,
-          color: Vector3(1.0, 0.95, 0.85),
-          intensity: 2.4,
+          color: LinearColor(1.0, 0.95, 0.85),
+          // Lux, as KHR_lights_punctual has a directional light.
+          intensity: 13900.0,
         ),
       ],
       cameras: <ModelCamera>[
@@ -63,13 +63,17 @@ final class GltfCamerasLightsDemo extends ShowcaseDemo {
       scene.add(
         MeshNode(
           DeviceMesh.upload(context.device, surface.mesh),
-          Material(baseColor: Vector4(0.7, 0.75, 0.82, 1.0), roughness: 0.6),
+          RenderMaterial(
+            baseColor: LinearColor.fromSrgb(0.7, 0.75, 0.82, 1.0),
+            roughness: 0.6,
+          ),
           name: 'cube',
         ),
       );
     }
     for (final ModelLight light in _readBack.lights) {
       scene.add(
+        // The file's lux is the node's lux: no conversion on the way.
         LightNode(name: light.name, intensity: light.intensity)
           ..setLocalForward(Vector3(-0.4, -0.9, -0.3)),
       );

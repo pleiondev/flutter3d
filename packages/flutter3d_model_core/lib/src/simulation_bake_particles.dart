@@ -36,7 +36,7 @@ import 'simulation_cache.dart';
 ///
 /// [system] is read, not owned: nothing here calls [ParticleSystem.clear],
 /// so a caller keeps whatever else it wanted the same instance for.
-final class BakeParticleSystemJobRequest implements SimulationBakeRequest {
+final class BakeParticleSystemJobRequest with SimulationBakeRequest {
   BakeParticleSystemJobRequest({
     required this.objectId,
     required this.baseVersion,
@@ -54,6 +54,8 @@ final class BakeParticleSystemJobRequest implements SimulationBakeRequest {
   final ParticleSystem system;
   @override
   final int frameCount;
+
+  /// In seconds.
   final double dt;
   final String label;
 

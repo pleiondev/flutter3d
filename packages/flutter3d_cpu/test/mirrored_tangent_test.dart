@@ -17,6 +17,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4, Vector3;
 
@@ -37,7 +39,7 @@ TextureHandle _leaningNormals(CpuDevice device) =>
           ...<int>[128, 30, 170, 255],
         ]),
       ),
-    )!;
+    );
 
 /// [mesh] reflected through the plane x = 0, the way a mirroring transform
 /// would carry it: x negated on the position, normal and tangent, the
@@ -100,9 +102,9 @@ Float32List _render(
   final scene = Scene()
     ..add(place(device))
     ..add(camera)
-    ..ambientIntensity = 0.25
+    ..ambientIntensity = 0.25 * Photometric.legacyUnit
     ..add(
-      LightNode(intensity: 3.0)
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
         ..setRotationYawPitchRoll(0.4, fromBelow ? 0.7 : -0.7, 0.0),
     );
   final result = Renderer.create(device: device).render(
@@ -118,9 +120,9 @@ Float32List _render(
   return device.readHdrPixels(result.frame);
 }
 
-Material _mapped(CpuDevice device) => Material(
+RenderMaterial _mapped(CpuDevice device) => RenderMaterial(
   normal: _leaningNormals(device),
-  normalSampler: SamplerOptions.nearestClamp,
+  normalSampler: SamplerDescriptor.nearestClamp,
   // Both sides drawn, so an instance mirrored inside a batch — whose winding
   // nothing turns — is still in the picture to be compared.
   doubleSided: true,

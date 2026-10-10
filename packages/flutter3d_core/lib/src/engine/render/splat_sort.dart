@@ -22,6 +22,13 @@
 /// does not change when the camera turns, only when it moves. So a camera
 /// that looks around never re-sorts, and `SplatQuads` only has to ask
 /// whether the eye has travelled far enough to matter.
+///
+/// **Through an orthographic lens, by depth along the axis instead** — `P7`.
+/// There the rays are parallel and do not meet at the eye, so what is in
+/// front of what is depth along the view axis, and distance from wherever
+/// the camera was put along it puts a splat off to the side behind one it
+/// covers. The consequence turns round with it: moving the camera adds the
+/// same to every depth and changes no order, and turning it does.
 library;
 
 import 'dart:math' as math;
@@ -31,13 +38,13 @@ import 'package:vector_math/vector_math.dart';
 
 import '../../formats/splat/splat_cloud.dart';
 
-/// The largest quantised distance: keys run `0..kSplatKeyMax`.
-const int kSplatKeyMax = 0xFFFF;
+/// The largest quantised distance: keys run `0..splatKeyMax`.
+const int splatKeyMax = 0xFFFF;
 
 /// Sorts the first [count] entries of [keys] ascending, carrying [order]
 /// along, in two stable eight-bit counting passes.
 ///
-/// Every key must be in `0..kSplatKeyMax`. [keyScratch] and [orderScratch]
+/// Every key must be in `0..splatKeyMax`. [keyScratch] and [orderScratch]
 /// must be at least [count] long and hold nothing afterwards; [counts] is a
 /// 256-entry histogram, passed in so that a caller sorting every frame
 /// allocates nothing.
@@ -103,7 +110,8 @@ final class SplatSorter {
   /// first `cloud.count` entries mean anything.
   Uint32List get order => _order;
 
-  /// The quantised keys in the same order as [order], ascending.
+  /// The quantised keys in the same order as [order]: ascending after
+  /// [sort], in the cloud's own order after [quantize].
   Uint32List get keys => _keys;
 
   /// How far apart the nearest and farthest splat were at the last [sort],
@@ -112,12 +120,40 @@ final class SplatSorter {
   double _lastRange = 0.0;
 
   /// Orders [cloud] far to near by distance from [eye], with the cloud placed
-  /// in the world by [model] when it is given.
+  /// in the world by [model] when it is given — or, given an [axis] (unit
+  /// length), by depth from [eye] along it, which is an orthographic
+  /// camera's order.
   ///
   /// The distances are quantised across the range this cloud spans from
   /// this eye, not across a fixed one: sixteen bits over the cloud's own
   /// depth is what keeps a small cloud and a large one equally well ordered.
-  void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model}) {
+  void sort(SplatCloud cloud, Vector3 eye, {Matrix4? model, Vector3? axis}) {
+    quantize(cloud, eye, model: model, axis: axis);
+    sortSplatKeys(
+      _keys,
+      _order,
+      _keyScratch,
+      _orderScratch,
+      cloud.count,
+      _counts,
+    );
+  }
+
+  /// [sort]'s first half alone: [keys] filled in the cloud's own order and
+  /// [order] with `0, 1, 2, …`, nothing sorted — what the GPU sort is handed
+  /// (`H11`), so that the keys it orders are these to the bit.
+  ///
+  /// **The keys stay on the CPU on purpose.** A distance worked out in the
+  /// GPU's 32-bit floats lands a splat near a step of the quantisation in the
+  /// neighbouring key now and then, and two orders that differ there are two
+  /// pictures that differ there. One walk over the centres is the price of
+  /// every backend drawing one order.
+  void quantize(
+    SplatCloud cloud,
+    Vector3 eye, {
+    Matrix4? model,
+    Vector3? axis,
+  }) {
     final count = cloud.count;
     if (_keys.length < count) {
       _keys = Uint32List(count);
@@ -134,14 +170,14 @@ final class SplatSorter {
     // view over it, so no second float array has to be kept alive: the
     // distances are only needed until they are quantised.
     final distances = Float32List.view(_keyScratch.buffer, 0, count);
-    final centres = cloud.centres;
+    final centers = cloud.centers;
     final m = model?.storage;
     final ex = eye.x, ey = eye.y, ez = eye.z;
     var near = double.infinity;
     var far = double.negativeInfinity;
     for (var i = 0; i < count; i++) {
-      final lx = centres[i * 3], ly = centres[i * 3 + 1];
-      final lz = centres[i * 3 + 2];
+      final lx = centers[i * 3], ly = centers[i * 3 + 1];
+      final lz = centers[i * 3 + 2];
       // Three conditionals rather than a record, which the VM would box on
       // every splat of a million.
       final dx =
@@ -150,7 +186,9 @@ final class SplatSorter {
           (m == null ? ly : m[1] * lx + m[5] * ly + m[9] * lz + m[13]) - ey;
       final dz =
           (m == null ? lz : m[2] * lx + m[6] * ly + m[10] * lz + m[14]) - ez;
-      final d = math.sqrt(dx * dx + dy * dy + dz * dz);
+      final d = axis == null
+          ? math.sqrt(dx * dx + dy * dy + dz * dz)
+          : dx * axis.x + dy * axis.y + dz * axis.z;
       distances[i] = d;
       if (d < near) near = d;
       if (d > far) far = d;
@@ -160,13 +198,11 @@ final class SplatSorter {
     _lastRange = range;
     // Farthest is key 0, so ascending keys are back to front. A cloud whose
     // splats all sit at one distance is one key, and keeps index order.
-    final scale = range > 0.0 ? kSplatKeyMax / range : 0.0;
+    final scale = range > 0.0 ? splatKeyMax / range : 0.0;
     for (var i = 0; i < count; i++) {
       final q = ((far - distances[i]) * scale).floor();
-      _keys[i] = q < 0 ? 0 : (q > kSplatKeyMax ? kSplatKeyMax : q);
+      _keys[i] = q < 0 ? 0 : (q > splatKeyMax ? splatKeyMax : q);
       _order[i] = i;
     }
-
-    sortSplatKeys(_keys, _order, _keyScratch, _orderScratch, count, _counts);
   }
 }

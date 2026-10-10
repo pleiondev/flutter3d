@@ -11,10 +11,9 @@
 library;
 
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 void main() => runApp(const CubeApp());
 
@@ -37,17 +36,17 @@ Scene buildScene(GraphicsDevice device) => Scene()
   ..add(
     MeshNode(
       DeviceMesh.upload(device, CuboidShape().build()),
-      Material(
+      RenderMaterial(
         name: 'cube',
         lighting: LightingModel.pbr,
-        baseColor: Vector4(0.9, 0.42, 0.28, 1.0),
+        baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28, 1.0),
         roughness: 0.4,
       ),
       name: 'cube',
     ),
   )
   ..add(
-    LightNode(name: 'sun', intensity: 3.0)
+    LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
       ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
   );
 
@@ -62,7 +61,7 @@ class _CubeScreenState extends State<CubeScreen> {
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColor: Vector4(0.05, 0.05, 0.07, 1.0),
+    clearColorSrgb: Vector4(0.05, 0.05, 0.07, 1.0),
   );
   late final OrbitController _orbit = OrbitController(
     _camera,

@@ -15,6 +15,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -57,6 +58,26 @@ void main() {
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   final registry = EntityRegistry(<EntityKind>[]);
+
+  test(
+    'a level\'s world is on the physics it was given until it is let go of',
+    () async {
+      final backend = _Watching();
+      final loaded = await const LevelLoader().build(
+        _level(),
+        device: device,
+        registry: registry,
+        physics: backend,
+      );
+      expect(loaded.collision.backend, same(backend));
+      // Mutation: a world made without asking, which on the core is a level
+      // whose characters walk in Dart under monsters that do not.
+      expect(backend.attached, <CollisionWorld>[loaded.collision]);
+      // The level lets go of the one it was given.
+      loaded.dispose(device);
+      expect(backend.released, <CollisionWorld>[loaded.collision]);
+    },
+  );
 
   test('a level with no textures builds with nothing to report', () async {
     final loaded = await const LevelLoader().build(
@@ -112,6 +133,38 @@ void main() {
       reason: 'a texture that loaded was reported as missing',
     );
     expect(loaded.materialTextures['assets/textures/wall.png'], isNotNull);
+  });
+
+  test('a wall repainted at another size is drawn at it after a hot swap, '
+      'and is not watched once the level is gone', () async {
+    // `HR2`. Mutation: leave out the listener that keeps `materialTextures`
+    // in step, and the level's map names a texture already given back — the
+    // one `rebuildBrushes` would bind and `dispose` would release again.
+    var file = encodePng(Uint8List(4), 1, 1);
+    final loaded = await const LevelLoader().build(
+      _level(albedo: 'assets/textures/wall.png'),
+      device: device,
+      registry: registry,
+      readAsset: (AssetRequest request) async => ByteData.sublistView(file),
+    );
+    HotSwap.instance.registerScene(loaded.scene);
+    final before = loaded.materialTextures['assets/textures/wall.png']!;
+    expect(before.width, 1);
+
+    file = encodePng(Uint8List(4 * 4 * 4), 4, 4);
+    final report = await HotSwap.instance.swap();
+
+    expect(report.textures, contains('assets/textures/wall.png'));
+    final now = loaded.materialTextures['assets/textures/wall.png']!;
+    expect(now.width, 4);
+    final walls = <TextureHandle?>[];
+    loaded.scene.root.traverse((SceneNode node) {
+      if (node is MeshNode) walls.add(node.material.albedo);
+    });
+    expect(walls, everyElement(same(now)));
+
+    loaded.dispose(device);
+    expect(HotSwap.instance.hasTexture('assets/textures/wall.png'), isFalse);
   });
 
   test(
@@ -199,7 +252,7 @@ void main() {
     test('goes onto every brush batch as a second coordinate', () async {
       final level = _level();
       final map = const LightmapBaker(
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         bounces: 0,
         includeDirect: true,
       ).bake(level);
@@ -225,7 +278,7 @@ void main() {
       final map = Lightmap(
         width: 64,
         height: 64,
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         levelHash: 0,
       );
 
@@ -252,7 +305,7 @@ void main() {
     test('the size of which disagrees with the plan is refused too', () async {
       final level = _level();
       final baked = const LightmapBaker(
-        texelsPerMetre: 1.0,
+        texelsPerMeter: 1.0,
         bounces: 0,
       ).bake(level);
       // Fresh by the hash — same level, same lights — and half the atlas the
@@ -260,7 +313,7 @@ void main() {
       final wrongSize = Lightmap(
         width: baked.width ~/ 2,
         height: baked.height,
-        texelsPerMetre: baked.texelsPerMetre,
+        texelsPerMeter: baked.texelsPerMeter,
         levelHash: baked.levelHash,
       );
       expect(wrongSize.isStaleFor(level), isFalse, reason: 'the hash agrees');
@@ -311,7 +364,7 @@ void main() {
         device: device,
         registry: registry,
         lightmap: const LightmapBaker(
-          texelsPerMetre: 1.0,
+          texelsPerMeter: 1.0,
           bounces: 0,
           includeDirect: true,
         ).bake(level),
@@ -447,3 +500,15 @@ ByteData _onePixelPng() => ByteData.sublistView(
     0xAE, 0x42, 0x60, 0x82,
   ]),
 );
+
+/// A backend that only remembers which worlds it was given and let go of.
+final class _Watching extends PhysicsBackend {
+  final List<CollisionWorld> attached = <CollisionWorld>[];
+  final List<CollisionWorld> released = <CollisionWorld>[];
+  @override
+  String get name => 'watching';
+  @override
+  void attach(CollisionWorld world) => attached.add(world);
+  @override
+  void release(CollisionWorld world) => released.add(world);
+}

@@ -1,8 +1,10 @@
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'editor_log.dart';
 import 'editor_state.dart';
 
+export 'editor_log.dart';
 export 'editor_state.dart';
 
 /// The screen's answers to what the document is doing.
@@ -17,45 +19,66 @@ export 'editor_state.dart';
 /// sentence, which is what makes it reachable from a plain `test()` — see
 /// `test/editor_cubit_test.dart`.
 ///
+/// **And every sentence is kept in [log]**, which the console shows: the
+/// strip says one thing at a time, and the log is where the one before it
+/// went. Written from here rather than by watching the states go past,
+/// because two states can say the same sentence — "nothing selected", twice —
+/// and a state that only changed the axis says nothing new at all.
+///
 /// The states themselves are in `editor_state.dart` and re-exported here, the
 /// way `run_session.dart` holds `RunStatus` and `run_cubit.dart` holds the
 /// wrapper: what a document is doing and how a screen watches it are two
 /// different questions, and this file only answers the second one.
 final class EditorCubit extends Cubit<EditorState> {
-  EditorCubit() : super(const EditorOpening());
+  EditorCubit({EditorLog? log})
+    : log = log ?? EditorLog(),
+      super(const EditorOpening());
+
+  /// Everything this cubit has said, for the console.
+  final EditorLog log;
 
   /// Nothing is at [path] yet — here are the templates on offer instead.
-  void nothingFound(List<Template> templates, {required String path}) =>
-      emit(EditorChoosing(templates, said: 'nothing at $path yet'));
+  ///
+  /// A null [path] says nothing about where it looked: a browser build has
+  /// no disk to have looked on, and the chooser's own paragraph says so.
+  void nothingFound(List<Template> templates, {required String? path}) {
+    final said = path == null ? '' : 'nothing at $path yet';
+    log.add(said);
+    emit(EditorChoosing(templates, said: said));
+  }
 
   /// A document opened, and this is what it opened to.
   ///
   /// The message matches what the editor has always said on opening: how many
   /// brushes, and who owns the file if this editor may not save over it.
-  void opened(
-    Editing editing, {
-    String? assetRoot,
-    required Looks looks,
-  }) => emit(
-    EditorReady(
-      editing: editing,
-      assetRoot: assetRoot,
-      looks: looks,
-      said:
-          'opened ${editing.level.brushes.length} brushes'
-          '${editing.mayOverwrite ? '' : ' — written by ${editing.generatedBy}'}',
-    ),
-  );
+  void opened(Editing editing, {String? assetRoot, required Looks looks}) {
+    final said =
+        'opened ${editing.level.brushes.length} brushes'
+        '${editing.canOverwrite ? '' : ' — written by ${editing.generatedBy}'}';
+    log.add('${editing.path}: $said');
+    emit(
+      EditorReady(
+        editing: editing,
+        assetRoot: assetRoot,
+        looks: looks,
+        said: said,
+      ),
+    );
+  }
 
   /// Nothing could be opened at all — a device that would not start, or a
   /// document that would not parse.
-  void failed(Object error) => emit(EditorFailed(error));
+  void failed(Object error) {
+    log.add('$error', error: true);
+    emit(EditorFailed(error));
+  }
 
   /// Something in the chooser is worth saying, without leaving it — the
   /// project directory was not empty, or the disk refused to write.
   void choosingSaid(String said) {
     final current = state;
     if (current is EditorChoosing) {
+      log.add(said);
       emit(EditorChoosing(current.templates, said: said));
     }
   }
@@ -68,7 +91,7 @@ final class EditorCubit extends Cubit<EditorState> {
   /// this and which this does not: whether the scene needs rebuilding is the
   /// render loop's question, not this cubit's — see `_EditorScreenState`.
   void say(String said) =>
-      _updateReady((EditorReady it) => it.copyWith(said: said));
+      _updateReady((EditorReady it) => it.copyWith(said: said), said: said);
 
   /// Which axis `−`/`=` and the arrow keys resize along.
   void setAxis(EditorAxis axis) =>
@@ -80,14 +103,11 @@ final class EditorCubit extends Cubit<EditorState> {
     final current = state;
     if (current is! EditorReady) return true;
     final on = !current.lampOn;
-    emit(
-      current.copyWith(
-        lampOn: on,
-        said: on
-            ? "the editor's lamp is on"
-            : "the editor's lamp is off — this is the level's own light",
-      ),
-    );
+    final said = on
+        ? "the editor's lamp is on"
+        : "the editor's lamp is off — this is the level's own light";
+    log.add(said);
+    emit(current.copyWith(lampOn: on, said: said));
     return on;
   }
 
@@ -98,14 +118,11 @@ final class EditorCubit extends Cubit<EditorState> {
     final hidden = Set<String>.of(current.hidden);
     final hiding = !hidden.remove(type);
     if (hiding) hidden.add(type);
-    emit(
-      current.copyWith(
-        hidden: hidden,
-        said: hiding
-            ? '$label hidden — alt-click again to show'
-            : '$label shown',
-      ),
-    );
+    final said = hiding
+        ? '$label hidden — alt-click again to show'
+        : '$label shown';
+    log.add(said);
+    emit(current.copyWith(hidden: hidden, said: said));
   }
 
   /// Arms or disarms the palette. Null puts nothing down; a row arms the next
@@ -113,18 +130,19 @@ final class EditorCubit extends Cubit<EditorState> {
   void setPlacing(Placeable? placing) {
     final current = state;
     if (current is! EditorReady) return;
-    emit(
-      current.copyWith(
-        placing: placing,
-        said: placing == null
-            ? 'nothing to place'
-            : 'click in the level to place a ${placing.label}',
-      ),
-    );
+    final said = placing == null
+        ? 'nothing to place'
+        : 'click in the level to place a ${placing.label}';
+    log.add(said);
+    emit(current.copyWith(placing: placing, said: said));
   }
 
-  void _updateReady(EditorReady Function(EditorReady) f) {
+  /// Applies [f] when a document is open, and keeps [said] in the log when
+  /// there is something to say.
+  void _updateReady(EditorReady Function(EditorReady) f, {String? said}) {
     final current = state;
-    if (current is EditorReady) emit(f(current));
+    if (current is! EditorReady) return;
+    if (said != null) log.add(said);
+    emit(f(current));
   }
 }

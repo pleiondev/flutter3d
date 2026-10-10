@@ -12,7 +12,6 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class BuildConvertDemo extends ShowcaseDemo {
   late final int _sourceBytes;
@@ -56,12 +55,12 @@ f 2 4 3
     ..add(
       MeshNode(
         DeviceMesh.upload(context.device, _decoded.surfaces.single.mesh),
-        Material(baseColor: Vector4(0.7, 0.65, 0.5, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.7, 0.65, 0.5, 1.0)),
         name: 'tetra',
       ),
     )
     ..add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
     );
 

@@ -40,22 +40,27 @@
 /// it is the nearest by straight line.
 library;
 
+import 'dart:math' as math;
+
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Entity, EventRegistry;
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
-import '../ecs/entity.dart';
-import '../loop/game_event.dart';
 import '../math/motion.dart';
-import '../math/portable_math.dart';
 import '../math/tolerances.dart';
+import '../nav/avoidance.dart';
 import '../nav/jump_links.dart';
 import '../nav/navigation.dart';
+import '../nav/navmesh/navmesh.dart';
 import '../physics/layers.dart';
 import '../save/game_random.dart';
 import 'actor.dart';
 import 'actor_components.dart';
 import 'actor_hurt.dart';
+import 'actor_strides.dart';
 import 'brain.dart';
 import 'health.dart';
 
@@ -75,6 +80,16 @@ final class ActorSystem {
 
   /// Where actors live. Shared with everything else that has moved across, so
   /// that one `save()` covers the lot.
+  ///
+  /// **The run's world, which the engine sees.** A genre's run keeps its
+  /// actors in a world of its own per level — its tapes' checkpoints are
+  /// digests of it, and an edit of a level is built beside the one still
+  /// playing — and the genre hands that world to the loop: its run is a part
+  /// of the loop's snapshots, and the world is one of its `PublishedWorlds`,
+  /// so the view reads where each actor is from published state
+  /// ([PublishedActor]) rather than from the actor. A game that wants its
+  /// actors in the loop's own world passes `loop.world` here instead. Left
+  /// out, the system makes a world of its own.
   final EcsWorld entities;
 
   /// Randomness, shared so that a snapshot can carry where the dice were.
@@ -110,6 +125,44 @@ final class ActorSystem {
   /// How to get to the focus from anywhere, or null for "walk straight at it".
   Navigation? navigation;
 
+  /// How to get to any point, one mesh per width of body, or none for "walk
+  /// straight at it": what [steerTowards] routes over. A flow field answers
+  /// for the focus, which every actor shares; a mesh answers for a point only
+  /// one of them wants — a post, a noise, cover.
+  ///
+  /// **One per width**, because a mesh is eroded by one radius: a body wider
+  /// than the one it was baked for is routed through gaps it does not fit.
+  /// Each body walks on the mesh for the narrowest radius that is still at
+  /// least its own — see [navMeshFor] — and one wider than all of them walks
+  /// straight. `NavMesh.bakeLevelFor` bakes a set from a roster's bodies.
+  List<NavMesh> navMeshes = const <NavMesh>[];
+
+  /// The mesh of [navMeshes] a body of [radius] walks on, or null.
+  NavMesh? navMeshFor(double radius) {
+    NavMesh? best;
+    for (final mesh in navMeshes) {
+      final r = mesh.config.agentRadius;
+      if (r < radius) continue;
+      if (best == null || r < best.config.agentRadius) best = mesh;
+    }
+    return best;
+  }
+
+  /// How actors walk past each other, or null for "into each other": see
+  /// [Avoidance]. Each living actor on the ground turns its brain's wish
+  /// into the velocity nearest it that meets no other living actor within
+  /// the horizon, taking half the turning and trusting the other with half.
+  /// Read from the bodies as they stand, so nothing is kept between steps.
+  Avoidance? avoidance;
+
+  /// Who is taking actors out of their brains' hands, or null for nobody: a
+  /// cutscene walking them to their marks. An actor it directs on a step
+  /// neither thinks nor acts that step — the director steers it through the
+  /// same [Mind] — and is back with its brain the step the director lets
+  /// go. Avoidance still applies, since the director only says where to go.
+  /// A dead actor is nobody's to direct; it falls as it always did.
+  ActorDirector? director;
+
   /// How often an actor far from the focus thinks.
   ///
   /// Sight tests are raycasts and they are the expensive part. Something
@@ -117,18 +170,28 @@ final class ActorSystem {
   /// invisible, and without this thirty actors are thirty rays every step.
   int thinkInterval = 4;
 
-  /// Beyond this, an actor is on the slow schedule.
+  /// Beyond this, an actor is on the slow schedule. In metres from the
+  /// focus.
   double closeRange = 18.0;
 
-  /// Where this system reports what happened, or null for a caller that does
-  /// not listen.
+  /// The bus this system publishes what happened onto, or null for a caller
+  /// that does not listen.
   ///
-  /// Set by whoever owns the step, usually to the genre simulation's own
-  /// buffer, so that a death recorded here lands in the same ordered sequence
-  /// as the shot that caused it. That ordering is the reason this is a sink
-  /// handed down rather than a list collected up: a list says what happened, a
-  /// shared buffer says what happened when.
-  GameEvents? events;
+  /// Set by whoever owns the step, usually by the genre simulation to its own
+  /// bus (its `publishTo`), so that a death published here lands in the same
+  /// ordered sequence as the shot that caused it. That ordering is the reason
+  /// this is a bus handed down rather than a list collected up: a list says
+  /// what happened, the step channel says what happened when.
+  EventRegistry? events;
+
+  /// What walks an actor's body in place of its brain's wish, or null for
+  /// a game whose bodies go where their brains want.
+  ///
+  /// Asked once a step for every actor, after its brain has acted and dead
+  /// or alive, so a game can step each actor's animation in the simulation
+  /// and let its root motion move the body: swept like any move, stopped by
+  /// a wall. Null from it is a body moved by the wish as before.
+  ActorStrides? strides;
 
   /// Actors that died this step.
   final List<Actor> died = <Actor>[];
@@ -151,12 +214,6 @@ final class ActorSystem {
   /// [step], the first.
   Vector3 get focus => _foci[_focusIndex];
   Collider? get focusBody => _fociBodies[_focusIndex];
-
-  /// For code written against 0.8.0, where this was a field: [step] names
-  /// the body, as `focusBody:` or in `foci:`, and overwrites whatever was
-  /// set here on its next call, as it always did.
-  @Deprecated('Name the body in step(focusBody:) or step(foci:).')
-  set focusBody(Collider? body) => _fociBodies[_focusIndex] = body;
 
   /// Which focus the actor being thought about attends to, by its index in
   /// the list [step] was given. Zero with one focus, and outside [step].
@@ -202,6 +259,8 @@ final class ActorSystem {
 
   /// From the actor currently being thought about to the focus.
   Vector3 get toFocus => _toFocus;
+
+  /// The length of [toFocus], in metres.
   double get distanceToFocus => _distance;
 
   int _tick = 0;
@@ -247,7 +306,11 @@ final class ActorSystem {
       throw ArgumentError.value(entity, 'entity', 'is not a vacant slot');
     }
     final made = entity ?? entities.spawn();
-    if (body != null) entities.set(made, Body(body));
+    if (body != null) {
+      entities
+        ..set(made, Body(body))
+        ..set(made, Gait(body));
+    }
     if (health != null) entities.set(made, Vitality(health));
     if (facing != null) entities.set(made, facing);
     if (brain != null) entities.set(made, Thinking(brain));
@@ -400,12 +463,18 @@ final class ActorSystem {
       if (!actor.isAlive) {
         // A corpse still needs its body stepped, or it hangs in the air where
         // it died.
-        body?.step(dt, wishDirection: Vector3.zero());
+        // Asked before the body steps and whether or not there is one: the
+        // animation of something with no body still runs, and its markers
+        // are still heard.
+        final stride = strides?.strideOf(actor, Vector3.zero(), dt);
+        body?.step(dt, wishDirection: Vector3.zero(), drivenBy: stride);
         continue;
       }
 
       final brain = actor.brain;
-      if (brain != null) {
+      final directing = director;
+      final directed = directing != null && directing.directs(actor);
+      if (brain != null && !directed) {
         // Thinking is throttled; moving is not. An actor whose movement ran
         // every fourth step would visibly stutter.
         final thinks =
@@ -415,8 +484,17 @@ final class ActorSystem {
       }
 
       _wish.setZero();
-      brain?.act(_mind);
-      body?.step(dt, wishDirection: _wish);
+      if (directed) {
+        directing.steer(_mind);
+      } else {
+        brain?.act(_mind);
+      }
+      final avoid = avoidance;
+      if (avoid != null && body != null && body.isGrounded) {
+        _avoid(actor, body, avoid, dt);
+      }
+      final stride = strides?.strideOf(actor, _wish, dt);
+      body?.step(dt, wishDirection: _wish, drivenBy: stride);
     }
     _focusIndex = 0;
   }
@@ -496,7 +574,9 @@ final class ActorSystem {
         body.position,
         radius: body.halfExtents.x,
         height: body.halfExtents.y * 2.0,
-        jump: routes.grid.jumpLinks.isEmpty ? null : JumpReach.of(body.tuning),
+        jump: routes.grid.jumpLinks.isEmpty
+            ? null
+            : JumpReach.of(body.tuning, world: body.world.properties),
       );
       if (target >= 0) return target;
     }
@@ -550,17 +630,17 @@ final class ActorSystem {
       // you have killed turns a corridor into a maze of your own making.
       actor.body?.collider.kind = ColliderKind.trigger;
       died.add(actor);
-      events?.add(ActorDied(actor, from: from));
+      events?.publish(ActorDied(actor, from: from));
       actor.brain?.onDeath(_mind);
       return true;
     }
 
     // One object in both places while the lists are still here; when they go
-    // it is only in the buffer. Never two, which is the whole reason ActorHurt
+    // it is only on the bus. Never two, which is the whole reason ActorHurt
     // is the event rather than something copied into one.
     final hurt = ActorHurt(actor, amount, from: from);
     hurtThisStep.add(hurt);
-    events?.add(hurt);
+    events?.publish(hurt);
     actor.brain?.onHurt(_mind, amount);
     _mind.hurtBy = null;
     return false;
@@ -619,14 +699,20 @@ final class ActorSystem {
 
   /// Walk towards a point that is not the focus.
   ///
-  /// Straight, and it slides off what it meets: the flow field is baked towards
-  /// the focus and cannot route anywhere else, which is why this is a separate
-  /// method rather than `steerTowardsFocus(point)`. A patrol between two posts
-  /// wants exactly this; an enemy that must cross a level to somewhere the
-  /// player is not wants navigation, and that is a bigger change than this one.
+  /// Over the body's mesh — [navMeshFor] — when there is one: towards the next corner of the route
+  /// there, and up into a jump at a link's take-off when the mesh has links
+  /// and the body's reach takes them. Straight, sliding off what it meets,
+  /// when there is no mesh or the body is over no part of it. The flow field
+  /// is baked towards the focus and cannot route anywhere else, which is why
+  /// this is a separate method rather than `steerTowardsFocus(point)`.
+  ///
+  /// [point] is at the height of a body's centre, like the body's own
+  /// position, and the route is found between the floors under the two.
   void steerTowards(Actor actor, Vector3 point) {
     final body = actor.body;
     if (body == null) return;
+    final mesh = navMeshFor(body.halfExtents.x);
+    if (mesh != null && _steerOnMesh(body, mesh, point)) return;
     _wish
       ..setFrom(point)
       ..sub(body.position)
@@ -634,6 +720,181 @@ final class ActorSystem {
     final length = _wish.length;
     if (length > Tolerance.zeroLength) _wish.scale(1.0 / length);
   }
+
+  /// Steers [body] along its route over [mesh] to [point], and says whether
+  /// there was one.
+  ///
+  /// **The route is found again every step, from where the body is.** Nothing
+  /// about it is kept, so nothing about it is in a snapshot: a run restored
+  /// mid-walk finds the same route from the same place and steps on to the
+  /// same bits. What that costs is a search per walking actor per step, over
+  /// a mesh of a few hundred polygons.
+  ///
+  /// In the air over a gap there is no polygon under the body and no route,
+  /// and the wish is straight at [point]; air control only adds speed along
+  /// it, so the jump goes where it was aimed.
+  bool _steerOnMesh(CharacterController body, NavMesh mesh, Vector3 point) {
+    final half = body.halfExtents.y;
+    _feet
+      ..setFrom(body.position)
+      ..y -= half;
+    _goalFeet
+      ..setFrom(point)
+      ..y -= half;
+    // On a floor's eroded rim — an overshoot at a route's end will put it
+    // there — the body is over no polygon and still on the floor: it routes
+    // from the nearest point of the mesh, which brings it back.
+    final start =
+        body.isGrounded &&
+            mesh.polygonAt(_feet) < 0 &&
+            mesh.nearestPolygon(
+                  _feet,
+                  _onMesh,
+                  within: mesh.config.agentRadius + mesh.config.cellSize,
+                ) >=
+                0
+        ? _onMesh
+        : _feet;
+    final reach = mesh.links.isEmpty
+        ? null
+        : JumpReach.of(body.tuning, world: body.world.properties);
+    final route = mesh.route(start, _goalFeet, jumps: reach);
+    if (route == null) return false;
+    final within = mesh.config.cellSize * 0.5;
+    if (!route.complete) {
+      // As near as there is a way to: stop there rather than pace about it.
+      final dx = route.points.last.x - _feet.x;
+      final dz = route.points.last.z - _feet.z;
+      if (dx * dx + dz * dz <= within * within) {
+        _wish.setZero();
+        return true;
+      }
+    }
+    if (route.points.length < 2) {
+      // At the end; back onto the mesh if the body is off it.
+      _steerAt(route.points.first);
+      return true;
+    }
+    // A jump at the next corner, or here: points[jump] is the take-off and
+    // points[jump + 1] the landing.
+    final jump = route.jumps.isEmpty ? -1 : route.jumps.first;
+    if (jump == 0 || jump == 1) {
+      final takeOff = route.points[jump];
+      final landing = route.points[jump + 1];
+      final dx = takeOff.x - _feet.x;
+      final dz = takeOff.z - _feet.z;
+      if (dx * dx + dz * dz <= within * within) {
+        // At the take-off, within half a cell of where the bake measured the
+        // jump from: run at the landing, and go once running at it. **Air
+        // control only adds speed along the wish**, so a body that leaves
+        // going sideways lands sideways, off the far side.
+        _steerAt(landing);
+        final fx = landing.x - takeOff.x;
+        final fz = landing.z - takeOff.z;
+        final v = body.velocity;
+        final along = v.x * fx + v.z * fz;
+        final speeds = math.sqrt((v.x * v.x + v.z * v.z) * (fx * fx + fz * fz));
+        if (body.isGrounded && along > 0.0 && along >= _aligned * speeds) {
+          body.requestJump();
+        }
+        return true;
+      }
+    }
+    // Any other corner, or a take-off not reached yet: walk to it.
+    _steerAt(route.points[1]);
+    return true;
+  }
+
+  /// How straight at the landing a body has to be running to jump: the
+  /// cosine of about fourteen degrees.
+  static const double _aligned = 0.97;
+
+  /// Points the wish at [point] from the feet, flat.
+  void _steerAt(Vector3 point) {
+    _wish
+      ..setFrom(point)
+      ..sub(_feet)
+      ..y = 0.0;
+    final length = _wish.length;
+    if (length > Tolerance.zeroLength) _wish.scale(1.0 / length);
+  }
+
+  final Vector3 _feet = Vector3.zero();
+  final Vector3 _goalFeet = Vector3.zero();
+  final Vector3 _onMesh = Vector3.zero();
+
+  /// Turns [_wish] into the velocity [avoidance] picks for [actor].
+  ///
+  /// The neighbours are the living actors with bodies within
+  /// [Avoidance.neighborDistance], nearest first and by spawn order where
+  /// two are as near, at most [Avoidance.maxNeighbors] of them.
+  void _avoid(
+    Actor actor,
+    CharacterController body,
+    Avoidance avoid,
+    double dt,
+  ) {
+    final here = body.position;
+    final reach = avoid.neighborDistance * avoid.neighborDistance;
+    final near = <(double, int, AvoidanceNeighbor)>[];
+    for (final other in actors) {
+      final them = other.body;
+      if (identical(other, actor) || them == null || !other.isAlive) continue;
+      final dx = them.position.x - here.x;
+      final dz = them.position.z - here.z;
+      final d = dx * dx + dz * dz;
+      if (d > reach) continue;
+      near.add((
+        d,
+        other.ordinal,
+        (
+          x: them.position.x,
+          z: them.position.z,
+          vx: them.velocity.x,
+          vz: them.velocity.z,
+          radius: them.halfExtents.x,
+        ),
+      ));
+    }
+    if (near.isEmpty) return;
+    near.sort((a, b) => a.$1 != b.$1 ? a.$1.compareTo(b.$1) : a.$2 - b.$2);
+    final speed = body.tuning.walkSpeed;
+    final (vx, vz) = avoid.velocity(
+      x: here.x,
+      z: here.z,
+      vx: body.velocity.x,
+      vz: body.velocity.z,
+      radius: body.halfExtents.x,
+      maxSpeed: speed,
+      prefX: _wish.x * speed,
+      prefZ: _wish.z * speed,
+      neighbors: <AvoidanceNeighbor>[
+        for (final n in near.take(avoid.maxNeighbors)) n.$3,
+      ],
+      dt: dt,
+    );
+    // **Asked for as the controller will take it.** It adds speed along the
+    // wish and caps the total at the wish's share of its top speed, so a
+    // wish pointing at the velocity wanted only half turns a body already
+    // moving. Pointed along the difference between the velocity wanted and
+    // the one it has, and as long as the speed wanted, it lands on the
+    // velocity wanted whenever a step's acceleration covers the difference,
+    // and goes straight towards it when it does not.
+    final want = math.sqrt(vx * vx + vz * vz);
+    final dx = vx - body.velocity.x;
+    final dz = vz - body.velocity.z;
+    final gap = math.sqrt(dx * dx + dz * dz);
+    if (gap <= Tolerance.zeroLength) {
+      _wish.setValues(vx / speed, 0.0, vz / speed);
+    } else {
+      final share = want / speed;
+      _wish.setValues(dx / gap * share, 0.0, dz / gap * share);
+    }
+  }
+
+  /// Asks [actor]'s animation for the gesture [name], on this step — see
+  /// [ActorStrides.gesture]. Nothing when there are no strides.
+  void gesture(Actor actor, String name) => strides?.gesture(actor, name);
 
   /// Asks this actor's body to jump.
   ///
@@ -656,7 +917,7 @@ final class ActorSystem {
       // makes the reach a number nobody reads.
       final reach = routes.grid.jumpLinks.isEmpty
           ? null
-          : JumpReach.of(body.tuning);
+          : JumpReach.of(body.tuning, world: body.world.properties);
       final routed = routes.steer(
         body.position,
         _wish,
@@ -697,7 +958,7 @@ final class ActorSystem {
       jump: reach,
     );
     if (link == null) return;
-    routes.grid.centreOf(link.from, _takeOff);
+    routes.grid.centerOf(link.from, _takeOff);
     final dx = _takeOff.x - body.position.x;
     final dz = _takeOff.z - body.position.z;
     final within = routes.grid.cellSize * 0.5;
@@ -783,6 +1044,7 @@ final class ActorSystem {
   /// use.
   Map<String, Object?> save() => <String, Object?>{
     'tick': _tick,
+    'strides': ?strides?.save(),
     if (_lastFoci.length == 1)
       'lastFocus': <double>[_lastFoci[0].x, _lastFoci[0].y, _lastFoci[0].z],
     if (_lastFoci.length > 1)
@@ -795,6 +1057,7 @@ final class ActorSystem {
     if (from is! Map) return;
     final tick = from['tick'];
     if (tick is num) _tick = tick.toInt();
+    strides?.restore(from['strides'], actors);
     _lastFoci.clear();
     final several = from['lastFoci'];
     final saved = several is List ? several : <Object?>[from['lastFocus']];
@@ -813,4 +1076,19 @@ final class ActorSystem {
       velocity.setZero();
     }
   }
+}
+
+/// Something that takes actors out of their brains' hands for a while — a
+/// cutscene's director. See [ActorSystem.director].
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class ActorDirector {
+  /// Whether it directs [actor] this step. When it does, the actor's brain
+  /// is not asked, and [steer] is.
+  bool directs(Actor actor);
+
+  /// Steers a directed actor through [it], as a brain's `act` would.
+  void steer(Mind it);
 }

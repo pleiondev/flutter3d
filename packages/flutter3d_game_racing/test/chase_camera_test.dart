@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A car placed by hand, so that a test about the camera is not also a test
 /// about the driving.
-final class PlacedCar implements VehicleController {
+final class PlacedCar with VehicleController {
   PlacedCar({
     Vector3? at,
     this.headingYaw = 0.0,
@@ -45,7 +46,7 @@ final class PlacedCar implements VehicleController {
   double slipRatio = 0.0;
 
   @override
-  bool grounded = true;
+  bool isGrounded = true;
 
   @override
   double impactThisStep = 0.0;
@@ -92,7 +93,7 @@ double facing(ChaseCamera camera) {
 
 /// A floor with nothing on it, so that a test about the picture is not also a
 /// test about a circuit.
-final class _FlatGround implements GroundField {
+final class _FlatGround with GroundField {
   @override
   bool sample(Vector3 position, double nearHint, GroundSample out) {
     out
@@ -111,7 +112,7 @@ final class _FlatGround implements GroundField {
 void main() {
   group('where it sits', () {
     test('behind the car, above it, looking at it', () {
-      final world = CollisionWorld();
+      final world = CollisionWorld(properties: racingWorld);
       final camera = ChaseCamera(world: world);
       final car = PlacedCar(at: Vector3(0.0, 0.5, 0.0));
 
@@ -124,7 +125,9 @@ void main() {
     });
 
     test('a car pointing the other way is followed from the other side', () {
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(at: Vector3.zero(), headingYaw: math.pi);
 
       settle(camera, car);
@@ -133,7 +136,9 @@ void main() {
     });
 
     test('the first frame is a cut, not a swoop across the circuit', () {
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(at: Vector3(300.0, 0.5, -120.0));
 
       camera.follow(car, 1 / 60);
@@ -150,7 +155,9 @@ void main() {
         // sideways then stays pointing straight up the screen and the slide is
         // invisible — the one thing the player most needs to see is the one thing
         // the camera hides.
-        final camera = ChaseCamera(world: CollisionWorld());
+        final camera = ChaseCamera(
+          world: CollisionWorld(properties: racingWorld),
+        );
         // Nose straight ahead, travelling well off to the side: a drift.
         final car = PlacedCar(
           at: Vector3.zero(),
@@ -159,9 +166,9 @@ void main() {
 
         settle(camera, car);
 
-        final travelling = math.atan2(car.velocity.x, car.velocity.z);
+        final traveling = math.atan2(car.velocity.x, car.velocity.z);
         final behindNose = (camera.heading - car.headingYaw).abs();
-        final behindTravel = (camera.heading - travelling).abs();
+        final behindTravel = (camera.heading - traveling).abs();
 
         expect(
           behindNose,
@@ -180,7 +187,9 @@ void main() {
       // Mutation: read the direction of travel at any speed. A car at rest has
       // a velocity of rounding error, whose direction is anything at all, and a
       // camera reading it whips round on the grid.
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(
         at: Vector3.zero(),
         going: Vector3(1e-7, 0.0, -1e-7),
@@ -194,7 +203,9 @@ void main() {
     test('the nose is not ignored entirely', () {
       // The blend is deliberately short of one: a camera that only ever looks
       // where the car is going stops reporting where it is about to go.
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(
         at: Vector3.zero(),
         going: Vector3(20.0, 0.0, 20.0),
@@ -202,8 +213,8 @@ void main() {
 
       settle(camera, car);
 
-      final travelling = math.atan2(car.velocity.x, car.velocity.z);
-      expect((camera.heading - travelling).abs(), greaterThan(0.01));
+      final traveling = math.atan2(car.velocity.x, car.velocity.z);
+      expect((camera.heading - traveling).abs(), greaterThan(0.01));
     });
   });
 
@@ -219,7 +230,7 @@ void main() {
           ),
       ];
       return TrackSpline(
-        centre: CatmullRom(positions),
+        center: CatmullRom(positions),
         widths: List<double>.filled(points, 14.0),
         banks: List<double>.filled(points, 0.0),
       );
@@ -229,13 +240,18 @@ void main() {
       // Mutation: aim at the car. The corner then arrives at the same moment
       // the car does, which is the moment it is too late to do anything about.
       final track = ring();
-      final withTrack = ChaseCamera(world: CollisionWorld(), track: track);
-      final without = ChaseCamera(world: CollisionWorld());
+      final withTrack = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+        track: track,
+      );
+      final without = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
 
       final at = Vector3.zero();
-      track.centreAt(0.0, at);
+      track.centerAt(0.0, at);
       final tangent = Vector3.zero();
-      track.centre.tangentAt(0.0, tangent);
+      track.center.tangentAt(0.0, tangent);
 
       PlacedCar car() => PlacedCar(
         at: at.clone()..y += 0.5,
@@ -256,7 +272,7 @@ void main() {
 
       // And the lead is towards the road ahead, not away from it.
       final ahead = Vector3.zero();
-      track.centreAt(30.0, ahead);
+      track.centerAt(30.0, ahead);
       expect(
         withTrack.target.distanceTo(ahead),
         lessThan(plain.position.distanceTo(ahead)),
@@ -266,7 +282,9 @@ void main() {
     test('without a circuit the camera still works', () {
       // Every vehicle test builds one of these: a car on a flat plane and no
       // track at all.
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(at: Vector3.zero(), going: Vector3(0.0, 0.0, 30.0));
 
       settle(camera, car);
@@ -280,43 +298,50 @@ void main() {
       // Mutation: a fixed field of view. Speed on a screen is not how fast the
       // numbers change, it is how fast the edges of the frame move — this is the
       // cheapest trick in the genre and the one that does the most.
-      final slow = ChaseCamera(world: CollisionWorld());
-      final fast = ChaseCamera(world: CollisionWorld());
+      final slow = ChaseCamera(world: CollisionWorld(properties: racingWorld));
+      final fast = ChaseCamera(world: CollisionWorld(properties: racingWorld));
 
       settle(slow, PlacedCar(going: Vector3(0.0, 0.0, 5.0)));
       settle(fast, PlacedCar(going: Vector3(0.0, 0.0, 50.0)));
 
-      expect(fast.fov, greaterThan(slow.fov));
+      expect(fast.fovY, greaterThan(slow.fovY));
     });
 
     test('and stops widening before it becomes a fish-eye', () {
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
 
       settle(camera, PlacedCar(going: Vector3(0.0, 0.0, 400.0)));
 
-      expect(camera.fov, lessThanOrEqualTo(const ChaseTuning().maxFov + 1e-9));
+      expect(
+        camera.fovY,
+        lessThanOrEqualTo(const ChaseSettings().maxFov + 1e-9),
+      );
     });
 
     test('a boost widens it further, and it comes back', () {
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(going: Vector3(0.0, 0.0, 30.0));
       settle(camera, car);
-      final resting = camera.fov;
+      final resting = camera.fovY;
 
       camera
         ..widen(0.25)
         ..follow(car, 1 / 60);
-      expect(camera.fov, greaterThan(resting));
+      expect(camera.fovY, greaterThan(resting));
 
       settle(camera, car, seconds: 3.0);
-      expect(camera.fov, closeTo(resting, 1e-3));
+      expect(camera.fovY, closeTo(resting, 1e-3));
     });
   });
 
   group('walls', () {
     test('the camera does not end up inside the scenery', () {
       // The rig does the work; this is the racing camera asking it to.
-      final world = CollisionWorld()
+      final world = CollisionWorld(properties: racingWorld)
         ..add(
           Collider(
             shape: CollisionBox(Vector3(20.0, 6.0, 1.0)),
@@ -340,7 +365,7 @@ void main() {
       // those definitions were chosen, and it is the test that would have
       // caught the wheel being backwards on the first run rather than the
       // twentieth.
-      final world = CollisionWorld();
+      final world = CollisionWorld(properties: racingWorld);
       final camera = ChaseCamera(world: world);
       final car = SphereVehicle(
         world: world,
@@ -361,7 +386,7 @@ void main() {
         camera.target.clone(),
         Vector3(0.0, 1.0, 0.0),
       );
-      final projection = makePerspectiveMatrix(camera.fov, 4 / 3, 0.3, 1000.0);
+      final projection = makePerspectiveMatrix(camera.fovY, 4 / 3, 0.3, 1000.0);
       // Typed: `Matrix4.operator*` returns `dynamic`, so `transform` below it
       // would be a call the compiler cannot check.
       final Matrix4 viewProjection = projection * view;
@@ -386,7 +411,9 @@ void main() {
 
   group('cutting', () {
     test('a cut puts the camera behind the car at once', () {
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar(at: Vector3.zero());
       settle(camera, car);
 
@@ -401,7 +428,9 @@ void main() {
     test('a cut leaves nothing shaking', () {
       // A camera that arrives still shaking from the crash is a camera
       // reporting an event that has been undone.
-      final camera = ChaseCamera(world: CollisionWorld());
+      final camera = ChaseCamera(
+        world: CollisionWorld(properties: racingWorld),
+      );
       final car = PlacedCar();
       settle(camera, car);
 
@@ -411,7 +440,7 @@ void main() {
         ..cut()
         ..follow(car, 1 / 60);
 
-      expect(camera.rig.extraFov, 0.0);
+      expect(camera.rig.extraFovY, 0.0);
       expect(camera.eye.distanceTo(camera.rig.eye), 0.0);
     });
   });

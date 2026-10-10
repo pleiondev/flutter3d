@@ -13,10 +13,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -24,20 +25,19 @@ const double _dt = 1.0 / 60.0;
 
 /// A [Storage] that keeps documents in a map, so the file path is exercised
 /// without a disk.
-final class _MemoryStorage implements Storage {
+final class _MemoryStorage extends Storage {
   final Map<String, String> _documents = <String, String>{};
 
   @override
-  String? read(String name) => _documents[name];
+  Future<String?> read(String name) async => _documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     _documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => _documents.remove(name);
+  Future<void> remove(String name) async => _documents.remove(name);
 }
 
 Level _crypt() => Level.fromJson(
@@ -152,7 +152,7 @@ void main() {
     );
   });
 
-  test('and the demo the game writes on a death is readable', () {
+  test('and the demo the game writes on a death is readable', () async {
     // The document path an actual run takes: `DemoFile` through an in-memory
     // storage, which is the same code the disk and the browser go through.
     final live = _stageCrypt();
@@ -174,7 +174,7 @@ void main() {
     );
 
     expect(
-      file.write(
+      await file.write(
         Demo(
           level: 'assets/levels/crypt.json',
           levelHash: _crypt().digestHex,
@@ -188,7 +188,7 @@ void main() {
       ),
       isTrue,
     );
-    final read = file.read();
+    final read = await file.read();
 
     expect(read, isNotNull);
     expect(read!.steps, 30);

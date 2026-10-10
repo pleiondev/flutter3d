@@ -15,7 +15,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class _Ground implements GroundField {
+final class _Ground with GroundField {
   _Ground({this.barrier = false, this.halfWidth = 0.0});
 
   final bool barrier;
@@ -37,13 +37,13 @@ final class _Ground implements GroundField {
 }
 
 const double _step = 1 / 60;
-const VehicleTuning _tuning = VehicleTuning();
+const VehicleSettings _tuning = VehicleSettings();
 
 ({SphereVehicle car, CollisionWorld world}) _onRoad({
   bool barrier = false,
   double halfWidth = 0.0,
 }) {
-  final world = CollisionWorld();
+  final world = CollisionWorld(properties: racingWorld);
   final car = SphereVehicle(
     world: world,
     ground: _Ground(barrier: barrier, halfWidth: halfWidth),
@@ -140,7 +140,7 @@ void main() {
   test('and a nudge is free, because a racing line touches things', () {
     // A game that charged for a kerb would be a game about not racing.
     final car = SphereVehicle(
-      world: CollisionWorld(),
+      world: CollisionWorld(properties: racingWorld),
       ground: _Ground(),
       position: Vector3(0.0, _tuning.rideHeight, 0.0),
     );
@@ -152,7 +152,7 @@ void main() {
 
   test('and no car is ever more than wrecked', () {
     final car = SphereVehicle(
-      world: CollisionWorld(),
+      world: CollisionWorld(properties: racingWorld),
       ground: _Ground(),
       position: Vector3(0.0, _tuning.rideHeight, 0.0),
     );
@@ -263,10 +263,10 @@ void main() {
       final it = _onRoad();
       it.car.damage = 0.7;
 
-      expect(it.car.pitStop(Tyres.after(it.car.tyres)), isTrue);
+      expect(it.car.pitStop(TireSet.after(it.car.tireSet)), isTrue);
 
       expect(it.car.damage, 0.0);
-      expect(it.car.tyres, isNot(Tyres.road));
+      expect(it.car.tireSet, isNot(TireSet.road));
     });
 
     test('and is refused while the car is moving', () {
@@ -274,7 +274,7 @@ void main() {
       it.car.damage = 0.7;
       _drive(it.car, VehicleInput()..throttle = 1.0, 2.0);
 
-      expect(it.car.pitStop(Tyres.slicks), isFalse);
+      expect(it.car.pitStop(TireSet.slicks), isFalse);
       expect(it.car.damage, 0.7, reason: 'it repaired itself at speed');
     });
   });
@@ -285,12 +285,12 @@ void main() {
     // would be a different race from the one that was saved.
     final it = _onRoad();
     it.car.damage = 0.42;
-    it.car.fitTyres(Tyres.rally);
+    it.car.fitTires(TireSet.rally);
 
     final copy = _onRoad();
     copy.car.restore(it.car.save());
 
     expect(copy.car.damage, closeTo(0.42, 1e-9));
-    expect(copy.car.tyres, Tyres.rally);
+    expect(copy.car.tireSet, TireSet.rally);
   });
 }

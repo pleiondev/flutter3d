@@ -81,13 +81,13 @@ class LodScreen extends StatelessWidget {
   }
 
   /// "LOD 0 · 100%" when [object] actually has a spec for [lodIndex] —
-  /// [LodSpec.ratio] is what a person set out to simplify to, which is a
+  /// [LodSettings.ratio] is what a person set out to simplify to, which is a
   /// caption they chose rather than a triangle count the mesh happened to
   /// land on. "LOD n" alone for a level nothing has been asked for yet, the
   /// ordinary case for an object [AddLod] has not reached.
   String _labelFor(int lodIndex) {
     if (lodIndex >= object.lods.length) return 'LOD $lodIndex';
-    final LodSpec spec = object.lods[lodIndex];
+    final LodSettings spec = object.lods[lodIndex];
     return 'LOD $lodIndex · ${(spec.ratio * 100).round()}%';
   }
 }

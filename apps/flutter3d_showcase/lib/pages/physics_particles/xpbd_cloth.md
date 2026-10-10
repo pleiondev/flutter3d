@@ -2,16 +2,20 @@
 
 A `ClothMesh` is a grid of particles and the constraints between them: edges
 that resist stretching, and cross-edge pairs that resist folding.
-`stepCloth` advances it with an XPBD solver, which is what stays stable at a
-compliance of zero without a spring constant that has to be retuned every
-time the substep count changes.
+An XPBD solver advances it, which is what stays stable at a compliance of
+zero without a spring constant that has to be retuned every time the substep
+count changes. The solver is the run's physics, like a world's bodies: the C
+core where it starts, `stepCloth` in Dart where it does not.
 
 ## Step 1: A sheet, and something in its way
 
 `ClothMesh.grid` pins the top row so the rest has something to hang from
 rather than falling forever. A `ClothObstacle` is a `CollisionShape` and a
 position, the same shapes the rest of this package's pages use, tested
-through `expandedPlanes` rather than through anything cloth-specific.
+through `expandedPlanes` rather than through anything cloth-specific. The
+run's backend makes a `ClothSimulation` of the mesh, which steps the mesh's
+own arrays, so the page goes on reading `ClothMesh.positions` whichever
+backend moved them.
 
 {{code cloth}}
 

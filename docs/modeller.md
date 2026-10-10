@@ -44,7 +44,7 @@ List<int>` (not a single index — a list, into `project.materials`),
 `modifiers: List<ModifierSlot>`, `skeletonIndex: int?`, `shapeSet:
 ShapeSet` (morph targets plus their current preview weights),
 `shapeDrivers: List<ShapeDriver>` (morphs driven by a joint's own
-rotation, not a slider — see §11), `lods: List<LodSpec>` (most detailed
+rotation, not a slider — see §11), `lods: List<LodSettings>` (most detailed
 first), `simulationCache: SimulationCache?` (also not persisted to the
 file format, same honest gap as `lighting`).
 
@@ -138,7 +138,7 @@ project"; a host wanting two projects starts two processes). `select(...)`
 
 `ModelHttpServer.start({session, port: 0, token, extraTools, onToolCall})`
 (`model_http_server.dart:53`) binds `127.0.0.1:$port`, loopback-only,
-token-gated, one JSON-RPC message per request. On launch it writes
+token-gated (the token travels as `Authorization: Bearer <token>` and in no URL), one JSON-RPC message per request. On launch it writes
 `mcp-session.json` (port + token) into the platform's application-support
 directory — the file any MCP client reads to find and authenticate to
 this exact running window. `extraTools` is the only door through which the
@@ -277,7 +277,7 @@ GUI-only, absent from a headless session):
   | local), `scaleBy {by (>0), pivot?}`.
 - `setParent {id, to?}` — no `to` detaches to top level; the child keeps
   its **local** transform, not its world position.
-- `setOrigin {id, to?}` — `to` ∈ `boundsCentre` (default) |
+- `setOrigin {id, to?}` — `to` ∈ `boundsCenter` (default) |
   `boundsBottom` | `worldOrigin`; geometry and node shift oppositely so
   the visible position does not move.
 - `applyTransform {id}` — bakes the node's transform into the geometry,
@@ -289,7 +289,7 @@ GUI-only, absent from a headless session):
 `EditMesh` (`packages/flutter3d_mesh/lib/src/edit_mesh.dart:49`) is the
 half-edge topology structure — distinct from `MeshData`, the GPU-ready
 format with duplicated corners per normal. Six flat `Int32List`/
-`Float32List` arrays through `JournalledInts`/`JournalledFloats`, so every
+`Float32List` arrays through `JournaledInts`/`JournaledFloats`, so every
 edit is journalled and reversible: each half-edge knows its origin
 vertex, `next` (around the face), `twin` (across the edge), and face;
 each vertex knows one outgoing half-edge; each face knows one half-edge on
@@ -545,6 +545,20 @@ extracted, having first saved the real values on the clip);
 `bakeRootMotionIntoClip` is the exact inverse (refused if nothing was
 extracted, or the key count changed since).
 
+**Animation graphs**: `setAnimationGraph {graphName, graph}` sets the
+state machine a game runs for a character, by name, replacing one of that
+name. The graph is JSON as `AnimationGraphJson` writes it: parameters,
+states playing a clip or blending along a line or across a plane, markers,
+and transitions with conditions, fades, priorities and exit times. It is
+refused, saying where, when the shape is wrong or it names a clip, state or
+parameter the project does not have. `removeAnimationGraph {graphName}`
+takes one away. The animation panel lists them with their states and
+transitions counted, opens one into its JSON and sets it back, showing a
+refusal under the text. The project file and its history keep them, and an export
+writes them into the model's root `extras` under `animationGraphs`. There a
+game reads them with `AnimationGraphJson.graphsIn`, and an import brings
+them back.
+
 **Retargeting**: `retargetClip {sourceClipIndex, sourceSkeletonIndex,
 targetSkeletonIndex, boneMap?, lockFeet? (default true), groundY? (default
 0), footTolerance? (default 1e-3), clipName?}` — rest-relative rotation,
@@ -677,7 +691,7 @@ count mismatch. `setProfileLimits {maxJoints? (1-64), maxInfluences?
 - `cleanup` — welds duplicate vertices, removes zero-area faces, and
   outward-orients every closed shell, across the whole project, one undo
   step. Worth calling right after `import`.
-- `makeGameReady {profile}` — triangulates every mesh, recalculates
+- `prepareForGame {profile}` — triangulates every mesh, recalculates
   normals, and fits every image to the named budget (`desktop`/`mobile`/
   `web`), all in one step. The project's own profile is unchanged — this
   is a one-time fit to the named budget, not a setting change.

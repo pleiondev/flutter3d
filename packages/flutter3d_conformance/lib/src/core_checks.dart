@@ -10,7 +10,7 @@ import '../flutter3d_conformance.dart';
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit thirty-one shader checks it had no way to act on yet. Clears,
+/// have hit 32 shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 Future<void> checkCapabilities(GraphicsDevice device) async {
@@ -22,19 +22,19 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
   // business.
   device.depthRange;
   device.framebufferOrigin;
-  device.supportsWireframe;
-  device.supportsOffscreenMsaa;
-  device.supportsStencil;
-  device.supportsRenderToMip;
+  device.features.has(DeviceFeature.wireframe);
+  device.features.has(DeviceFeature.offscreenMultisample);
+  device.features.has(DeviceFeature.stencil);
+  device.features.has(DeviceFeature.renderToMipLevel);
   // Every format, because the block-compressed tail is where a backend is
   // most tempted to throw from a lookup table instead of answering: a loader
   // asks this before uploading, and a throw here is a texture lost with no
   // reason given.
   for (final format in TextureFormat.values) {
-    device.supportsTextureFormat(format);
+    device.textureFormatSupport(format);
   }
   require(
-    device.supportsTextureFormat(TextureFormat.r8g8b8a8UNormInt),
+    device.textureFormatSupport(TextureFormat.r8g8b8a8UNormInt).sampled,
     'r8g8b8a8UNormInt is not sampled, and every decoded image arrives in it',
   );
   require(
@@ -43,8 +43,8 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
     'multisampling and less than one means nothing',
   );
   require(
-    device.maxAnisotropy >= 1,
-    'maxAnisotropy is ${device.maxAnisotropy}; one means isotropic '
+    device.limits.maxSamplerAnisotropy >= 1,
+    'maxAnisotropy is ${device.limits.maxSamplerAnisotropy}; one means isotropic '
     'filtering only and less than one means nothing — a sampler asking for '
     'the minimum would be refused',
   );
@@ -61,7 +61,11 @@ Future<void> checkHdrRenderable(GraphicsDevice device) async {
   // makes every framebuffer incomplete, every draw silently discarded, and a
   // frame of transparent black with every counter reporting success.
   final target = device.createTexture(
-    RenderTargetSpec(width: 32, height: 32, format: device.hdrColorFormat),
+    RenderTargetDescriptor(
+      width: 32,
+      height: 32,
+      format: device.hdrColorFormat,
+    ),
   );
   device
       .beginRenderPass(
@@ -86,7 +90,7 @@ Future<void> checkClearCoversAll(GraphicsDevice device) async {
   // that read as absent.
   const size = 64;
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -109,9 +113,8 @@ Future<void> checkClearCoversAll(GraphicsDevice device) async {
     ..setScissor(const ScreenRect(x: 0, y: 0, width: 8, height: 8))
     ..submit();
 
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the cleared target could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
+  final pixels = await device.readback(target);
+  final bytes = pixels.buffer.asUint8List();
 
   // Every pixel, not a sample: a partial clear leaves a rectangle, and a spot
   // check placed inside it would pass.
@@ -150,15 +153,9 @@ Future<void> checkRowOrder(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(source),
   );
-  require(
-    texture != null,
-    'the device made no texture from four by four '
-    'RGBA8 pixels',
-  );
 
-  final read = await device.readPixels(texture!);
-  require(read != null, 'the uploaded texture could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(texture);
+  final bytes = read.buffer.asUint8List();
 
   require(
     bytes[0] == source[0],
@@ -190,21 +187,21 @@ Future<void> checkRowOrder(GraphicsDevice device) async {
 Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
   const size = 8;
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
     ),
   );
 
-  void clearTo(Vector4 colour) => device
+  void clearTo(Vector4 color) => device
       .beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
             ColorTarget(
               texture: target,
               loadAction: LoadAction.clear,
-              clearValue: colour,
+              clearValue: color,
             ),
           ],
         ),
@@ -249,7 +246,7 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
   );
 
   final transient = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -274,19 +271,52 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
   );
 
   // The engine's own HDR colour, which is the texture a caller is most likely
-  // to hand over by mistake. The contract promises eight-bit RGBA, and a
-  // backend that accepts a half-float target answers with whatever its
-  // conversion path does — on WebGL2 that is a `readPixels` the context
-  // rejects, a pack buffer still full of zeros and a future that completes
-  // successfully with a black picture.
+  // to hand over. The *whole* of it is read through each backend's converting
+  // path (`readbackConverts`), into the eight-bit RGBA the contract promises;
+  // a *region* of it is refused, because a region is copied as it is stored,
+  // and on WebGL2 a float region is a `readPixels` the context rejects, a
+  // pack buffer still full of zeros and a future that completes successfully
+  // with a black picture.
   final hdr = device.createTexture(
-    RenderTargetSpec(width: size, height: size, format: device.hdrColorFormat),
+    RenderTargetDescriptor(
+      width: size,
+      height: size,
+      format: device.hdrColorFormat,
+    ),
   );
   require(
-    _refuses(() => device.readback(hdr)),
-    'a ${device.hdrColorFormat.name} texture was accepted for readback; the '
-    'contract hands back eight-bit RGBA and refuses any other format with an '
-    'ArgumentError, so that three backends do not convert three ways',
+    _refuses(
+      () => device.readback(hdr, region: const ScreenRect(width: 2, height: 2)),
+    ),
+    'a region of a ${device.hdrColorFormat.name} texture was accepted for '
+    'readback; a region is copied as stored and the contract hands back '
+    'eight-bit RGBA, so any other format is refused with an ArgumentError '
+    'rather than converted three ways',
+  );
+  device
+      .beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: hdr,
+              loadAction: LoadAction.clear,
+              clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+            ),
+          ],
+        ),
+      )
+      .submit();
+  final whole = (await device.readback(hdr)).buffer.asUint8List();
+  require(
+    whole.length == size * size * 4,
+    'the whole ${device.hdrColorFormat.name} texture came back as '
+    '${whole.length} bytes, not the ${size * size * 4} of eight-bit RGBA',
+  );
+  require(
+    whole[1] > 200 && whole[0] < 50 && whole[2] < 50,
+    'the whole ${device.hdrColorFormat.name} texture cleared to green came '
+    'back as (${whole[0]}, ${whole[1]}, ${whole[2]}); its conversion lost '
+    'the picture',
   );
 }
 
@@ -323,52 +353,61 @@ bool _refuses(Future<ByteData> Function() ask) {
 /// of its own. What is checked here is that a well-formed chain is accepted and
 /// a malformed one is refused rather than half-uploaded.
 Future<void> checkCubeMipLevels(GraphicsDevice device) async {
-  if (!device.supportsCubeTextures) return;
+  if (!device.features.has(DeviceFeature.cubeTextures)) return;
 
   const size = 4;
   List<ByteData> faces(int side) => <ByteData>[
     for (var i = 0; i < 6; i++) ByteData(side * side * 4),
   ];
 
-  final chained = device.createCubeTextureFromPixels(
-    size: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-    faces: faces(size),
-    mipLevels: <List<ByteData>>[faces(2), faces(1)],
+  require(
+    !refusesResource(
+      () => device.createCubeTextureFromPixels(
+        size: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: faces(size),
+        mipLevels: <List<ByteData>>[faces(2), faces(1)],
+      ),
+    ),
+    'a cube with a four-two-one chain was refused',
   );
-  require(chained != null, 'a cube with a four-two-one chain was refused');
 
   // Refused rather than padded: a level of the wrong size is a caller that has
   // built its chain wrongly, and a device that accepts it hides the mistake
   // until something samples a rough reflection and finds noise.
-  final ragged = device.createCubeTextureFromPixels(
-    size: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-    faces: faces(size),
-    mipLevels: <List<ByteData>>[faces(size)],
-  );
   require(
-    ragged == null,
+    refusesResource(
+      () => device.createCubeTextureFromPixels(
+        size: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: faces(size),
+        mipLevels: <List<ByteData>>[faces(size)],
+      ),
+    ),
     'a level that is not half the one above it was accepted',
   );
 
   // Five faces in a level is the same class of mistake as five faces in the
   // base, which the interface already refuses.
-  final short = device.createCubeTextureFromPixels(
-    size: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-    faces: faces(size),
-    mipLevels: <List<ByteData>>[faces(2).sublist(0, 5)],
+  require(
+    refusesResource(
+      () => device.createCubeTextureFromPixels(
+        size: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: faces(size),
+        mipLevels: <List<ByteData>>[faces(2).sublist(0, 5)],
+      ),
+    ),
+    'a level with five faces was accepted',
   );
-  require(short == null, 'a level with five faces was accepted');
 }
 
 /// A 2D upload takes the buffer its description asks for, and no other.
 ///
 /// **The flat twin of the check above, and it was missing.** The cube path had
 /// a size rule stated and enforced on every backend; the ordinary
-/// `createTextureFromPixels` had the rule stated on the interface — "null when
-/// [pixels] is not the size the device wants" — and enforced on two of the
+/// `createTextureFromPixels` had the rule stated on the interface — refused
+/// when `pixels` is not the size the device wants — and enforced on two of the
 /// three. The software rasteriser tested `<` rather than `!=` and sampled the
 /// prefix of anything longer, so a decoder that disagreed with the engine about
 /// a texture's dimensions was refused on the hardware backends and quietly
@@ -384,24 +423,26 @@ Future<void> checkPixelBufferSize(GraphicsDevice device) async {
   const exact = width * height * 4;
 
   require(
-    device.createTextureFromPixels(
-          width: width,
-          height: height,
-          format: format,
-          pixels: ByteData(exact),
-        ) !=
-        null,
+    !refusesResource(
+      () => device.createTextureFromPixels(
+        width: width,
+        height: height,
+        format: format,
+        pixels: ByteData(exact),
+      ),
+    ),
     'a buffer of exactly the described size was refused',
   );
 
   require(
-    device.createTextureFromPixels(
-          width: width,
-          height: height,
-          format: format,
-          pixels: ByteData(exact - 4),
-        ) ==
-        null,
+    refusesResource(
+      () => device.createTextureFromPixels(
+        width: width,
+        height: height,
+        format: format,
+        pixels: ByteData(exact - 4),
+      ),
+    ),
     'a buffer one texel short was accepted, which is a read past its end',
   );
 
@@ -409,13 +450,14 @@ Future<void> checkPixelBufferSize(GraphicsDevice device) async {
   // is where this came from — the software backend fails on this expectation
   // and on no other.
   require(
-    device.createTextureFromPixels(
-          width: width,
-          height: height,
-          format: format,
-          pixels: ByteData(exact * 2),
-        ) ==
-        null,
+    refusesResource(
+      () => device.createTextureFromPixels(
+        width: width,
+        height: height,
+        format: format,
+        pixels: ByteData(exact * 2),
+      ),
+    ),
     'a buffer twice the described size was accepted. Its prefix is not the '
     'image the caller meant: the two ends disagree about the dimensions, and '
     'sampling the prefix draws something plausible and wrong',
@@ -427,21 +469,22 @@ Future<void> checkPixelBufferSize(GraphicsDevice device) async {
   // something minifies.
   //
   // Asked only of a device that takes a chain at all, the way the cube check
-  // asks [GraphicsDevice.supportsCubeTextures] first. `createTextureFromPixels`
-  // tells its caller to ask [GraphicsDevice.supportsMipmaps] before handing
+  // asks for `DeviceFeature.cubeTextures` first. `createTextureFromPixels`
+  // tells its caller to ask for `DeviceFeature.manualMipmaps` before handing
   // over levels, and Impeller's answer is the driver's rather than a constant,
   // so a suite that asked anyway would put a failure on a device that had
   // done nothing wrong.
-  if (!device.supportsMipmaps) return;
+  if (!device.features.has(DeviceFeature.manualMipmaps)) return;
   require(
-    device.createTextureFromPixels(
-          width: width,
-          height: height,
-          format: format,
-          pixels: ByteData(exact),
-          mipLevels: <ByteData>[ByteData(exact)],
-        ) ==
-        null,
+    refusesResource(
+      () => device.createTextureFromPixels(
+        width: width,
+        height: height,
+        format: format,
+        pixels: ByteData(exact),
+        mipLevels: <ByteData>[ByteData(exact)],
+      ),
+    ),
     'a mip level the size of the base was accepted',
   );
 }
@@ -470,10 +513,6 @@ Future<void> checkTextureOverwriteRegion(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(base),
   );
-  require(
-    texture != null,
-    'the device made no texture from four by four RGBA8 pixels',
-  );
 
   // The bottom-right quadrant only, so a caller reading the wrong offset in
   // either axis lands on a quadrant this check can name by its own colour.
@@ -484,7 +523,7 @@ Future<void> checkTextureOverwriteRegion(GraphicsDevice device) async {
     patch[i * 4 + 3] = 255;
   }
   await device.overwriteTexture(
-    texture!,
+    texture,
     ByteData.sublistView(patch),
     region: region,
   );

@@ -7,15 +7,15 @@ Three dependencies, and the second one is the point: `flutter3d` draws and
 names no graphics API, so something has to say which backend draws for it.
 `flutter3d_app` is that something — it picks Impeller or WebGL2 by
 conditional import and falls back to the software rasteriser at run time, which
-is why the code below says `openDevice()` and not `GpuRenderBackend.create()`.
+is why the code below says `openDevice()` and not `GpuRenderBackend.open()`.
 
 ```yaml
 dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.7.0
-  flutter3d_app: ^0.7.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_app: ^1.0.0-rc.1
   vector_math: ^2.2.0
 ```
 
@@ -83,7 +83,7 @@ class _MinimalPageState extends State<MinimalPage> {
       LightNode(
         type: LightType.point,
         color: Vector3(0.9, 0.95, 1.0),
-        intensity: 16.0,
+        intensity: 92650.0, // candela, for a camera exposed for daylight
         range: 20.0,
         name: 'point light',
       )..setPosition(2.0, 2.5, 2.0),

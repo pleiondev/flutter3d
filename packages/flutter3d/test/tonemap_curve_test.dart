@@ -19,12 +19,13 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
-/// [colour] through [curve], as the composite would.
-Vector3 _through(TonemapCurve curve, Vector3 colour) =>
-    tonemapBy(colour, curve.code.round());
+/// [color] through [curve], as the composite would.
+Vector3 _through(TonemapCurve curve, Vector3 color) =>
+    tonemapBy(color, curve.code.round());
 
 /// Rec. 709 luma, the composite's own weighting.
 double _luma(Vector3 c) => 0.2126 * c.x + 0.7152 * c.y + 0.0722 * c.z;
@@ -196,11 +197,14 @@ void main() {
               it.device,
               CuboidShape(size: Vector3(1.4, 1.4, 1.4)).build(),
             ),
-            Material(name: 'bright', baseColor: Vector4(0.9, 0.5, 0.2, 1.0)),
+            RenderMaterial(
+              name: 'bright',
+              baseColor: LinearColor.fromSrgb(0.9, 0.5, 0.2, 1.0),
+            ),
           ),
         )
         ..add(
-          LightNode(intensity: 24.0)
+          LightNode(intensity: 24.0 * Photometric.legacyUnit)
             ..setPosition(2.0, 3.0, 2.0)
             ..lookAt(Vector3.zero()),
         );
@@ -213,8 +217,8 @@ void main() {
         ],
         settings: RenderSettings(tonemapCurve: curve),
       );
-      final pixels = await it.device.readPixels(frame.frame);
-      return pixels!.buffer.asUint8List().toList();
+      final pixels = await it.device.readback(frame.frame);
+      return pixels.buffer.asUint8List().toList();
     }
 
     test('the default curve draws what the default curve drew', () async {
@@ -363,13 +367,16 @@ void main() {
     });
 
     test('code 5 is kept, and draws what agx draws', () {
-      // `agxFull` was the rotated variant while `agx` was the bare sigmoid.
-      // Now that `agx` is the whole transform the two are one curve, and a
-      // setting that stored code 5 keeps working.
-      // ignore: deprecated_member_use_from_same_package, deprecated_member_use
-      expect(TonemapCurve.agxFull.code, 5.0);
-      // Six since `L2` added the display transform ACES 2.0 is read through.
-      expect(TonemapCurve.values.length, 6);
+      // Code 5 was `agxFull`, the rotated variant while `agx` was the bare
+      // sigmoid. The name is gone since 1.0, but the shader still reads the
+      // code as `agx`, so a frame that carries it draws the same picture.
+      // Five: `L2` added the display transform ACES 2.0 is read through, and
+      // `agxFull` left.
+      expect(TonemapCurve.values.length, 5);
+      expect(
+        TonemapCurve.values.map((TonemapCurve c) => c.code),
+        isNot(contains(5.0)),
+      );
       for (final Vector3 sample in <Vector3>[
         Vector3(0.18, 0.18, 0.18),
         Vector3(4.0, 2.0, 1.0),

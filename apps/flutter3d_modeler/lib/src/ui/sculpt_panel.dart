@@ -101,9 +101,9 @@ class SculptPalette extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colours = Theme.of(context).colorScheme;
+    final ColorScheme colors = Theme.of(context).colorScheme;
     return Material(
-      color: colours.surfaceContainerHigh.withValues(alpha: 0.92),
+      color: colors.surfaceContainerHigh.withValues(alpha: 0.92),
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: SizedBox(
         width: kSculptPaletteWidth,
@@ -118,7 +118,7 @@ class SculptPalette extends StatelessWidget {
                   isSelected: kind == armed,
                   selectedIcon: Icon(
                     sculptBrushIcon(kind),
-                    color: colours.primary,
+                    color: colors.primary,
                   ),
                   icon: Icon(sculptBrushIcon(kind)),
                   onPressed: () => onBrush(kind),
@@ -180,10 +180,10 @@ class SculptPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final ColorScheme colours = theme.colorScheme;
+    final ColorScheme colors = theme.colorScheme;
     final AppLocalizations l = AppLocalizations.of(context);
     return Material(
-      color: colours.surfaceContainerHigh.withValues(alpha: 0.92),
+      color: colors.surfaceContainerHigh.withValues(alpha: 0.92),
       borderRadius: const BorderRadius.all(Radius.circular(12)),
       child: SizedBox(
         width: kSculptCardWidth,

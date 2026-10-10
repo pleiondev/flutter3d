@@ -19,6 +19,7 @@ final class Key {
     this.outTangent,
   });
 
+  /// In seconds.
   final double time;
 
   /// One value per component — the point itself, never a tangent.
@@ -83,6 +84,7 @@ final class KeyTable {
 
   int get keyCount => _keys.length;
 
+  /// The last key's time, in seconds.
   double get duration => _keys.isEmpty ? 0.0 : _keys.last.time;
 
   /// [track] read into an editable table — the same values, split back out

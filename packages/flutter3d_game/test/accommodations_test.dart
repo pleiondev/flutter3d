@@ -83,11 +83,68 @@ void main() {
     // winning over a slider the player just moved — is the game arguing with
     // them, and the argument is unwinnable because they cannot see why.
     const system = Accommodations(reduceMotion: true);
-    final config = GameConfig();
+    const config = GameSettings();
+    double motion(GameSettings settings) =>
+        settings.chosenValueOf(GameSettingKeys.cameraMotion) ??
+        system.cameraMotion;
 
-    expect(config.settingOf('a11y.cameraMotion', system.cameraMotion), 0.0);
+    expect(motion(config), 0.0);
+    expect(motion(config.withValue(GameSettingKeys.cameraMotion, 0.6)), 0.6);
+  });
 
-    config.setSetting('a11y.cameraMotion', 0.6);
-    expect(config.settingOf('a11y.cameraMotion', system.cameraMotion), 0.6);
+  group('high contrast — N9', () {
+    testWidgets('a system asking for more contrast is heard', (
+      WidgetTester tester,
+    ) async {
+      // Mutation: leave `highContrast` out of `Accommodations.of`, and a
+      // player who turned Increase Contrast on gets the game's default.
+      late Accommodations seen;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(highContrast: true),
+          child: Builder(
+            builder: (BuildContext context) {
+              seen = Accommodations.of(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(seen.highContrast, isTrue);
+      expect(const Accommodations().highContrast, isFalse);
+    });
+
+    test('and turns the look on until the player says otherwise', () {
+      // The rule the camera's motion keeps, for the look: the system's
+      // answer is the fallback, the player's switch is the answer. Mutation:
+      // read the system flag over the setting, and the switch in the panel
+      // stops working for exactly the players who need it to.
+      const asked = Accommodations(highContrast: true);
+      const config = GameSettings();
+      expect(highContrastOf(config, asked).enabled, isTrue);
+      expect(highContrastOf(config, const Accommodations()).enabled, isFalse);
+
+      final off = config.withValue(GameSettingKeys.highContrast, false);
+      expect(highContrastOf(off, asked).enabled, isFalse);
+      final on = config.withValue(GameSettingKeys.highContrast, true);
+      expect(highContrastOf(on, const Accommodations()).enabled, isTrue);
+    });
+
+    test('and only the switch is the player\'s; the rest is the game\'s', () {
+      // A game that tuned its rings keeps them when the player turns the
+      // look on. Mutation: build fresh settings rather than copying the base.
+      final config = const GameSettings().withValue(
+        GameSettingKeys.highContrast,
+        true,
+      );
+      final look = highContrastOf(
+        config,
+        const Accommodations(),
+        const HighContrastSettings(roleWidth: 4.0, saturation: 0.0),
+      );
+      expect(look.enabled, isTrue);
+      expect(look.roleWidth, 4.0);
+      expect(look.saturation, 0.0);
+    });
   });
 }

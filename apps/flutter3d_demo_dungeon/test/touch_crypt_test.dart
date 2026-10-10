@@ -14,11 +14,11 @@
 library;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart' show startingInventory;
 import 'package:flutter3d_demo_dungeon/src/touch_crypt.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -52,9 +52,9 @@ void main() {
     // The whole of the complaint, as one list. Walking, firing, using and
     // jumping are held or pressed; a weapon is chosen; the map is set.
     //
-    // Mutation: delete any one of the three `TouchButton`s from `TouchCrypt` —
-    // its line here fails. Delete the `TouchSlots` and the weapon expectation
-    // fails; delete the `TouchToggle` and the map one does.
+    // Mutation: delete any one of the three `TouchAction`s from `TouchCrypt` —
+    // its line here fails. Pass no `slots` and the weapon expectation fails;
+    // pass no `toggle` and the map one does.
     final input = InputState();
     var maps = 0;
     await tester.pumpWidget(_crypt(input, onMap: () => maps++));
@@ -103,8 +103,8 @@ void main() {
     // are wanted twice a room, and putting the fists in your hand in front of
     // a tank loses the run. So neither is inside the cluster a thumb rests in.
     //
-    // Mutation: move the `TouchToggle` in `TouchCrypt` into the bottom-right
-    // `Wrap` beside `fire` — both expectations fail.
+    // Mutation: move the corner toggle in `TouchControls` (`flutter3d_game_ui`) into the
+    // bottom-right `Wrap` beside the buttons — both expectations fail.
     await tester.pumpWidget(_crypt(InputState()));
 
     final fire = tester.getRect(find.widgetWithText(TouchButton, 'fire'));

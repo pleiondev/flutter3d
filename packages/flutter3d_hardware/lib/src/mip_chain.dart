@@ -10,7 +10,7 @@
 /// each backend make its own chain means two of them agreeing because they
 /// happen to share a filter, and a third answering differently.
 ///
-/// That exact shape has already cost this repository once. `SamplerOptions`
+/// That exact shape has already cost this repository once. `SamplerDescriptor`
 /// defaulted to `linearRepeat` on both hardware backends, nobody wrote the rule
 /// down, and the third backend read the interface, took the constructor
 /// defaults, and drew every textured picture with hard seams — two percent of

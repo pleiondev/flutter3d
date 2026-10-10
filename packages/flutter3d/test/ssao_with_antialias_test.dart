@@ -31,7 +31,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 96;
@@ -53,7 +52,10 @@ Future<_Shot> _corner({
   final renderer = Renderer.create(device: device);
   final scene = Scene();
 
-  final wall = Material(name: 'wall', baseColor: Vector4(0.8, 0.8, 0.8, 1.0));
+  final wall = RenderMaterial(
+    name: 'wall',
+    baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+  );
   // Two walls and a floor meeting at the origin: three inside edges, which is
   // what an occlusion term has to find.
   for (final (Vector3 size, Vector3 at) in <(Vector3, Vector3)>[
@@ -79,7 +81,7 @@ Future<_Shot> _corner({
         camera: CameraNode()
           ..setPosition(1.8, 1.5, 1.8)
           ..lookAt(Vector3(-0.6, -0.6, -0.6)),
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: RenderSettings(
@@ -100,7 +102,7 @@ Future<_Shot> _corner({
 
   final ssao = frame.passes.where((FramePass p) => p.name == 'ssao');
   return (
-    pixels: (await device.readPixels(frame.frame))!.buffer.asUint8List(),
+    pixels: (await device.readback(frame.frame)).buffer.asUint8List(),
     ssaoMicros: ssao.isEmpty ? 0 : ssao.first.micros,
     hadAntialias: frame.passes.any(
       (FramePass p) => p.name == 'antialias' && p.active,

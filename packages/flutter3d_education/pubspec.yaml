@@ -1,0 +1,72 @@
+name: flutter3d_education
+description: "Education on flutter3d: virtual laboratory simulations a server can replay, and LTI 1.3 launch, grade passback and xAPI reporting for a learning platform. Plain Dart, no Flutter."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - education
+  - simulation
+  - lti
+  - xapi
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **Two packages until 1.0.0-rc.1**, `flutter3d_lab` and `flutter3d_lti`,
+# one library each now: `lab.dart` and `lti.dart`. The chemistry bench
+# (`chemlab`) is this package's example, in `example/`: it draws, so it
+# takes the Flutter SDK, and a service that verifies an LTI launch or
+# replays a lab run must not.
+
+dependencies:
+  # The stepping and recording primitives a lab experiment is built on:
+  # `Portable` (a step asks no machine for an answer), `DigestTrace`
+  # (verification), `DataSourceTrace` (a value with no controller behind
+  # it), `Demo`/`Snapshot`/`InputTape` (a run, wrapped as a real `.f3drun`).
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # `Flutter3dException` and its families: the launch, AGS and xAPI
+  # refusals are `ResourceException`s, so a caller catches them with the rest
+  # of the engine's. Plain Dart over `vector_math` alone.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # RS256 verification of a platform's `id_token` against its JWKS, and
+  # signing this tool's own client-credentials assertion for AGS. A
+  # maintained implementation rather than a hand-rolled JWS parser, which is
+  # exactly the kind of code a security bug hides in.
+  dart_jsonwebtoken: ^3.4.1
+
+  # Turning a JWKS entry's bare `n`/`e` into the key type
+  # `dart_jsonwebtoken` verifies with (`RSAPublicKey.raw`) — see
+  # `lib/src/lti/jwk.dart`'s doc comment for why that one conversion is
+  # this package's own.
+  pointycastle: ^4.0.0
+
+  # Fetching a platform's JWKS, posting to its token and AGS endpoints, and
+  # PUTting xAPI statements to an LRS.
+  http: ^1.2.0
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **Plain Dart, and held to it.** A server verifies a student's submitted
+# lab run by replaying it through the same simulation, and a `cloud/lti`
+# service checks a launch, in containers with no Flutter SDK in them.
+# `tool/structure.dart` keeps it that way, not this comment.

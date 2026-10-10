@@ -54,6 +54,11 @@ class HomePage extends StatelessComponent {
                 href: '/me',
                 classes: 'button',
               ),
+              a(
+                [Component.text('Convert a file')],
+                href: '/convert',
+                classes: 'button quiet',
+              ),
             ], classes: 'row'),
         ], classes: 'hero'),
         section([
@@ -70,6 +75,14 @@ class HomePage extends StatelessComponent {
                 'editor uses. A file that does not parse never reaches the '
                 'disk, and the triangle count comes from the file rather than '
                 'from whoever sent it.',
+          ),
+          _Point(
+            title: 'Converted on the way in',
+            body:
+                'A Unity prefab, a Godot scene, a USD stage or a MaterialX '
+                'material becomes a flutter3d model, material or level on the '
+                'Convert page, with a report of what came across and what '
+                'did not.',
           ),
           _Point(
             title: 'Attribution travels with the file',

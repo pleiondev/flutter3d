@@ -1,16 +1,19 @@
 import 'package:dart_mcp/server.dart';
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_mcp/kit.dart';
 
 import 'diagnostic_renderer.dart';
 import 'diagnostic_session.dart';
+import 'mcp_tool.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
-/// `flutter3d_mcp_kit`'s [OfferedTool].
+/// `flutter3d_mcp/kit.dart`'s [OfferedTool].
 typedef DiagnosticTool = OfferedTool<DiagnosticSession, PictureAnswer>;
 
 double _number(
   Map<String, Object?> args,
   String key, [
+
+  /// The answer when [key] is absent, in that argument's own units.
   double fallback = 0.0,
 ]) => (args[key] as num?)?.toDouble() ?? fallback;
 
@@ -30,7 +33,7 @@ const String _viewDescription =
 /// The five verbs `par-02` asks for.
 List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
   DiagnosticTool(
-    Tool(
+    mcpTool(
       name: 'open',
       description:
           'Open a level document for diagnosis. No genre vocabulary is '
@@ -47,12 +50,12 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
     (session, args) => session.open(args['path']! as String),
   ),
   DiagnosticTool(
-    Tool(
+    mcpTool(
       name: 'frame',
       description:
           'Draw a frame with no GPU, from a given eye position looking in a '
           'given direction, in one of the renderer\'s own debug views. Every '
-          'later call (pixel, passes, scanNaN) reads back this same frame, '
+          'later call (pixel, passes, render.scanNan) reads back this same frame, '
           'so draw it again after moving the eye or changing the view.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
@@ -79,7 +82,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
     ),
   ),
   DiagnosticTool(
-    Tool(
+    mcpTool(
       name: 'pixel',
       description:
           'The raw, unclamped value of one pixel in the last frame drawn — '
@@ -98,7 +101,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
         session.pixel((args['x']! as num).toInt(), (args['y']! as num).toInt()),
   ),
   DiagnosticTool(
-    Tool(
+    mcpTool(
       name: 'passes',
       description:
           'Every pass the frame graph kept for the last frame drawn, in the '
@@ -109,7 +112,7 @@ List<DiagnosticTool> get diagnosticTools => <DiagnosticTool>[
     (session, args) => session.passes(),
   ),
   DiagnosticTool(
-    Tool(
+    mcpTool(
       name: 'scanNaN',
       description:
           'The first pixel in the last frame drawn where any channel is a '

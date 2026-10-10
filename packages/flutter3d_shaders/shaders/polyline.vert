@@ -84,6 +84,9 @@ out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
 out vec2 v_lightmap_uv;
+/// `P8`: an instance's own four numbers, a material's `instance` — from
+/// slot 1 in the instanced stage, nought in every other.
+out vec4 v_instance;
 
 // The w below which a point is treated as at the eye. Dividing by a w near zero
 // sends a neighbour to infinity, and dividing by a negative one mirrors it
@@ -155,4 +158,5 @@ void main() {
   v_tangent = vec4(1.0, 0.0, 0.0, 1.0);
   v_color = color;
   v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
 }

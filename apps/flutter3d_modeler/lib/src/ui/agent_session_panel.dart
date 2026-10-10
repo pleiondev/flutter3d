@@ -21,7 +21,7 @@
 /// live six-camera render.** The hand-off's screen 26 draws six thumbnails —
 /// perspective, front, side, top, wireframe, normals — but nothing in this
 /// app renders more than one view at a time outside `render`/`renderSheet`
-/// themselves (`mcp-06n`/`mcp-07n`, `flutter3d_model_mcp`), and standing up a
+/// themselves (`mcp-06n`/`mcp-07n`, `flutter3d_mcp/model.dart`), and standing up a
 /// second, parallel multi-camera renderer purely to mirror six fixed labels
 /// is a far larger thing than this row asks for. What the sheet actually
 /// shows instead is exactly as true to "what the agent gets instead of

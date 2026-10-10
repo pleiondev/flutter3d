@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../render/engine_light_units.dart';
 import 'light_node.dart';
 
 /// Light type codes as the shader reads them.
@@ -11,21 +12,32 @@ import 'light_node.dart';
 /// uniform and compared against a literal in GLSL, so a reordered enum would
 /// silently re-type every light in the scene.
 abstract final class ShaderLightType {
+  /// A code the shader compares, not a quantity: it has no unit.
   static const double directional = 0.0;
+
+  /// A code the shader compares, not a quantity: it has no unit.
   static const double point = 1.0;
+
+  /// A code the shader compares, not a quantity: it has no unit.
   static const double spot = 2.0;
 
   /// `gfx-77n`. Last on purpose: the shader classifies with `<` tests in this
   /// order, so a fourth kind appended costs the three that came before it
   /// nothing, and every scene that has no rectangle in it takes the identical
   /// path it always did.
+  /// A code the shader compares, not a quantity: it has no unit.
   static const double area = 3.0;
 
-  static double of(LightType type) => switch (type) {
+  static double of(LightType type) => switch (type.base) {
     LightType.directional => directional,
     LightType.point => point,
     LightType.spot => spot,
     LightType.area => area,
+    _ => throw ArgumentError.value(
+      type,
+      'type',
+      'is a light type the forward shaders have no case for',
+    ),
   };
 }
 
@@ -260,7 +272,7 @@ final class LightBuffer {
     _anyChannelled = false;
     for (var i = 0; i < lights.length; i++) {
       final light = lights[i];
-      if (!light.visibleInHierarchy) continue;
+      if (!light.isVisibleInHierarchy) continue;
       if (light.intensity <= 0.0) continue;
       candidates.add(light);
       if (light.channels != LightChannels.all) _anyChannelled = true;
@@ -280,8 +292,10 @@ final class LightBuffer {
       _candidateData[at + 1] = _position.y;
       _candidateData[at + 2] = _position.z;
       _candidateData[at + 3] = math.max(light.range, 0.0);
-      _candidateData[at + 4] = light.intensity;
-      _candidateData[at + 5] = light.type == LightType.directional ? 1.0 : 0.0;
+      _candidateData[at + 4] = luxToEngine(light.intensity);
+      _candidateData[at + 5] = light.type.base == LightType.directional
+          ? 1.0
+          : 0.0;
     }
   }
 
@@ -304,7 +318,7 @@ final class LightBuffer {
   }
 
   /// Packs the [maxLights] most relevant lights for an object whose bounding
-  /// sphere is [centre] with [radius], scoring against [table]'s candidates.
+  /// sphere is [center] with [radius], scoring against [table]'s candidates.
   ///
   /// ## What relevance means
   ///
@@ -375,7 +389,7 @@ final class LightBuffer {
   /// same "only overflow pays" rule the rest of this method follows.
   void gatherNearFrom(
     LightBuffer table,
-    Vector3 centre,
+    Vector3 center,
     double radius, {
     int channels = LightChannels.all,
     double fadeBand = 0.0,
@@ -384,9 +398,9 @@ final class LightBuffer {
 
     // Read out of the vector once. Every component read inside the loop is a
     // getter over a Float64List, and the loop runs once per light per object.
-    final cx = centre.x;
-    final cy = centre.y;
-    final cz = centre.z;
+    final cx = center.x;
+    final cy = center.y;
+    final cz = center.z;
     final data = table._candidateData;
 
     var chosen = 0;
@@ -522,8 +536,8 @@ final class LightBuffer {
   /// drawn on its own. A frame uses the two-buffer form: its own buffer holds
   /// the table and the packing the shadow atlas was assigned against, and a
   /// second buffer is repacked per draw without disturbing it.
-  void gatherNear(Vector3 centre, double radius, {double fadeBand = 0.0}) =>
-      gatherNearFrom(this, centre, radius, fadeBand: fadeBand);
+  void gatherNear(Vector3 center, double radius, {double fadeBand = 0.0}) =>
+      gatherNearFrom(this, center, radius, fadeBand: fadeBand);
 
   /// Which of the chosen slots is the easiest to give up.
   ///
@@ -557,6 +571,13 @@ final class LightBuffer {
   /// and rejecting an out-of-range lamp before the square root took that frame
   /// from 16.8 ms to 5.0 in the test VM, where an empty loop of the same two
   /// hundred thousand iterations already costs 2.4.
+  /// How much candidate [index] could light a sphere at `(x, y, z)` with
+  /// [radius]: the score this buffer's own selection ranks by, for
+  /// `LightClusters` to rank a crowded cell the same way rather than by a
+  /// second, drifting copy of the attenuation.
+  double relevanceTo(int index, double x, double y, double z, double radius) =>
+      _relevanceIn(_candidateData, index, x, y, z, radius);
+
   static double _relevanceIn(
     Float32List data,
     int index,
@@ -632,17 +653,17 @@ final class LightBuffer {
     out[at + 2] = _position.z;
     out[at + 3] = ShaderLightType.of(light.type);
 
-    out[at + 4] = light.color.x;
-    out[at + 5] = light.color.y;
-    out[at + 6] = light.color.z;
-    out[at + 7] = light.intensity;
+    out[at + 4] = light.color.r;
+    out[at + 5] = light.color.g;
+    out[at + 6] = light.color.b;
+    out[at + 7] = luxToEngine(light.intensity);
 
     // A rectangle's row carries its two edge vectors where a punctual light
     // keeps its direction and cone, exactly as [_pack] lays out its slot —
     // `surface.glsl` reads a row and a slot with the same code, so a row
     // written the punctual way hands it a direction as the half-width and two
     // cosines as the half-height.
-    if (light.type == LightType.area) {
+    if (light.type.base == LightType.area) {
       light.readHalfWidth(_halfWidth);
       light.readHalfHeight(_halfHeight);
       out[at + 8] = _halfWidth.x;
@@ -693,10 +714,10 @@ final class LightBuffer {
     positions[slot + 2] = _position.z;
     positions[slot + 3] = ShaderLightType.of(light.type);
 
-    colors[slot] = light.color.x;
-    colors[slot + 1] = light.color.y;
-    colors[slot + 2] = light.color.z;
-    colors[slot + 3] = light.intensity * scale;
+    colors[slot] = light.color.r;
+    colors[slot + 1] = light.color.g;
+    colors[slot + 2] = light.color.b;
+    colors[slot + 3] = luxToEngine(light.intensity) * scale;
 
     // **A rectangle takes over the two arrays it has no punctual use for —
     // `gfx-77n`.** It needs six numbers nothing else does: two edge vectors,
@@ -709,7 +730,7 @@ final class LightBuffer {
     // and the half-height where a spot keeps its cone, and the normal is the
     // cross product of the two, which is a multiply the shader was going to do
     // anyway. Nothing grew.
-    if (light.type == LightType.area) {
+    if (light.type.base == LightType.area) {
       light.readHalfWidth(_halfWidth);
       light.readHalfHeight(_halfHeight);
 

@@ -40,7 +40,10 @@ extension _RendererResources on Renderer {
   /// counters.
   TextureFormat get hdrFormat => device.hdrColorFormat;
 
-  ShaderHandle _fragmentShaderFor(LightingModel model) {
+  /// [model]'s fragment stage — its opaque variant when [opaque] is, which
+  /// the caller has asked [_opaqueStageFor] is there.
+  ShaderHandle _fragmentShaderFor(LightingModel model, {bool opaque = false}) {
+    if (opaque) return _opaqueStageFor(model)!;
     return _fragmentShaders.putIfAbsent(model.shaderName, () {
       final shader = shaders[model.shaderName];
       if (shader == null) {
@@ -53,11 +56,37 @@ extension _RendererResources on Renderer {
     });
   }
 
+  /// [model]'s variant with no reachable `discard` — `A1.2` — or null when
+  /// no shader library the renderer was given has one.
+  ///
+  /// By name, `Pbr` and `PbrOpaque`, as a skinned material vertex stage is
+  /// found: the engine's six lit models ship one, and a model from anywhere
+  /// else that ships one too is drawn through it on the same terms.
+  ///
+  /// **Never the backend's variant of a stage somebody replaced.** An
+  /// application that hands the renderer its own `Unlit` and no
+  /// `UnlitOpaque` means its stage to draw: paired with the backend's opaque
+  /// variant, every opaque draw ran the engine's shader and the
+  /// application's never ran at all. A replaced stage with no variant of its
+  /// own draws through the plain stage, as a model without one does.
+  ShaderHandle? _opaqueStageFor(
+    LightingModel model,
+  ) => _opaqueStages.putIfAbsent(model.shaderName, () {
+    final name = model.shaderName;
+    final opaque = shaders['${name}Opaque'];
+    if (opaque == null) return null;
+    final ownPlain = device.shaders[name];
+    final replaced = ownPlain != null && !identical(shaders[name], ownPlain);
+    final backendsVariant = identical(opaque, device.shaders['${name}Opaque']);
+    return replaced && backendsVariant ? null : opaque;
+  });
+
   PipelineHandle _pipelineFor(
     LightingModel model, {
     required bool skinned,
     bool instanced = false,
     bool lightmapped = false,
+    bool opaque = false,
   }) {
     assert(!(skinned && instanced), 'a skinned batch is not a thing here');
     assert(
@@ -73,29 +102,45 @@ extension _RendererResources on Renderer {
     final name = vertex == null
         ? model.shaderName
         : '$vertex+${model.shaderName}';
+    final staged = opaque ? '$name/opaque' : name;
     final key = instanced
-        ? 'instanced/$name'
+        ? 'instanced/$staged'
         : skinned
-        ? 'skinned/$name'
+        ? 'skinned/$staged'
         : lightmapped
-        ? 'lightmapped/$name'
-        : name;
+        ? 'lightmapped/$staged'
+        : staged;
+    // Timed, and over `FramePacing.stallThreshold` reported with what asked
+    // for it — `A1.7`. The stages are resolved inside the timing: finding
+    // and linking a material's stage is part of what the frame waits for.
     return _pipelineCache.putIfAbsent(
       key,
-      () => instanced
-          ? device.createPipeline(
-              instancedVertexShader,
-              _fragmentShaderFor(model),
-              layout: _kInstancedLayout,
-            )
-          : device.createPipeline(
-              _vertexShaderFor(
-                model,
-                skinned: skinned,
-                lightmapped: lightmapped,
+      () => _timedBuild(
+        () => instanced
+            ? device.createPipeline(
+                _instancedVertexShader,
+                _fragmentShaderFor(model, opaque: opaque),
+                layout: _kInstancedLayout,
+              )
+            : device.createPipeline(
+                _vertexShaderFor(
+                  model,
+                  skinned: skinned,
+                  lightmapped: lightmapped,
+                ),
+                _fragmentShaderFor(model, opaque: opaque),
               ),
-              _fragmentShaderFor(model),
-            ),
+        material: model.shaderName,
+        vertexShader: vertex,
+        geometry: instanced
+            ? PipelineGeometry.instanced
+            : skinned
+            ? PipelineGeometry.skinned
+            : lightmapped
+            ? PipelineGeometry.lightmapped
+            : PipelineGeometry.plain,
+        opaque: opaque,
+      ),
     );
   }
 
@@ -113,10 +158,10 @@ extension _RendererResources on Renderer {
     final supplied = model.vertexShaderName;
     if (supplied == null || lightmapped) {
       return skinned
-          ? skinnedVertexShader
+          ? _skinnedVertexShader
           : lightmapped
-          ? lightmappedVertexShader
-          : vertexShader;
+          ? _lightmappedVertexShader
+          : _vertexShader;
     }
 
     // One name, two stages: the skinned entry point is the given name with
@@ -149,47 +194,55 @@ extension _RendererResources on Renderer {
 /// declarations say what the attributes are and not which buffer each comes
 /// from; the split is what this spec exists to state, and `InstancedMeshNode`
 /// says what slot 1 holds.
-final VertexLayoutSpec _kInstancedLayout = VertexLayoutSpec(<BufferLayout>[
-  BufferLayout(
-    strideInBytes: VertexLayout.standard.strideInBytes,
-    attributes: <InputAttribute>[
-      for (final (name, format) in <(String, VertexFormat)>[
-        ('position', VertexFormat.float32x3),
-        ('normal', VertexFormat.float32x3),
-        ('texcoord', VertexFormat.float32x2),
-        ('tangent', VertexFormat.float32x4),
-        ('color', VertexFormat.float32x4),
-      ])
+final VertexLayoutDescriptor _kInstancedLayout = VertexLayoutDescriptor(
+  <BufferLayout>[
+    BufferLayout(
+      strideInBytes: VertexLayout.standard.strideInBytes,
+      attributes: <InputAttribute>[
+        for (final (name, format) in <(String, VertexFormat)>[
+          ('position', VertexFormat.float32x3),
+          ('normal', VertexFormat.float32x3),
+          ('texcoord', VertexFormat.float32x2),
+          ('tangent', VertexFormat.float32x4),
+          ('color', VertexFormat.float32x4),
+        ])
+          InputAttribute(
+            name: name,
+            format: format,
+            offsetInBytes: VertexLayout.standard.floatOffsetOf(name) * 4,
+          ),
+      ],
+    ),
+    const BufferLayout(
+      strideInBytes: InstancedMeshNode.strideInBytes,
+      stepMode: VertexStepMode.instance,
+      attributes: <InputAttribute>[
+        InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
         InputAttribute(
-          name: name,
-          format: format,
-          offsetInBytes: VertexLayout.standard.floatOffsetOf(name) * 4,
+          name: 'i_row1',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 16,
         ),
-    ],
-  ),
-  const BufferLayout(
-    strideInBytes: InstancedMeshNode.strideInBytes,
-    stepMode: VertexStepMode.instance,
-    attributes: <InputAttribute>[
-      InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
-      InputAttribute(
-        name: 'i_row1',
-        format: VertexFormat.float32x4,
-        offsetInBytes: 16,
-      ),
-      InputAttribute(
-        name: 'i_row2',
-        format: VertexFormat.float32x4,
-        offsetInBytes: 32,
-      ),
-      InputAttribute(
-        name: 'i_color',
-        format: VertexFormat.float32x4,
-        offsetInBytes: 48,
-      ),
-    ],
-  ),
-]);
+        InputAttribute(
+          name: 'i_row2',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 32,
+        ),
+        InputAttribute(
+          name: 'i_color',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 48,
+        ),
+        // `P8`: the instance's own four numbers, a material's `instance`.
+        InputAttribute(
+          name: 'i_data',
+          format: VertexFormat.float32x4,
+          offsetInBytes: 64,
+        ),
+      ],
+    ),
+  ],
+);
 
 // `Renderer.dispose` is not declared here. An extension's members are only
 // in scope where the extension itself is — and this one is private, visible

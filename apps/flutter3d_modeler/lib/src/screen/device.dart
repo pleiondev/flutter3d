@@ -20,7 +20,7 @@ extension _DeviceHandling on _ModelerScreenState {
     double devicePixelRatio,
   ) async {
     if (_reopeningDevice) return;
-    if (!kFixedResolution) return;
+    if (!fixedResolution) return;
     final now = _state;
     if (now is! ModelerReady) return;
     if (!deviceStaleForViewport(
@@ -35,7 +35,11 @@ extension _DeviceHandling on _ModelerScreenState {
     }
     _reopeningDevice = true;
     try {
-      final newDevice = await openDevice(width: width, height: height);
+      final newDevice = await openDevice(
+        width: width,
+        height: height,
+        registry: modelerDevices,
+      );
       if (!mounted) {
         return;
       }

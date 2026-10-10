@@ -18,11 +18,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../input/playing.dart';
 
-/// Locks to landscape and hides the system bars, on a device played by touch.
+/// Locks to landscape and hides the system bars, on a device played by touch
+/// — [playing] says whether this one is, and is the platform's own answer
+/// when not given.
 ///
-/// Does nothing anywhere else, so it is safe to call unconditionally from
-/// `main()` — which is the point, because the guard is exactly what the racing
-/// game was missing rather than the calls.
+/// **An application's choice, called from its `main()` and nowhere else.**
+/// Nothing in the engine calls it: whether a game is landscape only is the
+/// game's to decide, and a game in portrait, or one that is a page inside a
+/// larger app, simply does not call this. It was `configureForTouch`, a name
+/// that sounded like setup every game needed; it is named for what it does.
+///
+/// Does nothing on a device not played by touch, so it is safe to call
+/// unconditionally from `main()` — which is the point, because the guard is
+/// exactly what the racing game was missing rather than the calls.
 ///
 /// `ensureInitialized` because both calls are platform channels, and a channel
 /// before the binding exists is an assertion rather than an effect.
@@ -34,8 +42,8 @@ import '../input/playing.dart';
 /// Fires the two calls and does not wait for them, so `main()` stays
 /// synchronous — a `runApp` that waited on a platform channel would show
 /// nothing until the operating system answered.
-void configureForTouch() {
-  if (!Playing.touch) return;
+void lockLandscapeForTouch([Playing? playing]) {
+  if (!(playing ?? Playing.ofPlatform()).touch) return;
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.landscapeLeft,

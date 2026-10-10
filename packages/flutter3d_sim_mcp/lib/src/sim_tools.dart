@@ -1,20 +1,23 @@
 import 'package:dart_mcp/server.dart';
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import 'mcp_tool.dart';
 import 'sim_session.dart';
 
 /// One tool: what an agent is offered, and what calling it does — see
-/// `flutter3d_mcp_kit`'s [OfferedTool].
+/// `flutter3d_mcp/kit.dart`'s [OfferedTool].
 typedef SimTool = OfferedTool<SimSession, PictureAnswer>;
 
 double _number(
   Map<String, Object?> args,
   String key, [
+
+  /// The answer when [key] is absent, in that argument's own units.
   double fallback = 0.0,
 ]) => (args[key] as num?)?.toDouble() ?? fallback;
 
-/// The arguments `step` and `expect` share: one intent, held for every step.
+/// The arguments `run.step` and `run.expect` share: one intent, held for every step.
 Map<String, Schema> _intentProperties(HeadlessGame game) => <String, Schema>{
   'moveX': NumberSchema(description: 'strafe, -1..1, default 0'),
   'moveY': NumberSchema(description: 'forward/back, -1..1, default 0'),
@@ -58,17 +61,79 @@ Schema _predicateSchema(String description) => ObjectSchema(
   required: <String>['kind'],
 );
 
-/// The six verbs `ai-00` asks for, with `step` offering [game]'s own buttons
+/// The [EntityLayout] a `run.bisect` call's `entities` names: null for none, and
+/// a refusal for one that names both shapes or neither, since guessing which
+/// was meant would answer about entities the save does not have.
+({EntityLayout? layout, String? refused}) _entityLayout(Object? spec) =>
+    switch (spec) {
+      null => (layout: null, refused: null),
+      {'ecs': final List<Object?> at} when !spec.containsKey('rows') => (
+        layout: EntityLayout.ecs(<String>[for (final key in at) '$key']),
+        refused: null,
+      ),
+      {'rows': final String key} when !spec.containsKey('ecs') => (
+        layout: EntityLayout.rows(key),
+        refused: null,
+      ),
+      _ => (
+        layout: null,
+        refused: 'entities is {"ecs": [keys]} or {"rows": key}, one of the two',
+      ),
+    };
+
+/// `game.order`, offered only to a game played by orders: one verb of [game]'s,
+/// its numbers, and how many steps to run after giving it.
+///
+/// Every argument any verb reads is offered as a number; the session refuses
+/// one the named verb does not read.
+SimTool _orderTool(OrderedGame game) => SimTool(
+  mcpTool(
+    name: 'order',
+    description:
+        'Give the ${game.name} an order, then step it forward with the stick '
+        'at rest. The order is written on the run\'s tape with the step that '
+        'takes it, so run.write, verify and bisect replay it. The orders: '
+        '${<String>[for (final MapEntry(:key, :value) in game.orders.entries) '$key — ${value.description}'].join(' ')}',
+    inputSchema: ObjectSchema(
+      properties: <String, Schema>{
+        'verb': UntitledSingleSelectEnumSchema(
+          values: game.orders.keys.toList(),
+          description: 'which order',
+        ),
+        'steps': IntegerSchema(
+          description: 'how many fixed steps to run after it, default 1',
+        ),
+        for (final MapEntry(:key, :value) in <String, String>{
+          for (final verb in game.orders.entries)
+            for (final argument in verb.value.arguments.entries)
+              argument.key: '${verb.key}: ${argument.value}',
+        }.entries)
+          key: NumberSchema(description: value),
+      },
+      required: <String>['verb'],
+    ),
+  ),
+  (session, args) => session.order(
+    verb: args['verb']! as String,
+    steps: (args['steps'] as num?)?.toInt() ?? 1,
+    arguments: <String, Object?>{
+      for (final MapEntry(:key, :value) in args.entries)
+        if (key != 'verb' && key != 'steps') key: value,
+    },
+  ),
+);
+
+/// The six verbs `ai-00` asks for, with `run.step` offering [game]'s own buttons
 /// as its own arguments — `fire` for the shooter, whatever another game names —
 /// and the two that turn a claim about a run into a file that proves it.
 List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
   SimTool(
-    Tool(
+    mcpTool(
       name: 'open',
       description:
           'Open a ${game.name} level (a .json level document) and stand the '
           'player up at its spawn. Replaces whatever run this process had '
-          'going — call writeRun first if it is worth keeping.',
+          'going — call run.write first if it is worth keeping.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'path': StringSchema(description: 'a level document on disk'),
@@ -79,7 +144,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     (session, args) => session.open(args['path']! as String),
   ),
   SimTool(
-    Tool(
+    mcpTool(
       name: 'step',
       description:
           'Run the level forward, holding one intent for every step. moveX/moveY '
@@ -107,8 +172,9 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
       held: _held(game, args),
     ),
   ),
+  if (game case final OrderedGame ordered) _orderTool(ordered),
   SimTool(
-    Tool(
+    mcpTool(
       name: 'expect',
       description:
           'Back a claim with a replay: step forward holding one intent (the '
@@ -144,7 +210,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
   ),
   SimTool(
-    Tool(
+    mcpTool(
       name: 'verify',
       description:
           'Replay a .f3drun into a fresh run of its own level, apart from the '
@@ -169,7 +235,50 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     ),
   ),
   SimTool(
-    Tool(
+    mcpTool(
+      name: 'bisect',
+      description:
+          'Play two .f3drun files of the same level side by side, each in a '
+          'fresh world of its own, and say the first step at which they '
+          'differ and the first field that does, as a path into the state '
+          '(players.0.health). Every step is compared, not only the '
+          'checkpoints. Two runs on different physics or in different '
+          'versions of the level are refused.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'a': StringSchema(description: 'one .f3drun'),
+          'b': StringSchema(description: 'the other'),
+          'entities': ObjectSchema(
+            description:
+                'where the save keeps its entities, to name the entity and '
+                'component the runs part on: {"ecs": ["entities"]} for an '
+                'entity world saved under that key ([] for the save itself), '
+                'or {"rows": "actors"} for one row per entity; leave out '
+                'for the server\'s own',
+            properties: <String, Schema>{
+              'ecs': ListSchema(items: StringSchema()),
+              'rows': StringSchema(),
+            },
+          ),
+        },
+        required: <String>['a', 'b'],
+      ),
+    ),
+    (session, args) => switch (_entityLayout(args['entities'])) {
+      (layout: final layout, refused: null) => session.bisect(
+        args['a']! as String,
+        args['b']! as String,
+        layout: layout,
+      ),
+      (layout: _, refused: final String why) => (
+        did: false,
+        says: why,
+        png: null,
+      ),
+    },
+  ),
+  SimTool(
+    mcpTool(
       name: 'snapshot',
       description:
           'Where things stand right now, as JSON: the step, and what the game '
@@ -181,7 +290,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     (session, args) => session.snapshot(),
   ),
   SimTool(
-    Tool(
+    mcpTool(
       name: 'digest',
       description:
           'The most recent checkpoint digest and the step it was taken at — '
@@ -194,7 +303,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     (session, args) => session.digest(),
   ),
   SimTool(
-    Tool(
+    mcpTool(
       name: 'writeRun',
       description:
           'Write everything stepped so far as a .f3drun — the level, its '
@@ -211,7 +320,7 @@ List<SimTool> simToolsFor(HeadlessGame game) => <SimTool>[
     (session, args) => session.writeRun(args['path']! as String),
   ),
   SimTool(
-    Tool(
+    mcpTool(
       name: 'frame',
       description:
           'A picture of the room, from the player\'s own eye, rendered with '

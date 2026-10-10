@@ -11,7 +11,7 @@ The line is the one the game layer already drew: **machinery stays, vocabulary m
 | Machinery (stays in core) | Vocabulary (lives here) |
 |---|---|
 | `Mechanism`, `Actor`, `ActorSystem` | `Inventory`, `Arsenal`, `Gift` |
-| `MechanismEvents.taken`, the level format | `Pickup`, `PickupKind`, `KeyKind`, `NoteKind` |
+| `MechanismEvents.taken`, the level format | `Pickup`, `PickupKind`, `ShooterKeyKind`, `NoteKind` |
 | `Brain`, `Mind`, navigation | `ChaseBrain`, `MonsterDef`, `Bestiary` |
 | `CharacterController`, `CollisionWorld` | `Player`, `WeaponDef`, `WeaponShot` |
 | `FixedStep`, `Snapshot` | `GameSimulation`, the step *order* |
@@ -62,7 +62,7 @@ A `WeaponDef` is a value. Everything about how a weapon feels is a number in one
 ```dart
 static const WeaponDef shotgun = WeaponDef(
   name: 'Shotgun',
-  behaviour: HitscanBehaviour(),
+  behavior: HitscanBehavior(),
   ammo: AmmoType.shells,
   damage: 11.0,            // per pellet
   shotsPerSecond: 1.4,
@@ -78,19 +78,19 @@ static const WeaponDef shotgun = WeaponDef(
 
 ### Three behaviours, one call site
 
-`WeaponBehaviour` is sealed, and `WeaponShot` is where all three are delivered from, so a monster's claws and a player's rocket launcher go through the same code.
+`WeaponBehavior` is sealed, and `WeaponShot` is where all three are delivered from, so a monster's claws and a player's rocket launcher go through the same code.
 
 | Behaviour | What it does |
 |---|---|
-| `HitscanBehaviour` | `rayCount` rays with `spread`, damage falling off between `falloffStart` and `falloffEnd` |
-| `MeleeBehaviour(arcDegrees: 70)` | A sphere sweep in an arc, blocked by geometry |
-| `ProjectileBehaviour` | Spawns into `ProjectileSystem` at `projectileSpeed`, detonating with a `Blast` |
+| `HitscanBehavior` | `rayCount` rays with `spread`, damage falling off between `falloffStart` and `falloffEnd` |
+| `MeleeBehavior(arc: 1.22)` (radians, 70°) | A sphere sweep in an arc, blocked by geometry |
+| `ProjectileBehavior` | Spawns into `ProjectileSystem` at `projectileSpeed`, detonating with a `Blast` |
 
 ```dart
 final shot = WeaponShot(world: collision, hitscan: hitscan, projectiles: projectiles);
 
 shot.begin(weapon, origin, aim, shooter: player.body.collider);
-weapon.behaviour.deliver(shot);
+weapon.behavior.deliver(shot);
 ```
 
 ### Falloff is per weapon, not global
@@ -126,13 +126,13 @@ arsenal.fallBackIfEmpty();
 One object rather than four fields, so a pickup has somewhere to give something to, the HUD has one thing to read, and it can hang off the player's collider, which is how a locked door asks what the body in front of it is holding.
 
 ```dart
-final inventory = Inventory(arsenal: arsenal, maxArmour: 200.0);
+final inventory = Inventory(arsenal: arsenal, maxArmor: 200.0);
 
-inventory.addArmour(25.0);
+inventory.addArmor(25.0);
 inventory.empower('invulnerability', 20.0);
 inventory.has('berserk');
 inventory.remainingOf('invulnerability');
-inventory.damage(18.0);       // armour first, then health
+inventory.damage(18.0);       // armor first, then health
 inventory.step(dt);           // power-ups tick down
 ```
 
@@ -143,7 +143,7 @@ What a pickup gives is a `Gift`, and a game composes its own registry. A hierarc
 ```dart
 final GiftRegistry gifts = GiftRegistry(<Gift>[
   const HealthGift(),
-  const ArmourGift(),
+  const ArmorGift(),
   const AmmoGift('bullets', AmmoType.bullets, defaultAmount: 20.0),
   const AmmoGift('shells', AmmoType.shells, defaultAmount: 8.0),
   const AmmoGift('rockets', AmmoType.rockets, defaultAmount: 4.0),
@@ -167,7 +167,7 @@ static const MonsterDef runner = MonsterDef(
   sightRange: 24.0,
   attack: WeaponDef(
     name: 'claws',
-    behaviour: MeleeBehaviour(),
+    behavior: MeleeBehavior(),
     ammo: AmmoType.none,
     damage: 9.0,
     shotsPerSecond: 1.6,

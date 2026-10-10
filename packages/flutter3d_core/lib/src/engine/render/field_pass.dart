@@ -27,7 +27,7 @@ final class FieldPass {
 
   /// Both targets' size, format and storage. A field worth stepping is
   /// usually `r16g16b16a16Float` or `r32g32b32a32Float`.
-  final RenderTargetSpec spec;
+  final RenderTargetDescriptor spec;
 
   TextureHandle _current;
   TextureHandle _next;
@@ -76,7 +76,7 @@ final class FieldPass {
         kernel,
         'field_texture',
         _current,
-        sampler: SamplerOptions.nearestClamp,
+        sampler: SamplerDescriptor.nearestClamp,
       );
     bind?.call(pass);
     pass

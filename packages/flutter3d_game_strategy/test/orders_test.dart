@@ -30,18 +30,18 @@ typedef Camp = ({
   StrategySimulation sim,
   Building hall,
   ResourceNode seam,
-  Unit worker,
+  StrategyUnit worker,
 });
 
 Camp _camp() {
   final sim = StrategySimulation(random: GameRandom(1), ground: flat());
   final hall = sim.build(
-    Building(centre: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
+    Building(center: Vector3(16.0, 0.0, 16.0), width: 6.0, depth: 6.0),
   );
   final seam = sim.addResource(
     ResourceNode(at: Vector3(36.0, 0.0, 16.0), amount: 100.0),
   );
-  final worker = sim.add(Unit(position: Vector3(21.0, 0.0, 16.0)));
+  final worker = sim.add(StrategyUnit(position: Vector3(21.0, 0.0, 16.0)));
   return (sim: sim, hall: hall, seam: seam, worker: worker);
 }
 
@@ -53,7 +53,7 @@ void main() {
       // it is not still waiting afterwards, so a click does not go on being
       // obeyed for the rest of the match.
       final it = _camp();
-      it.sim.orders.moveTo(<Unit>[it.worker], Vector3(60.0, 0.0, 40.0));
+      it.sim.orders.moveTo(<StrategyUnit>[it.worker], Vector3(60.0, 0.0, 40.0));
 
       expect(
         it.worker.order.goal,
@@ -77,7 +77,7 @@ void main() {
       // carry on digging.
       final it = _camp();
       it.worker.job = HarvestJob(node: it.seam, dropOff: it.hall);
-      it.sim.orders.moveTo(<Unit>[it.worker], Vector3(60.0, 0.0, 40.0));
+      it.sim.orders.moveTo(<StrategyUnit>[it.worker], Vector3(60.0, 0.0, 40.0));
 
       it.sim.step(_step);
 
@@ -129,13 +129,13 @@ void main() {
       // crowd comes back carrying on with what it was doing, and the click is
       // lost across a reload — which reads as an order the game ignored.
       final it = _camp();
-      it.sim.orders.moveTo(<Unit>[it.worker], Vector3(60.0, 0.0, 40.0));
+      it.sim.orders.moveTo(<StrategyUnit>[it.worker], Vector3(60.0, 0.0, 40.0));
 
       final loaded = _camp()..sim.restore(it.sim.save());
       expect(loaded.sim.orders.waiting, hasLength(1));
 
       loaded.sim.step(_step);
-      final Unit came = loaded.sim.units.single;
+      final StrategyUnit came = loaded.sim.units.single;
 
       expect(came.order.goal, isNotNull, reason: 'the order was not saved');
       expect(came.order.goal!.x, closeTo(60.0, 1e-9));

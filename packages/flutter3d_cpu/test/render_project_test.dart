@@ -15,6 +15,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -80,7 +81,7 @@ ModelProject _editedCubeProject({
       ProjectMaterial(
         surface: SurfaceMaterial(
           name: 'red',
-          baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+          baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
           roughness: 0.8,
         ),
       ),
@@ -122,7 +123,7 @@ ModelProject _cubeProject() {
       ProjectMaterial(
         surface: SurfaceMaterial(
           name: 'red',
-          baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+          baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
           roughness: 0.8,
         ),
       ),
@@ -198,7 +199,7 @@ void main() {
         );
         final decoded = await decodeImagePure(png);
         expect(decoded, isNotNull);
-        expect(decoded!.width, 64);
+        expect(decoded.width, 64);
         expect(decoded.height, 64);
         expect(
           _litPixels(decoded),
@@ -232,7 +233,7 @@ void main() {
           ProjectMaterial(
             surface: SurfaceMaterial(
               name: 'red',
-              baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+              baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
               roughness: 0.8,
             ),
           ),
@@ -250,7 +251,7 @@ void main() {
       // picture is of nothing — for the tutorial and for an agent's own
       // "show me the model" alike.
       expect(
-        _litPixels(decoded!),
+        _litPixels(decoded),
         greaterThan(64 * 64 ~/ 20),
         reason: 'a small prop is framed by its own size, not by a floor',
       );
@@ -269,7 +270,7 @@ void main() {
         );
         final decoded = await decodeImagePure(png);
         expect(
-          _litPixels(decoded!),
+          _litPixels(decoded),
           greaterThan(0),
           reason: '$view framed nothing — the camera missed the cube',
         );
@@ -292,8 +293,8 @@ void main() {
           ),
           deviceFactory: _cpuDevice,
         );
-        final decodedMaterial = (await decodeImagePure(material))!;
-        final decodedNormals = (await decodeImagePure(normals))!;
+        final decodedMaterial = await decodeImagePure(material);
+        final decodedNormals = await decodeImagePure(normals);
 
         var differingPixels = 0;
         for (var i = 0; i < decodedMaterial.pixels.length; i += 4) {
@@ -351,7 +352,7 @@ void main() {
           materials: <ProjectMaterial>[
             ProjectMaterial(
               surface: SurfaceMaterial(
-                baseColor: Vector4(0.15, 0.15, 0.15, 1.0),
+                baseColor: LinearColor.fromSrgb(0.15, 0.15, 0.15, 1.0),
                 roughness: 0.9,
               ),
             ),
@@ -382,8 +383,8 @@ void main() {
         );
 
         var differingPixels = 0;
-        for (var i = 0; i < plain!.pixels.length; i += 4) {
-          if ((plain.pixels[i] - highlighted!.pixels[i]).abs() > 10) {
+        for (var i = 0; i < plain.pixels.length; i += 4) {
+          if ((plain.pixels[i] - highlighted.pixels[i]).abs() > 10) {
             differingPixels++;
           }
         }
@@ -402,7 +403,7 @@ void main() {
       );
       final decoded = await decodeImagePure(png);
       expect(decoded, isNotNull);
-      expect(decoded!.width, 16);
+      expect(decoded.width, 16);
       expect(decoded.height, 16);
     });
   });
@@ -488,18 +489,17 @@ void main() {
   });
 
   group('tut-06 — modifiers read at render time', () {
-    Future<Rgba8Image> render(ModelProject project) async =>
-        (await decodeImagePure(
-          await renderProject(
-            RenderRequest(
-              project: project,
-              view: RenderProjectView.front,
-              width: 64,
-              height: 64,
-            ),
-            deviceFactory: _cpuDevice,
-          ),
-        ))!;
+    Future<Rgba8Image> render(ModelProject project) async => decodeImagePure(
+      await renderProject(
+        RenderRequest(
+          project: project,
+          view: RenderProjectView.front,
+          width: 64,
+          height: 64,
+        ),
+        deviceFactory: _cpuDevice,
+      ),
+    );
 
     test('a mirror modifier changes the picture, with no Apply', () async {
       final bare = await render(_editedCubeProject());
@@ -571,13 +571,12 @@ void main() {
   });
 
   group("tut-07 — a project's own lighting reaches the picture", () {
-    Future<Rgba8Image> render(ModelProject project) async =>
-        (await decodeImagePure(
-          await renderProject(
-            RenderRequest(project: project, width: 64, height: 64),
-            deviceFactory: _cpuDevice,
-          ),
-        ))!;
+    Future<Rgba8Image> render(ModelProject project) async => decodeImagePure(
+      await renderProject(
+        RenderRequest(project: project, width: 64, height: 64),
+        deviceFactory: _cpuDevice,
+      ),
+    );
 
     int brightnessSum(Rgba8Image image) {
       var sum = 0;
@@ -652,18 +651,17 @@ void main() {
   });
 
   group('tut-10 — a posed, skinned, morphed character', () {
-    Future<Rgba8Image> render(ModelProject project) async =>
-        (await decodeImagePure(
-          await renderProject(
-            RenderRequest(
-              project: project,
-              view: RenderProjectView.front,
-              width: 64,
-              height: 64,
-            ),
-            deviceFactory: _cpuDevice,
-          ),
-        ))!;
+    Future<Rgba8Image> render(ModelProject project) async => decodeImagePure(
+      await renderProject(
+        RenderRequest(
+          project: project,
+          view: RenderProjectView.front,
+          width: 64,
+          height: 64,
+        ),
+        deviceFactory: _cpuDevice,
+      ),
+    );
 
     /// A flat quad, small enough that a modest joint move carries it well
     /// clear of where it started.
@@ -720,7 +718,7 @@ void main() {
         materials: <ProjectMaterial>[
           ProjectMaterial(
             surface: SurfaceMaterial(
-              baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+              baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
               roughness: 0.8,
             ),
           ),
@@ -798,7 +796,7 @@ void main() {
           materials: <ProjectMaterial>[
             ProjectMaterial(
               surface: SurfaceMaterial(
-                baseColor: Vector4(0.9, 0.1, 0.1, 1.0),
+                baseColor: LinearColor.fromSrgb(0.9, 0.1, 0.1, 1.0),
                 roughness: 0.8,
               ),
             ),
@@ -896,7 +894,7 @@ void main() {
       final jointId = project.objects
           .firstWhere((ModelObject o) => o.name == 'joint')
           .id;
-      final decoded = (await decodeImagePure(
+      final decoded = await decodeImagePure(
         await renderProject(
           RenderRequest(
             project: project,
@@ -908,7 +906,7 @@ void main() {
           ),
           deviceFactory: _cpuDevice,
         ),
-      ))!;
+      );
 
       // Searched over the whole picture rather than sampled at a fixed
       // coordinate: `_frame`'s own fit (margin, aspect, the socket
@@ -950,7 +948,7 @@ void main() {
     test('an object not bound to the requested joint falls back to material, '
         'not a blank mesh', () async {
       final unbound = _cubeProject();
-      final decoded = (await decodeImagePure(
+      final decoded = await decodeImagePure(
         await renderProject(
           RenderRequest(
             project: unbound,
@@ -961,7 +959,7 @@ void main() {
           ),
           deviceFactory: _cpuDevice,
         ),
-      ))!;
+      );
       expect(
         _litPixels(decoded),
         greaterThan(0),
@@ -974,17 +972,16 @@ void main() {
 
   group('ux-49: a panorama lights the scene', () {
     test('a bright 2:1 sky lights the model, and no sky does not', () async {
-      Future<Rgba8Image> drawn(Uint8List? panorama) async =>
-          (await decodeImagePure(
-            await renderProject(
-              RenderRequest(
-                project: _underPanorama(panorama),
-                width: 48,
-                height: 48,
-              ),
-              deviceFactory: _cpuDevice,
-            ),
-          ))!;
+      Future<Rgba8Image> drawn(Uint8List? panorama) async => decodeImagePure(
+        await renderProject(
+          RenderRequest(
+            project: _underPanorama(panorama),
+            width: 48,
+            height: 48,
+          ),
+          deviceFactory: _cpuDevice,
+        ),
+      );
 
       final Rgba8Image bare = await drawn(null);
       // Every pixel at mantissa 200, exponent 136 - so a channel reads back
@@ -1003,7 +1000,7 @@ void main() {
 
     test('and a dark sky is not the same picture as a bright one', () async {
       Future<double> brightnessUnder(List<int> channels) async {
-        final Rgba8Image image = (await decodeImagePure(
+        final Rgba8Image image = await decodeImagePure(
           await renderProject(
             RenderRequest(
               project: _underPanorama(_panorama(8, 4, channels)),
@@ -1012,7 +1009,7 @@ void main() {
             ),
             deviceFactory: _cpuDevice,
           ),
-        ))!;
+        );
         return _brightness(image);
       }
 

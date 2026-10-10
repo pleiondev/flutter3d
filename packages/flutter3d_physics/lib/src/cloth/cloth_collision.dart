@@ -23,6 +23,9 @@ bool pushOutsideObstacle(
   Vector3 point,
   ClothObstacle obstacle,
   double thickness, {
+
+  /// The widest reach among the particle's triangles, in metres; see
+  /// [pushParticleOutside].
   double span = 0.0,
 }) {
   _single[0] = point.x;
@@ -79,6 +82,8 @@ bool pushParticleOutside(
   ClothObstacle obstacle,
   double thickness,
   Float64List push, {
+
+  /// The widest reach among the particle's own triangles, in metres.
   double span = 0.0,
 }) {
   final o = obstacle.position;
@@ -134,7 +139,7 @@ bool pushParticleOutside(
       push[1] = ground - py;
       xyz[3 * i + 1] = ground;
       return true;
-    case CollisionBox() || CollisionWedge():
+    case CollisionBox() || CollisionWedge() || CustomShape():
       final count = obstacle.shape.expandedPlanes(o, _noGrowth, _planes);
       if (count == 0) return false;
       // Inside when on the inward side of every plane; out along whichever

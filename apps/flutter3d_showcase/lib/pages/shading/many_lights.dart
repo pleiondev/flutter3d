@@ -10,7 +10,6 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ManyLightsDemo extends ShowcaseDemo {
   double fadeBand = 0.5;
@@ -60,8 +59,8 @@ final class ManyLightsDemo extends ShowcaseDemo {
       context.device,
       PlaneShape(width: _tileSize, depth: _tileSize).build(),
     );
-    final Material floorMaterial = Material(
-      baseColor: Vector4(0.5, 0.5, 0.55, 1.0),
+    final RenderMaterial floorMaterial = RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.55, 1.0),
       roughness: 0.85,
       doubleSided: true,
     );
@@ -84,7 +83,7 @@ final class ManyLightsDemo extends ShowcaseDemo {
         LightNode(
           name: 'torch $i',
           type: LightType.point,
-          intensity: 2.5,
+          intensity: 2.5 * Photometric.legacyUnit,
           range: _torchRange,
         )..setPosition(math.cos(angle) * 6.0, 0.6, math.sin(angle) * 6.0),
       );
@@ -122,7 +121,7 @@ final class ManyLightsDemo extends ShowcaseDemo {
       );
     }
     final int expectedDropped = math.max(
-      _torchCount - LightBuffer.maxLights - LightBuffer.maxExtraLights,
+      _torchCount - LightNode.maxLights - LightNode.maxExtraLights,
       0,
     );
     if (expectedDropped == 0) {

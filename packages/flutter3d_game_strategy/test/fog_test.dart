@@ -95,7 +95,7 @@ void main() {
       // orders sends the whole crowd out to explore its own front garden.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
       );
 
       expect(sim.fog.knows(0, 22.0, 22.0), isTrue);
@@ -112,7 +112,7 @@ void main() {
       );
       wide.build(
         Building(
-          centre: Vector3(20.0, 0.0, 20.0),
+          center: Vector3(20.0, 0.0, 20.0),
           width: 6.0,
           depth: 6.0,
           side: 2,
@@ -127,7 +127,7 @@ void main() {
     test('loses sight of ground its crowd has walked away from', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final scout = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(10.0, 0.0, 10.0),
           type: UnitType.worker.copyWith(sight: 8.0),
         ),
@@ -155,14 +155,14 @@ void main() {
 
   group('a bot in the dark', () {
     /// A camp with its only seam well outside anybody's sight.
-    ({Match match, Unit worker, ResourceNode seam}) camp() {
+    ({Match match, StrategyUnit worker, ResourceNode seam}) camp() {
       final sim = StrategySimulation(
         random: GameRandom(1),
         ground: _flat(samples: 21),
       );
       final base = sim.build(
         Building(
-          centre: Vector3(8.0, 0.0, 8.0),
+          center: Vector3(8.0, 0.0, 8.0),
           width: 4.0,
           depth: 4.0,
           sight: 10.0,
@@ -172,7 +172,7 @@ void main() {
         ResourceNode(at: Vector3(32.0, 0.0, 8.0), amount: 200.0),
       );
       final worker = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(12.0, 0.0, 8.0),
           type: UnitType.worker.copyWith(sight: 7.0),
         ),

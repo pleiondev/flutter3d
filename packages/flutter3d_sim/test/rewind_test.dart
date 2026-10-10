@@ -7,6 +7,7 @@
 /// exactly, and the buffer forgets what a rewind cannot reach.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -56,35 +57,50 @@ void _play(InputState input, int step) {
   if (step % 11 == 4) input.release(_fire);
 }
 
-/// Plays [steps] steps through a loop with [buffer] attached, keyframing the
-/// way a game does, and returns the toy's state before every step.
+/// [toy] stepped by a loop on [input], and one part of its snapshots under
+/// `toy`; [before], when given, is told the toy's state before each step.
+EngineLoop _loopOf(
+  _Toy toy,
+  InputState input, [
+  void Function(String state)? before,
+]) => EngineLoop(input: input)
+  ..snapshots.add(
+    SnapshotPart.of(
+      id: 'toy',
+      capture: () => toy.save().data,
+      restore: (Object? data, int _) {
+        if (data is Map) toy.restore(Snapshot(data.cast<String, Object?>()));
+      },
+    ),
+  )
+  ..addSystem('toy.step', LoopPhase.rules, (_) {
+    before?.call(toy.state);
+    toy.step(input);
+  });
+
+/// Plays [steps] steps through a loop with [buffer] attached — its keyframes
+/// the loop's own captures — and returns the toy's state before every step.
 List<String> _run(_Toy toy, RewindBuffer buffer, int steps) {
   final input = InputState();
   final states = <String>[];
-  final loop = GameLoop(
-    input: input,
-    onStep: (_) {
-      if (buffer.keyframeDue) buffer.keyframe(toy.save());
-      states.add(toy.state);
-      toy.step(input);
-    },
-  )..recorders.add(buffer.recorder);
+  final loop = _loopOf(toy, input, states.add);
+  buffer.attach(loop);
   for (var i = 0; i < steps; i++) {
     _play(input, i);
-    loop.advance(1 / 60);
+    loop.frame(1 / 60);
   }
   return states;
 }
 
-/// Restores [point] into a fresh toy and plays it to the point.
+/// Restores [point] — a keyframe of the loop's — into a fresh toy's loop and
+/// plays it to the point.
 _Toy _arrive(RewindPoint point) {
-  final toy = _Toy(0)..restore(point.snapshot);
-  final input = InputState();
+  final toy = _Toy(0);
+  final loop = _loopOf(toy, InputState())..rewindTo(0, state: point.snapshot);
   final playback = InputTapePlayback(point.tapeToPoint);
+  loop.playback = playback;
   while (!playback.isFinished) {
-    playback.applyTo(input);
-    toy.step(input);
-    input.endStep();
+    loop.runSteps(1);
   }
   return toy;
 }
@@ -163,6 +179,29 @@ void main() {
     expect(buffer.rewindTo(0), isNull);
   });
 
+  test('attached, the keyframes are the loop\'s captures, every interval, '
+      'until the registration is cancelled', () {
+    // Mutation: keyframe the toy's own save — the loop restores nothing from
+    // it, and the keyframe has no `world`.
+    final buffer = RewindBuffer(
+      stepsPerSecond: 60,
+      history: 4.0,
+      keyframeEvery: 10,
+    );
+    final loop = _loopOf(_Toy(1), InputState());
+    final attached = buffer.attach(loop);
+    loop.runSteps(25);
+
+    final kept = buffer.keyframesAfter(-1);
+    expect(kept.keys, <int>[0, 10, 20]);
+    expect(kept[10]!.data.keys, containsAll(<String>['world', 'toy']));
+
+    attached.cancel();
+    expect(loop.recorders, isNot(contains(buffer.recorder)));
+    loop.runSteps(5);
+    expect(buffer.step, 25, reason: 'detached, nothing more is recorded');
+  });
+
   test('a keyframe is due before the first step and every interval after', () {
     final buffer = RewindBuffer(
       stepsPerSecond: 60,
@@ -171,22 +210,21 @@ void main() {
     );
     final due = <int>[];
     final input = InputState();
-    final loop = GameLoop(
-      input: input,
-      onStep: (_) {
-        if (buffer.keyframeDue) {
+    final loop = EngineLoop(input: input)
+      ..addSystem('keyframes', LoopPhase.rules, (_) {
+        if (buffer.isKeyframeDue) {
           due.add(buffer.step - 1);
           buffer.keyframe(const Snapshot(<String, Object?>{}));
         }
-      },
-    )..recorders.add(buffer.recorder);
+      })
+      ..recorders.add(buffer.recorder);
     for (var i = 0; i < 25; i++) {
-      loop.advance(1 / 60);
+      loop.frame(1 / 60);
     }
 
     expect(due, <int>[0, 10, 20]);
     expect(
-      buffer.keyframeDue,
+      buffer.isKeyframeDue,
       isFalse,
       reason: 'asked between steps it describes the step just run, once',
     );

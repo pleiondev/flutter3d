@@ -54,7 +54,7 @@ void main() {
     // for half. Read through the dead zone, so the number shown is the one the
     // game will act on rather than the raw one.
     final fake = FakePad()
-      ..state.connected = true
+      ..state.isConnected = true
       ..state.setAxis(PadAxis.leftStickX, 1.0);
     await tester.pumpWidget(
       PadScreen(
@@ -71,7 +71,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final fake = FakePad()
-      ..state.connected = true
+      ..state.isConnected = true
       ..state.setAxis(PadAxis.triggerRight, 0.5);
     await tester.pumpWidget(
       PadScreen(
@@ -89,7 +89,7 @@ void main() {
     // `pad:face.south`, never `A`: checking that the identifier belongs to the
     // button under the thumb is itself an acceptance item, and it cannot be
     // checked against a label the screen invented.
-    final fake = FakePad()..state.connected = true;
+    final fake = FakePad()..state.isConnected = true;
     await tester.pumpWidget(PadScreen(pad: Gamepad(platform: fake)).wrapped);
     await tester.pump();
 
@@ -102,7 +102,7 @@ void main() {
   ) async {
     // The whole point of the screen is latency, so a value that only arrived once
     // would be worse than no screen at all.
-    final fake = FakePad()..state.connected = true;
+    final fake = FakePad()..state.isConnected = true;
     await tester.pumpWidget(
       PadScreen(
         pad: Gamepad(platform: fake, deadzone: const Deadzone(stick: 0.0)),

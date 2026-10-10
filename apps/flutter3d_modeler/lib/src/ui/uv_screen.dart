@@ -275,12 +275,12 @@ final class _LayoutPane extends StatelessWidget {
             spacing: 14,
             children: <Widget>[
               _LegendEntry(
-                colour: kUvNeutralColor,
+                color: kUvNeutralColor,
                 label: l.uvLegendNormal,
                 style: caption,
               ),
               _LegendEntry(
-                colour: kUvMaxStretchColor,
+                color: kUvMaxStretchColor,
                 label: l.uvLegendStretched,
                 style: caption,
               ),
@@ -294,12 +294,12 @@ final class _LayoutPane extends StatelessWidget {
 
 final class _LegendEntry extends StatelessWidget {
   const _LegendEntry({
-    required this.colour,
+    required this.color,
     required this.label,
     required this.style,
   });
 
-  final Color colour;
+  final Color color;
   final String label;
   final TextStyle? style;
 
@@ -307,7 +307,7 @@ final class _LegendEntry extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: <Widget>[
-      ColoredBox(color: colour, child: const SizedBox(width: 10, height: 10)),
+      ColoredBox(color: color, child: const SizedBox(width: 10, height: 10)),
       const SizedBox(width: 6),
       Text(label, style: style),
     ],

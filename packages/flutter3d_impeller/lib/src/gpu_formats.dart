@@ -15,6 +15,13 @@
 /// pattern, or a `switch` *statement* would each restore the silence. Do not
 /// add one.
 ///
+/// **A value flutter_gpu does not have is an arm that throws, by name** —
+/// the nineteen `extendedTextureFormats`, the four second-source
+/// `BlendFactor`s and `BlendOperation.min` and `max`. Still no wildcard: each
+/// is listed, so a twentieth is a build error here like any other value, and
+/// the throw names the feature (or the format) a caller should have asked
+/// about first.
+///
 /// The analyser guards our own enums gaining a value.
 /// `test/gpu_formats_test.dart` guards the other direction — flutter_gpu
 /// gaining one — by comparing counts, and guards the mapping itself by

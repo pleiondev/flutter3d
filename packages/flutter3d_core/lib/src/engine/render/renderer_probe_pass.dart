@@ -57,10 +57,13 @@ final class _ProbeBinding {
   });
 
   final vm.Vector3 position;
+
+  /// In metres.
   final double radius;
 
   /// What the draw's ambient strength becomes while this probe is bound —
   /// see `ReflectionProbeNode.intensity`.
+  /// A unitless ratio.
   final double intensity;
   final TextureHandle texture;
   final int levels;
@@ -137,12 +140,6 @@ extension _ProbePasses on Renderer {
       format: hdrFormat,
       mipLevels: levels + 1,
     );
-    if (capture == null || filtered == null) {
-      throw StateError(
-        'the device answered true to supportsCubeTextures and then made no '
-        'cube for a reflection probe',
-      );
-    }
     return _ProbeState(
       capture: capture,
       filtered: filtered,
@@ -222,7 +219,7 @@ extension _ProbePasses on Renderer {
     near: probe.near,
     far: probe.far,
     excluded: probe.excluded,
-    colour: state.capture,
+    color: state.capture,
     size: state.faceSize,
     face: face,
     settings: settings,
@@ -231,7 +228,7 @@ extension _ProbePasses on Renderer {
     clearColor: clearColor,
   );
 
-  /// Draws [scene] from [position] into [face] of the cube [colour], [size]
+  /// Draws [scene] from [position] into [face] of the cube [color], [size]
   /// texels a side — and, when [surface] is given, the surface buffer into
   /// the same face of that cube as the second attachment: the normal and the
   /// depth along the face's axis, which the irradiance field's update reads
@@ -243,7 +240,7 @@ extension _ProbePasses on Renderer {
     required double near,
     required double far,
     required Set<SceneNode> excluded,
-    required TextureHandle colour,
+    required TextureHandle color,
     TextureHandle? surface,
     required int size,
     required int face,
@@ -253,7 +250,7 @@ extension _ProbePasses on Renderer {
     required vm.Vector4 clearColor,
   }) {
     final depth = resources.transient(
-      RenderTargetSpec(
+      RenderTargetDescriptor(
         width: size,
         height: size,
         format: device.defaultDepthStencilFormat,
@@ -266,7 +263,7 @@ extension _ProbePasses on Renderer {
         label: _passLabel,
         colors: <ColorTarget>[
           ColorTarget(
-            texture: colour,
+            texture: color,
             face: face,
             clearValue: Renderer._srgbToLinear(clearColor),
           ),
@@ -284,6 +281,9 @@ extension _ProbePasses on Renderer {
     _targetOrigin[0] = device.framebufferOrigin == FramebufferOrigin.bottomLeft
         ? size.toDouble()
         : 0.0;
+    // A probe captures light for the materials to reflect; a debug view
+    // baked into it would outlive the frame that asked for one.
+    _suppressDebugViews();
 
     final rect = ScreenRect(width: size, height: size);
     pass.setState(
@@ -321,10 +321,12 @@ extension _ProbePasses on Renderer {
     _forwardData[0] = _forward.x;
     _forwardData[1] = _forward.y;
     _forwardData[2] = _forward.z;
+    // A probe's faces are perspective, whatever the camera that asked is.
+    _fogInfo.projection[0] = 0.0;
 
     void encodeHalf({required bool blended}) {
       for (final node in scene.meshes) {
-        if (!node.visibleInHierarchy || !node.shadowCasting.drawsColour) {
+        if (!node.isVisibleInHierarchy || !node.shadowCasting.drawsColor) {
           continue;
         }
         if (node.drawsTransparent != blended) continue;
@@ -338,7 +340,7 @@ extension _ProbePasses on Renderer {
           settings: settings,
           viewProjection: viewProjection,
           shadows: shadows,
-          lights: lights,
+          lights: _frameLights,
           shadowSlots: _shadowSlots,
           state: passState,
           mirrored: mirrored,
@@ -376,7 +378,7 @@ extension _ProbePasses on Renderer {
       );
     }
     final pipeline = _probePrefilterPipeline ??= device.createPipeline(
-      fullscreenVertexShader,
+      _fullscreenVertexShader,
       shader,
     );
 

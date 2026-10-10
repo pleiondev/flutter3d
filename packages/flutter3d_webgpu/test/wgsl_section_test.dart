@@ -29,10 +29,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/src/glsl_to_wgsl.dart';
+import 'package:flutter3d_shaders/translate.dart';
 import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
 import 'package:flutter3d_webgpu/src/webgpu_loaded_shaders.dart';
-import 'package:flutter3d_webgpu/src/wgsl_section.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -49,7 +48,7 @@ void main() {
     blocks: <PreparedBlock>[
       (
         name: 'FrameInfo',
-        group: kVertexGroup,
+        group: vertexGroup,
         binding: 0,
         sizeInBytes: 80,
         members: <PreparedMember>[
@@ -61,17 +60,17 @@ void main() {
     samplers: <PreparedSampler>[
       (
         name: 'base_color_texture',
-        group: kVertexGroup,
+        group: vertexGroup,
         textureBinding: 1,
         samplerBinding: 2,
-        dimension: kTwoDimensional,
+        dimension: twoDimensional,
       ),
       (
         name: 'sky_texture',
-        group: kVertexGroup,
+        group: vertexGroup,
         textureBinding: 3,
         samplerBinding: 4,
-        dimension: kCubeDimension,
+        dimension: cubeDimension,
       ),
     ],
   );
@@ -108,7 +107,7 @@ void main() {
     expect(back.blocks, hasLength(1));
     final block = back.blocks.single;
     expect(block.name, 'FrameInfo');
-    expect(block.group, kVertexGroup);
+    expect(block.group, vertexGroup);
     expect(block.binding, 0);
     expect(block.sizeInBytes, 80);
     expect(block.members.map((m) => m.name), <String>['mvp', 'tint']);
@@ -128,10 +127,7 @@ void main() {
     ]);
     expect(back.samplers.map((s) => s.textureBinding), <int>[1, 3]);
     expect(back.samplers.map((s) => s.samplerBinding), <int>[2, 4]);
-    expect(back.samplers.map((s) => s.group), <int>[
-      kVertexGroup,
-      kVertexGroup,
-    ]);
+    expect(back.samplers.map((s) => s.group), <int>[vertexGroup, vertexGroup]);
   });
 
   test('the document says the version the reader expects', () {
@@ -141,7 +137,7 @@ void main() {
     // `package:flutter`. So they are held equal here instead — the day the
     // shape changes, whichever half is bumped first fails this rather than
     // shipping a bundle the other half misreads.
-    expect(kSectionVersion, WebGpuLoadedShaderLibrary.sectionVersion);
+    expect(sectionVersion, WebGpuLoadedShaderLibrary.sectionVersion);
     expect(
       (jsonDecode(document()) as Map<String, dynamic>)['version'],
       WebGpuLoadedShaderLibrary.sectionVersion,
@@ -160,7 +156,7 @@ void main() {
       samplers: <PreparedSampler>[
         (
           name: 'volume_texture',
-          group: kFragmentGroup,
+          group: fragmentGroup,
           textureBinding: 0,
           samplerBinding: 1,
           dimension: 'threeDimensional',
@@ -173,7 +169,7 @@ void main() {
         fragment: <String, PackedStage>{'Volume': (wgsl: '', prepared: odd)},
       ),
       throwsA(
-        isA<WgslSectionError>().having(
+        isA<WgslSectionException>().having(
           (e) => e.message,
           'message',
           contains('threeDimensional'),

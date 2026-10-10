@@ -49,7 +49,7 @@ final class ParticleColorGradient extends ParticleAffector {
 final class ParticleSpin extends ParticleAffector {
   const ParticleSpin({
     required this.turnsPerSecond,
-    this.randomiseStart = true,
+    this.randomizeStart = true,
   });
 
   /// The fastest a particle spins, in whole turns a second. Each takes a signed
@@ -57,12 +57,12 @@ final class ParticleSpin extends ParticleAffector {
   final double turnsPerSecond;
 
   /// Whether a particle starts at a random angle rather than at zero.
-  final bool randomiseStart;
+  final bool randomizeStart;
 
   @override
   void apply(Particle particle, double dt) {
     final spin = (particle.seed * 2.0 - 1.0) * turnsPerSecond;
-    final start = randomiseStart ? particle.seed * _tau : 0.0;
+    final start = randomizeStart ? particle.seed * _tau : 0.0;
     particle.rotation = start + spin * particle.age * _tau;
   }
 }

@@ -50,19 +50,19 @@ void main() {
 
     test('and a camera for one of them stands level with the model', () {
       final ImpostorAtlas atlas = ImpostorAtlas();
-      final Vector3 centre = Vector3(0, 3, 0);
+      final Vector3 center = Vector3(0, 3, 0);
       for (var i = 0; i < atlas.angles; i++) {
         final SnapshotCamera camera = atlas.cameraFor(
           i,
-          centre: centre,
+          center: center,
           distance: 20,
         );
         // **The pitch an impostor is baked at is the pitch it is honest at.**
         // Mutation: bake from above. Every card in the scene then looks like
         // a sticker of a tree seen from a helicopter.
-        expect(camera.position.y, closeTo(centre.y, 1e-9));
-        expect(camera.position.distanceTo(centre), closeTo(20, 1e-6));
-        expect(camera.target, centre);
+        expect(camera.position.y, closeTo(center.y, 1e-9));
+        expect(camera.position.distanceTo(center), closeTo(20, 1e-6));
+        expect(camera.target, center);
       }
     });
 

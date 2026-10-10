@@ -17,14 +17,18 @@ import 'model.dart';
 /// `^0.6.0` does not reach 0.7.0 and moving one package forces every dependent
 /// to edit its pubspec. Anything that is not a plain caret, an `any`, a range,
 /// is answered null: the honest reply is that it was not judged.
+///
+/// The floor is semver's, pre-release included: `1.0.0-rc.1` sorts below
+/// `1.0.0`, so `^1.0.0` does not admit it and `^1.0.0-rc.1` admits `1.0.0`.
 bool? caretCovers(String constraint, String version) {
-  final wanted = _triple(
-    constraint.startsWith('^') ? constraint.substring(1) : '',
-  );
+  final floor = constraint.startsWith('^') ? constraint.substring(1) : '';
+  final wanted = _triple(floor);
   final actual = _triple(version);
   if (wanted == null || actual == null) return null;
 
-  if (_compare(actual, wanted) < 0) return false;
+  final numbers = _compare(actual, wanted);
+  if (numbers < 0) return false;
+  if (numbers == 0 && _preBelow(_pre(version), _pre(floor))) return false;
   final ceiling = wanted.$1 > 0
       ? (wanted.$1 + 1, 0, 0)
       : wanted.$2 > 0
@@ -41,6 +45,31 @@ bool? caretCovers(String constraint, String version) {
     int.parse(match.group(2)!),
     int.parse(match.group(3)!),
   );
+}
+
+/// The pre-release identifiers of [text], after a `-` and before a `+`.
+List<String> _pre(String text) {
+  final core = text.trim().split('+').first;
+  final dash = core.indexOf('-');
+  return dash < 0 ? const <String>[] : core.substring(dash + 1).split('.');
+}
+
+/// Whether pre-release [a] sorts below [b] for the same three numbers: a
+/// release (no identifiers) is above every pre-release of it, numbers
+/// compare as numbers and below words, and a shorter list is below a longer
+/// one it begins.
+bool _preBelow(List<String> a, List<String> b) {
+  if (a.isEmpty || b.isEmpty) return a.isNotEmpty && b.isEmpty;
+  for (var i = 0; i < a.length && i < b.length; i++) {
+    final c = switch ((int.tryParse(a[i]), int.tryParse(b[i]))) {
+      (final int x, final int y) => x.compareTo(y),
+      (int(), null) => -1,
+      (null, int()) => 1,
+      _ => a[i].compareTo(b[i]),
+    };
+    if (c != 0) return c < 0;
+  }
+  return a.length < b.length;
 }
 
 int _compare((int, int, int) a, (int, int, int) b) {

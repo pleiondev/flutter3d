@@ -1,0 +1,36 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: mcpkit-OfferedTool-tool'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mcp/kit.dart', 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart']
+      field: 'tool'
+      inClass: 'OfferedTool'
+    changes:
+      - kind: 'rename'
+        newName: 'spec'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_mcp-ModelSession-makeGameReady'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mcp/model.dart', 'package:flutter3d_model_mcp/flutter3d_model_mcp.dart']
+      method: 'makeGameReady'
+      inClass: 'ModelSession'
+    changes:
+      - kind: 'rename'
+        newName: 'prepareForGame'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim_mcp-kit-library (PictureAnswer)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart']
+      typedef: 'PictureAnswer'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_mcp/kit.dart']
+          typedef: 'PictureAnswer'

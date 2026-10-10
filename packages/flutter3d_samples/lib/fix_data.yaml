@@ -1,0 +1,24 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-samples-kSamplesAsset'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_samples/flutter3d_samples.dart']
+      variable: 'kSamplesAsset'
+    changes:
+      - kind: 'rename'
+        newName: 'samplesAsset'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-samples-kSamplesPath'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_samples/flutter3d_samples.dart']
+      variable: 'kSamplesPath'
+    changes:
+      - kind: 'rename'
+        newName: 'samplesPath'

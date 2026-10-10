@@ -34,7 +34,7 @@ final class LevelSketch {
   static const double thickness = 1.0;
 
   /// Where a ceiling goes when a room does not say: head height, plus enough
-  /// that a torch on the wall is not in anybody's eye.
+  /// that a torch on the wall is not in anybody's eye. In metres.
   static const double defaultHeight = 4.0;
 
   /// How far one reflection probe is trusted to stand for, in metres.
@@ -68,7 +68,7 @@ final class LevelSketch {
 
   /// A room: floor, ceiling, and four walls with [doors] cut through them.
   ///
-  /// [centre] is the middle of the floor and [size] the inside, read in X and
+  /// [center] is the middle of the floor and [size] the inside, read in X and
   /// Z; its Y is ignored and [height] is the height. [base] is where the floor's
   /// top face stands, and [height] is measured from it — so a sunken room's
   /// walls reach the same ceiling as its neighbours' when it is asked to.
@@ -80,7 +80,7 @@ final class LevelSketch {
   /// across the room, as few as leave nothing further than [probeReach] from
   /// one — a probe is a picture taken from a point, and a hall is not a point.
   void room(
-    List<num> centre,
+    List<num> center,
     List<num> size, {
     double height = defaultHeight,
     double base = 0.0,
@@ -91,8 +91,8 @@ final class LevelSketch {
     bool ceilinged = true,
     bool probe = true,
   }) {
-    final cx = centre[0].toDouble();
-    final cz = centre[2].toDouble();
+    final cx = center[0].toDouble();
+    final cz = center[2].toDouble();
     final w = size[0].toDouble();
     final d = size[2].toDouble();
     final x0 = cx - w / 2.0, x1 = cx + w / 2.0;
@@ -139,7 +139,7 @@ final class LevelSketch {
           door.offset;
       final low = door.sill ?? base;
       side.add((
-        centre: along,
+        center: along,
         width: door.width,
         sill: low,
         top: low + door.height,
@@ -209,11 +209,11 @@ final class LevelSketch {
         'a corridor from $from to $to is not straight',
       );
     }
-    final (centre, size) = alongX
+    final (center, size) = alongX
         ? (<num>[(x0 + x1) / 2.0, 0.0, z0], <num>[(x1 - x0).abs(), 0.0, width])
         : (<num>[x0, 0.0, (z0 + z1) / 2.0], <num>[width, 0.0, (z1 - z0).abs()]);
     room(
-      centre,
+      center,
       size,
       height: height,
       base: base,
@@ -281,15 +281,15 @@ final class LevelSketch {
     final ordered =
         <(int, _Hole)>[for (var i = 0; i < holes.length; i++) (i, holes[i])]
           ..sort(((int, _Hole) a, (int, _Hole) b) {
-            final byStart = (a.$2.centre - a.$2.width / 2.0).compareTo(
-              b.$2.centre - b.$2.width / 2.0,
+            final byStart = (a.$2.center - a.$2.width / 2.0).compareTo(
+              b.$2.center - b.$2.width / 2.0,
             );
             return byStart != 0 ? byStart : a.$1.compareTo(b.$1);
           });
     var cursor = span.$1;
     for (final (_, hole) in ordered) {
-      final left = hole.centre - hole.width / 2.0;
-      final right = hole.centre + hole.width / 2.0;
+      final left = hole.center - hole.width / 2.0;
+      final right = hole.center + hole.width / 2.0;
       if (left > cursor) {
         _piece(fixed, axis, cursor, left, base, base + height, material);
       }
@@ -348,10 +348,10 @@ final class LevelSketch {
     double w,
     double d,
   ) {
-    List<double> positions(double centre, double extent) {
+    List<double> positions(double center, double extent) {
       final count = math.max(1, (extent / (probeReach * 2.0)).ceil());
       final step = extent / count;
-      final start = centre - extent / 2.0 + step / 2.0;
+      final start = center - extent / 2.0 + step / 2.0;
       return <double>[for (var i = 0; i < count; i++) start + i * step];
     }
 
@@ -372,15 +372,24 @@ final class RoomDoor {
 
   /// `north`, `south`, `east` or `west`.
   final String side;
+
+  /// Along the wall from its middle, in metres.
   final double offset;
+
+  /// Side to side, in metres.
   final double width;
+
+  /// Sill to lintel, in metres.
   final double height;
+
+  /// The height the opening starts at, in metres in the level's frame, or
+  /// null for the room's own floor.
   final double? sill;
 }
 
 enum _Axis { x, z }
 
-typedef _Hole = ({double centre, double width, double sill, double top});
+typedef _Hole = ({double center, double width, double sill, double top});
 
 /// The keys a brush row writes to ask for the shadow [mode], and nothing it
 /// need not.

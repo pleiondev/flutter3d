@@ -9,6 +9,17 @@ library;
 
 import 'dart:io';
 
+/// N10: what happens to a level the moment somebody shares it.
+enum ShareModeration {
+  /// Kept as pending until a moderator publishes it. The default: a server
+  /// somebody stands up and forgets about should not be an open file host on
+  /// the day it starts.
+  review,
+
+  /// Published at once; reports send it back to review.
+  open,
+}
+
 /// Where the service listens, what it calls itself, and the secrets it holds.
 class Config {
   const Config({
@@ -23,6 +34,11 @@ class Config {
     this.assetsDirectory = 'web/assets',
     this.viewerDirectory,
     this.learnDirectory = 'content/learn/modeler',
+    this.telemetryLevelsDirectory,
+    this.shareModeration = ShareModeration.review,
+    this.shareModeratorToken,
+    this.shareReportsToHide = 3,
+    this.editor = false,
   });
 
   /// Reads the configuration from the process environment.
@@ -46,6 +62,36 @@ class Config {
     // development wants and what a test can read.
     final resendApiKey = env['MODELS_RESEND_API_KEY'];
 
+    // N10. Absent is a setting too — sharing with nobody to moderate it — but
+    // present and wrong is a deploy that believes it set something it did not,
+    // so those are named with the missing ones and stop the start.
+    final moderationName =
+        env['MODELS_SHARES_MODERATION'] ?? ShareModeration.review.name;
+    final moderation = ShareModeration.values.asNameMap()[moderationName];
+    if (moderation == null) {
+      missing.add('MODELS_SHARES_MODERATION (review or open)');
+    }
+    final rawToken = env['MODELS_SHARES_MODERATOR_TOKEN'] ?? '';
+    final moderatorToken = rawToken.isEmpty ? null : rawToken;
+    if (moderatorToken != null && moderatorToken.length < 24) {
+      missing.add('MODELS_SHARES_MODERATOR_TOKEN (24 characters or more)');
+    }
+    final rawReports = env['MODELS_SHARES_REPORTS_TO_HIDE'] ?? '';
+    final reportsToHide = rawReports.isEmpty ? 3 : int.tryParse(rawReports);
+    if (reportsToHide == null || reportsToHide <= 0) {
+      missing.add('MODELS_SHARES_REPORTS_TO_HIDE (a positive number)');
+    }
+
+    // Off unless it says on. A typo is named like a missing setting rather
+    // than read as either: a deploy that believes it switched editing back
+    // on should not find out from a 410.
+    final editor = switch (env['MODELS_EDITOR'] ?? 'off') {
+      'on' => true,
+      'off' || '' => false,
+      _ => null,
+    };
+    if (editor == null) missing.add('MODELS_EDITOR (on or off)');
+
     final config = Config(
       // 8794: on bob, 8790–8792 are the documentation site, tooth and its API,
       // and 8793 is the nginx that sits in front of this.
@@ -63,6 +109,11 @@ class Config {
       assetsDirectory: env['MODELS_ASSETS_DIR'] ?? 'web/assets',
       viewerDirectory: env['MODELS_VIEWER_DIR'],
       learnDirectory: env['MODELS_LEARN_DIR'] ?? 'content/learn/modeler',
+      telemetryLevelsDirectory: env['MODELS_TELEMETRY_LEVELS_DIR'],
+      shareModeration: moderation ?? ShareModeration.review,
+      shareModeratorToken: moderatorToken,
+      shareReportsToHide: reportsToHide ?? 3,
+      editor: editor ?? false,
     );
 
     if (missing.isNotEmpty) throw ConfigError(missing);
@@ -119,6 +170,32 @@ class Config {
   /// so production would have served the index with nothing on it and said
   /// nothing.
   final String learnDirectory;
+
+  /// N7: the level documents telemetry runs are played again in, or null for
+  /// a server that takes no telemetry. Optional, because most deploys of the
+  /// models service have no game to play them with.
+  final String? telemetryLevelsDirectory;
+
+  /// N10: whether a shared level waits for a moderator or opens at once.
+  final ShareModeration shareModeration;
+
+  /// What `Authorization: Bearer …` has to say on `/api/v1/moderation/`, or
+  /// null for a server nobody moderates — whose moderation routes are off,
+  /// and which in [ShareModeration.review] takes no shares at all, since none
+  /// could ever open.
+  final String? shareModeratorToken;
+
+  /// How many reports send a published level back to review.
+  final int shareReportsToHide;
+
+  /// Whether a model opened at `/app/` may be saved back: `MODELS_EDITOR`.
+  ///
+  /// **Off by default.** Off, `POST /api/v1/models/<id>/source` answers 410
+  /// and the pages offer viewing; rendering, inspection, preview pictures and
+  /// storage all stay. The viewer build is the other half of the switch —
+  /// `tool/build_viewer.sh` compiles the modeller to view or to edit, and
+  /// turning editing back on is this setting and that build together.
+  final bool editor;
 
   /// Whether letters are actually sent.
   bool get sendsMail => resendApiKey != null;

@@ -13,6 +13,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Quaternion, Vector3, Vector4;
 
@@ -42,13 +43,16 @@ _Staged _staged() {
       device,
       CuboidShape(size: Vector3(3.0, 0.4, 0.4)).build(),
     ),
-    Material(name: 'spoke', baseColor: Vector4(0.9, 0.8, 0.2, 1.0)),
+    RenderMaterial(
+      name: 'spoke',
+      baseColor: LinearColor.fromSrgb(0.9, 0.8, 0.2, 1.0),
+    ),
   )..setPosition(0.0, 0.0, -5.0);
   final camera = CameraNode();
   final scene = Scene()
     ..add(spoke)
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -68,13 +72,16 @@ Future<List<int>> _draw(_Staged it, RenderSettings settings) async {
     height: _height,
     scene: it.scene,
     views: <RenderView>[
-      RenderView(camera: it.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: it.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: settings,
   );
-  final bytes = await it.device.readPixels(frame.frame);
+  final bytes = await it.device.readback(frame.frame);
   return <int>[
-    for (var i = 0; i < _width * _height * 4; i++) bytes!.getUint8(i),
+    for (var i = 0; i < _width * _height * 4; i++) bytes.getUint8(i),
   ];
 }
 
@@ -156,7 +163,7 @@ void main() {
   });
 
   test('motion-blur-spin: the rim streaks and the hub stays sharp', () async {
-    // Mutation: return `centre` unconditionally from `MotionBlurShader`.
+    // Mutation: return `center` unconditionally from `MotionBlurShader`.
     // Nothing changes anywhere and the rim count is zero.
     void spin(_Staged it) => it.spoke.setRotation(_turned(0.6));
     final sharp = await _moved(_sharp, spin);

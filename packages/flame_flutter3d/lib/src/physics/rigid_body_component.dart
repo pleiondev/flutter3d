@@ -6,7 +6,7 @@ import 'dart:async' show scheduleMicrotask;
 
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../host/step_clock.dart';
@@ -82,7 +82,7 @@ class RigidBodyComponent extends Object3dComponent
   /// to bump into. Taken out when the component is gone, not when Flame
   /// moves it to a new parent, and never from inside a contact: Flame
   /// removes components at the start of a frame, between steps.
-  final Dynamics? removeFrom;
+  final RigidDynamics? removeFrom;
 
   final Vector3 _before = Vector3.zero();
   final Vector3 _drawn = Vector3.zero();

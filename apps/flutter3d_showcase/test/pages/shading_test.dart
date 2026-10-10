@@ -3,7 +3,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_showcase/pages/shading/alpha_modes.dart';
 import 'package:flutter3d_showcase/pages/shading/ambient_light.dart';
@@ -23,8 +23,8 @@ Future<Uint8List> _shot(ShowcaseDemo demo) async {
   try {
     run.update(1 / 60);
     final FrameResult frame = run.render(320, 180);
-    final ByteData? pixels = await device.readPixels(frame.frame);
-    return Uint8List.fromList(pixels!.buffer.asUint8List());
+    final ByteData pixels = await device.readback(frame.frame);
+    return Uint8List.fromList(pixels.buffer.asUint8List());
   } finally {
     run.dispose();
   }

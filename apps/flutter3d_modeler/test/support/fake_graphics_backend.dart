@@ -15,7 +15,7 @@
 /// *picture* is drawn with — and an empty frame compares equal to another
 /// empty frame, so the test goes green while asserting nothing. Hence
 /// [useFakeGraphicsBackend] registering through `addTearDown` rather than
-/// leaking, and hence `BackendRegistration.undo` existing at all.
+/// leaking, and hence `Registration.cancel` existing at all.
 ///
 /// **Do not use it in a test that reads pixels.** Those are tagged `golden`
 /// — `very_good test -x golden` skips the lot — and they want the real
@@ -25,6 +25,7 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_modeler/src/backend.dart' show modelerDevices;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Puts a do-nothing backend in front of the software rasteriser for the
@@ -34,12 +35,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// one test, which is what keeps the registry clean between files sharing a
 /// process.
 void useFakeGraphicsBackend() {
-  final backend = registerBackendOpener(
+  final backend = modelerDevices.addBackend(
     'FakeBackend (test)',
     ({required int width, required int height}) async => FakeBackend(),
   );
   _useFakePresenter();
-  addTearDown(backend.undo);
+  addTearDown(backend.cancel);
 }
 
 /// Registers something to stand where a [FakeBackend]'s picture would be, and
@@ -52,7 +53,7 @@ void useFakeGraphicsBackend() {
 /// a widget tries to show a frame, which is what twelve tests did when the
 /// device was swapped and this was not.
 void _useFakePresenter() {
-  final presenter = registerDevicePresenter<FakeBackend>(
+  final presenter = modelerDevices.addPresenter<FakeBackend>(
     (
       GraphicsDevice device,
       TextureHandle frame, {
@@ -67,7 +68,7 @@ void _useFakePresenter() {
           height: frame.height.toDouble(),
         ),
   );
-  addTearDown(presenter.undo);
+  addTearDown(presenter.cancel);
 }
 
 /// `cpuTestDevice`'s shape, backed by a device that draws nothing.
@@ -91,7 +92,7 @@ fakeTestDevice({int width = 96, int height = 72}) {
   _useFakePresenter();
   final device = FakeBackend();
   TextureHandle texel() => device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: 1,
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,

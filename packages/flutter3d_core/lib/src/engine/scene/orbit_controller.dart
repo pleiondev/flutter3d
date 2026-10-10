@@ -9,9 +9,8 @@ import 'scene_node.dart';
 /// Turntable controls: orbit a node around a target point.
 ///
 /// Drives a [SceneNode] rather than a camera, so the same controller can swing a
-/// light or a probe around a model. That separation is why Babylon's
-/// ArcRotateCamera behaviour is worth decomposing instead of copying: the orbit
-/// is a placement policy, not a property of a lens.
+/// light or a probe around a model: the orbit is a placement policy, not a
+/// property of a lens.
 ///
 /// Holds no Flutter types; the gesture bridge lives in the app layer.
 final class OrbitController {
@@ -23,9 +22,9 @@ final class OrbitController {
     this.pitch = 0.35,
     this.minDistance = 0.05,
     this.maxDistance = 1e5,
-    this.framingFov = math.pi / 4,
+    this.framingFovY = math.pi / 4,
   }) : target = target ?? Vector3.zero(),
-       orthoHeight = 2.0 * distance * math.tan(framingFov * 0.5) {
+       orthoHeight = 2.0 * distance * math.tan(framingFovY * 0.5) {
     apply();
   }
 
@@ -34,9 +33,11 @@ final class OrbitController {
   /// Point being orbited, in world space.
   final Vector3 target;
 
+  /// From [target] to the camera, in metres.
   double distance;
 
   /// Rotation about the world Y axis.
+  /// In radians.
   double yaw;
 
   /// Elevation. Clamped just short of the poles, because looking straight down
@@ -49,15 +50,17 @@ final class OrbitController {
   /// than it — see there for why a fixed floor made a small model
   /// unframeable.
   double minDistance;
+
+  /// The farthest the camera may go from [target], in metres.
   double maxDistance;
 
   /// The vertical angle the two lenses are kept in step through.
   ///
-  /// A perspective camera shows a target-height of `2·distance·tan(fov/2)`, and
+  /// A perspective camera shows a target-height of `2·distance·tan(fovY/2)`, and
   /// [orthoHeight] is held at that same value — so switching a viewport from
   /// one lens to the other leaves the model the size it already was, which is
   /// the whole point of having both.
-  final double framingFov;
+  final double framingFovY;
 
   /// The world height an orthographic lens shows, in the units the scene is in.
   ///
@@ -122,7 +125,7 @@ final class OrbitController {
   /// orbit angle instead of only the one it was computed at.
   void frameBounds(
     Aabb3 bounds, {
-    double fovYRadians = math.pi / 4,
+    double fovY = math.pi / 4,
     double margin = 1.25,
   }) {
     target
@@ -141,7 +144,7 @@ final class OrbitController {
     // which is far closer than anybody orbits by hand and still far enough
     // out for the near plane `suggestedDepthRange` derives from it.
     minDistance = math.min(minDistance, radius * 0.1);
-    distance = (radius / math.sin(fovYRadians * 0.5) * margin).clamp(
+    distance = (radius / math.sin(fovY * 0.5) * margin).clamp(
       minDistance,
       maxDistance,
     );
@@ -152,7 +155,7 @@ final class OrbitController {
     // middle, so matching the diameter would frame the model eight per cent
     // larger in one lens than the other, and switching between them would make
     // it jump.
-    orthoHeight = 2.0 * distance * math.tan(fovYRadians * 0.5);
+    orthoHeight = 2.0 * distance * math.tan(fovY * 0.5);
     apply();
   }
 

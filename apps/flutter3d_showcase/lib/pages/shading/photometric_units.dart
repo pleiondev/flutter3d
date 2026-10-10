@@ -6,7 +6,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PhotometricUnitsDemo extends ShowcaseDemo {
   double overcastLux = 10000.0;
@@ -32,7 +31,7 @@ final class PhotometricUnitsDemo extends ShowcaseDemo {
       ..add(
         MeshNode(
           sphere,
-          Material(baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+          RenderMaterial(baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0)),
           name: 'ball',
         ),
       );
@@ -40,7 +39,7 @@ final class PhotometricUnitsDemo extends ShowcaseDemo {
     // #region directional
     // A directional light has no falloff, so its intensity is what a surface
     // facing it reads: lux is the unit its own datasheet would give.
-    _sky = LightNode(name: 'sky', intensity: Photometric.fromLux(overcastLux))
+    _sky = LightNode(name: 'sky', intensity: overcastLux)
       ..setLocalForward(Vector3(-0.3, -0.7, -0.5));
     // #endregion directional
 
@@ -59,10 +58,25 @@ final class PhotometricUnitsDemo extends ShowcaseDemo {
       ..add(_lamp);
   }
 
+  // #region exposure
+  // Lux and candela are absolute, so the camera has to be set for them as a
+  // photographer would be: metered once for the overcast sky the page opens
+  // under, plus the scene's flat ambient (in the engine's pre-1.0 unit), and
+  // then left alone. About EV100 12, f/4 at roughly a two-hundred-and-fiftieth;
+  // the sliders then brighten and darken the picture, as the weather would.
+  static final PhysicalCamera _camera = PhysicalCamera.metered(
+    10000.0 + 0.06 * Photometric.legacyUnit,
+  );
+
+  @override
+  RenderSettings settings(DemoContext context) =>
+      RenderSettings(camera: _camera);
+  // #endregion exposure
+
   @override
   void update(DemoContext context, double dt) {
     // #region live
-    _sky.intensity = Photometric.fromLux(overcastLux);
+    _sky.intensity = overcastLux;
     _lamp.intensity = Photometric.fromLumens(lampLumens);
     // #endregion live
   }
@@ -89,7 +103,7 @@ final class PhotometricUnitsDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     const double epsilon = 1e-6;
-    if ((Photometric.toLux(_sky.intensity) - overcastLux).abs() > epsilon) {
+    if ((_sky.intensity - overcastLux).abs() > epsilon) {
       throw StateError('the sky intensity does not convert back to its lux');
     }
     if ((Photometric.toLumens(_lamp.intensity) - lampLumens).abs() > epsilon) {

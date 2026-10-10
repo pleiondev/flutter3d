@@ -14,7 +14,7 @@
 /// **One chunk type, not two.** `mesh-10` looked at chunked, copy-on-write
 /// persistent vectors for undo and rejected them by measurement — a scattered
 /// edit touches nearly every chunk, so a step costs 92-100% of a full copy,
-/// and `journal.dart`'s `JournalledFloats`/`JournalledInts` replaced them with
+/// and `journal.dart`'s `JournaledFloats`/`JournaledInts` replaced them with
 /// a diff-based journal instead. That means there is no existing chunked CoW
 /// structure in this package to reuse: `mesh-10`'s array is journalled, not
 /// chunked. `SculptMesh` is the first one, built for the access pattern a

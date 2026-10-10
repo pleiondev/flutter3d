@@ -8,7 +8,7 @@ the rig should be looking.
 
 ## Step 1: The six numbers a chase needs
 
-`RigTuning` is a base class a game extends with its own tuning. This page's
+`RigSettings` is a base class a game extends with its own tuning. This page's
 is a short chase behind a fixed point.
 
 {{code tuning}}

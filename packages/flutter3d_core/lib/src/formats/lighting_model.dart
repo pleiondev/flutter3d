@@ -1,3 +1,6 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Registration;
+
 import 'material_extensions.dart';
 
 /// A lighting model: one pre-built fragment shader and what the engine may
@@ -55,6 +58,8 @@ final class LightingModel {
     this._usesLightList,
     this._usesFogInfo,
     this.vertexStageMorphs = true,
+    this.usesSceneDepth = false,
+    this.vertexStageInDepthPasses = false,
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -85,6 +90,25 @@ final class LightingModel {
   static const LightingModel xray = LightingModel(
     'X-ray',
     'Xray',
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+
+  /// A planar reflector's surface drawn again with the mirrored picture over
+  /// it — `P4`, the stage `renderer_planar_pass.dart` draws with.
+  ///
+  /// Absent from [builtIn] for [xray]'s reason: it is not a way to light a
+  /// material but a second draw over one, and a material asking for it would
+  /// be a surface with nothing under its reflection. It reads no maps, no
+  /// lights and no `FragInfo` — the eye is the fog block's — and declares no
+  /// surface buffer, so it leaves what the surface below it wrote there.
+  static const LightingModel planarReflection = LightingModel(
+    'Planar reflection',
+    'PlanarReflection',
+    usesFragInfo: false,
+    usesFogInfo: true,
+    usesAlbedoTexture: false,
     usesMaterialMaps: false,
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
@@ -168,6 +192,17 @@ final class LightingModel {
     usesMetallic: true,
     usesEnvironment: true,
   );
+
+  /// Cel shading: the light in a few hard bands and a rim.
+  ///
+  /// **Owned by `flutter3d_post/style.dart`**, whose `toonLighting` is this same
+  /// constant and whose `ToonLightingAddon` registers it through
+  /// [LightingModels] as any plugin's model is registered. Kept here as a
+  /// stable alias and in [builtIn] for the whole of 1.x, because its stages
+  /// are still compiled into every backend's engine bundle and the CPU
+  /// rasteriser, and documents written since 0.1 name `Toon` without any
+  /// addon: a material asking for it reads and draws with or without the
+  /// addon installed. The stages leave the engine bundle with 2.0.
   static const LightingModel toon = LightingModel('Toon', 'Toon');
   static const LightingModel normals = LightingModel(
     'Normals',
@@ -327,6 +362,28 @@ final class LightingModel {
   /// declare them.
   final bool vertexStageMorphs;
 
+  /// Whether the fragment stage reads the scene behind it — the material
+  /// language's `sceneDepth` and `scenePosition`, version 2: the
+  /// `scene_depth_texture` sampler and the `SceneDepthInfo` block.
+  ///
+  /// **A binding flag, for [usesEnvironment]'s reason**: a sampler bound to
+  /// a stage that has none, or declared and left unbound, is a native crash
+  /// on Metal. It also moves the draw: a surface reading the scene is drawn
+  /// after the opaque half, in a pass where the surface buffer is bound
+  /// rather than attached — the one soft particles are drawn in. False for
+  /// every model the engine ships.
+  final bool usesSceneDepth;
+
+  /// Whether the depth pre-draw and the shadow passes draw through
+  /// [vertexShaderName] too, rather than through the engine's own mesh
+  /// stage — the material language's `vertex` block, version 2.
+  ///
+  /// **So that geometry the stage moves casts the shadow it draws.** False
+  /// by default, which is what every stage written before the block had: a
+  /// polyline widened on screen, or a card turned to the eye, means nothing
+  /// to a light. Ignored when [vertexShaderName] is null.
+  final bool vertexStageInDepthPasses;
+
   /// Whether the shader samples `metallic_roughness_texture`.
   ///
   /// Separate from [usesMaterialMaps] because Lambert is purely diffuse: it has
@@ -378,4 +435,103 @@ final class LightingModel {
   /// holds, for the reason above it — and because binding a texture a compiled
   /// shader has no slot for is a native crash, not a no-op.
   final bool usesEnvironment;
+}
+
+/// The lighting models a document may name: the engine's [LightingModel.builtIn]
+/// and every model a plugin registered — the open registry.
+///
+/// **How a plugin adds a way to light a surface.** It describes the model —
+/// by hand, or with `MaterialBindings.lightingModel` from a `.f3dmat` whose
+/// `light` and composite hooks are the model — and registers it, usually
+/// through `RendererSteps.addLightingModel` from a `LightingModelAddon`,
+/// which also hands the renderer the stages. From then on a material file
+/// naming the model's [LightingModel.shaderName] reads as that model, and a
+/// picker walking [all] offers it. Cancelling the registration takes the
+/// name back out.
+///
+/// **One table for the process, and the reason is the document.** A material
+/// file is read before any renderer exists — by an importer, a server, a
+/// tool — and it names its model by a string; the table that answers that
+/// name has to be reachable from the reader, as [LightingModel.builtIn]
+/// always was. What it holds is a description, never a stage: the stages are
+/// each renderer's, added to it by the same plugin. Registrations are
+/// counted, so two engines in one process installing the same addon share
+/// the entry and the second one's removal leaves the first's.
+///
+/// **The built-in names stay the built-in models.** A model registered under
+/// a name [LightingModel.builtIn] has is refused unless it is that very
+/// constant — `flutter3d_post/style.dart` registering [LightingModel.toon] is the
+/// case that passes. An application replacing the `Pbr` stage does that with
+/// `renderer.renderSteps.addMaterials`; the description of what `Pbr` binds is not its
+/// to change.
+abstract final class LightingModels {
+  static final Map<String, _RegisteredModel> _registered =
+      <String, _RegisteredModel>{};
+
+  /// Every model a document may name: [LightingModel.builtIn] in its order,
+  /// then the registered ones not already among them, in the order they
+  /// were first registered.
+  static List<LightingModel> get all => List<LightingModel>.unmodifiable(
+    <LightingModel>[...LightingModel.builtIn, ...registered],
+  );
+
+  /// The models plugins registered, other than the built-in ones.
+  static List<LightingModel> get registered =>
+      List<LightingModel>.unmodifiable(<LightingModel>[
+        for (final entry in _registered.values)
+          if (!LightingModel.builtIn.contains(entry.model)) entry.model,
+      ]);
+
+  /// The model whose [LightingModel.shaderName] is [shaderName], built in
+  /// or registered, or null. An exact match first, then one that differs
+  /// only in case — how material files have always been read.
+  static LightingModel? named(String shaderName) {
+    for (final model in all) {
+      if (model.shaderName == shaderName) return model;
+    }
+    final lower = shaderName.toLowerCase();
+    for (final model in all) {
+      if (model.shaderName.toLowerCase() == lower) return model;
+    }
+    return null;
+  }
+
+  /// Makes [model] one a document may name, until the result is cancelled.
+  ///
+  /// Throws an [ArgumentError] when another model already answers to its
+  /// [LightingModel.shaderName] — built in, or registered by somebody else.
+  /// Registering the same model again is counted, not refused.
+  static Registration register(LightingModel model) {
+    final name = model.shaderName;
+    for (final built in LightingModel.builtIn) {
+      if (built.shaderName == name && !identical(built, model)) {
+        throw ArgumentError.value(
+          name,
+          'model',
+          'is the name of a built-in lighting model; replace its stage with '
+              'renderer.renderSteps.addMaterials instead',
+        );
+      }
+    }
+    final existing = _registered[name];
+    if (existing != null && !identical(existing.model, model)) {
+      throw ArgumentError.value(
+        name,
+        'model',
+        'a different lighting model is already registered under this name',
+      );
+    }
+    final entry = existing ?? (_registered[name] = _RegisteredModel(model));
+    entry.count++;
+    return Registration(() {
+      entry.count--;
+      if (entry.count == 0) _registered.remove(name);
+    });
+  }
+}
+
+final class _RegisteredModel {
+  _RegisteredModel(this.model);
+  final LightingModel model;
+  int count = 0;
 }

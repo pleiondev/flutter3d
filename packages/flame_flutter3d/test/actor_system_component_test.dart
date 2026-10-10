@@ -4,6 +4,7 @@
 library;
 
 import 'package:flame_flutter3d/src/ecs/actor_system_component.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';

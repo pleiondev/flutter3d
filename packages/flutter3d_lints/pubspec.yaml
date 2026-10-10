@@ -1,0 +1,39 @@
+name: flutter3d_lints
+description: "Analyzer rules for code that runs inside a flutter3d fixed step: no wall clock, no unseeded Random, no dart:math transcendental where Portable gives one answer everywhere. An analysis server plugin, for a plugin's own simulation code."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - lints
+  - analyzer
+  - determinism
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# An analysis server plugin runs where the analysis server does: on a
+# developer's machine and on CI, never inside a game.
+platforms:
+  linux:
+  macos:
+  windows:
+
+dependencies:
+  # The analysis server's own plugin framework, shipped with the Dart SDK
+  # since 3.10 and enabled from `analysis_options.yaml` under `plugins:`.
+  # Each release of it pins one analyzer exactly, so the two ranges move
+  # together: 0.3.17 (analyzer 13.2.0) is the first with the change builder
+  # the migration fixes use, and the rules analyze clean up to 0.3.24
+  # (analyzer 14.5.0). The analyzer's own bound keeps out a plugin release
+  # built on an analyzer major nobody has checked. The analysis server
+  # resolves a plugin package on its own, apart from the project that
+  # enables it.
+  analysis_server_plugin: ^0.3.17
+  analyzer: ">=13.2.0 <15.0.0"
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

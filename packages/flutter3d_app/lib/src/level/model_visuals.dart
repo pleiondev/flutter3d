@@ -1,6 +1,6 @@
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 import '../diagnostics/issues.dart';
 
@@ -102,14 +102,35 @@ final class ModelVisuals {
     // here, since no list [dispose] walks will ever hold it, and nothing goes
     // into a scene nobody draws any more.
     if (generation != _generation) {
-      asset.release(device);
+      asset.dispose();
       return null;
     }
     _assets.add(asset);
 
     final instance = asset.instantiate(scene, name: entity.name);
     instance.root.setPositionFrom(entity.position);
-    instance.root.setRotationYawPitchRoll(entity.yaw, 0.0, 0.0);
+    // `tilt` is the rest of a rotation after `yaw`, applied first, and
+    // `scale` the row's own: what `flutter3d convert` writes for a model a
+    // scene placed at an angle a yaw cannot say. Both absent is every
+    // hand-written level.
+    final tilt = entity.properties['tilt'];
+    if (tilt is List &&
+        tilt.length == 4 &&
+        tilt.every((Object? v) => v is num)) {
+      final turn = Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw);
+      final rest = Quaternion(
+        (tilt[0] as num).toDouble(),
+        (tilt[1] as num).toDouble(),
+        (tilt[2] as num).toDouble(),
+        (tilt[3] as num).toDouble(),
+      ).normalized();
+      instance.root.setRotation(turn * rest);
+    } else {
+      instance.root.setRotationYawPitchRoll(entity.yaw, 0.0, 0.0);
+    }
+    if (entity.vector('scale') case final Vector3 scale) {
+      instance.root.setScale(scale.x, scale.y, scale.z);
+    }
     _instances.add(instance);
 
     final entityName = entity.name;
@@ -135,7 +156,7 @@ final class ModelVisuals {
       instance.removeFromScene();
     }
     for (final asset in _assets) {
-      asset.release(device);
+      asset.dispose();
     }
     _instances.clear();
     _assets.clear();

@@ -13,12 +13,11 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 void main() => runApp(const SceneApp());
 
@@ -116,15 +115,11 @@ class _SceneAppState extends State<SceneApp>
     }
 
     try {
-      final device = WebGlDevice.create(
+      final device = WebGlDevice.open(
         width: _width,
         height: _height,
-        sources: engineShaders,
+        sources: webGlEngineShaders,
       );
-      if (device == null) {
-        setState(() => _status = 'FAIL  no WebGL2 context');
-        return;
-      }
       say('PASS  device');
 
       // One opaque white texel each. The renderer binds these wherever a
@@ -159,7 +154,9 @@ class _SceneAppState extends State<SceneApp>
         fallbackAlbedo: white,
         fallbackNormal: flat,
       );
-      say('PASS  renderer, ${engineShaders.names.length} shaders resolved');
+      say(
+        'PASS  renderer, ${webGlEngineShaders.names.length} shaders resolved',
+      );
 
       final scene = Scene();
       final mesh = DeviceMesh.upload(
@@ -168,9 +165,9 @@ class _SceneAppState extends State<SceneApp>
       );
       final ball = MeshNode(
         mesh,
-        Material(
+        RenderMaterial(
           name: 'ball',
-          baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+          baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.2, 1.0),
           lighting: LightingModel.lambert,
         ),
         name: 'ball',
@@ -178,7 +175,7 @@ class _SceneAppState extends State<SceneApp>
       scene.root.add(ball);
       _ball = ball;
       final light = LightNode(name: 'key', type: LightType.directional)
-        ..intensity = 3.0;
+        ..intensity = 3.0 * Photometric.legacyUnit;
       light.setPosition(2.0, 3.0, 2.0);
       light.lookAt(Vector3.zero());
       scene.root.add(light);

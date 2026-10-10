@@ -1,7 +1,9 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show WorldPosition;
+import 'package:vector_math/vector_math.dart';
 
 import 'bvh.dart';
 import 'camera_node.dart';
@@ -48,6 +50,15 @@ final class HitResult {
   bool approximate = false;
 
   MeshNode get requireNode => node!;
+
+  /// Where [point] is in the world: the scene's origin when it was hit plus
+  /// [point], in doubles.
+  WorldPosition get position => WorldPosition(
+    _origin.x + point.x,
+    _origin.y + point.y,
+    _origin.z + point.z,
+  );
+  WorldPosition _origin = WorldPosition.origin;
 
   void _reset() {
     node = null;
@@ -101,10 +112,26 @@ final class HitResult {
 final class Raycaster {
   Raycaster();
 
-  /// The ray being cast, in world space.
-  final Ray ray = Ray.zero();
+  /// The ray being cast, in the scene's own space: float32, relative to
+  /// `Scene.origin`. [setFromWorld] aims it from a [WorldRay].
+  final LocalRay ray = LocalRay.zero();
+
+  /// [ray] in the world, given the [scene] whose space it is in — for a game
+  /// handing a pick on to a simulation that works in world positions.
+  WorldRay worldRayIn(Scene scene) =>
+      WorldRay(scene.toWorld(ray.origin), ray.direction);
+
+  /// Aims [ray] along [worldRay], in [scene]'s space — for a caller whose
+  /// ray starts at a simulation's world position: the origin's
+  /// difference from the scene's is narrowed to float32 once.
+  Raycaster setFromWorld(WorldRay worldRay, Scene scene) {
+    ray.setFrom(scene.toScene(worldRay.origin), worldRay.direction);
+    ray.normalizeDirection();
+    return this;
+  }
 
   /// Maximum distance to consider. Anything further away is a miss.
+  /// In metres.
   double maxDistance = double.infinity;
 
   /// Whether to ignore triangles facing away from the ray.
@@ -147,7 +174,7 @@ final class Raycaster {
   Float32List _spheres = Float32List(0);
 
   final HitResult _hit = HitResult();
-  final Ray _localRay = Ray.zero();
+  final LocalRay _localRay = LocalRay.zero();
   final Vector3 _a = Vector3.zero();
   final Vector3 _b = Vector3.zero();
   final Vector3 _c = Vector3.zero();
@@ -221,7 +248,9 @@ final class Raycaster {
     int layerMask = ~0,
     bool visibleOnly = true,
   }) {
-    _hit._reset();
+    _hit
+      .._reset()
+      .._origin = scene.origin;
     var best = maxDistance;
 
     final meshes = scene.meshes;
@@ -232,17 +261,17 @@ final class Raycaster {
     /// does produce runs the same tests the linear pass would — which is what
     /// keeps the two paths returning the same hit.
     void consider(MeshNode node) {
-      if (visibleOnly && !node.visibleInHierarchy) return;
+      if (visibleOnly && !node.isVisibleInHierarchy) return;
       if ((node.layerMask & layerMask) == 0) return;
       if (node.mesh.indexCount == 0) return;
 
       // The same cheap rejection culling uses, against the same cached sphere.
       final sphereDistance = raySphere(
         ray,
-        node.worldBoundsCentre,
+        node.worldBoundsCenter,
         node.worldBoundsRadius,
       );
-      if (sphereDistance == kNoHit || sphereDistance > best) return;
+      if (sphereDistance == noHit || sphereDistance > best) return;
 
       if (_intersectNode(node, best)) best = _hit.distance;
     }
@@ -267,4 +296,52 @@ final class Raycaster {
 
     return _hit.node == null ? null : _hit;
   }
+}
+
+/// A ray in the world: an origin in double precision and a unit direction —
+/// decision 2 and 3 of the API review (`Ray` collided with vector_math's;
+/// the float32 ray of the geometry library is `LocalRay`).
+///
+/// What a pick, a line of sight or a projectile is described in when it may
+/// start kilometres from the origin. A [Raycaster] works in its scene's own
+/// space; [Raycaster.setFromWorld] and [Raycaster.worldRayIn] cross over.
+final class WorldRay {
+  /// A ray from [origin] along [direction], which is normalised (a zero
+  /// direction stays zero).
+  WorldRay(this.origin, Vector3 direction)
+    : direction = direction.length2 > 0.0
+          ? direction.normalized()
+          : direction.clone();
+
+  /// Where the ray starts.
+  final WorldPosition origin;
+
+  /// Which way it goes: unit length, float32.
+  final Vector3 direction;
+
+  /// The point [distance] metres along the ray.
+  WorldPosition at(double distance) => origin.translated(
+    direction.x * distance,
+    direction.y * distance,
+    direction.z * distance,
+  );
+
+  /// This ray relative to [from], as the geometry library's float32 ray.
+  LocalRay relativeTo(WorldPosition from) {
+    final d = origin.relativeTo(from);
+    return LocalRay(Vector3(d.x, d.y, d.z), direction);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is WorldRay &&
+      other.origin == origin &&
+      other.direction == direction;
+
+  @override
+  int get hashCode =>
+      Object.hash(origin, direction.x, direction.y, direction.z);
+
+  @override
+  String toString() => 'WorldRay($origin -> $direction)';
 }

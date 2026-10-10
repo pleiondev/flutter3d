@@ -17,14 +17,13 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// One built material, and the version of the project material it was built
 /// from.
-typedef _Built = ({engine.Material material, int version});
+typedef _Built = ({engine.RenderMaterial material, int version});
 
 /// Materials a scene can draw with, built from a project's table.
 final class MaterialPool {
@@ -62,7 +61,7 @@ final class MaterialPool {
   /// Null rather than a default, so the caller decides what an unpainted object
   /// looks like. The viewport paints it in clay; an exporter would want to know
   /// there was nothing there.
-  engine.Material? operator [](int? slot) =>
+  engine.RenderMaterial? operator [](int? slot) =>
       slot == null ? null : _built[slot]?.material;
 
   /// The texture this pool uploaded for [ModelProject.images] row [index],
@@ -85,7 +84,7 @@ final class MaterialPool {
   }
 
   /// The material an object is drawn with, by its first slot.
-  engine.Material? forObject(ModelObject object) =>
+  engine.RenderMaterial? forObject(ModelObject object) =>
       this[object.materialSlots.isEmpty ? null : object.materialSlots.first];
 
   /// Brings the pool to [project]'s table, and answers how many materials it
@@ -151,7 +150,7 @@ final class MaterialPool {
   /// Gives back every texture this uploaded.
   ///
   /// Called when a project is closed. The materials go with it: an
-  /// `engine.Material` holding a released handle is a material that samples
+  /// `engine.RenderMaterial` holding a released handle is a material that samples
   /// whatever the driver put there next.
   void dispose() {
     for (final TextureHandle? handle in _textures.values) {
@@ -166,9 +165,9 @@ final class MaterialPool {
 ///
 /// The colour of unpainted clay: a shape being judged by its form rather than
 /// its surface, which is what a modeller is for.
-engine.Material clay() => engine.Material(
+engine.RenderMaterial clay() => engine.RenderMaterial(
   name: 'clay',
   lighting: LightingModel.pbr,
-  baseColor: Vector4(0.72, 0.70, 0.67, 1.0),
+  baseColor: LinearColor.fromSrgb(0.72, 0.70, 0.67, 1.0),
   roughness: 0.65,
 );

@@ -26,7 +26,7 @@ and the browser drew a different sky from Impeller without anything noticing.
 
 ## Where it stands against Impeller
 
-In all thirty-two golden scenes, between 0.01% and 0.6% of pixels differ from
+In all 32 golden scenes, between 0.01% and 0.6% of pixels differ from
 Impeller by more than 8 per channel. That is the silhouette's worth of
 disagreement two rasterisers always have. `test/cross_backend_test.dart` holds
 each scene to its own measured budget, so a scene that starts drifting is named

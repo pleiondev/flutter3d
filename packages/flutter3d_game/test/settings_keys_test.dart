@@ -15,26 +15,25 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
-SettingsCubit _open() => SettingsCubit(
-  config: GameConfig(),
+GameSettingsController _open() => GameSettingsController(
+  settings: const GameSettings(),
   file: SettingsFile(appName: 'test', storage: _Storage()),
-  apply: (GameConfig _) {},
+  apply: (GameSettings _) {},
 );
 
 KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(
@@ -78,7 +77,7 @@ void main() {
       reason: 'the game got a key the panel was waiting for',
     );
     expect(
-      settings.config.bindings[InputSource.key(LogicalKeyboardKey.keyR.keyId)],
+      settings.actions.buttons[InputSource.key(LogicalKeyboardKey.keyR.keyId)],
       GameAction.jump,
     );
   });
@@ -88,9 +87,9 @@ void main() {
 
     settingsKeys(_down(LogicalKeyboardKey.escape), settings, opening: () {});
 
-    expect(settings.state.waitingFor, isNull);
+    expect(settings.value.waitingFor, isNull);
     expect(
-      settings.config.bindings
+      settings.actions.buttons
           .sourcesFor(GameAction.jump)
           .contains(InputSource.key(LogicalKeyboardKey.escape.keyId)),
       isFalse,
@@ -103,10 +102,10 @@ void main() {
     final settings = _open();
 
     settingsKeys(_down(LogicalKeyboardKey.escape), settings, opening: () {});
-    expect(settings.state.isOpen, isTrue);
+    expect(settings.value.isOpen, isTrue);
 
     settingsKeys(_down(LogicalKeyboardKey.escape), settings, opening: () {});
-    expect(settings.state.isOpen, isFalse);
+    expect(settings.value.isOpen, isFalse);
   });
 
   test('and opening runs before the panel is on screen, closing does not', () {
@@ -121,7 +120,7 @@ void main() {
       _down(LogicalKeyboardKey.escape),
       settings,
       opening: () {
-        expect(settings.state.isOpen, isFalse, reason: 'it ran too late');
+        expect(settings.value.isOpen, isFalse, reason: 'it ran too late');
         openings++;
       },
     );
@@ -147,7 +146,7 @@ void main() {
     );
 
     expect(says, isNull);
-    expect(settings.state.isOpen, isFalse);
+    expect(settings.value.isOpen, isFalse);
   });
 
   test('and refusing to open never traps a panel that is open', () {
@@ -163,7 +162,7 @@ void main() {
       canOpen: false,
     );
 
-    expect(settings.state.isOpen, isFalse);
+    expect(settings.value.isOpen, isFalse);
   });
 
   group('with the panel open the keys belong to the panel', () {

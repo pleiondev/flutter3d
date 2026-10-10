@@ -11,7 +11,7 @@ import 'dart:convert';
 import 'dart:io';
 
 /// Where a running `ModelHttpServer` answers, and the token every request
-/// must present — see `flutter3d_mcp_kit`'s `writeMcpSessionFile`.
+/// must present — see `flutter3d_mcp/kit.dart`'s `writeMcpSessionFile`.
 final class McpSession {
   const McpSession({required this.port, required this.token});
 
@@ -19,7 +19,11 @@ final class McpSession {
   final String token;
 
   /// The endpoint every JSON-RPC request in this tool posts to.
-  Uri get endpoint => Uri.parse('http://127.0.0.1:$port/mcp?token=$token');
+  Uri get endpoint => Uri.parse('http://127.0.0.1:$port/mcp');
+
+  /// The `Authorization` header every request carries: the server takes the
+  /// token from it and from nowhere else.
+  String get authorization => 'Bearer $token';
 
   /// Reads [file] the way `mcp_bootstrap_io.dart` wrote it. Throws a
   /// [FormatException] for anything else — a stale or hand-edited file, or

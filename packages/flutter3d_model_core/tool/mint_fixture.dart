@@ -7,7 +7,7 @@
 /// says that a project saved by an older build still opens. A fixture re-minted
 /// by today's writer says only that today's writer agrees with itself, which
 /// every other test in the suite already covers. So this refuses to overwrite
-/// one — when `kProjectVersion` moves, a new file joins the directory and the
+/// one — when `projectVersion` moves, a new file joins the directory and the
 /// old ones stay exactly as they are.
 library;
 
@@ -18,7 +18,7 @@ import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import '../test/fixture_project.dart';
 
 void main() {
-  final path = 'test/fixtures/v$kProjectVersion/workshop.f3dproj';
+  final path = 'test/fixtures/v$projectVersion/workshop.f3dproj';
   final file = File(path);
   if (file.existsSync()) {
     stderr.writeln(

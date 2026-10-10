@@ -25,7 +25,7 @@ import 'frame_graph.dart';
 /// is given, but it cannot check the ones it never receives.
 abstract final class FrameResourceIds {
   /// The scene's HDR colour, before any post.
-  static const ResourceId hdrColour = ResourceId('hdr_colour');
+  static const ResourceId hdrColor = ResourceId('hdr_colour');
 
   /// World normal and depth, the second attachment of the scene pass.
   static const ResourceId surfaceBuffer = ResourceId('surface_buffer');
@@ -102,11 +102,16 @@ abstract final class FrameResourceIds {
   /// halvings, side by side in one texture — `M3`, for the transmissive draws
   /// to read. Produced only on a frame that holds one; see
   /// `SceneColourChain`.
-  static const ResourceId sceneColour = ResourceId('scene_colour');
+  static const ResourceId sceneColor = ResourceId('scene_colour');
 
   /// Which node drew each pixel, as an id in RGBA8. Produced only on a frame
   /// something asked to pick from.
   static const ResourceId objectIds = ResourceId('object_ids');
+
+  /// The colour each marked node is ringed in, where the scene shows it, in
+  /// RGBA8 with alpha one where a mark is — `N9`. Produced only while the
+  /// high-contrast look is on and some node carries a `MeshNode.outlineColor`.
+  static const ResourceId outlineMask = ResourceId('outline_mask');
 
   /// What is shown.
   static const ResourceId frame = ResourceId('frame');
@@ -119,4 +124,16 @@ abstract final class FrameResourceIds {
   /// the world that reflects it.
   static ResourceId reflectionProbe(int index) =>
       ResourceId('reflection_probe_$index');
+
+  /// What the scene's `RenderTexture`s were drawn into — `P4`.
+  ///
+  /// One name for all of them, and what it stands for is the order: the
+  /// scene reads it optionally, so every camera into a texture draws before
+  /// the materials that show its picture. The pictures themselves are each
+  /// texture's own and outlive the frame.
+  static const ResourceId renderTextures = ResourceId('render_textures');
+
+  /// The mirrored pictures of the scene's planar reflectors — `P4`, one
+  /// name for all of them and every view, for [renderTextures]' reason.
+  static const ResourceId planarReflections = ResourceId('planar_reflections');
 }

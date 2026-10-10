@@ -10,14 +10,16 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class XpbdClothDemo extends ShowcaseDemo {
   double wind = 1.5;
   bool swingBall = true;
 
   late final ClothMesh _cloth;
+  ClothSimulation? _simulation;
   late final ClothObstacle _obstacle;
   late final MeshNode _sheet;
   late final MeshNode _ball;
@@ -41,6 +43,9 @@ final class XpbdClothDemo extends ShowcaseDemo {
   }
 
   @override
+  void dispose() => _simulation?.dispose();
+
+  @override
   Scene build(DemoContext context) {
     // #region cloth
     // Row zero is pinned, which is what stops the sheet falling forever:
@@ -51,6 +56,9 @@ final class XpbdClothDemo extends ShowcaseDemo {
       spacing: _spacing,
       height: _hangs,
     );
+    // Stepped on the run's physics: the core, or the Dart reference where
+    // the core cannot start. Either way it moves `_cloth` itself.
+    _simulation = usePhysics().cloth(_cloth);
     _obstacle = ClothObstacle(
       CollisionSphere(_ballRadius),
       Vector3(0.68, 1.0, 0.6),
@@ -60,9 +68,9 @@ final class XpbdClothDemo extends ShowcaseDemo {
     _upload = () => DeviceMesh.upload(context.device, _mesh());
     _sheet = MeshNode(
       _upload(),
-      Material(
+      RenderMaterial(
         name: 'cloth',
-        baseColor: Vector4(0.8, 0.3, 0.35, 1.0),
+        baseColor: LinearColor.fromSrgb(0.8, 0.3, 0.35, 1.0),
         roughness: 0.8,
         doubleSided: true,
       ),
@@ -73,17 +81,20 @@ final class XpbdClothDemo extends ShowcaseDemo {
         context.device,
         SphereShape(segments: 24, rings: 12, radius: _ballRadius).build(),
       ),
-      Material(name: 'ball', baseColor: Vector4(0.4, 0.5, 0.7, 1.0)),
+      RenderMaterial(
+        name: 'ball',
+        baseColor: LinearColor.fromSrgb(0.4, 0.5, 0.7, 1.0),
+      ),
       name: 'ball',
     )..setPositionFrom(_obstacle.position);
 
     return Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit
       ..add(_sheet)
       ..add(_ball)
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.5, -0.6)),
       );
   }
@@ -142,8 +153,7 @@ final class XpbdClothDemo extends ShowcaseDemo {
     // #region live
     // A gust that rises and falls, blowing the sheet towards the viewer.
     final double gust = wind * (0.5 + 0.5 * math.sin(_clock * 0.7));
-    stepCloth(
-      _cloth,
+    _simulation!.step(
       // Drag 4, not 0.3: until 0.7.4 the wind was added as a velocity, which
       // made 0.3 several hundred times stronger than its value.
       ClothSettings(wind: WindSettings(velocityZ: gust, drag: 4.0)),
@@ -185,7 +195,7 @@ final class XpbdClothDemo extends ShowcaseDemo {
     // well below the row it hangs from.
     _obstacle.position.setValues(5.0, 5.0, 5.0);
     for (var i = 0; i < 300; i++) {
-      stepCloth(_cloth, const ClothSettings(), _step);
+      _simulation!.step(const ClothSettings(), _step);
     }
     final int lastRow = (_rows - 1) * _cols;
     for (var col = 0; col < _cols; col++) {
@@ -197,8 +207,7 @@ final class XpbdClothDemo extends ShowcaseDemo {
     // And a ball pushed into the sheet must never end up inside it.
     _obstacle.position.setValues(0.68, 1.0, 0.0);
     for (var i = 0; i < 120; i++) {
-      stepCloth(
-        _cloth,
+      _simulation!.step(
         const ClothSettings(),
         _step,
         obstacles: <ClothObstacle>[_obstacle],

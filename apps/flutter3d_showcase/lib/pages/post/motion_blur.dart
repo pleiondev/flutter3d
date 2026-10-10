@@ -9,7 +9,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/pages/post/post_stage.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MotionBlurDemo extends ShowcaseDemo {
   bool blur = true;
@@ -39,7 +38,7 @@ final class MotionBlurDemo extends ShowcaseDemo {
       device,
       CuboidShape(size: Vector3(3.0, 0.3, 0.3)).build(),
     );
-    final List<Vector4> colours = <Vector4>[
+    final List<Vector4> colors = <Vector4>[
       Vector4(0.9, 0.8, 0.2, 1.0),
       Vector4(0.2, 0.7, 0.9, 1.0),
       Vector4(0.9, 0.3, 0.3, 1.0),
@@ -47,8 +46,11 @@ final class MotionBlurDemo extends ShowcaseDemo {
     _wheel = SceneNode(name: 'wheel');
     for (int i = 0; i < 3; i++) {
       _wheel.add(
-        MeshNode(spoke, Material(baseColor: colours[i]), name: 'spoke $i')
-          ..setRotationYawPitchRoll(0.0, 0.0, i * math.pi / 3),
+        MeshNode(
+          spoke,
+          RenderMaterial(baseColor: _fromSrgb(colors[i])),
+          name: 'spoke $i',
+        )..setRotationYawPitchRoll(0.0, 0.0, i * math.pi / 3),
       );
     }
     _wheel.add(
@@ -61,7 +63,7 @@ final class MotionBlurDemo extends ShowcaseDemo {
             height: 0.5,
           ).build(),
         ),
-        Material(baseColor: Vector4(0.5, 0.5, 0.5, 1.0)),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0)),
         name: 'hub',
       )..setRotationYawPitchRoll(0.0, math.pi / 2, 0.0),
     );
@@ -72,12 +74,16 @@ final class MotionBlurDemo extends ShowcaseDemo {
         device,
         CuboidShape(size: Vector3(14.0, 9.0, 0.1)).build(),
       ),
-      Material(baseColor: Vector4(0.35, 0.35, 0.38, 1.0), roughness: 0.9),
+      RenderMaterial(
+        baseColor: LinearColor.fromSrgb(0.35, 0.35, 0.38, 1.0),
+        roughness: 0.9,
+      ),
       name: 'backdrop',
     )..setPosition(0.0, 0.0, -1.0);
-    final LightNode sun = LightNode(name: 'sun', intensity: 3.0)
-      ..castsShadow = false
-      ..setLocalForward(Vector3(-2.0, -3.0, -4.0).normalized());
+    final LightNode sun =
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
+          ..castsShadow = false
+          ..setLocalForward(Vector3(-2.0, -3.0, -4.0).normalized());
     return Scene()
       ..add(backdrop)
       ..add(_wheel)
@@ -147,3 +153,6 @@ final class MotionBlurDemo extends ShowcaseDemo {
     // #endregion ran
   }
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

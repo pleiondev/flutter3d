@@ -4,7 +4,7 @@
 ///
 /// **Colour lives in the vertices.** Each mesh here is several shapes merged
 /// into one, each shape painted its own colour, and drawn with one white
-/// [Material]: a tree is a trunk and a crown in one draw, and a whole stretch
+/// [RenderMaterial]: a tree is a trunk and a crown in one draw, and a whole stretch
 /// of valley, trees and houses included, is one more.
 library;
 
@@ -19,12 +19,12 @@ import 'course.dart';
 const double flightHeight = 1.7;
 
 // Every colour here is picked on screen and goes into vertices, which are
-// linear: through `linearFromSrgb`, or a grass green comes out pastel.
-final Vector4 _grassA = linearFromSrgb(0.29, 0.52, 0.19);
-final Vector4 _grassB = linearFromSrgb(0.26, 0.47, 0.17);
-final Vector4 _sand = linearFromSrgb(0.72, 0.63, 0.42);
-final Vector4 _bed = linearFromSrgb(0.22, 0.27, 0.22);
-final Vector4 _road = linearFromSrgb(0.2, 0.2, 0.22);
+// linear: through `LinearColor.fromSrgb`, or a grass green comes out pastel.
+final LinearColor _grassA = LinearColor.fromSrgb(0.29, 0.52, 0.19);
+final LinearColor _grassB = LinearColor.fromSrgb(0.26, 0.47, 0.17);
+final LinearColor _sand = LinearColor.fromSrgb(0.72, 0.63, 0.42);
+final LinearColor _bed = LinearColor.fromSrgb(0.22, 0.27, 0.22);
+final LinearColor _road = LinearColor.fromSrgb(0.2, 0.2, 0.22);
 
 Matrix4 _at(double x, double y, double z, {Quaternion? turn, Vector3? scale}) =>
     Matrix4.compose(
@@ -33,8 +33,8 @@ Matrix4 _at(double x, double y, double z, {Quaternion? turn, Vector3? scale}) =>
       scale ?? Vector3.all(1.0),
     );
 
-MeshData _part(Shape shape, Vector4 colour, Matrix4 at) =>
-    shape.build().transformed(at).withColor(colour);
+MeshData _part(Shape shape, LinearColor color, Matrix4 at) =>
+    shape.build().transformed(at).withColor(color);
 
 Quaternion _about(double x, double y, double z, double angle) =>
     Quaternion.axisAngle(Vector3(x, y, z), angle);
@@ -80,7 +80,7 @@ MeshData valleyMesh(Section section) {
     final grown = row.islandGrown;
     final crest = bedDepth + (landHeight - bedDepth) * grown;
     return <Vector3>[
-      p(-valleyReach, landHeight),
+      p(-landReach, landHeight),
       p(row.left - bankTop, landHeight),
       p(row.left + bankUnder, bedDepth),
       p(row.islandLeft - bankUnder * grown, bedDepth),
@@ -89,12 +89,12 @@ MeshData valleyMesh(Section section) {
       p(row.islandRight + bankUnder * grown, bedDepth),
       p(row.right - bankUnder, bedDepth),
       p(row.right + bankTop, landHeight),
-      p(valleyReach, landHeight),
+      p(landReach, landHeight),
     ];
   }
 
   // What each band between two profile points is: grass, slope, bed.
-  Vector4 bandColour(int band, int rowIndex) => switch (band) {
+  LinearColor bandColour(int band, int rowIndex) => switch (band) {
     0 || 4 || 8 => rowIndex.isEven ? _grassA : _grassB,
     1 || 3 || 5 || 7 => _sand,
     _ => _bed,
@@ -120,21 +120,21 @@ MeshData valleyMesh(Section section) {
   if (section.hasBridge) {
     final row = section.rowAt(section.bridgeAt);
     final z = -section.bridgeAt;
-    final leftLength = row.left - 0.3 + valleyReach;
-    final rightLength = valleyReach - row.right - 0.3;
+    final leftLength = row.left - 0.3 + landReach;
+    final rightLength = landReach - row.right - 0.3;
     parts
       ..add(
         _part(
           CuboidShape(size: Vector3(leftLength, 0.06, 1.8)),
           _road,
-          _at(-valleyReach + leftLength / 2.0, landHeight + 0.03, z),
+          _at(-landReach + leftLength / 2.0, landHeight + 0.03, z),
         ),
       )
       ..add(
         _part(
           CuboidShape(size: Vector3(rightLength, 0.06, 1.8)),
           _road,
-          _at(valleyReach - rightLength / 2.0, landHeight + 0.03, z),
+          _at(landReach - rightLength / 2.0, landHeight + 0.03, z),
         ),
       );
   }
@@ -165,7 +165,7 @@ void _quad(
   Vector3 b,
   Vector3 c,
   Vector3 d,
-  Vector4 colour,
+  LinearColor color,
 ) {
   final normal = (b - a).cross(d - a);
   if (normal.length2 < 1e-10) {
@@ -175,23 +175,23 @@ void _quad(
   }
   normal.normalize();
   if (normal.y < 0.0) normal.negate();
-  final base = builder.addVertex(position: a, normal: normal, color: colour);
+  final base = builder.addVertex(position: a, normal: normal, color: color);
   builder
-    ..addVertex(position: b, normal: normal, color: colour)
-    ..addVertex(position: c, normal: normal, color: colour)
-    ..addVertex(position: d, normal: normal, color: colour)
+    ..addVertex(position: b, normal: normal, color: color)
+    ..addVertex(position: c, normal: normal, color: color)
+    ..addVertex(position: d, normal: normal, color: color)
     ..addQuad(base, base + 1, base + 2, base + 3);
 }
 
 final MeshData _tree = MeshData.merge(<MeshData>[
   _part(
     const CylinderShape(radiusTop: 0.1, radiusBottom: 0.14, height: 0.7),
-    linearFromSrgb(0.36, 0.25, 0.15),
+    LinearColor.fromSrgb(0.36, 0.25, 0.15),
     _at(0.0, 0.35, 0.0),
   ),
   _part(
     const SphereShape(radius: 0.75, segments: 7, rings: 5),
-    linearFromSrgb(0.18, 0.42, 0.14),
+    LinearColor.fromSrgb(0.18, 0.42, 0.14),
     _at(0.0, 1.2, 0.0),
   ),
 ]);
@@ -199,12 +199,12 @@ final MeshData _tree = MeshData.merge(<MeshData>[
 final MeshData _pine = MeshData.merge(<MeshData>[
   _part(
     const CylinderShape(radiusTop: 0.08, radiusBottom: 0.12, height: 0.5),
-    linearFromSrgb(0.33, 0.23, 0.14),
+    LinearColor.fromSrgb(0.33, 0.23, 0.14),
     _at(0.0, 0.25, 0.0),
   ),
   _part(
     const ConeShape(radius: 0.65, height: 1.8, segments: 6),
-    linearFromSrgb(0.1, 0.32, 0.16),
+    LinearColor.fromSrgb(0.1, 0.32, 0.16),
     _at(0.0, 1.35, 0.0),
   ),
 ]);
@@ -212,12 +212,12 @@ final MeshData _pine = MeshData.merge(<MeshData>[
 final MeshData _house = MeshData.merge(<MeshData>[
   _part(
     CuboidShape(size: Vector3(1.6, 1.0, 1.2)),
-    linearFromSrgb(0.88, 0.84, 0.74),
+    LinearColor.fromSrgb(0.88, 0.84, 0.74),
     _at(0.0, 0.5, 0.0),
   ),
   _part(
     const ConeShape(radius: 1.25, height: 0.7, segments: 4),
-    linearFromSrgb(0.7, 0.2, 0.15),
+    LinearColor.fromSrgb(0.7, 0.2, 0.15),
     _at(0.0, 1.35, 0.0, turn: _about(0.0, 1.0, 0.0, math.pi / 4.0)),
   ),
 ]);
@@ -242,7 +242,7 @@ MeshData bridgeHalfMesh(double length) {
   return MeshData.merge(<MeshData>[
     _part(
       CuboidShape(size: Vector3(length, 0.4, 2.4)),
-      linearFromSrgb(0.55, 0.55, 0.52),
+      LinearColor.fromSrgb(0.55, 0.55, 0.52),
       _at(middle, 0.0, 0.0),
     ),
     _part(
@@ -252,19 +252,19 @@ MeshData bridgeHalfMesh(double length) {
     ),
     _part(
       CuboidShape(size: Vector3(length, 0.07, 0.12)),
-      linearFromSrgb(0.95, 0.8, 0.2),
+      LinearColor.fromSrgb(0.95, 0.8, 0.2),
       _at(middle, 0.24, 0.0),
     ),
     for (final side in <double>[-1.0, 1.0])
       _part(
         CuboidShape(size: Vector3(length, 0.3, 0.1)),
-        linearFromSrgb(0.75, 0.75, 0.72),
+        LinearColor.fromSrgb(0.75, 0.75, 0.72),
         _at(middle, 0.35, side * 1.15),
       ),
     for (final along in <double>[0.35, 0.9])
       _part(
         const CylinderShape(radiusTop: 0.28, radiusBottom: 0.35, height: 1.6),
-        linearFromSrgb(0.5, 0.5, 0.48),
+        LinearColor.fromSrgb(0.5, 0.5, 0.48),
         _at(length * along, -0.9, 0.0),
       ),
   ]);
@@ -289,15 +289,15 @@ MeshData shieldMesh(double span) => MeshData.merge(<MeshData>[
 MeshData depotMesh() => MeshData.merge(<MeshData>[
   _part(
     CuboidShape(size: Vector3(1.9, 0.3, 2.3)),
-    linearFromSrgb(0.4, 0.42, 0.45),
+    LinearColor.fromSrgb(0.4, 0.42, 0.45),
     _at(0.0, 0.1, 0.0),
   ),
   for (var i = 0; i < 5; i++)
     _part(
       CuboidShape(size: Vector3(1.5, 0.26, 1.9)),
       i.isEven
-          ? linearFromSrgb(0.85, 0.12, 0.1)
-          : linearFromSrgb(0.95, 0.95, 0.92),
+          ? LinearColor.fromSrgb(0.85, 0.12, 0.1)
+          : LinearColor.fromSrgb(0.95, 0.95, 0.92),
       _at(0.0, 0.38 + i * 0.26, 0.0),
     ),
 ]);
@@ -305,7 +305,12 @@ MeshData depotMesh() => MeshData.merge(<MeshData>[
 /// A shot: a short bright rod, nose along -Z.
 MeshData shotMesh() => CuboidShape(
   size: Vector3(0.14, 0.14, 0.9),
-).build().withColor(linearFromSrgb(1.0, 0.9, 0.4));
+).build().withColor(LinearColor.fromSrgb(1.0, 0.9, 0.4));
+
+/// A helicopter's bullet: a long rod along Z, white, for its material to
+/// colour. Long so it reads as a streak coming at the jet from eleven
+/// metres up; a cube the size of a shard was lost against the water.
+MeshData bulletMesh() => CuboidShape(size: Vector3(0.3, 0.3, 1.6)).build();
 
 /// One shard of an explosion, white: its material gives it its colour.
 MeshData shardMesh() => CuboidShape(size: Vector3.all(0.32)).build();
@@ -319,77 +324,79 @@ MeshData puffMesh() =>
 
 /// A jet, nose along -Z, about two metres long. The player's until its
 /// model loads, and an enemy jet's in other colours.
-MeshData jetMesh(Vector4 body, Vector4 trim) => MeshData.merge(<MeshData>[
-  _part(
-    const CylinderShape(
-      radiusTop: 0.17,
-      radiusBottom: 0.22,
-      height: 1.5,
-      segments: 10,
-    ),
-    body,
-    _at(0.0, 0.0, 0.05, turn: _yToNose),
-  ),
-  _part(
-    const ConeShape(radius: 0.17, height: 0.55, segments: 10),
-    body,
-    _at(0.0, 0.0, -0.975, turn: _yToNose),
-  ),
-  _part(
-    const SphereShape(radius: 0.5, segments: 12, rings: 8),
-    linearFromSrgb(0.12, 0.18, 0.3),
-    _at(0.0, 0.14, -0.35, scale: Vector3(0.3, 0.26, 0.7)),
-  ),
-  for (final side in <double>[-1.0, 1.0]) ...<MeshData>[
+MeshData jetPlaneMesh(LinearColor body, LinearColor trim) => MeshData.merge(
+  <MeshData>[
     _part(
-      CuboidShape(size: Vector3(1.15, 0.05, 0.5)),
-      trim,
-      _at(side * 0.6, -0.02, 0.2, turn: _about(0.0, 1.0, 0.0, side * -0.35)),
+      const CylinderShape(
+        radiusTop: 0.17,
+        radiusBottom: 0.22,
+        height: 1.5,
+        segments: 10,
+      ),
+      body,
+      _at(0.0, 0.0, 0.05, turn: _yToNose),
     ),
     _part(
-      CuboidShape(size: Vector3(0.5, 0.04, 0.28)),
+      const ConeShape(radius: 0.17, height: 0.55, segments: 10),
+      body,
+      _at(0.0, 0.0, -0.975, turn: _yToNose),
+    ),
+    _part(
+      const SphereShape(radius: 0.5, segments: 12, rings: 8),
+      LinearColor.fromSrgb(0.12, 0.18, 0.3),
+      _at(0.0, 0.14, -0.35, scale: Vector3(0.3, 0.26, 0.7)),
+    ),
+    for (final side in <double>[-1.0, 1.0]) ...<MeshData>[
+      _part(
+        CuboidShape(size: Vector3(1.15, 0.05, 0.5)),
+        trim,
+        _at(side * 0.6, -0.02, 0.2, turn: _about(0.0, 1.0, 0.0, side * -0.35)),
+      ),
+      _part(
+        CuboidShape(size: Vector3(0.5, 0.04, 0.28)),
+        trim,
+        _at(side * 0.3, 0.0, 0.72, turn: _about(0.0, 1.0, 0.0, side * -0.3)),
+      ),
+    ],
+    _part(
+      CuboidShape(size: Vector3(0.05, 0.45, 0.35)),
       trim,
-      _at(side * 0.3, 0.0, 0.72, turn: _about(0.0, 1.0, 0.0, side * -0.3)),
+      _at(0.0, 0.25, 0.72),
     ),
   ],
-  _part(
-    CuboidShape(size: Vector3(0.05, 0.45, 0.35)),
-    trim,
-    _at(0.0, 0.25, 0.72),
-  ),
-]);
+);
 
 /// A river tanker, bow along +X, about three and a half metres long.
 MeshData tankerMesh() => MeshData.merge(<MeshData>[
   _part(
     CuboidShape(size: Vector3(3.0, 0.45, 0.95)),
-    linearFromSrgb(0.55, 0.12, 0.1),
+    LinearColor.fromSrgb(0.55, 0.12, 0.1),
     _at(0.0, 0.12, 0.0),
   ),
   _part(
     const ConeShape(radius: 0.48, height: 0.55, segments: 4),
-    linearFromSrgb(0.55, 0.12, 0.1),
+    LinearColor.fromSrgb(0.55, 0.12, 0.1),
     _at(1.77, 0.12, 0.0, turn: _yToRight, scale: Vector3(1.0, 1.0, 0.5)),
   ),
   _part(
     CuboidShape(size: Vector3(2.9, 0.08, 0.85)),
-    linearFromSrgb(0.35, 0.4, 0.35),
+    LinearColor.fromSrgb(0.35, 0.4, 0.35),
     _at(0.0, 0.38, 0.0),
   ),
   for (final along in <double>[0.0, 0.85])
     _part(
       const SphereShape(radius: 0.5, segments: 10, rings: 6),
-      linearFromSrgb(0.82, 0.82, 0.78),
+      LinearColor.fromSrgb(0.82, 0.82, 0.78),
       _at(along, 0.45, 0.0, scale: Vector3(0.8, 0.5, 0.7)),
     ),
   _part(
     CuboidShape(size: Vector3(0.6, 0.55, 0.8)),
-    linearFromSrgb(0.92, 0.92, 0.88),
+    LinearColor.fromSrgb(0.92, 0.92, 0.88),
     _at(-1.0, 0.68, 0.0),
   ),
   _part(
     const CylinderShape(radiusTop: 0.12, radiusBottom: 0.14, height: 0.45),
-    linearFromSrgb(0.15, 0.15, 0.15),
+    LinearColor.fromSrgb(0.15, 0.15, 0.15),
     _at(-1.2, 1.1, 0.0),
   ),
 ]);
@@ -398,28 +405,28 @@ MeshData tankerMesh() => MeshData.merge(<MeshData>[
 MeshData helicopterMesh() => MeshData.merge(<MeshData>[
   _part(
     const SphereShape(radius: 0.5, segments: 12, rings: 8),
-    linearFromSrgb(0.25, 0.38, 0.2),
+    LinearColor.fromSrgb(0.25, 0.38, 0.2),
     _at(0.2, 0.0, 0.0, scale: Vector3(1.0, 0.75, 0.7)),
   ),
   _part(
     const SphereShape(radius: 0.35, segments: 10, rings: 6),
-    linearFromSrgb(0.12, 0.18, 0.3),
+    LinearColor.fromSrgb(0.12, 0.18, 0.3),
     _at(0.45, 0.08, 0.0),
   ),
   _part(
     const CylinderShape(radiusTop: 0.06, radiusBottom: 0.12, height: 1.2),
-    linearFromSrgb(0.25, 0.38, 0.2),
+    LinearColor.fromSrgb(0.25, 0.38, 0.2),
     _at(-0.8, 0.05, 0.0, turn: _yToLeft),
   ),
   _part(
     CuboidShape(size: Vector3(0.25, 0.35, 0.04)),
-    linearFromSrgb(0.25, 0.38, 0.2),
+    LinearColor.fromSrgb(0.25, 0.38, 0.2),
     _at(-1.35, 0.2, 0.0),
   ),
   for (final side in <double>[-1.0, 1.0])
     _part(
       CuboidShape(size: Vector3(1.1, 0.04, 0.05)),
-      linearFromSrgb(0.2, 0.2, 0.2),
+      LinearColor.fromSrgb(0.2, 0.2, 0.2),
       _at(0.1, -0.42, side * 0.3),
     ),
 ]);
@@ -428,12 +435,12 @@ MeshData helicopterMesh() => MeshData.merge(<MeshData>[
 MeshData rotorMesh() => MeshData.merge(<MeshData>[
   _part(
     CuboidShape(size: Vector3(2.6, 0.03, 0.12)),
-    linearFromSrgb(0.2, 0.2, 0.2),
+    LinearColor.fromSrgb(0.2, 0.2, 0.2),
     _at(0.0, 0.0, 0.0),
   ),
   _part(
     CuboidShape(size: Vector3(0.12, 0.03, 2.6)),
-    linearFromSrgb(0.2, 0.2, 0.2),
+    LinearColor.fromSrgb(0.2, 0.2, 0.2),
     _at(0.0, 0.0, 0.0),
   ),
 ]);

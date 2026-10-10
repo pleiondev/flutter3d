@@ -29,7 +29,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'sculpt_mesh.dart';
 
-/// Which of the eight sculpting behaviours a [Brush] applies.
+/// Which of the eight sculpting behaviours a [MeshBrush] applies.
 ///
 /// **A final class with named instances, not an enum.** This package is
 /// published, and a ninth brush — this list has grown before, from six to
@@ -100,8 +100,8 @@ double shapeFalloff(BrushFalloff falloff, double t) {
 /// A sculpting brush: what it does ([kind]), how far it reaches ([radius]),
 /// how hard it pushes ([strength]) and how its influence tapers to the edge
 /// ([falloff]).
-class Brush {
-  const Brush({
+class MeshBrush {
+  const MeshBrush({
     required this.kind,
     required this.radius,
     required this.strength,
@@ -109,7 +109,12 @@ class Brush {
   });
 
   final BrushKind kind;
+
+  /// In metres.
   final double radius;
+
+  /// Metres of push for draw and inflate, the clay level as a fraction of
+  /// [radius], and the 0..1 fraction of the way for smooth and flatten.
   final double strength;
   final BrushFalloff falloff;
 }
@@ -182,7 +187,7 @@ Vector3 mirrorAcrossX(Vector3 point) => Vector3(-point.x, point.y, point.z);
 /// a displacement vector (as opposed to a point) across `x = 0` does.
 BrushResult applyBrushStroke(
   SculptMesh mesh,
-  Brush brush, {
+  MeshBrush brush, {
   required Vector3 center,
   Vector3? previousCenter,
   bool symmetryX = false,
@@ -220,7 +225,7 @@ BrushResult applyBrushStroke(
 
 BrushResult _applyOneSide(
   SculptMesh mesh,
-  Brush brush, {
+  MeshBrush brush, {
   required Vector3 center,
   required Vector3? previousCenter,
 }) {

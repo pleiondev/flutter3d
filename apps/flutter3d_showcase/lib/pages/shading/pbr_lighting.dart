@@ -7,23 +7,22 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class PbrLightingDemo extends ShowcaseDemo {
   double metallic = 0.0;
   double roughness = 0.4;
   double sunIntensity = 3.0;
 
-  late final Material _ball;
+  late final RenderMaterial _ball;
   late final LightNode _sun;
 
   @override
   Scene build(DemoContext context) {
     // #region material
-    _ball = Material(
+    _ball = RenderMaterial(
       name: 'ball',
       lighting: LightingModel.pbr,
-      baseColor: Vector4(0.9, 0.42, 0.28, 1.0),
+      baseColor: LinearColor.fromSrgb(0.9, 0.42, 0.28, 1.0),
       metallic: metallic,
       roughness: roughness,
     );
@@ -41,8 +40,10 @@ final class PbrLightingDemo extends ShowcaseDemo {
     // #endregion mesh
 
     // #region light
-    _sun = LightNode(name: 'sun', intensity: sunIntensity)
-      ..setLocalForward(Vector3(-0.4, -1.0, -0.3));
+    _sun = LightNode(
+      name: 'sun',
+      intensity: sunIntensity * Photometric.legacyUnit,
+    )..setLocalForward(Vector3(-0.4, -1.0, -0.3));
     // #endregion light
 
     return Scene()
@@ -56,7 +57,7 @@ final class PbrLightingDemo extends ShowcaseDemo {
     _ball
       ..metallic = metallic
       ..roughness = roughness;
-    _sun.intensity = sunIntensity;
+    _sun.intensity = sunIntensity * Photometric.legacyUnit;
     // #endregion live
   }
 

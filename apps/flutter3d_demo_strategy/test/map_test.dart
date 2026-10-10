@@ -111,10 +111,10 @@ void main() {
       'their hall',
     ]);
     expect(sim.buildings.map((Building it) => it.side), <int>[0, 1]);
-    expect(sim.buildings[0].centre.x, 36.0);
-    expect(sim.buildings[0].centre.z, 36.0);
-    expect(sim.buildings[1].centre.x, 124.0);
-    expect(sim.buildings[1].centre.z, 124.0);
+    expect(sim.buildings[0].center.x, 36.0);
+    expect(sim.buildings[0].center.z, 36.0);
+    expect(sim.buildings[1].center.x, 124.0);
+    expect(sim.buildings[1].center.z, 124.0);
     expect(sim.buildings.map((Building it) => it.width), <double>[12.0, 12.0]);
     expect(sim.buildings.map((Building it) => it.depth), <double>[10.0, 10.0]);
 
@@ -152,7 +152,7 @@ void main() {
 
     // Everybody is on the ground rather than at the height the document
     // happened to write for the block they came from.
-    for (final Unit unit in sim.units) {
+    for (final StrategyUnit unit in sim.units) {
       expect(
         unit.position.y,
         closeTo(map.ground.heightAt(unit.position.x, unit.position.z), stored),

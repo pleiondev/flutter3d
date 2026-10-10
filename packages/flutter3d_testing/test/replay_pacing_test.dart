@@ -25,33 +25,33 @@ Demo _demo({int steps = 10}) => Demo(
 );
 
 void main() {
-  group('FramePacing', () {
+  group('PacingReport', () {
     test('the median, the tail and the worst frame of a run', () {
-      final pacing = FramePacing.of(<double>[
-        for (var i = 1; i <= 100; i++) i.toDouble(),
+      final pacing = PacingReport.of(<double>[
+        for (var i = 1; i <= 100; i++) i / 1000.0,
       ]);
       expect(pacing.frames, 100);
-      expect(pacing.p50, 50.0);
-      expect(pacing.p99, 99.0);
-      expect(pacing.max, 100.0);
+      expect(pacing.p50, 50 / 1000.0);
+      expect(pacing.p99, 99 / 1000.0);
+      expect(pacing.max, 100 / 1000.0);
       expect(pacing.worstFrame, 99);
       // Frames 51 to 100 are over fifty milliseconds: indices 50 to 99.
       expect(pacing.overLimit, <int>[for (var i = 50; i < 100; i++) i]);
-      expect(pacing.even, isFalse);
+      expect(pacing.isEven, isFalse);
     });
 
     test('a frame at the limit is not a spike; one past it is', () {
-      expect(FramePacing.of(<double>[16.0, 50.0, 16.0]).even, isTrue);
-      final one = FramePacing.of(<double>[16.0, 50.5, 16.0]);
+      expect(PacingReport.of(<double>[0.016, 0.05, 0.016]).isEven, isTrue);
+      final one = PacingReport.of(<double>[0.016, 0.0505, 0.016]);
       expect(one.overLimit, <int>[1]);
       expect(one.worstFrame, 1);
     });
 
     test('no frames is an empty report, not an error', () {
-      final none = FramePacing.of(const <double>[]);
+      final none = PacingReport.of(const <double>[]);
       expect(none.frames, 0);
       expect(none.worstFrame, -1);
-      expect(none.even, isTrue);
+      expect(none.isEven, isTrue);
     });
   });
 
@@ -78,8 +78,8 @@ void main() {
         );
         expect(pacing.frames, 10);
         expect(order.take(4), <String>['step', 'draw 0', 'step', 'draw 1']);
-        expect(pacing.p50, 2.0);
-        expect(pacing.max, 62.0);
+        expect(pacing.p50, closeTo(0.002, 1e-12));
+        expect(pacing.max, closeTo(0.062, 1e-12));
         // Mutation: start the timer after `onStep`, and the spike is 61 and
         // the median one.
         expect(pacing.overLimit, <int>[6]);

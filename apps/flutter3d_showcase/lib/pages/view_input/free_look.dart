@@ -8,7 +8,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FreeLookDemo extends ShowcaseDemo {
   bool walkingForward = true;
@@ -20,7 +19,7 @@ final class FreeLookDemo extends ShowcaseDemo {
 
   late final MeshNode _floor;
   final List<MeshNode> _posts = <MeshNode>[];
-  final List<Material> _stones = <Material>[];
+  final List<RenderMaterial> _stones = <RenderMaterial>[];
 
   /// Posts a side of the square laid out around the camera, and how far
   /// apart they stand.
@@ -46,9 +45,13 @@ final class FreeLookDemo extends ShowcaseDemo {
     _freeLook = FreeLook(context.orbit);
     // #endregion freelook
 
-    Material stone(String name, double r, double g, double b) =>
-        Material(name: name, baseColor: Vector4(r, g, b, 1.0), roughness: 0.8);
-    _stones.addAll(<Material>[
+    RenderMaterial stone(String name, double r, double g, double b) =>
+        RenderMaterial(
+          name: name,
+          baseColor: LinearColor.fromSrgb(r, g, b, 1.0),
+          roughness: 0.8,
+        );
+    _stones.addAll(<RenderMaterial>[
       stone('grey', 0.65, 0.62, 0.58),
       stone('sand', 0.85, 0.75, 0.5),
       stone('clay', 0.8, 0.45, 0.35),
@@ -56,8 +59,8 @@ final class FreeLookDemo extends ShowcaseDemo {
     ]);
 
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.5, 0.55, 0.65)
-      ..ambientIntensity = 0.3;
+      ..ambientColor = LinearColor(0.5, 0.55, 0.65)
+      ..ambientIntensity = 0.3 * Photometric.legacyUnit;
     _floor = MeshNode(
       DeviceMesh.upload(
         context.device,
@@ -78,7 +81,7 @@ final class FreeLookDemo extends ShowcaseDemo {
       scene.add(node);
     }
     scene.add(
-      LightNode(name: 'sun', intensity: 3.0)
+      LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
     );
     _layOut(context);
@@ -102,7 +105,7 @@ final class FreeLookDemo extends ShowcaseDemo {
         node.setPosition(x * _spacing, 1.25, z * _spacing);
         node.material = _stones[(x * 7 + z * 13).abs() % _stones.length];
         // One the camera is standing inside would fill the frame.
-        node.visible =
+        node.isVisible =
             (node.readPosition() - Vector3(eye.x, 1.25, eye.z)).length > 1.2;
       }
     }
@@ -137,8 +140,8 @@ final class FreeLookDemo extends ShowcaseDemo {
       'Speed',
       min: 0,
       max: 8,
-      value: () => _freeLook.metresPerSecond,
-      onChanged: (double v) => _freeLook.metresPerSecond = v,
+      value: () => _freeLook.metersPerSecond,
+      onChanged: (double v) => _freeLook.metersPerSecond = v,
       format: (double v) => '${v.toStringAsFixed(1)} m/s',
     ),
     SliderControl(
@@ -157,15 +160,15 @@ final class FreeLookDemo extends ShowcaseDemo {
       throw StateError('the posts were not drawn');
     }
     if (!walkingForward) return;
-    // walk moves the target by metresPerSecond * seconds along the view
+    // walk moves the target by metersPerSecond * seconds along the view
     // axis. The distance actually covered has to match that number exactly,
     // rather than only be nonzero.
     final double moved = (_freeLook.orbit.target - _targetBefore).length;
-    final double expected = _freeLook.metresPerSecond * _stepSeconds;
+    final double expected = _freeLook.metersPerSecond * _stepSeconds;
     if ((moved - expected).abs() > 1e-6) {
       throw StateError('walking moved $moved, expected $expected');
     }
-    final int standing = _posts.where((MeshNode p) => p.visible).length;
+    final int standing = _posts.where((MeshNode p) => p.isVisible).length;
     if (standing < _posts.length - 2) {
       throw StateError('the camera should be standing among the posts');
     }

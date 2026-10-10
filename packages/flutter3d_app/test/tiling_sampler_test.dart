@@ -50,7 +50,7 @@ void main() {
       // software golden set recorded.
       expect(
         LevelLoader.tilingSamplerFor(FakeBackend(maxAnisotropy: 1)),
-        SamplerOptions.trilinearRepeat,
+        SamplerDescriptor.trilinearRepeat,
       );
     });
   });
@@ -84,6 +84,6 @@ void main() {
       LevelMaterial(albedo: 'wall.png'),
       const <String, TextureHandle?>{},
     );
-    expect(material.albedoSampler, SamplerOptions.trilinearRepeat);
+    expect(material.albedoSampler, SamplerDescriptor.trilinearRepeat);
   });
 }

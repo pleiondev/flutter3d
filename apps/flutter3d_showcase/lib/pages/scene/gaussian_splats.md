@@ -45,3 +45,26 @@ result that contains every splat exactly once. It also requires the contributor
 to add its draw call to the frame.
 
 {{code check}}
+
+## Step 6: Sort on the GPU where the device computes
+
+Sorting is the part of a splat cloud that grows with the capture. Where the
+device has compute shaders, which today means WebGPU, `SplatContributor`
+sorts on the GPU instead: two radix passes over the depth keys, and the last
+pass writes the index buffer the draw reads, so the order never comes back
+to the CPU. Every other device, including Impeller, WebGL2 and the software
+renderer, keeps the CPU sort. The CPU sort is the reference: the GPU's order
+matches it splat for splat, and the picture is the same to the byte.
+
+`gpuSort` is on by default and takes effect only where the device can run
+it. **GPU sort** turns it off, which on WebGPU sorts on the CPU instead and
+anywhere else changes nothing. A cloud larger than `splatGpuSortLimit`
+splats stays on the CPU too.
+
+{{code gpu}}
+
+The page checks that the cloud was drawn in the GPU's order exactly when the
+toggle is on and the device can sort. On the software device that runs the
+page's test, that is never.
+
+{{code gpu-check}}

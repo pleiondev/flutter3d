@@ -51,7 +51,9 @@ abstract final class Effects {
       speed: Range(2.0, 5.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-9.0),
+      // Ballistic: falls by the world's gravity, as everything
+      // thrown in this game does (once a fixed -9 of its own).
+      const ParticleGravity(),
       const ParticleDrag(1.2),
       const ParticleSizeOverLife(from: 1.0, to: 0.6),
       const ParticleFade(startsAt: 0.5),
@@ -70,7 +72,9 @@ abstract final class Effects {
       speed: Range(3.0, 8.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-14.0),
+      // Ballistic: falls by the world's gravity, as everything
+      // thrown in this game does (once a fixed -14 of its own).
+      const ParticleGravity(),
       const ParticleDrag(0.8),
       const ParticleSizeOverLife(from: 1.0, to: 0.4),
       const ParticleFade(startsAt: 0.4),

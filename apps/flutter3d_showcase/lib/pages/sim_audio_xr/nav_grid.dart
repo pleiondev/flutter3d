@@ -10,7 +10,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class NavGridDemo extends ShowcaseDemo {
   late final NavGrid _grid;
@@ -24,9 +23,9 @@ final class NavGridDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     _grid = _bake();
-    final material = Material(
+    final material = RenderMaterial(
       name: 'floor',
-      baseColor: Vector4(0.5, 0.55, 0.6, 1.0),
+      baseColor: LinearColor.fromSrgb(0.5, 0.55, 0.6, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -35,7 +34,7 @@ final class NavGridDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -44,9 +43,9 @@ final class NavGridDemo extends ShowcaseDemo {
   /// Two floor slabs joined by a narrow bridge, so most of the gap between
   /// them is not walkable but the bridge is.
   static List<Brush> _brushes() => <Brush>[
-    Brush(centre: Vector3(2, 0, 2), size: Vector3(4, 1, 4)),
-    Brush(centre: Vector3(5.5, 0, 3.5), size: Vector3(3, 1, 1)),
-    Brush(centre: Vector3(9, 0, 2), size: Vector3(4, 1, 4)),
+    Brush(center: Vector3(2, 0, 2), size: Vector3(4, 1, 4)),
+    Brush(center: Vector3(5.5, 0, 3.5), size: Vector3(3, 1, 1)),
+    Brush(center: Vector3(9, 0, 2), size: Vector3(4, 1, 4)),
   ];
   // #endregion brushes
 

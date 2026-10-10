@@ -14,7 +14,9 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/trace.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,7 +33,7 @@ TextureHandle _texel(GraphicsDevice device, List<int> rgba) =>
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-    )!;
+    );
 
 void main() {
   for (final which in ParityScene.values) {
@@ -53,7 +55,7 @@ void main() {
         views: <RenderView>[RenderView(camera: built.camera)],
         settings: paritySettingsFor(which),
       );
-      final original = await recording.readPixels(frame.frame);
+      final original = await recording.readback(frame.frame);
 
       final file = Trace(
         recording.events,
@@ -64,11 +66,12 @@ void main() {
       expect(read.events.length, recording.events.length);
 
       final replay = await replayTrace(read, _cpu());
-      final again = replay.pixels.single;
-      expect(again, isNotNull);
+      // The frame's `readback`, which lands in `readbacks` since 1.0;
+      // `pixels` answers the `readPixels` of a trace written before it.
+      final again = replay.readbacks.single;
       expect(
-        again!.buffer.asUint8List(again.offsetInBytes, again.lengthInBytes),
-        original!.buffer.asUint8List(
+        again.buffer.asUint8List(again.offsetInBytes, again.lengthInBytes),
+        original.buffer.asUint8List(
           original.offsetInBytes,
           original.lengthInBytes,
         ),
@@ -79,7 +82,7 @@ void main() {
   test('a trace that is not one says so', () {
     expect(
       () => Trace.decode(Uint8List.fromList(<int>[1, 2, 3])),
-      throwsFormatException,
+      throwsA(isA<TraceFormatException>()),
     );
   });
 }

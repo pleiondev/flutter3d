@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class VariantsAndPointersDemo extends ShowcaseDemo {
   /// 0 is the default look, then one option for each of the file's variants.
@@ -35,24 +34,27 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
     // unless a variant says otherwise; the other three are only ever worn
     // through a variant.
     final List<SurfaceMaterial> materials = <SurfaceMaterial>[
-      SurfaceMaterial(name: 'red paint', baseColor: Vector4(0.6, 0.2, 0.15, 1)),
+      SurfaceMaterial(
+        name: 'red paint',
+        baseColor: LinearColor.fromSrgb(0.6, 0.2, 0.15, 1),
+      ),
       SurfaceMaterial(
         name: 'cream',
-        baseColor: Vector4(0.6, 0.55, 0.45, 1),
+        baseColor: LinearColor.fromSrgb(0.6, 0.55, 0.45, 1),
         roughness: 0.6,
       ),
       SurfaceMaterial(
         name: 'teal paint',
-        baseColor: Vector4(0.12, 0.45, 0.42, 1),
+        baseColor: LinearColor.fromSrgb(0.12, 0.45, 0.42, 1),
       ),
       SurfaceMaterial(
         name: 'graphite',
-        baseColor: Vector4(0.2, 0.2, 0.22, 1),
+        baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.22, 1),
         roughness: 0.35,
       ),
       SurfaceMaterial(
         name: 'chalk',
-        baseColor: Vector4(0.55, 0.55, 0.55, 1),
+        baseColor: LinearColor.fromSrgb(0.55, 0.55, 0.55, 1),
         roughness: 0.8,
       ),
     ];
@@ -149,9 +151,9 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
             context.device,
             const PlaneShape(width: 8, depth: 8).build(),
           ),
-          Material(
+          RenderMaterial(
             name: 'floor',
-            baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+            baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.45, 1.0),
             roughness: 0.9,
           ),
           name: 'floor',
@@ -168,7 +170,7 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
     _sun = LightNode(
       name: 'sun',
       color: light.color,
-      intensity: Photometric.fromLux(light.intensity),
+      intensity: light.intensity,
     )..setLocalForward(Vector3(-0.5, -0.8, -0.4));
     _instance.bindLight(0, _sun);
     // #endregion bind
@@ -190,6 +192,19 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
     _instance.selectVariant(option == 0 ? null : _asset.variants[option - 1]);
   }
   // #endregion select
+
+  // The file's light is in lux, as glTF's is, and 110 lux is a lamp-lit
+  // room rather than the sun. So the camera is metered as it would be in
+  // one: for the light at its authored 110 lux plus the scene's flat
+  // ambient (in the engine's pre-1.0 unit), about EV100 7.5, and held there
+  // while the clip dims the light to 45 and back.
+  static final PhysicalCamera _camera = PhysicalCamera.metered(
+    110.0 + 0.06 * Photometric.legacyUnit,
+  );
+
+  @override
+  RenderSettings settings(DemoContext context) =>
+      RenderSettings(camera: _camera);
 
   @override
   void update(DemoContext context, double dt) {
@@ -249,12 +264,15 @@ final class VariantsAndPointersDemo extends ShowcaseDemo {
 
     // The clip is past its first key, so both tracks have moved their
     // targets away from what the file says.
-    final Vector4 authored = _readBack.materials[1].baseColor;
-    final Vector4 now = _asset.materials[1]!.baseColor;
-    if ((now.xyz - authored.xyz).length < 0.05) {
+    final LinearColor authored = _readBack.materials[1].baseColor;
+    final LinearColor now = _asset.materials[1]!.baseColor;
+    if ((now.r - authored.r).abs() +
+            (now.g - authored.g).abs() +
+            (now.b - authored.b).abs() <
+        0.05) {
       throw StateError("the colour track did not move the ball's material");
     }
-    final double fileSun = Photometric.fromLux(_readBack.lights[0].intensity);
+    final double fileSun = _readBack.lights[0].intensity;
     if ((_sun.intensity - fileSun).abs() < 0.1) {
       throw StateError('the intensity track did not move the sun');
     }

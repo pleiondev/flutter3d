@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -29,6 +30,8 @@ List<LightView> viewsAlong(
   List<Pose> poses, {
   int count = 8,
   int around = 1,
+
+  /// How high above the pose the eye is, in metres.
   double eyeHeight = lightViewEyeHeight,
 }) {
   if (poses.isEmpty || count <= 0) return const <LightView>[];
@@ -54,6 +57,8 @@ List<LightView> viewsAlong(
 /// level's brushes. Empty for a level with no brushes and no spawn.
 List<LightView> defaultLightViews(
   Level level, {
+
+  /// How high above the spawn the eye is, in metres.
   double eyeHeight = lightViewEyeHeight,
 }) {
   final spawns = level.ofType(EntityTypes.playerSpawn).toList();

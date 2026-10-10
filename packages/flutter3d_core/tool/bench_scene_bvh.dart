@@ -33,14 +33,14 @@ import 'package:flutter3d_core/src/engine/render/material.dart';
 import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A cube of [count] unit cubes on a grid, [spacing] apart.
 Scene gridScene(int count, double spacing) {
   final scene = Scene();
   final side = pow(count, 1 / 3).ceil();
   final mesh = CpuMesh(CuboidShape().build());
-  final material = Material();
+  final material = RenderMaterial();
   for (var i = 0; i < count; i++) {
     final x = (i % side) - side / 2;
     final y = ((i ~/ side) % side) - side / 2;
@@ -62,12 +62,12 @@ double microseconds(int iterations, void Function() body) {
   return stopwatch.elapsedMicroseconds / iterations;
 }
 
-/// A camera at [eye] looking at [target], with [fov] degrees across.
-CameraNode cameraAt(Scene scene, Vector3 eye, Vector3 target, double fov) {
+/// A camera at [eye] looking at [target], with [fovY] degrees across.
+CameraNode cameraAt(Scene scene, Vector3 eye, Vector3 target, double fovY) {
   final camera = scene.add(
     CameraNode()
       ..projection = PerspectiveProjection(
-        fovYRadians: fov * pi / 180.0,
+        fovY: fovY * pi / 180.0,
         near: 0.5,
         far: 100000.0,
       ),

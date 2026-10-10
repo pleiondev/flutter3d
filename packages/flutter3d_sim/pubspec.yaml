@@ -1,6 +1,6 @@
 name: flutter3d_sim
 description: "The simulation: a fixed step, an ECS, levels, navigation, saves and replays. Plain Dart, so it runs on a server."
-version: 0.8.1+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -14,6 +14,19 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io` or `dart:ffi` from its libraries, and `dart:isolate` only off
+# the web, through an import chosen by `dart.library.js_interop` (a level
+# generated off the thread, `IsolateSimulation`), so every platform, the
+# browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
   # Collision, queries and the character controller — already plain Dart, and
   # extracted from the same package this was, for the same reason.
@@ -21,9 +34,20 @@ dependencies:
   # `Heightfield` here is the data, `CollisionHeightfield` there is what a body
   # stands on, and a resolver free to reach further back would hand a caller the
   # first without the second.
-  flutter3d_physics: ^0.8.0
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # `Portable`, which a step calls, and the crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
+
+  # The interfaces `EngineLoop` and `EventBus` implement — the loop's phases,
+  # the bus, the plugin host — so a plugin depends on those and not on this.
+  # Only the foundation beneath it, and no Flutter.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
 
 dev_dependencies:
   test: ^1.25.0

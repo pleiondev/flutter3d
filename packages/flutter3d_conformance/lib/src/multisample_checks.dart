@@ -1,6 +1,6 @@
 /// Multisampling, which is three fields of the HAL and no other check.
 ///
-/// `RenderTargetSpec.sampleCount`, `ColorTarget.resolveTexture` and
+/// `RenderTargetDescriptor.sampleCount`, `ColorTarget.resolveTexture` and
 /// `StoreAction.multisampleResolve` are all of it, and they are the kind of
 /// thing a backend can get wrong without erring: an attachment allocated with
 /// one sample, or a resolve that never runs, gives a picture with hard edges,
@@ -18,7 +18,7 @@ import '../flutter3d_conformance.dart';
 /// A multisample resolve actually resolves: an edge that is one colour or the
 /// other without multisampling comes back blended with it.
 ///
-/// **The three fields nothing held.** `RenderTargetSpec.sampleCount`,
+/// **The three fields nothing held.** `RenderTargetDescriptor.sampleCount`,
 /// `ColorTarget.resolveTexture` and `StoreAction.multisampleResolve` are the
 /// whole of multisampling in this HAL, and until this check they were carried
 /// by nothing: a backend that allocated the multisampled attachment and never
@@ -55,7 +55,7 @@ import '../flutter3d_conformance.dart';
 /// pixels still came back averaged. The allocation has to take the other
 /// branch entirely.
 Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
-  if (!device.supportsOffscreenMsaa) {
+  if (!device.features.has(DeviceFeature.offscreenMultisample)) {
     decline(
       device,
       'answers false to supportsOffscreenMsaa: it has no multisampled '
@@ -82,7 +82,7 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
   );
 
   final multisampled = device.createTexture(
-    RenderTargetSpec(
+    RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -93,7 +93,7 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
     ),
   );
   final resolved = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -134,9 +134,8 @@ Future<void> checkMultisampleResolveResolves(GraphicsDevice device) async {
     ..draw();
   pass.submit();
 
-  final read = await device.readPixels(resolved);
-  require(read != null, 'the resolve target could not be read back');
-  final bytes = read!.buffer.asUint8List();
+  final read = await device.readback(resolved);
+  final bytes = read.buffer.asUint8List();
   final reds = <int>[for (var i = 0; i < size * size; i++) bytes[i * 4]];
   final painted = reds.where((int r) => r >= 250).length;
   final clear = reds.where((int r) => r <= 5).length;

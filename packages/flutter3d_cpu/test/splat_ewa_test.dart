@@ -22,10 +22,10 @@ import 'package:vector_math/vector_math.dart';
 const int _width = 128;
 const int _height = 96;
 
-/// One white, opaque-cored splat of [scale] at [centre], unrotated.
-SplatCloud _one(Vector3 centre, Vector3 scale) => SplatCloud(
-  centres: Float32List.fromList(<double>[centre.x, centre.y, centre.z]),
-  colours: Float32List.fromList(<double>[1.0, 1.0, 1.0, 1.0]),
+/// One white, opaque-cored splat of [scale] at [center], unrotated.
+SplatCloud _one(Vector3 center, Vector3 scale) => SplatCloud(
+  centers: Float32List.fromList(<double>[center.x, center.y, center.z]),
+  colors: Float32List.fromList(<double>[1.0, 1.0, 1.0, 1.0]),
   scales: Float32List.fromList(<double>[scale.x, scale.y, scale.z]),
   rotations: Float32List.fromList(<double>[0.0, 0.0, 0.0, 1.0]),
 );
@@ -43,13 +43,13 @@ SplatCloud _one(Vector3 centre, Vector3 scale) => SplatCloud(
     ..ambientIntensity = 0.0
     ..add(camera);
   final renderer = Renderer.create(device: device)
-    ..addContributor(SplatContributor(cloud));
+    ..renderSteps.addContributor(SplatContributor(cloud));
   final result = renderer.render(
     width: _width,
     height: _height,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: const RenderSettings(
       tonemap: false,
@@ -59,7 +59,7 @@ SplatCloud _one(Vector3 centre, Vector3 scale) => SplatCloud(
   final clip = camera
       .viewProjection(_width / _height)
       .transformed(
-        Vector4(cloud.centres[0], cloud.centres[1], cloud.centres[2], 1.0),
+        Vector4(cloud.centers[0], cloud.centers[1], cloud.centers[2], 1.0),
       );
   return (
     device.readHdrPixels(result.frame),

@@ -44,7 +44,7 @@ void main() {
       final png = encodeCompressedPng(side, side, rgba);
       final decoded = decodePng(png);
       expect(decoded, isNotNull);
-      expect(decoded!.width, side);
+      expect(decoded.width, side);
       expect(decoded.height, side);
       expect(decoded.rgba, rgba);
     });
@@ -62,7 +62,7 @@ void main() {
         }
       }
       final png = encodeCompressedPng(side, side, rgba);
-      expect(decodePng(png)!.rgba, rgba);
+      expect(decodePng(png).rgba, rgba);
     });
 
     test('noise, where no filter helps much and literals dominate', () {
@@ -74,13 +74,13 @@ void main() {
         rgba[i] = seed & 0xFF;
       }
       final png = encodeCompressedPng(side, side, rgba);
-      expect(decodePng(png)!.rgba, rgba);
+      expect(decodePng(png).rgba, rgba);
     });
 
     test('a single pixel', () {
       final rgba = Uint8List.fromList(<int>[1, 2, 3, 4]);
       final png = encodeCompressedPng(1, 1, rgba);
-      expect(decodePng(png)!.rgba, rgba);
+      expect(decodePng(png).rgba, rgba);
     });
   });
 
@@ -115,7 +115,7 @@ void main() {
     // one that actually depends on `_bestFilter` choosing well.
     final png = encodeCompressedPng(side, side, rgba);
     expect(png.length, lessThan(rgba.length * 0.25));
-    expect(decodePng(png)!.rgba, rgba);
+    expect(decodePng(png).rgba, rgba);
   });
 
   test('a texture where filter choice is the difference between passing '
@@ -150,6 +150,6 @@ void main() {
     }
     final png = encodeCompressedPng(side, side, rgba);
     expect(png.length, lessThan(rgba.length * 0.25));
-    expect(decodePng(png)!.rgba, rgba);
+    expect(decodePng(png).rgba, rgba);
   });
 }

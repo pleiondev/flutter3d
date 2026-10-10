@@ -16,7 +16,7 @@ into something that walks, rather than replacing it with a second camera.
 ## Step 2: Walk it
 
 `walk` takes `forward`, `right` and `up` as -1, 0 or 1, the shape a held key
-gives, and moves the camera that many `metresPerSecond` along its own axes
+gives, and moves the camera that many `metersPerSecond` along its own axes
 for the seconds you hand it.
 
 {{code walk}}

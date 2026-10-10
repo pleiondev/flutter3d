@@ -14,7 +14,6 @@
 /// across it, and the four rules a run has to keep.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
@@ -22,31 +21,30 @@ import 'package:flutter3d_game/flutter3d_game.dart'; // RunPlaying/RunFailed, Sa
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const String _first = 'assets/levels/first_steps.json';
 
 /// A storage that keeps everything in a map.
-final class _Storage implements Storage {
+final class _Storage extends Storage {
   final Map<String, String> documents = <String, String>{};
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// Sixteen by nine, because nothing here looks at the picture: the device
 /// exists so the loader has somewhere to upload the level's textures.
 ({PlatformerRun run, _Storage storage}) _game({
   void Function(String asset)? onLevelBuilt,
+  InputState? input,
 }) {
   final device = CpuDevice(
     width: 16,
@@ -59,7 +57,7 @@ final class _Storage implements Storage {
     run: PlatformerRun(
       firstLevel: _first,
       saves: SaveFile(appName: 'platformer', storage: storage),
-      input: InputState(),
+      input: input ?? InputState(),
       openDevice: () async => device,
       // The widget's half, which this test does not have: a camera, a box for
       // the runner, the interpolators — `onLevelBuilt` itself, `rp-01`'s own
@@ -131,7 +129,7 @@ void main() {
         final first = (it.run.status as RunPlaying<LevelReady>).level;
 
         // Spend something on the first level, so there is a tally to carry.
-        first.sim.step(1.0 / 60.0);
+        first.staged.step(1.0 / 60.0);
         final spent = first.sim.elapsed;
         expect(spent, greaterThan(0.0));
 
@@ -187,14 +185,14 @@ void main() {
       // lives, so its save is where you come back to.
       final it = _game();
       await it.run.begin();
-      it.run.save();
+      await it.run.save();
       expect(it.storage.documents['save.json'], isNotNull);
 
       final level = (it.run.status as RunPlaying<LevelReady>).level;
       // Straight to nought lives, which is what falling three times does.
       while (level.sim.state != RunState.lost) {
         level.staged.runner.body.teleport(Vector3(0.0, -80.0, 0.0));
-        level.sim.step(1.0 / 60.0);
+        level.staged.step(1.0 / 60.0);
       }
       it.run.observe();
       await it.run.advance();
@@ -211,7 +209,7 @@ void main() {
       await it.run.begin();
       final first = (it.run.status as RunPlaying<LevelReady>).level;
       for (var i = 0; i < 120; i++) {
-        first.sim.step(1.0 / 60.0);
+        first.staged.step(1.0 / 60.0);
       }
       await _finish(it.run);
 
@@ -237,13 +235,131 @@ void main() {
   test('the save is a level and a snapshot, and comes back as both', () async {
     final it = _game();
     await it.run.begin();
-    it.run.save();
+    await it.run.save();
 
     final again = _game();
     again.storage.documents.addAll(it.storage.documents);
 
     expect(await again.run.begin(), isTrue, reason: 'did not resume');
     expect((again.run.status as RunPlaying<LevelReady>).asset, _first);
+  });
+
+  group('a level edited in the editor', () {
+    test('goes in under the run, which carries on where it stood', () async {
+      final input = InputState();
+      final built = <String>[];
+      final it = _game(input: input, onLevelBuilt: built.add);
+      await it.run.begin();
+      final before = it.run.level!;
+      final timeline = _played(it.run, input, steps: 90);
+      final elapsed = before.sim.elapsed;
+      final standing = before.runner.body.position.clone();
+      final lastBrush = before.loaded.level.brushes.last.center.y;
+      built.clear();
+
+      final applied = await _live(
+        it.run,
+        timeline,
+      ).applyWhenReady(_raised(before.loaded.level));
+
+      final after = it.run.level!;
+      expect(applied.swappedAt, isNotNull, reason: 'a brush is the sim’s');
+      expect(after, isNot(same(before)));
+      expect(after.loaded.level.brushes.last.center.y, lastBrush + 40.0);
+      expect(
+        after.sim.elapsed,
+        closeTo(elapsed, 1e-9),
+        reason: 'the run was lived again up to now',
+      );
+      expect(after.runner.body.position.distanceTo(standing), lessThan(1e-6));
+      expect(built, <String>[
+        _first,
+      ], reason: 'the widget hears of it once, after the replay');
+      expect((it.run.status as RunPlaying<LevelReady>).asset, _first);
+    });
+
+    test('a look-only edit swaps the build and replays nothing', () async {
+      final input = InputState();
+      final it = _game(input: input);
+      await it.run.begin();
+      final before = it.run.level!;
+      final timeline = _played(it.run, input, steps: 30);
+      final document = before.loaded.level.toJson()..['fogDensity'] = 0.03;
+
+      final applied = await _live(
+        it.run,
+        timeline,
+      ).applyWhenReady(Level.fromJson(document));
+
+      expect(applied.swappedAt, isNull);
+      expect(it.run.level, isNot(same(before)));
+      expect(it.run.level!.loaded.level.fogDensity, 0.03);
+      expect(
+        timeline.history,
+        isEmpty,
+        reason: 'the timeline was not branched',
+      );
+    });
+
+    test('another level is refused, and the one up is kept', () async {
+      final input = InputState();
+      final it = _game(input: input);
+      await it.run.begin();
+      final before = it.run.level!;
+      // Another level differs in more than its name: a name alone is not
+      // something `diffLevel` compares, and an edit that changes nothing
+      // else is taken as the same level.
+      final document = _raised(before.loaded.level).toJson()
+        ..['name'] = 'elsewhere';
+
+      await expectLater(
+        _live(
+          it.run,
+          _played(it.run, input, steps: 1),
+        ).applyWhenReady(Level.fromJson(document)),
+        throwsA(isA<StateError>()),
+      );
+      expect(it.run.level, same(before));
+    });
+  });
+}
+
+/// The door the game opens for the editor, as `main.dart` builds it.
+LiveLevel _live(PlatformerRun run, RunTimeline timeline) => LiveLevel(
+  level: run.level!.loaded.level,
+  timeline: timeline,
+  prepare: run.prepareEdit,
+  rebuild: (Level next) => run.installEdit(),
+  present: (Level next, LevelDiff diff) => run.announceEdit(),
+);
+
+/// Plays [steps] steps of the level that is up through the run's own loop
+/// ([PlatformerRun.ownLoop]), the rewind attached, and hands back the
+/// timeline over them.
+RunTimeline _played(PlatformerRun run, InputState input, {required int steps}) {
+  final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+  final (:loop, genre: _) = run.ownLoop();
+  rewind.attach(loop);
+  loop.runSteps(steps);
+  return RunTimeline(rewind: rewind, loop: loop);
+}
+
+/// [level] with its last brush forty metres up, out of the runner's way.
+Level _raised(Level level) {
+  final document = level.toJson();
+  final brushes = <Object?>[...document['brushes']! as List<Object?>];
+  final last = Map<String, Object?>.of(
+    brushes.removeLast()! as Map<String, Object?>,
+  );
+  final at = (last['at']! as List<Object?>).cast<num>();
+  last['at'] = <double>[
+    at[0].toDouble(),
+    at[1].toDouble() + 40.0,
+    at[2].toDouble(),
+  ];
+  return Level.fromJson(<String, Object?>{
+    ...document,
+    'brushes': <Object?>[...brushes, last],
   });
 }
 
@@ -262,7 +378,7 @@ Future<void> _finish(PlatformerRun run) async {
   final exit = level.staged.mechanisms.all.whereType<Exit>().first;
   level.staged.runner.body.teleport(exit.collider.position);
   for (var i = 0; i < 4 && level.sim.nextLevel == null; i++) {
-    level.sim.step(1.0 / 60.0);
+    level.staged.step(1.0 / 60.0);
   }
   run.observe();
   await run.advance();

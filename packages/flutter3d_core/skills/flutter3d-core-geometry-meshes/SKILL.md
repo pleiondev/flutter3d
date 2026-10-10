@@ -58,7 +58,7 @@ pole handling is where the bugs live.
 ```dart
 final t = rayTriangle(ray, a, b, c);   // < 0 when it misses
 rayAabb(ray, box);
-raySphere(ray, centre, radius);
+raySphere(ray, center, radius);
 ```
 
 `TriangleBvh.fromMesh(mesh)` is the accelerator when a mesh is queried

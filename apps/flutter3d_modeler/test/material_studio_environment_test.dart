@@ -21,7 +21,7 @@ void main() {
     expect(environment.current, isNotNull);
     expect(scene.environment, same(environment.current));
     expect(scene.environmentLevels, greaterThan(0));
-    expect(scene.ambientIntensity, 1.0);
+    expect(scene.ambientIntensity, Photometric.legacyUnit);
     expect(device.releasedTextures, isEmpty);
   });
 

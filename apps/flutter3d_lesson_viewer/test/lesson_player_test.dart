@@ -3,11 +3,10 @@
 /// positions off the node rather than rendering a frame.
 library;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 List<EntityDef> _teardownSteps() => <EntityDef>[
   EntityDef(
@@ -62,7 +61,7 @@ void main() {
       scene.add(camera);
       final cover = SceneNode(name: 'cover');
       final block = SceneNode(name: 'block');
-      final untouched = SceneNode(name: 'untouched')..visible = false;
+      final untouched = SceneNode(name: 'untouched')..isVisible = false;
       final nodes = <String, SceneNode>{
         'cover': cover,
         'block': block,
@@ -71,12 +70,12 @@ void main() {
       final steps = _teardownSteps();
 
       applyLessonStepToCamera(camera, steps[0], nodes: nodes);
-      expect(cover.visible, isTrue);
+      expect(cover.isVisible, isTrue);
 
       applyLessonStepToCamera(camera, steps[1], nodes: nodes);
-      expect(cover.visible, isFalse, reason: 'step-2 hides it');
-      expect(block.visible, isTrue, reason: 'step-2 shows it');
-      expect(untouched.visible, isFalse, reason: 'step-2 never names it');
+      expect(cover.isVisible, isFalse, reason: 'step-2 hides it');
+      expect(block.isVisible, isTrue, reason: 'step-2 shows it');
+      expect(untouched.isVisible, isFalse, reason: 'step-2 never names it');
     });
   });
 

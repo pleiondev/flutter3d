@@ -2,11 +2,19 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/typed_blocks.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../scene/camera_node.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
+import 'render_node.dart' show FrameContextInternals;
+import 'render_view.dart';
 
 /// What a modeller draws on top of the surface: edges, vertices, the selection.
 ///
@@ -110,11 +118,10 @@ final class MeshOverlay extends PassContributor {
   OverlayBatch get _lineBatch => _through ? linesThrough : lines;
   OverlayBatch get _handleBatch => _through ? handlesThrough : handles;
 
-  /// [colour] as the current pass wants it: untouched ordinarily, faded to
+  /// [color] as the current pass wants it: untouched ordinarily, faded to
   /// [throughOpacity] inside [throughGeometry].
-  Vector4 _inThisPass(Vector4 colour) => _through
-      ? Vector4(colour.x, colour.y, colour.z, colour.w * throughOpacity)
-      : colour;
+  LinearColor _inThisPass(LinearColor color) =>
+      _through ? color.withAlpha(color.a * throughOpacity) : color;
 
   /// How much of the surface a fill lets through.
   ///
@@ -129,6 +136,10 @@ final class MeshOverlay extends PassContributor {
   @override
   int get order => 900;
 
+  /// An overlay, so it follows a debug wipe's `DebugViewSettings.overlays`.
+  @override
+  bool get isOverlay => true;
+
   @override
   bool get isActive =>
       !lines.isEmpty ||
@@ -136,6 +147,25 @@ final class MeshOverlay extends PassContributor {
       !fill.isEmpty ||
       !linesThrough.isEmpty ||
       !handlesThrough.isEmpty;
+
+  /// Every vertex the five batches hold, which are in scene space already
+  /// and are what [encode] draws, the same in every view. An empty box,
+  /// minimum past maximum, when they hold none.
+  @override
+  Aabb3 boundsFor(RenderView view) {
+    final min = Vector3.all(double.infinity);
+    final max = Vector3.all(double.negativeInfinity);
+    for (final batch in <OverlayBatch>[
+      lines,
+      handles,
+      fill,
+      linesThrough,
+      handlesThrough,
+    ]) {
+      batch._include(min, max);
+    }
+    return Aabb3.minMax(min, max);
+  }
 
   Vector3 _eye = Vector3.zero();
   Vector3 _right = Vector3(1, 0, 0);
@@ -164,6 +194,29 @@ final class MeshOverlay extends PassContributor {
     _perspective = perspective;
   }
 
+  /// [lookFrom] for [camera], drawn into a viewport [width] by [height]
+  /// logical pixels — `P7`.
+  ///
+  /// What a caller should use rather than working the pixel out itself: the
+  /// example's overlay did, from a field of view it took from the projection
+  /// when there was one and from a quarter turn when there was not, so through
+  /// an orthographic camera every handle and line was sized as if seen in
+  /// perspective. Read off the projection's own matrix instead, which answers
+  /// for every kind of lens: its vertical scale is `1 / tan(f / 2)` through a
+  /// perspective one and `2 / H` through an orthographic one, so `2 / (scale ×
+  /// height)` is the pixel either way, and its bottom row says which.
+  void lookThrough(CameraNode camera, double width, double height) {
+    final world = camera.worldMatrix.storage;
+    final projection = camera.projection.toMatrix(width / height).storage;
+    lookFrom(
+      eye: camera.readWorldPosition(),
+      right: Vector3(world[0], world[1], world[2]),
+      up: Vector3(world[4], world[5], world[6]),
+      pixel: 2.0 / (projection[5].abs() * height),
+      perspective: projection[11] != 0.0,
+    );
+  }
+
   /// How far from the eye a point is, in the units [lookFrom]'s pixel scales by.
   double _depth(Vector3 at) => _perspective ? (at - _eye).length : 1.0;
 
@@ -179,43 +232,30 @@ final class MeshOverlay extends PassContributor {
     handlesThrough.clear();
   }
 
-  /// A colour a design named, converted for the target it lands in.
+  /// **Colours are linear [LinearColor]s, written as they are.** This
+  /// overlay is drawn inside the scene pass — it has to be, or the depth test
+  /// could not let an edge sit on its own face — so everything written here
+  /// is treated as a light quantity and encoded on the way out, unlike
+  /// `DebugDraw`, which is drawn after the encode. A design colour (`#2A3234`
+  /// for a grid line) is handed over as `LinearColor.fromSrgb`, and the
+  /// encode gives the hex back; written as sRGB numbers it came back as
+  /// `#717B7D`, half again as bright.
   ///
-  /// **An overlay drawn in the scene pass pays the composite's transfer
-  /// function; `DebugDraw` does not, and that is the whole difference between
-  /// the two.** `DebugDraw` is encoded after the composite, so a byte it writes
-  /// is the byte that reaches the screen. This is encoded inside the scene pass
-  /// — it has to be, or the depth test could not let an edge sit on its own
-  /// face — and everything written there is treated as a light quantity and
-  /// encoded on the way out. A grid line handed over as `#2A3234` and written
-  /// literally comes back as `#717B7D`: the same hue, half again as bright, and
-  /// nothing in the picture to say why. So the design colour is converted here,
-  /// which is what the engine's own normals stage does and for the same reason.
+  /// The alpha is a coverage, not a colour, and the fill's 55 per cent means
+  /// 55 per cent of the way to the surface either way.
   ///
-  /// The alpha is left alone: it is a coverage, not a colour, and the fill's
-  /// 55 per cent means 55 per cent of the way to the surface either way.
+  /// What the encode does *not* undo is the exposure and the tone curve. A
+  /// viewport lighting a scene at 1.6 shows the grid a little lighter than the
+  /// hex says, and that is deliberate: the floor is in the picture rather than
+  /// pasted on top of it, and a floor that ignored the exposure would be the
+  /// one thing on screen that did.
   ///
-  /// What this does *not* undo is the exposure and the tone curve. A viewport
-  /// lighting a scene at 1.6 shows the grid a little lighter than the hex says,
-  /// and that is deliberate: the floor is in the picture rather than pasted on
-  /// top of it, and a floor that ignored the exposure would be the one thing on
-  /// screen that did.
-  static Vector4 asDrawn(Vector4 colour) => Vector4(
-    _toLinear(colour.x),
-    _toLinear(colour.y),
-    _toLinear(colour.z),
-    colour.w,
-  );
-
-  /// sRGB to linear, per the engine's `color.glsl`. A copy rather than an
-  /// import, the way `sky_settings.dart` keeps its own `smoothstep`: two lines
-  /// of arithmetic against a dependency from the renderer to a backend.
-  static double _toLinear(double c) =>
-      c < 0.04045 ? c / 12.92 : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+  /// Every point is in scene space, relative to `Scene.origin`, as the
+  /// surface it is drawn on is.
 
   /// A line between two points.
-  void edge(Vector3 from, Vector3 to, Vector4 colour) {
-    final drawn = asDrawn(_inThisPass(colour));
+  void edge(Vector3 from, Vector3 to, LinearColor color) {
+    final drawn = _inThisPass(color);
     _lineBatch
       ..vertex(_towardsEye(from), drawn)
       ..vertex(_towardsEye(to), drawn);
@@ -225,7 +265,7 @@ final class MeshOverlay extends PassContributor {
   ///
   /// What a vertex is, and the reason a vertex is not a line: a point of one
   /// pixel is unhittable on a phone and invisible on a display that scales.
-  void point(Vector3 at, Vector4 colour, {double size = 7}) {
+  void point(Vector3 at, LinearColor color, {double size = 7}) {
     final half = worldSize(size, at) * 0.5;
     final x = _right * half;
     final y = _up * half;
@@ -236,7 +276,7 @@ final class MeshOverlay extends PassContributor {
       middle + x - y,
       middle + x + y,
       middle - x + y,
-      asDrawn(_inThisPass(colour)),
+      _inThisPass(color),
     );
   }
 
@@ -246,7 +286,7 @@ final class MeshOverlay extends PassContributor {
   /// A selected edge drawn as a line is a selected edge nobody can see against
   /// the wireframe beside it. The width is in pixels for the same reason a
   /// point's size is.
-  void ribbon(Vector3 from, Vector3 to, Vector4 colour, {double width = 3}) {
+  void ribbon(Vector3 from, Vector3 to, LinearColor color, {double width = 3}) {
     final along = to - from;
     if (along.length2 == 0) return;
     final middle = (from + to) * 0.5;
@@ -261,13 +301,13 @@ final class MeshOverlay extends PassContributor {
       _towardsEye(to) - offset,
       _towardsEye(to) + offset,
       _towardsEye(from) + offset,
-      asDrawn(_inThisPass(colour)),
+      _inThisPass(color),
     );
   }
 
   /// A translucent triangle over a face.
-  void wash(Vector3 a, Vector3 b, Vector3 c, Vector4 colour) {
-    final washed = asDrawn(Vector4(colour.x, colour.y, colour.z, fillOpacity));
+  void wash(Vector3 a, Vector3 b, Vector3 c, LinearColor color) {
+    final washed = color.withAlpha(fillOpacity);
     fill
       ..vertex(_towardsEye(a), washed)
       ..vertex(_towardsEye(b), washed)
@@ -293,18 +333,21 @@ final class MeshOverlay extends PassContributor {
     Vector3 b,
     Vector3 c,
     Vector3 d,
-    Vector4 colour,
+    LinearColor color,
   ) {
     batch
-      ..vertex(a, colour)
-      ..vertex(b, colour)
-      ..vertex(c, colour)
-      ..vertex(a, colour)
-      ..vertex(c, colour)
-      ..vertex(d, colour);
+      ..vertex(a, color)
+      ..vertex(b, color)
+      ..vertex(c, color)
+      ..vertex(a, color)
+      ..vertex(c, color)
+      ..vertex(d, color);
   }
 
   PipelineHandle? _pipeline;
+
+  @override
+  void relinkShaders() => _pipeline = null;
 
   /// The index sequence 0, 1, 2, … that every draw here is made through.
   ///
@@ -441,17 +484,29 @@ final class OverlayBatch {
 
   void clear() => _floats = 0;
 
-  void vertex(Vector3 at, Vector4 colour) {
+  /// Widens [min] and [max] to every position this batch holds.
+  void _include(Vector3 min, Vector3 max) {
+    for (var i = 0; i < _floats; i += MeshOverlay.floatsPerVertex) {
+      for (var axis = 0; axis < 3; axis++) {
+        final value = _data[i + axis];
+        if (value < min[axis]) min[axis] = value;
+        if (value > max[axis]) max[axis] = value;
+      }
+    }
+  }
+
+  /// One vertex at [at], in scene space, in [color], written as it is.
+  void vertex(Vector3 at, LinearColor color) {
     if (_floats + MeshOverlay.floatsPerVertex > _data.length) {
       _grow(_floats + MeshOverlay.floatsPerVertex);
     }
     _data[_floats] = at.x;
     _data[_floats + 1] = at.y;
     _data[_floats + 2] = at.z;
-    _data[_floats + 3] = colour.x;
-    _data[_floats + 4] = colour.y;
-    _data[_floats + 5] = colour.z;
-    _data[_floats + 6] = colour.w;
+    _data[_floats + 3] = color.r;
+    _data[_floats + 4] = color.g;
+    _data[_floats + 5] = color.b;
+    _data[_floats + 6] = color.a;
     _floats += MeshOverlay.floatsPerVertex;
   }
 

@@ -17,10 +17,9 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 void main() {
   test('the note draws with its writing on it', () async {
@@ -41,15 +40,13 @@ void main() {
     asset.instantiate(scene, name: 'note');
 
     scene.add(
-      LightNode(color: Vector3(1.0, 1.0, 1.0), intensity: 3.0)
-        ..lookAt(Vector3(-0.2, -0.4, -1.0)),
+      LightNode(
+        color: LinearColor(1.0, 1.0, 1.0),
+        intensity: 3.0 * Photometric.legacyUnit,
+      )..lookAt(Vector3(-0.2, -0.4, -1.0)),
     );
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 0.8,
-        near: 0.05,
-        far: 10.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 0.8, near: 0.05, far: 10.0),
     )..setPosition(0.0, 0.0, 0.8);
     camera.lookAt(Vector3(0.0, 0.0, 0.0));
     scene.add(camera);
@@ -59,13 +56,11 @@ void main() {
       height: height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.2, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.2, 1.0)),
       ],
       settings: const RenderSettings(),
     );
-    final pixels = (await device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final pixels = (await device.readback(result.frame)).buffer.asUint8List();
     File(
       '/tmp/note_render.png',
     ).writeAsBytesSync(encodePng(pixels, width, height));

@@ -19,7 +19,8 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
-import 'package:vector_math/vector_math.dart';
+
+import 'overlay_ink.dart';
 
 /// Where the overlay is being looked at from, as [MeshOverlay.lookFrom] wants
 /// it.
@@ -213,10 +214,10 @@ typedef MeshOverlayRebuild = ({bool lines, bool handles, bool fill});
 /// not others. Give those their own overlay.
 final class MeshOverlayBuilder {
   MeshOverlayBuilder({
-    MeshOverlayColours? colours,
+    MeshOverlayColours? colors,
     this.edgeBudget = 100000,
     this.biasDrift = 0.25,
-  }) : colours = colours ?? MeshOverlayColours() {
+  }) : colors = colors ?? MeshOverlayColours() {
     if (edgeBudget < 1) {
       throw ArgumentError.value(
         edgeBudget,
@@ -226,7 +227,7 @@ final class MeshOverlayBuilder {
     }
   }
 
-  final MeshOverlayColours colours;
+  final MeshOverlayColours colors;
 
   /// How many edges — and, at vertex level, how many handles — are worth
   /// drawing. Everything above this is thinned down to it.
@@ -321,7 +322,7 @@ final class MeshOverlayBuilder {
 
     if (rebuildLines) {
       overlay.lines.clear();
-      _centreOf(mesh, _pivot);
+      _centerOf(mesh, _pivot);
       _emitLines(overlay, mesh);
       _builtNudge = _nudgeAt(overlay, _pivot, view.eye);
     }
@@ -389,7 +390,7 @@ final class MeshOverlayBuilder {
   /// vertices — a sphere with a dense pole is not centred on its pole — and
   /// what this is for is "roughly where the model is, from the camera's point
   /// of view".
-  void _centreOf(EditMesh mesh, Vector3 out) {
+  void _centerOf(EditMesh mesh, Vector3 out) {
     final positions = mesh.positions;
     var lowX = double.infinity, lowY = double.infinity, lowZ = double.infinity;
     var highX = -double.infinity,
@@ -441,7 +442,7 @@ final class MeshOverlayBuilder {
         overlay.edge(
           _from,
           _to,
-          mesh.edgeHas(half, EdgeFlags.seam) ? colours.seam : colours.wire,
+          (mesh.edgeHas(half, EdgeFlags.seam) ? colors.seam : colors.wire).ink,
         );
       });
     }
@@ -464,14 +465,14 @@ final class MeshOverlayBuilder {
           final kept = thinning.take();
           if (!picked && !kept) continue;
           mesh.positionOf(vertex, _from);
-          overlay.point(_from, picked ? colours.selected : colours.vertex);
+          overlay.point(_from, (picked ? colors.selected : colors.vertex).ink);
         }
       case ElementLevel.edge:
         for (final half in selection.ids) {
           if (!_edgeIsAlive(mesh, half)) continue;
           mesh.positionOf(mesh.originOf(half), _from);
           mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-          overlay.ribbon(_from, _to, colours.selected);
+          overlay.ribbon(_from, _to, colors.selected.ink);
         }
       case ElementLevel.face:
         // Every edge of every selected face, each drawn once: two selected
@@ -484,7 +485,7 @@ final class MeshOverlayBuilder {
             if (!drawn.add(mesh.edgeOf(half))) return;
             mesh.positionOf(mesh.originOf(half), _from);
             mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-            overlay.ribbon(_from, _to, colours.selected);
+            overlay.ribbon(_from, _to, colors.selected.ink);
           });
         }
     }
@@ -519,18 +520,18 @@ final class MeshOverlayBuilder {
         case ElementLevel.vertex:
           if (!mesh.isVertexAlive(id)) continue;
           mesh.positionOf(id, _from);
-          overlay.point(_from, colours.hovered);
+          overlay.point(_from, colors.hovered.ink);
         case ElementLevel.edge:
           if (!_edgeIsAlive(mesh, id)) continue;
           mesh.positionOf(mesh.originOf(id), _from);
           mesh.positionOf(mesh.originOf(mesh.nextOf(id)), _to);
-          overlay.ribbon(_from, _to, colours.hovered);
+          overlay.ribbon(_from, _to, colors.hovered.ink);
         case ElementLevel.face:
           if (!_faceIsAlive(mesh, id)) continue;
           mesh.forEachHalfEdge(id, (int half) {
             mesh.positionOf(mesh.originOf(half), _from);
             mesh.positionOf(mesh.originOf(mesh.nextOf(half)), _to);
-            overlay.ribbon(_from, _to, colours.hovered);
+            overlay.ribbon(_from, _to, colors.hovered.ink);
           });
       }
     }
@@ -548,7 +549,7 @@ final class MeshOverlayBuilder {
       // person would be looking at a highlight that disagrees with what a
       // raycast, an area and an exporter all say the face is.
       _triangulator.triangulate(outline, (int a, int b, int c) {
-        overlay.wash(outline[a], outline[b], outline[c], colours.selected);
+        overlay.wash(outline[a], outline[b], outline[c], colors.selected.ink);
       });
     }
   }

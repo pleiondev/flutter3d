@@ -13,7 +13,7 @@ library;
 import 'dart:convert';
 import 'dart:io' show stderr;
 
-import 'package:flutter3d_lti/flutter3d_lti.dart';
+import 'package:flutter3d_education/lti.dart';
 import 'package:http/http.dart' as http;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';

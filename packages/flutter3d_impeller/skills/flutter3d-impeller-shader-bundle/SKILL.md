@@ -6,7 +6,7 @@ description: Use when a flutter3d desktop or mobile build will not start, draws 
 # The backend that names flutter_gpu, and the bundle it loads
 
 ```dart
-final device = await GpuRenderBackend.create();
+final device = await GpuRenderBackend.open();
 final renderer = Renderer.create(device: device);
 ```
 

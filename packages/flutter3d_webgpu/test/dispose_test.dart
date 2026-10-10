@@ -26,7 +26,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
+import 'package:flutter3d_webgpu/src/webgpu_device.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'quad_stages.dart';
@@ -34,13 +34,22 @@ import 'quad_stages.dart';
 const int _width = 32;
 const int _height = 32;
 
-Future<WebGpuDevice?> _open() =>
-    WebGpuDevice.create(width: _width, height: _height, stages: quadStages);
+Future<WebGpuDevice?> _open() async {
+  try {
+    return await WebGpuDevice.open(
+      width: _width,
+      height: _height,
+      stages: quadStages,
+    );
+  } on DeviceUnavailableException {
+    return null;
+  }
+}
 
 ByteData _rgba(int width, int height) =>
     ByteData(width * height * 4); // all zero is a valid pixel buffer
 
-const RenderTargetSpec _target = RenderTargetSpec(
+const RenderTargetDescriptor _target = RenderTargetDescriptor(
   width: _width,
   height: _height,
   format: TextureFormat.r8g8b8a8UNormInt,
@@ -112,7 +121,7 @@ void main() {
     device
       ..createTexture(_target)
       ..createTexture(
-        const RenderTargetSpec(
+        const RenderTargetDescriptor(
           width: _width,
           height: _height,
           format: TextureFormat.r8g8b8a8UNormInt,

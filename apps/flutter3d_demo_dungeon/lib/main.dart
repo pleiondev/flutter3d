@@ -5,38 +5,59 @@ import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_demo_content/crypt.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
+import 'package:flutter3d_effects/flutter3d_effects.dart'
+    show
+        Audible,
+        Elements,
+        ElementsQuality,
+        HearingScale,
+        LiquidLook,
+        PhysicsHearing;
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_physics/elements.dart' show ElementSounds;
+import 'package:flutter3d_game_shooter/bridge.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 // `Material` exists in both flutter/material.dart and flutter3d. This file
 // wants Flutter's, for the widgets; the files under `src/` that build the
 // engine's do not import flutter/material.dart at all and so need no such
 // dance.
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_game_shooter/bridge.dart';
-import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart';
+import 'package:flutter3d_game_ui/flutter3d_game_ui.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show usePhysics;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
+import 'src/crypt_elements.dart';
+import 'src/crypt_fog.dart';
+import 'src/depths.dart';
+import 'src/element_sounds.dart';
 import 'src/ending.dart';
 import 'src/first_shot_hint.dart';
 import 'src/frame_effects.dart';
+import 'src/high_contrast_rings.dart';
 import 'src/hud.dart';
 import 'src/layers.dart';
+import 'src/photo_mode.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
 import 'src/run_terminal.dart';
 import 'src/shooter_keys.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
+import 'src/spoken.dart';
 import 'src/staging.dart';
 import 'src/touch_crypt.dart';
 import 'src/weapon_models.dart';
+import 'src/wooden_props.dart';
 
 /// Which build wrote a `.f3drun` — `Demo.buildStamp` is free text this
 /// package has no opinion on the shape of, and this application's opinion is
@@ -67,28 +88,62 @@ const String _buildStamp = String.fromEnvironment(
 ///
 /// What this proves, which no unit test can: that the fixed step, the captured
 /// mouse and the renderer agree with each other at 60 Hz on a real device.
-void main() {
-  // Landscape and no system bars on a handset — see `configureForTouch`,
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Landscape and no system bars on a handset — see `lockLandscapeForTouch`,
   // which two applications had written out and the third had not.
-  configureForTouch();
-  runApp(const DungeonApp());
+  lockLandscapeForTouch(_playing);
+  // Settings before the screen: the bindings a player saved are the ones the
+  // keyboard should read from the first key press, not from the first rebind.
+  final unread = <Issue>[];
+  final config = await SettingsFile(
+    appName: 'dungeon',
+    defaultActions: shooterActionMap,
+    onIssue: (Issue reported) {
+      printIssue(reported);
+      unread.add(reported);
+    },
+  ).read();
+  runApp(DungeonApp(config: config, configIssue: unread.lastOrNull?.message));
 }
 
+/// How this build is played — fingers or keys, a pointer that can be taken
+/// — asked of the platform once, for the whole game.
+final Playing _playing = Playing.ofPlatform();
+
 class DungeonApp extends StatelessWidget {
-  const DungeonApp({super.key});
+  const DungeonApp({super.key, this.config, this.configIssue});
+
+  /// What the player changed, read before the first frame; the defaults
+  /// when null.
+  final GameSettings? config;
+
+  /// Why [config] could not be read, if it could not.
+  final String? configIssue;
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Dungeon',
       debugShowCheckedModeBanner: false,
-      home: GameScreen(),
+      localizationsDelegates: const <LocalizationsDelegate<Object>>[
+        Flutter3dGameLocalizations.delegate,
+        DefaultMaterialLocalizations.delegate,
+        DefaultWidgetsLocalizations.delegate,
+      ],
+      home: GameScreen(config: config, configIssue: configIssue),
     );
   }
 }
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, this.config, this.configIssue});
+
+  /// See [DungeonApp.config].
+  final GameSettings? config;
+
+  /// See [DungeonApp.configIssue].
+  final String? configIssue;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -119,6 +174,7 @@ class _GameScreenState extends State<GameScreen>
   /// from having changed nothing.
   late final SettingsFile _settingsFile = SettingsFile(
     appName: 'dungeon',
+    defaultActions: shooterActionMap,
     onIssue: _sayIssue,
   );
 
@@ -127,36 +183,45 @@ class _GameScreenState extends State<GameScreen>
     _effects.say(reported.message);
   }
 
-  late final GameConfig _config;
+  /// The player's settings as they are now: replaced on every change, by
+  /// [_applyConfig].
+  late GameSettings _config;
+
+  /// What the high-contrast look rings, and in which role's colour — `N9`.
+  late final CryptRings _rings = CryptRings(() => _config);
+
+  /// The colour table for the player's colour vision, once there is a device
+  /// to hold it. See `ColorVisionLook`.
+  ColorVisionLook? _vision;
 
   /// The settings screen, which is a state machine and now says so.
-  late final SettingsCubit _settings;
+  late final GameSettingsController _settings;
 
-  /// What a player can move, in the order the panel lists it.
-  static const List<GameAction> _rebindable = <GameAction>[
-    GameAction.moveForward,
-    GameAction.moveBack,
-    GameAction.moveLeft,
-    GameAction.moveRight,
-    GameAction.jump,
-    GameAction.sprint,
-    // **`fire` is not here, and it used to be.** Firing with the mouse does
-    // not go through the bindings table at all — the `Listener` calls
-    // `pressPointer` directly — so the row showed only whatever key or pad
-    // button was bound, rebinding it left the mouse button where it was, and
-    // the player ended up with two controls where the panel showed one. Until
-    // `InputSource` can name a pointer button, offering the row is a promise
-    // the table cannot keep.
-    GameAction.use,
-    // **`crouch` is here, and it never was.** The body has crouched since the
-    // package was written — it shrinks, it walks slower, it refuses to stand
-    // under something — and nothing on any device asked it to, so the panel
-    // listing every verb a player can move was listing every verb but one.
-    ShooterActions.crouch,
-  ];
   late final DesktopInput _devices;
   late final PadInput _pad;
-  late final GameLoop _loop;
+
+  /// The engine's frame: the input, the steps phase by phase, the frame's
+  /// phases. The shooter is a plugin of it ([_shooter]) and steps in its
+  /// `physics` phase; what this game does around a step is its own systems
+  /// — see [_addSystems] for the order, which is the order `_step` had.
+  late final EngineLoop _loop;
+
+  /// The genre, installed into [_loop]: it steps whichever simulation the
+  /// level up now has, and nothing here calls `sim.step` itself.
+  late final ShooterPlugin _shooter = ShooterPlugin(
+    kinds: <EntityKind>[
+      for (final type in _entityKinds.types) _entityKinds[type]!,
+    ],
+  );
+
+  /// The weapon held before this step ran, read in the `input` phase and
+  /// compared in `publish`: a slot key or the last round changes it inside
+  /// the step.
+  WeaponDef? _heldBefore;
+
+  /// Times the shooter's step alone, for `rp-06` — started just before
+  /// `shooter.step` and stopped just after it.
+  final Stopwatch _stepWatch = Stopwatch();
 
   /// Nullable, because the device may never open.
   ///
@@ -321,7 +386,7 @@ class _GameScreenState extends State<GameScreen>
   /// ran, rather than replacing it, so a player with a hand on each turns the
   /// view by the sum.
   void _drainLook(Vector2 out) {
-    if (Playing.dragLook) {
+    if (_playing.usesDragLook) {
       _dragLook.drainInto(out);
     } else {
       _devices.drainLook(out);
@@ -329,7 +394,7 @@ class _GameScreenState extends State<GameScreen>
     _pad.drainLook(out);
   }
 
-  SoLoudBackend? _soloud;
+  AudioBackend? _soloud;
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
   /// would be a stone slab that grinds for exactly as long as the sample.
@@ -349,6 +414,18 @@ class _GameScreenState extends State<GameScreen>
   /// What a step looks like. A class for the same reason [_soundtrack] is one.
   final Reactions _reactions = Reactions();
 
+  /// The steps the last skipped cutscene ran, from the first to one past the
+  /// last, as the loop numbers them. Their events reach the frame channel
+  /// with the frame's own, and are neither shown nor heard.
+  (int, int) _skipped = (0, 0);
+
+  /// Whether the event the bus is handing out now is shown and heard: not one
+  /// of [_skipped]'s.
+  bool _shown = true;
+
+  /// Where the soundtrack plays a skipped cutscene's events: nowhere.
+  final AudioScene _unheard = AudioScene(backend: SilentBackend());
+
   MechanismWorld? get _mechanisms => _level?.staged.mechanisms;
   FixtureVisuals? get _fixtureVisuals => _level?.fixtureVisuals;
   WidgetSurfaceVisuals? get _widgetSurfaces => _level?.widgetSurfaces;
@@ -356,48 +433,153 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
+  /// `N8`: the run stopped and a camera to fly — see [PhotoMode]. P.
+  final PhotoMode _photo = cryptPhotoMode();
+
+  /// What the frame on screen is drawn with, for a photo drawn larger.
+  RenderSettings Function()? _frameSettings;
+
+  LookSettings _photoLook(LookSettings seen) =>
+      _photo.isActive && !_photo.isBusy ? _photo.look(seen) : seen;
+
+  /// Opens photo mode where the player's eye is, or closes it.
+  void _togglePhoto() {
+    if (_photo.isActive) {
+      setState(_photo.leave);
+      return;
+    }
+    final loaded = _loaded;
+    if (loaded == null || _player == null) return;
+    setState(
+      () => _photo.enter(
+        world: loaded.collision,
+        eye: _eye.clone(),
+        target: _target.clone(),
+        fieldOfView: const PerspectiveProjection().fovY,
+      ),
+    );
+  }
+
+  /// Draws the photo at [scale] times the window and saves it.
+  Future<void> _takePhoto(int scale) async {
+    final renderer = _renderer;
+    final loaded = _loaded;
+    final settings = _frameSettings;
+    if (renderer == null ||
+        loaded == null ||
+        settings == null ||
+        _photo.isBusy) {
+      return;
+    }
+    final size =
+        MediaQuery.sizeOf(context) * MediaQuery.devicePixelRatioOf(context);
+    setState(() => _photo.isBusy = true);
+    // The frame saying so is drawn first; after it nothing redraws until the
+    // picture is done.
+    await SchedulerBinding.instance.endOfFrame;
+    final taken = await savePhoto(
+      renderer: renderer,
+      scene: loaded.scene,
+      camera: _camera,
+      width: (size.width * scale).round(),
+      height: (size.height * scale).round(),
+      settings: settings(),
+      filter: _photo.filter,
+      clearColorSrgb: _view.clearColorSrgb,
+      shelf: defaultPhotoShelf('dungeon'),
+      name: 'dungeon-${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    if (!mounted) return;
+    setState(() {
+      _photo
+        ..isBusy = false
+        ..said = taken.saved.message;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
 
     // Settings before devices: the bindings a player saved are the ones the
     // keyboard should read from the first key press, not from the first rebind.
-    _config = _settingsFile.read();
-    // **One table, and it is the config's** — see `ownedBindings`, named after
-    // the bug it replaces: the ternary that used to be here handed the keyboard
-    // a fresh table on a first launch, so a rebind worked until the player quit
-    // and was then gone. The pad's defaults went the same way.
-    _devices = DesktopInput(
-      state: _input,
-      bindings: ownedBindings(_config, DesktopInput.defaultBindings),
-    );
-    // One table for both devices, and the d-pad chooses a weapon here rather
+    _config = widget.config ?? const GameSettings();
+    if (widget.configIssue case final String issue) _effects.say(issue);
+    // **One map, and the settings controller holds it**: the keyboard, the
+    // pad and the rebinding screen read the same object, and every change is
+    // saved from it. A fresh table on a first launch, edited by the screen
+    // and never saved, is the bug this replaced.
+    final controls = _config.actionsOr(shooterActionMap);
+    _devices = DesktopInput(state: _input, actions: controls);
+    // A table saved before this game read a controller gains the pad's
+    // defaults and keeps every rebinding the player made.
+    if (!PadInput.knowsPad(controls)) PadInput.addDefaultsTo(controls);
+    // One map for both devices, and the d-pad chooses a weapon here rather
     // than walking: this game numbers things, and a first-person player has the
-    // left stick for walking already.
-    _pad = PadInput(
-      state: _input,
-      bindings: PadInput.knowsPad(_devices.bindings)
-          ? _devices.bindings
-          : PadInput.addDefaultsTo(_devices.bindings),
-      slotButtons: PadInput.dpadSlots,
-    );
+    // left stick for walking already. A map saved before slots were actions
+    // gains the number row too.
+    PadInput.addSlotDefaultsTo(controls);
+    if (!controls.buttons.sources.any(
+      (InputSource s) => SlotActions.indexOf(controls.buttons[s]!) != null,
+    )) {
+      DesktopInput.addSlotsTo(controls, const <LogicalKeyboardKey>[
+        LogicalKeyboardKey.digit1,
+        LogicalKeyboardKey.digit2,
+        LogicalKeyboardKey.digit3,
+        LogicalKeyboardKey.digit4,
+      ]);
+    }
+    _pad = PadInput(state: _input, actions: controls);
     // The genre's own, into whatever table came back — a fresh one or a saved
-    // one. `fire` cannot be rebound (see [_rebindable]) so it is simply
+    // one. `fire` is not offered for rebinding, so it is simply
     // written every launch; `crouch` can, so a table that already says
     // something about crouching keeps what the player said, the same way
     // `knowsPad` leaves a saved table's rebindings alone above.
-    if (_devices.bindings.sourcesFor(ShooterActions.crouch).isEmpty) {
-      addShooterKeysTo(_devices.bindings);
+    if (controls.buttons.sourcesFor(ShooterActions.crouch).isEmpty) {
+      addShooterKeysTo(controls.buttons);
     } else {
-      _devices.bindings
+      controls.buttons
         ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
         ..bind(
           InputSource.pad(PadButton.shoulderRight.id),
           ShooterActions.fire,
         );
     }
-    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
-      ..recorders.add(_rewind.recorder);
+    _loop = EngineLoop(
+      input: _input,
+      drainLook: _drainLook,
+      // What the crypt looks and sounds like, and what it says to a screen
+      // reader: view plugins hearing the shooter's events on the frame
+      // channel, after the frame's steps and before it is drawn. The scene
+      // the soundtrack plays through is asked for each event, since the
+      // speakers replace the silent scene once they open.
+      plugins: <Flutter3dPlugin>[
+        _shooter,
+        _reactions.plugin,
+        _soundtrack.plugin(scene: () => _shown ? _audio : _unheard),
+        SpokenEvents(cryptSpoken),
+      ],
+      registries: <PluginRegistry>[EntityKinds()],
+    );
+    _rewinding = _rewind.attach(_loop);
+    // The monsters' animation markers are this game's event, published by
+    // the strides it hangs on the actors (see `_beforeStep`).
+    _loop.events.declare<AnimationMarkerPassed>(
+      AnimationMarkerPassed.eventName,
+      description: "A monster's animation passed a marker.",
+      codec: AnimationMarkerPassed.codec,
+    );
+    // Before any plugin's subscription, being the application's: whether the
+    // event about to be handed out belongs to a skipped cutscene, whose steps
+    // happen and are not shown or heard.
+    _loop.events.onFrame<BusEvent>('dungeon.shown', (
+      Delivered<BusEvent> delivered,
+    ) {
+      final (from, to) = _skipped;
+      _shown = delivered.step < from || delivered.step >= to;
+      _reactions.quiet = !_shown;
+    });
+    _addSystems();
     // `rp-02`: harmless where the VM service is off (a release build, or a
     // debug run nobody attaches to) — `registerExtension` just adds an
     // entry nothing ever asks for.
@@ -406,11 +588,15 @@ class _GameScreenState extends State<GameScreen>
       frameTimes: _frameTimes,
       bugReport: _remoteBugReport,
     );
+    // `P12`: the frame this game draws, pass by pass and draw by draw, for
+    // whichever renderer is open when somebody asks.
+    registerRenderExtensions(() => _renderer);
 
     _view = RenderView(camera: _camera);
 
-    _settings = SettingsCubit(
-      config: _config,
+    _settings = GameSettingsController(
+      settings: _config,
+      actions: controls,
       file: _settingsFile,
       apply: _applyConfig,
     );
@@ -468,6 +654,7 @@ class _GameScreenState extends State<GameScreen>
     setState(() {
       try {
         _renderer = Renderer.create(device: device);
+        _vision = ColorVisionLook(device);
       } catch (error) {
         _initError = error;
       }
@@ -478,13 +665,120 @@ class _GameScreenState extends State<GameScreen>
     // hidden by walls; the weapon over the top of it, sharing no depth with a
     // world that would otherwise slice the barrel off in every doorway.
     _renderer
-      ?..addContributor(ParticleContributor(_particles))
-      ..addNode(_weaponView.plugin);
+      ?..renderSteps.addContributor(ParticleContributor(_particles))
+      ..renderSteps.addNode(_weaponView.plugin);
 
     _openRun(device);
     _ticker = createTicker(_onTick)..start();
     unawaited(_openAudio());
-    unawaited(_run.begin());
+    unawaited(_openElements(device));
+    unawaited(_begin());
+  }
+
+  /// The fire, the water and the loose wood of the crypt, drawn and heard —
+  /// see [CryptElements]. They are the run's own — see `CryptWorld` — and
+  /// this only reads them. Null until the crates' pictures and the water's
+  /// material have loaded and a level on the core is up, and on a renderer
+  /// that failed.
+  CryptElements? _elements;
+  WoodenProps? _woodenProps;
+  bool _adopting = false;
+  final ElementSounds _elementSounds = ElementSounds(cryptElementCues);
+  final Vector3 _elementsEye = Vector3.zero();
+
+  /// Loads what the elements are drawn with, and stands them in the level
+  /// that is up, if one already is. A failure leaves the crypt undrawn and
+  /// the run as it is.
+  Future<void> _openElements(GraphicsDevice device) async {
+    try {
+      final props = await WoodenProps.load(device);
+      if (!mounted) return;
+      _woodenProps = props;
+    } catch (error) {
+      debugPrint('elements: not loaded ($error)');
+      return;
+    }
+    final level = _level;
+    if (level != null) _enterElements(level);
+  }
+
+  /// What draws the run's elements, adopted onto [crypt]'s world — once for
+  /// the run, since the world is the run's for as long as it lasts — and
+  /// stood in the level that is up by then.
+  Future<void> _adoptElements(CryptWorld crypt) async {
+    final renderer = _renderer;
+    final props = _woodenProps;
+    if (renderer == null || props == null || _adopting) return;
+    _adopting = true;
+    try {
+      final elements = await Elements.adopt(
+        crypt.world,
+        device: _run.run.device,
+        renderer: renderer,
+        scene: Scene(),
+        load: rootBundle.load,
+        quality: ElementsQuality.of(phone: _playing.touch),
+        hearing: (world) => PhysicsHearing(
+          world,
+          fireScale: const HearingScale(
+            quiet: 500.0,
+            loud: 5e5,
+            reference: 2e4,
+          ),
+          fallScale: const HearingScale(quiet: 50.0, loud: 1e5, reference: 5e3),
+          splashScale: const HearingScale(
+            quiet: 20.0,
+            loud: 2e4,
+            reference: 2e3,
+          ),
+        ),
+      );
+      final bundle = await rootBundle.load(LiquidLook.asset);
+      if (!mounted) {
+        elements.dispose();
+        return;
+      }
+      _elements = CryptElements(
+        elements: elements,
+        device: _run.run.device,
+        liquidBundle: bundle,
+        props: props,
+        particles: _particles,
+        light: _playing.touch,
+      );
+    } catch (error) {
+      debugPrint('elements: not drawn ($error)');
+      return;
+    } finally {
+      _adopting = false;
+    }
+    final level = _level;
+    if (level != null) _enterElements(level);
+  }
+
+  /// The elements of [level] drawn into its scene.
+  void _enterElements(LevelReady level) {
+    final crypt = level.crypt;
+    if (crypt == null || _woodenProps == null) return;
+    final elements = _elements;
+    if (elements == null) {
+      unawaited(_adoptElements(crypt));
+      return;
+    }
+    _elementSounds.silence();
+    elements.enter(
+      crypt: crypt,
+      scene: level.loaded.scene,
+      textures: level.loaded.materialTextures,
+    );
+  }
+
+  /// The run this device and the save server agree on, begun — the cloud
+  /// asked first only if the player turned cloud saves on.
+  Future<void> _begin() async {
+    final synced = await syncBeforeBegin(context, _cloud.sync);
+    if (synced != null) _effects.say(synced);
+    if (mounted) await _run.begin();
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -497,22 +791,29 @@ class _GameScreenState extends State<GameScreen>
     // mixer must not learn about them, so occlusion arrives as a function: a
     // wall between halves the sound rather than killing it, because a monster
     // you cannot hear at all is a monster that teleports.
-    final speakers = await openSpeakers(
-      bank: Sounds.all,
-      occlusion: _occlusionBetween,
-    );
-    if (speakers == null) return;
+    final Speakers speakers;
+    try {
+      speakers = await openSpeakers(
+        bank: Sounds.all,
+        occlusion: _occlusionBetween,
+      );
+    } on AudioDeviceException {
+      return;
+    }
     if (!mounted) {
       // The screen is gone and nothing below will adopt this backend, so it is
       // shut down here — its own doc warns that an engine left initialized
       // blocks a later open().
-      unawaited(speakers.backend.dispose());
+      unawaited(speakers.dispose());
       return;
     }
     _soloud = speakers.backend;
     _audio = speakers.scene;
     _applyConfig(_config);
     _startAmbience();
+    // The crates' fires, the culvert and the splashes: the effects
+    // package's recordings, loaded beside the game's own.
+    unawaited(_audio.preload(cryptElementCues.all));
   }
 
   /// How much of a sound survives the trip from [from] to [to].
@@ -563,7 +864,7 @@ class _GameScreenState extends State<GameScreen>
 
   /// What [_startAmbience] created, so [_stopAmbience] can undo it — the same
   /// bookkeeping `FrameEffects.moverVoices` keeps for the movers.
-  final List<SoundEmitter> _ambience = <SoundEmitter>[];
+  final List<AudioEmitter> _ambience = <AudioEmitter>[];
 
   /// Builds the run once there is a device to load through.
   ///
@@ -578,7 +879,7 @@ class _GameScreenState extends State<GameScreen>
         registry: _entityKinds,
         input: _input,
         inventory: startingInventory(),
-        saves: SaveFile(appName: 'dungeon', onIssue: _sayIssue),
+        saves: _saves,
         widgetRegistry: <String, WidgetBuilder>{
           // `wg-02`'s first demo scene: a terminal on the crypt's own wall,
           // echoing what `_effects.say` already tells the HUD.
@@ -587,22 +888,43 @@ class _GameScreenState extends State<GameScreen>
         eyeOffset: _eyeOffset,
         lookSensitivity: _lookSensitivity,
         device: device,
+        published: () => _loop.published,
       ),
     );
     _demos = DemoFile(appName: 'dungeon', onIssue: _sayIssue);
+    _autosave = Autosave(_run.run)..watchLifecycle();
   }
+
+  /// The run on this device.
+  late final SaveFile _saves = SaveFile(appName: 'dungeon', onIssue: _sayIssue);
+
+  /// What the player is asked about their data, and what a yes turns on:
+  /// the run kept on the save server, finished levels sent to see where
+  /// they are hard. Both off until answered.
+  late final GameCloud _cloud = GameCloud(
+    game: 'dungeon',
+    storage: _saves.storage,
+    saves: _saves,
+    server: const String.fromEnvironment('FLUTTER3D_CLOUD'),
+    policy: '2026-10',
+  );
+
+  /// Writes the run at a pause and when the window goes to the background,
+  /// as well as on quitting.
+  Autosave? _autosave;
 
   /// The last run, as what the player did. See [DemoFile].
   DemoFile? _demos;
 
-  /// Where the run being recorded started, and in which level.
-  Snapshot? _demoStart;
-  String? _demoLevel;
-  String? _demoLevelHash;
+  /// The run being recorded, through [_loop]: where it started and in which
+  /// level, the tape, a checkpoint every so many steps — `rp-01`'s reason a
+  /// `.f3drun` can be verified rather than only watched — and what the loop
+  /// journals and each step's event digest, so a divergence is found to the
+  /// event. Kept after the run ends, for the level a bug report names.
+  DemoRecording? _demo;
 
-  /// A checkpoint every so many steps, taken live while the run is recorded
-  /// — `rp-01`'s reason a `.f3drun` can be verified rather than only watched.
-  DigestTrace? _demoCheckpoints;
+  /// Whether [_demo] is still being written.
+  bool _demoOpen = false;
 
   /// Starts writing the run down, from the state the level is in now.
   ///
@@ -612,24 +934,33 @@ class _GameScreenState extends State<GameScreen>
   void _beginDemo(String asset, LevelReady level) {
     _taughtFirstShot = false;
     final start = level.staged.sim.save();
-    _demoStart = start;
-    _demoLevel = asset;
-    _demoLevelHash = level.loaded.level.digestHex;
-    _demoCheckpoints = DigestTrace();
     // A kill camera still playing when the next level arrives — a restart
     // pressed through it — is over, and the level it was replaying is gone.
     _endKillcam(restorePresent: false);
     _endRecording();
-    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
-    _demoRecorder = recorder;
-    _loop.recorders.add(recorder);
+    _demo = DemoRecording(
+      physics: usePhysics(),
+      level: asset,
+      levelHash: level.loaded.level.digestHex,
+      start: start,
+      seed: start.data.integer('random'),
+      simulation: shooterSimulationVersion,
+    )..attach(_loop);
+    _demoOpen = true;
     // The last few seconds, for the kill camera: a new level has none yet, and
     // the recorder is put back if a kill camera took it out.
+    _rewinding?.cancel();
     _rewind.reset();
-    if (!_loop.recorders.contains(_rewind.recorder)) {
-      _loop.recorders.add(_rewind.recorder);
-    }
+    _rewinding = _rewind.attach(_loop);
   }
+
+  /// [_rewind] attached to [_loop]: its recorder and its keyframes, the
+  /// loop's captures. Null while a kill camera plays.
+  Registration? _rewinding;
+
+  /// The loop's step when the kill camera took the present, which
+  /// [_endKillcam] puts it back at.
+  int _killcamStep = 0;
 
   /// The state the death left, kept while the last seconds play again. Null
   /// when no kill camera is playing.
@@ -655,28 +986,36 @@ class _GameScreenState extends State<GameScreen>
   ///   this plays;
   /// * the devices write into the same input the tape does; they are muted,
   ///   and the tape lifts the mute for its own writes;
-  /// * the rewind buffer would record the replay into the run's history; its
-  ///   recorder is taken out, and put back when the next level begins.
+  /// * the rewind buffer would record the replay into the run's history; it
+  ///   is detached from the loop, and attached again when the next level
+  ///   begins.
+  ///
+  /// The present and the keyframe go through the loop's snapshots — every
+  /// part of the state, the shooter's run among them — and the loop's step
+  /// count with them.
   void _startKillcam() {
     final sim = _sim;
     if (sim == null || _killcamPresent != null) return;
     final point = _rewind.rewindBy(_killcamSeconds);
     if (point == null) return;
-    _killcamPresent = sim.save();
-    _loop.recorders.remove(_rewind.recorder);
+    _killcamPresent = _loop.capture();
+    _killcamStep = _loop.step;
+    final keyframe = point.step - point.replayed;
+    final loopStep = _loop.step - (_rewind.step - keyframe);
+    _rewinding?.cancel();
+    _rewinding = null;
     _input
       ..clear()
       ..muted = true;
-    sim.restore(point.snapshot);
+    _loop.rewindTo(loopStep, state: point.snapshot);
     // From the keyframe to the moment the camera starts, without drawing or
-    // sounding: the step is the simulation's own, not the one with effects.
-    final toPoint = InputTapePlayback(point.tapeToPoint);
-    while (!toPoint.isFinished) {
-      toPoint.applyTo(_input);
-      _input.beginStep();
-      sim.step(_loop.clock.stepSeconds);
-      _input.endStep();
-    }
+    // sounding: through the loop, marked resimulated, so the shooter steps
+    // and nothing of this game's runs — no recorder writes, no keyframe is
+    // taken, nothing is read or shown ([_addSystems] says so of each).
+    final toPoint = point.tapeToPoint;
+    _loop
+      ..playback = InputTapePlayback(toPoint)
+      ..runSteps(toPoint.steps, resimulated: true);
     final player = _player;
     if (player != null) _smoothedPosition.jumpTo(player.body.position);
     _loop.playback = InputTapePlayback(point.tapeFromPoint);
@@ -693,11 +1032,8 @@ class _GameScreenState extends State<GameScreen>
       ..clear();
     // The death, exactly as it was: the replay lands on it by determinism
     // anyway, and restoring it is what makes that a fact rather than a hope.
-    if (restorePresent) _sim?.restore(present);
+    if (restorePresent) _loop.rewindTo(_killcamStep, state: present);
   }
-
-  /// The demo's own recorder, beside the rewind buffer's in the loop.
-  InputTapeRecorder? _demoRecorder;
 
   /// The last ten seconds of the run, every step of them. See [RewindBuffer].
   ///
@@ -707,16 +1043,9 @@ class _GameScreenState extends State<GameScreen>
   final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
 
   /// `rp-02`'s door onto this run, over the VM service — see
-  /// `registerTimelineExtensions`. Reads `_sim` fresh on every call rather
-  /// than capturing it, the same way everything else in this file does,
-  /// because which simulation that getter answers changes every time a
-  /// level does.
-  late final RunTimeline _timeline = RunTimeline(
-    rewind: _rewind,
-    input: _input,
-    stepSim: (double dt) => _sim?.step(dt),
-    restore: (Snapshot snapshot) => _sim?.restore(snapshot),
-  );
+  /// `registerTimelineExtensions`. Through the loop and its snapshots, so
+  /// whichever simulation the shooter is stepping is the one rewound.
+  late final RunTimeline _timeline = RunTimeline(rewind: _rewind, loop: _loop);
 
   /// `rp-06`: how long each step of `sim.step` cost, read back over the same
   /// VM service `_timeline` is on.
@@ -729,26 +1058,34 @@ class _GameScreenState extends State<GameScreen>
   /// is nothing to report yet, the same case `bugReportTape` itself returns
   /// null for.
   Map<String, Object?> _remoteBugReport() {
-    final report = bugReportTape(_rewind);
+    // The start as the run's own snapshot, which is what a `.f3drun` holds.
+    final report = bugReportTape(_rewind, part: ShooterPlugin.id);
     if (report == null) {
       throw StateError('nothing has been recorded yet');
     }
+    // A run as a `.f3drun` reads it, with no checkpoints — a tool that
+    // keeps it takes them by playing it again — so what an agent drops into
+    // `test/tapes/` replays as it is.
     return <String, Object?>{
-      'level': _demoLevel ?? 'unknown',
-      'levelHash': _demoLevelHash ?? '',
+      'version': 1,
+      'level': _demo?.level ?? 'unknown',
+      'levelHash': _demo?.levelHash ?? '',
       'start': report.start.toJson(),
       'tape': report.tape.toJson(),
       'buildStamp': _buildStamp,
+      'checkpoints': DigestTrace().toJson(),
       'platform': defaultTargetPlatform.name,
+      'physics': usePhysics().name,
     };
   }
 
-  /// Stops the demo's recorder, leaving the rewind buffer's in place.
-  InputTapeRecorder? _endRecording() {
-    final recorder = _demoRecorder;
-    if (recorder != null) _loop.recorders.remove(recorder);
-    _demoRecorder = null;
-    return recorder;
+  /// Stops recording the demo, leaving the rewind buffer's recorder in
+  /// place. The recording that was open, or null when none was.
+  DemoRecording? _endRecording() {
+    final demo = _demoOpen ? _demo : null;
+    demo?.detach();
+    _demoOpen = false;
+    return demo;
   }
 
   /// Writes the run down when it ends, either way.
@@ -758,27 +1095,46 @@ class _GameScreenState extends State<GameScreen>
   /// once at the end rather than as it goes, for the reason the save is: a
   /// write per step would put a file in the step budget.
   void _endDemo() {
-    final recorder = _endRecording();
-    final start = _demoStart;
-    final level = _demoLevel;
-    final levelHash = _demoLevelHash;
-    final checkpoints = _demoCheckpoints;
-    if (recorder == null ||
-        start == null ||
-        level == null ||
-        levelHash == null ||
-        checkpoints == null) {
+    final recording = _endRecording();
+    if (recording == null) return;
+    // The physics it replays on is `PhysicsBackend.current`, which
+    // `usePhysics` chose when the level was staged.
+    final demo = recording.demo(
+      buildStamp: _buildStamp,
+      platform: defaultTargetPlatform.name,
+    );
+    unawaited(_demos?.write(demo));
+    // To the server too, if the player said runs may go: the uploader
+    // asks their answer at the moment of sending.
+    unawaited(_cloud.send(demo));
+  }
+
+  /// `HR3`: the level on screen, as the editor sees it.
+  LiveLevel? _live;
+
+  /// Lets a level saved in the editor into this run, or tells the door
+  /// which level is up now.
+  ///
+  /// **Registered with the first level rather than in [initState]**, because
+  /// a `LiveLevel` compares every edit with the level it holds and there is
+  /// none before one loads; a VM service extension cannot be registered
+  /// twice, so later levels move the one door along. The edit is built ahead
+  /// by [DungeonRun.prepareEdit] and swapped in inside [_timeline]'s replay
+  /// by [DungeonRun.installEdit], so the run is lived again under it.
+  void _takeEdits(LevelReady level) {
+    final live = _live;
+    if (live != null) {
+      live.level = level.loaded.level;
       return;
     }
-    _demos?.write(
-      Demo(
-        level: level,
-        levelHash: levelHash,
-        start: start,
-        tape: recorder.tape,
-        buildStamp: _buildStamp,
-        checkpoints: checkpoints,
-        platform: defaultTargetPlatform.name,
+    final run = _run.run;
+    registerLevelExtension(
+      _live = LiveLevel(
+        level: level.loaded.level,
+        timeline: _timeline,
+        prepare: run.prepareEdit,
+        rebuild: (Level next) => run.installEdit(),
+        present: (Level next, LevelDiff diff) => run.installEdit(),
       ),
     );
   }
@@ -788,15 +1144,19 @@ class _GameScreenState extends State<GameScreen>
   /// A listener rather than the tail of the load, because the load happens in
   /// the cubit now and these are all effects on things the cubit does not own:
   /// a smoothed camera position, an accumulator full of loading time, and a
-  /// looping sound.
-  void _levelArrived(LevelReady level) {
+  /// looping sound. [edited] when it is the same level changed in the
+  /// editor and put in under the run, which is not one more level entered.
+  void _levelArrived(LevelReady level, {bool edited = false}) {
     // One more level of the crypt stood in, for the screen at the end of it.
     // Here rather than in `DungeonRun` because this fires once per level
     // actually put in front of the player: a load overtaken by a newer one
     // never reaches this listener, and `RunSession.carryFrom` — the other
     // candidate — is not called for the last level at all.
-    _run.run.crawl.levels++;
+    if (!edited) _run.run.crawl.levels++;
     _soundOcclusion = SoundOcclusion(level.loaded.collision);
+    // The crypt's sparks and embers fall by the crypt's world, as its
+    // monsters and its fire do.
+    _particles.world = level.loaded.collision.properties;
     // The player is built by the staging, which knows the compiled-in default
     // and nothing about what this player has chosen. Applied here rather than
     // threaded through, because a setting changed mid-run has to reach the
@@ -810,11 +1170,11 @@ class _GameScreenState extends State<GameScreen>
     // dropped rather than simulated — otherwise the first frame spends its
     // whole budget catching up, and the dropped-step counter reads as a
     // performance problem for the rest of the session.
-    _loop.clock.reset();
+    _loop.resetClock();
     // A load takes far longer than a frame and drops simulated time every time.
     // Counting that against the machine would light the warning on every level
     // of every run, which is the same as not having one.
-    _pace.reset(_loop.clock.droppedSteps);
+    _pace.reset(_loop.lostSteps);
     // A fresh level makes its own noises. The soundtrack's running set and the
     // effects' mover voices both name the old level's mechanisms, and those
     // will never report `stopped` now — a mover caught mid-travel by the level
@@ -824,6 +1184,9 @@ class _GameScreenState extends State<GameScreen>
     // The old level's torches out, the new level's lit.
     _stopAmbience();
     _startAmbience();
+    // And the old level's crates and water gone with it, the new level's
+    // stood in.
+    _enterElements(level);
     // **On entering a level, and on quitting, and at no other time.** This game
     // has no checkpoints — the platformer saves when its respawn point moves,
     // and there is nothing here that moves. A door is not a checkpoint: a
@@ -844,12 +1207,15 @@ class _GameScreenState extends State<GameScreen>
     // Null if the window closed before the device opened: nothing ran, so
     // there is nothing to keep.
     _runOrNull?.save();
+    _autosave?.dispose();
     // Closed like [_settings], and the cubit unhooks itself from the session
     // first — see `RunCubit.close` for why the order matters.
     unawaited(_runOrNull?.close());
+    _elementSounds.silence();
+    _elements?.dispose();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
-    unawaited(_settings.close());
+    _settings.dispose();
     _keyboard.dispose();
     _ticker?.dispose();
     _devices.dispose();
@@ -858,20 +1224,13 @@ class _GameScreenState extends State<GameScreen>
 
   static const String _firstLevel = 'assets/levels/crypt.json';
 
-  /// The table this game ships with, for the panel's way back.
-  ///
-  /// The genre's own two go on last — see [addShooterKeysTo], and the crouch
-  /// that nothing had ever bound.
-  static Bindings _defaultBindings() =>
-      addShooterKeysTo(PadInput.addDefaultsTo(DesktopInput.defaultBindings()));
-
   /// The pointer goes back and the keys are let go, before a panel is shown.
   ///
   /// The second half used to happen only as a side effect of the first, so on a
   /// build with no pointer to release a key held as the panel opened stayed
   /// held — and closing it walked the player into a wall.
   void _openSettings() {
-    unawaited(_devices.release());
+    unawaited(_devices.releaseMouse());
     _input.clear();
   }
 
@@ -882,12 +1241,13 @@ class _GameScreenState extends State<GameScreen>
   /// the sprint toggle and not the mixer. Neither needed the other's half, and
   /// neither said so — which is how two half-applies stay correct right up
   /// until one of them grows a third thing.
-  void _applyConfig(GameConfig config) {
+  void _applyConfig(GameSettings config) {
+    _config = config;
     applySavedVolumes(config, _audio.mixer);
     _pad.applySettings(config);
     _input.setToggled(
       GameAction.sprint,
-      toggled: config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
+      toggled: config.valueOf(GameSettingKeys.toggleSprint),
     );
     // **The most adjusted setting a first-person game has, and there was no
     // way to change it.** It was a `static const` compiled into this file; the
@@ -895,8 +1255,8 @@ class _GameScreenState extends State<GameScreen>
     // rather than in radians per pixel, because that is a number somebody can
     // set by feel — and negative inverts, which is what a switch elsewhere in
     // the panel means.
-    final scale = config.settingOf('mouse.look', 1.0);
-    final inverted = config.settingOf('mouse.invertY', 0.0) >= 0.5;
+    final scale = config.valueOf(GameSettingKeys.mouseLook);
+    final inverted = config.valueOf(GameSettingKeys.mouseInvertY);
     _lookScale = scale;
     _lookInverted = inverted;
     _player
@@ -968,72 +1328,208 @@ class _GameScreenState extends State<GameScreen>
     // level was still loading and threw it away on arrival.
     // A kill camera plays whether or not the pointer is held: the player is
     // dead, and a replay that waited for a click would never start.
-    _loop.paused = _killcamPresent != null
-        ? _settings.state.isOpen
+    final paused = _killcamPresent != null
+        ? _settings.value.isOpen || _photo.isActive
         : shouldPause(
             ready: _sim != null,
-            menuOpen: _settings.state.isOpen,
-            pointerIsTheGate: Playing.capturesPointer,
+            menuOpen: _settings.value.isOpen,
+            pointerIsTheGate: _playing.capturesPointer,
             pointerHeld: _devices.isCaptured,
             padConnected: _pad.isConnected,
+            photoMode: _photo.isActive,
           );
-    _steps = _loop.advance(dt);
+    // A level that has just arrived holds this one frame: the loop gives a
+    // paused frame's time to nobody and empties its accumulator on the way
+    // out, which drops the loading time. Not a pause the autosave hears of.
+    _loop.isPaused = paused;
+    unawaited(_autosave?.paused(now: paused && _sim != null));
+    // Space or use, or the button on the overlay: whichever the player has.
+    // Held rather than pressed, read here between steps — the simulation
+    // reads none of the player's input while a cutscene plays, so the keys
+    // are free.
+    if (_sim?.cutscene != null &&
+        (_skipAsked ||
+            _input.held(GameAction.jump) ||
+            _input.held(GameAction.use))) {
+      _skipAsked = false;
+      _skipCutscene();
+    }
+    _skipAsked = false;
+    // The steps, then the frame's phases — the elements, the visuals, the
+    // photo camera, the overlays; see [_addSystems].
+    _steps = _loop.frame(dt);
     _pace.note(
-      dropped: _loop.clock.droppedSteps,
+      dropped: _loop.lostSteps,
       dt: dt,
-      stepSeconds: _loop.clock.stepSeconds,
+      stepSeconds: _loop.stepSeconds,
     );
-    // Once a frame, not once a step: this is display, and the simulation does
-    // not care where the capsules are. **With the loop's alpha**, so a monster
-    // is drawn between the two steps either side of this frame rather than
-    // where the later one left it — which is what the player's own camera has
-    // always done, and what every monster in the crypt was not doing.
-    _actorVisuals?.sync(_loop.alpha);
-    // Once a frame with the frame's own delta, not once per simulation step:
-    // an animation is display, and playing it on the fixed step would make a
-    // monster's stride depend on how far behind the machine is.
-    _actorVisuals?.animate(dt);
-    _fixtureVisuals?.sync(_frames.elapsed);
-    // `wg-02`: once a frame, fire-and-forget — `WidgetSurface.tick` uploads
-    // a texture only when its own pipeline is actually dirty, the same
-    // budget `wg-00` measured, so a terminal nobody wrote to this frame
-    // costs one boolean check.
-    unawaited(_widgetSurfaces?.tickAll());
-    setState(() {});
+    // Not while a photo is drawn: a rebuild draws a frame on the renderer
+    // the tiles are drawn on — see `capturePhoto`.
+    if (!_photo.isBusy) setState(() {});
   }
 
-  /// One step of simulated time.
+  /// This game's half of [_loop]: what it does around the shooter's step,
+  /// and what it does once a frame.
+  ///
+  /// **The step is in the order `_step` had under the old loop**, so a tape
+  /// this game recorded steps the same simulation the same way:
+  ///
+  /// | phase | system | was |
+  /// | --- | --- | --- |
+  /// | `input` | `dungeon.before` | the weapon held, the rewind keyframe |
+  /// | `physics` | `dungeon.time.start` | `rp-06`'s timer started |
+  /// | `physics` | `shooter.step` (the plugin) | `sim.step(dt)` |
+  /// | `physics` | `dungeon.time.stop` | `rp-06`'s timer read |
+  /// | step's end | `onStepEnd` | the checkpoint, the step's events, the rest |
+  ///
+  /// The two timers name `shooter.step` in `before`/`after` rather than
+  /// trusting registration order, which would put the application's systems
+  /// first in the phase either way. A step run again — the kill camera's
+  /// way to its starting point — runs the shooter and nothing here, as the
+  /// hand-written loop it replaces did.
+  ///
+  /// Once a frame, after the steps, in the frame phases: the elements and
+  /// the visuals in `animate`, the photo camera in `camera`, the overlays in
+  /// `render`. These were the lines after `advance` in [_onTick], and each
+  /// reads the world the steps left and changes none of it, so their order
+  /// among themselves is the phases' and not the old line order.
+  void _addSystems() {
+    // The step's end rather than the `publish` phase, since that is where the
+    // bus hands out what the step published: the whole step's events at once.
+    _loop.onStepEnd(_afterStep);
+    _loop
+      ..addSystem('dungeon.before', LoopPhase.input, _beforeStep)
+      ..addSystem('dungeon.time.start', LoopPhase.physics, (LoopContext step) {
+        if (!step.isResimulated) _stepWatch.start();
+      }, before: <String>[ShooterPlugin.stepSystem])
+      ..addSystem('dungeon.time.stop', LoopPhase.physics, (LoopContext step) {
+        if (step.isResimulated || !_stepWatch.isRunning) return;
+        _stepWatch.stop();
+        _frameTimes.observe(
+          ++_frameTimeStep,
+          _stepWatch.elapsedMicroseconds / 1e6,
+        );
+        _stepWatch.reset();
+      }, after: <String>[ShooterPlugin.stepSystem])
+      ..addSystem('dungeon.reactions', LoopPhase.animate, (LoopContext frame) {
+        // What the reactions plugin decided from the frame's events, on the
+        // frame they happened in.
+        _effects.show(
+          _reactions.plugin.drain(),
+          _particles,
+          _system.screenFlash,
+        );
+      })
+      ..addSystem('dungeon.elements', LoopPhase.animate, (LoopContext frame) {
+        _stepElements(frame.realDt);
+      })
+      ..addSystem('dungeon.visuals', LoopPhase.animate, (LoopContext frame) {
+        // Once a frame, not once a step: this is display, and the simulation
+        // does not care where the capsules are. **With the loop's alpha**,
+        // so a monster is drawn between the two steps either side of this
+        // frame rather than where the later one left it — which is what the
+        // player's own camera has always done, and what every monster in the
+        // crypt was not doing. Asked for their rings as well, which the
+        // engine reads only while the high-contrast look is on — so they are
+        // set whether or not it is.
+        _actorVisuals
+          ?..outlineOf ??= _rings.actor
+          ..sync(frame.alpha);
+        _fixtureVisuals?.outlineOf ??= _rings.fixture;
+        // The monsters' graphs are stepped by the simulation and this draws
+        // the pose the last step left; what it still plays on the frame's
+        // own clock is a model with no graph, naming its clips, and the
+        // corpses falling.
+        _actorVisuals?.animate(frame.realDt);
+        _fixtureVisuals?.sync(_frames.elapsed);
+      })
+      ..addSystem('dungeon.photo', LoopPhase.camera, (LoopContext frame) {
+        if (!_photo.isActive) return;
+        // The paused loop drains nothing, so the look is taken here; the
+        // camera is put on the node in `_placeCamera`.
+        final look = Vector2.zero();
+        _drainLook(look);
+        _photo.fly(frame.realDt, input: _input, look: look);
+      })
+      ..addSystem('dungeon.overlays', LoopPhase.render, (LoopContext frame) {
+        final actors = _actors;
+        _renderer?.debugLines = _treesOn && actors != null
+            ? BehaviorOverlay(actors).draw
+            : null;
+        // `wg-02`: once a frame, fire-and-forget — `WidgetSurface.tick`
+        // uploads a texture only when its own pipeline is actually dirty,
+        // the same budget `wg-00` measured, so a terminal nobody wrote to
+        // this frame costs one boolean check.
+        unawaited(_widgetSurfaces?.tickAll());
+      });
+  }
+
+  /// The shooter is handed the level up now — none while there is no player
+  /// to be, so nothing steps — and, before its step, the weapon held is
+  /// noted. The rewind's keyframes are the loop's own captures, taken by the
+  /// buffer it is attached to.
+  void _beforeStep(LoopContext step) {
+    final sim = _player == null ? null : _sim;
+    _shooter.simulation = sim;
+    // The monsters' markers onto the bus the run publishes on, which the
+    // plugin has just handed its actors: in order with the shots and deaths
+    // of the same step.
+    final actors = _actors;
+    if (actors?.strides case final ActorAnimations animations) {
+      animations.events = sim == null ? null : actors?.events;
+    }
+    if (sim == null || step.isResimulated) return;
+    _heldBefore = _arsenal.current;
+  }
+
+  /// The elements drawn one frame on, as the run's steps left them, and
+  /// heard through the game's mixer. Frozen with the run under a pause, as
+  /// everything drawn is.
+  void _stepElements(double dt) {
+    final elements = _elements;
+    final player = _player;
+    if (elements == null || player == null || _loop.isPaused) return;
+    player.eye(_elementsEye);
+    elements.update(
+      dt,
+      eye: _elementsEye,
+      player: player.body.position,
+      monsters: _actors?.actors ?? const <Actor>[],
+    );
+    final torches = elements.torchHeads;
+    _elementSounds.play(
+      _audio,
+      elements.hearing,
+      splashes: elements.wading,
+      heldElsewhere: (Audible fire) => torches.contains(fire.key ~/ 64),
+    );
+  }
+
+  /// What this game does with a step the shooter has just run.
   ///
   /// The order everything happens in belongs to `GameSimulation` now, along with
   /// the two claims about it that turned out to need measuring. What is left
   /// here is presentation: this reads what the step reports and turns it into
-  /// noise, sparks and flashes.
-  void _step(double dt) {
+  /// noise, sparks and flashes, at the step's end, from [summary]'s events.
+  void _afterStep(StepEventSummary summary) {
     final sim = _sim;
     final player = _player;
-    if (sim == null || player == null) return;
-
-    final heldBefore = _arsenal.current;
-    // Before the step, so the keyframe is the state this step's recorded
-    // entry acts on — the moment `RewindBuffer` and the loop agree about.
-    if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
-    // `rp-06`: timed here rather than around the whole of `_step`, because
-    // this is the fixed-cost part a spike in monster count or a level's own
-    // geometry would show up in — the noise, the sparks and the flashes
-    // below run on the frame's own clock, not this one.
-    _frameTimes.record(++_frameTimeStep, () => sim.step(dt));
+    if (sim == null || player == null || summary.resimulated) return;
+    final dt = _loop.stepSeconds;
+    final heldBefore = _heldBefore;
     // The demo's own checkpoint, taken here rather than replayed later from
     // the finished tape: recording it live is what a bug report's file needs
     // to carry, and the step number is the recorder's own, so a later replay
     // that steps the tape one entry at a time lands on the same numbering.
-    final demoRecorder = _demoRecorder;
-    if (demoRecorder != null) {
-      _demoCheckpoints?.observe(demoRecorder.tape.steps, sim.save().toJson());
-    }
-    // Drained once, here, and handed to everything that wants it. Draining
-    // empties the buffer, so two readers each draining would each get half of
-    // what happened, and which half would depend on the order they ran in.
-    final events = sim.events.drain();
+    //
+    // Saved only on the steps the trace keeps: the run's state carries the
+    // crypt's whole elements world now, a tenth of a megabyte written out,
+    // and a save on every step to keep one in twenty-five was most of a
+    // millisecond a step thrown away.
+    if (_demoOpen) _demo?.observe(sim.save);
+    // The step's events, read once here and handed to everything that wants
+    // them, in the order the step published them.
+    final events = summary.events.whereType<GameEvent>().toList();
     // The tape's last entry was consumed by the step that just ran, so this
     // is the moment the replay has arrived back at the death.
     if (_killcamPresent != null && (_loop.playback?.isFinished ?? true)) {
@@ -1046,6 +1542,19 @@ class _GameScreenState extends State<GameScreen>
     // is not exactly 60 Hz.
     _actorVisuals?.recordStep(dt: dt);
 
+    // A skipped cutscene's steps happen and are not shown. The run still
+    // hears about them — a cutscene could end a level — and the camera still
+    // follows the body, so the frame after the skip is drawn from where the
+    // player is.
+    if (_skipping) {
+      if (_killcamPresent == null) {
+        _run.observe();
+        unawaited(_run.advance());
+      }
+      _smoothedPosition.push(player.body.position);
+      return;
+    }
+
     // A weapon can change hands inside the step — a slot key, or the last
     // round of the current one. The view model is told once, here, rather than
     // by the two places that could have caused it.
@@ -1053,6 +1562,13 @@ class _GameScreenState extends State<GameScreen>
       _weaponView.selectWeapon(_arsenal.current);
     }
 
+    // A monster's foot down, as its animation graph marks it in the step: a
+    // footstep where it is, so one coming down a corridor is heard before
+    // it is seen.
+    for (final passed in events.whereType<AnimationMarkerPassed>()) {
+      final at = passed.actor.position;
+      if (passed.marker == 'step' && at != null) _audio.play(Sounds.step, at);
+    }
     for (final MechanismUsed used in events.whereType<MechanismUsed>()) {
       final said = used.outcome.message;
       if (said != null) _effects.say(said);
@@ -1063,7 +1579,9 @@ class _GameScreenState extends State<GameScreen>
     // nothing could ask what a step ought to sound like without a device and a
     // window — so the game being mute was undetectable, and four weapons
     // sharing two sounds went unnoticed for as long as the game has existed.
-    _effects.perform(_soundtrack.listen(sim, player, events), _audio);
+    // The events' cues are the soundtrack plugin's, played on the frame
+    // channel; the footsteps and the machinery are heard here, by the step.
+    _effects.perform(_soundtrack.listenStep(sim, player), _audio);
 
     final mechanisms = _mechanisms;
     if (mechanisms != null) {
@@ -1103,11 +1621,12 @@ class _GameScreenState extends State<GameScreen>
     // the same reason the sound is: three private methods of a widget nothing
     // can mount meant no test in this application had ever mentioned a
     // particle.
-    _effects.show(
-      _reactions.listen(sim, player, events),
-      _particles,
-      _system.screenFlash,
-    );
+    //
+    // The events' half is the reactions plugin's, decided on the frame
+    // channel and shown in `dungeon.reactions`; the blasts are the
+    // projectiles' own list, read here by the step that detonated them.
+    _reactions.player = player;
+    _effects.show(_reactions.blasts(sim), _particles, _system.screenFlash);
 
     // The two that are not reactions to an event. A recoil is the weapon view's
     // own animation, and the crawl is what the HUD shows and what the screen at
@@ -1143,7 +1662,7 @@ class _GameScreenState extends State<GameScreen>
     );
 
     _effects.burnTorches(_fixtureVisuals, _particles);
-    // The frame the loop accepted — see `GameLoop.lastFrame`. This game had no
+    // The frame the loop accepted — see `EngineLoop.lastFrame`. This game had no
     // limit of its own at all.
     _particles.advance(_loop.lastFrame);
 
@@ -1205,14 +1724,19 @@ class _GameScreenState extends State<GameScreen>
             :final level,
             outcome: RunOutcome.playing,
           ):
-            _levelArrived(level);
+            // An edit from the editor, put in under the run: the same
+            // level, changed, and the run going on in it.
+            // The demo begins again from the edited level as it stands: a
+            // tape recorded across an edit replays in neither level.
+            _levelArrived(level, edited: _run.run.takeEdited());
+            _takeEdits(level);
             _beginDemo(asset, level);
           case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
             // What the player is told to do has to be something they can do:
             // on a handset there is no R, and the tap layer below the touch
             // controls is the way back in.
             _effects.say(
-              Playing.touch
+              _playing.touch
                   ? 'You died. Tap to try again.'
                   : 'You died. Press R to try again.',
             );
@@ -1222,6 +1746,9 @@ class _GameScreenState extends State<GameScreen>
             final next = level.staged.sim.nextLevel;
             _effects.say(next == null ? 'You are out.' : 'Level complete.');
             _endDemo();
+          case RunPlaying<LevelReady>():
+            // An outcome a later engine adds: nothing to say about it yet.
+            break;
           case RunLoading<LevelReady>() || RunFailed<LevelReady>():
             // The pointer layers unmount with the level — see [_pointerFiring]
             // — so whatever they were holding is let go here, where the swap
@@ -1274,6 +1801,25 @@ class _GameScreenState extends State<GameScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
+          // Photo mode before the settings: Escape there means "back to the
+          // crypt", and the panel would take it as "open me".
+          if (event is KeyDownEvent &&
+              !_settings.value.isOpen &&
+              !_photo.isBusy &&
+              (event.logicalKey == LogicalKeyboardKey.keyP ||
+                  (_photo.isActive &&
+                      event.logicalKey == LogicalKeyboardKey.escape))) {
+            _togglePhoto();
+            return KeyEventResult.handled;
+          }
+          final photoSays = _photo.key(
+            event,
+            onCapture: (int scale) => unawaited(_takePhoto(scale)),
+          );
+          if (photoSays != null) {
+            setState(() {});
+            return photoSays;
+          }
           // The settings get the key first — the rebinding, Escape, and the
           // panel keeping the keys while it is open. See `settingsKeys` for why
           // that is the order.
@@ -1293,6 +1839,15 @@ class _GameScreenState extends State<GameScreen>
             unawaited(_run.restart());
             return KeyEventResult.handled;
           }
+          // N, out of the sanctum: on into the depths, levels nobody built,
+          // each made from its seed as it is reached — see `Depths`.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyN &&
+              _crawlIsOut) {
+            _run.run.depthsFrom = _depthsSeed;
+            unawaited(_run.run.load(Depths.first(_depthsSeed)));
+            return KeyEventResult.handled;
+          }
           // G toggles the fog in place. A before-and-after has to come from
           // one process at one camera position, which is exactly what the
           // measurement I threw away did not have.
@@ -1310,6 +1865,15 @@ class _GameScreenState extends State<GameScreen>
             setState(() => _fogOn = !_fogOn);
             return KeyEventResult.handled;
           }
+          // B shows what every monster running a behaviour tree has decided:
+          // its path through the tree over its head and where it is going,
+          // and the same in words in the corner. Reads the boards and
+          // writes nothing, so a run watched with it on is the same run.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyB) {
+            setState(() => _treesOn = !_treesOn);
+            return KeyEventResult.handled;
+          }
           // M shows the map the run has drawn so far. The game keeps running
           // underneath, as it did in the games this one is drawn from: a map
           // that pauses the fight is a menu, and this is not one.
@@ -1322,7 +1886,7 @@ class _GameScreenState extends State<GameScreen>
         },
         child: Listener(
           // Wherever the pointer can be captured, which now includes a desktop
-          // browser: `Playing.capturesPointer` asks the capture backend rather
+          // browser: `_playing.capturesPointer` asks the capture backend rather
           // than a list of platforms. The pointer reaches here on the web
           // because the platform view holding the frame is `pointer-events:
           // none` — see `WebGlDevice.present`, which sets it for this reason.
@@ -1333,7 +1897,7 @@ class _GameScreenState extends State<GameScreen>
           // asking outside it.
           onPointerDown: (_) {
             _keyboard.requestFocus();
-            if (!Playing.capturesPointer) return;
+            if (!_playing.capturesPointer) return;
             if (_devices.isCaptured) {
               _devices.pressPointer(ShooterActions.fire);
               _pointerFiring = true;
@@ -1342,7 +1906,7 @@ class _GameScreenState extends State<GameScreen>
             }
           },
           onPointerUp: (_) {
-            if (!Playing.capturesPointer) return;
+            if (!_playing.capturesPointer) return;
             _devices.releasePointer(ShooterActions.fire);
             _pointerFiring = false;
           },
@@ -1354,7 +1918,18 @@ class _GameScreenState extends State<GameScreen>
                 scene: loaded.scene,
                 view: _view,
                 onBeforeFrame: _placeCamera,
-                settings: () => RenderSettings(
+                // Kept for the photo, which draws the same frame larger.
+                settings: _frameSettings = () => RenderSettings(
+                  // The player's colour vision, from the settings panel: a
+                  // correction for what their eyes run together; in photo
+                  // mode the filter over it, except while the picture itself
+                  // is drawn, which puts the filter on its own.
+                  look: _photoLook(
+                    _vision?.of(_config) ?? const LookSettings(),
+                  ),
+                  // The high-contrast look, from the settings panel's switch
+                  // or, until the player touches it, the system's own.
+                  highContrast: highContrastOf(_config, _system),
                   // Off, and no longer for either of the reasons written here
                   // before. Rough stone stopped being the problem when the
                   // surface buffer began carrying perceptual roughness in its
@@ -1374,12 +1949,21 @@ class _GameScreenState extends State<GameScreen>
                   // the floor. That is a decision about how the crypt should
                   // look, and nothing has drawn one with it on to judge.
                   reflections: const ReflectionSettings(),
-                  // Straight from the document. A crypt without fog is a crypt
-                  // with a visible far wall, and the far wall is the thing an
-                  // author least wants seen.
-                  fog: FogSettings(
-                    color: loaded.level.fogColor,
-                    density: _fogOn ? loaded.level.fogDensity : 0.0,
+                  // A level's own decals and mirrors, when it placed any —
+                  // the cistern's still water. Each costs a pass, so only
+                  // where the document asks for one.
+                  decals: DecalSettings(enabled: loaded.wantsDecals),
+                  planarReflections: PlanarReflectionSettings(
+                    enabled: loaded.reflectors.isNotEmpty,
+                  ),
+                  // From the document, held at its density at the eye and
+                  // lying thicker on the floor — see `cryptFog`. A crypt
+                  // without fog is a crypt with a visible far wall, and the
+                  // far wall is the thing an author least wants seen.
+                  fog: cryptFog(
+                    loaded.level,
+                    eye: body.halfExtents.y + _eyeOffset,
+                    on: _fogOn,
                   ),
                   // Metered from the frame, which a crypt lit by torches is
                   // the case for: a room with a torch in view is exposed to
@@ -1407,14 +1991,14 @@ class _GameScreenState extends State<GameScreen>
               // mouse has a second button and a thumb does not: firing on every
               // drag would empty the weapon every time the player turned round.
               // So a touch build gets a trigger of its own, below.
-              if (Playing.dragLook)
+              if (_playing.usesDragLook)
                 Positioned.fill(
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (_) {
                       _keyboard.requestFocus();
                       _dragLook.begin();
-                      if (!Playing.touch) {
+                      if (!_playing.touch) {
                         _devices.pressPointer(ShooterActions.fire);
                         _pointerFiring = true;
                       }
@@ -1423,14 +2007,14 @@ class _GameScreenState extends State<GameScreen>
                         _dragLook.moved(event.delta),
                     onPointerUp: (_) {
                       _dragLook.end();
-                      if (!Playing.touch) {
+                      if (!_playing.touch) {
                         _devices.releasePointer(ShooterActions.fire);
                         _pointerFiring = false;
                       }
                     },
                     onPointerCancel: (_) {
                       _dragLook.end();
-                      if (!Playing.touch) {
+                      if (!_playing.touch) {
                         _devices.releasePointer(ShooterActions.fire);
                         _pointerFiring = false;
                       }
@@ -1440,12 +2024,12 @@ class _GameScreenState extends State<GameScreen>
               // Above the drag layer, so a thumb on a control is not also a
               // turn of the view.
               //
-              // **`TouchCrypt` rather than `TouchControls`.** The shared
-              // widget offered this game two buttons, which was three quarters
+              // **`TouchCrypt` rather than a bare stick and row.** The shared
+              // layout offered this game two buttons, which was three quarters
               // of its arsenal and the whole of its automap out of reach on a
               // phone; the file it moved to says why six controls of four
               // different kinds needed a layout of their own.
-              if (Playing.touch)
+              if (_playing.touch)
                 TouchCrypt(
                   state: _input,
                   arsenal: _arsenal,
@@ -1456,55 +2040,94 @@ class _GameScreenState extends State<GameScreen>
               // a pad's Start were the whole of the way back in, and a phone
               // has neither. Over the stick because the stick is what a thumb
               // would land on otherwise, and a dead body does not walk.
-              if (Playing.touch && _runIsOver)
+              if (_playing.touch && _runIsOver)
                 TapToRestart(onRestart: () => unawaited(_run.restart())),
               SettingsOverlay(
                 settings: _settings,
-                mixer: _audio.mixer,
-                // Only the sliders this game's own sounds can be heard through.
-                // `busesIn` reads the bank, so a soundtrack arriving one day brings
-                // its slider with it and nobody has to remember.
-                buses: busesIn(Sounds.all),
-                bindings: _devices.bindings,
-                config: _config,
-                padConnected: _pad.isConnected,
-                actions: _rebindable,
-                defaultBindings: _defaultBindings,
+                sections: SettingsSection.standard(
+                  // Only the sliders this game's own sounds can be heard
+                  // through. `busesIn` reads the bank, so a soundtrack
+                  // arriving one day brings its slider with it.
+                  buses: busesIn(Sounds.all),
+                  padConnected: _pad.isConnected,
+                  // The map's own section: every action the shooter
+                  // declares, crouch and reload among them, and what a
+                  // rebind took.
+                  defaultActions: shooterActionMap,
+                  // **This game had no credits screen at all**, and did not
+                  // need one until the monsters arrived: everything else in
+                  // it is generated by a script in `tool/`.
+                  credits: CreditsSection(credits: credits.models),
+                  // What the HUD's colours mean, each one the player can
+                  // move.
+                  colors: dungeonColours,
+                  // Cloud saves and sending runs, both off until answered.
+                  privacy: _cloud.consents,
+                ),
                 opening: _openSettings,
-                // **This game had no credits screen at all**, and did not need
-                // one until the monsters arrived: everything else in it is
-                // generated by a script in `tool/`.
-                credits: const CreditsSection(credits: Credits.models),
               ),
-              Hud(
-                // Nothing to capture in a browser, so nothing to prompt for.
-                captured: !Playing.capturesPointer || _devices.isCaptured,
-                fps: _frames.fps,
-                steps: _steps,
-                dropped: _loop.clock.droppedSteps,
-                behind: _pace.behind,
-                voices: _audio.voiceCount,
-                particles: _particles.aliveCount,
-                position: body.position,
-                grounded: body.isGrounded,
-                weapon: _arsenal.current,
+              if (_photo.isActive) PhotoBar(mode: _photo),
+              if (!_photo.isActive)
+                Hud(
+                  // Nothing to capture in a browser, so nothing to prompt for.
+                  captured: !_playing.capturesPointer || _devices.isCaptured,
+                  fps: _frames.fps,
+                  steps: _steps,
+                  dropped: _loop.lostSteps,
+                  behind: _pace.isBehind,
+                  voices: _audio.voiceCount,
+                  particles: _particles.aliveCount,
+                  position: body.position,
+                  grounded: body.isGrounded,
+                  weapon: _arsenal.current,
 
-                hitFlash: _effects.hitFlash,
-                painFlash: _effects.painFlash,
-                health: _playerHealth,
-                kills: _run.run.crawl.kills,
-                monstersLeft: _actors?.aliveCount ?? 0,
-                message: _effects.message,
-                messageOpacity: (_effects.messageFor / 0.6).clamp(0.0, 1.0),
-                keys: _inventory.keys,
-                armour: _playerHealth.armour,
-                ammo: _arsenal.currentAmmo,
-                pouches: <AmmoType, int>{
-                  for (final type in _arsenal.carrying)
-                    if (type != AmmoType.none) type: _arsenal.ammoOf(type),
-                },
-                powers: _inventory.powers,
-              ),
+                  hitFlash: _effects.hitFlash,
+                  painFlash: _effects.painFlash,
+                  health: _playerHealth,
+                  kills: _run.run.crawl.kills,
+                  monstersLeft: _actors?.aliveCount ?? 0,
+                  message: _effects.message,
+                  messageOpacity: (_effects.messageFor / 0.6).clamp(0.0, 1.0),
+                  keys: _inventory.keys,
+                  armor: _playerHealth.armor,
+                  ammo: _arsenal.currentAmmo,
+                  pouches: <AmmoType, int>{
+                    for (final type in _arsenal.carrying)
+                      if (type != AmmoType.none) type: _arsenal.ammoOf(type),
+                  },
+                  powers: _inventory.powers,
+                  keyColours: <String, Color>{
+                    for (final key in _inventory.keys)
+                      key: dungeonColours.colorOf(
+                        'key.$key',
+                        _config,
+                        fallback: keyPipColours[key] ?? Colors.white70,
+                      ),
+                  },
+                ),
+              if (_sim?.cutscene case final Cutscene cutscene)
+                CutsceneOverlay(
+                  fade: cutscene.player.fade(alpha: _loop.alpha),
+                  subtitle: cutscene.player.subtitle,
+                  skipHint: _playing.touch ? 'Skip' : 'Space to skip',
+                  onSkip: () => _skipAsked = true,
+                ),
+              if (_treesOn && _actors != null)
+                Positioned(
+                  left: 12,
+                  top: 96,
+                  child: IgnorePointer(
+                    child: Text(
+                      BehaviorOverlay(_actors!).describe().join('\n'),
+                      key: const ValueKey<String>('behaviour-overlay'),
+                      style: const TextStyle(
+                        color: Color(0xFFFFD27A),
+                        fontSize: 12,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ),
               if (_mapOn && _sim?.automap != null && _player != null)
                 Positioned.fill(
                   child: Padding(
@@ -1538,7 +2161,7 @@ class _GameScreenState extends State<GameScreen>
                     seconds: _run.run.crawl.seconds,
                     levels: _run.run.crawl.levels,
                     bestStreak: _run.run.crawl.bestStreak,
-                    touch: Playing.touch,
+                    touch: _playing.touch,
                   ),
                 ),
             ],
@@ -1547,6 +2170,37 @@ class _GameScreenState extends State<GameScreen>
       ),
     );
   }
+
+  /// Whether the steps being run are a skipped cutscene's: stepped, and not
+  /// performed. See [_skipCutscene].
+  bool _skipping = false;
+
+  /// Whether a skip was asked for since the last frame.
+  bool _skipAsked = false;
+
+  /// Steps the rest of the cutscene now, through the loop — so the tape
+  /// being recorded gets every step and a replay steps them all — without
+  /// the noise, sparks and flashes of seconds nobody watched, which would
+  /// otherwise arrive in this one frame.
+  void _skipCutscene() {
+    final cutscene = _sim?.cutscene;
+    if (cutscene == null || _loop.isPaused) return;
+    _skipping = true;
+    final from = _loop.step;
+    try {
+      _loop.runSteps(cutscene.player.remaining);
+    } finally {
+      _skipping = false;
+      _skipped = (from, _loop.step);
+    }
+  }
+
+  /// Where the depths begin: one sequence of them for every run, so two
+  /// players who went down compare the same rooms.
+  static const int _depthsSeed = 1;
+
+  /// Whether the behaviour trees are drawn. See the B key.
+  bool _treesOn = false;
 
   /// Whether the automap is up. See the M key.
   bool _mapOn = false;
@@ -1563,6 +2217,27 @@ class _GameScreenState extends State<GameScreen>
   void _placeCamera() {
     final player = _player;
     if (player == null) return;
+
+    // A cutscene with a camera of its own has the view until it ends, drawn
+    // between the two steps either side of this frame like everything else.
+    final fovY = _sim?.cutscene?.player.cameraAt(
+      _eye,
+      _target,
+      alpha: _loop.alpha,
+    );
+    if (fovY != null) {
+      _camera
+        ..projection = PerspectiveProjection(fovY: fovY)
+        ..setPositionFrom(_eye)
+        ..lookAt(_target);
+      return;
+    }
+    _camera.projection = const PerspectiveProjection();
+
+    if (_photo.isActive) {
+      _photo.applyTo(_camera);
+      return;
+    }
 
     if (_killcamPresent != null) {
       // Standing back from the body rather than behind its eyes, so the death

@@ -145,7 +145,7 @@ Float64List mikkTSpaceCorners({
     if (_notZero(lengthS / area) && _notZero(lengthT / area)) withAny[t] = 0;
   }
 
-  final neighbours = _neighbours(corner, good, vertexCount);
+  final neighbors = _neighbors(corner, good, vertexCount);
 
   // Step 3: groups, one per vertex and connected run of like-oriented
   // triangles around it. A group's triangles sit together in `members`,
@@ -185,8 +185,8 @@ Float64List mikkTSpaceCorners({
       // which matters exactly once — the orientation an unusable triangle
       // takes is the first group's to reach it.
       stack
-        ..add(neighbours[t * 3 + (i + 2) % 3])
-        ..add(neighbours[t * 3 + i]);
+        ..add(neighbors[t * 3 + (i + 2) % 3])
+        ..add(neighbors[t * 3 + i]);
       while (stack.isNotEmpty) {
         final f = stack.removeLast();
         if (f < 0) continue;
@@ -203,8 +203,8 @@ Float64List mikkTSpaceCorners({
         members[memberCount++] = f;
         groupCount[g]++;
         stack
-          ..add(neighbours[f * 3 + (at + 2) % 3])
-          ..add(neighbours[f * 3 + at]);
+          ..add(neighbors[f * 3 + (at + 2) % 3])
+          ..add(neighbors[f * 3 + at]);
       }
     }
   }
@@ -461,9 +461,9 @@ Int32List _weld({
 /// the reference's pairing after it sorts the edges by vertex and then by
 /// triangle. Bucketed by the smaller vertex rather than sorted, so it stays
 /// linear in the mesh.
-Int32List _neighbours(Int32List corner, Uint8List good, int vertexCount) {
+Int32List _neighbors(Int32List corner, Uint8List good, int vertexCount) {
   final triangleCount = good.length;
-  final neighbours = Int32List(triangleCount * 3)
+  final neighbors = Int32List(triangleCount * 3)
     ..fillRange(0, triangleCount * 3, -1);
   final bucketStart = Int32List(vertexCount + 1);
   for (var t = 0; t < triangleCount; t++) {
@@ -488,21 +488,21 @@ Int32List _neighbours(Int32List corner, Uint8List good, int vertexCount) {
   for (var v = 0; v < vertexCount; v++) {
     for (var a = bucketStart[v]; a < bucketStart[v + 1]; a++) {
       final edgeA = edges[a];
-      if (neighbours[edgeA] != -1) continue;
+      if (neighbors[edgeA] != -1) continue;
       final fromA = corner[edgeA];
       final toA = corner[(edgeA ~/ 3) * 3 + (edgeA % 3 + 1) % 3];
       for (var b = a + 1; b < bucketStart[v + 1]; b++) {
         final edgeB = edges[b];
-        if (neighbours[edgeB] != -1) continue;
+        if (neighbors[edgeB] != -1) continue;
         final fromB = corner[edgeB];
         final toB = corner[(edgeB ~/ 3) * 3 + (edgeB % 3 + 1) % 3];
         if (fromB == toA && toB == fromA) {
-          neighbours[edgeA] = edgeB ~/ 3;
-          neighbours[edgeB] = edgeA ~/ 3;
+          neighbors[edgeA] = edgeB ~/ 3;
+          neighbors[edgeB] = edgeA ~/ 3;
           break;
         }
       }
     }
   }
-  return neighbours;
+  return neighbors;
 }

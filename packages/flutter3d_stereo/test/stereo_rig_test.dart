@@ -14,7 +14,6 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 StereoRig inScene({double ipd = 0.064}) {
   final scene = Scene();
@@ -152,8 +151,8 @@ void main() {
 
     test('the vertical angle is the one the eyes actually have', () {
       final rig = inScene();
-      rig.fitToViewport(width: 1000, height: 500, verticalFieldOfView: 0.9);
-      expect(rig.verticalFieldOfView, closeTo(0.9, 1e-9));
+      rig.fitToViewport(width: 1000, height: 500, fovY: 0.9);
+      expect(rig.fovY, closeTo(0.9, 1e-9));
     });
   });
 }

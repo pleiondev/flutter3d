@@ -5,16 +5,22 @@ visibly changes how a run unfolds, and an instructor needs to know exactly
 where a student's run stopped matching the assignment. A pendulum is the
 first, and the engine's own digest trace is the second.
 
-> **Note.** `flutter3d_lab`'s real `PendulumSimulation` is not a dependency
-> of this app. This page reimplements its formula by hand, a dozen lines of
-> semi-implicit Euler, and checks it with the real `DigestTrace` the rest of
-> the simulation package uses.
+> **Note.** `flutter3d_education/lab.dart`'s real `PendulumSimulation` is not a dependency
+> of this app. This page reimplements its formula by hand, a couple of dozen
+> lines of semi-implicit Euler with the lab's damping of 0.02 per second, and
+> checks it with the real `DigestTrace` the rest of the simulation package
+> uses.
 
 ## Step 1: Run the assignment
 
 Semi-implicit Euler: the velocity updates first, then the position from the
 updated velocity, the same order the rest of the engine steps everything
-else with.
+else with. The equation is θ'' = −(g/L)·sin θ − c·θ', with the damping c in
+1/s. It is the full sine, not the small-angle θ, so a swing from 0.6 rad
+takes about 2.3 % longer than the textbook 2π√(L/g), and one from 0.9 rad
+about 5.3 % longer. A length changed mid-swing keeps the bob's angular
+momentum about the pivot, so the swing turns (L/L′)² as fast, as when a
+string is drawn in through the pivot.
 
 {{code pendulum}}
 

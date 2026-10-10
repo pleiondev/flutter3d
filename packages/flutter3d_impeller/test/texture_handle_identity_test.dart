@@ -20,8 +20,17 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// The one file allowed to call the constructor.
+/// The one file allowed to make a handle.
 const Set<String> _allowed = <String>{'lib/src/gpu_texture.dart'};
+
+/// How a handle is made: `wrapTexture` from `flutter3d_hardware/backend.dart`
+/// since 1.0, where it was the constructor. A scan for the constructor found
+/// nothing after that, and failed on its own guard below rather than passing
+/// — which is what the guard is for.
+///
+/// Mutation: call `wrapTexture` from a second file under `lib/`, and this
+/// fails naming it.
+const String _construction = 'wrapTexture(';
 
 void main() {
   test('nothing in lib/ builds a TextureHandle but the one factory', () {
@@ -47,7 +56,7 @@ void main() {
 
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
-        if (!line.contains('TextureHandle(')) continue;
+        if (!line.contains(_construction)) continue;
         if (line.trimLeft().startsWith('///')) continue;
         if (_allowed.contains(path)) {
           seenInFactory = true;

@@ -31,7 +31,7 @@ instead of floats.
 ## Step 3: Read the numbers back
 
 `GltfWriter` says, after writing, whether the compression actually did
-anything: `usedGeometryQuantization` and `usedVertexCacheReordering` are
+anything: `didQuantizeGeometry` and `didReorderVertexCache` are
 both false only when a document has nothing for them to change.
 
 {{code report}}

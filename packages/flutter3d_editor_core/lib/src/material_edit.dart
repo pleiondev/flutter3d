@@ -26,6 +26,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
 
 /// [document] with one field changed, or null when the change would produce a
 /// `.fmat` this engine's own reader does not take as written.
@@ -171,7 +172,7 @@ void _put(Map<String, Object?> row, String key, Object? value) {
 /// one: a key added to the writer appears the day it is added, and a key
 /// nothing hints is shown by its type. `hints` and `parameters` are lifted out
 /// because they are a panel's other two sections rather than fields, and `fmat`
-/// because the version is the reader's business.
+/// and the envelope's keys because the version is the reader's business.
 ///
 /// A texture slot arrives as `textures/albedo`, which is the key [materialWith]
 /// takes and the one a row is keyed by.
@@ -181,6 +182,7 @@ Map<String, Object?> materialDocumentFields(MaterialDocument document) {
   return <String, Object?>{
     for (final entry in row.entries)
       if (!const <String>{
+        ...FormatSpec.envelopeKeys,
         'fmat',
         'hints',
         'parameters',

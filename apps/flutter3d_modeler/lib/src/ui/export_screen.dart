@@ -288,7 +288,7 @@ class _IssueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppLocalizations l = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final colour = issue.severity == ExportSeverity.error
+    final color = issue.severity == ExportSeverity.error
         ? theme.colorScheme.error
         : theme.colorScheme.tertiary;
     return Padding(
@@ -301,13 +301,13 @@ class _IssueRow extends StatelessWidget {
                 ? Icons.error_outline
                 : Icons.warning_amber_outlined,
             size: 16,
-            color: colour,
+            color: color,
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               issue.message,
-              style: theme.textTheme.bodySmall?.copyWith(color: colour),
+              style: theme.textTheme.bodySmall?.copyWith(color: color),
             ),
           ),
           // Only an issue naming an object has anywhere to go — the budget

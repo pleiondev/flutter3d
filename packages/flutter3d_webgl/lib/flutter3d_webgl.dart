@@ -25,12 +25,19 @@
 /// of date.
 library;
 
-export 'src/open.dart';
+// The `webgl` section of a loadable bundle, as the packer writes it and the
+// device reads it, is `package:flutter3d_shaders/translate.dart`'s since P8,
+// where a build hook with no Flutter SDK can write one too; a caller that
+// writes one imports it from there.
 
-/// The `webgl` section of a loadable bundle, as the packer writes it and the
-/// device reads it. No browser in it, so a harness on the VM can write one.
 export 'src/webgl_backend_registration.dart';
-export 'src/webgl_bundle_section.dart';
-export 'src/webgl_device.dart';
+export 'src/webgl_device.dart' show WebGlDevice;
 export 'src/webgl_frame_presenter.dart';
-export 'src/webgl_shaders.dart';
+export 'src/webgl_shaders.dart' show ShaderSources;
+
+// The encoder, the bundle and transfer encoders, the shader library, the
+// handle types (`WebGl*`) and the capability gates (`webglGate*`,
+// `webglRefuse*`) are not exported since 1.0. They are this backend's own
+// business, and `package:web`'s WebGL types in a signature here would make
+// every change to them a major release. The package's tests import them from
+// `src/`.

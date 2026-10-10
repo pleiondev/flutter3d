@@ -22,7 +22,7 @@ had to bring itself is the list below.
 | | |
 |---|---|
 | `PlatformerSimulation` | The step order: input, jump, movement, riders, hazards, collectibles, exits. |
-| `Runner`, `RunnerTuning` | The jump policy: coyote time, jump buffering, a second jump, a dash, a drop through a one-way floor. |
+| `Runner`, `RunnerSettings` | The jump policy: coyote time, jump buffering, a second jump, a dash, a drop through a one-way floor. |
 | `Surfaces` | What a floor is made of. Ice, moss and mud are a table on the brushes instead of three special cases. |
 | `Purse`, `Collectible` | What is picked up and what the total is at the end. |
 | `Crate`, `Spring`, `Hazard`, `Checkpoint`, `Patrol`, `Leaper` | The furniture and the things that walk about in it, each one an entity kind the level format spawns. |

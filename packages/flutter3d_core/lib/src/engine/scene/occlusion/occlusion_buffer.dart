@@ -33,7 +33,7 @@ import 'occlusion_test.dart';
 ///
 /// Tiles of 8 × 8 keep the farthest depth under them, so a box behind a
 /// whole tile is rejected in one comparison rather than sixty-four.
-final class OcclusionBuffer implements OcclusionTest {
+final class OcclusionBuffer with OcclusionTest {
   OcclusionBuffer({this.width = defaultWidth, this.height = defaultHeight})
     : assert(
         width % tileSize == 0 && height % tileSize == 0,
@@ -56,7 +56,8 @@ final class OcclusionBuffer implements OcclusionTest {
   /// How far behind an occluder a box has to be before it counts as hidden,
   /// in window depth. The slack is for a surface lying *on* its own box —
   /// a wall's face is its box's face — whose depth and whose box's nearest
-  /// corner are the same number reached by two different sums.
+  /// corner are the same number reached by two different sums. Unitless, as
+  /// window depth is: a fraction of the 0..1 range between the clip planes.
   static const double depthTolerance = 1e-6;
 
   /// The smallest `w` a vertex may have and still be divided by: the same

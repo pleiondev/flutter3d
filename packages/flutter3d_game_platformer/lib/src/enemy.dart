@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -168,6 +169,7 @@ final class Leaper extends Patrol {
   });
 
   /// How wide a gap it will try. Beyond this it turns round like any patrol.
+  /// In metres.
   final double reach;
 
   @override
@@ -247,7 +249,7 @@ final class Hunter extends Brain {
   double _memory = 0.0;
 
   /// Whether it is currently after the player. For a test and a save.
-  bool get hunting => _memory > 0.0;
+  bool get isHunting => _memory > 0.0;
 
   @override
   void think(Mind it) {

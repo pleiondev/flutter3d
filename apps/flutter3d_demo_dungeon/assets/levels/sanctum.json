@@ -473,9 +473,9 @@
     {"type": "torch", "at": [-15.75, 3.5, -68.0], "yaw": 1.5708, "light": "altar_northwest"},
     {"type": "torch", "at": [15.75, 3.5, -68.0], "yaw": -1.5708, "light": "altar_northeast"},
     {"type": "torch", "at": [0.0, 3.0, -71.75], "yaw": 0.0, "light": "dawn"},
-    {"type": "monster", "at": [-4.0, 0.9, -65.0], "kind": "tank"},
-    {"type": "monster", "at": [4.0, 0.9, -65.0], "kind": "tank"},
-    {"type": "monster", "at": [0.0, 0.9, -62.0], "kind": "tank"},
+    {"type": "monster", "name": "altar_west", "at": [-4.0, 0.9, -65.0], "kind": "tank"},
+    {"type": "monster", "name": "altar_east", "at": [4.0, 0.9, -65.0], "kind": "tank"},
+    {"type": "monster", "name": "altar_north", "at": [0.0, 0.9, -62.0], "kind": "tank"},
     {"type": "monster", "at": [-12.0, 0.0, -66.0], "kind": "shooter"},
     {"type": "monster", "at": [12.0, 0.0, -66.0], "kind": "shooter"},
     {"type": "monster", "at": [0.0, 0.0, -71.0], "kind": "shooter"},
@@ -490,6 +490,46 @@
     {"type": "pickup", "at": [14.0, 0.8, -62.0], "gives": "bullets", "amount": 20},
     {"type": "pickup", "at": [0.0, 0.8, -46.0], "gives": "invulnerability", "amount": 20},
     {"type": "pickup", "at": [0.0, 0.8, -58.0], "gives": "berserk", "amount": 30},
-    {"type": "exit", "name": "the_light", "at": [0.0, 2.2, -66.0]}
+    {"type": "exit", "name": "the_light", "at": [0.0, 2.2, -66.0]},
+    {"type": "trigger", "at": [0.0, 1.5, -40.0], "size": [6.0, 3.0, 2.0], "target": "the_altar", "once": true},
+    {
+      "type": "cutscene",
+      "name": "the_altar",
+      "at": [0.0, 0.0, -41.0],
+      "sequence": {
+        "seconds": 7,
+        "camera": {
+          "ease": true,
+          "keys": [
+            {"t": 0, "at": [0.0, 2.2, -42.0], "look": [0.0, 1.5, -64.0]},
+            {"t": 2.5, "at": [5.0, 7.0, -49.0], "look": [0.0, 1.0, -64.0]},
+            {"t": 5, "at": [-8.0, 5.0, -57.0], "look": [0.0, 1.5, -63.0]},
+            {"t": 7, "at": [0.0, 1.6, -41.0], "look": [0.0, 1.6, -60.0]}
+          ]
+        },
+        "fade": [
+          {"t": 0, "value": 1},
+          {"t": 0.6, "value": 0}
+        ],
+        "subtitles": [
+          {"from": 0.8, "to": 3.2, "text": "The altar. What the wardens kept from the world stands on it."},
+          {"from": 3.6, "to": 6.2, "text": "It knows you are here."}
+        ],
+        "signals": [
+          {"t": 3.6, "name": "altar_wakes", "data": {"sound": "stone_move", "at": [0.0, 1.0, -64.0]}}
+        ],
+        "actors": [
+          {"t": 3.6, "actor": "altar_west", "do": "play", "clip": "Jump"},
+          {"t": 4.6, "actor": "altar_west", "do": "goTo", "at": [-4.0, 0.9, -56.0]},
+          {"t": 6.5, "actor": "altar_west", "do": "release"},
+          {"t": 3.6, "actor": "altar_east", "do": "play", "clip": "Jump"},
+          {"t": 4.6, "actor": "altar_east", "do": "goTo", "at": [4.0, 0.9, -56.0]},
+          {"t": 6.5, "actor": "altar_east", "do": "release"},
+          {"t": 3.6, "actor": "altar_north", "do": "play", "clip": "Jump"},
+          {"t": 4.6, "actor": "altar_north", "do": "goTo", "at": [0.0, 0.9, -55.0]},
+          {"t": 6.5, "actor": "altar_north", "do": "release"}
+        ]
+      }
+    }
   ]
 }

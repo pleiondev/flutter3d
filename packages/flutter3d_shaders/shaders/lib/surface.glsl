@@ -77,8 +77,9 @@ uniform FragInfo {
   vec4 material;
 
   /// x: alpha cutoff (negative when the material is not masked: -1 opaque,
-  /// -0.5 blended, -2 hashed), y: normal scale, z: occlusion strength,
-  /// w: emissive strength.
+  /// -0.5 blended, -2 hashed; above one the cutoff plus one, drawn as
+  /// coverage — `P7`), y: normal scale, z: occlusion strength, w: emissive
+  /// strength.
   vec4 material2;
 
   /// x: exposure, y: active light count, z: index of the shadow-casting light.
@@ -86,8 +87,12 @@ uniform FragInfo {
   /// of anything already here.
   vec4 frame_params;
 
-  /// x: one texel of the shadow map, y: depth bias, z: normal offset,
+  /// x: one texel of the shadow map, y: how the map stores its depth — the
+  /// mode `lib/shadow_storage.glsl` lists, `A2.8` — z: normal offset,
   /// w: strength, zero when shadows are off.
+  ///
+  /// y was the depth bias once, which no stage read: the cascades' own are in
+  /// [shadow_bias], and the lane was free.
   vec4 shadow_params;
 
   /// World space to the shadow camera's clip space. The first cascade.
@@ -133,7 +138,9 @@ uniform FragInfo {
   vec4 ambient_ground;
 
   /// x, y, z: the depth bias of each cascade, in that cascade's own normalized
-  /// depth. w unused.
+  /// depth. w: one when the atlas carries what see-through casters let
+  /// through and this draw is to be shaded by it, nought otherwise —
+  /// `ShadowSettings.translucentCasters`; see `ShadowFactor`.
   ///
   /// `ShadowSettings.bias` is one number and a cascade's depth range is not:
   /// a near cascade is stretched towards the light when a caster stands
@@ -154,11 +161,53 @@ uniform FragInfo {
   /// while a temporal resolve runs, minus one otherwise — `S3`, which steps
   /// the soft shadow's rotation by it.
   vec4 target_origin;
+
+  /// x: which debug view replaces the light right of the wipe — `P6`,
+  /// `DebugView.code`, nought for none. y: the wipe's column in the target's
+  /// pixels; nought is the whole frame. z: the view left of the wipe —
+  /// `A5.22`, nought for the light. w: this draw's identity — `A5.21`, see
+  /// `DebugIdentity`: the node in its top eleven bits, the material in the
+  /// next twelve, and whether the material has a normal map in the lowest,
+  /// all below 2^24 so a float holds it exactly.
+  ///
+  /// Appended for the reason `ambient_sky` was: every offset above stays
+  /// where the four backends already agree on it.
+  vec4 debug_view;
 }
 frag_info;
 
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
+
+/// The noise a hashed material's alpha is compared with, in [0, 1), at
+/// [scenePosition] — `gfx-16n`, readiness review §2.1.14.
+///
+/// **On the world, not on scene space.** [cutoff] is the hashed sentinel,
+/// -2 less the scene's origin in the noise's own cells, each below 128 —
+/// `Renderer._hashedCutoffAt` packs them — so the cell a fragment falls in
+/// is counted from where the world starts, and `Scene.shiftOrigin` leaves
+/// every speck where it was. The noise repeats every 128 cells (eight
+/// metres), which is what lets the origin travel in so few numbers.
+///
+/// **And on numbers a float holds exactly.** The cells are wrapped to
+/// [0, 128) by a power of two, which divides without rounding, before the
+/// hash sees them. The old `fract(sin(x) · 43758)` met x near 1e5 and was a
+/// different number on each GPU's `sin`; this one multiplies, adds and takes
+/// `fract` of values under a few hundred (Hoskins' `hash13`).
+///
+/// Sixteen cells per metre is the whole tuning: finer than the texture's own
+/// detail and the noise disappears into aliasing, coarser and the leaf
+/// breaks into blotches — about a centimetre of grain at a metre away.
+/// `depth_predraw.frag` keeps a copy, to the operation.
+float HashedAlphaNoise(vec3 scenePosition, float cutoff) {
+  float key = -2.0 - cutoff;
+  vec3 origin = vec3(floor(key / 16384.0), mod(floor(key / 128.0), 128.0),
+                     mod(key, 128.0));
+  vec3 cell = mod(floor(scenePosition * 16.0) + origin, 128.0);
+  vec3 p3 = fract(cell * 0.1031);
+  p3 += dot(p3, p3.zyx + 31.32);
+  return fract((p3.x + p3.y) * p3.z);
+}
 
 /// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
 /// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
@@ -244,8 +293,38 @@ Surface ReadSurface() {
   // number in a block six shaders share, and -1 already meant "not masked";
   // anything more negative was free. See [MaterialAlphaMode.hashed].
   float cutoff = frag_info.material2.x;
-  if (cutoff >= 0.0) {
+  if (cutoff > 1.0) {
+    // **Coverage instead of a cut — `P7`.** One above the cutoff says the
+    // pass multisamples and turns this fragment's alpha into the share of
+    // samples it covers, so nothing is discarded: the alpha is sharpened to
+    // run from nought to one across about a pixel either side of the cutoff,
+    // and the resolve smooths the edge as it smooths a triangle's. Unsharpened,
+    // a texture's soft alpha would cover half the samples of every pixel it
+    // fades across and draw a screen door. Branched on a uniform, so the
+    // derivative is taken in uniform control flow, as WGSL requires.
+    float edge = cutoff - 1.0;
+    s.alpha = clamp((s.alpha - edge) / max(fwidth(s.alpha), 1e-4) + 0.5,
+                    0.0, 1.0);
+  }
+#ifdef F3D_OPAQUE
+  // **The opaque variant, `A1.2`: the cut was made before this stage ran.**
+  // A masked or hashed draw reaches it only through the depth pre-draw
+  // (`depth_predraw.frag`), which discarded what this would have, and this
+  // draw's `equal` test passes only where the pre-draw wrote. So nothing
+  // here may `discard` — that is the point of the variant — and what is left
+  // is what the cut left: a mask's survivor is opaque, a hash's keeps its
+  // alpha, as below.
+  else if (cutoff >= 0.0) {
+    s.alpha = 1.0;
+  }
+#else
+  else if (cutoff >= 0.0) {
     if (s.alpha < cutoff) discard;
+    // What survives the cut is a surface, and opaque: the texture's alpha has
+    // done its work. Written as it was, it went into the frame's alpha, and
+    // whatever read the frame as premultiplied — a golden's capture — divided
+    // the colour by it and lit the inside of every leaf towards its rim.
+    s.alpha = 1.0;
   } else if (cutoff < -1.5) {
     // **Stochastic instead of a threshold.** A leaf texture at 40% opacity is
     // either entirely there or entirely gone under a fixed cutoff, so a fern
@@ -261,15 +340,11 @@ Surface ReadSurface() {
     // the surface *is* means a given speck of leaf keeps its verdict from
     // frame to frame, and the camera moving changes nothing.
     //
-    // The scale is a constant and it is the whole tuning: finer than the
-    // texture's own detail and the noise disappears into aliasing, coarser
-    // and the leaf breaks into blotches. Sixteen per metre is about a
-    // centimetre of grain at a metre away.
-    vec3 anchored = floor(v_world_position * 16.0);
-    float noise = fract(
-        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-    if (s.alpha < noise) discard;
+    // On the world, not on scene space: `HashedAlphaNoise` takes the origin
+    // out of the cutoff, so a shift of the origin keeps every speck.
+    if (s.alpha < HashedAlphaNoise(v_world_position, cutoff)) discard;
   }
+#endif
   // **Between -1 and nought is the blend mode**, which `WriteSurface` weights
   // by its alpha: see [g_premultiply]. The engine writes -0.5 for it, -1 for
   // opaque; neither is masked, and only the blend's source is premultiplied.
@@ -282,7 +357,15 @@ Surface ReadSurface() {
   // double-sided material ever draws a back face, since everything else has
   // them culled.
   if (!gl_FrontFacing) s.n = -s.n;
+#ifdef F3D_NO_FOG
+  // The stages without the fog block — shadows and the id pass — light
+  // nothing, and keep the eye's point.
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
+#else
+  // `P7`: against the view axis through an orthographic lens, where the
+  // eye's point is only where the camera was put.
+  s.v = TowardsEye();
+#endif
   // Clamped away from zero: a grazing view direction otherwise divides by zero
   // in the specular visibility term.
   s.n_dot_v = max(dot(s.n, s.v), 1e-4);
@@ -646,11 +729,12 @@ LightSample SampleLight(int index, Surface s) {
     attenuation = PunctualAttenuation(distance, direction.w);
 
     if (type > 1.5) {
-      // Spot: a smooth ramp between the two cone cosines. The Dart side already
+      // Spot: a ramp between the two cone cosines, squared, as
+      // KHR_lights_punctual's reference falloff is. The Dart side already
       // guarantees the denominator is non-zero.
       float cosAngle = dot(aim, -light.l);
-      attenuation *= clamp(
-          (cosAngle - cone.y) / (cone.x - cone.y), 0.0, 1.0);
+      float ramp = clamp((cosAngle - cone.y) / (cone.x - cone.y), 0.0, 1.0);
+      attenuation *= ramp * ramp;
     }
   }
 
@@ -671,6 +755,15 @@ LightSample SampleLight(int index, Surface s) {
 /// the slot and leave the engine binding one that is not there. A lit model
 /// returns `ShadowFactor(...)`; an unlit one returns 1.
 float LightVisibility(Surface s, LightSample light, int index);
+
+/// What the see-through casters between the sun and this fragment let
+/// through, per channel — `ShadowSettings.translucentCasters`. Set by
+/// `ShadowFactor` for the light it shadows and reset to one before every
+/// light, so a model that samples no shadow map, and every light but the
+/// sun, leaves it white. A colour beside the visibility rather than folded
+/// into it, because visibility is one number in every model and coloured
+/// light is not.
+vec3 light_transmittance = vec3(1.0);
 
 /// A model's per-light term, defined by each fragment shader.
 ///
@@ -1090,6 +1183,7 @@ vec3 AccumulateLights(Surface s) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
+    light_transmittance = vec3(1.0);
     // A light from the list has no shadow row to read — see `LightHasShadow`.
     // A branch rather than something folded into the two calls, because both
     // index tables eight entries wide and the ninth light would read past them
@@ -1099,10 +1193,137 @@ vec3 AccumulateLights(Surface s) {
               PointShadowFactor(v_world_position, s.n, i)
         : 1.0;
     if (visibility <= 0.0) continue;
-    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
+    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility *
+             light_transmittance;
   }
 
   return total;
+}
+
+/// Whether any channel of [c] is NaN or infinite.
+///
+/// **Comparisons, not `isnan` and not the bits.** WGSL has no `isNan`, and
+/// reading the exponent through `floatBitsToUint` takes `impellerc` down in
+/// its GLSL ES output, which has no bit casts. A NaN is the one value unequal
+/// to itself, and an infinity the one above every finite float.
+bool NonFinite(vec3 c) {
+  return any(notEqual(c, c)) || any(greaterThan(abs(c), vec3(3.0e38)));
+}
+
+/// `A5.21`: a colour for an identity key — a node or a material, unpacked
+/// from `FragInfo.debug_view.w` — spread round the hue circle by the golden
+/// ratio so neighbouring keys land far apart.
+vec3 DebugIdentityColour(float key) {
+  float hue = fract(key * 0.6180340 + 0.13);
+  vec3 k = clamp(abs(fract(vec3(hue) + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) *
+                         6.0 -
+                     3.0) -
+                     1.0,
+                 0.0, 1.0);
+  return mix(vec3(1.0), k, 0.7) * 0.95;
+}
+
+/// `P6`: the material channel `FragInfo.debug_view` asks for, written in
+/// place of [lit]. False, and nothing written, when no view is on or the
+/// fragment sits left of the split; the caller then writes the light.
+///
+/// **Display values, through the same exits the light takes.** The channel
+/// is what an artist would read off the texture — an albedo as its sRGB
+/// colour, a roughness as a grey — converted to linear so the composite's
+/// encode hands it back unchanged; the composite leaves this side of the
+/// split out of the exposure and the tone curve (`CompositeInfo.lens.y`).
+/// The surface buffer and the weighted-blended targets are written as
+/// [WriteSurface] writes them, so a debug view changes what the frame shows
+/// and nothing the passes after it read. No fog: a channel seen through fog
+/// is not the channel.
+///
+/// [lit] is read by one view only, [DebugView.nonFinite], which shows a NaN
+/// or an infinity as magenta over the light's own luminance in grey.
+///
+/// **Two views, one each side of the wipe — `A5.22`.** Left of the column
+/// in `debug_view.y` the view is `debug_view.z`, right of it
+/// `debug_view.x`; either may be nought, the light. A subtree with a view of
+/// its own (`SceneNode.debugView`) arrives with both the same and the column
+/// at nought.
+bool WriteDebugView(Surface s, vec3 lit) {
+  float view = gl_FragCoord.x < frag_info.debug_view.y
+                   ? frag_info.debug_view.z
+                   : frag_info.debug_view.x;
+  if (view < 0.5) return false;
+  int code = int(view + 0.5);
+  vec3 shown = vec3(0.0);
+  // `A5.21`: what the geometry, identity and validation views share — the
+  // vertex tangent made square to the vertex normal, and the draw's identity
+  // unpacked from `debug_view.w`.
+  vec3 geometric_n = normalize(v_normal);
+  vec3 tangent = v_tangent.xyz - geometric_n * dot(geometric_n, v_tangent.xyz);
+  bool tangent_usable = dot(tangent, tangent) > 1e-12 &&
+                        abs(abs(v_tangent.w) - 1.0) < 0.01;
+  float identity = frag_info.debug_view.w;
+  float identity_object = floor(identity / 8192.0);
+  float identity_rest = identity - identity_object * 8192.0;
+  float identity_material = floor(identity_rest / 2.0);
+  bool normal_mapped = identity_rest - identity_material * 2.0 > 0.5;
+  if (code == 1) {
+    shown = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+  } else if (code == 2) {
+    shown = s.n * 0.5 + vec3(0.5);
+  } else if (code == 3) {
+    shown = vec3(clamp(s.roughness, 0.0, 1.0));
+  } else if (code == 4) {
+    shown = vec3(clamp(s.metallic, 0.0, 1.0));
+  } else if (code == 5) {
+    shown = vec3(clamp(s.occlusion, 0.0, 1.0));
+  } else if (code == 6) {
+    shown = LinearToSrgb(clamp(s.emissive, vec3(0.0), vec3(1.0)));
+  } else if (code == 7) {
+    shown = vec3(fract(MapUv(kMapBaseColor)), 0.0);
+  } else if (code == 8) {
+    float grey = dot(LinearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))),
+                     vec3(0.2126, 0.7152, 0.0722));
+    shown = NonFinite(lit) ? vec3(1.0, 0.0, 1.0) : vec3(grey * 0.5);
+  } else if (code == 9) {
+    shown = tangent_usable ? normalize(tangent) * 0.5 + vec3(0.5) : vec3(0.0);
+  } else if (code == 10) {
+    // Eight squares a unit, alternating, tinted by where in the unit square
+    // the cell sits so a mirrored island reads backwards.
+    vec2 uv = MapUv(kMapBaseColor);
+    vec2 cell = floor(uv * 8.0);
+    float odd = fract((cell.x + cell.y) * 0.5) * 2.0;
+    vec2 within = fract(uv);
+    shown = mix(vec3(0.22), vec3(0.92), odd) *
+            vec3(0.55 + 0.45 * within.x, 0.55 + 0.45 * within.y, 0.85);
+  } else if (code == 11) {
+    shown = gl_FrontFacing ? vec3(0.2, 0.35, 0.95) : vec3(0.95, 0.15, 0.15);
+  } else if (code == 12) {
+    shown = LinearToSrgb(clamp(v_color.rgb, vec3(0.0), vec3(1.0)));
+  } else if (code == 13 || code == 14) {
+    float key = code == 13 ? identity_object : identity_material;
+    shown = DebugIdentityColour(key) * (0.55 + 0.45 * s.n_dot_v);
+  } else if (code == 15) {
+    vec3 srgb = LinearToSrgb(clamp(s.albedo, vec3(0.0), vec3(1.0)));
+    float luma = dot(srgb, vec3(0.2126, 0.7152, 0.0722));
+    bool metal = s.metallic > 0.5;
+    shown = !metal && luma < 30.0 / 255.0
+                ? vec3(0.1, 0.3, 1.0)
+            : !metal && max(srgb.r, max(srgb.g, srgb.b)) > 240.0 / 255.0
+                ? vec3(1.0, 0.1, 0.1)
+            : metal && luma < 180.0 / 255.0 ? vec3(1.0, 0.85, 0.1)
+                                            : vec3(luma);
+  } else if (code == 16) {
+    float m = s.metallic;
+    shown = m > 0.05 && m < 0.95 ? vec3(1.0, 0.5, 0.0)
+                                 : vec3(m > 0.5 ? 1.0 : 0.15);
+  } else if (code == 17) {
+    shown = !normal_mapped    ? vec3(0.5)
+            : tangent_usable ? vec3(0.2, 0.8, 0.3)
+                             : vec3(1.0, 0.1, 0.1);
+  }
+  float weight = g_premultiply ? s.alpha : 1.0;
+  frag_color = vec4(SrgbToLinear(shown) * weight, s.alpha);
+  WriteSurfaceGeometry(s.roughness);
+  WriteWeightedBlended();
+  return true;
 }
 
 #endif  // SURFACE_GLSL_

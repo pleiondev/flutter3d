@@ -5,12 +5,12 @@
 /// simulation — swapping every material would not change a lap time.
 library;
 
-// Not hiding `Material`: this file draws a road rather than a widget, so the
+// Not hiding `RenderMaterial`: this file draws a road rather than a widget, so the
 // one that matters here is the engine's.
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game_kit/ghost.dart' show Ghost;
 import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The asset the player drives.
 const String kCarModel = 'assets_src/models/car.glb';
@@ -23,25 +23,25 @@ const String kCarModel = 'assets_src/models/car.glb';
 /// under a sun bright enough to light a car, and every arcade racer's tarmac is
 /// darker than the real thing for the same reason.
 abstract final class Looks {
-  static Material get road => Material(
+  static RenderMaterial get road => RenderMaterial(
     // Dark, but not as dark as the first attempt: at (0.085, 0.088, 0.095)
     // the tarmac was within a few percent of the renderer's default clear
     // colour, so on a circuit with sky at the end of every straight the
     // road and the void were the same grey and the track looked like it
     // stopped at the horizon.
-    baseColor: Vector4(0.17, 0.175, 0.185, 1.0),
+    baseColor: LinearColor.fromSrgb(0.17, 0.175, 0.185, 1.0),
     roughness: 0.92,
     lighting: LightingModel.pbr,
   );
 
-  static Material get verge => Material(
-    baseColor: Vector4(0.14, 0.24, 0.11, 1.0),
+  static RenderMaterial get verge => RenderMaterial(
+    baseColor: LinearColor.fromSrgb(0.14, 0.24, 0.11, 1.0),
     roughness: 1.0,
     lighting: LightingModel.pbr,
   );
 
-  static Material get barrier => Material(
-    baseColor: Vector4(0.72, 0.72, 0.75, 1.0),
+  static RenderMaterial get barrier => RenderMaterial(
+    baseColor: LinearColor.fromSrgb(0.72, 0.72, 0.75, 1.0),
     roughness: 0.55,
     metallic: 0.1,
     lighting: LightingModel.pbr,
@@ -55,8 +55,8 @@ abstract final class Looks {
   ///
   /// `blend` puts it in the transparent half of the render list, so the road
   /// shows through rather than being drawn over.
-  static Material ghost() => Material(
-    baseColor: Vector4(0.65, 0.85, 1.0, 0.32),
+  static RenderMaterial ghost() => RenderMaterial(
+    baseColor: LinearColor.fromSrgb(0.65, 0.85, 1.0, 0.32),
     roughness: 0.3,
     alphaMode: MaterialAlphaMode.blend,
     // Nothing writes depth through a ghost: two of them overlapping should
@@ -77,8 +77,8 @@ abstract final class Looks {
       <double>[0.15, 0.70, 0.35],
       <double>[0.70, 0.20, 0.75],
     ];
-    final colour = palette[index % palette.length];
-    return Vector4(colour[0], colour[1], colour[2], 1.0);
+    final color = palette[index % palette.length];
+    return Vector4(color[0], color[1], color[2], 1.0);
   }
 
   /// What a car is before its model has loaded.
@@ -88,40 +88,35 @@ abstract final class Looks {
   /// uploaded, and what the whole field falls back to if that fails. A box that
   /// is only ever seen for a moment still has to be the right colour, or the
   /// field appears to change livery as it loads.
-  static Material rival(int index) => Material(
-    baseColor: carPaint(index),
+  static RenderMaterial rival(int index) => RenderMaterial(
+    baseColor: _fromSrgb(carPaint(index)),
     roughness: 0.4,
     metallic: 0.2,
     lighting: LightingModel.pbr,
   );
 
-  /// The materials of the car model that carry its livery.
+  /// The material of the car model that is its paint.
   ///
-  /// The asset is a real racing car with forty materials — tyres, glass, brake
-  /// discs, carbon, a steering wheel with an LCD on it. Painting all of them
-  /// would give a rival coloured tyres and a coloured windscreen, so only the
-  /// panels are painted, and they are found by the name the artist gave them.
-  ///
-  /// Matched on a substring rather than the whole name because the exporter
-  /// suffixes duplicates: the panels arrive as `car_chassis.005` and
-  /// `car_chassis2.005`, and a new export would renumber both.
-  static bool isBodywork(String? name) =>
-      name != null && name.toLowerCase().contains('chassis');
+  /// The kit draws a car from one colour atlas, tyres, glass and stripes
+  /// alike; `tool/prepare_models.py` moves the body's paint onto a material of
+  /// its own, `paint`, sampling white, so that painting it gives a rival the
+  /// colour asked for and leaves its tyres black and its glass dark.
+  static bool isBodywork(String? name) => name == 'paint';
 
-  /// Paints [colour] onto the bodywork of one car.
+  /// Paints [color] onto the bodywork of one car.
   ///
-  /// **Only ever call this on materials the instance owns.** [Material.baseColor]
-  /// multiplies the livery texture, and the materials of a model instantiated
-  /// with `shareMaterials: true` are the asset's own — painting those paints
-  /// every car drawn from that asset, which is the whole field.
+  /// **Only ever call this on materials the instance owns.** The materials of
+  /// a model instantiated with `shareMaterials: true` are the asset's own —
+  /// painting those paints every car drawn from that asset, which is the whole
+  /// field.
   ///
   /// Set rather than multiplied, so that painting the same instance twice
   /// leaves it the colour asked for instead of a darker one. Nothing does that
   /// today; it is a cheap property to have and an unpleasant bug to find.
-  static void paint(List<MeshNode> meshes, Vector4 colour) {
+  static void paint(List<MeshNode> meshes, Vector4 color) {
     for (final mesh in meshes) {
       if (isBodywork(mesh.material.name)) {
-        mesh.material.baseColor.setFrom(colour);
+        mesh.material.baseColor = _fromSrgb(color);
       }
     }
   }
@@ -135,18 +130,13 @@ abstract final class Looks {
   /// **Replaces the materials rather than editing them.** [Looks.ghost] is
   /// unlit, blended and writes no depth, and the model's own materials are
   /// textured, opaque and lit — turning one into the other means changing more
-  /// than a colour. Replacing also drops the livery texture, which is the
-  /// point: a ghost is a shape, not a car with sponsors on it.
+  /// than a colour. Replacing also drops the atlas, which is the point: a
+  /// ghost is a shape, not a painted car.
   ///
-  /// One material across all forty parts, deliberately. Nothing colours a
-  /// ghost per part, and one material is one fewer state change per part in the
+  /// One material across every part, deliberately. Nothing colours a ghost
+  /// per part, and one material is one fewer state change per part in the
   /// pass that draws it.
-  static void haunt(List<MeshNode> meshes) {
-    final look = ghost();
-    for (final mesh in meshes) {
-      mesh.material = look;
-    }
-  }
+  static void haunt(List<MeshNode> meshes) => Ghost.haunt(meshes, ghost());
 }
 
 /// Builds the circuit's own geometry and puts it in [scene].
@@ -161,7 +151,7 @@ List<SceneNode> addTrackTo(
 }) {
   final added = <SceneNode>[];
 
-  void put(String name, MeshData mesh, Material material) {
+  void put(String name, MeshData mesh, RenderMaterial material) {
     if (mesh.indices.isEmpty) return;
     final node = MeshNode(
       DeviceMesh.upload(device, mesh),
@@ -192,12 +182,15 @@ List<SceneNode> addTrackTo(
 
 /// A car-shaped box, for an opponent or for the player before the model
 /// arrives.
-MeshNode carBox(GraphicsDevice device, Material material, {String? name}) =>
-    MeshNode(
-      DeviceMesh.upload(
-        device,
-        CuboidShape(size: Vector3(1.8, 1.0, 4.3)).build(),
-      ),
-      material,
-      name: name,
-    );
+MeshNode carBox(
+  GraphicsDevice device,
+  RenderMaterial material, {
+  String? name,
+}) => MeshNode(
+  DeviceMesh.upload(device, CuboidShape(size: Vector3(1.8, 1.0, 4.3)).build()),
+  material,
+  name: name,
+);
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

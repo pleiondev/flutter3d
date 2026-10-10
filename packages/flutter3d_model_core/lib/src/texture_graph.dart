@@ -33,7 +33,23 @@
 library;
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
 import 'package:vector_math/vector_math.dart';
+
+import 'project_wire.dart';
+
+/// A texture node or graph that is not one: a missing or mistyped field, a
+/// kind or a word this build does not know.
+final class TextureGraphFormatException extends Flutter3dFormatException {
+  const TextureGraphFormatException(this.message);
+
+  @override
+  final String message;
+
+  @override
+  String toString() => 'TextureGraphFormatException: $message';
+}
 
 /// What one socket on a [TextureNode] carries.
 enum TextureValueType {
@@ -101,18 +117,22 @@ sealed class TextureNode {
   /// The node [json] describes — `json['kind']` and `json['id']` read here,
   /// every other field read by the matching subclass's own reader.
   ///
-  /// Throws a [FormatException] naming the id and the bad field, rather than
+  /// Throws a [TextureGraphFormatException] naming the id and the bad field, rather than
   /// answering a node the graph would misbehave on: a `Blend` with no `mode`
   /// is not "a `Blend` with a default mode," it is a file this build cannot
   /// honestly say it read.
   static TextureNode fromJson(Map<String, Object?> json) {
     final id = switch (json['id']) {
       final int value => value,
-      _ => throw const FormatException('a texture node with no integer id'),
+      _ => throw const TextureGraphFormatException(
+        'a texture node with no integer id',
+      ),
     };
     final kind = switch (json['kind']) {
       final String value => value,
-      _ => throw FormatException('texture node $id has no string kind'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no string kind',
+      ),
     };
     return switch (kind) {
       'image' => ImageTextureNode(id: id, imageId: _int(json, id, 'imageId')),
@@ -121,13 +141,13 @@ sealed class TextureNode {
         id: id,
         base: _optionalInt(json, 'base'),
         overlay: _optionalInt(json, 'overlay'),
-        mode: _enum(TextureBlendMode.values, json, id, 'mode'),
+        mode: _word(textureBlendModeOf, json, id, 'mode'),
         factor: _double(json, id, 'factor'),
       ),
       'channels' => ChannelsTextureNode(
         id: id,
         source: _optionalInt(json, 'source'),
-        channel: _enum(TextureChannel.values, json, id, 'channel'),
+        channel: _word(textureChannelOf, json, id, 'channel'),
       ),
       'levels' => LevelsTextureNode(
         id: id,
@@ -168,7 +188,7 @@ sealed class TextureNode {
         result: _optionalInt(json, 'result'),
         slot: json['slot'] as String?,
       ),
-      _ => throw FormatException(
+      _ => throw TextureGraphFormatException(
         'texture node $id has an unknown kind '
         '"$kind"',
       ),
@@ -179,7 +199,9 @@ sealed class TextureNode {
 int _int(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
       final int value => value,
-      _ => throw FormatException('texture node $id has no integer "$field"'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no integer "$field"',
+      ),
     };
 
 int? _optionalInt(Map<String, Object?> json, String field) =>
@@ -191,7 +213,9 @@ int? _optionalInt(Map<String, Object?> json, String field) =>
 double _double(Map<String, Object?> json, int id, String field) =>
     switch (json[field]) {
       final num value => value.toDouble(),
-      _ => throw FormatException('texture node $id has no number "$field"'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no number "$field"',
+      ),
     };
 
 Vector4 _vec4(Map<String, Object?> json, int id, String field) =>
@@ -202,7 +226,7 @@ Vector4 _vec4(Map<String, Object?> json, int id, String field) =>
         (value[2]! as num).toDouble(),
         (value[3]! as num).toDouble(),
       ),
-      _ => throw FormatException(
+      _ => throw TextureGraphFormatException(
         'texture node $id has no four-number "$field"',
       ),
     };
@@ -213,20 +237,24 @@ Vector2 _vec2(Map<String, Object?> json, int id, String field) =>
         (value[0]! as num).toDouble(),
         (value[1]! as num).toDouble(),
       ),
-      _ => throw FormatException('texture node $id has no two-number "$field"'),
+      _ => throw TextureGraphFormatException(
+        'texture node $id has no two-number "$field"',
+      ),
     };
 
-T _enum<T extends Enum>(
-  List<T> values,
+/// The value [read] finds for [field]'s word, through its wire table
+/// (`project_wire.dart`).
+T _word<T extends Object>(
+  T? Function(Object? word) read,
   Map<String, Object?> json,
   int id,
   String field,
 ) {
   final word = json[field];
-  for (final value in values) {
-    if (value.name == word) return value;
-  }
-  throw FormatException('texture node $id has no "$field" named "$word"');
+  return read(word) ??
+      (throw TextureGraphFormatException(
+        'texture node $id has no "$field" named "$word"',
+      ));
 }
 
 List<double> _vec4Json(Vector4 v) => <double>[v.x, v.y, v.z, v.w];
@@ -300,6 +328,7 @@ final class BlendTextureNode extends TextureNode {
   final TextureBlendMode mode;
 
   /// 0 keeps [base] unchanged; 1 is [mode] at full strength.
+  /// A 0..1 fraction.
   final double factor;
 
   @override
@@ -315,7 +344,8 @@ final class BlendTextureNode extends TextureNode {
   Map<String, MaterialHint> get hints => <String, MaterialHint>{
     'mode': MaterialHint(
       EnumHint(<EnumHintValue>[
-        for (final m in TextureBlendMode.values) EnumHintValue(m.name),
+        for (final m in TextureBlendMode.values)
+          EnumHintValue(textureBlendModeWord(m)),
       ]),
     ),
     'factor': const MaterialHint(RangeHint(0, 1)),
@@ -328,7 +358,7 @@ final class BlendTextureNode extends TextureNode {
   Map<String, Object?> toJson() => {
     'base': base,
     'overlay': overlay,
-    'mode': mode.name,
+    'mode': textureBlendModeWord(mode),
     'factor': factor,
   };
 }
@@ -359,7 +389,8 @@ final class ChannelsTextureNode extends TextureNode {
   Map<String, MaterialHint> get hints => {
     'channel': MaterialHint(
       EnumHint(<EnumHintValue>[
-        for (final c in TextureChannel.values) EnumHintValue(c.name),
+        for (final c in TextureChannel.values)
+          EnumHintValue(textureChannelWord(c)),
       ]),
     ),
   };
@@ -368,7 +399,10 @@ final class ChannelsTextureNode extends TextureNode {
   String get kind => 'channels';
 
   @override
-  Map<String, Object?> toJson() => {'source': source, 'channel': channel.name};
+  Map<String, Object?> toJson() => {
+    'source': source,
+    'channel': textureChannelWord(channel),
+  };
 }
 
 /// A mask remapped between [blackPoint] and [whitePoint], then [gamma].
@@ -382,8 +416,14 @@ final class LevelsTextureNode extends TextureNode {
   });
 
   final int? source;
+
+  /// On the 0..1 mask scale.
   final double blackPoint;
+
+  /// On the 0..1 mask scale.
   final double whitePoint;
+
+  /// A unitless exponent: the remapped value is raised to 1 / gamma.
   final double gamma;
 
   @override
@@ -492,6 +532,8 @@ final class CheckerTextureNode extends TextureNode {
 
   final Vector4 colorA;
   final Vector4 colorB;
+
+  /// A count of squares across the texture.
   final double scale;
 
   @override
@@ -524,6 +566,8 @@ final class NoiseTextureNode extends TextureNode {
   const NoiseTextureNode({required super.id, this.seed = 0, this.scale = 1.0});
 
   final int seed;
+
+  /// Noise lattice cells across the texture.
   final double scale;
 
   @override
@@ -553,6 +597,8 @@ final class NormalFromHeightTextureNode extends TextureNode {
   });
 
   final int? height;
+
+  /// A unitless multiplier on the height's slope.
   final double strength;
 
   @override
@@ -722,7 +768,9 @@ final class TextureGraph {
   static TextureGraph fromJson(Map<String, Object?> json) {
     final entries = switch (json['nodes']) {
       final List<Object?> value => value,
-      _ => throw const FormatException('a texture graph with no "nodes" list'),
+      _ => throw const TextureGraphFormatException(
+        'a texture graph with no "nodes" list',
+      ),
     };
     final positionsJson = json['positions'];
     return TextureGraph(

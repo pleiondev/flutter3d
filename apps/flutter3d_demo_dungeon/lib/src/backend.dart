@@ -1,7 +1,7 @@
 /// What this game asks of whichever backend it was built against.
 ///
 /// **The choosing is not here any more.** The conditional import, `openDevice`
-/// and `kFixedResolution` were three files in this game and the same three,
+/// and `fixedResolution` were three files in this game and the same three,
 /// byte for byte, in the platformer — down to the paragraph explaining why a
 /// conditional import rather than a runtime branch. They live in
 /// `flutter3d_app` now, reached through the same barrel this file
@@ -20,7 +20,7 @@ export 'package:flutter3d_app/flutter3d_app.dart';
 /// Higher costs fill rate on a software-composited surface; lower reads as
 /// blurry the moment anybody opens it on a laptop.
 ///
-/// Read only when [kFixedResolution]; a desktop build draws at whatever size the
+/// Read only when [fixedResolution]; a desktop build draws at whatever size the
 /// widget was laid out at.
 const int kRenderWidth = 1280;
 const int kRenderHeight = 720;

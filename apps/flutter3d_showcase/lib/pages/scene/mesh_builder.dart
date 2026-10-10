@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class MeshBuilderDemo extends ShowcaseDemo {
   late final MeshData _pyramid;
@@ -36,7 +35,7 @@ final class MeshBuilderDemo extends ShowcaseDemo {
       position: apex,
       normal: Vector3(0.0, 1.0, 0.0),
       texcoord: Vector2(0.5, 0.0),
-      color: Vector4(1.0, 0.92, 0.6, 1.0),
+      color: const LinearColor(1.0, 0.92, 0.6),
     );
     final List<int> baseIndices = <int>[];
     for (var i = 0; i < base.length; i++) {
@@ -48,7 +47,7 @@ final class MeshBuilderDemo extends ShowcaseDemo {
           position: base[i],
           normal: normal,
           texcoord: Vector2(i / base.length, 1.0),
-          color: Vector4(0.65, 0.7, 0.8, 1.0),
+          color: const LinearColor(0.65, 0.7, 0.8),
         ),
       );
     }
@@ -66,17 +65,17 @@ final class MeshBuilderDemo extends ShowcaseDemo {
 
     // #region scene
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.42, 0.5, 0.66)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.42, 0.5, 0.66)
+      ..ambientIntensity = 0.16 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(context.device, _pyramid),
-          Material(name: 'pyramid', roughness: 0.6),
+          RenderMaterial(name: 'pyramid', roughness: 0.6),
           name: 'pyramid',
         ),
       )
       ..add(
-        LightNode(name: 'key', intensity: 3.2)
+        LightNode(name: 'key', intensity: 3.2 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.42, -0.78, -0.4)),
       );
     // #endregion scene

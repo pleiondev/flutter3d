@@ -174,12 +174,12 @@ final class ModelerStage {
       edit = EditMesh.cuboid();
       subject = MeshNode(
         DeviceMesh.upload(device, edit.toMeshData()),
-        Material(
+        RenderMaterial(
           name: 'clay',
           lighting: LightingModel.pbr,
           // The colour of unpainted clay, which is what an object with no
           // material yet should look like: a shape being judged by its form.
-          baseColor: Vector4(0.72, 0.70, 0.67, 1.0),
+          baseColor: LinearColor.fromSrgb(0.72, 0.70, 0.67, 1.0),
           roughness: 0.65,
         ),
         name: 'cube',
@@ -247,12 +247,12 @@ final class ModelerStage {
   static void _light(Scene scene) {
     scene.add(
       LightNode(type: LightType.directional, name: 'key')
-        ..intensity = 3.2
+        ..intensity = 3.2 * Photometric.legacyUnit
         ..setLocalForward(Vector3(-0.5, -1.0, -0.6)),
     );
     scene.add(
       LightNode(type: LightType.directional, name: 'fill')
-        ..intensity = 1.1
+        ..intensity = 1.1 * Photometric.legacyUnit
         ..setLocalForward(Vector3(0.7, -0.3, 0.8)),
     );
   }
@@ -314,10 +314,10 @@ final class ModelerStage {
     }
 
     final mesh = DeviceMesh.upload(device, builder.build());
-    final material = Material(
+    final material = RenderMaterial(
       name: 'stress',
       lighting: LightingModel.pbr,
-      baseColor: Vector4(0.62, 0.66, 0.72, 1.0),
+      baseColor: LinearColor.fromSrgb(0.62, 0.66, 0.72, 1.0),
       roughness: 0.5,
     );
 
@@ -418,8 +418,8 @@ final class ModelerStage {
       up: Vector3(m[4], m[5], m[6]),
       pixel: switch (projection) {
         OrthographicProjection(height: final shown) => shown / height,
-        PerspectiveProjection(:final fovYRadians) =>
-          2.0 * math.tan(fovYRadians * 0.5) / height,
+        PerspectiveProjection(:final fovY) =>
+          2.0 * math.tan(fovY * 0.5) / height,
         _ => 2.0 * math.tan(math.pi / 8) / height,
       },
       perspective: projection is! OrthographicProjection,
@@ -441,6 +441,6 @@ final class ModelerStage {
   /// the material preview and again with the LOD comparison — and because the
   /// renderer takes a list either way. One today.
   List<RenderView> views() => <RenderView>[
-    RenderView(camera: camera, clearColor: background),
+    RenderView(camera: camera, clearColorSrgb: background),
   ];
 }

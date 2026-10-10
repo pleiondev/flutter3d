@@ -26,6 +26,7 @@
 
 #include <lib/frag_coord_info.glsl>
 #include <lib/blue_noise.glsl>
+#include <lib/shadow_storage.glsl>
 
 in vec2 v_uv;
 
@@ -64,7 +65,8 @@ uniform ShaftInfo {
   vec4 sun;
 
   // x, y, z: each cascade's depth bias, in the units its part of the map
-  // holds — `FragInfo.shadow_bias`, for the reason given there. w unused.
+  // holds — `FragInfo.shadow_bias`, for the reason given there. w: how the
+  // map stores its depth, the mode `lib/shadow_storage.glsl` lists.
   vec4 bias;
 }
 shaft_info;
@@ -117,7 +119,8 @@ float LitAt(vec3 world, float viewDistance) {
     // continues and breaks on values computed per fragment, so a WGSL backend
     // refuses the implicit derivative here as possibly non-uniform. One level,
     // so naming it directly changes no pixel.
-    float stored = textureLod(shadow_texture, uv, 0.0).r;
+    float stored =
+        ShadowStored(textureLod(shadow_texture, uv, 0.0).r, shaft_info.bias.w);
     // Outside the map is lit rather than dark: a point beyond the shadow
     // volume has nothing recorded about it, and calling that shadow would
     // put a wall of darkness across the far half of every shaft.
@@ -141,15 +144,26 @@ void main() {
   vec2 xy = vec2(v_uv.x * 2.0 - 1.0, 1.0 - v_uv.y * 2.0);
   vec4 nearH = shaft_info.inverse_view_projection * vec4(xy, 0.0, 1.0);
   vec4 farH = shaft_info.inverse_view_projection * vec4(xy, 1.0, 1.0);
-  vec3 origin = nearH.xyz / nearH.w;
-  vec3 along = normalize(farH.xyz / farH.w - origin);
+  vec3 nearPoint = nearH.xyz / nearH.w;
+  vec3 along = normalize(farH.xyz / farH.w - nearPoint);
+  float cosine = max(dot(along, shaft_info.forward.xyz), 1e-4);
+
+  // **From the eye's plane, not the near plane** — `P7`, as
+  // `volumetric_fog.frag` already starts. The surface buffer's depth is
+  // measured from the eye, so a march from the near plane ran the near
+  // distance past the surface. Through a perspective lens that is a tenth of
+  // a metre; through an orthographic one the near plane can stand anywhere,
+  // behind the eye included, and the march ended that far off the wall.
+  vec3 origin = nearPoint -
+                along * (dot(nearPoint - shaft_info.camera.xyz,
+                             shaft_info.forward.xyz) /
+                         cosine);
 
   // How far there is air. The surface buffer holds depth along the view axis
   // in metres, so the distance along *this* ray is that over the cosine
   // between the two — a ray at the corner of the frame travels further than
   // the axis does to reach the same plane.
   float surfaceDepth = texture(surface_texture, v_uv).a;
-  float cosine = max(dot(along, shaft_info.forward.xyz), 1e-4);
   float toSurface = surfaceDepth > 0.0 ? surfaceDepth / cosine : 1e9;
   float distance = min(shaft_info.camera.w, toSurface);
   if (distance <= 0.0) {

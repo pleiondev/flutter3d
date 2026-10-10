@@ -19,7 +19,11 @@ import 'dart:typed_data';
 /// cache strip, a job runner and the apply command need is the same five
 /// answers, and a soft body or a fluid arriving later is one more class that
 /// gives them rather than one more branch wherever a bake is shown or applied.
-abstract interface class SimulationBakeRequest {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class SimulationBakeRequest {
   /// Which object the finished cache answers for.
   int get objectId;
 

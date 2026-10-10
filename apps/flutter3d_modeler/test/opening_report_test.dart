@@ -24,7 +24,7 @@ import 'support/fake_graphics_backend.dart';
 
 /// Settings in memory, already past Quick Setup — a first launch would open
 /// that over the editor and this test is about what is underneath it.
-final class _Settled implements Storage {
+final class _Settled extends Storage {
   final Map<String, String> documents = <String, String>{
     SettingsStore.name: jsonEncode(
       const ModelerSettings(
@@ -35,20 +35,19 @@ final class _Settled implements Storage {
   };
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
+  Future<void> write(String name, String contents) async {
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 /// Nothing to recover, so no dialog over the editor.
-final class _NoAutosave implements BinaryStorage {
+final class _NoAutosave extends BinaryStorage {
   @override
   Future<Uint8List?> read(String name) async => null;
 

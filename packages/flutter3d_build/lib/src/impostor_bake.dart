@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:image/image.dart' as img;
 import 'package:vector_math/vector_math.dart';
 
@@ -60,7 +61,7 @@ Future<ModelDocument> bakeImpostors(
   void Function(String message)? report,
   GraphicsDevice? device,
 }) async {
-  final grid = kImpostorGrid;
+  final grid = impostorGrid;
   final side = cell * grid;
   final gpu =
       device ??
@@ -71,7 +72,7 @@ Future<ModelDocument> bakeImpostors(
       );
   final renderer = Renderer.create(device: gpu);
   final settings = const RenderSettings().forMeasurement();
-  final normalsMaterial = Material(
+  final normalsMaterial = RenderMaterial(
     lighting: LightingModel.normals,
     doubleSided: true,
   );
@@ -96,15 +97,15 @@ Future<ModelDocument> bakeImpostors(
     );
   });
 
-  Material albedoMaterial(int? index) {
+  RenderMaterial albedoMaterial(int? index) {
     final source = index != null && index >= 0
         ? (index < document.materials.length ? document.materials[index] : null)
         : null;
-    if (source == null) return Material(lighting: LightingModel.unlit);
+    if (source == null) return RenderMaterial(lighting: LightingModel.unlit);
     final texture = source.baseColorTexture;
-    return Material(
+    return RenderMaterial(
       lighting: LightingModel.unlit,
-      baseColor: source.baseColor.clone(),
+      baseColor: source.baseColor,
       albedo: texture == null ? null : textureFor(texture.imageIndex),
       alphaMode: source.alphaMode == SurfaceAlphaMode.mask
           ? MaterialAlphaMode.mask
@@ -138,7 +139,7 @@ Future<ModelDocument> bakeImpostors(
         continue;
       }
 
-      final (centre, radius) = _boundingSphere(surfaces);
+      final (center, radius) = _boundingSphere(surfaces);
       final drawn = <ModelSurface>[
         for (final s in surfaces)
           if (s.mesh.vertexCount > 0) s,
@@ -162,7 +163,7 @@ Future<ModelDocument> bakeImpostors(
         for (var row = 0; row < grid; row++) {
           for (var column = 0; column < grid; column++) {
             final d = impostorViewDirection(column, row);
-            final camera = _cameraFor(d, centre, radius);
+            final camera = _cameraFor(d, center, radius);
 
             Future<Uint8List> shoot(List<MeshNode> draws, Vector4 clear) async {
               final scene = Scene();
@@ -175,7 +176,7 @@ Future<ModelDocument> bakeImpostors(
                 height: cell,
                 scene: scene,
                 views: <RenderView>[
-                  RenderView(camera: camera, clearColor: clear),
+                  RenderView(camera: camera, clearColorSrgb: clear),
                 ],
                 settings: settings,
               );
@@ -183,8 +184,8 @@ Future<ModelDocument> bakeImpostors(
                 scene.remove(draw);
               }
               scene.remove(camera);
-              final pixels = await gpu.readPixels(result.frame);
-              return pixels!.buffer.asUint8List(
+              final pixels = await gpu.readback(result.frame);
+              return pixels.buffer.asUint8List(
                 pixels.offsetInBytes,
                 pixels.lengthInBytes,
               );
@@ -192,18 +193,18 @@ Future<ModelDocument> bakeImpostors(
 
             List<MeshNode> drawsOf(
               List<DeviceMesh> meshes,
-              Material Function(int surface) materialOf,
+              RenderMaterial Function(int surface) materialOf,
             ) => <MeshNode>[
               for (var i = 0; i < drawn.length; i++)
                 MeshNode(meshes[i], materialOf(i)),
             ];
 
-            final colour = drawsOf(
+            final color = drawsOf(
               uploaded,
               (i) => albedoMaterial(drawn[i].materialIndex),
             );
-            final onBlack = await shoot(colour, Vector4(0, 0, 0, 0));
-            final onWhite = await shoot(colour, Vector4(1, 1, 1, 1));
+            final onBlack = await shoot(color, Vector4(0, 0, 0, 0));
+            final onWhite = await shoot(color, Vector4(1, 1, 1, 1));
             final normals = await shoot(
               drawsOf(uploaded, (_) => normalsMaterial),
               Vector4(0, 0, 0, 0),
@@ -213,7 +214,7 @@ Future<ModelDocument> bakeImpostors(
                 gpu,
                 0,
                 ByteData.sublistView(
-                  _depthCoded(depthSources[i], d, centre, radius),
+                  _depthCoded(depthSources[i], d, center, radius),
                 ),
               );
             }
@@ -298,7 +299,7 @@ Future<ModelDocument> bakeImpostors(
                 albedoImage: albedoIndex,
                 normalDepthImage: normalIndex,
                 grid: grid,
-                centre: centre,
+                center: center,
                 radius: radius,
               ),
             ),
@@ -346,7 +347,7 @@ Future<ModelDocument> bakeImpostors(
   for (final s in surfaces.skip(1)) {
     box.hull(s.mesh.computeBounds());
   }
-  final centre = box.center;
+  final center = box.center;
   var radius = 0.0;
   for (final s in surfaces) {
     final stride = s.mesh.layout.floatsPerVertex;
@@ -356,22 +357,22 @@ Future<ModelDocument> bakeImpostors(
       radius = math.max(
         radius,
         Vector3(
-          s.mesh.vertices[o] - centre.x,
-          s.mesh.vertices[o + 1] - centre.y,
-          s.mesh.vertices[o + 2] - centre.z,
+          s.mesh.vertices[o] - center.x,
+          s.mesh.vertices[o + 1] - center.y,
+          s.mesh.vertices[o + 2] - center.z,
         ).length,
       );
     }
   }
-  return (centre, math.max(radius, 1e-6));
+  return (center, math.max(radius, 1e-6));
 }
 
 /// The camera view [d] was baked from: level with the card's own right-hand
 /// axis, looking back along [d] at the sphere, which fills the frame.
-CameraNode _cameraFor(Vector3 d, Vector3 centre, double radius) {
+CameraNode _cameraFor(Vector3 d, Vector3 center, double radius) {
   final right = impostorRight(d);
   final up = d.cross(right);
-  final eye = centre + d.scaled(radius * 2.0);
+  final eye = center + d.scaled(radius * 2.0);
   return CameraNode(
     name: 'impostor bake',
     projection: OrthographicProjection(
@@ -407,7 +408,7 @@ CameraNode _cameraFor(Vector3 d, Vector3 centre, double radius) {
 Float32List _depthCoded(
   MeshData standard,
   Vector3 d,
-  Vector3 centre,
+  Vector3 center,
   double radius,
 ) {
   final vertices = Float32List.fromList(standard.vertices);
@@ -419,9 +420,9 @@ Float32List _depthCoded(
   for (var v = 0; v < standard.vertexCount; v++) {
     final o = v * stride;
     final along =
-        (vertices[o + position] - centre.x) * d.x +
-        (vertices[o + position + 1] - centre.y) * d.y +
-        (vertices[o + position + 2] - centre.z) * d.z;
+        (vertices[o + position] - center.x) * d.x +
+        (vertices[o + position + 1] - center.y) * d.y +
+        (vertices[o + position + 2] - center.z) * d.z;
     final t = (0.5 - along / (2.0 * radius)).clamp(0.0, 1.0);
     vertices[o + normal] = t;
     vertices[o + normal + 1] = 1.0 - t;

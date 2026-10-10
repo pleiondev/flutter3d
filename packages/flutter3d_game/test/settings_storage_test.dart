@@ -13,101 +13,116 @@
 library;
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_audio_core/flutter3d_audio_core.dart' show AudioBus;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A storage that keeps everything in a map, for the callers above it.
-final class MemoryStorage implements Storage {
+final class MemoryStorage extends Storage {
   final Map<String, String> documents = <String, String>{};
   bool refuse = false;
 
   @override
-  String? read(String name) => documents[name];
+  Future<String?> read(String name) async => documents[name];
 
   @override
-  bool write(String name, String contents) {
-    if (refuse) return false;
+  Future<void> write(String name, String contents) async {
+    if (refuse) throw StorageException(name, 'refused');
     documents[name] = contents;
-    return true;
   }
 
   @override
-  void remove(String name) => documents.remove(name);
+  Future<void> remove(String name) async => documents.remove(name);
 }
 
 void main() {
   group('what a player changed', () {
-    test('survives being written and read back', () {
+    test('survives being written and read back', () async {
       final storage = MemoryStorage();
-      final config = GameConfig()
-        ..setVolume('music', 0.4)
-        ..setSetting('a11y.toggleSprint', 1.0)
-        ..bindings.bind(InputSource.pad('face.east'), const GameAction('dash'));
+      final config = const GameSettings()
+          .withVolume(AudioBus.music, 0.4)
+          .withValue(GameSettingKeys.toggleSprint, true)
+          .copyWith(
+            actions: ActionMap(actions: ActionSet.common)
+              ..buttons.bind(
+                InputSource.pad('face.east'),
+                const GameAction('dash'),
+              ),
+          );
 
-      SettingsFile(appName: 'game', storage: storage).write(config);
-      final read = SettingsFile(appName: 'game', storage: storage).read();
+      await SettingsFile(appName: 'game', storage: storage).write(config);
+      final read = await SettingsFile(appName: 'game', storage: storage).read();
 
-      expect(read.volumeOf('music'), 0.4);
-      expect(read.settingOf('a11y.toggleSprint', 0.0), 1.0);
+      expect(read.volumeOf(AudioBus.music), 0.4);
+      expect(read.valueOf(GameSettingKeys.toggleSprint), isTrue);
       expect(
-        read.bindings[InputSource.pad('face.east')],
+        read.actions!.buttons[InputSource.pad('face.east')],
         const GameAction('dash'),
       );
     });
 
-    test('and a first run is defaults rather than a failure', () {
-      final read = SettingsFile(
+    test('and a first run is defaults rather than a failure', () async {
+      final read = await SettingsFile(
         appName: 'game',
         storage: MemoryStorage(),
       ).read();
 
-      expect(read.volumeOf('master'), 1.0);
+      expect(read.volumeOf(AudioBus.master), 1.0);
     });
 
-    test('and a document somebody hand-edited into nonsense costs one launch', () {
-      // Never throws. What is lost is the bindings, which is a bad day; what is
-      // avoided is a game that will not start, which is a bug report nobody can
-      // act on.
-      final storage = MemoryStorage()
-        ..documents['settings.json'] = '{"volumes": ';
+    test(
+      'and a document somebody hand-edited into nonsense costs one launch',
+      () async {
+        // Never throws. What is lost is the bindings, which is a bad day; what is
+        // avoided is a game that will not start, which is a bug report nobody can
+        // act on.
+        final storage = MemoryStorage()
+          ..documents['settings.json'] = '{"volumes": ';
 
-      expect(
-        SettingsFile(appName: 'game', storage: storage).read().volumeOf('sfx'),
-        1.0,
-      );
-    });
+        expect(
+          (await SettingsFile(
+            appName: 'game',
+            storage: storage,
+          ).read()).volumeOf(AudioBus.sfx),
+          1.0,
+        );
+      },
+    );
 
-    test('and a storage that refuses says so rather than pretending', () {
+    test('and a storage that refuses says so rather than pretending', () async {
       // A quota that ran out in a browser, or a disk that filled. The boolean is
       // for a caller that wants to tell the player.
       final storage = MemoryStorage()..refuse = true;
 
       expect(
-        SettingsFile(appName: 'game', storage: storage).write(GameConfig()),
+        await SettingsFile(
+          appName: 'game',
+          storage: storage,
+        ).write(const GameSettings()),
         isFalse,
       );
     });
 
-    test('and two games do not overwrite each other', () {
+    test('and two games do not overwrite each other', () async {
       // The failure that only happens to somebody who plays both, which is why
       // it went unnoticed until there were two.
       final one = MemoryStorage();
       final two = MemoryStorage();
-      SettingsFile(
+      await SettingsFile(
         appName: 'platformer',
         storage: one,
-      ).write(GameConfig()..setVolume('music', 0.1));
-      SettingsFile(
+      ).write(const GameSettings().withVolume(AudioBus.music, 0.1));
+      await SettingsFile(
         appName: 'dungeon',
         storage: two,
-      ).write(GameConfig()..setVolume('music', 0.9));
+      ).write(const GameSettings().withVolume(AudioBus.music, 0.9));
 
       expect(
-        SettingsFile(
+        (await SettingsFile(
           appName: 'platformer',
           storage: one,
-        ).read().volumeOf('music'),
+        ).read()).volumeOf(AudioBus.music),
         0.1,
       );
     });

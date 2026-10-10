@@ -83,7 +83,7 @@ final class HistoryStep {
 
   /// Who made this step — a person at the app, or an agent over MCP.
   /// Defaults to [StepAuthor.person] because that is every call site this
-  /// class has ever had until `ModelSession` (`flutter3d_model_mcp`) started
+  /// class has ever had until `ModelSession` (`flutter3d_mcp/model.dart`) started
   /// naming its own steps [StepAuthor.agent] explicitly; a step nobody names
   /// an author for is one a human made, not an agent whose own undo needs
   /// watching.
@@ -106,7 +106,7 @@ final class ModelHistory {
   ModelHistory(
     this._project, {
     this.depth = 64,
-    this.historyBudgetBytes = kHistoryBudgetBytes,
+    this.historyBudgetBytes = defaultHistoryBudgetBytes,
     ProjectSelection? selection,
     this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
@@ -129,7 +129,7 @@ final class ModelHistory {
     this._project,
     List<HistoryStep> steps, {
     this.depth = 64,
-    this.historyBudgetBytes = kHistoryBudgetBytes,
+    this.historyBudgetBytes = defaultHistoryBudgetBytes,
     ProjectSelection? selection,
     this.recoveryJournal,
   }) : _selection = selection ?? ProjectSelection.none,
@@ -147,7 +147,7 @@ final class ModelHistory {
   final int depth;
 
   /// How many bytes of mesh journal the kept steps may hold together before
-  /// the oldest of them are dropped — [kHistoryBudgetBytes] by default.
+  /// the oldest of them are dropped — [defaultHistoryBudgetBytes] by default.
   ///
   /// **[depth] alone is the wrong cap for a mesh, and `pro-sc-06` is where
   /// that stops being theoretical.** A step is a pointer to a kept document
@@ -225,7 +225,7 @@ final class ModelHistory {
   /// done anything to take back.
   ///
   /// [author] is [StepAuthor.person] unless a caller says otherwise —
-  /// `ModelSession` (`flutter3d_model_mcp`) is the one caller that ever
+  /// `ModelSession` (`flutter3d_mcp/model.dart`) is the one caller that ever
   /// passes [StepAuthor.agent], since every command an MCP tool call runs is
   /// one by definition.
   ///
@@ -241,7 +241,7 @@ final class ModelHistory {
     String? client,
   }) {
     final Outcome outcome = command.apply(_project, selection);
-    if (!outcome.ok) return outcome.refused;
+    if (!outcome.isOk) return outcome.refused;
     final List<EditMesh> touched = outcome.meshesTouched;
     if (_inTransaction) {
       _firstOfTransaction ??= command;
@@ -296,7 +296,7 @@ final class ModelHistory {
   /// Resolves once no transaction is open — immediately, when none is.
   ///
   /// **The whole of `mcp-14n`'s own fix lives in this one `await`,** called
-  /// from `flutter3d_model_mcp`'s generic command tool before it runs an
+  /// from `flutter3d_mcp/model.dart`'s generic command tool before it runs an
   /// agent's command. [ModelHistory.run] folds a command into whichever
   /// transaction happens to be open when it is called — right, for the
   /// gesture that opened it, wrong for a command that arrives from
@@ -483,7 +483,7 @@ final class ModelHistory {
       step.before,
       step.selectionBefore,
     );
-    if (!outcome.ok) {
+    if (!outcome.isOk) {
       _rollMeshes(step.meshSteps, forward: true);
       return outcome.refused;
     }

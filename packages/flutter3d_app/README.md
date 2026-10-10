@@ -14,10 +14,41 @@ final device = await openDevice(width: 1280, height: 720);
 | | |
 |---|---|
 | `openDevice` / `presentFrame` | Which backend a build draws through, and the runtime fallback to the software rasteriser when Impeller will not start. |
+| `Scene3D` and its children | A scene written as widgets: `Mesh3D`, `Model3D`, `Light3D`, `Camera3D`, `Node3D`, each owning one node of an ordinary `Scene`. A rebuild with the same keys keeps the nodes. |
 | `SceneSurface` | The widget that hands a frame to Flutter. Its settings are a function called per frame, not an object, so anything derived from where the camera ended up is derived after it got there. |
 | `WidgetSurface` | A live Flutter widget drawn onto a quad in the scene. |
 | `LevelLoader` | A level document turned into mesh nodes, lights, probes and a collision world. Problems come back as `LoadedLevel.issues` rather than exceptions: a missing wall texture leaves the surface flat and says so. |
 | `Storage` / `BinaryStorage` | A document kept where each platform keeps such things, behind one interface. |
+
+## A scene as widgets
+
+```dart
+Scene3D(
+  children: <Widget>[
+    Camera3D(position: Vector3(2.0, 2.0, 4.0), target: Vector3.zero()),
+    Light3D.directional(direction: Vector3(-1.0, -2.0, -1.5)),
+    Mesh3D(
+      key: const ValueKey<String>('crate'),
+      shape: CuboidShape(),
+      material: crate,
+      position: Vector3(0.0, 0.5, 0.0),
+    ),
+    Model3D(
+      source: 'assets_src/robot.glb',
+      animation: 'Walk',
+      placeholder: Mesh3D(shape: CuboidShape(), material: grey),
+    ),
+  ],
+)
+```
+
+Each widget owns one node of an ordinary `Scene`, made once and given the
+widget's properties on every build, so a widget that keeps its key keeps its
+node and everything a game set on it. A property left null is left as the node
+has it. `Scene3D.onCreated` hands over the device, the renderer and the scene
+for whatever the widgets do not say; a game written against the imperative API
+keeps it. A frame drawn from widgets is the frame the same scene draws when
+built by hand, to the byte — `test/scene_widgets_test.dart` holds that.
 
 ## Universal, and that is the rule for what goes in
 

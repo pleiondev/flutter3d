@@ -2,14 +2,16 @@
 ///
 ///     flutter run -d macos
 ///
-/// **This is a seed, not a game.** It reads the level in `assets/levels/`,
-/// builds it, and puts a body in it that walks, looks and jumps. What it
-/// deliberately does not do is anything a *genre* does: no weapons, no
-/// monsters, no coins, no doors that open, no score, no menu, no saving. Those
-/// live in `flutter3d_game_shooter` and `flutter3d_game_platformer`, and wiring one
-/// up is the next thing to do here — the three games in this repository are the
-/// worked examples, and each of them keeps that wiring in its own
-/// `lib/src/staging.dart`.
+/// **This is a seed, not a game.** It is one [Flutter3dView], which opens the
+/// device, makes the renderer, runs the engine's loop and owns focus and the
+/// lifecycle. Into that loop it installs [WalkGenre], a genre of its own: a
+/// body that walks, looks and jumps through the level in `assets/levels/`,
+/// steered by an [ActionMap] and saying on the event bus when it lands. What
+/// it deliberately does not do is anything a real genre does: nothing to
+/// fight, nothing to collect, no doors that open, no score, no menu, no
+/// saving. Those live in `flutter3d_game_shooter` and
+/// `flutter3d_game_platformer`, each a `GenrePlugin` handed to the view's
+/// `plugins` in place of this one.
 ///
 /// It is a real application in this repository as well as a template, so that
 /// it is analysed and compiled by CI. **A `main.dart` that is only ever a
@@ -17,21 +19,14 @@
 /// nobody finds out until somebody creates a project.**
 library;
 
-import 'dart:async';
-import 'dart:convert';
-
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_ui/theme.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 /// The level this project opens with.
-const String kLevel = String.fromEnvironment(
+const String levelAsset = String.fromEnvironment(
   'level',
   defaultValue: 'assets/levels/first.json',
 );
@@ -45,8 +40,165 @@ class TemplateApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'A level',
     debugShowCheckedModeBanner: false,
+    localizationsDelegates: const <LocalizationsDelegate<Object>>[
+      Flutter3dGameLocalizations.delegate,
+      DefaultMaterialLocalizations.delegate,
+      DefaultWidgetsLocalizations.delegate,
+    ],
     home: const LevelScreen(),
   );
+}
+
+/// The body came down onto the ground, at [speed] metres a second.
+///
+/// The one event this seed's genre publishes, declared with its codec so a
+/// run's event digest folds in what it carries; a screen hears it on the
+/// frame channel.
+final class Landed extends BusEvent {
+  const Landed(this.speed);
+
+  /// The name it is declared under, prefixed with the genre's.
+  static const String eventName = 'seed.landed';
+
+  /// How it is written down and read back.
+  static const EventCodec<Landed> codec = EventCodec<Landed>.of(
+    encode: _encode,
+    decode: _decode,
+  );
+
+  static Object? _encode(Landed event) => <String, Object?>{
+    'speed': event.speed,
+  };
+
+  static Landed? _decode(Object? data, int version) => switch (data) {
+    {'speed': final num speed} => Landed(speed.toDouble()),
+    _ => null,
+  };
+
+  /// How fast it was falling, in metres a second.
+  final double speed;
+
+  @override
+  String get name => eventName;
+
+  @override
+  void digestInto(EventDigestSink sink) => sink.add(speed);
+}
+
+/// The seed's own genre: a [LevelWalk] stepped in the loop's physics phase,
+/// the way `flutter3d_game_platformer` steps its runner.
+///
+/// Its run is the walk of the level that is up, set as levels come and go;
+/// its input is the loop's, written by the keyboard through the [ActionMap].
+final class WalkGenre extends GenrePlugin<LevelWalk> {
+  WalkGenre({required this.input});
+
+  /// The plugin's id.
+  static const String id = 'flutter3d_game_example.walk';
+
+  /// The name of the genre's step system.
+  static const String stepSystem = 'seed.step';
+
+  /// What the walk reads: the loop's input.
+  final InputState input;
+
+  bool _wasGrounded = true;
+
+  @override
+  String get systemName => stepSystem;
+
+  @override
+  PluginManifest get manifest => const PluginManifest(
+    id: id,
+    apiVersion: PluginApiVersion.current,
+    touches: PluginTouches.simulation,
+    description: 'A body that walks, looks and jumps through a level.',
+  );
+
+  @override
+  void declareEvents(EventRegistry events) {
+    events.declare<Landed>(
+      Landed.eventName,
+      description: 'The body came down onto the ground.',
+      codec: Landed.codec,
+    );
+  }
+
+  @override
+  void stepSimulation(LevelWalk simulation, LoopContext context) {
+    final falling = -simulation.body.velocity.y;
+    // A jump if one was pressed, a walk where the keys point turned by where
+    // the head is, a run while sprint is held.
+    simulation.step(context.dt, input);
+    final grounded = simulation.body.isGrounded;
+    if (grounded && !_wasGrounded) context.publish(Landed(falling));
+    _wasGrounded = grounded;
+  }
+
+  /// The body, and which way the head is turned, in the loop's snapshots.
+  @override
+  Snapshot captureSimulation(LevelWalk simulation) =>
+      Snapshot(<String, Object?>{
+        'body': simulation.body.save(),
+        'yaw': simulation.yaw,
+        'pitch': simulation.pitch,
+        'grounded': _wasGrounded,
+      });
+
+  @override
+  void restoreSimulation(LevelWalk simulation, Snapshot state) {
+    if (state.data['body'] case final Map<String, Object?> body) {
+      simulation.body.restore(body);
+    }
+    simulation
+      ..yaw = state.data.number('yaw')
+      ..pitch = state.data.number('pitch');
+    _wasGrounded = state.data['grounded'] == true;
+  }
+}
+
+/// A level that is up: what was loaded, and the walk through it.
+final class WalkableLevel {
+  const WalkableLevel(this.loaded, this.walk);
+
+  final LoadedLevel loaded;
+  final LevelWalk walk;
+}
+
+/// Reads [asset] and builds everything it takes to walk around in it, on
+/// [device]: [RunPlaying] with the level, or [RunFailed] with why not.
+///
+/// **A level that will not read used to be a black screen for ever**: the
+/// load caught its own throw and printed it, which is a line in a console
+/// nobody playing the game can see. A test hands in a `CpuDevice` and drives
+/// the whole load without a window.
+Future<RunStatus<WalkableLevel>> openLevel(
+  GraphicsDevice device, {
+  String asset = levelAsset,
+}) async {
+  try {
+    // Read first, build second: the registry is made out of what the
+    // document happens to name, which is not knowable before reading it.
+    final level = await loadLevelAsset(asset);
+    final loaded = await LevelLoader().build(
+      level,
+      device: device,
+      // Every type the document names is accepted and none is given a
+      // meaning, until there is something to spawn them into.
+      registry: openRegistryFor(level),
+    );
+    _addParts(level, loaded, device);
+    final spawn = LevelWalk.spawnIn(level);
+    return RunPlaying<WalkableLevel>(
+      asset,
+      WalkableLevel(
+        loaded,
+        LevelWalk(world: loaded.collision, at: spawn.at, yaw: spawn.yaw),
+      ),
+    );
+  } on Object catch (error) {
+    return RunFailed<WalkableLevel>(asset, error);
+  }
 }
 
 /// [level]'s own `part` entities, as plain boxed [MeshNode]s named after the
@@ -58,12 +210,10 @@ class TemplateApp extends StatelessWidget {
 /// that wants to show one piece and hide another, or swap what one piece is
 /// made of while the scene is running, has nothing to hold. A `part` entity
 /// is that handle: it carries a name, a size and a material, and it becomes a
-/// mesh node that answers to the name. `apps/flutter3d_lesson_viewer` reads
-/// its own teardown levels exactly this way.
+/// mesh node that answers to the name.
 ///
-/// **Not collision.** `CollisionWorld` only ever sees what
-/// `loaded.level.addTo(world)` gives it, and a part added here is scenery —
-/// something to look at and to swap, not something to walk into.
+/// **Not collision.** A part added here is scenery: something to look at and
+/// to swap, not something to walk into.
 void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
   final meshes = SharedMeshes(device);
   for (final entity in level.entities) {
@@ -78,94 +228,10 @@ void _addParts(Level level, LoadedLevel loaded, GraphicsDevice device) {
       name: materialName,
     );
     final size = entity.vector('size') ?? Vector3.all(1.0);
-    final node = MeshNode(meshes.box(size), material, name: name)
-      ..setPositionFrom(entity.position);
-    loaded.scene.add(node);
-  }
-}
-
-/// What the level is doing, as far as the screen is concerned.
-///
-/// Screen state, and only that — this seed has no restart, no next level and
-/// no save to model, so a plain `Cubit` over three states is enough on its own.
-/// `RunSession`, in `flutter3d_game`, is for once one of those shows up; see
-/// its doc comment for why [LevelReady] below is still safe to hold the scene
-/// and the body in even then — they do not change sixty times a second, only
-/// what is inside them does, and that is read by the render loop directly
-/// rather than republished as a new state on every frame.
-sealed class LevelState {
-  const LevelState();
-}
-
-/// Before the level is up.
-final class LevelLoading extends LevelState {
-  const LevelLoading();
-}
-
-/// The level is built: a scene to draw, and a walk to go round it with.
-final class LevelReady extends LevelState {
-  const LevelReady(this.scene, this.walk);
-
-  final Scene scene;
-  final LevelWalk walk;
-}
-
-/// The level would not load, and why.
-///
-/// **A level that will not read used to be a black screen for ever**: the load
-/// caught its own throw and printed it, which is a line in a console nobody
-/// playing the game can see.
-final class LevelFailed extends LevelState {
-  const LevelFailed(this.error);
-
-  final Object error;
-}
-
-/// Reads [kLevel] and builds everything it takes to walk around in it.
-///
-/// [device] is taken rather than opened in here, the same split
-/// `flutter3d_demo_dungeon`'s `DungeonRun` makes and for the same reason: a
-/// test can hand over a `CpuDevice` and drive the whole load without a window,
-/// which is what `test/level_cubit_test.dart` does.
-class LevelCubit extends Cubit<LevelState> {
-  LevelCubit() : super(const LevelLoading());
-
-  /// [world] is where the body collides; [camera] is added to the scene once
-  /// it is built, so the widget never has to reach back in and do it. [asset]
-  /// defaults to [kLevel] — overridable so a test can point at a level that is
-  /// not there and see [LevelFailed] rather than a hang.
-  Future<void> open(
-    GraphicsDevice device, {
-    required CollisionWorld world,
-    required CameraNode camera,
-    String asset = kLevel,
-  }) async {
-    try {
-      // Read first, build second: the registry is made out of what the
-      // document happens to name, which is not knowable before reading it.
-      final level = Level.fromJson(
-        jsonDecode(await rootBundle.loadString(asset)) as Map<String, Object?>,
-      );
-      final loaded = await LevelLoader().build(
-        level,
-        device: device,
-        // Every type the document names is accepted and none is given a
-        // meaning, until there is something to spawn them into.
-        registry: openRegistryFor(level),
-      );
-      loaded.level.addTo(world);
-      _addParts(level, loaded, device);
-
-      final spawn = LevelWalk.spawnIn(level);
-      emit(
-        LevelReady(
-          loaded.scene..add(camera),
-          LevelWalk(world: world, at: spawn.at, yaw: spawn.yaw),
-        ),
-      );
-    } catch (error) {
-      emit(LevelFailed(error));
-    }
+    loaded.scene.add(
+      MeshNode(meshes.box(size), material, name: name)
+        ..setPositionFrom(entity.position),
+    );
   }
 }
 
@@ -176,182 +242,130 @@ class LevelScreen extends StatefulWidget {
   State<LevelScreen> createState() => _LevelScreenState();
 }
 
-class _LevelScreenState extends State<LevelScreen>
-    with SingleTickerProviderStateMixin {
-  Renderer? _renderer;
+class _LevelScreenState extends State<LevelScreen> {
+  /// What the loop reads, written by the keyboard.
+  final InputState _input = InputState();
 
-  /// The device failed to open, or the renderer failed to build on top of it.
-  /// Kept apart from [LevelFailed]: that is a level's own document being
-  /// wrong, this is the machine underneath being unable to draw at all, and
-  /// the two want different words on screen.
-  Object? _initError;
-
-  final CollisionWorld _world = CollisionWorld();
-
-  final CameraNode _camera = CameraNode(name: 'eye');
-  late final RenderView _view = RenderView(
-    camera: _camera,
-    clearColor: Vector4(0.05, 0.05, 0.07, 1.0),
+  /// The keyboard, through the default action map: WASD, shift to run,
+  /// space to jump. A settings screen rebinds the same map.
+  late final DesktopInput _keys = DesktopInput(
+    state: _input,
+    actions: DesktopInput.defaultActionMap(),
   );
 
-  final InputState _input = InputState();
-  late final DesktopInput _keys = DesktopInput(state: _input);
-  final FocusNode _keyboard = FocusNode();
+  late final WalkGenre _genre = WalkGenre(input: _input);
+
+  final CameraNode _eye = CameraNode(name: 'eye');
+
+  /// What the screen draws over the view: loading, playing or why not.
+  final ValueNotifier<RunStatus<WalkableLevel>> _status =
+      ValueNotifier<RunStatus<WalkableLevel>>(
+        const RunLoading<WalkableLevel>(asset: levelAsset),
+      );
+
+  /// The last landing, heard on the frame channel.
+  final ValueNotifier<double?> _landed = ValueNotifier<double?>(null);
 
   Offset? _dragged;
 
-  Ticker? _ticker;
-
-  /// How long since the last frame, and how long since the first.
-  final FrameClock _frames = FrameClock();
-
-  /// Owned here rather than reached for through `BlocProvider.of`: nothing
-  /// else in this seed needs to see it, and the game loop below reads its
-  /// state directly, sixty times a second, which is no place for a lookup.
-  final LevelCubit _level = LevelCubit();
-
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker(_onTick)..start();
-    unawaited(_open());
-  }
-
-  Future<void> _open() async {
-    final GraphicsDevice device;
-    try {
-      // Through `openDevice` rather than by naming a backend — see
-      // `src/backend.dart`. It picks Impeller or WebGL for the build, and
-      // falls back to the software rasteriser at run time when flutter_gpu
-      // will not start, which is the difference between a window that draws
-      // slowly and one that draws nothing.
-      //
-      // The size is what the software fallback would draw at; the two hardware
-      // backends size themselves to the surface and ignore it.
-      device = await openDevice(width: 1280, height: 720);
-      if (!mounted) return;
-      setState(() => _renderer = Renderer.create(device: device));
-    } catch (error) {
-      if (mounted) setState(() => _initError = error);
-      return;
+  Future<void> _created(Flutter3dEngine engine) async {
+    engine.loop.events.onFrame<Landed>(
+      'seed.screen',
+      (Delivered<Landed> delivered) => _landed.value = delivered.event.speed,
+    );
+    final status = await openLevel(engine.device);
+    if (!mounted) return;
+    if (status case RunPlaying<WalkableLevel>(:final level)) {
+      // The level's scene is drawn from the next frame, the eye moved into
+      // it, and the genre steps its walk.
+      engine.scene = level.loaded.scene;
+      _genre.simulation = level.walk;
     }
-    // The cubit handles its own failures from here — see [LevelFailed] —
-    // so nothing thrown by a bad document reaches this `try` at all.
-    await _level.open(device, world: _world, camera: _camera);
+    _status.value = status;
   }
 
-  void _onTick(Duration _) {
-    // The ticker's argument is the frame's scheduled time, not the present;
-    // `FrameClock` says why the wall is measured instead.
-    final dt = _frames.tick();
-
-    final state = _level.state;
-    if (state is! LevelReady) return;
-    // A jump if one was pressed, a walk where the keys point turned by where
-    // the head is, a run while sprint is held.
-    state.walk.step(dt, _input);
-
-    if (mounted) setState(() {});
-  }
-
-  /// Puts the camera at eye height, looking where the mouse has been dragged.
-  void _place() {
-    final state = _level.state;
-    if (state is LevelReady) state.walk.placeCamera(_camera);
+  void _frame(Flutter3dEngine engine, FrameInfo frame) {
+    // At eye height, looking where the mouse has been dragged.
+    _genre.simulation?.placeCamera(engine.camera);
   }
 
   @override
   void dispose() {
-    _ticker?.dispose();
-    _keyboard.dispose();
-    unawaited(_keys.dispose());
-    unawaited(_level.close());
+    _keys.dispose().ignore();
+    _status.dispose();
+    _landed.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final initError = _initError;
-    if (initError != null) return _didNotStart(initError);
-
-    final renderer = _renderer;
-    if (renderer == null) return _loading();
-
-    return BlocProvider.value(
-      value: _level,
-      // Everything drawn from the state, including the one that is not playing
-      // yet. Which way the spawn faces is the walk's own business now.
-      child: BlocBuilder<LevelCubit, LevelState>(
-        builder: (BuildContext context, LevelState state) => switch (state) {
-          LevelFailed(:final error) => _didNotStart(error),
-          LevelLoading() => _loading(),
-          LevelReady(:final scene) => _game(renderer, scene),
-        },
+    return Scaffold(
+      backgroundColor: const Color(0xFF14161A),
+      body: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          Listener(
+            onPointerDown: (PointerDownEvent event) =>
+                _dragged = event.localPosition,
+            onPointerMove: (PointerMoveEvent event) {
+              final from = _dragged;
+              if (from == null) return;
+              final by = event.localPosition - from;
+              _dragged = event.localPosition;
+              _genre.simulation?.look(by.dx, by.dy);
+            },
+            onPointerUp: (_) => _dragged = null,
+            child: Flutter3dView(
+              camera: _eye,
+              input: _input,
+              plugins: <Flutter3dPlugin>[_genre],
+              autofocus: true,
+              onKeyEvent: _keys.handleKeyEvent,
+              onCreated: (Flutter3dEngine engine) => _created(engine).ignore(),
+              onFrame: _frame,
+              placeholder: const Center(child: CircularProgressIndicator()),
+              failure: (Object error) => DidNotStart(
+                error,
+                background: const Color(0xFF14161A),
+                foreground: const Color(0xFFFF8A80),
+              ),
+            ),
+          ),
+          ValueListenableBuilder<RunStatus<WalkableLevel>>(
+            valueListenable: _status,
+            builder:
+                (BuildContext context, RunStatus<WalkableLevel> status, _) =>
+                    switch (status) {
+                      RunLoading() => const SizedBox.shrink(),
+                      RunFailed(:final error) => DidNotStart(
+                        error,
+                        background: const Color(0xFF14161A),
+                        foreground: const Color(0xFFFF8A80),
+                      ),
+                      RunPlaying() => Align(
+                        alignment: Alignment.bottomCenter,
+                        child: ColoredBox(
+                          color: const Color(0xCC0E1013),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            child: Text(
+                              'W A S D walk · shift runs · space jumps · '
+                              'drag to look',
+                              style: const TextStyle(
+                                color: Color(0xFF9AA4B2),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    },
+          ),
+        ],
       ),
     );
   }
-
-  Widget _didNotStart(Object error) => DidNotStart(
-    error,
-    background: const Color(0xFF14161A),
-    foreground: const Color(0xFFFF8A80),
-  );
-
-  Widget _loading() => const Scaffold(
-    backgroundColor: Color(0xFF14161A),
-    body: Center(child: CircularProgressIndicator()),
-  );
-
-  Widget _game(Renderer renderer, Scene scene) => Scaffold(
-    backgroundColor: const Color(0xFF14161A),
-    body: Focus(
-      focusNode: _keyboard,
-      autofocus: true,
-      onKeyEvent: (FocusNode node, KeyEvent event) =>
-          _keys.handleKeyEvent(event),
-      child: Listener(
-        onPointerDown: (PointerDownEvent event) {
-          _keyboard.requestFocus();
-          _dragged = event.localPosition;
-        },
-        onPointerMove: (PointerMoveEvent event) {
-          final from = _dragged;
-          if (from == null) return;
-          final by = event.localPosition - from;
-          _dragged = event.localPosition;
-          final state = _level.state;
-          if (state is LevelReady) state.walk.look(by.dx, by.dy);
-        },
-        onPointerUp: (_) => _dragged = null,
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            SceneSurface(
-              renderer: renderer,
-              scene: scene,
-              view: _view,
-              settings: () => const RenderSettings(),
-              onBeforeFrame: _place,
-              presentFrame: presentFrame,
-            ),
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: ColoredBox(
-                color: Color(0xCC0E1013),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Text(
-                    'W A S D walk · shift runs · space jumps · drag to look',
-                    style: TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }

@@ -13,10 +13,17 @@ library;
 import 'package:flutter3d_demo_dungeon/src/shooter_keys.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show ActionSet;
 import 'package:flutter_test/flutter_test.dart';
 
-Bindings _shipped() =>
-    addShooterKeysTo(PadInput.addDefaultsTo(DesktopInput.defaultBindings()));
+Bindings _keyboard() =>
+    DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common)).buttons;
+
+Bindings _shipped() => addShooterKeysTo(
+  PadInput.addDefaultsTo(
+    DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common)),
+  ).buttons,
+);
 
 void main() {
   test('the crouch the body has is a key the player can press', () {
@@ -58,7 +65,7 @@ void main() {
     // Crouch went on C. The check that matters is that C was free: this
     // function binds over whatever was there, and quietly stealing a key from
     // walking would be a worse bug than the one it fixes.
-    final before = DesktopInput.defaultBindings();
+    final before = _keyboard();
     final after = _shipped();
 
     for (final source in before.sources) {

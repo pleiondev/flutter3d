@@ -52,6 +52,25 @@ dependencies:
   flutter3d_physics:
     path: ../../packages/flutter3d_physics
 
+  # N7: a run sent as telemetry is played again here, through the simulation
+  # the player ran — `resimulate`, `TelemetryUpload`, `Heatmap`. Plain Dart,
+  # which is why a server can hold it at all.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
+  # The physics core a run is played again on when it was recorded on it —
+  # every game's default — with the Dart reference where the core will not
+  # start. Its build hook compiles the core with the host's C compiler.
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
+
+  # `/convert`: the converters behind `flutter3d convert` — Unity and Godot
+  # text scenes and materials, USD, MaterialX, PLY, and the core's glTF, OBJ
+  # and STL — run here on a file somebody uploads. Plain Dart like the rest;
+  # `cloud/server/lib/src/convert/` is the one place that talks to it.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
+
   # Argon2id for passwords, in Dart. The FFI binding to libargon2 stopped at
   # Dart 2, and a password hash is the one place where a dependency that has
   # stopped is not a trade worth making.
@@ -65,6 +84,10 @@ dependencies:
   crypto: ^3.0.7
   http: ^1.2.0
 
+  # `/convert`'s confinement: a path a converted file names is normalised
+  # before it is compared with the directory the upload was unpacked into.
+  path: ^1.9.0
+
 dev_dependencies:
   build_runner: ^2.6.0
   build_web_compilers: ^4.2.0
@@ -72,10 +95,18 @@ dev_dependencies:
   lints: ^6.0.0
   test: ^1.25.0
 
+  # The positions of the walking body `telemetry_routes_test.dart` re-simulates
+  # — the simulation's own vector type, already in the lock through it.
+  vector_math: ^2.4.3
+
   # `tool/embed_migrations.dart` formats its own output before writing it, so
   # `--check`'s byte comparison and the repository's own `dart format` step
   # never disagree about the same file.
   dart_style: ^3.1.0
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
 
 # **Six packages by path** — four not on pub.dev yet, two published but not in
 # the shape `flutter3d_model_core` now needs: `flutter3d_physics` not at the
@@ -111,6 +142,38 @@ dependency_overrides:
     path: ../../packages/flutter3d_physics
   flutter3d_shaders:
     path: ../../packages/flutter3d_shaders
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+  flutter3d_physics_native:
+    path: ../../packages/flutter3d_physics_native
+  # Under `flutter3d_sim` and every package below since the 1.0 line, and
+  # not on pub.dev until that line is.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+  # Under the plugin API, the physics and everything else since 1.0.0-rc.1,
+  # and not on pub.dev until that line is.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+  flutter3d_matter:
+    path: ../../packages/flutter3d_matter
+  # `flutter3d_build` and what it reaches that is not on pub.dev yet.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
+  flutter3d_build_hooks:
+    path: ../../packages/flutter3d_build_hooks
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+  flutter3d_editor_core:
+    path: ../../packages/flutter3d_editor_core
+  flutter3d_level_scene:
+    path: ../../packages/flutter3d_level_scene
+  # The MCP kit `flutter3d_build`'s plugin author server stands on, which
+  # is a library of `flutter3d_mcp` since 1.0.0-rc.1, and what that package
+  # reaches besides: the editors' servers live there too.
+  flutter3d_mcp:
+    path: ../../packages/flutter3d_mcp
+  flutter3d_editor_play:
+    path: ../../packages/flutter3d_editor_play
 
 jaspr:
   mode: server

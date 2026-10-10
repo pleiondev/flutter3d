@@ -1,0 +1,14 @@
+name: buoy_run
+publish_to: 'none'
+environment:
+  sdk: ^3.12.2
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.38.2
+  flame_flutter3d: ^1.0.0-rc.1
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_game: ^1.0.0-rc.1
+  flutter3d_sim: ^1.0.0-rc.1
+flutter:
+  uses-material-design: true

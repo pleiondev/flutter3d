@@ -89,42 +89,72 @@ void main() {
       expect(ran, <String>['a', 'b', 'c', 'd']);
     });
 
-    test('and order wins over registration', () {
-      // **Why `order` exists at all.** A rule that must observe what every other
-      // rule did cannot be registered after code it does not know about — the
-      // level that adds it does not own the list. Mutation: ignore `order` —
-      // fails here.
+    test('and a named constraint wins over registration', () {
+      // **Why `after` and `before` exist at all.** A rule that must observe
+      // what another rule did cannot always be registered after it — the
+      // level that adds it does not own the list. Mutation: ignore the
+      // constraints — fails here.
       final systems = StepSystems();
       final ran = <String>[];
-      systems.add(StepPhase.begin, (_) => ran.add('late'), order: 10);
-      systems.add(StepPhase.begin, (_) => ran.add('early'), order: -10);
-      systems.add(StepPhase.begin, (_) => ran.add('middle'));
+      systems.add(
+        StepPhase.begin,
+        (_) => ran.add('late'),
+        label: 'late',
+        after: <String>['middle'],
+      );
+      systems.add(
+        StepPhase.begin,
+        (_) => ran.add('early'),
+        label: 'early',
+        before: <String>['middle'],
+      );
+      systems.add(StepPhase.begin, (_) => ran.add('middle'), label: 'middle');
 
       systems.run(StepPhase.begin, 1 / 60);
       expect(ran, <String>['early', 'middle', 'late']);
     });
 
-    test('and ties keep registration order, which is what makes it stable', () {
-      // Mutation: break ties by `order` alone and let the insert land anywhere
-      // among equals — the run order stops being a function of the code and
-      // this fails. `forPhase` is checked too, because a diagnostic overlay that
+    test('and where nothing is named, registration order holds', () {
+      // Mutation: sort by label, or let a constraint move what it does not
+      // name — the run order stops being a function of the code and this
+      // fails. `forPhase` is checked too, because a diagnostic overlay that
       // reported a different order than the one that runs would be worse than
       // none.
       final systems = StepSystems();
       final ran = <String>[];
-      systems.add(StepPhase.begin, (_) => ran.add('a'), order: 5, label: 'a');
-      systems.add(StepPhase.begin, (_) => ran.add('b'), order: 1, label: 'b');
-      systems.add(StepPhase.begin, (_) => ran.add('c'), order: 5, label: 'c');
-      systems.add(StepPhase.begin, (_) => ran.add('d'), order: 1, label: 'd');
+      systems.add(StepPhase.begin, (_) => ran.add('a'), label: 'a');
+      systems.add(StepPhase.begin, (_) => ran.add('b'), label: 'b');
+      systems.add(
+        StepPhase.begin,
+        (_) => ran.add('c'),
+        label: 'c',
+        before: <String>['a'],
+      );
+      systems.add(StepPhase.begin, (_) => ran.add('d'), label: 'd');
 
       systems.run(StepPhase.begin, 1 / 60);
-      expect(ran, <String>['b', 'd', 'a', 'c']);
+      expect(ran, <String>['c', 'a', 'b', 'd']);
       expect(
         <String?>[
           for (final one in systems.forPhase(StepPhase.begin)) one.label,
         ],
-        <String>['b', 'd', 'a', 'c'],
+        <String>['c', 'a', 'b', 'd'],
       );
+    });
+
+    test('a constraint naming a system that is not there is ignored', () {
+      final systems = StepSystems();
+      final ran = <String>[];
+      systems.add(
+        StepPhase.begin,
+        (_) => ran.add('a'),
+        label: 'a',
+        after: <String>['fire'],
+      );
+      systems.add(StepPhase.begin, (_) => ran.add('b'), label: 'b');
+
+      systems.run(StepPhase.begin, 1 / 60);
+      expect(ran, <String>['a', 'b']);
     });
   });
 

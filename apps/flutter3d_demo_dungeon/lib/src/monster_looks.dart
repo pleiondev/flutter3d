@@ -1,14 +1,12 @@
-import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// What this game's monsters are made of, and what they are doing.
 ///
 /// The mesh, the placement and the death pose are the bridge's; the models, the
 /// clips and the three colours are this game's.
-final class DungeonMonsters implements ActorAppearance {
+final class DungeonMonsters with ActorAppearance {
   const DungeonMonsters();
 
   /// The engine hands over an `Actor`; what kind of thing it is lives on its
@@ -16,10 +14,10 @@ final class DungeonMonsters implements ActorAppearance {
   /// A platformer's appearance would cast to its own brain and never see a
   /// `MonsterState` at all.
   @override
-  String meshKeyFor(Actor actor) => _brainOf(actor)?.def.name ?? 'actor';
+  String meshKeyFor(Actor actor) => brainOf(actor)?.def.name ?? 'actor';
 
   @override
-  String? modelFor(Actor actor) => modelsForKind[_brainOf(actor)?.def.name];
+  String? modelFor(Actor actor) => modelsForKind[brainOf(actor)?.def.name];
 
   /// Which clip, from what the brain is doing.
   ///
@@ -39,7 +37,7 @@ final class DungeonMonsters implements ActorAppearance {
   /// anywhere near it.
   @override
   List<String> clipsFor(Actor actor) {
-    final brain = _brainOf(actor);
+    final brain = brainOf(actor);
     if (brain == null) return const <String>[];
     return clipsForState[brain.state] ?? const <String>[];
   }
@@ -64,8 +62,8 @@ final class DungeonMonsters implements ActorAppearance {
   };
 
   @override
-  Material materialFor(Actor actor) {
-    final brain = _brainOf(actor);
+  RenderMaterial materialFor(Actor actor) {
+    final brain = brainOf(actor);
     // Brightened for a moment after a hit, which is the cheapest damage
     // feedback there is and the one whose absence makes a fight feel
     // unresponsive. Only reaches a monster still drawn as a capsule — a model
@@ -75,7 +73,8 @@ final class DungeonMonsters implements ActorAppearance {
     return _materials[brain?.def.name] ?? _unknown;
   }
 
-  static ChaseBrain? _brainOf(Actor actor) {
+  /// The chase brain driving [actor], if that is what drives it.
+  static ChaseBrain? brainOf(Actor actor) {
     final brain = actor.brain;
     return brain is ChaseBrain ? brain : null;
   }
@@ -95,28 +94,29 @@ final class DungeonMonsters implements ActorAppearance {
 
   /// Materials by kind, for anything still drawn as a capsule — an actor whose
   /// model is missing, or one this game has not given a model to.
-  static final Map<String, Material> _materials = <String, Material>{
-    'runner': Material(
-      baseColor: Vector4(0.52, 0.20, 0.18, 1.0),
-      roughness: 0.7,
-    ),
-    'shooter': Material(
-      baseColor: Vector4(0.22, 0.32, 0.52, 1.0),
-      roughness: 0.6,
-    ),
-    'tank': Material(
-      baseColor: Vector4(0.30, 0.28, 0.16, 1.0),
-      roughness: 0.85,
-    ),
-  };
+  static final Map<String, RenderMaterial> _materials =
+      <String, RenderMaterial>{
+        'runner': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.52, 0.20, 0.18, 1.0),
+          roughness: 0.7,
+        ),
+        'shooter': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.22, 0.32, 0.52, 1.0),
+          roughness: 0.6,
+        ),
+        'tank': RenderMaterial(
+          baseColor: LinearColor.fromSrgb(0.30, 0.28, 0.16, 1.0),
+          roughness: 0.85,
+        ),
+      };
 
-  static final Material _struck = Material(
-    baseColor: Vector4(1.4, 0.9, 0.8, 1.0),
+  static final RenderMaterial _struck = RenderMaterial(
+    baseColor: LinearColor.fromSrgb(1.4, 0.9, 0.8, 1.0),
     roughness: 0.6,
   );
 
   /// Shared rather than built per call: [ActorAppearance.materialFor] runs for
   /// every monster every frame, and a default that allocated would allocate once
   /// a frame per monster.
-  static final Material _unknown = Material();
+  static final RenderMaterial _unknown = RenderMaterial();
 }

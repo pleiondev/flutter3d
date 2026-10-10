@@ -10,11 +10,14 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+// The spike reads what only the backend knows; its own business since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_impeller/src/gpu_loaded_shaders.dart' show runningSdk;
 
 void main() => runApp(const ConformanceApp());
 
@@ -52,9 +55,9 @@ class _ConformanceAppState extends State<ConformanceApp> {
       // behind should fail on its own account rather than on the previous
       // check's.
       try {
-        await check.run(await GpuRenderBackend.create());
+        await check.run(await GpuRenderBackend.open());
         log.writeln('PASS  ${check.name}');
-      } on ConformanceDeclined catch (reason) {
+      } on ConformanceDeclinedException catch (reason) {
         // **Never PASS.** A check the backend was not in a position to answer
         // used to `return`, and this loop wrote a green line for it — so a
         // reader of this log was told the backend satisfies something it never

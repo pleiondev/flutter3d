@@ -12,7 +12,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A box in a corner, lit dimly, with occlusion on.
 ///
@@ -37,17 +36,23 @@ Future<List<int>> _frame({
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3(6, 6, 1)).build()),
-        Material(name: 'wall', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+        RenderMaterial(
+          name: 'wall',
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+        ),
       )..setPosition(0.0, 0.0, -2.0),
     )
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3(1, 1, 1)).build()),
-        Material(name: 'box', baseColor: Vector4(0.8, 0.8, 0.8, 1.0)),
+        RenderMaterial(
+          name: 'box',
+          baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
+        ),
       )..setPosition(0.0, -0.4, -1.0),
     )
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -67,15 +72,15 @@ Future<List<int>> _frame({
     ),
   );
 
-  final bytes = await device.readPixels(frame.frame);
-  return <int>[for (var i = 0; i < width * height; i++) bytes!.getUint8(i * 4)];
+  final bytes = await device.readback(frame.frame);
+  return <int>[for (var i = 0; i < width * height; i++) bytes.getUint8(i * 4)];
 }
 
 void main() {
   test('no taps is no pass, and is the default', () async {
     // The occlusion is already off by default, and this is a second
     // full-screen pass over it — so nothing pays for either until two things
-    // are switched on. Seventy-eight goldens depend on the frame being what it
+    // are switched on. 96 goldens depend on the frame being what it
     // was.
     expect(const AmbientOcclusionSettings().blurTaps, 0);
     expect(await _frame(blurTaps: 0), await _frame(blurTaps: 0));

@@ -27,14 +27,14 @@ SplatCloud _randomCloud(int n, int seed) {
   }
   return SplatCloud(
     // Clustered, as a capture is: most splats on a few surfaces.
-    centres: Float32List.fromList(<double>[
+    centers: Float32List.fromList(<double>[
       for (var i = 0; i < n; i++) ...<double>[
         r(-10, 10) * (i.isEven ? 1 : 0.1),
         r(-2, 2),
         r(-10, 10),
       ],
     ]),
-    colours: Float32List.fromList(<double>[
+    colors: Float32List.fromList(<double>[
       for (var i = 0; i < n * 4; i++) r(0, 1),
     ]),
     scales: Float32List.fromList(<double>[
@@ -49,8 +49,8 @@ SplatCloud _randomCloud(int n, int seed) {
 List<String> _keys(SplatCloud cloud) => <String>[
   for (var i = 0; i < cloud.count; i++)
     <double>[
-      for (var k = 0; k < 3; k++) cloud.centres[i * 3 + k],
-      for (var k = 0; k < 4; k++) cloud.colours[i * 4 + k],
+      for (var k = 0; k < 3; k++) cloud.centers[i * 3 + k],
+      for (var k = 0; k < 4; k++) cloud.colors[i * 4 + k],
       for (var k = 0; k < 3; k++) cloud.scales[i * 3 + k],
     ].join(','),
 ]..sort();
@@ -109,7 +109,7 @@ void main() {
         final drawn = SplatLod(tree, budget: 800).choose(eye);
         var near = 0;
         for (var i = 0; i < drawn.count; i++) {
-          if ((drawn.centres[i * 3 + 2] > 0) == (eye.z > 0)) near++;
+          if ((drawn.centers[i * 3 + 2] > 0) == (eye.z > 0)) near++;
         }
         return near;
       }
@@ -131,7 +131,7 @@ void main() {
       final one = _randomCloud(1, 3);
       final merged = mergeSplats(
         <SplatCloud>[one],
-        centre: Vector3.zero(),
+        center: Vector3.zero(),
         half: 20,
         grid: 4,
       );
@@ -143,7 +143,7 @@ void main() {
         expect(b[k], closeTo(a[k], 1e-6));
       }
       for (var k = 0; k < 4; k++) {
-        expect(merged.colours[k], closeTo(one.colours[k], 1e-6));
+        expect(merged.colors[k], closeTo(one.colors[k], 1e-6));
       }
     });
 
@@ -151,7 +151,7 @@ void main() {
       final cloud = _randomCloud(40, 11);
       final merged = mergeSplats(
         <SplatCloud>[cloud],
-        centre: Vector3.zero(),
+        center: Vector3.zero(),
         half: 20,
         grid: 1,
       );
@@ -165,10 +165,10 @@ void main() {
       for (var i = 0; i < cloud.count; i++) {
         final s = cloud.scales;
         final w =
-            cloud.colours[i * 4 + 3] *
+            cloud.colors[i * 4 + 3] *
             math.pow(s[i * 3] * s[i * 3 + 1] * s[i * 3 + 2], 2 / 3);
         final p = <double>[
-          for (var k = 0; k < 3; k++) cloud.centres[i * 3 + k],
+          for (var k = 0; k < 3; k++) cloud.centers[i * 3 + k],
         ];
         cloud.covarianceOf(i, covariance);
         total += w;
@@ -185,7 +185,7 @@ void main() {
       }
       for (var k = 0; k < 3; k++) {
         mean[k] /= total;
-        expect(merged.centres[k], closeTo(mean[k], 1e-4));
+        expect(merged.centers[k], closeTo(mean[k], 1e-4));
       }
       merged.covarianceOf(0, covariance);
       var at = 0;
@@ -291,7 +291,7 @@ void main() {
       final quads = SplatQuads.lod(lod);
       quads.build(eye: Vector3(0, 0, 30), right: right, up: up);
       expect(quads.cloud.count, lod.cutSplatCount);
-      expect(quads.vertexCount, lod.cutSplatCount * kSplatVerticesPerSplat);
+      expect(quads.vertexCount, lod.cutSplatCount * splatVerticesPerSplat);
       expect(quads.sorts, 1);
 
       // A move too small to re-sort keeps the cut it has.

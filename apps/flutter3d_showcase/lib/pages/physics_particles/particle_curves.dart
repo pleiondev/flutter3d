@@ -7,7 +7,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class ParticleCurvesDemo extends ShowcaseDemo {
   late final ParticleSystem _particles;
@@ -70,12 +69,12 @@ final class ParticleCurvesDemo extends ShowcaseDemo {
     // #endregion effect
 
     _particles.burst(_smokeEffect, Vector3.zero());
-    _contributor = context.renderer.addContributor(
+    _contributor = context.renderer.renderSteps.addContributor(
       ParticleContributor(_particles),
     );
 
     return Scene()..add(
-      LightNode(name: 'sun', intensity: 2.0)
+      LightNode(name: 'sun', intensity: 2.0 * Photometric.legacyUnit)
         ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
     );
   }

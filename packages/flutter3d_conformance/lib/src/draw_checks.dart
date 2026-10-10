@@ -23,7 +23,7 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
 
   Future<double> brightnessWith(int instances) async {
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: size,
         height: size,
         format: TextureFormat.r8g8b8a8UNormInt,
@@ -71,9 +71,8 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
       ..draw(instanceCount: instances)
       ..submit();
 
-    final pixels = await device.readPixels(target);
-    require(pixels != null, 'the target could not be read back');
-    return pixels!.buffer.asUint8List()[0] / 255.0;
+    final pixels = await device.readback(target);
+    return pixels.buffer.asUint8List()[0] / 255.0;
   }
 
   final once = await brightnessWith(1);
@@ -88,6 +87,157 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
     (thrice - 0.75).abs() < 0.02,
     'three instances drew $thrice where three quarters was expected — the '
     'count was ignored, or applied the wrong number of times',
+  );
+}
+
+/// `draw(firstIndex:, indexCount:)` draws that window of the bound indices and
+/// nothing else — `P7`.
+///
+/// One index buffer holds two triangles, each covering the whole target, the
+/// first red and the second green. A window over the second must read back
+/// green and a window over the first red, and a window over both green, since
+/// the second is drawn over the first. A backend that ignores the start reads
+/// red where green was asked for; one that ignores the count reads green where
+/// red was.
+///
+/// **Four backends say where a window starts four different ways** — WebGPU
+/// with a first index on the draw, WebGL2 with a byte offset, Impeller with a
+/// narrower view of the buffer bound again, the software rasteriser by
+/// counting — which is why it is asked of every device rather than of one.
+///
+/// And a window past the end of the binding is refused with a [RangeError]
+/// before anything reaches the driver, which left alone would answer four
+/// different ways (`PassEncoder.draw` lists them).
+Future<void> checkIndexWindowDraw(GraphicsDevice device) async {
+  const size = 8;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
+  final pipeline = device.createPipeline(vertex!, fragment!);
+
+  final vertices = Float32List.fromList(<double>[
+    -1, -1, 0.5, 1, 0, 0, 1, //
+    3, -1, 0.5, 1, 0, 0, 1,
+    -1, 3, 0.5, 1, 0, 0, 1,
+    -1, -1, 0.5, 0, 1, 0, 1,
+    3, -1, 0.5, 0, 1, 0, 1,
+    -1, 3, 0.5, 0, 1, 0, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2, 3, 4, 5]);
+
+  Future<List<int>> colorOf({required int firstIndex, int? indexCount}) async {
+    final target = device.createTexture(
+      const RenderTargetDescriptor(
+        width: size,
+        height: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4.zero(),
+          ),
+        ],
+      ),
+    );
+    pass
+      ..bindPipeline(pipeline)
+      ..setPrimitiveType(PrimitiveType.triangle)
+      ..setCullMode(CullMode.none)
+      ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+        'view_projection': Float32List.fromList(Matrix4.identity().storage),
+      })
+      ..bindVertexData(ByteData.sublistView(vertices), 6)
+      ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 6)
+      ..draw(firstIndex: firstIndex, indexCount: indexCount)
+      ..submit();
+    final pixels = await device.readback(target);
+    final bytes = pixels.buffer.asUint8List();
+    final at = ((size ~/ 2) * size + size ~/ 2) * 4;
+    return <int>[bytes[at], bytes[at + 1], bytes[at + 2]];
+  }
+
+  bool near(List<int> got, List<int> want) =>
+      got.indexed.every(((int, int) c) => (c.$2 - want[c.$1]).abs() <= 8);
+
+  const red = <int>[255, 0, 0];
+  const green = <int>[0, 255, 0];
+
+  // Mutation: drop `firstIndex +` from the `_indexAt` call in
+  // `CpuEncoder._drawOnce`. The second triangle is then read from the first
+  // three indices and this reads back red.
+  final second = await colorOf(firstIndex: 3, indexCount: 3);
+  require(
+    near(second, green),
+    'a window of three indices from index 3 drew $second where the second '
+    'triangle\'s green was expected — the start of the window was ignored',
+  );
+
+  final first = await colorOf(firstIndex: 0, indexCount: 3);
+  require(
+    near(first, red),
+    'a window of the first three indices drew $first where the first '
+    'triangle\'s red was expected — the count was ignored and both were drawn',
+  );
+
+  final both = await colorOf(firstIndex: 0);
+  require(
+    near(both, green),
+    'a draw with no count drew $both where the second triangle, drawn last, '
+    'was expected — a missing count must read to the end of the binding',
+  );
+
+  // The refusal is asked in a pass of its own, which is submitted afterwards
+  // whatever happened, so a backend that does not refuse still leaves the
+  // device as the next check expects it.
+  final target = device.createTexture(
+    const RenderTargetDescriptor(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ),
+  );
+  pass
+    ..bindPipeline(pipeline)
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(vertices), 6)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 6);
+  final refused = () {
+    try {
+      pass.draw(firstIndex: 4, indexCount: 3);
+      return false;
+    } on RangeError {
+      return true;
+    }
+  }();
+  pass.submit();
+  require(
+    refused,
+    'a window of three indices from index 4 of a binding of six was not '
+    'refused. It reads past the end, and every backend has to say so the same '
+    'way rather than leave it to a driver',
   );
 }
 
@@ -115,7 +265,7 @@ Future<void> checkGeometryUsage(GraphicsDevice device) async {
   const size = 16;
 
   final target = device.createTexture(
-    const RenderTargetSpec(
+    const RenderTargetDescriptor(
       width: size,
       height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
@@ -173,9 +323,8 @@ Future<void> checkGeometryUsage(GraphicsDevice device) async {
     ..draw()
     ..submit();
 
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the target could not be read back');
-  final red = pixels!.buffer.asUint8List()[0];
+  final pixels = await device.readback(target);
+  final red = pixels.buffer.asUint8List()[0];
   // Mutation: drop the bytes on the floor in `CpuPassEncoder.bindIndexBuffer` —
   // the software backend then reads back the clear colour and fails here, which
   // the version of this check that only uploaded could not do.
@@ -210,7 +359,7 @@ Future<void> checkGeometryUsage(GraphicsDevice device) async {
 /// `checkUniformMemberMismatchIsRefused` already named it in its own doc as the
 /// check that passed by construction.
 Future<void> checkCubeFaces(GraphicsDevice device) async {
-  if (!device.supportsCubeTextures) {
+  if (!device.features.has(DeviceFeature.cubeTextures)) {
     // Not a failure: the interface says to ask, and a device that answers false
     // is entitled to. What would be a failure is answering true and then not
     // doing it, which is what everything below checks.
@@ -222,7 +371,7 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
   // cube-sky stage decodes its texel from sRGB, and those two values are the
   // only ones the decode maps onto themselves. Any other colour would come back
   // shifted and the tolerance would have to hide it.
-  const colours = <List<int>>[
+  const colors = <List<int>>[
     <int>[255, 0, 0],
     <int>[0, 255, 0],
     <int>[0, 0, 255],
@@ -233,13 +382,13 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
   const names = <String>['+X', '−X', '+Y', '−Y', '+Z', '−Z'];
 
   final faces = <ByteData>[
-    for (final colour in colours)
+    for (final color in colors)
       ByteData.sublistView(
         Uint8List.fromList(<int>[
           for (var i = 0; i < size * size; i++) ...<int>[
-            colour[0],
-            colour[1],
-            colour[2],
+            color[0],
+            color[1],
+            color[2],
             255,
           ],
         ]),
@@ -252,12 +401,7 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
     faces: faces,
   );
   require(
-    cube != null,
-    'the device says it supports cube textures and then made none from six '
-    '4x4 RGBA8 faces',
-  );
-  require(
-    cube!.type == TextureType.textureCube,
+    cube.type == TextureType.textureCube,
     'the handle came back as ${cube.type.name} rather than a cube',
   );
   require(
@@ -266,12 +410,13 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
   );
 
   require(
-    device.createCubeTextureFromPixels(
-          size: size,
-          format: TextureFormat.r8g8b8a8UNormInt,
-          faces: faces.take(5).toList(),
-        ) ==
-        null,
+    refusesResource(
+      () => device.createCubeTextureFromPixels(
+        size: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: faces.take(5).toList(),
+      ),
+    ),
     'five faces made a cube; the sixth is whatever the allocation held',
   );
 
@@ -302,18 +447,22 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
 
   for (var face = 0; face < 6; face++) {
     final target = device.createTexture(
-      const RenderTargetSpec(
+      const RenderTargetDescriptor(
         width: size,
         height: size,
         format: TextureFormat.r8g8b8a8UNormInt,
       ),
     );
+    // Ten floats a vertex: `sky_cube.vert` takes its depth with the corner
+    // (`vec3 position`, `A2.8`), here the far plane less a hair the ordinary
+    // way round — the pass has no depth to test it against — then the ray
+    // and the tint.
     final triangle = Float32List.fromList(<double>[
       for (final corner in const <List<double>>[
         <double>[-1, -1],
         <double>[3, -1],
         <double>[-1, 3],
-      ]) ...<double>[...corner, ...axes[face], 1, 1, 1, 1],
+      ]) ...<double>[...corner, 0.999999, ...axes[face], 1, 1, 1, 1],
     ]);
 
     final pass = device.beginRenderPass(
@@ -337,16 +486,15 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
         fragment,
         'sky_texture',
         cube,
-        sampler: SamplerOptions.linearClamp,
+        sampler: SamplerDescriptor.linearClamp,
       )
       ..bindVertexData(ByteData.sublistView(triangle), 3)
       ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
       ..draw()
       ..submit();
 
-    final read = await device.readPixels(target);
-    require(read != null, 'the target could not be read back');
-    final bytes = read!.buffer.asUint8List();
+    final read = await device.readback(target);
+    final bytes = read.buffer.asUint8List();
     final at = ((size ~/ 2) * size + size ~/ 2) * 4;
     final got = <int>[bytes[at], bytes[at + 1], bytes[at + 2]];
 
@@ -362,10 +510,10 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
     // sampled [255, 255, 0] ... That is face 3, −Y", which is the transposed
     // sky this exists for and which nothing else in the repository catches on
     // a hardware backend.
-    final landed = colours.indexWhere(matches);
+    final landed = colors.indexWhere(matches);
     require(
-      matches(colours[face]),
-      'a ray down ${names[face]} sampled $got where ${colours[face]} was '
+      matches(colors[face]),
+      'a ray down ${names[face]} sampled $got where ${colors[face]} was '
       'uploaded as face $face. '
       '${landed < 0 ? 'That is no face\'s colour, so the cube was not sampled '
                 'at all.' : 'That is face $landed, ${names[landed]} — two '

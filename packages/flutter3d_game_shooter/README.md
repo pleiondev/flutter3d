@@ -21,7 +21,7 @@ everyone's memory.
 | | |
 |---|---|
 | `GameSimulation` | The step order of a shooter: aim, fire, projectiles, blasts, actors, pickups, mechanisms. |
-| `Arsenal`, `WeaponDef`, `WeaponBehaviour` | Hitscan, projectile and blast, as data rather than as three classes. |
+| `Arsenal`, `WeaponDef`, `WeaponBehavior` | Hitscan, projectile and blast, as data rather than as three classes. |
 | `Bestiary`, `MonsterDef`, `ChaseBrain` | What a monster is: what it does when it sees you, when it hears you, and when it is hurt. |
 | `Inventory`, `Gift`, `Pickup` | What is carried, what is given, and what refuses to be picked up because you are already full. |
 | `Player` | An eye, a body and what it is holding. |

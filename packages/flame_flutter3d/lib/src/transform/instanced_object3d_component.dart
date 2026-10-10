@@ -1,6 +1,6 @@
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart' show OpacityProvider;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import 'bridge_space.dart';
 import 'bridged3d.dart';
@@ -86,27 +86,27 @@ class InstancedObject3dComponent extends PositionComponent
 
   /// The instance's colour when it is made, white when null; [tint] starts
   /// from it.
-  final Vector4? color;
+  final LinearColor? color;
 
   /// The linear colour the instance is multiplied by, read every frame.
   @override
-  late final Vector4 tint = color?.clone() ?? Vector4.all(1.0);
+  late LinearColor tint = color ?? LinearColor.white;
 
-  /// How opaque the instance is: what Flame's `OpacityEffect` moves. See the
-  /// class doc for when it shows.
+  /// How opaque the instance is, a 0..1 fraction: what Flame's
+  /// `OpacityEffect` moves. See the class doc for when it shows.
   @override
   double opacity = 1.0;
 
-  final Vector4 _written = Vector4.all(double.nan);
-  final Vector4 _colour = Vector4.zero();
+  /// The colour last written into the slot; null until one is.
+  LinearColor? _written;
 
   void _writeColour() {
     final slot = _slot;
     if (slot == null) return;
-    _colour.setValues(tint.x, tint.y, tint.z, tint.w * opacity);
-    if (_colour == _written) return;
-    _written.setFrom(_colour);
-    slot.setColor(_colour);
+    final color = tint.withAlpha(tint.a * opacity);
+    if (color == _written) return;
+    _written = color;
+    slot.setColor(color);
   }
 
   InstanceHandle? _slot;
@@ -131,10 +131,10 @@ class InstancedObject3dComponent extends PositionComponent
   @override
   void onMount() {
     super.onMount();
-    _slot = batch.acquire(color: color);
+    _slot = batch.acquire(color: color ?? LinearColor.white);
     _writtenX = double.nan;
     _writtenHidden = false;
-    _written.setValues(double.nan, double.nan, double.nan, double.nan);
+    _written = null;
     _write();
     _writeColour();
   }
@@ -161,7 +161,7 @@ class InstancedObject3dComponent extends PositionComponent
   void _giveBack() {
     final slot = _slot;
     _slot = null;
-    if (slot != null && slot.live) batch.release(slot);
+    if (slot != null && slot.isLive) batch.release(slot);
   }
 
   /// Writes Flame's transform into the slot, and only when it moved or was

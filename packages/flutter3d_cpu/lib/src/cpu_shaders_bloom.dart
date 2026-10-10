@@ -21,7 +21,7 @@ import 'cpu_shader.dart';
 }
 
 /// `bloom_threshold.frag`: what is bright enough to glow.
-final class BloomThresholdShader implements CpuFragmentShader {
+final class BloomThresholdShader extends CpuFragmentShader {
   const BloomThresholdShader();
 
   static double _luminance(Vector3 c) =>
@@ -53,25 +53,25 @@ final class BloomThresholdShader implements CpuFragmentShader {
       sum += tap * weight;
       weights += weight;
     }
-    final colour = sum..scale(1.0 / weights);
+    final color = sum..scale(1.0 / weights);
 
     final threshold = src.params.z;
     final knee = math.max(src.params.w, 1e-4);
     // A soft knee rather than a hard step: a hard cut makes the bloom appear
     // along a visible contour as a highlight brightens through the threshold.
-    final brightness = _luminance(colour);
+    final brightness = _luminance(color);
     var soft = (brightness - threshold + knee).clamp(0.0, 2.0 * knee);
     soft = soft * soft / (4.0 * knee);
     final contribution =
         math.max(soft, brightness - threshold) / math.max(brightness, 1e-4);
 
-    colour.scale(contribution);
-    return Vector4(colour.x, colour.y, colour.z, 1.0);
+    color.scale(contribution);
+    return Vector4(color.x, color.y, color.z, 1.0);
   }
 }
 
 /// `bloom_downsample.frag`: the thirteen-tap filter, four boxes plus five.
-final class BloomDownsampleShader implements CpuFragmentShader {
+final class BloomDownsampleShader extends CpuFragmentShader {
   const BloomDownsampleShader();
 
   @override
@@ -103,7 +103,7 @@ final class BloomDownsampleShader implements CpuFragmentShader {
 }
 
 /// `bloom_upsample.frag`: a 1-2-1 tent over sixteen.
-final class BloomUpsampleShader implements CpuFragmentShader {
+final class BloomUpsampleShader extends CpuFragmentShader {
   const BloomUpsampleShader();
 
   @override

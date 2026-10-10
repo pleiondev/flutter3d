@@ -25,6 +25,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'graphics_device.dart';
+
 /// One compiled stage of a pipeline — a vertex or a fragment program.
 ///
 /// Opaque by construction: the engine looks a stage up, hands it to
@@ -46,13 +48,51 @@ typedef UniformMemberLayout = ({
   String type,
 });
 
+///
+/// ## Who owns a stage
+///
+/// **The library that compiled it.** A [ShaderLibrary] answers a name with a
+/// handle and keeps it, so two lookups of one name give one handle and a
+/// [LoadedShaderLibrary] can keep it working across a reload. Whoever asked
+/// holds a reference to the library's handle, not a copy of its own.
+///
+/// [dispose] gives that reference back: the library forgets the handle, and
+/// frees what the backend compiled for it where the backend holds anything
+/// (WebGL deletes the shader object; a WebGPU module, an Impeller stage and a
+/// software stage are dropped and collected). The next lookup of the same
+/// name compiles or wraps the stage afresh, under a new handle. Pipelines
+/// already linked from it keep drawing until they are disposed themselves,
+/// on every backend. A disposed handle must not be linked or bound again,
+/// and a [LoadedShaderLibrary.refresh] no longer counts it as in use.
+///
+/// The renderer resolves its stages once and holds them for its lifetime,
+/// so a handle a renderer still draws with is not the caller's to dispose:
+/// dispose the renderer's stages by dropping the renderer and the device
+/// with it. What [dispose] is for is a stage an application looked up for
+/// itself (a tool's preview, a stage it linked by hand) and is done with.
 final class ShaderHandle {
-  const ShaderHandle({
+  ShaderHandle._({
     required this.backend,
     required this.name,
     this.kept,
     this.layouts,
-  });
+    void Function(ShaderHandle handle)? release,
+  }) : _release = release; // ignore: prefer_initializing_formals
+
+  final void Function(ShaderHandle handle)? _release;
+
+  /// Gives this handle back to the library that made it, once; see "Who owns
+  /// a stage" above. A second call does nothing, and a handle made without a
+  /// library (a test's) has nothing to give back.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _release?.call(this);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+  bool _disposed = false;
 
   /// The backend's own object for this stage.
   ///
@@ -107,7 +147,22 @@ final class ShaderHandle {
 /// state baked in — Vulkan does — has to fold it in on its own side, and this
 /// is one of the places that will strain. See the note on `CommandEncoder`.
 final class PipelineHandle {
-  const PipelineHandle({required this.backend, required this.name});
+  PipelineHandle._(this._release, {required this.backend, required this.name});
+
+  final void Function(PipelineHandle)? _release;
+
+  /// Gives this back to the device that made it, once: what `dispose` means
+  /// on every handle. A second call does nothing. A handle a backend made
+  /// without naming its device (a test's fake) has nothing to give back.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _release?.call(this);
+  }
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+  bool _disposed = false;
 
   final Object backend;
 
@@ -125,7 +180,13 @@ final class PipelineHandle {
 /// callers differ on what to do about it — the renderer refuses to start,
 /// `ParticleContributor` complains once and draws nothing — and only they can
 /// decide.
-abstract interface class ShaderLibrary {
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+abstract base mixin class ShaderLibrary {
   /// The stage called [name], or null if the bundle has none.
   ShaderHandle? operator [](String name);
 }
@@ -150,9 +211,16 @@ abstract interface class ShaderLibrary {
 /// backend — a frame between a refresh and a relink is the old picture, not
 /// a missing one.
 ///
-/// There is no `dispose`: a loaded library lives as long as the device that
-/// built it, and `GraphicsDevice.loadShaders` says why.
-abstract interface class LoadedShaderLibrary implements ShaderLibrary {
+/// There is no `dispose` for the library: it lives as long as the device that
+/// built it, and `GraphicsDevice.loadShaders` says why. A stage of it is given
+/// back one at a time, with `ShaderHandle.dispose`.
+///
+/// **Implementable outside this package, and stays so through 1.x.** It does
+/// not grow within a major: a capability added later arrives beside it — a
+/// second interface an implementation opts into, or a member with a default
+/// on a base class — so an implementation written against 1.0 keeps
+/// compiling.
+base mixin LoadedShaderLibrary on ShaderLibrary {
   /// The bundle's own name, as its header spells it — what a refusal names.
   String get name;
 
@@ -161,7 +229,7 @@ abstract interface class LoadedShaderLibrary implements ShaderLibrary {
   /// [bytes] are a whole bundle, the same shape `GraphicsDevice.loadShaders`
   /// took, and the same refusals apply: bytes that are not a bundle, a section
   /// this backend has none of, an SDK it was not compiled on, a stage this
-  /// backend cannot run. A refused reload throws `ShaderBundleRefused` and
+  /// backend cannot run. A refused reload throws `ShaderBundleException` and
   /// **leaves the library as it was**, so an editor that rebuilt a bundle
   /// wrongly keeps drawing with the one that worked.
   ///
@@ -194,7 +262,7 @@ abstract interface class LoadedShaderLibrary implements ShaderLibrary {
 /// did not intend shows up as its own shader running everywhere, which is
 /// visible immediately — unlike the other order, where the engine's would
 /// silently win and the new shader would appear to have no effect at all.
-final class LayeredShaderLibrary implements ShaderLibrary {
+final class LayeredShaderLibrary with ShaderLibrary {
   const LayeredShaderLibrary(this.first, this.second);
 
   final ShaderLibrary first;
@@ -203,3 +271,66 @@ final class LayeredShaderLibrary implements ShaderLibrary {
   @override
   ShaderHandle? operator [](String name) => first[name] ?? second[name];
 }
+
+/// Any number of libraries consulted in order, the first that answers
+/// winning — `P8`.
+///
+/// What a game with more than one compiled material bundle hands the
+/// renderer: each `.f3dmat` the build hook compiles is a bundle of its own,
+/// and [LayeredShaderLibrary] takes two. The same rule as there — the
+/// earlier library wins a clash — for the same reason.
+///
+/// The list is copied, so a caller adding to its own list afterwards changes
+/// nothing here; a renderer that takes libraries one at a time keeps its own
+/// stack — see `renderer.renderSteps.addMaterials`.
+final class ShaderLibraryStack with ShaderLibrary {
+  ShaderLibraryStack(Iterable<ShaderLibrary> libraries)
+    : libraries = List<ShaderLibrary>.unmodifiable(libraries);
+
+  /// The libraries, searched first to last.
+  final List<ShaderLibrary> libraries;
+
+  @override
+  ShaderHandle? operator [](String name) {
+    for (final library in libraries) {
+      final found = library[name];
+      if (found != null) return found;
+    }
+    return null;
+  }
+}
+
+/// A [ShaderHandle] over a backend's own compiled [backend] stage — for a
+/// backend's [ShaderLibrary], from `package:flutter3d_hardware/backend.dart`.
+///
+/// [release] is what the handle's `dispose` calls, once: the library's own
+/// forgetting of it, and freeing what the backend compiled for it. Null for a
+/// handle no library keeps.
+ShaderHandle wrapShader({
+  required Object backend,
+  required String name,
+  StageBindings? kept,
+  Map<String, Map<String, UniformMemberLayout>>? layouts,
+  void Function(ShaderHandle handle)? release,
+}) => ShaderHandle._(
+  backend: backend,
+  name: name,
+  kept: kept,
+  layouts: layouts,
+  release: release,
+);
+
+/// Takes [handle] out of [handles] if it is still the one kept under its
+/// name — the `release` most libraries hand [wrapShader]. A library that
+/// frees a backend object as well does so beside it.
+void forgetShader(Map<String, ShaderHandle?> handles, ShaderHandle handle) {
+  if (identical(handles[handle.name], handle)) handles.remove(handle.name);
+}
+
+/// A [PipelineHandle] over a backend's own linked [backend] pipeline, for a
+/// backend. [owner]'s `releasePipeline` is what the handle's `dispose` calls.
+PipelineHandle wrapPipeline({
+  required Object backend,
+  required String name,
+  GraphicsDevice? owner,
+}) => PipelineHandle._(owner?.releasePipeline, backend: backend, name: name);

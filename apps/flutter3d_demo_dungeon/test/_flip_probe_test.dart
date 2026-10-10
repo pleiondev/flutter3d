@@ -1,9 +1,8 @@
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -60,8 +59,8 @@ void main() {
       views: <RenderView>[RenderView(camera: camera)],
       settings: const RenderSettings(),
     );
-    final readback = await device.readPixels(result.frame);
-    final pixels = readback!.buffer.asUint8List();
+    final readback = await device.readback(result.frame);
+    final pixels = readback.buffer.asUint8List();
 
     Color at(int x, int y) {
       final i = (y * 64 + x) * 4;

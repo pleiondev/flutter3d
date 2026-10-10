@@ -29,16 +29,17 @@ part of 'command.dart';
 /// One dab of a texture-painting stroke: where the brush touched the
 /// surface, and how far it reached.
 final class PaintSample {
-  const PaintSample({required this.centre, required this.radius});
+  const PaintSample({required this.center, required this.radius});
 
   /// In the object's own space — the same space `SculptStroke.points` are
   /// in, and the space `projectBrush` measures its ball in.
-  final Vector3 centre;
+  final Vector3 center;
 
+  /// In metres, in the object's own space.
   final double radius;
 
   Map<String, Object?> toJson() => <String, Object?>{
-    'centre': <double>[centre.x, centre.y, centre.z],
+    'centre': <double>[center.x, center.y, center.z],
     'radius': radius,
   };
 
@@ -48,8 +49,8 @@ final class PaintSample {
     return switch (json) {
       {'centre': final Object? centreJson, 'radius': final num radius} =>
         switch (_doubles(centreJson, 3)) {
-          final List<double> centre => PaintSample(
-            centre: Vector3(centre[0], centre[1], centre[2]),
+          final List<double> center => PaintSample(
+            center: Vector3(center[0], center[1], center[2]),
             radius: radius.toDouble(),
           ),
           null => null,
@@ -64,7 +65,7 @@ final class PaintStroke extends ModelCommand {
   const PaintStroke({
     required this.objectId,
     required this.samples,
-    required this.colour,
+    required this.color,
     this.layer = 0,
     this.strength = 1.0,
     this.size = 1024,
@@ -79,7 +80,7 @@ final class PaintStroke extends ModelCommand {
   final List<PaintSample> samples;
 
   /// Straight-alpha RGBA, `0..1` each.
-  final List<double> colour;
+  final List<double> color;
 
   /// Which layer of the stack, counted from the bottom. A layer past the end
   /// is added, so painting onto layer 1 of an empty material makes two.
@@ -111,7 +112,7 @@ final class PaintStroke extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'objectId': objectId,
     'samples': <Object?>[for (final PaintSample it in samples) it.toJson()],
-    'colour': colour,
+    'colour': color,
     'layer': layer,
     'strength': strength,
     'size': size,
@@ -129,9 +130,9 @@ final class PaintStroke extends ModelCommand {
     if (samples.isEmpty) {
       return Outcome.refused('paintStroke needs at least one sample');
     }
-    if (colour.length != 4) {
+    if (color.length != 4) {
       return Outcome.refused(
-        'a colour is four numbers, red green blue alpha; got ${colour.length}',
+        'a colour is four numbers, red green blue alpha; got ${color.length}',
       );
     }
     if (layer < 0) return Outcome.refused('there is no layer $layer');
@@ -188,7 +189,7 @@ final class PaintStroke extends ModelCommand {
       for (final UvSpan span in projectBrush(
         mesh: mesh,
         surface: surface,
-        centre: sample.centre,
+        center: sample.center,
         radius: sample.radius,
         size: canvas,
       )) {
@@ -207,7 +208,7 @@ final class PaintStroke extends ModelCommand {
     final PaintLayer painted = _paintInto(
       layers[layer],
       weights,
-      colour,
+      color,
       canvas,
       mask,
     );
@@ -264,8 +265,12 @@ int? _canvasOf(PaintStack? stack) => stack == null || stack.layers.isEmpty
 /// A reader over image [index], scaled to [canvas] and inverted when asked.
 MaskRead? _maskOf(ModelProject project, int index, int canvas, bool inverted) {
   if (index < 0 || index >= project.images.length) return null;
-  final decoded = decodePng(project.images[index].bytes);
-  if (decoded == null) return null;
+  final DecodedImage decoded;
+  try {
+    decoded = decodePng(project.images[index].bytes);
+  } on ImageFormatException {
+    return null;
+  }
   return (int x, int y) {
     final int mx = (x * decoded.width ~/ canvas).clamp(0, decoded.width - 1);
     final int my = (y * decoded.height ~/ canvas).clamp(0, decoded.height - 1);
@@ -274,11 +279,11 @@ MaskRead? _maskOf(ModelProject project, int index, int canvas, bool inverted) {
   };
 }
 
-/// [layer] with [weights] painted into it in [colour].
+/// [layer] with [weights] painted into it in [color].
 PaintLayer _paintInto(
   PaintLayer layer,
   Map<int, double> weights,
-  List<double> colour,
+  List<double> color,
   int canvas,
   MaskRead? mask,
 ) {
@@ -306,7 +311,7 @@ PaintLayer _paintInto(
         ((y % paintTileSize) * paintTileSize + (x % paintTileSize)) * 4;
     for (var c = 0; c < 4; c++) {
       final double was = pixels[at + c] / 255;
-      final double now = was + (colour[c] - was) * weight;
+      final double now = was + (color[c] - was) * weight;
       pixels[at + c] = (now.clamp(0.0, 1.0) * 255).round();
     }
   }
@@ -386,8 +391,10 @@ final class AdoptTexture extends ModelCommand {
         'material $materialIndex has no base-colour texture to adopt',
       );
     }
-    final decoded = decodePng(project.images[image].bytes);
-    if (decoded == null) {
+    final DecodedImage decoded;
+    try {
+      decoded = decodePng(project.images[image].bytes);
+    } on ImageFormatException {
       return Outcome.refused(
         'the base-colour texture of material $materialIndex is not a PNG '
         'this build can decode',
@@ -472,11 +479,11 @@ final class AdoptTexture extends ModelCommand {
 /// colour per corner so a hard edge can carry two colours at one vertex;
 /// every corner meeting a painted vertex takes the colour, which is the
 /// soft-edge answer and the one a mask wants.
-final class PaintVertexColour extends ModelCommand {
-  const PaintVertexColour({
+final class PaintVertexColor extends ModelCommand {
+  const PaintVertexColor({
     required this.objectId,
     required this.samples,
-    required this.colour,
+    required this.color,
     this.strength = 1.0,
   });
 
@@ -487,7 +494,7 @@ final class PaintVertexColour extends ModelCommand {
   final List<PaintSample> samples;
 
   /// Straight RGBA, `0..1` each.
-  final List<double> colour;
+  final List<double> color;
 
   /// How hard, `0..1`, multiplied into the brush's own falloff.
   final double strength;
@@ -502,7 +509,7 @@ final class PaintVertexColour extends ModelCommand {
   Map<String, Object?> get arguments => <String, Object?>{
     'objectId': objectId,
     'samples': <Object?>[for (final PaintSample it in samples) it.toJson()],
-    'colour': colour,
+    'colour': color,
     'strength': strength,
   };
 
@@ -516,9 +523,9 @@ final class PaintVertexColour extends ModelCommand {
     if (samples.isEmpty) {
       return Outcome.refused('paintVertexColour needs at least one sample');
     }
-    if (colour.length != 4) {
+    if (color.length != 4) {
       return Outcome.refused(
-        'a colour is four numbers, red green blue alpha; got ${colour.length}',
+        'a colour is four numbers, red green blue alpha; got ${color.length}',
       );
     }
     final ModelObject? object = project[objectId];
@@ -541,7 +548,7 @@ final class PaintVertexColour extends ModelCommand {
       for (var v = 0; v < mesh.vertexSlotCount; v++) {
         if (!mesh.isVertexAlive(v)) continue;
         mesh.positionOf(v, at);
-        final double distance = at.distanceTo(sample.centre);
+        final double distance = at.distanceTo(sample.center);
         if (distance > sample.radius) continue;
         final double weight =
             shapeFalloff(BrushFalloff.smooth, 1 - distance / sample.radius) *
@@ -555,23 +562,21 @@ final class PaintVertexColour extends ModelCommand {
       return Outcome.refused('the brush reached no vertices');
     }
 
-    final Vector4 wanted = Vector4(colour[0], colour[1], colour[2], colour[3]);
-    final Vector4 was = Vector4.zero();
+    final LinearColor wanted = LinearColor(
+      color[0],
+      color[1],
+      color[2],
+      color[3],
+    );
     mesh.beginStep();
     for (var face = 0; face < mesh.faceSlotCount; face++) {
       if (!mesh.isFaceAlive(face)) continue;
       mesh.forEachHalfEdge(face, (int half) {
         final double? weight = weights[mesh.originOf(half)];
         if (weight == null) return;
-        mesh.colourOf(half, was);
-        mesh.setColour(
+        mesh.setColor(
           half,
-          Vector4(
-            was.x + (wanted.x - was.x) * weight,
-            was.y + (wanted.y - was.y) * weight,
-            was.z + (wanted.z - was.z) * weight,
-            was.w + (wanted.w - was.w) * weight,
-          ),
+          LinearColor.lerp(mesh.colorOf(half), wanted, weight),
         );
       });
     }

@@ -9,8 +9,18 @@
 library;
 
 export 'src/cpu_backend_registration.dart';
-export 'src/cpu_device.dart';
+export 'src/cpu_device.dart' show CpuDevice;
 export 'src/cpu_png.dart';
 export 'src/cpu_shader.dart';
-export 'src/cpu_shaders_builtin.dart';
+export 'src/cpu_shader_library.dart'
+    show CpuLoadedShaderLibrary, CpuMaterialCompiler, CpuShaderLibrary;
+export 'src/cpu_shaders_builtin.dart' show builtinCpuShaders;
 export 'src/frame_difference.dart';
+
+// The engine's own stages (`PbrShader`, `SkyShader` and some eighty more),
+// the helpers they share (`accumulateLights`, `writeLit`, …), the encoders
+// and the vertex fetch are not exported since 1.0: they are this backend's
+// translation of the engine's shaders, and a change to any of them would
+// otherwise be a major release. What is exported is the kit a stage is
+// written with — `CpuStage`, the shader base classes, `ShaderBindings`,
+// `FragmentContext` and the texture types — and the device.

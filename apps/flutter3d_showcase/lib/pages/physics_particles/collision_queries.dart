@@ -9,7 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_showcase/src/demo/run_physics.dart';
 
 final class CollisionQueriesDemo extends ShowcaseDemo {
   late final CollisionWorld _world;
@@ -30,7 +30,7 @@ final class CollisionQueriesDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region world
-    _world = CollisionWorld();
+    _world = onRunPhysics(CollisionWorld());
     final Collider wall = _world.add(
       Collider(
         shape: CollisionBox(Vector3(2.0, 1.0, 0.2)),
@@ -78,12 +78,15 @@ final class CollisionQueriesDemo extends ShowcaseDemo {
             context.device,
             CuboidShape(size: Vector3(4.0, 2.0, 0.4)).build(),
           ),
-          Material(name: 'wall', baseColor: Vector4(0.5, 0.5, 0.6, 1.0)),
+          RenderMaterial(
+            name: 'wall',
+            baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.6, 1.0),
+          ),
           name: 'wall',
         )..setPositionFrom(wall.position),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 2.5)
+        LightNode(name: 'sun', intensity: 2.5 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -0.6, -0.4)),
       );
   }
@@ -100,8 +103,8 @@ final class CollisionQueriesDemo extends ShowcaseDemo {
       child: DefaultTextStyle(
         style: const TextStyle(color: Color(0xFFE8E8EC), fontSize: 15),
         child: Text(
-          'raycast: ${_ray.hit ? 'hit at ${vec3(_ray.point)}' : 'miss'}\n'
-          'sweep: ${_sweep.hit ? 'stopped at fraction ${_sweep.fraction.toStringAsFixed(3)}, '
+          'raycast: ${_ray.didHit ? 'hit at ${vec3(_ray.point)}' : 'miss'}\n'
+          'sweep: ${_sweep.didHit ? 'stopped at fraction ${_sweep.fraction.toStringAsFixed(3)}, '
                     'normal ${vec3(_sweep.normal)}' : 'clear'}\n'
           'overlap: ${_overlapping.length} collider(s) at the pickup',
         ),
@@ -112,10 +115,10 @@ final class CollisionQueriesDemo extends ShowcaseDemo {
   @override
   void verify(Scene scene, FrameResult frame) {
     // #region check
-    if (!_ray.hit || (_ray.distance - 4.8).abs() > 0.01) {
+    if (!_ray.didHit || (_ray.distance - 4.8).abs() > 0.01) {
       throw StateError('the ray should meet the wall 4.8m out');
     }
-    if (!_sweep.hit || _sweep.normal.z < 0.9) {
+    if (!_sweep.didHit || _sweep.normal.z < 0.9) {
       throw StateError('the sweep should stop on the wall\'s near face');
     }
     if (_overlapping.length != 1 || !identical(_overlapping.first, _pickup)) {

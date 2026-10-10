@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 const SoundDef _step = SoundDef(name: 'step', asset: 'a/step.wav');
 const SoundDef _jump = SoundDef(name: 'jump', asset: 'a/jump.wav');

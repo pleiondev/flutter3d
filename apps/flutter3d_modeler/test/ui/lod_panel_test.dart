@@ -131,7 +131,7 @@ void main() {
 
   group('nextLodAfter', () {
     test('the first level is half the mesh, below a quarter of the screen', () {
-      expect(nextLodAfter(const <LodSpec>[]), (
+      expect(nextLodAfter(const <LodSettings>[]), (
         ratio: 0.5,
         maxScreenFraction: 0.25,
       ));
@@ -142,17 +142,17 @@ void main() {
       // is about the chain, not about the list. Mutation: halve the *last*
       // level. Adding after a hand-ordered list then makes a level finer
       // than one that is already there.
-      final next = nextLodAfter(const <LodSpec>[
-        LodSpec(ratio: 0.2, maxScreenFraction: 0.1),
-        LodSpec(ratio: 0.5, maxScreenFraction: 0.25),
+      final next = nextLodAfter(const <LodSettings>[
+        LodSettings(ratio: 0.2, maxScreenFraction: 0.1),
+        LodSettings(ratio: 0.5, maxScreenFraction: 0.25),
       ]);
       expect(next.ratio, closeTo(0.1, 1e-9));
       expect(next.maxScreenFraction, closeTo(0.05, 1e-9));
     });
 
     test('and never reaches the nought `AddLod` refuses', () {
-      final next = nextLodAfter(const <LodSpec>[
-        LodSpec(ratio: 0.05, maxScreenFraction: 0.01),
+      final next = nextLodAfter(const <LodSettings>[
+        LodSettings(ratio: 0.05, maxScreenFraction: 0.01),
       ]);
       expect(next.ratio, 0.05);
       expect(next.maxScreenFraction, 0.01);

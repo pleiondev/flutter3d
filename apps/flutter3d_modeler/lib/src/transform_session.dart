@@ -281,12 +281,12 @@ class TransformSession {
     // metre further away.
     if (modal.kind == TransformKind.move) {
       final vm.Vector3 middle = middleOfSelection();
-      final double metres =
+      final double meters =
           look.pixel *
           (look.perspective ? (middle - look.eye).length : 1.0) *
           fine;
       modal.dragged +=
-          look.right * (delta.dx * metres) + look.up * (-delta.dy * metres);
+          look.right * (delta.dx * meters) + look.up * (-delta.dy * meters);
     } else {
       // One number, carried on whichever component the constraint lets
       // through, so `amount` can zero the rest the same way it does for a move.

@@ -14,13 +14,16 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:hooks/hooks.dart';
 
+import 'build_steps.dart';
 import 'convert.dart';
 import 'device_classes.dart';
 import 'layout.dart';
 import 'pipeline_version.dart';
+import 'plugin_discovery.dart';
 
 /// What one call to [runAssetBuild] did, for a hook's own log line and for
 /// a test to assert against without parsing stdout.
@@ -127,19 +130,40 @@ final class _Target {
 String _cachePath(AssetLayout layout) =>
     '${layout.generatedDir.path}/.flutter3d_cache.json';
 
+/// The asset cache's envelope: `format` and the layout of its entries.
+///
+/// **A cache, so a mismatch is a rebuild, not a refusal.** A cache written
+/// by another layout — the bare map before 1.0, or a later build's — reads
+/// as empty, and everything converts again once. That is the conservative
+/// answer for a stamp, and why the layout is matched exactly here, which a
+/// file a person keeps would never be.
+const String _cacheFormat = 'f3d.assetCache';
+const int _cacheLayout = 1;
+
 Map<String, _CacheEntry> _readCache(String path) {
   final file = File(path);
   if (!file.existsSync()) return const <String, _CacheEntry>{};
   try {
-    final json = jsonDecode(file.readAsStringSync()) as Map<String, Object?>;
-    return <String, _CacheEntry>{
-      for (final entry in json.entries)
-        entry.key: _CacheEntry.fromJson(entry.value! as Map<String, Object?>),
+    return switch (jsonDecode(file.readAsStringSync())) {
+      {
+        'format': _cacheFormat,
+        'version': _cacheLayout,
+        'entries': final Map<String, Object?> entries,
+      } =>
+        <String, _CacheEntry>{
+          for (final entry in entries.entries)
+            entry.key: _CacheEntry.fromJson(
+              entry.value! as Map<String, Object?>,
+            ),
+        },
+      _ => const <String, _CacheEntry>{},
     };
   } on FormatException {
     // A cache nobody can read is a cache that has nothing in it — the
     // conservative failure, since it converts everything rather than
     // trusting a stamp it cannot make sense of.
+    return const <String, _CacheEntry>{};
+  } on TypeError {
     return const <String, _CacheEntry>{};
   }
 }
@@ -148,7 +172,13 @@ void _writeCache(String path, Map<String, _CacheEntry> cache) {
   final file = File(path)..parent.createSync(recursive: true);
   file.writeAsStringSync(
     jsonEncode(<String, Object?>{
-      for (final entry in cache.entries) entry.key: entry.value.toJson(),
+      'format': _cacheFormat,
+      'version': _cacheLayout,
+      'requires': const <String>[],
+      'generator': 'flutter3d',
+      'entries': <String, Object?>{
+        for (final entry in cache.entries) entry.key: entry.value.toJson(),
+      },
     }),
   );
 }
@@ -253,8 +283,8 @@ Future<AssetBuildReport> runAssetBuild(
     for (final target in targets) {
       final entry = _CacheEntry(
         hash: hash,
-        formatVersion: kF3dVersion,
-        pipelineVersion: kAssetPipelineVersion,
+        formatVersion: f3dVersion,
+        pipelineVersion: assetPipelineVersion,
         textures: textures.name,
         lods:
             '${target.lods.join(',')}${target.impostor ? ' impostor' : ''}'
@@ -346,7 +376,39 @@ TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
 ///   await build(arguments, buildAssets);
 /// }
 /// ```
-Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
+///
+/// The engine's three [BuildStep]s and nothing else: [buildAssetsWith] with
+/// no steps of the project's own.
+Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) =>
+    buildAssetsWith(const <BuildStep>[])(input, output);
+
+/// The hook's body with a project's own [steps] beside the engine's —
+/// importers, bakers, generated files — ordered by their `after` and
+/// `before` against `models`, `materials` and `plugins`. See [BuildStep].
+///
+/// ```dart
+/// void main(List<String> arguments) async {
+///   await build(arguments, buildAssetsWith(<BuildStep>[WindBaker()]));
+/// }
+/// ```
+///
+/// Every step's inputs are declared to the hook, so an edit to any of them
+/// runs the build again. A step that throws fails the build with a
+/// [BuildError] naming it.
+Future<void> Function(BuildInput input, BuildOutputBuilder output)
+buildAssetsWith(Iterable<BuildStep> steps) {
+  final given = List<BuildStep>.unmodifiable(steps);
+  // Checked now, when the hook is written, rather than on the first build.
+  buildStepOrder(given);
+  return (BuildInput input, BuildOutputBuilder output) =>
+      _buildAssets(input, output, given);
+}
+
+Future<void> _buildAssets(
+  BuildInput input,
+  BuildOutputBuilder output,
+  List<BuildStep> steps,
+) async {
   // `packageRoot` is a directory `Uri` — its own path ends in `/`, and
   // `Directory.fromUri(...).path` keeps that trailing slash rather than
   // dropping it the way a hand-typed directory path never would. Every path
@@ -366,7 +428,7 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
   // application path. Failing that, the platform being built for.
   final requested = input.userDefines['textures'];
   final textures = requested is String
-      ? TextureFamily.parse(requested) ?? _familyForTarget(input)
+      ? TextureFamily.tryParse(requested) ?? _familyForTarget(input)
       : _familyForTarget(input);
 
   // **Which device classes — `N7`.** Only matters to a manifest that names
@@ -379,11 +441,30 @@ Future<void> buildAssets(BuildInput input, BuildOutputBuilder output) async {
         input.config.buildCodeAssets ? input.config.code.targetOS : null,
       );
 
-  final report = await runAssetBuild(
-    projectRoot,
-    textures: textures,
-    deviceClasses: deviceClasses,
-  );
+  // **The steps — models, then materials, then plugins, then the project's
+  // own.** Materials (P8) come after the models and in the same hook, because
+  // they land in the same directory the project already bundles; one that
+  // does not compile fails the build here, naming its file and line, rather
+  // than a draw at run time. The plugin list (`lib/plugins.g.dart`) is
+  // written before the Dart is compiled, so a plugin dependency added since
+  // the last build is in this one; the package graph and every pubspec read
+  // are declared below, so adding or removing one reruns the hook.
+  final BuildStepsReport report;
+  try {
+    report = await runBuildSteps(
+      projectRoot,
+      steps: steps,
+      textures: textures,
+      deviceClasses: deviceClasses,
+    );
+  } on MaterialBuildException catch (error) {
+    throw BuildError(message: error.toString());
+  } on PluginDiscoveryException catch (error) {
+    throw BuildError(message: error.toString());
+  } on BuildStepException catch (error) {
+    throw BuildError(message: error.message);
+  }
+
   for (final source in report.dependencies) {
     output.dependencies.add(Uri.file(source));
   }

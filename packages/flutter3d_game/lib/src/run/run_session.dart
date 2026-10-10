@@ -8,19 +8,13 @@ export 'run_status.dart';
 
 /// The run: which level is up, what happened to it, and where to go next.
 ///
-/// ## What this replaces
+/// ## What it does
 ///
-/// Three games, three answers, none of them shared:
-///
-/// | | |
-/// |---|---|
-/// | dungeon | a 278-line cubit with nine tests |
-/// | platformer | nine private methods and five fields inside a 1441-line widget |
-/// | racing | nothing at all |
-///
-/// The same sequence in each: load a document, say why if it will not read,
-/// start again, move on when the level says there is somewhere to move on to,
-/// write the run down, put it back, and tell the screen how it ended.
+/// The sequence every game with levels runs: load a document, say why if it
+/// will not read, start again, move on when the level says there is
+/// somewhere to move on to, write the run down, put it back, and tell the
+/// screen how it ended. A game subclasses it and answers the hooks below;
+/// the order and the guards are this class's.
 ///
 /// ## Why the awkward parts are here
 ///
@@ -42,9 +36,9 @@ export 'run_status.dart';
 /// ## Not a cubit
 ///
 /// An ordinary class, so this package makes no choice about state management
-/// for the games above it. Two of the three wrap it in a cubit; [onChanged]
-/// fires on every transition and each transition builds a fresh [RunStatus], so
-/// a `Cubit.emit` of it is a distinct state and rebuilds.
+/// for the games above it. [onChanged] fires on every transition and each
+/// transition builds a fresh [RunStatus], so a state holder that compares
+/// by identity — a `ValueNotifier`, a cubit's `emit` — rebuilds on each.
 ///
 /// [L] is whatever a game gets back from loading a level. This class never
 /// looks inside it — the five methods below are how it asks.
@@ -56,7 +50,8 @@ abstract base class RunSession<L> {
 
   final SaveFile saves;
 
-  /// Called after every transition. A cubit passes its own `emit` through here.
+  /// Called after every transition, with the new status: where a state
+  /// holder is told.
   void Function(RunStatus<L> status)? onChanged;
 
   RunStatus<L> get status => _status;
@@ -84,7 +79,7 @@ abstract base class RunSession<L> {
   /// Throwing is the way to say it could not be read; the caller lands in
   /// [RunFailed] with the error, and the player sees the filename rather than
   /// a black screen.
-  Future<L> open(String asset);
+  Future<L> loadLevel(String asset);
 
   /// How the run in [level] is going, in the words every game shares.
   RunOutcome outcomeOf(L level);
@@ -103,11 +98,19 @@ abstract base class RunSession<L> {
   /// changed.
   void restoreInto(L level, Snapshot snapshot);
 
+  /// How far the run has got, in simulation steps across all its levels.
+  /// Zero by default.
+  ///
+  /// Written beside the save so two copies of it can be told apart by more
+  /// than a clock — see `resolveSaves`. A game that leaves it at zero still
+  /// syncs; two different runs of it are simply always the player's call.
+  int stepOf(L level) => 0;
+
   /// What the player takes with them into [next]. Empty by default.
   ///
   /// Called on the level being left, before the next one is read — which is the
-  /// only moment both are knowable. The dungeon empties the key ring here; the
-  /// platformer copies the lives, the deaths and the elapsed time.
+  /// only moment both are knowable: keys that belong to one level are
+  /// dropped here, and lives or elapsed time that span the run are copied.
   void carryFrom(L level, String next) {}
 
   /// What a fresh run starts with. Empty by default.
@@ -133,14 +136,14 @@ abstract base class RunSession<L> {
   /// Not called for a level the player is coming back to, because there is no
   /// such thing here: [restart] reads the document again rather than rewinding
   /// what is in memory.
-  void close(L level) {}
+  void disposeLevel(L level) {}
 
   /// What a game does about a run that ended badly. Nothing by default.
   ///
-  /// **The two genres disagree here and both are right.** A platformer has
-  /// lives, so losing ends the *run* and the save goes with it — coming back to
-  /// a save from before the last life would undo the loss. A crypt has no
-  /// lives, so dying is a setback and the save is where you come back to.
+  /// **Games disagree here and both answers are right.** With lives, losing
+  /// ends the *run* and the save goes with it — coming back to a save from
+  /// before the last life would undo the loss. Without them, dying is a
+  /// setback and the save is where the player comes back to.
   ///
   /// So this is a hook rather than a rule: the shared part is noticing, and
   /// what it means belongs to the game.
@@ -148,8 +151,8 @@ abstract base class RunSession<L> {
 
   /// A beat before the next level is read. Immediate by default.
   ///
-  /// The platformer waits on its results screen: arriving somewhere new in the
-  /// same frame the last place ended reads as a glitch. Awaited here rather
+  /// A game with a results screen waits on it here: arriving somewhere new
+  /// in the same frame the last place ended reads as a glitch. Awaited here rather
   /// than slept through by the caller, because the guard against moving on
   /// twice has to be held for the whole wait — which is exactly when a second
   /// frame would try.
@@ -161,7 +164,7 @@ abstract base class RunSession<L> {
   ///
   /// Returns whether it resumed, which is what a title card wants to say.
   Future<bool> begin() async {
-    final saved = saves.read();
+    final saved = await saves.read();
     if (saved == null) {
       startFresh();
       await load(firstLevel);
@@ -172,7 +175,7 @@ abstract base class RunSession<L> {
       // A save naming a level that is gone. The player gets a game rather than
       // an error, and the broken save goes with it — keeping it would fail the
       // same way on every launch from here on.
-      saves.clear();
+      await saves.clear();
       startFresh();
       await load(firstLevel);
       return false;
@@ -200,16 +203,16 @@ abstract base class RunSession<L> {
     _emit(RunLoading<L>(asset: asset));
     // Before the read rather than after it, so two levels are never alive at
     // once. The status is already `RunLoading`, so nothing is drawing this one.
-    if (leaving != null) close(leaving);
+    if (leaving != null) disposeLevel(leaving);
 
     try {
-      final level = await open(asset);
+      final level = await loadLevel(asset);
       if (generation != _loadGeneration) {
         // A newer load started while this one was reading, and its level is
         // the one the player will see. Finish with this one rather than
         // dropping it, and emit nothing — a stale load publishing its status
         // would put the newer one's screen back to this one's.
-        close(level);
+        disposeLevel(level);
         return;
       }
       if (resume != null) restoreInto(level, resume);
@@ -245,7 +248,7 @@ abstract base class RunSession<L> {
       RunFailed<L>(:final asset) => asset,
       _ => firstLevel,
     };
-    saves.clear();
+    await saves.clear();
     startFresh();
     await load(here);
   }
@@ -260,12 +263,11 @@ abstract base class RunSession<L> {
   /// [begin] already does this on the one path it can see — a save naming a
   /// level that has been renamed away — but a level that exists and throws
   /// halfway through is a content mistake it cannot detect, and until this
-  /// existed the only way out of one was to close the application. The
-  /// platformer had written the half of it that clears the save; without
-  /// [startFresh] beside it the lives and the elapsed time of the abandoned
-  /// run followed the player into the new one.
+  /// existed the only way out of one was to close the application. It clears
+  /// the save and calls [startFresh], so nothing of the abandoned run — lives,
+  /// elapsed time — follows the player into the new one.
   Future<void> startOver() async {
-    saves.clear();
+    await saves.clear();
     startFresh();
     await load(firstLevel);
   }
@@ -287,7 +289,7 @@ abstract base class RunSession<L> {
     if (next == null) {
       // The end of the game. The save goes, or the next launch resumes a run
       // that is already over.
-      saves.clear();
+      await saves.clear();
       return;
     }
     carryFrom(playing.level, next);
@@ -301,14 +303,42 @@ abstract base class RunSession<L> {
     if (generation + 1 != _loadGeneration) return;
     // Written once the level is up, so the save describes where the player
     // actually is rather than a level they have not entered.
-    save();
+    await save();
   }
 
-  /// Writes where the run has got to, if there is one worth writing.
-  void save() {
+  /// Writes where the run has got to, if there is one worth writing, and says
+  /// whether it did.
+  ///
+  /// The run is read when this is called — a pause, a checkpoint, the
+  /// application going to the background — and only the write waits.
+  Future<bool> save() async {
     final playing = _status;
-    if (playing is! RunPlaying<L> || playing.outcome.isOver) return;
-    saves.write(playing.asset, snapshotOf(playing.level));
+    if (playing is! RunPlaying<L> || playing.outcome.isOver) return false;
+    return saves.write(
+      playing.asset,
+      snapshotOf(playing.level),
+      step: stepOf(playing.level),
+    );
+  }
+
+  /// Puts [next], another build of the level being played, in its place, and
+  /// carries the run over: [snapshotOf] the old one, [restoreInto] the new,
+  /// then the old one is [disposeLevel]d.
+  ///
+  /// **For a level edited under a running game**, which has to be built
+  /// before it can be swapped in and must not start the level again when it
+  /// is. The asset stays the same: it is the same level, changed. False, and
+  /// [next] closed, when no level is being played — a load under way wins.
+  bool replaceLevel(L next) {
+    final playing = _status;
+    if (playing is! RunPlaying<L>) {
+      disposeLevel(next);
+      return false;
+    }
+    restoreInto(next, snapshotOf(playing.level));
+    _emit(RunPlaying<L>(playing.asset, next, outcome: outcomeOf(next)));
+    disposeLevel(playing.level);
+    return true;
   }
 
   void _emit(RunStatus<L> next) {

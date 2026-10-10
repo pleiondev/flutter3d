@@ -34,6 +34,8 @@ final class SetShapeWeight extends ModelCommand {
 
   final int id;
   final int shapeIndex;
+
+  /// A unitless blend weight: 0 is the base shape, 1 the whole key.
   final double weight;
 
   @override
@@ -318,6 +320,8 @@ final class KeyShape extends ModelCommand {
 
   final int id;
   final int clipIndex;
+
+  /// In seconds.
   final double time;
 
   @override
@@ -540,7 +544,7 @@ final class SetShapeDriverField extends ModelCommand {
       'value': DoubleHint(unit: 'rad', step: 0.01),
     },
     'axis' => const <String, ParamHint>{
-      'value': EnumHint(<String>['x', 'y', 'z']),
+      'value': ChoiceHint(<String>['x', 'y', 'z']),
     },
     _ => const <String, ParamHint>{},
   };

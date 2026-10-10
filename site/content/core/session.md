@@ -23,13 +23,13 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-`openDevice` picks between backends two different ways. Web or native is a **conditional export**, resolved at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. A file importing both could target neither. On the native half, Impeller or software is a **runtime `try`/`catch`**: `flutter3d_impeller`'s `GpuRenderBackend.create()` is tried first, and if it throws, `openDevice` falls back to `flutter3d_cpu`'s `CpuDevice`, built from `CpuShaderLibrary(builtinCpuShaders())`. It throws when Flutter GPU refuses to start on Skia, or when the platform never enabled Impeller. It has to be a runtime check: `flutter_gpu` ships with the SDK and is always importable, so no `dart.library.*` condition can see whether it will actually start. On the web half it is `flutter3d_webgl`'s `openWebGl(width:, height:)`, with no fallback: a software rasteriser would not make a browser without WebGL2 any more able to draw the picture. `width`/`height` are ignored by Impeller, which sizes itself per frame, and used by both WebGL and the software fallback, neither of which can.
+`openDevice` picks between backends two different ways. Web or native is a **conditional export**, resolved at compile time, because `flutter_gpu` does not compile for the web and `dart:js_interop` does not compile for macOS. A file importing both could target neither. On the native half, Impeller or software is a **runtime `try`/`catch`**: `flutter3d_impeller`'s `GpuRenderBackend.open()` is tried first, and if it throws, `openDevice` falls back to `flutter3d_cpu`'s `CpuDevice`, built from `CpuShaderLibrary(builtinCpuShaders())`. It throws when Flutter GPU refuses to start on Skia, or when the platform never enabled Impeller. It has to be a runtime check: `flutter_gpu` ships with the SDK and is always importable, so no `dart.library.*` condition can see whether it will actually start. On the web half it is `flutter3d_webgl`'s `openWebGl(width:, height:)`, with no fallback: a software rasteriser would not make a browser without WebGL2 any more able to draw the picture. `width`/`height` are ignored by Impeller, which sizes itself per frame, and used by both WebGL and the software fallback, neither of which can.
 
 <div class="warn">
 <p>The software fallback is <code>flutter3d_cpu</code>, which the rest of this site describes as a golden-test backend and a dev dependency, not a production one. It is a Dart rasteriser with no GPU under it, and a frame that would take a millisecond on Impeller takes a great deal longer here. It exists as a last resort, so that a broken Impeller start shows <em>something</em>, playable if slow, instead of nothing at all. It is not a supported way to ship a game. <code>debugPrint</code> logs which one actually ran; <code>openDevice</code>'s return type does not say, on purpose, so every existing caller keeps compiling unchanged.</p>
 </div>
 
-What it does not decide is `kFixedResolution`: whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `presentFrame` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
+What it does not decide is `fixedResolution`: whether the backend renders to a fixed internal target that Flutter then stretches. It's `false` on native (Impeller allocates its frame targets at whatever size the widget was laid out at) and `true` on the web (a WebGL canvas resets its drawing buffer on resize, so `WebGlDevice` owns a canvas at one size and `presentFrame` takes a `BoxFit` to stretch it). *What* size is left to the application: the crypt and the platformer draw at 720p, the racing game at 960×540, and each says why where the number is.
 
 <div class="note">
 <p>The backend choice lives in <code>flutter3d_app</code>, which every application stands on, <code>apps/flutter3d_editor</code> included, even though the editor is desktop only and resolves the WebGL backend anyway; the conditional import is what keeps a native build from compiling it. It was its own package once, until most of its consumers turned out to already reach it through that same barrel and the few that didn't cost nothing to repoint.</p>
@@ -104,22 +104,20 @@ Not every game fits the shape. The racing game moves from one circuit to the nex
 
 ## Settings and saves
 
-`lib/src/screens/` (once its own package, `flutter3d_screens`) is the screens a game has that are not the game: `SettingsOverlay` (volumes, a gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes) and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
+The screens a game has that are not the game are `flutter3d_game_ui`'s `settings.dart`: `SettingsOverlay`, a panel of `SettingsSection`s (volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes). What they show and write stays in `flutter3d_game`: `GameSettings`, its controller, and `SaveFile` (where `RunSession.saves` reads and writes, per platform, through `Storage`). Wiring the overlay into a HUD is one widget per game:
 
 ```dart
 SettingsOverlay(
-  settings: settingsCubit,
-  mixer: audio.mixer,
-  bindings: devices.bindings,
-  config: config,
-  padConnected: pad.isConnected,   // asked every frame, not assumed
-  actions: shooterActions,
-  defaultBindings: defaultShooterBindings,
+  settings: gameSettings,          // a GameSettingsController, a ValueListenable
+  sections: SettingsSection.standard(
+    padConnected: pad.isConnected, // asked every frame, not assumed
+    defaultActions: shooterActions, // what "reset" goes back to
+  ),
   opening: pauseTheGame,
 )
 ```
 
-The accessibility sliders are `GameConfig` settings (`a11y.cameraMotion` and its kin), and `Accommodations` supplies their defaults from the platform's own reduce-motion flag, so a slider the player moved wins over the flag.
+`GameSettings` is a value: a volume per `AudioBus`, typed `SettingKey`s under namespaced ids, and the player's action map, each change a copy the controller saves in the format envelope. The accessibility sliders are its keys (`GameSettingKeys.cameraMotion` and its kin), and `Accommodations` supplies their defaults from the platform's own reduce-motion flag, so a slider the player moved wins over the flag.
 
 It was extracted when the second game wanted rebinding, which mattered for accessibility more than for convenience: the alternative was four hundred lines of panel copied into the second game, and the racing game's copy had already drifted: it told its own panel there was no controller connected while the other two asked the pad.
 
@@ -139,10 +137,10 @@ if (snapshot.down(PadButton.faceSouth)) jump();
 ```dart
 final lock = PointerLock.instance;
 if (lock.isSupported) await lock.capture();
-final delta = lock.takeDelta();                       // synchronous, drained once per step
+final delta = lock.drainDelta();                       // synchronous, drained once per step
 ```
 
-`PointerLock` fills a gap Flutter leaves on every desktop platform: no pointer lock, which an FPS-style camera needs, since without it the cursor reaches the window edge and the view stops turning. `takeDelta()` is synchronous on purpose. It is called from inside the simulation step, where awaiting anything would mean the step no longer sees a consistent snapshot of its inputs. Two backends: a method channel on macOS, and the browser's own `requestPointerLock` through static interop. The choice is a conditional export, so nothing registers a plugin and `flutter test --platform chrome` can exercise it. Windows and Linux are not implemented and say so, so a game falls back to a drag instead of to a camera that does not turn. Losing focus drops the capture automatically, which a game should treat as a reason to pause rather than as an error; in a browser the capture also has to be asked for inside the handler of the press that prompted it, because `requestPointerLock` is refused without a user gesture behind it.
+`PointerLock` fills a gap Flutter leaves on every desktop platform: no pointer lock, which an FPS-style camera needs, since without it the cursor reaches the window edge and the view stops turning. `drainDelta()` is synchronous on purpose. It is called from inside the simulation step, where awaiting anything would mean the step no longer sees a consistent snapshot of its inputs. Two backends: a method channel on macOS, and the browser's own `requestPointerLock` through static interop. The choice is a conditional export, so nothing registers a plugin and `flutter test --platform chrome` can exercise it. Windows and Linux are not implemented and say so, so a game falls back to a drag instead of to a camera that does not turn. Losing focus drops the capture automatically, which a game should treat as a reason to pause rather than as an error; in a browser the capture also has to be asked for inside the handler of the press that prompted it, because `requestPointerLock` is refused without a user gesture behind it.
 
 ## One import for all of it
 
@@ -160,7 +158,7 @@ What is deliberately not behind it: `flutter3d`, `flutter3d_sim`, `flutter3d_gam
 
 The four demo games import `flutter3d_app`, and so does `packages/flutter3d_game/example`, the game a new project starts as: the scaffold names `flutter3d_app` in its pubspec and opens its device through `openDevice`, which picks Impeller or WebGL for the build and falls back to the software rasteriser at run time when flutter_gpu will not start. That is the pattern this page teaches, fallback included. It also names `flutter3d_game`, for the input and the run.
 
-`apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.create()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between, but it is the reason the editor is not the thing to copy. Copy the scaffold, which is what it is for.
+`apps/flutter3d_editor` is the one that does not: it names `flutter3d_impeller` and opens its device with `GpuRenderBackend.open()`, the way [the tutorial](/core/tutorial/) does. That is defensible where it is, since the editor is desktop-only and there is no backend to choose between, but it is the reason the editor is not the thing to copy. Copy the scaffold, which is what it is for.
 
 ## Next
 

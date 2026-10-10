@@ -8,7 +8,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TextureFilteringDemo extends ShowcaseDemo {
   int anisotropyChoice = 3;
@@ -38,14 +37,14 @@ final class TextureFilteringDemo extends ShowcaseDemo {
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: pixels,
       mipLevels: MipChain.build(pixels, _size, _size),
-    )!;
+    );
     // #endregion texture
 
     // #region floor
-    final Material floor = Material(
+    final RenderMaterial floor = RenderMaterial(
       name: 'checks',
       albedo: checks,
-      albedoSampler: SamplerOptions.trilinearRepeat,
+      albedoSampler: SamplerDescriptor.trilinearRepeat,
       roughness: 0.9,
       doubleSided: true,
     );
@@ -62,7 +61,7 @@ final class TextureFilteringDemo extends ShowcaseDemo {
     return Scene()
       ..add(ground)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.3, -1.0, -0.4)),
       );
   }
@@ -86,7 +85,7 @@ final class TextureFilteringDemo extends ShowcaseDemo {
 
   @override
   void verify(Scene scene, FrameResult frame) {
-    final Material floor = scene.meshes.first.material;
+    final RenderMaterial floor = scene.meshes.first.material;
     if (floor.albedoSampler?.mipFilter != MipFilter.linear) {
       throw StateError('the floor sampler does not blend mip levels');
     }

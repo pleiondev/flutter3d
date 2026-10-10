@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -92,7 +94,10 @@ abstract final class Effects {
     lifetime: const Range(0.20, 0.40),
     size: const Range(0.12, 0.26),
     color: Vector4(1.2, 0.95, 0.45, 1.0),
-    emitter: const ConeEmitter(halfAngleDegrees: 26.0, speed: Range(3.0, 6.0)),
+    emitter: const ConeEmitter(
+      halfAngle: 26.0 * math.pi / 180.0,
+      speed: Range(3.0, 6.0),
+    ),
     affectors: <ParticleAffector>[
       const ParticleGravity(-4.0),
       const ParticleDrag(2.0),
@@ -106,7 +111,10 @@ abstract final class Effects {
     lifetime: const Range(0.5, 1.0),
     size: const Range(0.10, 0.22),
     color: Vector4(0.45, 1.6, 0.75, 1.0),
-    emitter: const ConeEmitter(halfAngleDegrees: 16.0, speed: Range(2.0, 4.5)),
+    emitter: const ConeEmitter(
+      halfAngle: 16.0 * math.pi / 180.0,
+      speed: Range(2.0, 4.5),
+    ),
     affectors: <ParticleAffector>[
       const ParticleGravity(-1.2),
       const ParticleDrag(1.6),
@@ -155,7 +163,10 @@ abstract final class Effects {
     lifetime: const Range(0.18, 0.36),
     size: const Range(0.08, 0.16),
     color: Vector4(1.0, 0.66, 0.26, 1.0),
-    emitter: const ConeEmitter(halfAngleDegrees: 11.0, speed: Range(0.20, 0.5)),
+    emitter: const ConeEmitter(
+      halfAngle: 11.0 * math.pi / 180.0,
+      speed: Range(0.20, 0.5),
+    ),
     affectors: <ParticleAffector>[
       const ParticleGravity(1.0),
       const ParticleDrag(2.6),

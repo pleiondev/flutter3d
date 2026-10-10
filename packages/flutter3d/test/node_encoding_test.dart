@@ -29,6 +29,7 @@ import 'package:flutter3d_core/src/engine/render/view_model_node.dart';
 import 'package:flutter3d_core/src/engine/scene/camera_node.dart';
 import 'package:flutter3d_core/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d_core/src/engine/scene/scene.dart';
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,7 +41,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 /// is the node's own decision — which camera, which shadows — and that is the
 /// half worth pinning. What `encodeScene` then does with a mesh belongs to the
 /// renderer and is the same for every caller.
-final class _RecordingServices implements RenderServices {
+final class _RecordingServices with RenderServices {
   final List<SceneShadows> shadows = <SceneShadows>[];
   final List<vm.Matrix4> viewProjections = <vm.Matrix4>[];
   PassEncoder? encoder;
@@ -48,7 +49,7 @@ final class _RecordingServices implements RenderServices {
 
   @override
   void encodeScene({
-    required NodeFrame frame,
+    required RenderFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
@@ -75,7 +76,7 @@ final class _RecordingServices implements RenderServices {
 }
 
 /// The lit scene, as the frame would have it.
-final TextureHandle _sceneColor = TextureHandle(
+final TextureHandle _sceneColor = wrapTexture(
   backend: 'hdr colour',
   width: 320,
   height: 200,
@@ -84,9 +85,9 @@ final TextureHandle _sceneColor = TextureHandle(
 
 /// Refuses to hand anything out. Nothing in this file wants a pooled texture,
 /// and a source that quietly produced one would hide it if something did.
-final class _NoSource implements FrameTextureSource {
+final class _NoSource with FrameTextureSource {
   @override
-  TextureHandle acquire(RenderTargetSpec spec) =>
+  TextureHandle acquire(RenderTargetDescriptor spec) =>
       throw StateError('nothing here should be acquiring a pooled texture');
 
   @override
@@ -99,7 +100,8 @@ final class _NoSource implements FrameTextureSource {
 /// The view model never touches it — `encodeScene` is the recording fake — and
 /// that a mesh which never reached the device serves here at all is the point
 /// of `MeshGeometry` being what the scene layer deals in.
-MeshNode _meshNode() => MeshNode(CpuMesh(CuboidShape().build()), Material());
+MeshNode _meshNode() =>
+    MeshNode(CpuMesh(CuboidShape().build()), RenderMaterial());
 
 void main() {
   group('the view model node, drawn against a fake device', () {
@@ -114,18 +116,22 @@ void main() {
       services = _RecordingServices();
     });
 
-    NodeFrame frameWith({bool withSceneColor = true}) {
+    RenderFrame frameWith({bool withSceneColor = true}) {
       // The atlases are declared as *external* rather than written by a stub,
       // which is the honest shape of this test: it is asking what the view
       // model does with a frame that produced no shadows, and an external name
       // nobody provided is exactly that — `tryTexture` answers null, and the
       // node has to cope rather than reach for a renderer field.
+      //
+      // The scene colour it draws over is external too: a graph prunes a
+      // node whose read nothing provides, and this one has no scene pass.
       final graph = FrameGraph()
+        ..addExternal(FrameResourceIds.hdrColor)
         ..addExternal(FrameResourceIds.cubeShadow)
         ..addExternal(FrameResourceIds.cubeShadowStatic)
         ..addNode(node);
       final compiled = graph.compile(
-        outputs: const <ResourceId>[FrameResourceIds.hdrColour],
+        outputs: const <ResourceId>[FrameResourceIds.hdrColor],
       );
       final resources =
           FrameResources(
@@ -138,16 +144,15 @@ void main() {
             // arrive from outside any node, which the resource layer no longer
             // allows — and used to allow only because this test asked it to.
             ..beginNode(0);
-      return NodeFrame(
+      return RenderFrame(
         device: device,
         resources: resources,
         services: services,
-        state: FramePassState(),
         settings: const RenderSettings(),
         width: 320,
         height: 200,
         sceneColor: withSceneColor ? _sceneColor : null,
-      );
+      )..state = FramePassState();
     }
 
     test('draws over the scene rather than clearing it', () {

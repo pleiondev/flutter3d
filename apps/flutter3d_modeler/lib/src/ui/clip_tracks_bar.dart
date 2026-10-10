@@ -11,7 +11,7 @@
 /// callbacks route through [ModelHistory].
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 

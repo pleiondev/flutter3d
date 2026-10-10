@@ -52,10 +52,9 @@ const String _green = '[32m';
 const String _dim = '[2m';
 const String _off = '[0m';
 
-bool get _colour => stdout.supportsAnsiEscapes;
+bool get _color => stdout.supportsAnsiEscapes;
 
-String _paint(String text, String colour) =>
-    _colour ? '$colour$text$_off' : text;
+String _paint(String text, String color) => _color ? '$color$text$_off' : text;
 
 void main(List<String> args) {
   if (args.contains('--help') || args.contains('-h')) {
@@ -187,7 +186,7 @@ void main(List<String> args) {
   exit(1);
 }
 
-String _bold_(String text) => _colour ? '$_bold$text$_off' : text;
+String _bold_(String text) => _color ? '$_bold$text$_off' : text;
 
 const String _usage = '''
 Every rule about how this repository is arranged.
@@ -203,8 +202,11 @@ Every rule about how this repository is arranged.
                                         <text>, for the one that needs the
                                         shader bundle and so cannot run first
 
-Needs no `pub get`, no shader bundle and no device: every rule reads source
-text. It is the first step of tool/ci.sh for that reason.
+Needs no `pub get`, no shader bundle and no device: every rule but two reads
+source text. It is the first step of tool/ci.sh for that reason. The two are
+the snapshots — the API, and the MCP tools and VM extensions — which run
+tool/api and have nothing to run on a checkout that was never resolved;
+tool/ci.sh asks for both again by name after `pub get`.
 
 Where the rules and their exemptions live:
 

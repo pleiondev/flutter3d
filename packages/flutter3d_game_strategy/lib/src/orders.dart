@@ -24,7 +24,7 @@
 /// `order_tape.dart`.
 ///
 /// **Units are named by the numbers the save already uses.** An order that held
-/// `Unit` objects could not survive a document, and one that held a place in
+/// `StrategyUnit` objects could not survive a document, and one that held a place in
 /// `StrategySimulation.units` would name the wrong unit on the far side of a
 /// save: production makes units while a match runs, so that list is a different
 /// length by minute three. The entity index is what the snapshot writes down
@@ -62,7 +62,7 @@ sealed class StrategyOrder {
   /// about a world that has moved on — and a step that threw there would turn a
   /// stale click into a crash. The one place that must not be lenient is
   /// [orderFromJson], and it is not.
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd);
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd);
 }
 
 /// Send these units there, and stand in an arrangement when they arrive.
@@ -118,10 +118,10 @@ final class MoveOrder extends StrategyOrder {
   }
 
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
-    final List<Unit> found = <Unit>[
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
+    final List<StrategyUnit> found = <StrategyUnit>[
       for (final int index in units)
-        if (crowd[index] case final Unit unit) unit,
+        if (crowd[index] case final StrategyUnit unit) unit,
     ];
     if (found.isEmpty) return;
     // Through [Squad], which is where the arrangement lives and where the note
@@ -163,6 +163,7 @@ final class AssignOrder extends StrategyOrder {
   final int dropOff;
 
   /// How much the worker can carry at once.
+  /// In units of resource.
   final double capacity;
 
   /// How fast it fills, per second, standing at the seam.
@@ -188,8 +189,8 @@ final class AssignOrder extends StrategyOrder {
   );
 
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
-    final Unit? worker = crowd[unit];
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
+    final StrategyUnit? worker = crowd[unit];
     if (worker == null) return;
     if (node < 0 || node >= simulation.resources.length) return;
     if (dropOff < 0 || dropOff >= simulation.buildings.length) return;
@@ -244,11 +245,12 @@ final class AttackOrder extends StrategyOrder {
   /// squad walking to a patch of hillside for reasons nobody watching could
   /// reconstruct, and a stale click is exactly the case this leniency is for.
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
-    final Unit? mark = crowd[target];
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
+    final StrategyUnit? mark = crowd[target];
     if (mark == null) return;
     for (final int index in units) {
-      if (crowd[index] case final Unit hunter when !identical(hunter, mark)) {
+      if (crowd[index] case final StrategyUnit hunter
+          when !identical(hunter, mark)) {
         // The job goes, for the reason `Squad.moveTo` gives: a harvest loop
         // rewrites the order every step, so a worker told to fight without
         // being taken off its seam would go on digging and look disobedient.
@@ -310,7 +312,7 @@ final class TrainOrder extends StrategyOrder {
   );
 
   @override
-  void obey(StrategySimulation simulation, Map<int, Unit> crowd) {
+  void obey(StrategySimulation simulation, Map<int, StrategyUnit> crowd) {
     if (producer < 0 || producer >= simulation.producers.length) return;
     simulation.producers[producer].order(type, count: count);
   }
@@ -378,21 +380,21 @@ final class OrderQueue {
 
   /// Sends [units] to [goal] together, standing in [formation] on arrival.
   void moveTo(
-    Iterable<Unit> units,
+    Iterable<StrategyUnit> units,
     Vector3 goal, {
     Formation formation = const Formation.block(),
   }) => add(
     MoveOrder(
-      units: <int>[for (final Unit unit in units) unit.entity.index],
+      units: <int>[for (final StrategyUnit unit in units) unit.entity.index],
       goal: goal,
       formation: formation,
     ),
   );
 
   /// Sends [units] after [target].
-  void attackWith(Iterable<Unit> units, Unit target) => add(
+  void attackWith(Iterable<StrategyUnit> units, StrategyUnit target) => add(
     AttackOrder(
-      units: <int>[for (final Unit unit in units) unit.entity.index],
+      units: <int>[for (final StrategyUnit unit in units) unit.entity.index],
       target: target.entity.index,
     ),
   );
@@ -416,7 +418,7 @@ final class OrderQueue {
   /// while the caller still has them; an order that carried the objects would
   /// be an order that could not be written down.
   void assign(
-    Unit unit, {
+    StrategyUnit unit, {
     required ResourceNode node,
     required Building dropOff,
     double capacity = 10.0,
@@ -445,8 +447,9 @@ final class OrderQueue {
     // The crowd by entity index, built once for the whole batch rather than
     // searched per order: a click on a hundred units would otherwise walk the
     // whole crowd a hundred times.
-    final Map<int, Unit> crowd = <int, Unit>{
-      for (final Unit unit in _simulation.units) unit.entity.index: unit,
+    final Map<int, StrategyUnit> crowd = <int, StrategyUnit>{
+      for (final StrategyUnit unit in _simulation.units)
+        unit.entity.index: unit,
     };
     for (final StrategyOrder order in _waiting) {
       order.obey(_simulation, crowd);

@@ -3,7 +3,7 @@
 ///
 /// `ShooterActions` exists so that the engine's input layer need not know that
 /// games shoot — its own doc says so — and the price of that is exactly this:
-/// `fire` and `crouch` are not in `DesktopInput.defaultBindings`, and the game
+/// `fire` and `crouch` are not in `DesktopInput.addDefaultsTo`, and the game
 /// has to put them in. `fire` was put in, at the pad, by hand, in two places
 /// that had to agree. `crouch` was put in nowhere at all, on any device, so
 /// `player.crouch(held: input.held(ShooterActions.crouch))` — which the
@@ -29,3 +29,13 @@ Bindings addShooterKeysTo(Bindings bindings) => bindings
   ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire)
   ..bind(InputSource.key(LogicalKeyboardKey.keyC.keyId), ShooterActions.crouch)
   ..bind(InputSource.pad(PadButton.stickRightClick.id), ShooterActions.crouch);
+
+/// The crypt's controls as an action map over [ShooterActions.set]: the
+/// engine's walking defaults, the pad's, this genre's own above, and the
+/// mouse's motion bound to looking so the settings screen has its
+/// sensitivity and its inverted look on the binding they belong to.
+ActionMap shooterActionMap() {
+  final map = DesktopInput.defaultActionMap(ShooterActions.set);
+  addShooterKeysTo(map.buttons);
+  return map;
+}

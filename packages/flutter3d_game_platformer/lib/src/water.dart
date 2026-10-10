@@ -12,36 +12,61 @@
 /// format needed nothing new.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// How a body behaves in water.
 ///
-/// **Separate from [RunnerTuning] on purpose.** A level with two pools — a
+/// **Separate from [RunnerSettings] on purpose.** A level with two pools — a
 /// shallow one to cross and a tar pit that nearly holds you — says so by
 /// giving them different tuning, and a game with one kind of water passes the
 /// same object twice. Putting these on the runner would have made every pool
 /// in a level identical.
-final class SwimTuning {
-  const SwimTuning({
-    this.buoyancy = 6.0,
+final class SwimSettings {
+  const SwimSettings({
+    this.buoyancyRatio = 0.25,
     this.sinkSpeed = 2.0,
     this.riseSpeed = 3.0,
     this.drag = 3.0,
     this.speed = 3.4,
   });
 
-  /// Upward acceleration while submerged, in metres per second squared.
+  /// A copy with the given fields replaced.
+  SwimSettings copyWith({
+    double? buoyancyRatio,
+    double? sinkSpeed,
+    double? riseSpeed,
+    double? drag,
+    double? speed,
+  }) => SwimSettings(
+    buoyancyRatio: buoyancyRatio ?? this.buoyancyRatio,
+    sinkSpeed: sinkSpeed ?? this.sinkSpeed,
+    riseSpeed: riseSpeed ?? this.riseSpeed,
+    drag: drag ?? this.drag,
+    speed: speed ?? this.speed,
+  );
+
+  /// The water's push up on a submerged runner, as a fraction of the gravity
+  /// the runner falls by: a ratio, no unit. The default quarter is the 6 m/s²
+  /// it always was under the run's 24.
   ///
-  /// **Below gravity on purpose**, so a runner who does nothing sinks slowly
+  /// **Below one on purpose**, so a runner who does nothing sinks slowly
   /// rather than bobbing to the top: floating up by itself reads as a bug the
   /// first time a player wants to reach something underneath.
-  final double buoyancy;
+  ///
+  /// **A share of gravity, not an acceleration**, because Archimedes' push is
+  /// the displaced water's weight — ρ_water·V·g — and so goes with g as the
+  /// fall does. Before 1.0 it was `buoyancy`, a fixed 6 m/s², and in a level
+  /// set on the Moon (1.62 m/s²) that pushed a runner up nearly four times
+  /// harder than the Moon pulled him down: he flew out of every pool.
+  final double buoyancyRatio;
 
   /// The fastest a runner sinks, in metres a second.
   final double sinkSpeed;
 
   /// How fast holding jump carries a runner upwards.
+  /// In metres per second.
   final double riseSpeed;
 
   /// How hard the water slows horizontal movement, per second.
@@ -60,7 +85,7 @@ final class Water extends Mechanism {
   Water({
     super.name,
     required this.collider,
-    this.tuning = const SwimTuning(),
+    this.tuning = const SwimSettings(),
   }) {
     collider
       ..kind = ColliderKind.trigger
@@ -68,7 +93,7 @@ final class Water extends Mechanism {
   }
 
   final Collider collider;
-  final SwimTuning tuning;
+  final SwimSettings tuning;
 
   @override
   Vector3 get origin => collider.position;

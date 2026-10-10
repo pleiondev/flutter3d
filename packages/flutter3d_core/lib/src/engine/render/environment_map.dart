@@ -1,9 +1,15 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show Flutter3dFormatException;
 import 'package:vector_math/vector_math.dart';
 
+import '../assets/image_decoder.dart';
 import 'sky_settings.dart';
 
 /// Builds the cube a surface reflects: one environment, convolved by roughness.
@@ -30,6 +36,12 @@ import 'sky_settings.dart';
 /// 512-pixel one is not something to do while a level is on screen — that
 /// size wants uploading as a base level and filtering the way a probe is.
 abstract final class EnvironmentMap {
+  /// Whether [device] can hold the cube every `from…` builds — ask before
+  /// building one, since a device without cubes is refused with
+  /// `UnsupportedCapability` (it answered null before 1.0).
+  static bool isSupportedOn(GraphicsDevice device) =>
+      device.features.has(DeviceFeature.cubeTextures);
+
   /// Faces in the order the hardware layer documents: +X, −X, +Y, −Y, +Z, −Z.
   ///
   /// [size] is the edge of the base level, which is also the sharpest
@@ -148,9 +160,11 @@ abstract final class EnvironmentMap {
   /// authoring — the six faces are rendered from [sky] by asking it the
   /// direction each texel looks along.
   ///
-  /// Returns null when the device cannot hold a cube, when the sky is off, or
-  /// when the upload refuses — in every case leaving the flat ambient doing the
-  /// work it did before.
+  /// **Throws rather than answering null, since 1.0** (decision 4):
+  /// `UnsupportedCapability` where the device cannot hold a cube (ask
+  /// [isSupportedOn]), an [ArgumentError] for a sky that is off, and the
+  /// device's `DeviceResourceException` where the upload refuses. A caller
+  /// that would rather keep the flat ambient asks first.
   ///
   /// **Low dynamic range, and that is a real limitation rather than an
   /// oversight.** The faces are eight bits a channel, so a sun bright enough to
@@ -158,42 +172,41 @@ abstract final class EnvironmentMap {
   /// than it should. A float format would fix it and costs four times the
   /// memory and a conformance answer from every backend; this is the version
   /// worth having first.
-  static ({TextureHandle texture, int levels})? fromSky(
+  static ({TextureHandle texture, int levels}) fromSky(
     GraphicsDevice device,
     SkySettings sky, {
     int size = 32,
     int levels = 4,
   }) {
-    if (!device.supportsCubeTextures || !sky.enabled) return null;
+    _requireCubes(device);
+    if (!sky.enabled) {
+      throw ArgumentError.value(
+        sky,
+        'sky',
+        'is off, so it has no environment to give; ask sky.enabled first',
+      );
+    }
 
     final faces = <ByteData>[];
-    final colour = Vector3.zero();
+    final color = Vector3.zero();
     for (var face = 0; face < 6; face++) {
       final data = ByteData(size * size * 4);
       for (var y = 0; y < size; y++) {
         for (var x = 0; x < size; x++) {
           final u = (x + 0.5) / size * 2.0 - 1.0;
           final v = (y + 0.5) / size * 2.0 - 1.0;
-          colour.setFrom(sky.sample(_directionFor(face, u, v)));
+          color.setFrom(sky.sample(_directionFor(face, u, v)));
           final at = (y * size + x) * 4;
-          data.setUint8(at, (colour.x * 255.0).round().clamp(0, 255));
-          data.setUint8(at + 1, (colour.y * 255.0).round().clamp(0, 255));
-          data.setUint8(at + 2, (colour.z * 255.0).round().clamp(0, 255));
+          data.setUint8(at, (color.x * 255.0).round().clamp(0, 255));
+          data.setUint8(at + 1, (color.y * 255.0).round().clamp(0, 255));
+          data.setUint8(at + 2, (color.z * 255.0).round().clamp(0, 255));
           data.setUint8(at + 3, 255);
         }
       }
       faces.add(data);
     }
 
-    final chain = prefilter(faces, size: size, levels: levels);
-    if (chain == null) return null;
-    final texture = device.createCubeTextureFromPixels(
-      size: size,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      faces: faces,
-      mipLevels: chain,
-    );
-    return texture == null ? null : (texture: texture, levels: levels);
+    return _upload(device, faces, size: size, levels: levels);
   }
 
   /// The same thing from a panorama the caller already has as pixels —
@@ -212,10 +225,11 @@ abstract final class EnvironmentMap {
   /// reason and with more cost: a sun four hundred times brighter than the
   /// sky around it clamps to white.
   ///
-  /// Null where the device has no cube textures, where the pixels do not
-  /// match the size given, or where the upload refuses — the same "cost a
-  /// texture, not a frame" rule the rest of this class keeps.
-  static ({TextureHandle texture, int levels})? fromPanorama(
+  /// Throws `UnsupportedCapability` where the device has no cube textures
+  /// ([isSupportedOn]), an [ArgumentError] where the pixels do not match the
+  /// size given, and the device's `DeviceResourceException` where the upload
+  /// refuses.
+  static ({TextureHandle texture, int levels}) fromPanorama(
     GraphicsDevice device,
     ByteData panorama, {
     required int width,
@@ -223,23 +237,129 @@ abstract final class EnvironmentMap {
     int size = 32,
     int levels = 4,
   }) {
-    if (!device.supportsCubeTextures) return null;
-    final List<ByteData>? faces = equirectToCubeFaces(
-      panorama,
-      width: width,
-      height: height,
-      size: size,
-    );
-    if (faces == null) return null;
-    final chain = prefilter(faces, size: size, levels: levels);
-    if (chain == null) return null;
+    _requireCubes(device);
+    final faces =
+        equirectToCubeFaces(
+          panorama,
+          width: width,
+          height: height,
+          size: size,
+        ) ??
+        (throw ArgumentError.value(
+          panorama,
+          'panorama',
+          'is not ${width}x$height RGBA8 pixels with a positive cube size',
+        ));
+    return _upload(device, faces, size: size, levels: levels);
+  }
+
+  static void _requireCubes(GraphicsDevice device) {
+    if (!isSupportedOn(device)) {
+      throw UnsupportedCapability(
+        DeviceFeature.cubeTextures,
+        backend: device.backendName,
+        reason: 'an environment map is a cube',
+      );
+    }
+  }
+
+  static ({TextureHandle texture, int levels}) _upload(
+    GraphicsDevice device,
+    List<ByteData> faces, {
+    required int size,
+    required int levels,
+  }) {
+    final chain =
+        prefilter(faces, size: size, levels: levels) ??
+        (throw ArgumentError.value(levels, 'levels', 'must be at least one'));
     final texture = device.createCubeTextureFromPixels(
       size: size,
       format: TextureFormat.r8g8b8a8UNormInt,
       faces: faces,
       mipLevels: chain,
     );
-    return texture == null ? null : (texture: texture, levels: levels);
+    return (texture: texture, levels: levels);
+  }
+
+  /// The same thing from a panorama file's bytes: a Radiance `.hdr`, or any
+  /// image [decodeImage] reads.
+  ///
+  /// **The file, not the pixels, because a file is what changes.** A game
+  /// that loads its sky from an asset and wants the edit drawn under a hot
+  /// swap has the bytes and nothing else; deciding which decoder they need
+  /// belongs beside the upload rather than at every caller that watches a
+  /// file. A `.hdr` is told apart by its header, so the name of the file
+  /// plays no part.
+  ///
+  /// Throws a [PanoramaFormatException] for bytes neither reader takes, and
+  /// everything [fromPanorama] throws.
+  static Future<({TextureHandle texture, int levels})> fromEncoded(
+    GraphicsDevice device,
+    Uint8List bytes, {
+    required ImageDecoder decodeImage,
+    int size = 32,
+    int levels = 4,
+  }) async {
+    final ({ByteData pixels, int width, int height})? panorama =
+        hdrSizeOf(bytes) != null
+        ? _fromHdr(bytes)
+        : switch (await decodeImage(bytes)) {
+            final Rgba8Image image => (
+              pixels: ByteData.sublistView(image.pixels),
+              width: image.width,
+              height: image.height,
+            ),
+            null => null,
+          };
+    if (panorama == null) {
+      throw const PanoramaFormatException(
+        'the bytes are neither a Radiance .hdr nor an image the decoder '
+        'reads',
+      );
+    }
+    return fromPanorama(
+      device,
+      panorama.pixels,
+      width: panorama.width,
+      height: panorama.height,
+      size: size,
+      levels: levels,
+    );
+  }
+
+  static ({ByteData pixels, int width, int height})? _fromHdr(Uint8List bytes) {
+    try {
+      final HdrImage image = readHdr(bytes);
+      return (
+        pixels: hdrToRgba8(image),
+        width: image.width,
+        height: image.height,
+      );
+    } on HdrFormatException {
+      return null;
+    }
+  }
+
+  /// A Radiance image as the RGBA8 [fromPanorama] reads.
+  ///
+  /// **Clamped rather than tone-mapped.** The cube is eight bits a channel —
+  /// [fromSky] says why, and that this is a real limitation — so a sun four
+  /// hundred times brighter than the sky around it becomes white either way.
+  /// Rolling the highlights off first would darken everything else to buy
+  /// detail in a region the cube cannot hold anyway, and would make the
+  /// indirect light a panorama gives differ from the indirect light the same
+  /// picture gives as a PNG.
+  static ByteData hdrToRgba8(HdrImage image) {
+    int byte(double value) => (value * 255.0).round().clamp(0, 255);
+    final out = ByteData(image.width * image.height * 4);
+    for (var i = 0; i < image.width * image.height; i++) {
+      out
+        ..setUint8(i * 4, byte(image.rgb[i * 3]))
+        ..setUint8(i * 4 + 1, byte(image.rgb[i * 3 + 1]))
+        ..setUint8(i * 4 + 2, byte(image.rgb[i * 3 + 2]))
+        ..setUint8(i * 4 + 3, 255);
+    }
+    return out;
   }
 
   /// Which level of the chain a shader should treat as the diffuse term.
@@ -430,4 +550,16 @@ List<ByteData> _convolve(
     out.add(data);
   }
   return out;
+}
+
+/// Bytes [EnvironmentMap.fromEncoded] was handed that are neither a Radiance
+/// `.hdr` nor an image its decoder reads.
+final class PanoramaFormatException extends Flutter3dFormatException {
+  const PanoramaFormatException(this.message);
+
+  @override
+  final String message;
+
+  @override
+  String toString() => 'PanoramaFormatException: $message';
 }

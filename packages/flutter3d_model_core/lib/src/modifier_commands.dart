@@ -485,10 +485,4 @@ Modifier? _modifierFieldSet(Modifier modifier, String field, Object? value) =>
 /// number/bool/three-number value fits, and nothing yet needs to move a
 /// boolean's own operand from a command rather than from whatever rebuilds
 /// it alongside the operand object's own transform.
-CsgOperation? _csgOperationNamed(Object? value) {
-  if (value is! String) return null;
-  for (final operation in CsgOperation.values) {
-    if (operation.name == value) return operation;
-  }
-  return null;
-}
+CsgOperation? _csgOperationNamed(Object? value) => csgOperationOf(value);

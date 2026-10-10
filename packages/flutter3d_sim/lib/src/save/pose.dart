@@ -14,7 +14,7 @@ final class Pose {
 
   final Vector3 position = Vector3.zero();
 
-  /// Which way it was facing, about the vertical.
+  /// Which way it was facing, in radians about the vertical.
   double yaw;
 
   /// Which way was up.

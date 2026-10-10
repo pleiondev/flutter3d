@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../asset_resolver.dart';
+import '../format_exceptions.dart';
 
 /// A parsed glTF container: the JSON document plus the optional binary chunk.
 final class GlbContainer {
@@ -37,24 +38,26 @@ final class GlbContainer {
     try {
       decoded = jsonDecode(utf8.decode(bytes));
     } catch (error) {
-      throw FormatException('Not a glTF file: JSON parse failed ($error).');
+      throw GltfFormatException('Not a glTF file: JSON parse failed ($error).');
     }
     if (decoded is! Map<String, Object?>) {
-      throw const FormatException('glTF root must be a JSON object.');
+      throw const GltfFormatException('glTF root must be a JSON object.');
     }
     return GlbContainer(json: decoded);
   }
 
   factory GlbContainer._parseBinary(Uint8List bytes) {
     if (bytes.length < 12) {
-      throw const FormatException('GLB truncated: header needs 12 bytes.');
+      throw const GltfFormatException('GLB truncated: header needs 12 bytes.');
     }
     final data = ByteData.sublistView(bytes);
     final version = data.getUint32(4, Endian.little);
     final declaredLength = data.getUint32(8, Endian.little);
 
     if (version != 2) {
-      throw FormatException('Unsupported GLB version $version, expected 2.');
+      throw GltfFormatException(
+        'Unsupported GLB version $version, expected 2.',
+      );
     }
     // Trust the smaller of the two: a declared length beyond the actual buffer
     // would let chunk parsing read past the end.
@@ -73,7 +76,7 @@ final class GlbContainer {
       final chunkEnd = chunkStart + chunkLength;
 
       if (chunkEnd > totalLength) {
-        throw FormatException(
+        throw GltfFormatException(
           'GLB chunk at $offset claims $chunkLength bytes but only '
           '${totalLength - chunkStart} remain.',
         );
@@ -87,7 +90,7 @@ final class GlbContainer {
           );
           final decoded = jsonDecode(text);
           if (decoded is! Map<String, Object?>) {
-            throw const FormatException('GLB JSON chunk is not an object.');
+            throw const GltfFormatException('GLB JSON chunk is not an object.');
           }
           json = decoded;
         case _kChunkBin:
@@ -102,7 +105,7 @@ final class GlbContainer {
     }
 
     if (json == null) {
-      throw const FormatException('GLB has no JSON chunk.');
+      throw const GltfFormatException('GLB has no JSON chunk.');
     }
     return GlbContainer(json: json, binaryChunk: binary);
   }
@@ -167,14 +170,14 @@ final class GlbContainer {
     for (var i = 0; i < buffers.length; i++) {
       final buffer = buffers[i];
       if (buffer is! Map) {
-        throw FormatException('buffers[$i] is not an object.');
+        throw GltfFormatException('buffers[$i] is not an object.');
       }
       final uri = buffer['uri'];
 
       if (uri == null) {
         final chunk = binaryChunk;
         if (chunk == null) {
-          throw FormatException(
+          throw GltfFormatException(
             'buffers[$i] has no uri but there is no GLB binary chunk. '
             'A .gltf file cannot omit the uri.',
           );
@@ -183,7 +186,7 @@ final class GlbContainer {
         continue;
       }
       if (uri is! String) {
-        throw FormatException('buffers[$i].uri is not a string.');
+        throw GltfFormatException('buffers[$i].uri is not a string.');
       }
 
       if (uri.startsWith('data:')) {
@@ -192,7 +195,7 @@ final class GlbContainer {
       }
 
       if (resolveUri == null) {
-        throw FormatException(
+        throw GltfFormatException(
           'buffers[$i] points at "$uri" but no URI resolver was supplied. '
           'Pass resolveUri to load .gltf files with external buffers.',
         );
@@ -211,7 +214,7 @@ final class GlbContainer {
 Uint8List decodeDataUri(String uri) {
   final comma = uri.indexOf(',');
   if (comma < 0) {
-    throw FormatException('Malformed data URI: no comma. "${_clip(uri)}"');
+    throw GltfFormatException('Malformed data URI: no comma. "${_clip(uri)}"');
   }
   final meta = uri.substring(5, comma);
   final payload = uri.substring(comma + 1);

@@ -19,7 +19,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// An unlit quad against a flat background, smoothed and optionally sharpened.
 ///
@@ -46,9 +45,9 @@ Future<List<int>> _edge({
     scene.add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3(1, 4, 1)).build()),
-        Material(
+        RenderMaterial(
           name: 'flat',
-          baseColor: Vector4(surface, surface, surface, 1.0),
+          baseColor: LinearColor.fromSrgb(surface, surface, surface, 1.0),
           lighting: LightingModel.unlit,
         ),
       ),
@@ -63,7 +62,7 @@ Future<List<int>> _edge({
     views: <RenderView>[
       RenderView(
         camera: scene.cameras.single,
-        clearColor: Vector4(background, background, background, 1.0),
+        clearColorSrgb: Vector4(background, background, background, 1.0),
       ),
     ],
     // Undithered: the composite's dither is a pattern a flat frame carries
@@ -75,11 +74,11 @@ Future<List<int>> _edge({
     ),
   );
 
-  final bytes = await device.readPixels(frame.frame);
+  final bytes = await device.readback(frame.frame);
   // The middle row, which crosses both of the quad's vertical edges.
   final row = height ~/ 2;
   return <int>[
-    for (var x = 0; x < width; x++) bytes!.getUint8((row * width + x) * 4),
+    for (var x = 0; x < width; x++) bytes.getUint8((row * width + x) * 4),
   ];
 }
 
@@ -95,7 +94,7 @@ int _steepest(List<int> row) {
 
 void main() {
   test('zero is an exact identity, and is the default', () async {
-    // Seventy-eight goldens go through this pass. The shader returns the centre
+    // 96 goldens go through this pass. The shader returns the centre
     // untouched at zero rather than running a kernel that rounds to nothing,
     // because "rounds to nothing" is a claim about the target's bit depth.
     expect(const AntiAliasSettings().sharpen, 0.0);

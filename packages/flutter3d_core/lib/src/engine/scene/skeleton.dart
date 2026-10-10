@@ -66,6 +66,12 @@ final class Skeleton {
 
   int get jointCount => joints.length;
 
+  /// Joint [index] in its bind pose, in the skinned mesh's own space: the
+  /// inverse of its inverse bind matrix. Times the mesh's world matrix, where
+  /// the joint stood when the skin was bound — the rest a ragdoll takes its
+  /// joints' limits from.
+  Matrix4 bindPoseOf(int index) => Matrix4.inverted(_inverseBind[index]);
+
   final Matrix4 _scratch = Matrix4.identity();
   final Matrix4 _measure = Matrix4.identity();
 

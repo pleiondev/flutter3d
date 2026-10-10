@@ -1,4 +1,4 @@
-/// `DebugDrawOptions.normals`, drawn rather than assembled.
+/// `DebugDrawSettings.normals`, drawn rather than assembled.
 ///
 ///     flutter test test/debug_normals_test.dart
 ///
@@ -21,7 +21,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -39,9 +38,9 @@ const int _height = 72;
           CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
           keepSourceData: keepSource,
         ),
-        Material(
+        RenderMaterial(
           name: 'cube',
-          baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+          baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
           lighting: LightingModel.lambert,
         ),
         name: 'cube',
@@ -57,7 +56,7 @@ const int _height = 72;
 /// The frame and how many debug segments went into it.
 Future<({List<int> pixels, int lines})> _draw(
   ({CpuDevice device, Scene scene, CameraNode camera}) it,
-  DebugDrawOptions debug,
+  DebugDrawSettings debug,
 ) async {
   final renderer = Renderer.create(
     device: it.device,
@@ -74,9 +73,9 @@ Future<({List<int> pixels, int lines})> _draw(
       debug: debug,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return (pixels: pixels!.buffer.asUint8List(), lines: result.debugLines);
+  return (pixels: pixels.buffer.asUint8List(), lines: result.debugLines);
 }
 
 void main() {
@@ -86,8 +85,8 @@ void main() {
     // `buildForScene` and stops there, `debugLines` comes back zero and the two
     // frames are identical, which is what this backend drew before.
     final it = _cube(keepSource: true);
-    final off = await _draw(it, const DebugDrawOptions());
-    final on = await _draw(it, const DebugDrawOptions(normals: true));
+    final off = await _draw(it, const DebugDrawSettings());
+    final on = await _draw(it, const DebugDrawSettings(normals: true));
 
     expect(off.lines, 0, reason: 'nothing was asked for');
     expect(
@@ -116,9 +115,9 @@ void main() {
     final it = _cube(keepSource: false);
     final on = await _draw(
       it,
-      const DebugDrawOptions(normals: true, bounds: true),
+      const DebugDrawSettings(normals: true, bounds: true),
     );
-    final bounds = await _draw(it, const DebugDrawOptions(bounds: true));
+    final bounds = await _draw(it, const DebugDrawSettings(bounds: true));
 
     expect(
       on.lines,

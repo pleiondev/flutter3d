@@ -4,7 +4,7 @@
 draws through.
 
 ```dart
-final device = await GpuRenderBackend.create();
+final device = await GpuRenderBackend.open();
 final renderer = Renderer.create(device: device);
 ```
 

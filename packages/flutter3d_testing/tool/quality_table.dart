@@ -24,6 +24,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_testing/src/quality_table_builder.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -33,9 +35,11 @@ const int _height = 80;
 const String _out =
     '../flutter3d_core/lib/src/engine/render/tables/quality_tables.dart';
 
-MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 colour) => MeshNode(
+MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 color) => MeshNode(
   DeviceMesh.upload(device, CuboidShape(size: size).build()),
-  Material(baseColor: Vector4(colour.x, colour.y, colour.z, 1.0)),
+  RenderMaterial(
+    baseColor: LinearColor.fromSrgb(color.x, color.y, color.z, 1.0),
+  ),
 );
 
 /// A room in daylight: a floor, a wall, crates, the sun casting and a lamp,
@@ -70,16 +74,16 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 colour) => MeshNode(
   }
   scene
     ..add(
-      LightNode(intensity: 3.0)
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
         ..setPosition(3.0, 6.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
     ..add(
       LightNode(
         type: LightType.point,
-        intensity: 4.0,
+        intensity: 4.0 * Photometric.legacyUnit,
         range: 6.0,
-        color: Vector3(1.0, 0.7, 0.4),
+        color: LinearColor(1.0, 0.7, 0.4),
       )..setPosition(1.0, 1.5, 1.0),
     );
   return (
@@ -118,7 +122,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 colour) => MeshNode(
     }
   }
   scene.add(
-    LightNode(intensity: 4.0)
+    LightNode(intensity: 4.0 * Photometric.legacyUnit)
       ..setPosition(-6.0, 3.0, -2.0)
       ..lookAt(Vector3(0.0, 0.0, 1.0)),
   );
@@ -130,7 +134,7 @@ MeshNode _box(GraphicsDevice device, Vector3 size, Vector3 colour) => MeshNode(
       volumetricFog: const VolumetricFogSettings(
         enabled: true,
         density: 0.08,
-      ).copyWith(ambient: Vector3.all(0.05)),
+      ).copyWith(ambient: Vector3.all(0.05).toLinearColor()),
       lightShafts: const LightShaftSettings(enabled: true),
     ),
   );

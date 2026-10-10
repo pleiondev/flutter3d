@@ -1,33 +1,33 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter3d_net/flutter3d_net.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-/// A [NetTransport] over a real WebRTC data channel — [NetSession]'s frames
-/// travel peer to peer once this finishes connecting, and [signalling]
+/// A [PeerWire] over a real WebRTC data channel — [RollbackSession]'s frames
+/// travel peer to peer once this finishes connecting, and [signaling]
 /// carries only the handful of messages that set that up.
 ///
-/// **[signalling] is any [NetTransport], most often a [WebSocketTransport]
+/// **[signaling] is any [PeerWire], most often a [WebSocketTransport]
 /// pointed at `net-02`'s relay.** That is the whole of the relay's role
 /// once a [WebRtcTransport] is in use: an offer, an answer, and each side's
 /// ICE candidates as they are found — after [ready] completes, nothing
-/// this class sends or receives touches [signalling] again, which is the
+/// this class sends or receives touches [signaling] again, which is the
 /// difference net-02's own doc draws between this transport and
 /// [WebSocketTransport]'s fallback, where the relay carries every frame for
 /// as long as the room stays open.
 ///
-/// One side must call [createOffer] and the other [awaitOffer] — a data
-/// channel is opened by whichever side calls [createOffer], and
-/// [NetSession] does not care which peer that is, only that exactly one of
+/// One side must call [openOffering] and the other [openAnswering] — a data
+/// channel is opened by whichever side calls [openOffering], and
+/// [RollbackSession] does not care which peer that is, only that exactly one of
 /// them does.
-final class WebRtcTransport implements NetTransport {
-  WebRtcTransport._(this._peerConnection, this._signalling);
+final class WebRtcTransport extends PeerWire {
+  WebRtcTransport._(this._peerConnection, this._signaling);
 
   final RTCPeerConnection _peerConnection;
-  final NetTransport _signalling;
+  final PeerWire _signaling;
   RTCDataChannel? _dataChannel;
-  void Function(Map<String, Object?> message)? _listener;
   final _readyCompleter = Completer<void>();
 
   /// Completes once the data channel has actually opened — [send] before
@@ -48,12 +48,12 @@ final class WebRtcTransport implements NetTransport {
 
   static void _wireSignalling(
     RTCPeerConnection connection,
-    NetTransport signalling,
+    PeerWire signaling,
   ) {
     connection.onIceCandidate = (candidate) {
       final value = candidate.candidate;
       if (value == null) return;
-      signalling.send(<String, Object?>{
+      signaling.send(<String, Object?>{
         'kind': 'ice',
         'candidate': value,
         'sdpMid': candidate.sdpMid,
@@ -63,12 +63,12 @@ final class WebRtcTransport implements NetTransport {
   }
 
   /// The offering side: opens the data channel, sends an SDP offer over
-  /// [signalling], and finishes the handshake once an answer and the far
+  /// [signaling], and finishes the handshake once an answer and the far
   /// side's ICE candidates arrive on it.
-  static Future<WebRtcTransport> createOffer(NetTransport signalling) async {
+  static Future<WebRtcTransport> openOffering(PeerWire signaling) async {
     final connection = await _openConnection();
-    final transport = WebRtcTransport._(connection, signalling);
-    _wireSignalling(connection, signalling);
+    final transport = WebRtcTransport._(connection, signaling);
+    _wireSignalling(connection, signaling);
 
     final channel = await connection.createDataChannel(
       'net-01',
@@ -76,24 +76,24 @@ final class WebRtcTransport implements NetTransport {
     );
     transport._bindDataChannel(channel);
 
-    signalling.listen(transport._onSignallingMessage);
+    signaling.listen(transport._onSignallingMessage);
 
     final offer = await connection.createOffer();
     await connection.setLocalDescription(offer);
-    signalling.send(<String, Object?>{'kind': 'offer', 'sdp': offer.sdp});
+    signaling.send(<String, Object?>{'kind': 'offer', 'sdp': offer.sdp});
 
     return transport;
   }
 
-  /// The answering side: waits for an offer on [signalling], accepts the
+  /// The answering side: waits for an offer on [signaling], accepts the
   /// data channel the offering side opened, and answers.
-  static Future<WebRtcTransport> awaitOffer(NetTransport signalling) async {
+  static Future<WebRtcTransport> openAnswering(PeerWire signaling) async {
     final connection = await _openConnection();
-    final transport = WebRtcTransport._(connection, signalling);
-    _wireSignalling(connection, signalling);
+    final transport = WebRtcTransport._(connection, signaling);
+    _wireSignalling(connection, signaling);
 
     connection.onDataChannel = transport._bindDataChannel;
-    signalling.listen(transport._onSignallingMessage);
+    signaling.listen(transport._onSignallingMessage);
 
     return transport;
   }
@@ -107,9 +107,17 @@ final class WebRtcTransport implements NetTransport {
       }
     };
     channel.onMessage = (message) {
-      if (message.isBinary) return;
-      final decoded = jsonDecode(message.text);
-      if (decoded is Map<String, Object?>) _listener?.call(decoded);
+      if (message.isBinary) {
+        deliverBytes(message.binary);
+        return;
+      }
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(message.text);
+      } on FormatException {
+        return;
+      }
+      if (decoded is Map<String, Object?>) deliver(decoded);
     };
   }
 
@@ -121,10 +129,7 @@ final class WebRtcTransport implements NetTransport {
         );
         final answer = await _peerConnection.createAnswer();
         await _peerConnection.setLocalDescription(answer);
-        _signalling.send(<String, Object?>{
-          'kind': 'answer',
-          'sdp': answer.sdp,
-        });
+        _signaling.send(<String, Object?>{'kind': 'answer', 'sdp': answer.sdp});
       case 'answer':
         await _peerConnection.setRemoteDescription(
           RTCSessionDescription(message['sdp']! as String, 'answer'),
@@ -141,7 +146,7 @@ final class WebRtcTransport implements NetTransport {
   }
 
   @override
-  void send(Map<String, Object?> message) {
+  void send(Map<String, Object?> message, {bool reliable = true}) {
     final channel = _dataChannel;
     if (channel == null) {
       throw StateError('send called before the data channel was created');
@@ -149,12 +154,21 @@ final class WebRtcTransport implements NetTransport {
     channel.send(RTCDataChannelMessage(jsonEncode(message)));
   }
 
+  /// A binary message on the data channel, as it is: no base64, no JSON.
+  /// The far side delivers it to its byte listeners whether it overrides
+  /// this or not.
   @override
-  void listen(void Function(Map<String, Object?> message) onMessage) =>
-      _listener = onMessage;
+  void sendBytes(Uint8List bytes, {bool reliable = true}) {
+    final channel = _dataChannel;
+    if (channel == null) {
+      throw StateError('sendBytes called before the data channel was created');
+    }
+    channel.send(RTCDataChannelMessage.fromBinary(bytes));
+  }
 
   /// Tears down the data channel and the peer connection. Safe to call more
   /// than once.
+  @override
   Future<void> close() async {
     await _dataChannel?.close();
     await _peerConnection.close();

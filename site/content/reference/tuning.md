@@ -14,13 +14,13 @@ How a game feels is a few dozen numbers, and this page says where each of them i
 
 | What you want to change | Class | Package |
 |---|---|---|
-| Walking, gravity, jump height | `MovementTuning` | `flutter3d_physics` |
-| Double jumps, dashes, wall slides, ground pounds | `RunnerTuning` | `flutter3d_game_platformer` |
+| Walking, gravity, jump height | `MovementSettings` | `flutter3d_physics` |
+| Double jumps, dashes, wall slides, ground pounds | `RunnerSettings` | `flutter3d_game_platformer` |
 | Weapons | `WeaponDef` | `flutter3d_game_shooter` |
 | Monsters | `MonsterDef`, gathered into a `Bestiary` | `flutter3d_game_shooter` |
-| How a car drives | `VehicleTuning`, `Tyres` | `flutter3d_game_racing` |
-| How hard the AI drivers are | `AiTuning` | `flutter3d_game_racing` |
-| Where the camera sits | `RigTuning`, `FollowTuning`, `ChaseTuning` | `flutter3d_game`, the two genres |
+| How a car drives | `VehicleSettings`, `TireSet` | `flutter3d_game_racing` |
+| How hard the AI drivers are | `AiSettings` | `flutter3d_game_racing` |
+| Where the camera sits | `RigSettings`, `FollowSettings`, `ChaseSettings` | `flutter3d_game`, the two genres |
 | Shadows, bloom, fog, exposure, colour | `ShadowSettings` and the rest of `RenderSettings` | `flutter3d` |
 | How much time a frame may give to work that can wait | `RenderSettings.frameWorkBudget` | `flutter3d` |
 | What frame time the picture is held to, and how eagerly it recovers | `AdaptiveQualitySettings` | `flutter3d` |
@@ -34,16 +34,16 @@ How a game feels is a few dozen numbers, and this page says where each of them i
 
 ## Movement
 
-`MovementTuning` is what every body in every genre stands on, player and monster alike.
+`MovementSettings` is what every body in every genre stands on, player and monster alike.
 
 ```dart
-const MovementTuning(
+const MovementSettings(
   walkSpeed: 6.0,            // sprintSpeed is 10.0
   groundAcceleration: 70.0,  // how fast it reaches that speed
   groundFriction: 55.0,      // and how fast it stops
   airAcceleration: 14.0,     // control in the air, deliberately much lower
   gravity: 24.0,             // 9.81 feels like a documentary
-  jumpSpeed: 8.0,            // straight up, metres per second
+  jumpSpeed: 8.0,            // straight up, meters per second
   stepHeight: 0.4,           // a kerb it walks over instead of into
   coyoteTime: 0.1,           // a jump still counts this long after a ledge
   jumpBufferTime: 0.1,       // and this long before landing
@@ -58,7 +58,7 @@ The two forgiveness numbers at the end are the ones a player feels and cannot na
 
 ## What a platformer adds on top
 
-`RunnerTuning` is the second layer, and it is large because a platformer is a verb list. A sample of it, with the shipped defaults:
+`RunnerSettings` is the second layer, and it is large because a platformer is a verb list. A sample of it, with the shipped defaults:
 
 | | | |
 |---|---|---|
@@ -80,7 +80,7 @@ The shipped shotgun, from `flutter3d_game_shooter`'s sample arsenal:
 ```dart
 const WeaponDef(
   name: 'Shotgun',
-  behaviour: HitscanBehaviour(),   // or MeleeBehaviour, or ProjectileBehaviour
+  behavior: HitscanBehavior(),   // or MeleeBehavior, or ProjectileBehavior
   ammo: AmmoType.shells,
   damage: 11.0,                    // per ray
   shotsPerSecond: 1.4,
@@ -107,7 +107,7 @@ The catalogue is handed to `Bestiary` rather than reached for, so a second shoot
 
 ## Cars
 
-`VehicleTuning` is a car, and `Tyres` is what it is standing on. The engine numbers are the obvious half:
+`VehicleSettings` is a car, and `TireSet` is what it is standing on. The engine numbers are the obvious half:
 
 | | | |
 |---|---|---|
@@ -119,11 +119,11 @@ The catalogue is handed to `Bestiary` rather than reached for, so a second shoot
 
 Those last three are a repaired bug rather than a feature: the circuit's starting grid sits on a one-in-fifty rise, and a car with no rolling resistance and no static hold rolled backwards off it, gaining speed, from the moment the level loaded. `holdSlope` is what stops the fix becoming a handbrake that is always on.
 
-Grip lives in `Tyres` instead, and `Tyres.road` is the shipped set. That split is deliberate: a wet race is the same car with different tyres.
+Grip lives in `TireSet` instead, and `TireSet.road` is the shipped set. That split is deliberate: a wet race is the same car with different tyres.
 
 ## Difficulty, as a number
 
-`AiTuning.skill` is 1.0, and it scales the rest. Under it sit the numbers that decide *how* a driver is fast: `brakeHorizon` (45 m of lookahead for a corner), `corneringGrip` (14.0, how much the driver believes the car has), `lookAheadPerSpeed` (0.55) and `rubberBandClamp` (0.22, the ceiling on catching up).
+`AiSettings.skill` is 1.0, and it scales the rest. Under it sit the numbers that decide *how* a driver is fast: `brakeHorizon` (45 m of lookahead for a corner), `corneringGrip` (14.0, how much the driver believes the car has), `lookAheadPerSpeed` (0.55) and `rubberBandClamp` (0.22, the ceiling on catching up).
 
 <div class="warn">
 <p>Rubber banding is capped at 22% on purpose. A rubber band with no ceiling turns every race into the same race, and players notice within two laps. What they notice is less "the AI is cheating" than "nothing I do matters".</p>

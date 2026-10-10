@@ -15,6 +15,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 
@@ -82,7 +83,10 @@ void main() {
         },
       },
       <String, BoundTexture>{
-        'blue_noise_texture': BoundTexture(noise, SamplerOptions.nearestClamp),
+        'blue_noise_texture': BoundTexture(
+          noise,
+          SamplerDescriptor.nearestClamp,
+        ),
       },
     );
     final varyings = Float32List.fromList(<double>[

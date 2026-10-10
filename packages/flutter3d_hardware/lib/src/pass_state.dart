@@ -226,7 +226,7 @@ extension PassStateApply on PassEncoder {
     if (state.setsBlend) {
       setBlend(state.blend, attachment: state.blendAttachment);
     }
-    if (state.depthWrite != null) setDepthWrite(state.depthWrite!);
+    if (state.depthWrite != null) setDepthWrite(enabled: state.depthWrite!);
     if (state.depthCompare != null) setDepthCompare(state.depthCompare!);
     if (state.stencil != null) {
       setStencil(state.stencil!, back: state.stencilBack);

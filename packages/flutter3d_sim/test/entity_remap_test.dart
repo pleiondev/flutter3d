@@ -6,6 +6,8 @@
 ///     dart test test/entity_remap_test.dart
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show ComponentCodec;
 import 'package:flutter3d_sim/src/ecs/ecs_world.dart';
 import 'package:flutter3d_sim/src/ecs/entity_remap.dart';
 import 'package:test/test.dart';
@@ -16,10 +18,12 @@ final class _Health {
 }
 
 EcsWorld _world() => EcsWorld()
-  ..register<_Health>(
-    'health',
-    encode: (_Health h) => h.value,
-    decode: (Object? data) => _Health((data! as num).toDouble()),
+  ..components.register<_Health>(
+    ComponentCodec<_Health>.of(
+      id: 'health',
+      encode: (_Health h) => h.value,
+      decode: (Object? data, int _) => _Health((data! as num).toDouble()),
+    ),
   );
 
 void main() {

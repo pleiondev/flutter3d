@@ -3,8 +3,10 @@ library;
 
 import 'package:flame_flutter3d/flame_flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' show Scene, SceneNode;
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/scene/scene_node.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:flutter3d_sim/flutter3d_sim.dart' show FixedStep;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show CatchUp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -128,7 +130,7 @@ void main() {
       dynamics: it.dynamics,
       world: it.world,
       afterStep: () => steps++,
-      step: FixedStep(maxStepsPerFrame: 4),
+      catchUp: const CatchUp.announce(maxStepsPerFrame: 4),
     ).update(1.0);
     expect(steps, 4);
   });
@@ -184,12 +186,12 @@ void main() {
     stepper.update(1 / 60);
     crate.update(1 / 60);
 
-    final epoch = SceneNode.changeEpoch;
+    final epoch = sceneChangeEpoch;
     for (var i = 0; i < 5; i++) {
       stepper.update(1 / 60);
       crate.update(1 / 60);
     }
-    expect(SceneNode.changeEpoch, epoch);
+    expect(sceneChangeEpoch, epoch);
     expect(crate.node.readPosition(), Vector3(1.0, 2.0, 3.0));
   });
 }

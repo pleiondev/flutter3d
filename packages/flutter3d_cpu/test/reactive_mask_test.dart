@@ -14,6 +14,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3, Vector4;
 
@@ -42,7 +43,7 @@ final class _VelocityProbe extends RenderNode {
   String get name => 'velocity probe';
 
   @override
-  FramePhase get preferredPhase => FramePhase.present;
+  RenderAnchor get defaultAnchor => RenderAnchor.beforePresent;
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
@@ -54,7 +55,7 @@ final class _VelocityProbe extends RenderNode {
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
   @override
-  void execute(NodeFrame frame) {
+  void execute(RenderFrame frame) {
     last = _device.readHdrPixels(
       frame.resources.texture(FrameResourceIds.velocity),
     );
@@ -87,9 +88,9 @@ _Staged _staged({void Function(CpuDevice device, Scene scene)? extra}) {
       device,
       CuboidShape(size: Vector3(20.0, 20.0, 1.0)).build(),
     ),
-    Material(
+    RenderMaterial(
       lighting: LightingModel.unlit,
-      baseColor: Vector4(0.2, 0.2, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.2, 0.2, 0.2, 1.0),
     ),
   )..setPosition(0.0, 0.0, -6.5);
   final scene = Scene()
@@ -99,9 +100,12 @@ _Staged _staged({void Function(CpuDevice device, Scene scene)? extra}) {
   final probe = _VelocityProbe(device);
   return (
     device: device,
-    renderer: Renderer.create(device: device)..addNode(probe),
+    renderer: Renderer.create(device: device)..renderSteps.addNode(probe),
     scene: scene,
-    view: RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+    view: RenderView(
+      camera: camera,
+      clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+    ),
     probe: probe,
   );
 }
@@ -144,7 +148,7 @@ Float32List _embers(RenderSettings settings, {int frames = 12}) {
     color: Vector4(1.0, 0.6, 0.2, 1.0),
   );
   final it = _staged();
-  it.renderer.addContributor(ParticleContributor(particles));
+  it.renderer.renderSteps.addContributor(ParticleContributor(particles));
   late Float32List last;
   for (var frame = 0; frame < frames; frame++) {
     particles
@@ -175,8 +179,8 @@ void main() {
   test('the mask is the coverage: a pane by its alpha, a splat by its '
       'falloff, nothing behind the wall', () {
     final cloud = SplatCloud(
-      centres: Float32List.fromList(<double>[1.5, 0.0, -5.0]),
-      colours: Float32List.fromList(<double>[1.0, 1.0, 1.0, 0.8]),
+      centers: Float32List.fromList(<double>[1.5, 0.0, -5.0]),
+      colors: Float32List.fromList(<double>[1.0, 1.0, 1.0, 0.8]),
       scales: Float32List.fromList(<double>[0.3, 0.3, 0.3]),
       rotations: Float32List.fromList(<double>[0.0, 0.0, 0.0, 1.0]),
     );
@@ -187,9 +191,9 @@ void main() {
             device,
             CuboidShape(size: Vector3(1.0, 1.0, 0.01)).build(),
           ),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(0.5, 0.7, 1.0, 0.4),
+            baseColor: LinearColor.fromSrgb(0.5, 0.7, 1.0, 0.4),
             alphaMode: MaterialAlphaMode.blend,
           ),
         )..setPosition(x, 0.0, z);
@@ -200,7 +204,7 @@ void main() {
           ..add(pane(0.0, -8.0));
       },
     );
-    it.renderer.addContributor(SplatContributor(cloud));
+    it.renderer.renderSteps.addContributor(SplatContributor(cloud));
 
     _draw(it, _settings(reactive: 0.5));
     final v = it.probe.last!;
@@ -229,7 +233,7 @@ void main() {
       extra: (device, scene) {
         box = MeshNode(
           DeviceMesh.upload(device, CuboidShape().build()),
-          Material(lighting: LightingModel.unlit),
+          RenderMaterial(lighting: LightingModel.unlit),
         )..setPosition(-0.5, 0.0, -5.5);
         scene
           ..add(box)
@@ -239,9 +243,9 @@ void main() {
                 device,
                 CuboidShape(size: Vector3(1.0, 1.0, 0.01)).build(),
               ),
-              Material(
+              RenderMaterial(
                 lighting: LightingModel.unlit,
-                baseColor: Vector4(1.0, 1.0, 1.0, 0.5),
+                baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 0.5),
                 alphaMode: MaterialAlphaMode.blend,
               ),
             )..setPosition(0.0, 0.0, -4.0),
@@ -281,7 +285,7 @@ void main() {
         extra: (device, scene) => scene.add(
           MeshNode(
             DeviceMesh.upload(device, CuboidShape().build()),
-            Material(lighting: LightingModel.unlit),
+            RenderMaterial(lighting: LightingModel.unlit),
           )..setPosition(0.0, 0.0, -5.0),
         ),
       );

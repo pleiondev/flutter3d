@@ -1,0 +1,392 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-AssetAudit-baseCentre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'baseCentre'
+      inClass: 'AssetAudit'
+    changes:
+      - kind: 'rename'
+        newName: 'baseCenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-ImpostorAtlas-cameraFor'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      method: 'cameraFor'
+      inClass: 'ImpostorAtlas'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintSample-PaintSample'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'PaintSample'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintSample-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'centre'
+      inClass: 'PaintSample'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintStroke-PaintStroke'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'PaintStroke'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintStroke-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'colour'
+      inClass: 'PaintStroke'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintVertexColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'PaintVertexColour'
+    changes:
+      - kind: 'rename'
+        newName: 'PaintVertexColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-SetOrigin-SetOrigin'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'SetOrigin'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'boundsCentre'
+        newName: 'boundsCenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-elementCentre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      function: 'elementCentre'
+    changes:
+      - kind: 'rename'
+        newName: 'elementCenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintVertexColour-PaintVertexColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'PaintVertexColour'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PaintVertexColour-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'colour'
+      inClass: 'PaintVertexColour'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-ImpostorCard-ImpostorCard-framing'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: 'framing'
+      inClass: 'ImpostorCard'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'fovYRadians'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-AssetAudit-clean'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'clean'
+      inClass: 'AssetAudit'
+    changes:
+      - kind: 'rename'
+        newName: 'isClean'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-BudgetUsage-over'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'over'
+      inClass: 'BudgetUsage'
+    changes:
+      - kind: 'rename'
+        newName: 'isOver'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-JournalReplay-ok'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'ok'
+      inClass: 'JournalReplay'
+    changes:
+      - kind: 'rename'
+        newName: 'isOk'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-Outcome-ok'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'ok'
+      inClass: 'Outcome'
+    changes:
+      - kind: 'rename'
+        newName: 'isOk'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-PanoramaSync-rebuiltLast'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'rebuiltLast'
+      inClass: 'PanoramaSync'
+    changes:
+      - kind: 'rename'
+        newName: 'didRebuildLast'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-ProfileBudgetReport-anyOver'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      getter: 'anyOver'
+      inClass: 'ProfileBudgetReport'
+    changes:
+      - kind: 'rename'
+        newName: 'hasAnyOver'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-BindWeightsJobRequest-BindWeightsJobRequest'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'BindWeightsJobRequest'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'kMaxSkinInfluences'
+        newName: 'maxSkinInfluences'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-ModelHistory-ModelHistory'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'ModelHistory'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'kHistoryBudgetBytes'
+        newName: 'defaultHistoryBudgetBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-ModelHistory-ModelHistory-withSteps'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: 'withSteps'
+      inClass: 'ModelHistory'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'kHistoryBudgetBytes'
+        newName: 'defaultHistoryBudgetBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kHistoryBudgetBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kHistoryBudgetBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'defaultHistoryBudgetBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kMaxSkinInfluences'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kMaxSkinInfluences'
+    changes:
+      - kind: 'rename'
+        newName: 'maxSkinInfluences'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kPanoramaCubeLevels'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kPanoramaCubeLevels'
+    changes:
+      - kind: 'rename'
+        newName: 'panoramaCubeLevels'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kPanoramaCubeSize'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kPanoramaCubeSize'
+    changes:
+      - kind: 'rename'
+        newName: 'panoramaCubeSize'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectChecksumEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectChecksumEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectChecksumEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectChecksumOffset'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectChecksumOffset'
+    changes:
+      - kind: 'rename'
+        newName: 'projectChecksumOffset'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectHeaderBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectHeaderBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectHeaderBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectImageEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectImageEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectImageEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectImportedEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectImportedEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectImportedEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectMagic'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectMagic'
+    changes:
+      - kind: 'rename'
+        newName: 'projectMagic'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectMeshEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectMeshEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectMeshEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectSectionEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectSectionEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectSectionEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectSimulationEntryBytes'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectSimulationEntryBytes'
+    changes:
+      - kind: 'rename'
+        newName: 'projectSimulationEntryBytes'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kProjectVersion'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kProjectVersion'
+    changes:
+      - kind: 'rename'
+        newName: 'projectVersion'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-kRootMotionExtra'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      variable: 'kRootMotionExtra'
+    changes:
+      - kind: 'rename'
+        newName: 'rootMotionExtra'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-ImportOptions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'ImportOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'ImportSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-LodSpec'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'LodSpec'
+    changes:
+      - kind: 'rename'
+        newName: 'LodSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-model_core-RigBuildOptions'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'RigBuildOptions'
+    changes:
+      - kind: 'rename'
+        newName: 'RigBuildSettings'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-RenderPreset-clearColorSrgb'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      field: 'clearColor'
+      inClass: 'RenderPreset'
+    changes:
+      - kind: 'rename'
+        newName: 'clearColorSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-RenderPreset-parameter'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      constructor: ''
+      inClass: 'RenderPreset'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'clearColor'
+        newName: 'clearColorSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-bakeImpostor-clearColorSrgb'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      function: 'bakeImpostor'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'clearColor'
+        newName: 'clearColorSrgb'
+  - title: 'flutter3d 1.0.0-rc.1: b1-model_core-EnumHint'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart', 'package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'EnumHint'
+    changes:
+      - kind: 'rename'
+        newName: 'ChoiceHint'
+  - title: 'flutter3d 1.0.0-rc.1: b1-model_core-TextureUsage'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'TextureUsage'
+    changes:
+      - kind: 'rename'
+        newName: 'TextureBudgetUsage'

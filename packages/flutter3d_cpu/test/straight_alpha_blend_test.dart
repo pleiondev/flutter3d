@@ -16,6 +16,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -48,16 +50,19 @@ Float32List _render({
   final camera = CameraNode()..setPosition(0.0, 0.0, 1.0);
   final scene = Scene()
     ..add(camera)
-    ..add(LightNode(intensity: 3.0)..setRotationYawPitchRoll(0.3, -0.4, 0.0))
+    ..add(
+      LightNode(intensity: 3.0 * Photometric.legacyUnit)
+        ..setRotationYawPitchRoll(0.3, -0.4, 0.0),
+    )
     ..add(
       MeshNode(
           DeviceMesh.upload(
             device,
             const PlaneShape(width: 8, depth: 8).build(),
           ),
-          Material(
+          RenderMaterial(
             lighting: LightingModel.unlit,
-            baseColor: Vector4(0.45, 0.45, 0.45, 1.0),
+            baseColor: LinearColor.fromSrgb(0.45, 0.45, 0.45, 1.0),
             doubleSided: true,
           ),
         )
@@ -71,9 +76,14 @@ Float32List _render({
             device,
             const PlaneShape(width: 1.2, depth: 1.2).build(),
           ),
-          Material(
+          RenderMaterial(
             lighting: lighting,
-            baseColor: Vector4(_tint.x, _tint.y, _tint.z, paneAlpha),
+            baseColor: LinearColor.fromSrgb(
+              _tint.x,
+              _tint.y,
+              _tint.z,
+              paneAlpha,
+            ),
             alphaMode: pane == _Pane.blended
                 ? MaterialAlphaMode.blend
                 : MaterialAlphaMode.opaque,
@@ -120,7 +130,7 @@ double _overError(Float32List blended, Float32List opaque, Float32List bare) {
 }
 
 /// The centre pixel's red, green and blue.
-List<double> _centre(Float32List frame) {
+List<double> _center(Float32List frame) {
   final i = ((_size ~/ 2) * _size + _size ~/ 2) * 4;
   return <double>[frame[i], frame[i + 1], frame[i + 2]];
 }
@@ -135,7 +145,7 @@ void main() {
     final opaque = _render(pane: _Pane.opaque, paneAlpha: 1.0);
     final bare = _render(pane: _Pane.none);
     // Not vacuous: the pane is there, and not the same as the wall.
-    expect(_centre(blended), isNot(orderedEquals(_centre(bare))));
+    expect(_center(blended), isNot(orderedEquals(_center(bare))));
     expect(_overError(blended, opaque, bare), lessThan(2e-3));
   });
 
@@ -194,13 +204,13 @@ void main() {
     // surface by its alpha in `writeLit`, not only a blended one's. This
     // pane then darkens to 0.4 of itself. The alpha channel is left out: an
     // opaque draw writes its alpha as it stands, which is not this item.
-    List<double> colour(Float32List frame) => <double>[
+    List<double> color(Float32List frame) => <double>[
       for (var i = 0; i < frame.length; i++)
         if (i % 4 != 3) frame[i],
     ];
     expect(
-      colour(_render(pane: _Pane.opaque, paneAlpha: 0.4)),
-      orderedEquals(colour(_render(pane: _Pane.opaque, paneAlpha: 1.0))),
+      color(_render(pane: _Pane.opaque, paneAlpha: 0.4)),
+      orderedEquals(color(_render(pane: _Pane.opaque, paneAlpha: 1.0))),
     );
   });
 }

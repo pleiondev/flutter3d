@@ -15,7 +15,7 @@ import 'package:flutter3d_modeler/main.dart' hide main;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-final class FakeBinaryStorage implements BinaryStorage {
+final class FakeBinaryStorage extends BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
   int removeCount = 0;
 

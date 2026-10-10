@@ -182,7 +182,11 @@ List<RigTrack> retargetTracks({
   required RetargetRig target,
   required BoneMap boneMap,
   bool lockFeet = true,
+
+  /// In metres.
   double groundY = 0.0,
+
+  /// In metres.
   double footTolerance = 1e-3,
 }) {
   final heightRatio = _standingHeight(target) / _standingHeight(source);

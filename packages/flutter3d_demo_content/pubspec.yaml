@@ -1,0 +1,72 @@
+name: flutter3d_demo_content
+description: >-
+  What this repository's demo games are made of and the engine is not: the
+  shooter's roster, crypt and staging, and the strategy map's water, fire and
+  stones. Not published.
+version: 1.0.0-rc.1
+publish_to: none
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+resolution: workspace
+
+# **Why a package and not a folder of an application.** Three places read this
+# content: the dungeon and the strategy demo, which ship it; the genre
+# packages' own tests, which are written against the roster's numbers; and the
+# tools that play a demo blind (`flutter3d_sim_mcp`'s tests, the editor's).
+# None of them may depend on an application, and the genre packages may not
+# ship one game's monsters as their public API, so the content sits here,
+# between them, where every one of them can reach it and pub.dev cannot.
+#
+# **Never a dependency of a published package**, only a dev dependency: a
+# package that pub.dev serves cannot name one that pub.dev does not have.
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+dependencies:
+  # The genres whose content this is.
+  flutter3d_game_shooter: ^1.0.0-rc.1
+  flutter3d_game_strategy: ^1.0.0-rc.1
+
+  # The simulation the content is spawned into and stepped by.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The physics core's world: the crypt's fire, water and loose wood, and the
+  # strategy map's pond, river and burning woods. Plain Dart over the core;
+  # nothing here draws.
+  flutter3d_physics_native: ^1.0.0-rc.1
+
+  # The reference human body a wading crowd weighs (`referenceBodyMass`), and
+  # the world's properties.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # What a world is made of: its properties, the materials and the constants.
+  flutter3d_matter: ^1.0.0-rc.1
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+  # **The tests that are written against this content live here**, not in
+  # the published packages they test: `flutter3d_game_shooter`'s roster
+  # tests and `flutter3d_sim_mcp`'s playtests and server. A published
+  # package cannot name this one even as a dev dependency, because pana
+  # resolves dev dependencies against pub.dev, where this package is not.
+  flutter:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  test: ^1.25.0
+  flutter3d_app: ^1.0.0-rc.1
+  flutter3d_game_platformer: ^1.0.0-rc.1
+  flutter3d_game_racing: ^1.0.0-rc.1
+  flutter3d_mcp: ^1.0.0-rc.1
+  flutter3d_sim_mcp: ^1.0.0-rc.1
+  dart_mcp: ">=0.5.2 <0.6.0"

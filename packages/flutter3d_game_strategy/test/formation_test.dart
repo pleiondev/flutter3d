@@ -30,19 +30,19 @@ void main() {
       // below — that it is walking the other way — fails.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final base = sim.build(
-        Building(centre: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
+        Building(center: Vector3(20.0, 0.0, 20.0), width: 6.0, depth: 6.0),
       );
       final seam = sim.addResource(
         ResourceNode(at: Vector3(40.0, 0.0, 20.0), amount: 500.0),
       );
-      final worker = sim.add(Unit(position: Vector3(26.0, 0.0, 20.0)));
+      final worker = sim.add(StrategyUnit(position: Vector3(26.0, 0.0, 20.0)));
       worker.job = HarvestJob(node: seam, dropOff: base);
       for (var i = 0; i < 120; i++) {
         sim.step(1.0 / 60.0);
       }
       expect(worker.position.x, greaterThan(27.0), reason: 'it never set off');
 
-      Squad(<Unit>[worker]).moveTo(Vector3(20.0, 0.0, 60.0));
+      Squad(<StrategyUnit>[worker]).moveTo(Vector3(20.0, 0.0, 60.0));
       for (var i = 0; i < 600; i++) {
         sim.step(1.0 / 60.0);
       }
@@ -106,10 +106,12 @@ void main() {
       // `toGoal < arriveWithin` branch and every unit stops at the goal cell
       // instead, so the distances below become the width of a shoved pile.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
-      final squad = Squad(<Unit>[
+      final squad = Squad(<StrategyUnit>[
         for (var i = 0; i < 9; i++)
           sim.add(
-            Unit(position: Vector3(6.0 + i % 3 * 1.2, 0.0, 6.0 + i ~/ 3 * 1.2)),
+            StrategyUnit(
+              position: Vector3(6.0 + i % 3 * 1.2, 0.0, 6.0 + i ~/ 3 * 1.2),
+            ),
           ),
       ], formation: const Formation.block(spacing: 1.6, width: 3));
 
@@ -135,9 +137,9 @@ void main() {
 
     test('is told to stand still all at once', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
-      final squad = Squad(<Unit>[
+      final squad = Squad(<StrategyUnit>[
         for (var i = 0; i < 4; i++)
-          sim.add(Unit(position: Vector3(10.0 + i * 1.0, 0.0, 10.0))),
+          sim.add(StrategyUnit(position: Vector3(10.0 + i * 1.0, 0.0, 10.0))),
       ]);
 
       squad.moveTo(Vector3(60.0, 0.0, 60.0));
@@ -185,9 +187,9 @@ void _obstacleTests() {
       // unconditionally — this fails and the flat-ground tests do not, which
       // is why it exists.
       final sim = StrategySimulation(random: GameRandom(1), ground: _ridge());
-      final squad = Squad(<Unit>[
+      final squad = Squad(<StrategyUnit>[
         for (var i = 0; i < 4; i++)
-          sim.add(Unit(position: Vector3(10.0, 0.0, 10.0 + i * 1.2))),
+          sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 10.0 + i * 1.2))),
       ], formation: const Formation.block(spacing: 1.6, width: 2));
 
       squad.moveTo(Vector3(60.0, 0.0, 12.0));

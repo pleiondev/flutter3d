@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import '../../geometry/polyline_shape.dart';
@@ -18,33 +20,33 @@ import 'mesh_node.dart';
 /// one, as segments too short to see. Full, it lets go of its oldest point
 /// for each new one, so a trail follows its missile at a fixed length.
 ///
-/// Drawn with a `Material.polyline`, [width] pixels across.
+/// Drawn with a `RenderMaterial.polyline`, [width] pixels across.
 final class LineStripNode extends MeshNode {
   LineStripNode._(
     this._device,
     DeviceMesh mesh,
-    Material material,
+    RenderMaterial material,
     this.capacity,
     this.width,
-    this.colour, {
+    this.color, {
     super.name,
   }) : super(mesh, material);
 
   /// A strip with room for [capacity] points, on [device].
   factory LineStripNode({
     required GraphicsDevice device,
-    required Material material,
+    required RenderMaterial material,
     int capacity = 64,
     double width = 3.0,
-    Vector4? colour,
+    LinearColor color = LinearColor.white,
     String? name,
   }) {
     if (capacity < 2) throw ArgumentError('A line of $capacity points.');
-    final tint = colour ?? Vector4.all(1.0);
+    final tint = color;
     final data = buildPolyline(
       _padded(const <Vector3>[], capacity),
       width: width,
-      colour: tint,
+      color: tint,
     );
     return LineStripNode._(
       device,
@@ -65,8 +67,8 @@ final class LineStripNode extends MeshNode {
   /// How many pixels across it is drawn.
   final double width;
 
-  /// Its colour.
-  final Vector4 colour;
+  /// Its colour, linear.
+  final LinearColor color;
 
   final List<Vector3> _points = <Vector3>[];
 
@@ -93,7 +95,7 @@ final class LineStripNode extends MeshNode {
     final data = buildPolyline(
       _padded(_points, capacity),
       width: width,
-      colour: colour,
+      color: color,
     );
     (mesh as DeviceMesh).overwriteVertices(
       _device,

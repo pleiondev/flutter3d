@@ -119,7 +119,7 @@ double _radiusFor(EditMesh mesh, double thickness) {
     Vector3.max(maximum, at, maximum);
   }
   if (alive == 0) return 0.0;
-  final double diagonal = (maximum - minimum).length;
+  final diagonal = (maximum - minimum).length;
   if (diagonal <= 0.0) return 0.0;
   return diagonal * thickness;
 }
@@ -132,7 +132,7 @@ double _radiusFor(EditMesh mesh, double thickness) {
 /// other edges at both, so the ends are inside the joint.
 void _addWire(MeshBuilder builder, Vector3 from, Vector3 to, double radius) {
   final along = to - from;
-  final double length = along.length;
+  final length = along.length;
   // Shorter than it is thick: drawing it would be a blob at a vertex rather
   // than a wire between two, and a zero-length edge has no direction to build
   // a ring around at all.

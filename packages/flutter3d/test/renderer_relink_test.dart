@@ -24,11 +24,12 @@ import 'package:vector_math/vector_math.dart';
 /// Every kind of pass the renderer holds a pipeline for, in one frame: two
 /// shadowed lights so the map and the cube atlas are both drawn, a skinned and
 /// an instanced caster so their shadow stages link beside the static one, a
-/// gradient sky, bloom, and a debug overlay for the line pipeline.
+/// sky — the physical one, which an uncoloured sky is since `P5` made it the
+/// default — bloom, and a debug overlay for the line pipeline.
 const RenderSettings _everything = RenderSettings(
   sky: SkySettings(enabled: true),
   bloom: BloomSettings(intensity: 1.0),
-  debug: DebugDrawOptions(bounds: true, lightGizmos: true),
+  debug: DebugDrawSettings(bounds: true, lightGizmos: true),
 );
 
 ({Scene scene, CameraNode camera, MeshNode box}) _scene(FakeBackend device) {
@@ -40,14 +41,14 @@ const RenderSettings _everything = RenderSettings(
         device,
         const PlaneShape(width: 10.0, depth: 10.0).build(),
       ),
-      Material(name: 'floor'),
+      RenderMaterial(name: 'floor'),
       name: 'floor',
     )..setPosition(0.0, -1.5, 0.0),
   );
 
   final box = MeshNode(
     DeviceMesh.upload(device, CuboidShape(size: Vector3.all(2.0)).build()),
-    Material(name: 'box'),
+    RenderMaterial(name: 'box'),
     name: 'box',
   );
   scene.add(box);
@@ -62,7 +63,7 @@ const RenderSettings _everything = RenderSettings(
             size: Vector3.all(1.0),
           ).build(layout: VertexLayout.skinned),
         ),
-        Material(name: 'skinned'),
+        RenderMaterial(name: 'skinned'),
         name: 'skinned',
       )
       ..skinReach = 1.0
@@ -77,7 +78,7 @@ const RenderSettings _everything = RenderSettings(
   scene.add(
     InstancedMeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.5)).build()),
-        Material(name: 'crowd'),
+        RenderMaterial(name: 'crowd'),
         capacity: 2,
         name: 'crowd',
       )
@@ -93,7 +94,7 @@ const RenderSettings _everything = RenderSettings(
   );
   scene.add(
     LightNode(name: 'lamp', type: LightType.point)
-      ..intensity = 12.0
+      ..intensity = 12.0 * Photometric.legacyUnit
       ..range = 14.0
       ..castsShadow = true
       ..setPosition(0.0, 2.0, 0.0),
@@ -119,7 +120,7 @@ void main() {
       height: 1,
       format: TextureFormat.r8g8b8a8UNormInt,
       pixels: ByteData(4),
-    )!;
+    );
     renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel,
@@ -159,10 +160,12 @@ void main() {
     // means to cover is one it never exercised. Named by the fragment stage
     // each pass is the only user of, so the list does not have to know how
     // the vertex side is spelt.
+    // An opaque material draws through its lit model's opaque variant since
+    // `A1.2`, the stage that may not `discard`.
     for (final pair in <String>[
-      'MeshVertex+Pbr',
-      'MeshSkinnedVertex+Pbr',
-      'MeshInstancedVertex+Pbr',
+      'MeshVertex+PbrOpaque',
+      'MeshSkinnedVertex+PbrOpaque',
+      'MeshInstancedVertex+PbrOpaque',
       'MeshVertex+ShadowDepth',
       'MeshSkinnedVertex+ShadowDepth',
       'MeshInstancedVertex+ShadowDepth',
@@ -170,7 +173,7 @@ void main() {
       'MeshSkinnedVertex+ShadowDistance',
       'MeshInstancedVertex+ShadowDistance',
       'ShadowTileResetVertex+ShadowTileReset',
-      'SkyVertex+Sky',
+      'SkyPhysicalVertex+SkyPhysical',
       'FullscreenVertex+BloomUpsample',
       'FullscreenVertex+Composite',
       'DebugLineVertex+DebugLine',

@@ -6,19 +6,21 @@
 /// reports the transition on every subsequent hit produces eight death
 /// animations, eight corpses and eight counts towards the level's kill total.
 final class Health {
-  Health(this.maximum, {double? current, this.armour = 0.0})
+  Health(this.maximum, {double? current, this.armor = 0.0})
     : assert(maximum > 0.0),
       _current = current ?? maximum;
 
+  /// Full health, in hit points: the game's own unit, which damage is in.
   final double maximum;
   double _current;
 
   /// Absorbs part of the damage and is spent doing so.
-  double armour;
+  double armor;
 
   /// Fraction of incoming damage armour takes, while it lasts.
-  static const double armourShare = 1.0 / 3.0;
+  static const double armorShare = 1.0 / 3.0;
 
+  /// What is left, in hit points, the same unit as [maximum].
   double get current => _current;
   bool get isAlive => _current > 0.0;
   bool get isDead => !isAlive;
@@ -30,13 +32,13 @@ final class Health {
   /// for that hit.
   Map<String, Object?> save() => <String, Object?>{
     'current': _current,
-    'armour': armour,
+    'armour': armor,
     'mourned': _mourned,
   };
 
   void restore(Map<String, Object?> from) {
     _current = (from['current'] as num?)?.toDouble() ?? _current;
-    armour = (from['armour'] as num?)?.toDouble() ?? armour;
+    armor = (from['armour'] as num?)?.toDouble() ?? armor;
     // Saved because it is a latch, not a number: without it a corpse loaded
     // from a save reports its death a second time, and whatever counts deaths
     // counts one that already happened.
@@ -47,9 +49,9 @@ final class Health {
     if (amount <= 0.0 || _mourned) return false;
 
     var remaining = amount;
-    if (armour > 0.0) {
-      final absorbed = _min(armour, amount * armourShare);
-      armour -= absorbed;
+    if (armor > 0.0) {
+      final absorbed = _min(armor, amount * armorShare);
+      armor -= absorbed;
       remaining -= absorbed;
     }
 

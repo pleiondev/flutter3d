@@ -4,7 +4,7 @@
 ///
 /// **The work was already being done and thrown away.**
 /// `MeshNode._refreshBounds` fills the world AABB and the bounding sphere in
-/// one call, and the cull path reads `worldBoundsCentre`, which triggers that
+/// one call, and the cull path reads `worldBoundsCenter`, which triggers that
 /// same call. So the exact box was computed on the culling path and then
 /// discarded in favour of the sphere derived from it.
 ///
@@ -18,7 +18,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A long thin slab placed at [at], drawn through a narrow camera.
 ///
@@ -33,7 +32,7 @@ FrameResult _frame(Vector3 at) {
           FakeBackend(),
           CuboidShape(size: Vector3(20, 0.1, 0.1)).build(),
         ),
-        Material(name: 'plank'),
+        RenderMaterial(name: 'plank'),
       )..setPosition(at.x, at.y, at.z),
     )
     ..add(CameraNode()..setPosition(0.0, 0.0, 6.0));
@@ -81,7 +80,7 @@ void main() {
               FakeBackend(),
               CuboidShape(size: Vector3(20, 0.1, 0.1)).build(),
             ),
-            Material(name: 'plank'),
+            RenderMaterial(name: 'plank'),
           )
           ..setPosition(0.0, 9.0, 0.0)
           ..frustumCulled = false,

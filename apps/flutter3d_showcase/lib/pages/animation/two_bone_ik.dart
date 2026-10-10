@@ -9,12 +9,11 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class TwoBoneIkDemo extends ShowcaseDemo {
   double reach = 0.5;
 
-  late final Pose _pose;
+  late final AnimationPose _pose;
   late final SceneNode _shoulder;
   late final SceneNode _elbow;
   late final SceneNode _wrist;
@@ -35,7 +34,7 @@ final class TwoBoneIkDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region pose
-    _pose = Pose(
+    _pose = AnimationPose(
       parents: <int>[-1, 0, 1],
       restTranslations: Float32List.fromList(<double>[
         0.0, 0.0, 0.0, // shoulder
@@ -76,17 +75,26 @@ final class TwoBoneIkDemo extends ShowcaseDemo {
     );
     _shoulder = MeshNode(
       joint,
-      Material(name: 'shoulder', baseColor: Vector4(0.6, 0.6, 0.65, 1.0)),
+      RenderMaterial(
+        name: 'shoulder',
+        baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.65, 1.0),
+      ),
       name: 'shoulder',
     );
     _elbow = MeshNode(
       joint,
-      Material(name: 'elbow', baseColor: Vector4(0.6, 0.6, 0.65, 1.0)),
+      RenderMaterial(
+        name: 'elbow',
+        baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.65, 1.0),
+      ),
       name: 'elbow',
     );
     _wrist = MeshNode(
       joint,
-      Material(name: 'wrist', baseColor: Vector4(0.9, 0.5, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'wrist',
+        baseColor: LinearColor.fromSrgb(0.9, 0.5, 0.2, 1.0),
+      ),
       name: 'wrist',
     );
     _shoulder.add(_elbow);
@@ -96,7 +104,10 @@ final class TwoBoneIkDemo extends ShowcaseDemo {
         context.device,
         SphereShape(radius: 0.08, segments: 12, rings: 6).build(),
       ),
-      Material(name: 'target', baseColor: Vector4(0.9, 0.2, 0.2, 1.0)),
+      RenderMaterial(
+        name: 'target',
+        baseColor: LinearColor.fromSrgb(0.9, 0.2, 0.2, 1.0),
+      ),
       name: 'target',
     );
 
@@ -104,7 +115,7 @@ final class TwoBoneIkDemo extends ShowcaseDemo {
       ..add(_shoulder)
       ..add(_targetMarker)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.7, -0.5)),
       );
   }

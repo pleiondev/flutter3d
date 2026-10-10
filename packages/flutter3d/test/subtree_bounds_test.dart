@@ -21,7 +21,7 @@ import 'package:flutter3d_core/src/engine/render/render_list.dart';
 import 'package:flutter3d_core/src/engine/render/render_view.dart';
 import 'package:flutter3d_core/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A group node holding [count] cubes in a small cluster around its origin.
 SceneNode _cluster(String name, int count) {
@@ -29,7 +29,7 @@ SceneNode _cluster(String name, int count) {
   final mesh = CpuMesh(CuboidShape().build());
   for (var i = 0; i < count; i++) {
     group.add(
-      MeshNode(mesh, Material(), name: '$name $i')
+      MeshNode(mesh, RenderMaterial(), name: '$name $i')
         ..setPosition((i % 5) - 2.0, ((i ~/ 5) % 5) - 2.0, 0.0),
     );
   }
@@ -98,8 +98,8 @@ void main() {
 
   test('a hidden branch costs nothing either', () {
     // `visible` is false on the group rather than on its meshes, which used to
-    // mean a hundred calls to `visibleInHierarchy`, each walking to the root.
-    final hidden = _cluster('hidden', 100)..visible = false;
+    // mean a hundred calls to `isVisibleInHierarchy`, each walking to the root.
+    final hidden = _cluster('hidden', 100)..isVisible = false;
     final scene = Scene()
       ..add(_cluster('near', 100))
       ..add(hidden);
@@ -159,6 +159,6 @@ void main() {
     Scene().add(group);
 
     expect(group.subtreeBounds, isNull);
-    expect(group.subtreeAlwaysDrawn, isFalse);
+    expect(group.isSubtreeAlwaysDrawn, isFalse);
   });
 }

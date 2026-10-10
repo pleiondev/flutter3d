@@ -19,9 +19,9 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
@@ -115,7 +115,7 @@ Map<String, Matrix4> _matricesAt({
   final time = clip.duration * frame / framesPerClip;
 
   // Path 1: Pose.sampleClip.
-  final pose = Pose.fromNodes(document.nodes);
+  final pose = AnimationPose.fromNodes(document.nodes);
   pose.sampleClip(clip, time);
   final poseJoints = pose.jointMatrices(
     joints: skin.joints,

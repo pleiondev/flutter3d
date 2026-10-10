@@ -15,15 +15,14 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor/src/scene_dressing.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 64;
@@ -196,26 +195,26 @@ void main() {
       scene.add(
         MeshNode(
             SharedMeshes(device).box(handle.size),
-            engine.Material(
+            engine.RenderMaterial(
               name: 'gizmo',
-              baseColor: Vector4(
+              baseColor: LinearColor.fromSrgb(
                 handle.tint.x,
                 handle.tint.y,
                 handle.tint.z,
                 1.0,
               ),
-              emissive: handle.tint * 0.9,
+              emissive: (handle.tint * 0.9).toLinearColor(),
             ),
             name: 'gizmo',
           )
-          ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+          ..setPosition(handle.center.x, handle.center.y, handle.center.z)
           ..castsShadow = false,
       );
     }
 
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-        fovYRadians: 1.05,
+        fovY: 1.05,
         near: 0.1,
         far: 200.0,
       ),
@@ -229,11 +228,14 @@ void main() {
         height: _height,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: const RenderSettings(),
       );
-      return (await device.readPixels(result.frame))!.buffer.asUint8List();
+      return (await device.readback(result.frame)).buffer.asUint8List();
     }
 
     final first = await draw();

@@ -1,10 +1,7 @@
-import 'package:flutter3d/flutter3d.dart'
-    show Material, MeshNode, SphereShape, TextureHandle;
-import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// What this game's furniture looks like.
 ///
@@ -12,8 +9,14 @@ import 'package:vector_math/vector_math.dart';
 /// the lights; what a coin looks like, whether it spins and whether a collected
 /// one is still there are decided here, because they are decisions about a
 /// platformer rather than about drawing.
-final class PlatformerLooks implements FixtureAppearance {
-  const PlatformerLooks();
+final class PlatformerLooks with FixtureAppearance {
+  const PlatformerLooks({this.published});
+
+  /// What the simulation last published — `() => loop.published` — which a
+  /// guard's fixture reads whether the guard still lives from, rather than
+  /// asking the actor: the view's side of the boundary. Null asks the actor,
+  /// as a test with no loop does.
+  final PublishedState Function()? published;
 
   /// A lamp: a glowing globe on a post, with a flame the game feeds.
   ///
@@ -41,7 +44,7 @@ final class PlatformerLooks implements FixtureAppearance {
           build.meshes.box(Vector3(size.x * 0.28, size.y, size.z * 0.28)),
           LevelLoader.materialFrom(
             LevelMaterial(
-              baseColor: Vector4(0.22, 0.20, 0.18, 1.0),
+              baseColor: LinearColor.fromSrgb(0.22, 0.20, 0.18),
               roughness: 0.6,
               metallic: 0.7,
             ),
@@ -60,7 +63,7 @@ final class PlatformerLooks implements FixtureAppearance {
     final mechanism = fixture.mechanism;
     if (mechanism is Collectible) {
       return LevelMaterial(
-        baseColor: Vector4(0.98, 0.80, 0.22, 1.0),
+        baseColor: LinearColor.fromSrgb(0.98, 0.80, 0.22),
         roughness: 0.25,
         metallic: 0.8,
         emissive: 0.35,
@@ -70,7 +73,7 @@ final class PlatformerLooks implements FixtureAppearance {
       // Red, and lit from inside: a hazard the player cannot see coming is a
       // hazard that reads as the game cheating.
       return LevelMaterial(
-        baseColor: Vector4(0.75, 0.13, 0.10, 1.0),
+        baseColor: LinearColor.fromSrgb(0.75, 0.13, 0.10),
         roughness: 0.6,
         emissive: 0.5,
       );
@@ -78,20 +81,20 @@ final class PlatformerLooks implements FixtureAppearance {
     if (mechanism is Checkpoint) {
       return LevelMaterial(
         baseColor: mechanism.isReached
-            ? Vector4(0.35, 0.85, 0.45, 1.0)
-            : Vector4(0.35, 0.45, 0.85, 1.0),
+            ? LinearColor.fromSrgb(0.35, 0.85, 0.45)
+            : LinearColor.fromSrgb(0.35, 0.45, 0.85),
         roughness: 0.4,
         emissive: 0.3,
       );
     }
     if (mechanism is Exit) {
       return LevelMaterial(
-        baseColor: Vector4(0.95, 0.95, 0.85, 1.0),
+        baseColor: LinearColor.fromSrgb(0.95, 0.95, 0.85),
         roughness: 0.3,
         emissive: 0.7,
       );
     }
-    return LevelMaterial(baseColor: Vector4(0.55, 0.52, 0.48, 1.0));
+    return LevelMaterial(baseColor: LinearColor.fromSrgb(0.55, 0.52, 0.48));
   }
 
   /// How long a collected coin takes to shrink away.
@@ -116,7 +119,12 @@ final class PlatformerLooks implements FixtureAppearance {
     // that from the drawing side — so an enemy killed by a stomp stayed
     // standing there, and the player kept trying to jump on it.
     final who = fixture.collider?.userData;
-    if (who is Actor) return !who.isAlive;
+    if (who is Actor) {
+      final read = published;
+      if (read == null) return !who.isAlive;
+      // A guard with no row this step — between levels — stays drawn.
+      return !(PublishedActor.read(read(), who.entity)?.isAlive ?? true);
+    }
 
     final mechanism = fixture.mechanism;
 
@@ -160,11 +168,11 @@ final class PlatformerLooks implements FixtureAppearance {
   /// thing is to answer a question that changes. Built once, it stayed blue for
   /// ever and a player reasonably asked what the purple post was for.
   @override
-  void refresh(Fixture fixture, Material material) {
+  void refresh(Fixture fixture, RenderMaterial material) {
     final mechanism = fixture.mechanism;
     if (mechanism is! Checkpoint) return;
     final reached = mechanism.isReached;
-    material.baseColor.setValues(
+    material.baseColor = LinearColor.fromSrgb(
       reached ? 0.30 : 0.45,
       reached ? 0.85 : 0.35,
       reached ? 0.45 : 0.95,
@@ -179,11 +187,12 @@ final class PlatformerLooks implements FixtureAppearance {
     // `fallbackFor` asks for standing multiplies the two, and the post got
     // dimmer the brighter it was told to be. The factor follows the colour
     // that was just written, so a green checkpoint glows green.
-    material.emissive.setValues(
-      material.baseColor.x,
-      material.baseColor.y,
-      material.baseColor.z,
+    material.emissive = LinearColor(
+      material.baseColor.toSrgb().r,
+      material.baseColor.toSrgb().g,
+      material.baseColor.toSrgb().b,
     );
-    material.emissiveStrength = reached ? 0.85 : 0.30;
+    material.emissiveStrength =
+        (reached ? 0.85 : 0.30) * Photometric.legacyNits;
   }
 }

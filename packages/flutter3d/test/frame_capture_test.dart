@@ -17,7 +17,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 32;
 
@@ -31,12 +30,15 @@ const int _size = 32;
     ..add(
       MeshNode(
         DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.4)).build()),
-        Material(name: 'cube', baseColor: Vector4(0.9, 0.5, 0.2, 1.0)),
+        RenderMaterial(
+          name: 'cube',
+          baseColor: LinearColor.fromSrgb(0.9, 0.5, 0.2, 1.0),
+        ),
         name: 'cube',
       ),
     )
     ..add(
-      LightNode(intensity: 6.0)
+      LightNode(intensity: 6.0 * Photometric.legacyUnit)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -64,7 +66,7 @@ Future<FrameCapture> _capture(
     views: <RenderView>[
       RenderView(
         camera: it.scene.cameras.single,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
       ),
     ],
     settings: settings,

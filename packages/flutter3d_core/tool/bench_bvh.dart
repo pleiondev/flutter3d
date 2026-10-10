@@ -19,7 +19,7 @@ library;
 import 'dart:math';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// A sphere of about [triangles] triangles: the shape a scan is worst at,
 /// because every ray that misses still touches most of its bounding box.
@@ -61,7 +61,7 @@ void main() {
     // Ten thousand rays, seeded, aimed the way a person clicks: from where the
     // camera is, at the middle of the model.
     final random = Random(20260909);
-    final rays = <Ray>[
+    final rays = <LocalRay>[
       for (var i = 0; i < 10000; i++)
         () {
           final origin = Vector3(
@@ -69,7 +69,7 @@ void main() {
             random.nextDouble() * 6 - 3,
             random.nextDouble() * 6 - 3,
           );
-          return Ray(origin, (Vector3.zero() - origin)..normalize());
+          return LocalRay(origin, (Vector3.zero() - origin)..normalize());
         }(),
     ];
 

@@ -3,11 +3,10 @@
 ///     flutter test test/pass_order_test.dart
 ///
 /// **A document that drifts from the strings is worse than no document.**
-/// `RenderSettings.disabledPasses` is typed against exact node names — the
-/// graph rejects anything it does not recognise, which is the whole reason a
-/// misspelling is not a switch that silently does nothing — so the list of
-/// those names is API. Prose cannot be typed into a set, and a list of names
-/// nobody compares with the engine is prose with quotes around it.
+/// `FrameResult.passes` and `skipped` report exact node names, and each
+/// `RenderStep` owns its passes by those names, so the list of them is API.
+/// A list of names nobody compares with the engine is prose with quotes
+/// around it.
 ///
 /// So this test does the comparison: it compiles a frame with everything
 /// switched on and asks whether what the engine registered is what
@@ -18,7 +17,6 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Everything on, so nothing is missing from the frame for being switched off.
 const RenderSettings _everything = RenderSettings(
@@ -37,7 +35,7 @@ FrameResult _frame({RenderSettings settings = _everything}) {
   final renderer = Renderer.create(device: FakeBackend());
   final scene = Scene()
     ..add(
-      LightNode(intensity: 4.0, castsShadow: true)
+      LightNode(intensity: 4.0 * Photometric.legacyUnit, castsShadow: true)
         ..setPosition(2.0, 3.0, 4.0)
         ..lookAt(Vector3.zero()),
     )
@@ -53,9 +51,14 @@ FrameResult _frame({RenderSettings settings = _everything}) {
 
 /// Every pass the frame registered, run or not, in the order it ran them
 /// followed by the ones that did not run.
+///
+/// `skipped` also names what the frame declined — multisampling, here,
+/// since the occlusion reads the surface buffer — and those are requests
+/// rather than passes, so they are left out.
 Set<String> _registered(FrameResult result) => <String>{
   ...result.passes.map((p) => p.name),
-  ...result.skipped.map((s) => s.name),
+  for (final skip in result.skipped)
+    if (skip.reason != PassSkip.declined) skip.name,
 };
 
 void main() {
@@ -86,35 +89,17 @@ void main() {
     );
   });
 
-  test('every published name can actually be typed into disabledPasses', () {
-    // **The claim the list exists to make.** Not that the strings look right,
-    // but that each one is accepted where a caller would put it — the graph
-    // refuses an unknown name, so this is the assertion that the list is a
-    // key space rather than a description of one.
-    for (final name in RenderSettings.passOrder) {
-      if (RenderSettings.undisablePasses.contains(name)) continue;
+  test('every pass a step owns is a published name', () {
+    // **The claim the list exists to make.** A step switches its passes off
+    // by name, so a step owning a name the frame does not register would
+    // switch nothing off and report nothing, and a reader of `passOrder`
+    // could not find what the step stands for.
+    final published = RenderSettings.passOrder.toSet();
+    for (final step in RenderStep.values) {
       expect(
-        () => _frame(
-          settings: _everything.copyWith(disabledPasses: <String>{name}),
-        ),
-        returnsNormally,
-        reason: '"$name" is published and was refused',
-      );
-    }
-  });
-
-  test('the three that cannot be switched off are the three published', () {
-    // The compile enforces this and the list reports it, so the two have to
-    // agree: a caller subtracting `undisablePasses` from `passOrder` must get
-    // a set that works, and every name they subtracted must be one that would
-    // have thrown.
-    for (final name in RenderSettings.undisablePasses) {
-      expect(
-        () => _frame(
-          settings: _everything.copyWith(disabledPasses: <String>{name}),
-        ),
-        throwsA(isA<Object>()),
-        reason: '"$name" is published as undisableable and was accepted',
+        step.passes.difference(published),
+        isEmpty,
+        reason: '$step owns a pass the published order does not name',
       );
     }
   });
@@ -145,15 +130,13 @@ void main() {
     );
   });
 
-  test('the measurement set is drawn from the same key space', () {
-    // `forMeasurement` subtracts names; if it subtracted a name nothing
-    // registers, the graph would throw on every measurement frame. That it
-    // has not is luck until this holds it.
+  test('a measurement frame switches every pixel-altering step off', () {
+    // `forMeasurement` goes through `without`; a step in the published set
+    // that `without` left on would be a photograph of the numbers where the
+    // numbers were asked for.
     expect(
-      RenderSettings.pixelAlteringPasses.difference(
-        RenderSettings.passOrder.toSet(),
-      ),
-      isEmpty,
+      _everything.forMeasurement().switchedOffSteps,
+      containsAll(RenderSettings.pixelAlteringSteps),
     );
   });
 }

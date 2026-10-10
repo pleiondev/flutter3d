@@ -1,32 +1,48 @@
 # flutter3d_net
 
-Rollback netcode over [flutter3d_sim](https://pub.dev/packages/flutter3d_sim),
-part of [flutter3d](https://flutter3d.pleion.dev). Peers exchange input frames
-every step, predict with the last frame that arrived, and roll back when a
-confirmation disagrees. The session also keeps a count of dropped corrections
-that a game can show without having to explain what a rollback is.
+The network core of [flutter3d](https://flutter3d.pleion.dev), over
+[flutter3d_sim](https://pub.dev/packages/flutter3d_sim): one wire between
+machines, a room two machines meet in, and rollback for two machines or a
+party. Peers exchange input frames every step, predict with the last frame
+that arrived, and roll back when a confirmation disagrees. The session keeps
+a count of dropped corrections that a game can show without having to
+explain what a rollback is.
 
-It is plain Dart. `NetSession` reads the caller's input through two callbacks
-and never names a genre, a widget or a socket. `NetTransport` is the only way
-out to a real network. `LoopbackTransport` stands in for it with a real fixed
-delay and a real, seeded loss rate, and the test suite drives two sessions
-through it instead of through a mock that cannot lie about timing. A real
-transport, such as a relay over WebSocket or WebRTC through
-[flutter3d_net_webrtc](https://pub.dev/packages/flutter3d_net_webrtc),
-implements the same interface.
+It is plain Dart. `PeerWire` is the only way out to a real network: send a
+JSON-shaped map, reliably or not, and listen — any number of listeners, each
+with the `Registration` that takes it away. `LoopbackWire` and
+`LoopbackParty` stand in for it with a real delay and a real, seeded loss
+rate, and the tests drive sessions through them instead of through a mock
+that cannot lie about timing. `WebSocketTransport` goes through the relay,
+and [flutter3d_net_webrtc](https://pub.dev/packages/flutter3d_net_webrtc)
+peer to peer over a WebRTC data channel.
 
 ```dart
 import 'package:flutter3d_net/flutter3d_net.dart';
 
-final session = NetSession(
-  transport: myTransport,
-  captureLocalFrame: () => myLatestInput(),
-  applyAndStep: (local, remote) => myGame.step(local, remote),
-  save: () => myGame.snapshot(),
-  restore: (snapshot) => myGame.restore(snapshot),
+// Over the engine's loop: its snapshots and its steps.
+final rollback = EngineRollback(
+  loop: loop,
+  wire: seat.wire,
+  players: seat.size,
+  captureLocalFrame: () => {'move': stick.x.round()},
+  applyFrames: (frames) => game.applyHands(frames),
 );
+// Once a fixed step, in place of loop.frame:
+rollback.advance();
 ```
 
+`RollbackSession` is the same rollback for a game whose state is not a loop's:
+it takes four functions — capture this machine's hands, apply every slot's
+and step, save, restore. `PeerRoom` is who is who, with a hello
+(`WireHello`) that refuses a machine on another protocol or simulation.
+
+**The engine's messages carry a reserved key.** A rollback's frames go as
+`{"f3d": "rollback", "frames": …}` (`PeerWire.engineKey`), so a game's own
+message on the same wire is never taken for one; a game never sets `f3d`.
+That is protocol 3.
+
 `bin/relay.dart` is the relay from `net-02`: one process, rooms identified by a
-short code in the URL path, and no accounts. Its role is limited to signalling
-and a WebSocket fallback for networks WebRTC cannot cross.
+short code in the URL path, parties found by code or among strangers, and no
+accounts. Its role is limited to signalling and a WebSocket fallback for
+networks WebRTC cannot cross.

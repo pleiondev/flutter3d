@@ -81,10 +81,19 @@ const Map<String, LevelKit> levelKits = <String, LevelKit>{
 /// returned level has no recipes left — expanding it again changes nothing.
 /// A level with no recipes comes back as itself.
 ///
+/// **Prefab instances are expanded too**, after the recipes so a `scatter`
+/// of instances expands like any instance — see [expandPrefabs]. Everything
+/// that uses a level already calls this, so this is where a template's edit
+/// reaches the game. A level with neither recipes nor instances is still the
+/// very level it was given.
+///
 /// Throws [LevelFormatException] naming the recipe for a kind nobody knows or
-/// params a kit cannot read. The validator turns that into an error; the
-/// loader lets it through, for the same reason it refuses any broken level.
-Level expandRecipes(Level level) {
+/// params a kit cannot read, and for a prefab that is missing or contains
+/// itself. The validator turns that into an error; the loader lets it
+/// through, for the same reason it refuses any broken level.
+Level expandRecipes(Level level) => expandPrefabs(_recipesExpanded(level));
+
+Level _recipesExpanded(Level level) {
   if (level.recipes.isEmpty) return level;
   final sketch = LevelSketch();
   for (final (index, recipe) in level.recipes.indexed) {
@@ -123,8 +132,11 @@ Level expandRecipes(Level level) {
     heightfield: level.heightfield,
     fogColor: level.fogColor,
     fogDensity: level.fogDensity,
+    world: level.world,
     music: level.music,
     next: level.next,
+    prefabs: level.prefabs,
+    renderSettings: level.renderSettings,
     source: <String, Object?>{...level.toJson()}..remove('recipes'),
   );
 }

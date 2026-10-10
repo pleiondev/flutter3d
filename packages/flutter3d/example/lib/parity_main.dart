@@ -14,9 +14,11 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
 void main() => runApp(const ParityApp());
@@ -45,19 +47,19 @@ class _ParityAppState extends State<ParityApp> {
     GraphicsDevice? device;
     Renderer? renderer;
     try {
-      device = await GpuRenderBackend.create();
+      device = await GpuRenderBackend.open();
       final white = device.createTextureFromPixels(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: _texel(255, 255, 255),
-      )!;
+      );
       final flat = device.createTextureFromPixels(
         width: 1,
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: _texel(128, 128, 255),
-      )!;
+      );
       renderer = Renderer.create(
         device: device,
         fallbackAlbedo: white,
@@ -77,11 +79,7 @@ class _ParityAppState extends State<ParityApp> {
           settings: paritySettingsFor(which),
         );
 
-        final pixels = await device.readPixels(result.frame);
-        if (pixels == null) {
-          buffer.writeln('${which.name}: the frame could not be read back');
-          continue;
-        }
+        final pixels = await device.readback(result.frame);
         final grid = parityGrid(
           pixels.buffer.asUint8List(),
           kParityWidth,

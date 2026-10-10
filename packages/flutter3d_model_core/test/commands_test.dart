@@ -13,6 +13,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show rootMotionExtra;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart' show VertexLayout;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -1461,10 +1462,12 @@ void main() {
         isNull,
       );
       final surface = history.project.materials.single.surface;
-      // `Vector4` is single-precision, so the tolerance is wider than a
-      // `double` field like `roughness` below needs.
-      expect(surface.baseColor.r, closeTo(0.2, 1e-6));
-      expect(surface.baseColor.a, closeTo(1.0, 1e-6));
+      // The value is sRGB, as `writeFmat` writes it, and the surface holds
+      // linear light, so it reads back through `toSrgb`. Mutation: build the
+      // colour with the plain constructor and the red reads 0.2 linear, which
+      // is 0.48 on the screen.
+      expect(surface.baseColor.toSrgb().r, closeTo(0.2, 1e-9));
+      expect(surface.baseColor.a, closeTo(1.0, 1e-9));
 
       expect(
         history.run(
@@ -1479,8 +1482,8 @@ void main() {
       // Mutation: forget `roughness` in the rebuild and the colour just set
       // would be thrown away by the very next field this command touches.
       expect(
-        history.project.materials.single.surface.baseColor.r,
-        closeTo(0.2, 1e-6),
+        history.project.materials.single.surface.baseColor.toSrgb().r,
+        closeTo(0.2, 1e-9),
       );
 
       expect(
@@ -2472,14 +2475,14 @@ void main() {
       final Outcome scaled = const ScaleBy(
         2,
       ).apply(cubes(1), const ProjectSelection(objects: <int>[7]));
-      expect(scaled.ok, isFalse);
+      expect(scaled.isOk, isFalse);
       expect(scaled.refused, contains('nothing is selected to scale'));
 
       final Outcome turned = RotateBy(
         axis: Vector3(0, 1, 0),
         radians: 1,
       ).apply(cubes(1), const ProjectSelection(objects: <int>[7]));
-      expect(turned.ok, isFalse);
+      expect(turned.isOk, isFalse);
       expect(turned.refused, contains('nothing is selected to turn'));
     });
 
@@ -2846,7 +2849,11 @@ void main() {
           jointIndex: 0,
           worldTransform: Matrix4.identity(),
         ),
-        const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+        const BendJoint(
+          skeletonIndex: 0,
+          jointIndex: 1,
+          angle: 30.0 * degrees2Radians,
+        ),
         const MirrorJoints(
           skeletonIndex: 0,
           axis: 0,
@@ -2867,21 +2874,21 @@ void main() {
         ),
         const Retopologize(objectId: 10, targetQuads: 800),
         const PackAtlas(objectIds: <int>[10, 11], margin: 0.02),
-        PaintVertexColour(
+        PaintVertexColor(
           objectId: 10,
           samples: <PaintSample>[
-            PaintSample(centre: Vector3(0, 0, 0), radius: 0.4),
+            PaintSample(center: Vector3(0, 0, 0), radius: 0.4),
           ],
-          colour: const <double>[0, 1, 0, 1],
+          color: const <double>[0, 1, 0, 1],
           strength: 0.7,
         ),
         const AdoptTexture(materialIndex: 0, size: 256),
         PaintStroke(
           objectId: 10,
           samples: <PaintSample>[
-            PaintSample(centre: Vector3(0, 0, 0), radius: 0.2),
+            PaintSample(center: Vector3(0, 0, 0), radius: 0.2),
           ],
-          colour: const <double>[1, 0.5, 0, 1],
+          color: const <double>[1, 0.5, 0, 1],
           layer: 1,
           strength: 0.8,
           size: 256,
@@ -2986,6 +2993,16 @@ void main() {
         const AddSkeleton(skeletonName: 'rig'),
         const BindSkin(objectId: 1, skeletonIndex: 0),
         const AddClip(clipName: 'idle'),
+        const SetAnimationGraph(
+          graphName: 'hero',
+          graph: <String, Object?>{
+            'parameters': <Object?>[],
+            'states': <Object?>[
+              <String, Object?>{'name': 'idle', 'clip': 'idle'},
+            ],
+          },
+        ),
+        const RemoveAnimationGraph(graphName: 'hero'),
         const AddLod(id: 1, ratio: 0.5, maxScreenFraction: 0.3),
         const SetLodRatio(id: 1, lodIndex: 0, ratio: 0.25),
         const RegenerateLods(1),
@@ -4763,7 +4780,7 @@ void main() {
       history.run(const ExtractRootMotion(clipIndex: 0, rootJoint: 1));
 
       final saved =
-          history.project.clips.single.extras![kRootMotionExtra]! as List;
+          history.project.clips.single.extras![rootMotionExtra]! as List;
       var sum = 0.0;
       for (var i = 1; i < saved.length; i++) {
         final a = (saved[i - 1] as List)[0] as double;
@@ -5136,7 +5153,11 @@ void main() {
         final history = riggedChain();
         expect(
           history.run(
-            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 1,
+              angle: 30.0 * degrees2Radians,
+            ),
           ),
           isNull,
         );
@@ -5153,7 +5174,11 @@ void main() {
         for (var i = 0; i < 2; i++) {
           expect(
             history.run(
-              const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+              const BendJoint(
+                skeletonIndex: 0,
+                jointIndex: 1,
+                angle: 30.0 * degrees2Radians,
+              ),
             ),
             isNull,
           );
@@ -5165,13 +5190,21 @@ void main() {
         final history = riggedChain();
         expect(
           history.run(
-            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 45.0),
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 1,
+              angle: 45.0 * degrees2Radians,
+            ),
           ),
           isNull,
         );
         expect(
           history.run(
-            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 0.0),
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 1,
+              angle: 0.0 * degrees2Radians,
+            ),
           ),
           isNull,
         );
@@ -5193,7 +5226,11 @@ void main() {
         expect(history.run(SetTransform(id: midId, to: moved)), isNull);
         expect(
           history.run(
-            const BendJoint(skeletonIndex: 0, jointIndex: 1, degrees: 30.0),
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 1,
+              angle: 30.0 * degrees2Radians,
+            ),
           ),
           isNull,
         );
@@ -5211,7 +5248,11 @@ void main() {
         final history = riggedChain();
         expect(
           history.run(
-            const BendJoint(skeletonIndex: 0, jointIndex: 9, degrees: 10.0),
+            const BendJoint(
+              skeletonIndex: 0,
+              jointIndex: 9,
+              angle: 10.0 * degrees2Radians,
+            ),
           ),
           contains('is not one of them'),
         );
@@ -5220,7 +5261,7 @@ void main() {
             const BendJoint(
               skeletonIndex: 0,
               jointIndex: 1,
-              degrees: 10.0,
+              angle: 10.0 * degrees2Radians,
               axis: 7,
             ),
           ),
@@ -5232,14 +5273,14 @@ void main() {
         const written = BendJoint(
           skeletonIndex: 0,
           jointIndex: 1,
-          degrees: 30.0,
+          angle: 30.0 * degrees2Radians,
           axis: 2,
         );
         final read = modelCommandFromJson(written.toJson());
         expect(read, isA<BendJoint>());
         final bend = read! as BendJoint;
         expect(bend.jointIndex, 1);
-        expect(bend.degrees, 30.0);
+        expect(bend.angle, closeTo(radians(30.0), 1e-12));
         expect(bend.axis, 2);
       });
     });

@@ -95,10 +95,10 @@ void main() {
   });
 
   group('a fixture', () {
-    LightFixture make({LightBehaviour? behaviour, bool enabled = true}) =>
+    LightFixture make({LightBehavior? behavior, bool enabled = true}) =>
         LightFixture(
           light: 'torch_1',
-          behaviour: behaviour ?? const FlameFlicker(),
+          behavior: behavior ?? const FlameFlicker(),
           seed: 0.25,
           enabled: enabled,
         );

@@ -21,41 +21,41 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// The look of the things beside the road.
 abstract final class Roadside {
   /// Walls. Three of them, so a row of sheds is not one colour repeated.
-  static final List<Material> walls = <Material>[
-    Material(
-      baseColor: Vector4(0.62, 0.58, 0.52, 1.0),
+  static final List<RenderMaterial> walls = <RenderMaterial>[
+    RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.62, 0.58, 0.52, 1.0),
       roughness: 0.9,
       lighting: LightingModel.pbr,
     ),
-    Material(
-      baseColor: Vector4(0.48, 0.44, 0.42, 1.0),
+    RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.48, 0.44, 0.42, 1.0),
       roughness: 0.95,
       lighting: LightingModel.pbr,
     ),
-    Material(
-      baseColor: Vector4(0.55, 0.5, 0.45, 1.0),
+    RenderMaterial(
+      baseColor: LinearColor.fromSrgb(0.55, 0.5, 0.45, 1.0),
       roughness: 0.85,
       lighting: LightingModel.pbr,
     ),
   ];
 
   /// Roofs, darker than any wall so the shape reads as a building at distance.
-  static Material get roof => Material(
-    baseColor: Vector4(0.24, 0.22, 0.24, 1.0),
+  static RenderMaterial get roof => RenderMaterial(
+    baseColor: LinearColor.fromSrgb(0.24, 0.22, 0.24, 1.0),
     roughness: 0.8,
     lighting: LightingModel.pbr,
   );
 
   /// The posts a sign stands on.
-  static Material get post => Material(
-    baseColor: Vector4(0.3, 0.3, 0.32, 1.0),
+  static RenderMaterial get post => RenderMaterial(
+    baseColor: LinearColor.fromSrgb(0.3, 0.3, 0.32, 1.0),
     roughness: 0.7,
     metallic: 0.2,
     lighting: LightingModel.pbr,
@@ -67,11 +67,11 @@ abstract final class Roadside {
   /// a painted board: a lit sign is legible when the sun is behind it, which on
   /// a circuit is half of every lap. The strength is low enough that it does
   /// not glow in daylight.
-  static Material sign(TextureHandle face) => Material(
-    baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+  static RenderMaterial sign(TextureHandle face) => RenderMaterial(
+    baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
     albedo: face,
     emissiveTexture: face,
-    emissiveStrength: 0.35,
+    emissiveStrength: 0.35 * Photometric.legacyNits,
     roughness: 0.6,
     // **Both sides, or half the signs are two posts holding nothing.** A plane
     // has one face, and which way it points depends on the sign of the pitch
@@ -119,7 +119,7 @@ List<SceneNode> addRoadsideTo(
   void putMesh(
     String name,
     MeshData mesh,
-    Material material,
+    RenderMaterial material,
     Vector3 at,
     double yaw,
   ) {
@@ -143,16 +143,16 @@ List<SceneNode> addRoadsideTo(
     // Clear of the road by its own width again, so nothing stands where a car
     // that has run wide is about to be.
     final offset = track.widthAt(s) * 0.5 + 14.0 + (i % 3) * 4.0;
-    final centre = frame.position + frame.right * (side * offset);
+    final center = frame.position + frame.right * (side * offset);
     final base = Vector3(
-      centre.x,
-      groundAt(centre.x, centre.z, centre.y),
-      centre.z,
+      center.x,
+      groundAt(center.x, center.z, center.y),
+      center.z,
     );
     // Turned away from the road by a few degrees each, so a row of the same
     // four models does not read as a row.
     final yaw =
-        math.atan2(-frame.forward.x, -frame.forward.z) + (i % 5 - 2) * 0.18;
+        Portable.atan2(-frame.forward.x, -frame.forward.z) + (i % 5 - 2) * 0.18;
 
     final model = buildings.isEmpty ? null : buildings[i % buildings.length];
     if (model == null) {
@@ -200,7 +200,7 @@ List<SceneNode> addRoadsideTo(
     // the sign side-on to the driver and showed them its back, which reads as
     // a mirrored sign. The sign sits at +right of the centre line, so the face
     // has to look back along −right, and this is the yaw that does it.
-    final yaw = math.atan2(frame.right.x, frame.right.z);
+    final yaw = Portable.atan2(frame.right.x, frame.right.z);
 
     const boardWidth = 10.0;
     const boardHeight = 5.0;

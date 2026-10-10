@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -82,37 +83,42 @@ void main() {
     final input = InputState();
     final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
 
-    // `stepSim` is what `releaseAt` calls internally to reconstruct live
-    // state — it samples whatever the registry currently holds, which is
-    // the whole mechanism: swap the registry before releasing, and the
-    // reconstructed state (and everything played after it) sees the
-    // swap. It does not touch `trace` — `trace` is this test's own
-    // record of what actually happened, kept separately on purpose (see
-    // the module doc).
-    var replaySteps = 0;
-    final timeline = RunTimeline(
-      rewind: rewind,
-      input: input,
-      stepSim: (dt) {
-        final value = _sample(registry['lathe-broker']!, replaySteps);
+    // The loop's step system is what `releaseAt` replays to reconstruct
+    // live state — it samples whatever the registry currently holds at the
+    // step the loop is at, which is the whole mechanism: swap the registry
+    // before releasing, and the reconstructed state (and everything played
+    // after it) sees the swap. It records into `trace` only on a live step —
+    // `trace` is this test's own record of what actually happened, kept
+    // separately on purpose (see the module doc).
+    final loop = EngineLoop(input: input)
+      ..snapshots.add(
+        SnapshotPart.of(
+          id: 'twin',
+          capture: () => toy.save().data,
+          restore: (Object? data, int _) {
+            if (data is Map) {
+              toy.restore(Snapshot(data.cast<String, Object?>()));
+            }
+          },
+        ),
+      )
+      ..addSystem('twin', LoopPhase.rules, (LoopContext step) {
+        final value = _sample(registry['lathe-broker']!, step.step);
         toy.step(input, value);
-        replaySteps++;
-      },
-      restore: toy.restore,
-    );
+        if (!step.isResimulated) {
+          trace.record(step.step, <String, Object?>{'temperature': value});
+        }
+      });
+    rewind.attach(loop);
+    final timeline = RunTimeline(rewind: rewind, loop: loop);
 
-    // Five seconds of real play, recording both the ordinary tape (via
-    // `rewind`, exactly as `run_timeline_test.dart` does) and the bound
-    // value (via `trace`, `edu-05`'s own addition) at every step.
+    // Five seconds of real play, recording both the ordinary tape (the loop
+    // into the attached `rewind`, exactly as `run_timeline_test.dart` does)
+    // and the bound value (via `trace`, `edu-05`'s own addition) at every
+    // step.
     for (var step = 0; step < 300; step++) {
       _play(input, step);
-      rewind.recorder.record(input);
-      input.beginStep();
-      if (rewind.keyframeDue) rewind.keyframe(toy.save());
-      final value = _sample(registry['lathe-broker']!, step);
-      toy.step(input, value);
-      trace.record(step, <String, Object?>{'temperature': value});
-      input.endStep();
+      loop.runSteps(1);
     }
 
     final recordedBeforeBranch = trace.toJson();

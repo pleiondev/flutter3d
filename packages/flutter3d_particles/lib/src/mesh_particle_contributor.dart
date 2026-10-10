@@ -33,6 +33,7 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'particle_system.dart';
@@ -139,13 +140,18 @@ final class MeshParticleContributor extends PassContributor {
     ],
   );
 
-  static final VertexLayoutSpec _layout = VertexLayoutSpec(<BufferLayout>[
-    _meshSlot,
-    _instanceSlot,
-  ]);
+  static final VertexLayoutDescriptor _layout = VertexLayoutDescriptor(
+    <BufferLayout>[_meshSlot, _instanceSlot],
+  );
 
   @override
   bool get isActive => particles.aliveCount > 0;
+
+  /// Every live particle's copy of [mesh]: the mesh's bounds scaled by the
+  /// particle's size and put at its position, as the vertex stage places it
+  /// (`i_position + position * i_scale`).
+  @override
+  vm.Aabb3 boundsFor(RenderView view) => particles.boundsOf(mesh.bounds);
 
   @override
   void encode(ContributorFrame frame) {
@@ -201,23 +207,37 @@ final class MeshParticleContributor extends PassContributor {
     });
 
     final fog = frame.settings.fog;
-    final colour = fog.resolvedColor;
-    _fog[0] = colour.x;
-    _fog[1] = colour.y;
-    _fog[2] = colour.z;
-    _fog[3] = fog.density;
-    view.camera.readWorldPosition(_eye);
+    final color = fog.resolvedColor;
+    _fog[0] = color.r;
+    _fog[1] = color.g;
+    _fog[2] = color.b;
+    view.camera.readViewOrigin(_eye);
+    // The air as thick as it is at the camera: a height fog's falloff is not
+    // integrated here — `FogSettings.densityAt` says what that costs.
+    _fog[3] = fog.densityAt(_eye.y);
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
+    // The view axis and the lens, so the stage measures the fog from the
+    // eye's plane through an orthographic camera rather than in rings round a
+    // point the picture does not depend on — `P7`.
+    view.camera.readForward(_eye);
+    _forwardData
+      ..[0] = _eye.x
+      ..[1] = _eye.y
+      ..[2] = _eye.z;
+    _projectionData[0] = isOrthographic(viewProjection) ? 1.0 : 0.0;
     encoder.bindUniformBlock(fragmentShader, 'FogInfo', <String, Float32List>{
       'fog': _fog,
       'eye': _eyeData,
+      'forward': _forwardData,
+      'projection': _projectionData,
     });
 
     encoder.draw(instanceCount: written);
-    frame.state.drawCalls++;
-    frame.state.invalidatePipeline();
+    frame
+      ..noteDraw()
+      ..invalidatePipeline();
     developer.Timeline.finishSync();
   }
 
@@ -244,7 +264,12 @@ final class MeshParticleContributor extends PassContributor {
   final Set<String> _missing = <String>{};
   final Float32List _fog = Float32List(4);
   final Float32List _eyeData = Float32List(4);
+  final Float32List _forwardData = Float32List(4);
+  final Float32List _projectionData = Float32List(4);
   final vm.Vector3 _eye = vm.Vector3.zero();
   PipelineHandle? _pipeline;
   Float32List? _instances;
+
+  @override
+  void relinkShaders() => _pipeline = null;
 }

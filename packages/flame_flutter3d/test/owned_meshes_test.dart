@@ -31,7 +31,7 @@ void main() {
         CuboidShape(size: Vector3.all(1.0)).build(),
       );
       final bridge = Object3dComponent(
-        node: MeshNode(span, Material()),
+        node: MeshNode(span, RenderMaterial()),
         scene: game.scene,
         plane: BridgePlane.ground(),
         owns: <DeviceMesh>[span],
@@ -64,7 +64,7 @@ void main() {
       CuboidShape(size: Vector3.all(1.0)).build(),
     );
     final raft = Object3dComponent(
-      node: MeshNode(hull, Material()),
+      node: MeshNode(hull, RenderMaterial()),
       scene: game.scene,
       plane: BridgePlane.ground(),
       owns: <DeviceMesh>[hull],

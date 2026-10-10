@@ -9,10 +9,12 @@
 /// a state call, they are all wrong and nothing says so until somebody re-runs
 /// the set on a machine with a GPU.
 ///
-/// **That it lands at the far plane.** The depth in `sky.vert` is 0.999999 and
-/// the buffer is cleared to 1.0. Raise it to exactly 1.0 and `less` fails
-/// everywhere and the sky never appears; drop it to 0.0 and the sky is in front
-/// of the world. Neither is visible from the arithmetic, and both are one digit.
+/// **That it lands at the far plane.** The ordinary way round the renderer
+/// draws it at 0.999999 against a buffer cleared to 1.0. Raise it to exactly
+/// 1.0 and `less` fails everywhere and the sky never appears; drop it to 0.0
+/// and the sky is in front of the world. Reversed (`A2.8`) it is drawn at
+/// nought, tested `lessEqual` against a buffer cleared to nought. Neither is
+/// visible from the arithmetic, and both are one digit.
 ///
 /// **That the two transcriptions agree.** The model exists twice — in GLSL, and
 /// in `SkySettings.sample` for the things that cannot ask a GPU. The software
@@ -26,12 +28,13 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 96;
 const int _height = 72;
@@ -53,16 +56,16 @@ const int _height = 72;
 SkySettings _sky({bool enabled = true, double sunIntensity = 6.0}) =>
     SkySettings(
       enabled: enabled,
-      zenith: Vector3(0.04, 0.09, 0.55),
-      horizon: Vector3(0.30, 0.36, 0.45),
-      nadir: Vector3(0.02, 0.02, 0.03),
+      zenith: LinearColor(0.04, 0.09, 0.55),
+      horizon: LinearColor(0.30, 0.36, 0.45),
+      nadir: LinearColor(0.02, 0.02, 0.03),
       directionToSun: Vector3(1.0, 0.25, 0.0),
-      sunColor: Vector3(1.0, 0.12, 0.05),
+      sunColor: LinearColor(1.0, 0.12, 0.05),
       glowStrength: 0.35,
       glowExponent: 12.0,
-      sunAngularRadiusDegrees: 3.0,
-      sunSoftnessDegrees: 1.0,
-      sunIntensity: sunIntensity,
+      sunAngularRadius: 3.0 * math.pi / 180.0,
+      sunSoftness: 1.0 * math.pi / 180.0,
+      sunIntensity: sunIntensity * Photometric.legacyUnit,
     );
 
 /// A green wall forty metres out, and a camera at the origin.
@@ -81,9 +84,9 @@ SkySettings _sky({bool enabled = true, double sunIntensity = 6.0}) =>
           device,
           CuboidShape(size: Vector3(30.0, 30.0, 1.0)).build(),
         ),
-        engine.Material(
+        engine.RenderMaterial(
           name: 'wall',
-          baseColor: Vector4(0.0, 1.0, 0.0, 1.0),
+          baseColor: LinearColor.fromSrgb(0.0, 1.0, 0.0, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'wall',
@@ -92,11 +95,7 @@ SkySettings _sky({bool enabled = true, double sunIntensity = 6.0}) =>
   }
 
   final camera = CameraNode(
-    projection: const PerspectiveProjection(
-      fovYRadians: 1.2,
-      near: 0.3,
-      far: 500.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 1.2, near: 0.3, far: 500.0),
   )..lookAt(Vector3(0.0, 0.0, 1.0));
   scene.add(camera);
   return (scene: scene, camera: camera);
@@ -113,7 +112,10 @@ Future<Uint8List> _draw(
     height: _height,
     scene: world.scene,
     views: <RenderView>[
-      RenderView(camera: world.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      RenderView(
+        camera: world.camera,
+        clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+      ),
     ],
     settings: RenderSettings(
       sky: sky,
@@ -123,9 +125,9 @@ Future<Uint8List> _draw(
       tonemap: false,
     ),
   );
-  final pixels = await it.device.readPixels(result.frame);
+  final pixels = await it.device.readback(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 int _green(Uint8List rgba) {
@@ -167,7 +169,7 @@ double _mean(Uint8List rgba, {required int channel}) {
 void main() {
   _hardEdgedSun();
   test('no sky is byte-identical to the sky nobody asked for', () async {
-    // The property seventy-eight goldens rest on: a frame with no sky in it is
+    // The property 96 goldens rest on: a frame with no sky in it is
     // the frame this renderer has always drawn.
     //
     // Mutation: drop the early return. The sky is drawn into every scene that
@@ -299,11 +301,11 @@ void main() {
     final frame = await _draw(it, world, sky: sky);
 
     // The pixel at the centre of the frame is the direction the camera points.
-    final centre = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
+    final center = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
     final drawn = Vector3(
-      frame[centre] / 255.0,
-      frame[centre + 1] / 255.0,
-      frame[centre + 2] / 255.0,
+      frame[center] / 255.0,
+      frame[center + 1] / 255.0,
+      frame[center + 2] / 255.0,
     );
 
     // The same colour worked out in Dart, put through what the frame put the
@@ -325,51 +327,46 @@ void main() {
     }
   });
 
-  test('the depth the sky sits at is the same in both transcriptions', () {
-    // Read out of the shader source, because this is the one constant that has
-    // to agree between a text file nobody compiles here and a Dart class the
-    // tests run. Changing one and not the other gives a sky that is either
-    // invisible or in front of the world.
+  test('the depth the sky sits at comes off its vertices in both '
+      'transcriptions', () {
+    // Read out of the shader source, because this is the arrangement that
+    // has to agree between a text file nobody compiles here and a Dart class
+    // the tests run. Since `A2.8` the depth is not a constant in either: the
+    // renderer writes it beside each corner — 0.999999 the ordinary way
+    // round, nought reversed — and a stage that wrote a literal again would
+    // put the reversed sky at the near plane, in front of the world.
     final source = File(
       '../flutter3d_shaders/shaders/sky.vert',
     ).readAsStringSync();
-    final match = RegExp(
-      r'gl_Position = vec4\(position, ([0-9.]+), 1\.0\);',
-    ).firstMatch(source);
     expect(
-      match,
-      isNotNull,
-      reason: 'sky.vert no longer writes a literal depth',
+      source,
+      contains('layout(location = 0) in vec3 position;'),
+      reason: 'sky.vert no longer takes its depth with the corner',
+    );
+    expect(
+      source,
+      contains('gl_Position = vec4(position, 1.0);'),
+      reason: 'sky.vert no longer draws at the depth it was handed',
     );
 
-    final fromGlsl = double.parse(match!.group(1)!);
     final stage = const SkyVertexShader();
     final out = Float32List(stage.varyingCount);
-    // A whole vertex: the clip-space corner, then everything the fragment
-    // stage reads — the ray and the preset, which this stage passes through.
-    // Zeros will do; what is being read back is the depth.
-    final position = Float32List(2 + stage.varyingCount);
-    final clip = stage.run(
-      position,
-      const ShaderBindings(
-        <String, Map<String, Float32List>>{},
-        <String, BoundTexture>{},
-      ),
-      out,
-    );
-
-    // Loose, because the vertex stage returns single precision.
-    expect(clip.z / clip.w, closeTo(fromGlsl, 1e-6));
-    expect(
-      fromGlsl,
-      lessThan(1.0),
-      reason: 'at exactly 1.0 `less` never passes',
-    );
-    expect(
-      fromGlsl,
-      greaterThan(0.999),
-      reason: 'and it has to be the far plane',
-    );
+    // A whole vertex: the clip-space corner and its depth, then everything
+    // the fragment stage reads — the ray and the preset, which this stage
+    // passes through. Zeros will do; what is being read back is the depth.
+    for (final depth in <double>[0.999999, 0.0]) {
+      final vertex = Float32List(3 + stage.varyingCount)..[2] = depth;
+      final clip = stage.run(
+        vertex,
+        const ShaderBindings(
+          <String, Map<String, Float32List>>{},
+          <String, BoundTexture>{},
+        ),
+        out,
+      );
+      // Loose, because the vertex stage returns single precision.
+      expect(clip.z / clip.w, closeTo(depth, 1e-6));
+    }
   });
 }
 
@@ -384,7 +381,7 @@ double _linearToSrgb(double value) {
 /// A sun with no soft edge at all.
 ///
 /// **A hard-edged sun draws in the model and not in either shader**, which is
-/// the divergence this file exists to find. `sunSoftnessDegrees: 0` is an
+/// the divergence this file exists to find. `sunSoftness: 0.0` is an
 /// ordinary thing to ask for — a sun with no penumbra — and it makes the two
 /// cosines the shader is given equal. The shader's guard against that division
 /// returns *no disc at all*, so the sun disappears; `SkySettings.sample` guards
@@ -396,17 +393,17 @@ void _hardEdgedSun() {
   test(
     'a sun with no soft edge is still a sun in both transcriptions',
     () async {
-      final sky = _sky().copyWith(sunSoftnessDegrees: 0.0);
+      final sky = _sky().copyWith(sunSoftness: 0.0);
       final it = _engine();
       final world = _world(wall: false);
       world.camera.lookAt(sky.resolvedDirectionToSun);
 
       final frame = await _draw(it, world, sky: sky);
-      final centre = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
+      final center = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
       final drawn = Vector3(
-        frame[centre] / 255.0,
-        frame[centre + 1] / 255.0,
-        frame[centre + 2] / 255.0,
+        frame[center] / 255.0,
+        frame[center + 1] / 255.0,
+        frame[center + 2] / 255.0,
       );
 
       final linear = sky.sample(sky.resolvedDirectionToSun)..scale(1.6);
@@ -431,17 +428,17 @@ void _hardEdgedSun() {
   test('and the model itself does not answer with a NaN', () {
     // The other half of the same division. A NaN in a colour multiplies through
     // the tone map and arrives as a black pixel nobody can trace back.
-    final sky = _sky().copyWith(sunSoftnessDegrees: 0.0);
+    final sky = _sky().copyWith(sunSoftness: 0.0);
 
     for (final direction in <Vector3>[
       sky.resolvedDirectionToSun,
       Vector3(0.0, 1.0, 0.0),
       Vector3(1.0, 0.0, 0.0),
     ]) {
-      final colour = sky.sample(direction);
-      expect(colour.x.isNaN, isFalse, reason: 'looking at $direction');
-      expect(colour.y.isNaN, isFalse);
-      expect(colour.z.isNaN, isFalse);
+      final color = sky.sample(direction);
+      expect(color.x.isNaN, isFalse, reason: 'looking at $direction');
+      expect(color.y.isNaN, isFalse);
+      expect(color.z.isNaN, isFalse);
     }
   });
 }

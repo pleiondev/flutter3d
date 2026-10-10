@@ -21,7 +21,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Colors;
 
 const int _width = 192;
 const int _height = 96;
@@ -31,12 +30,11 @@ const double _standoff = 0.35;
 
 void main() {
   test('a wall lit by a torch has no straight edge across it', () async {
-    final device = WebGlDevice.create(
+    final device = WebGlDevice.open(
       width: _width,
       height: _height,
-      sources: engineShaders,
+      sources: webGlEngineShaders,
     );
-    if (device == null) fail('no WebGL2 context in this browser');
 
     TextureHandle texel(List<int> rgba) {
       final made = device.createTextureFromPixels(
@@ -45,7 +43,6 @@ void main() {
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
       );
-      if (made == null) fail('the device would not make a 1x1 texture');
       return made;
     }
 
@@ -62,9 +59,9 @@ void main() {
     // behind the camera, and every one of them lands in a *different* face of
     // the same cube map. That is what a torch's light meets and what no golden
     // scene has ever contained.
-    final stone = Material(
+    final stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.8, 0.8, 1.0),
       roughness: 0.9,
     );
     void box(Vector3 size, Vector3 at, String name) {
@@ -88,8 +85,8 @@ void main() {
       scene.add(
         LightNode(
           type: LightType.point,
-          color: Vector3(1.0, 1.0, 1.0),
-          intensity: i == 0 ? 6.0 : 2.0,
+          color: LinearColor(1.0, 1.0, 1.0),
+          intensity: (i == 0 ? 6.0 : 2.0) * Photometric.legacyUnit,
           range: 13.0,
           castsShadow: true,
           name: 'torch$i',
@@ -102,7 +99,7 @@ void main() {
     }
 
     final camera = CameraNode(
-      projection: const PerspectiveProjection(fovYRadians: 1.0),
+      projection: const PerspectiveProjection(fovY: 1.0),
     )..setPosition(0.0, 0.0, 6.0);
     scene.add(camera);
 
@@ -116,12 +113,15 @@ void main() {
         height: _height,
         scene: scene,
         views: <RenderView>[
-          RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
         ],
         settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
       );
-      final read = await device.readPixels(result.frame);
-      pixels = read!.buffer.asUint8List();
+      final read = await device.readback(result.frame);
+      pixels = read.buffer.asUint8List();
     }
 
     // The row through the flame, in the middle of the wall.

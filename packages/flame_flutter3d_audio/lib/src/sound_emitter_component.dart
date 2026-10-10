@@ -5,13 +5,13 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'audio_scene_component.dart';
 
 /// A looping sound that plays while this component is in the game and
-/// [playing] is true: an engine, a siren, a refuelling tone.
+/// [isPlaying] is true: an engine, a siren, a refuelling tone.
 ///
 /// **Held open by state, not started and stopped by events.** A loop a game
 /// starts on one event and stops on another is a loop left running when the
 /// second event never comes: the craft was removed, the level restarted, the
 /// speakers opened in between. This one asks, every frame, whether it should
-/// be sounding, and makes it so: it starts when [playing] turns on, stops
+/// be sounding, and makes it so: it starts when [isPlaying] turns on, stops
 /// when it turns off or the component is removed, and moves onto the real
 /// scene when the game's [AudioSceneComponent] opens the speakers.
 ///
@@ -21,30 +21,30 @@ import 'audio_scene_component.dart';
 class SoundEmitterComponent extends Component {
   SoundEmitterComponent(
     this.sound, {
-    this.playing = true,
+    this.isPlaying = true,
     this.gain = 1.0,
     this.rate = 1.0,
     super.priority,
   });
 
   /// What it plays. A loop, normally; a one-shot plays once each time
-  /// [playing] turns on.
+  /// [isPlaying] turns on.
   final SoundDef sound;
 
   /// Whether it should be sounding.
-  bool playing;
+  bool isPlaying;
 
   /// Scales the sound's own gain.
   double gain;
 
-  /// Scales the sound's own speed, pitch with it.
+  /// Scales the sound's own speed, pitch with it: a unitless multiplier.
   double rate;
 
   AudioSceneComponent? _audio;
-  SoundEmitter? _emitter;
+  AudioEmitter? _emitter;
   AudioScene? _playingOn;
 
-  /// Whether a one-shot has played for this turn of [playing]: moved onto
+  /// Whether a one-shot has played for this turn of [isPlaying]: moved onto
   /// the speakers when they open, it would otherwise play a second time.
   bool _shot = false;
 
@@ -52,7 +52,7 @@ class SoundEmitterComponent extends Component {
   double _lookAgainIn = 0.0;
 
   /// The voice this is holding, while it holds one.
-  SoundEmitter? get emitter => _emitter;
+  AudioEmitter? get emitter => _emitter;
 
   /// **Found again when it goes.** A level restarted with a new
   /// [AudioSceneComponent] left every emitter playing into the old one,
@@ -83,7 +83,7 @@ class SoundEmitterComponent extends Component {
     super.update(dt);
     final audio = _find(dt);
     if (audio == null) return;
-    if (!playing) {
+    if (!isPlaying) {
       _stop();
       _shot = false;
       return;

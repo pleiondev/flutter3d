@@ -32,9 +32,9 @@ ModelProject _project() => const ModelProject().added(
       const ParametricSphere(segments: 24, rings: 12).toEditMesh(),
     ),
     transform: vm.Matrix4.identity(),
-    lods: const <LodSpec>[
-      LodSpec(ratio: 0.5, maxScreenFraction: 0.4),
-      LodSpec(ratio: 0.2, maxScreenFraction: 0.1),
+    lods: const <LodSettings>[
+      LodSettings(ratio: 0.5, maxScreenFraction: 0.4),
+      LodSettings(ratio: 0.2, maxScreenFraction: 0.1),
     ],
   ),
 );
@@ -55,13 +55,16 @@ Future<int> _litPixels(
       pixels: ByteData.sublistView(
         Uint8List.fromList(<int>[128, 128, 255, 255]),
       ),
-    )!,
+    ),
   );
   final scene = Scene();
   asset.instantiate(scene, name: 'ball');
   scene.add(
-    LightNode(type: LightType.directional, intensity: 2.0, castsShadow: true)
-      ..setLocalForward(vm.Vector3(-0.3, -0.9, 0.2)),
+    LightNode(
+      type: LightType.directional,
+      intensity: 2.0 * Photometric.legacyUnit,
+      castsShadow: true,
+    )..setLocalForward(vm.Vector3(-0.3, -0.9, 0.2)),
   );
   final camera = CameraNode()
     ..setPosition(0.0, 0.0, -away)
@@ -73,7 +76,7 @@ Future<int> _litPixels(
     views: <RenderView>[RenderView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(frame.frame)).buffer.asUint8List();
   var lit = 0;
   for (var i = 0; i < pixels.length; i += 4) {
     if (pixels[i] + pixels[i + 1] + pixels[i + 2] > 30) lit++;

@@ -4,7 +4,7 @@
 ///     flutter test test/outliner_test.dart
 library;
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Outcome;
 import 'package:flutter3d_modeler/l10n/app_localizations.dart';
@@ -229,7 +229,7 @@ void main() {
 
       // Ten rows and no more, whatever the project holds. **Mutation: a
       // `Column` of every object**, which is what this drew. Forty of them
-      // is thirteen hundred pixels of panel in front of Transform, Material
+      // is thirteen hundred pixels of panel in front of Transform, RenderMaterial
       // and the modifier stack — and the thirty past the fold are laid out
       // and clipped, which is the subtree `_RenderObjectSemantics` walked
       // into with no geometry computed for it.

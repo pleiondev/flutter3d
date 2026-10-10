@@ -83,7 +83,7 @@ final class WebGamepad extends GamepadPlatform {
       // last frame before the tab went away, repeated for as long as it stays
       // away.
       out.clear();
-      out.connected = true;
+      out.isConnected = true;
       return;
     }
 

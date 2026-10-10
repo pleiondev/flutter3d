@@ -15,7 +15,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 import 'sculpt_mesh.dart';
 
@@ -85,7 +85,7 @@ final class SculptMeshBvh {
   /// The nearest triangle [ray] hits, or null — the same shape
   /// [TriangleBvh.raycast] itself answers with.
   ({int triangle, double distance, Vector3 point})? raycast(
-    Ray ray, {
+    LocalRay ray, {
     double maxDistance = double.infinity,
   }) => _bvh.raycast(ray, maxDistance: maxDistance);
 }

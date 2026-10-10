@@ -1,5 +1,6 @@
 /// `ap-04`'s other half: where `assets_src/` and `flutter3d_generated/` sit
-/// in a project, and what to convert given an optional [AssetManifest].
+/// in a project, and what to convert given an optional [AssetManifest] —
+/// models, and since P8 materials written in the material language.
 library;
 
 import 'dart:io';
@@ -48,7 +49,7 @@ final class AssetLayout {
     for (final entity in sourcesDir.listSync(recursive: true)) {
       if (entity is! File) continue;
       final relative = entity.path.substring(sourcesDir.path.length + 1);
-      if (!recognisedExtensions.contains(_extensionOf(relative))) continue;
+      if (!recognizedExtensions.contains(_extensionOf(relative))) continue;
 
       final rule = manifest.ruleFor(relative);
       if (rule?.exclude ?? false) continue;
@@ -63,7 +64,52 @@ final class AssetLayout {
     }
     return result;
   }
+
+  /// Every material source under [sourcesDir] — P8 — paired with the shader
+  /// bundle it compiles into: `assets_src/fx/rim.f3dmat` becomes
+  /// `flutter3d_generated/fx/rim.f3dshaders`.
+  ///
+  /// **The same tree as the models, not a `shaders/` of its own.** A material
+  /// belongs to the asset that wears it, and an author who keeps `crate.glb`
+  /// and `crate_glow.f3dmat` side by side should not have to split them
+  /// because one is compiled by a different program. The output lands where
+  /// `flutter: assets:` already looks, so a project that bundles
+  /// `flutter3d_generated/` ships its materials with no new line in its
+  /// pubspec. A manifest rule's `glob` and `exclude` hold here as they do for
+  /// a model; nothing else in a rule means anything to a material.
+  ///
+  /// **`.f3dmat`, a name nothing else claims** — and kept out of
+  /// [recognizedExtensions], so the model plan never tries to decode one.
+  List<AssetPlan> materialPlan() {
+    if (!sourcesDir.existsSync()) return const <AssetPlan>[];
+    return <AssetPlan>[
+      for (final entity in sourcesDir.listSync(recursive: true))
+        if (entity is File && _extensionOf(entity.path) == materialExtension)
+          if (_relativeTo(entity) case final relative)
+            if (manifest.ruleFor(relative) case final rule
+                when !(rule?.exclude ?? false))
+              AssetPlan(
+                source: entity.path,
+                destination:
+                    '${generatedDir.path}/'
+                    '${relative.substring(0, relative.length - materialExtension.length)}'
+                    '$shaderBundleExtension',
+                rule: rule,
+              ),
+    ];
+  }
+
+  String _relativeTo(File file) =>
+      file.path.substring(sourcesDir.path.length + 1);
 }
+
+/// What a material source is called — P8. Matched case-insensitively, like
+/// every other extension here.
+const String materialExtension = '.f3dmat';
+
+/// What a compiled material is called: a `ShaderBundle`, the same container
+/// `GraphicsDevice.loadShaders` takes from any other packer.
+const String shaderBundleExtension = '.f3dshaders';
 
 String _extensionOf(String path) {
   final dot = path.lastIndexOf('.');

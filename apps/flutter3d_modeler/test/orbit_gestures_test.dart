@@ -14,7 +14,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_modeler/src/orbit_gestures.dart';
 import 'package:flutter3d_modeler/src/settings.dart' show NavigationScheme;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Hands an intent to a camera the way the widget layer will, including the
 /// negation of the up-positive fields that `CameraIntent` documents.

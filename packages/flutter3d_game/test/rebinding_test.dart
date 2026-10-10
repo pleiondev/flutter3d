@@ -24,12 +24,16 @@ Bindings _table() => Bindings(<InputSource, GameAction>{
   InputSource.pad('face.south'): GameAction.jump,
 });
 
+/// [buttons] as the action map a rebinding edits.
+ActionMap _map(Bindings buttons) =>
+    ActionMap(actions: ActionSet.common, buttons: buttons);
+
 void main() {
   test('nothing is captured until something is waiting', () {
     // The panel is a list most of the time, and a key pressed while it is a list
     // belongs to whatever else wanted it.
     final bindings = _table();
-    final rebinding = Rebinding(bindings: bindings);
+    final rebinding = Rebinding(actions: _map(bindings));
 
     expect(rebinding.capture(InputSource.key(65)), isFalse);
     expect(bindings[InputSource.key(65)], isNull);
@@ -40,24 +44,24 @@ void main() {
     // always moving it off something they cannot use, and an "as well" that left
     // the old key working would leave them exactly where they started.
     final bindings = _table();
-    final rebinding = Rebinding(bindings: bindings)..start(GameAction.jump);
+    final rebinding = Rebinding(actions: _map(bindings))
+      ..start(GameAction.jump);
 
     expect(rebinding.capture(InputSource.key(65)), isTrue);
 
     expect(bindings[InputSource.key(65)], GameAction.jump);
     expect(bindings[InputSource.key(32)], isNull, reason: 'space still jumps');
-    expect(
-      bindings[InputSource.pad('face.south')],
-      isNull,
-      reason: 'the pad still jumps, so half the rebinding did nothing',
-    );
+    // Within the device: a key moved is the keyboard's jump, and the pad's
+    // face button stays — a player rebinding the keyboard has not asked to
+    // lose the controller.
+    expect(bindings[InputSource.pad('face.south')], GameAction.jump);
   });
 
   test('and it is taken from whatever else had it', () {
     // Two actions on one key is a table where the last writer wins silently, and
     // a player who cannot see which won thinks the rebinding failed.
     final bindings = _table();
-    Rebinding(bindings: bindings)
+    Rebinding(actions: _map(bindings))
       ..start(GameAction.jump)
       ..capture(InputSource.key(9));
 
@@ -69,7 +73,7 @@ void main() {
     // One table, both halves, which is what makes a controller rebindable at all
     // — and `pad:face.east` is what lands in the saved file, not `B`.
     final bindings = _table();
-    Rebinding(bindings: bindings)
+    Rebinding(actions: _map(bindings))
       ..start(_dash)
       ..capture(InputSource.pad('face.east'));
 
@@ -84,7 +88,7 @@ void main() {
     // Escape, or closing the panel. A rebinding that half happened is worse than
     // one that did not.
     final bindings = _table();
-    final rebinding = Rebinding(bindings: bindings)
+    final rebinding = Rebinding(actions: _map(bindings))
       ..start(GameAction.jump)
       ..cancel();
 
@@ -94,7 +98,7 @@ void main() {
 
   test('and only one thing waits at a time', () {
     final bindings = _table();
-    final rebinding = Rebinding(bindings: bindings)
+    final rebinding = Rebinding(actions: _map(bindings))
       ..start(GameAction.jump)
       ..start(_dash);
 
@@ -109,11 +113,11 @@ void main() {
     // hypothetical: the fastest way to find that out is to bind walking to a key
     // you then cannot reach.
     final bindings = _table();
-    final rebinding = Rebinding(bindings: bindings)
+    final rebinding = Rebinding(actions: _map(bindings))
       ..start(GameAction.jump)
       ..capture(InputSource.key(65));
 
-    rebinding.reset(_table());
+    rebinding.reset(_map(_table()));
 
     expect(bindings[InputSource.key(32)], GameAction.jump);
     expect(bindings[InputSource.key(65)], isNull);

@@ -46,7 +46,7 @@ extension _GltfSceneWalk on GltfLoader {
     // mesh many times, and re-decoding it per node would multiply both work and
     // memory.
     final meshCache = <int, List<_DecodedPrimitive>>{};
-    final splatCache = <int, List<(SplatCloud, SplatColourSpace)>>{};
+    final splatCache = <int, List<(SplatCloud, SplatColorSpace)>>{};
     final splats = <ModelSplat>[];
     final instances = <ModelSurface>[];
     final onPath = <int>{};
@@ -125,7 +125,7 @@ extension _GltfSceneWalk on GltfLoader {
 
         // Splats follow the node, not the skin: the extension places them by
         // the node's global transform and says nothing of joints.
-        for (final (cloud, colourSpace) in splatCache.putIfAbsent(
+        for (final (cloud, colorSpace) in splatCache.putIfAbsent(
           meshIndex,
           () =>
               _decodeMeshSplats(meshes[meshIndex], meshIndex, reader, warnings),
@@ -134,7 +134,7 @@ extension _GltfSceneWalk on GltfLoader {
             ModelSplat(
               node: nodeIndex,
               cloud: cloud,
-              colourSpace: colourSpace,
+              colorSpace: colorSpace,
               transform: world.clone(),
               meshIndex: meshIndex,
             ),
@@ -233,9 +233,8 @@ extension _GltfSceneWalk on GltfLoader {
 
   /// One glTF node as a [ModelNode], with its transform kept as TRS.
   ///
-  /// A `matrix` node is decomposed, which loses shear — the same trade-off
-  /// three.js and Babylon make, and shear in authored assets is vanishingly
-  /// rare. TRS is what the scene graph stores and what animation interpolates,
+  /// A `matrix` node is decomposed, which loses shear — a trade-off worth
+  /// making, because shear in authored assets is vanishingly rare. TRS is what the scene graph stores and what animation interpolates,
   /// so keeping a matrix here would only move the decomposition later.
   ModelNode _modelNodeFrom(
     Map<String, Object?> node,

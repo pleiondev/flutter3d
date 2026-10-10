@@ -1,3 +1,182 @@
+## 1.0.0-rc.1
+
+- **A compile refusal says where.** `compileWebGlShader` fills the
+  `ShaderCompileException`'s `stage`, `target` (`webgl`) and
+  `diagnostics`, read from the driver's log with the source line of each
+  error, so a tool can point at it; a link refusal carries the `target`.
+
+- **Breaking: a shader that will not compile or link is a
+  `ShaderCompileException`.** `compileWebGlShader` and the program link
+  throw one naming the stage (or `vertex with fragment`), the backend and
+  the driver's log, where they threw a `StateError`, so
+  `on Flutter3dException` catches it.
+- **The engine's shaders carry the new hashed-alpha noise**, anchored on
+  the world and free of `sin`.
+
+- **Breaking: `WebGlSectionSources`, `decodeWebGlSection` and
+  `encodeWebGlSection` are not re-exported.** They are
+  `package:flutter3d_shaders/translate.dart`'s, where a build hook writes the
+  section.
+
+- **Breaking: `engineShaders` is `webGlEngineShaders`.** `flutter3d_webgpu`
+  had the same name for its own table, so an application that opens WebGPU
+  and falls back to WebGL could not import both libraries.
+- **Debug groups and labels, as far as WebGL2 can.** It has no
+  `KHR_debug`, so no browser tool sees either. The encoder keeps the open
+  groups and the last marker, and a refused pass call or an unbound-slot
+  report says which group was open; a target that cannot be drawn into is
+  named by its labels. A `RecordingDevice` over the device writes both into
+  its trace.
+- **`ShaderHandle.dispose` deletes the stage's shader object**, after the
+  library forgets the handle; a program already linked from it keeps it
+  alive until the program goes, as GL does.
+- **Breaking: one way to open the backend.** `openWebGl` is gone:
+  `WebGlDevice.open` takes the engine's shaders by default, returns a
+  `WebGlDevice` rather than a nullable one, and throws a
+  `DeviceUnavailableException` in a browser without WebGL2.
+  `registerWebGlBackend` adds it to an engine's registry.
+- **Breaking: the device follows the HAL** — `readPixels` is `readback`,
+  `createTextureWithDescriptor` is `createTexture`, the creators throw where
+  they answered null, and `readBufferSync` comes from
+  `SynchronousBufferReadback`.
+- **Breaking: one suffix for settings, Settings, and Descriptor in the
+  HAL.** `RenderTargetSpec` is `RenderTargetDescriptor`, `VertexLayoutSpec`
+  is `VertexLayoutDescriptor`. Every settings class is `final` with a
+  `const` constructor and a `copyWith` over every field; a nullable field
+  is reset with `copyWith(clearX: true)`. `dart fix` carries the renames.
+- **Breaking: `WebGlDevice.create` is `open`, and
+  `createTextureFromEncodedImage` is `decodeTexture`**: a device is opened
+  only through `open`, and bytes are decoded.
+- **Breaking: WebGL is not in the API.** The handle types (`WebGl*`), the
+  capability gates (`webglGate*`, `webglRefuse*`), the encoders and the
+  shader library are not exported, and `WebGlDevice`'s `package:web` members
+  moved off its API. `registerWebGlBackend(registry)` replaces
+  `ensureWebGlBackendRegistered()`.
+- **A lost context is reported.** `WebGlDevice.lost` reports
+  `webglcontextlost` and `webglcontextrestored`, recoverable.
+
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **`EXT_clip_control` turns clip depth to `[0, 1]` where it is offered —
+  `A2.8`.** The device then reports `DepthRange.zeroToOne`, allocates
+  `DEPTH32F_STENCIL8` and reports `DeviceFeature.reversedDepth`, so a
+  reversed projection keeps its precision in a browser too; the
+  multisample probe tries the depth format the device will use.
+
+- **`WebGlDevice.open(highpMaterials: true)` is the material stages'
+  precision switched back — `A1.1`.** It rewrites `mediump` to `highp` in
+  every stage before it is compiled, which draws what every earlier release
+  drew on a phone.
+- The engine's sources are regenerated: the opaque variants, the depth
+  pre-draw, the shadow map's storage mode and the sky's depth.
+
+- **`engine_shaders.dart` stays public, and says why**: `WebGlDevice.open`
+  takes the sources it compiles, and a page that makes its own device hands it
+  `webGlEngineShaders`.
+
+**Capabilities are one answer, `features`, decided once from what the
+context granted.** The `supportsX` getters now read it through
+`DeviceCapabilityForwarders`, and `limits` carries this context's own
+`getParameter` numbers: texture sizes and layers, uniform blocks and their
+alignment, vertex attributes, a vertex stride of 255 (WebGL's cap), and zero
+for compute, storage and 1D textures. One legacy answer moved:
+`supportsFloat32Filtering` now also needs `EXT_color_buffer_float`, since it
+always meant "filter *and* render into"; the extension was already asked for,
+and is now recorded.
+
+**Texture arrays, 3D textures and writes into any level and layer.**
+`createTextureWithDescriptor` makes 2D, 2D-array, 3D and cube textures with
+`texStorage2D`/`texStorage3D`; `writeTexture` fills any region in the
+texture's own format, compressed included; a pass attaches an array layer or
+3D slice with `framebufferTextureLayer`, a depth mip level, read-only depth
+and stencil, and a depth-only format on the depth-only point. Rows are the
+picture's from the top everywhere, as `overwriteTexture` already had them.
+Cube arrays, 1D textures and storage textures are refused: WebGL2 has none.
+
+**Buffers, copies and readback.** `createBuffer` for vertex, index, uniform
+and copy usages (one buffer cannot be both index data and anything else here,
+and says so), `writeBuffer`, `readBuffer` behind a fence, `readBufferSync`
+through `getBufferSubData`, `mapBuffer` as a copy written back on unmap, and a
+transfer pass with `copyBufferSubData`, zero-filling clears,
+`copyTexSubImage*` and depth blits, pixel pack and unpack buffers, and
+`resolveTexture` by blit.
+
+**The pass state WebGL2 has.** `polygonOffset` depth bias (a clamp is refused
+by name: there is no `polygonOffsetClamp`), colour write masks (per
+attachment with `OES_draw_buffers_indexed`), depth clamp with
+`EXT_depth_clamp`, min and max blending, dual-source factors with
+`WEBGL_blend_func_extended`, comparison samplers and level-of-detail clamps,
+`drawArrays` draws, `drawIndexed` with a base vertex or instance where
+`WEBGL_draw_instanced_base_vertex_base_instance` is granted, `multiDraw`
+through `WEBGL_multi_draw` (a loop without it), laid-out uniform bytes, and
+render bundles recorded and replayed. Shaders may now declare array, 3D,
+integer and shadow samplers; they used to be refused at link.
+
+**Occlusion and timestamp queries.** `ANY_SAMPLES_PASSED` answers zero or one;
+timestamps come from `EXT_disjoint_timer_query_webgl2` where it counts them,
+and a disjoint read throws rather than handing back meaningless numbers.
+Pipeline statistics, indirect draws, storage bound to a render stage, border
+colours and compute are refused with `UnsupportedCapability`, each with the
+reason WebGL2 cannot have it. A refused call leaves the pass able to submit;
+`setPolygonMode(line)` is now one of those refusals.
+
+- `createStorageBuffer` takes `bindableAsIndices`, and refuses it as it
+  refuses every storage buffer: no compute here, so splats sort on the CPU.
+
+- The shader table regenerated for `OutlineMask` and `HighContrast`, and
+  `high-contrast` in the browser reference set, agreeing with Impeller to the
+  pixel.
+- The shader table regenerated for the caustic stages.
+- The shader table regenerated for the painted, unclamped transmittance.
+- The shader table regenerated for `ShadowTransmittance` and the coloured
+  sun shadow (`ShadowSettings.translucentCasters`).
+
+- **Alpha to coverage**: `SAMPLE_ALPHA_TO_COVERAGE`, off at every pass's
+  start; `supportsAlphaToCoverage` is true where the context multisamples.
+
+- **The generated tables carry the orthographic camera's paths**, and
+  `orthographic-metal` is in the browser reference set.
+
+- **The generated tables carry the debug views**, and `debug-view-split`
+  is in the browser reference set.
+
+- **`LensFlare` translated, and the composite's distortion**;
+  `lens-flare` and `lens-distortion` are in the browser reference set.
+
+- **SMAA 1x's three stages translated**, from the same sources as every
+  other stage; `smaa-teapot` is in the browser reference set.
+
+**The generated tables carry the decal stage** of `flutter3d_shaders`.
+
+**The generated tables carry `PlanarReflection` and
+`RenderTextureEncode`**, and the `planar-mirror` and `render-texture`
+goldens are in this set.
+
+**The generated tables carry `SkyPhysical`, `SkyPhysicalVertex` and the
+height fog in `ApplyFog`.**
+
+**The GLSL ES translator and the section codec moved to
+`flutter3d_shaders`**, so a build hook with no Flutter SDK can use them.
+`encodeWebGlSection`, `decodeWebGlSection` and `WebGlSectionSources` are
+still exported from this package's barrel under the same names.
+
+- **Images are decoded by the browser, with mips built by the GPU.**
+  `WebGlDevice` is an `EncodedImageUpload`: `createImageBitmap` decodes (and
+  scales to the cap while decoding), `texSubImage2D` uploads the bitmap, and
+  `generateMipmap` builds the chain. Before this a web texture was decoded in
+  Dart and its chain halved level by level on the CPU.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.2+1
 
 **Resolves on Flutter 3.44 and Dart 3.12.0.** The constraints asked for Dart

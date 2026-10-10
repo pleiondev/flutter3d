@@ -13,10 +13,10 @@ import 'dart:math';
 
 import 'package:flutter3d_core/geometry.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
+import 'package:vector_math/vector_math.dart';
 
 /// The nearest triangle [ray] hits, found by asking every one of them.
-({int triangle, double distance})? scan(MeshData mesh, Ray ray) {
+({int triangle, double distance})? scan(MeshData mesh, LocalRay ray) {
   final offset = mesh.layout.floatOffsetOf(VertexLayout.position.name);
   final stride = mesh.layout.floatsPerVertex;
   Vector3 vertexAt(int index) => Vector3(
@@ -48,7 +48,7 @@ void main() {
 
   test('a ray down an axis hits the near face of a cube', () {
     final bvh = TriangleBvh.fromMesh(cube);
-    final hit = bvh.raycast(Ray(Vector3(0, 0, 5), Vector3(0, 0, -1)));
+    final hit = bvh.raycast(LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1)));
 
     expect(hit, isNotNull);
     expect(hit!.distance, closeTo(4.5, 1e-5));
@@ -75,7 +75,7 @@ void main() {
         random.nextDouble() * 2 - 1,
         random.nextDouble() * 2 - 1,
       );
-      final ray = Ray(origin, (target - origin)..normalize());
+      final ray = LocalRay(origin, (target - origin)..normalize());
 
       final byTree = bvh.raycast(ray);
       final byScan = scan(sphere, ray);
@@ -94,7 +94,7 @@ void main() {
 
   test('a ray that starts inside still finds what is in front of it', () {
     final bvh = TriangleBvh.fromMesh(sphere);
-    final ray = Ray(Vector3.zero(), Vector3(0, 1, 0));
+    final ray = LocalRay(Vector3.zero(), Vector3(0, 1, 0));
 
     final hit = bvh.raycast(ray);
     expect(hit, isNotNull);
@@ -103,7 +103,7 @@ void main() {
 
   test('maxDistance rejects what is further away', () {
     final bvh = TriangleBvh.fromMesh(cube);
-    final ray = Ray(Vector3(0, 0, 5), Vector3(0, 0, -1));
+    final ray = LocalRay(Vector3(0, 0, 5), Vector3(0, 0, -1));
 
     expect(bvh.raycast(ray, maxDistance: 4.0), isNull);
     expect(bvh.raycast(ray, maxDistance: 5.0), isNotNull);
@@ -125,7 +125,7 @@ void main() {
     bvh.refit();
 
     expect(bvh.nodeCount, nodes, reason: 'a refit is not a rebuild');
-    final hit = bvh.raycast(Ray(Vector3(3, 0, 5), Vector3(0, 0, -1)));
+    final hit = bvh.raycast(LocalRay(Vector3(3, 0, 5), Vector3(0, 0, -1)));
     // Mutation: skip the `refit` call and this is null — every box still
     // bounds the cube where it was, and the ray misses all of them.
     expect(hit, isNotNull);
@@ -136,7 +136,7 @@ void main() {
     final empty = MeshBuilder(VertexLayout.standard).build();
     final bvh = TriangleBvh.fromMesh(empty);
 
-    expect(bvh.raycast(Ray(Vector3.zero(), Vector3(0, 0, -1))), isNull);
+    expect(bvh.raycast(LocalRay(Vector3.zero(), Vector3(0, 0, -1))), isNull);
     expect(
       collectInAabb(bvh, Aabb3.minMax(Vector3.all(-9), Vector3.all(9))),
       isEmpty,

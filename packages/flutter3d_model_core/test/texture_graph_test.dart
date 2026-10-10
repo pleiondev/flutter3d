@@ -87,7 +87,7 @@ void main() {
       expect(
         () =>
             TextureNode.fromJson(<String, Object?>{'id': 1, 'kind': 'shader'}),
-        throwsFormatException,
+        throwsA(isA<TextureGraphFormatException>()),
       );
     });
 
@@ -103,7 +103,7 @@ void main() {
           'overlay': 2,
           // 'mode' and 'factor' missing on purpose.
         }),
-        throwsFormatException,
+        throwsA(isA<TextureGraphFormatException>()),
       );
     });
   });

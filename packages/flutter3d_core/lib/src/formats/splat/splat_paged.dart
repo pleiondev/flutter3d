@@ -43,10 +43,10 @@ final class PagedSplatOctree {
     SplatRangeReader read, {
     int maxInFlight = 4,
   }) async {
-    final header = await read(0, kSplatOctreeHeaderBytes);
+    final header = await read(0, splatOctreeHeaderBytes);
     final table = await read(
-      kSplatOctreeHeaderBytes,
-      splatOctreeIndexBytes(header) - kSplatOctreeHeaderBytes,
+      splatOctreeHeaderBytes,
+      splatOctreeIndexBytes(header) - splatOctreeHeaderBytes,
     );
     final index = Uint8List(header.length + table.length)
       ..setAll(0, header)
@@ -103,7 +103,7 @@ final class PagedSplatOctree {
 
   Future<void> _fetch(int index) async {
     final node = tree.nodes[index];
-    final length = node.splatCount * kSplatPageBytesPerSplat;
+    final length = node.splatCount * splatPageBytesPerSplat;
     _inFlight.add(index);
     try {
       final bytes = await _read(node.pageOffset, length);

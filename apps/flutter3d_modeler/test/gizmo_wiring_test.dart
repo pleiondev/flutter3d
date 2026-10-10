@@ -21,7 +21,7 @@ import 'package:vector_math/vector_math.dart';
 /// A camera two metres back, looking down −Z, in a viewport 600 logical pixels
 /// tall — the shape `ModelerStage` opens with.
 GizmoView viewFrom(Vector3 eye) =>
-    GizmoView.perspective(eye: eye, fovYRadians: 0.9, viewportHeight: 600);
+    GizmoView.perspective(eye: eye, fovY: 0.9, viewportHeight: 600);
 
 /// The axis a ray from [eye] aimed at the world point [at] lands on.
 GizmoAxis? axisAt(Vector3 eye, Vector3 at) {

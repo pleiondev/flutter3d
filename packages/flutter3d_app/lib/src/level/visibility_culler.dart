@@ -41,7 +41,7 @@ final class VisibilityCuller {
     for (var i = 0; i < batches.length; i++) {
       final batch = batches[i];
       final show = visibility.canSeeFrom(eye, batch.bounds);
-      batch.node.visible = show;
+      batch.node.isVisible = show;
       if (!show) hidden++;
     }
     return _hidden = hidden;
@@ -50,7 +50,7 @@ final class VisibilityCuller {
   /// Shows every batch again, for a camera that is no longer the player's.
   void showAll() {
     for (final batch in batches) {
-      batch.node.visible = true;
+      batch.node.isVisible = true;
     }
     _hidden = 0;
     _cell = -1;

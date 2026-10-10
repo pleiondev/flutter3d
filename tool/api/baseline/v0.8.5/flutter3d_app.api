@@ -1,0 +1,306 @@
+# The public API of flutter3d_app.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flutter3d_app/flutter3d_app.dart
+
+typedef AssetBytes = Future<ByteData> Function(AssetRequest request);
+
+abstract interface class BinaryStorage
+  Future<Uint8List?> read(String name)
+  Future<bool> write(String name, Uint8List contents)
+  Future<void> remove(String name)
+
+class DidNotStart extends StatelessWidget
+  Widget build(BuildContext context)
+  const DidNotStart(this.error, {super.key, this.explaining, this.background = Colors.black, this.foreground = Colors.white70})
+  final Color background
+  final Color foreground
+  final Object error
+  final String? explaining
+
+typedef DocumentText = Future<String> Function(AssetRequest request);
+
+final class FileBinaryStorage implements BinaryStorage
+  FileBinaryStorage({required this.appName, Directory? directory, IssueSink? onIssue})
+  Future<Uint8List?> read(String name)
+  Future<bool> write(String name, Uint8List contents)
+  Future<void> remove(String name)
+  final IssueSink onIssue
+  final String appName
+  late final Directory? directory
+
+final class FileStorage implements Storage
+  FileStorage({required this.appName, Directory? directory, IssueSink? onIssue})
+  String? read(String name)
+  bool write(String name, String contents)
+  final IssueSink onIssue
+  final String appName
+  late final Directory? directory
+  void remove(String name)
+
+final class FrameClock
+  FrameClock({Clock? wallClock})
+  double get elapsed
+  double get fps
+  double secondsSince(Duration now)
+  double tick()
+  void reset()
+
+typedef FramePresenter = Widget Function(GraphicsDevice device, TextureHandle frame, {BoxFit fit, FilterQuality quality});
+
+final class FrameTimingLog
+  FrameTimingLog({this.label = 'frame', this.window = defaultWindow})
+  String? note({required Duration build, required Duration raster})
+  final String label
+  final int window
+  static const bool enabled = bool.fromEnvironment('FLUTTER3D_TIMINGS')
+  static const int defaultWindow = int.fromEnvironment('FLUTTER3D_TIMINGS_WINDOW', defaultValue: 120)
+  void start()
+  void stop()
+
+final class Issue
+  String toString()
+  const Issue(this.message)
+  final String message
+
+final class IssueLog
+  String? get summary
+  bool get isEmpty
+  bool get isNotEmpty
+  final List<String> issues
+  void add(Issue issue)
+  void clear()
+
+typedef IssueSink = void Function(Issue issue);
+
+class LevelLoadFailed extends StatelessWidget
+  Widget build(BuildContext context)
+  const LevelLoadFailed({super.key, required this.asset, required this.error, this.onStartOver, this.startOverLabel = 'Throw the run away and start again'})
+  final Object error
+  final String asset
+  final String startOverLabel
+  final VoidCallback? onStartOver
+
+final class LevelLoader
+  Future<LoadedLevel> build(Level authored, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelVisibility? visibility, Lightmap? lightmap, List<LevelIssue> issues = const <LevelIssue>[], LevelBatching batching = LevelBatching.perMaterial})
+  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, DocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass})
+  const LevelLoader()
+  static Material materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerOptions tiling = SamplerOptions.trilinearRepeat})
+  static SamplerOptions tilingSamplerFor(GraphicsDevice device)
+  static ShadowCastingMode shadowModeOf(ShadowCasting casting)
+  static const int tilingAnisotropy = LevelScene.tilingAnisotropy
+  void rebuildBrushes(LoadedLevel loaded, {required GraphicsDevice device, required List<Brush> brushes, List<int>? origins})
+
+final class LoadedLevel
+  LightmapLayout? lightmapLayout
+  List<DeviceMesh> brushMeshes
+  LoadedLevel({required this.level, required this.scene, required this.collision, required List<LevelIssue> issues, required this.drawCallCount, Map<String, TextureHandle?>? materialTextures, List<DeviceMesh>? brushMeshes, List<ReflectionProbeNode>? probes, this.culler, this.batching = LevelBatching.perMaterial})
+  TextureHandle? lightmap
+  VisibilityCuller? culler
+  bool probesCaptured(GraphicsDevice device)
+  final CollisionWorld collision
+  final Level level
+  final LevelBatching batching
+  final List<LevelIssue> issues
+  final List<MeshNode> brushNodes
+  final List<ReflectionProbeNode> probes
+  final List<TextureHandle> boundTextures
+  final Map<String, TextureHandle?> materialTextures
+  final Scene scene
+  final int drawCallCount
+  void cull(Vector3 eye, {required GraphicsDevice device})
+  void dispose(GraphicsDevice device)
+
+class LoadingScreen extends StatelessWidget
+  Widget build(BuildContext context)
+  const LoadingScreen({super.key, this.message = 'Loading…'})
+  final String message
+
+class MemoryPressureRelease extends StatefulWidget
+  State<MemoryPressureRelease> createState()
+  const MemoryPressureRelease({required this.renderer, required this.child, this.onReleased, super.key})
+  final Renderer renderer
+  final Widget child
+  final void Function()? onReleased
+
+final class ModelVisuals
+  Future<SceneNode?> add(EntityDef entity)
+  Map<String, SceneNode> get nodes
+  Map<String, Vector3> get restPositions
+  ModelVisuals(this.scene, {required this.device, AssetSource Function(String path)? source, IssueSink? onIssue})
+  final GraphicsDevice device
+  final IssueSink onIssue
+  final Scene scene
+  static const String entityType = 'model'
+  void dispose()
+
+final class PropVisuals
+  Map<String, SceneNode> get nodes
+  Map<String, Vector3> get restPositions
+  MeshNode? add(EntityDef entity)
+  PropVisuals(this.scene, {required this.device, required this.level})
+  final GraphicsDevice device
+  final Level level
+  final Scene scene
+  static const String entityType = 'prop'
+  void dispose()
+  void setMaterial(String name, String materialName)
+
+class RendererFailure extends StatelessWidget
+  Widget build(BuildContext context)
+  const RendererFailure({super.key, required this.error})
+  final Object? error
+
+@immutable final class SceneAnnouncement
+  const SceneAnnouncement({required this.id, required this.label, required this.node, this.hint, this.selected = false, this.onTap})
+  final Object id
+  final SceneNode node
+  final String label
+  final String? hint
+  final VoidCallback? onTap
+  final bool selected
+
+final class SceneSemantics extends StatelessWidget
+  Widget build(BuildContext context)
+  const SceneSemantics({required this.objects, required this.child, this.enabled = true, super.key})
+  final List<SemanticObject> objects
+  final Widget child
+  final bool enabled
+
+class SceneSurface extends StatelessWidget
+  Widget build(BuildContext context)
+  const SceneSurface({super.key, required this.renderer, required this.scene, required this.view, required this.settings, required this.onBeforeFrame, required this.presentFrame, this.moreViews = const <RenderView>[]})
+  final FramePresenter presentFrame
+  final List<RenderView> moreViews
+  final RenderSettings Function() settings
+  final RenderView view
+  final Renderer renderer
+  final Scene scene
+  final VoidCallback onBeforeFrame
+
+@immutable final class SemanticObject
+  const SemanticObject({required this.id, required this.label, required this.bounds, this.hint, this.selected = false, this.onTap})
+  final Object id
+  final Rect bounds
+  final String label
+  final String? hint
+  final VoidCallback? onTap
+  final bool selected
+
+final class SharedMeshes
+  DeviceMesh box(Vector3 size)
+  DeviceMesh shape(String key, Shape Function() shape)
+  SharedMeshes(this._device)
+  void dispose()
+
+abstract interface class Storage
+  String? read(String name)
+  bool write(String name, String contents)
+  void remove(String name)
+
+final class TerrainTiles
+  TerrainTiles({required this.device, required this.tiles, required this.material, required this.chooser, this.metresPerTexture = 8.0, this.skirts = true})
+  final GraphicsDevice device
+  final HeightfieldTiles tiles
+  final List<MeshNode> nodes
+  final Material material
+  final TileLevelChooser chooser
+  final bool skirts
+  final double metresPerTexture
+  int get uploads
+  int? levelOf(int x, int z)
+  void dispose()
+  void update(Vector3 eye)
+
+typedef VisibilityBatch = ({MeshNode node, Aabb3 bounds});
+
+final class VisibilityCuller
+  VisibilityCuller(this.visibility, this.batches)
+  final LevelVisibility visibility
+  final List<VisibilityBatch> batches
+  int apply(Vector3 eye)
+  int get cell
+  int get hidden
+  void showAll()
+
+final class WidgetSurface
+  Future<void> tick()
+  WidgetSurface({required Widget child, required GraphicsDevice device, double width = 1.0, double height = 1.0, double pixelsPerMetre = 512.0, String? name})
+  double get yaw
+  final GraphicsDevice device
+  final MeshNode node
+  final WidgetSurfacePipeline pipeline
+  final double height
+  final double width
+  int get redrawCount
+  set yaw(double value)
+  ui.Offset? uvAt(Vector3 worldPoint, {double epsilon = 0.05})
+  void dispose()
+  void setPosition(Vector3 at)
+
+final class WidgetSurfaceKind extends EntityKind
+  const WidgetSurfaceKind()
+
+final class WidgetSurfacePipeline
+  Future<ui.Image> currentImage()
+  WidgetSurfacePipeline({required Widget child, required int width, required int height, double pixelRatio = 1.0})
+  bool get isDirty
+  bool redrawIfDirty()
+  int get redrawCount
+  void announcePointer(int pointer, {required bool added})
+  void dispatchAtLocal(Offset local, PointerEvent Function(Offset local) event)
+  void dispatchAtUv(Offset uv, PointerEvent Function(Offset local) event)
+  void dispose()
+
+final class WidgetSurfaceVisuals
+  Future<void> tickAll()
+  List<WidgetSurface> get surfaces
+  WidgetSurface? add(EntityDef entity)
+  WidgetSurfaceVisuals(this.scene, {required this.device, required this.registry, IssueSink? onIssue})
+  final GraphicsDevice device
+  final IssueSink onIssue
+  final Map<String, WidgetBuilder> registry
+  final Scene scene
+  static const String entityType = 'widget_surface'
+  void dispose()
+
+final class WidgetTexture
+  Future<TextureHandle?> draw(Widget widget, {required int width, required int height, double pixelRatio = 1.0})
+  const WidgetTexture(this.device)
+  final GraphicsDevice device
+  static Future<ui.Image> rasterise(Widget widget, {required int width, required int height, double pixelRatio = 1.0})
+
+String? applicationDirectory({required String appName, required TargetPlatform platform, required Map<String, String> environment, required String temporary})
+
+String? applicationFolder(String appName)
+
+BinaryStorage defaultBinaryStorage(String appName, {IssueSink? onIssue})
+
+Storage defaultStorage(String appName, {IssueSink? onIssue})
+
+const bool kFixedResolution = false
+
+Future<GraphicsDevice> openDevice({required int width, required int height})
+
+Widget presentFrame(GraphicsDevice device, TextureHandle frame, {BoxFit fit = BoxFit.fill, FilterQuality quality = FilterQuality.none})
+
+void printIssue(Issue issue)
+
+Directory? resolveApplicationDirectory({required String appName, required IssueSink onIssue})
+
+List<SemanticObject> semanticObjectsFor(List<SceneAnnouncement> announcements, {required CameraNode camera, required Size size})
+
+void unmountWidgetTree(BuildOwner build, RenderObjectToWidgetElement<RenderBox> element, RenderObjectWithChildMixin<RenderBox> container)
+
+export package:flutter3d_editor_core/flutter3d_editor_core.dart show meshDataOf
+  LevelBatching
+  meshDataOf
+
+library package:flutter3d_app/native.dart
+
+void writeBytesAtomicallySync(String path, Uint8List contents)
+
+Future<void> writeFileAtomically(String path, String contents)
+
+void writeFileAtomicallySync(String path, String contents)

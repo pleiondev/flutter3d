@@ -13,7 +13,8 @@ import 'particle.dart';
 abstract base class ParticleEmitter {
   const ParticleEmitter();
 
-  /// Places [particle] for a burst at [origin] pointing along [direction].
+  /// Places [particle] for a burst at [origin], in scene space, pointing
+  /// along [direction].
   ///
   /// [direction] is normalised and may be ignored by an emitter that does not
   /// care — a sphere does not.
@@ -72,11 +73,14 @@ final class SphereEmitter extends ParticleEmitter {
 final class ConeEmitter extends ParticleEmitter {
   const ConeEmitter({
     this.speed = const Range(3.0, 8.0),
-    this.halfAngleDegrees = 25.0,
+    this.halfAngle = 25.0 * math.pi / 180.0,
   });
 
+  /// Metres per second, sampled per particle.
   final Range speed;
-  final double halfAngleDegrees;
+
+  /// The angle between the axis and the cone's edge, in radians.
+  final double halfAngle;
 
   @override
   void emit(
@@ -89,7 +93,7 @@ final class ConeEmitter extends ParticleEmitter {
     // orthonormal basis, and the distribution is close enough for something
     // that lasts a third of a second.
     randomDirection(particle.velocity, random);
-    final spread = math.sin(halfAngleDegrees * math.pi / 180.0);
+    final spread = math.sin(halfAngle);
     particle.velocity
       ..scale(spread)
       ..add(direction)

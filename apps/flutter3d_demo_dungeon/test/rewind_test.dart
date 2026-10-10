@@ -4,7 +4,7 @@
 ///
 /// `rewind_test.dart` in the game layer measures the arithmetic on a toy. This
 /// measures it on the shipped game, monsters and dice included: the buffer is
-/// driven the way `main.dart` drives it, and a rewind to an arbitrary moment
+/// attached to the loop the way `main.dart` attaches it, and a rewind to an arbitrary moment
 /// has to land on the snapshot the game itself wrote at that moment, byte for
 /// byte. The size of a snapshot is measured here too, since the buffer's own
 /// doc quotes it.
@@ -14,9 +14,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_dungeon/src/staging.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
-import 'package:flutter3d_game_shooter/sample.dart' hide Staged, stage;
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -56,20 +58,24 @@ void main() {
     final live = _stageCrypt();
     final buffer = RewindBuffer(stepsPerSecond: 60, history: 10.0);
     final before = <int, String>{};
-    final loop = GameLoop(
-      input: live.input,
-      onStep: (dt) {
-        if (buffer.keyframeDue) buffer.keyframe(live.staged.sim.save());
-        // The state every step saw, for the moments below to be checked
-        // against. Every seventh, to keep the test quick.
-        final step = buffer.step - 1;
-        if (step % 7 == 0) before[step] = _bytes(live.staged.sim.save());
-        live.staged.sim.step(dt);
-      },
-    )..recorders.add(buffer.recorder);
+    // The game's arrangement: the shooter installed, and the buffer attached
+    // to the loop, which keeps the loop's own capture as each keyframe.
+    final loop =
+        EngineLoop(
+          input: live.input,
+          plugins: <Flutter3dPlugin>[
+            ShooterPlugin()..simulation = live.staged.sim,
+          ],
+        )..addSystem('test.before', LoopPhase.input, (LoopContext _) {
+          // The state every step saw, for the moments below to be checked
+          // against. Every seventh, to keep the test quick.
+          final step = buffer.step - 1;
+          if (step % 7 == 0) before[step] = _bytes(live.staged.sim.save());
+        });
+    buffer.attach(loop);
     for (var i = 0; i < 900; i++) {
       _play(live.input, i);
-      loop.advance(1 / 60);
+      loop.frame(1 / 60);
     }
 
     expect(buffer.available, greaterThanOrEqualTo(10.0));
@@ -77,13 +83,20 @@ void main() {
     for (final seconds in <double>[0.5, 3.0, 7.35, 9.9]) {
       final point = buffer.rewindBy(seconds)!;
       // Nearest checked step at or before the point, then play to the point.
+      // A fresh crypt in a loop of its own, the keyframe — the live loop's
+      // capture — restored through it. Mutation: keyframe the shooter's own
+      // save instead and the restore refuses a snapshot of no part.
       final replay = _stageCrypt();
-      replay.staged.sim.restore(point.snapshot);
+      final replayLoop = EngineLoop(
+        input: replay.input,
+        plugins: <Flutter3dPlugin>[
+          ShooterPlugin()..simulation = replay.staged.sim,
+        ],
+      )..rewindTo(0, state: point.snapshot);
       final playback = InputTapePlayback(point.tapeToPoint);
+      replayLoop.playback = playback;
       while (!playback.isFinished) {
-        playback.applyTo(replay.input);
-        replay.staged.sim.step(1 / 60);
-        replay.input.endStep();
+        replayLoop.runSteps(1);
       }
       final expected = before[point.step];
       if (expected == null) continue;

@@ -1,0 +1,96 @@
+name: flutter3d_game_physics
+description: "Gameplay parts for flutter3d games that need the native physics core: ragdolls, burning wrecks, party sessions and the elements heard."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - physics
+  - multiplayer
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# What the physics core declares: every platform, natively through dart:ffi
+# and in the browser as WebAssembly.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **Split out of `flutter3d_game_kit` before 1.0.0-rc.1** (decision G of
+# `tasks/1.0-arch-review.md`). These are the parts that reach the physics
+# core in C, whose build hook compiles it and fetches wgpu-native; a game
+# that wants only reactions, a soundtrack, a ghost, seeded levels or the
+# world depends on the kit and builds none of it.
+#
+# **No plugin marker.** Nothing here was ever discovered: each library is
+# called where a game builds its visuals, opens a level or seats a party.
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The scene and the model a ragdoll is drawn with.
+  flutter3d: ^1.0.0-rc.1
+
+  # The mixer's types (`SoundDef`, `HeldVoices`, `AudioScene`): what the
+  # elements sound like and where they are played.
+  flutter3d_audio_core: ^1.0.0-rc.1
+
+  # The meshes of a slick and its timbers, and the skeletons a ragdoll is
+  # made from: its joints are scene nodes, its bind pose the skeleton's.
+  flutter3d_core: ^1.0.0-rc.1
+
+  # `Portable`, the arithmetic a ragdoll's turns are read with.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+  # `Elements`: the water the day lights and the wrecks float on, the fires,
+  # and `PhysicsHearing`, what the elements make a noise about.
+  flutter3d_effects: ^1.0.0-rc.1
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements: ^1.0.0-rc.1
+
+  # `ActorCorpses`, the seam `ActorVisuals` hands a dead actor through.
+  flutter3d_game: ^1.0.0-rc.1
+
+  # `Daylight`, which lights the elements' water.
+  flutter3d_game_kit: ^1.0.0-rc.1
+
+  # The relay's party and room addresses, the seat and the socket.
+  flutter3d_net: ^1.0.0-rc.1
+
+  # The reference human body a corpse weighs (`referenceBodyMass`), and the
+  # segment masses a ragdoll's parts are weighed by.
+  flutter3d_physics: ^1.0.0-rc.1
+
+  # The ragdoll's bodies and its dynamics world, the wrecks' solids, and
+  # `usePhysics` for a party's physics terms.
+  flutter3d_physics_native: ^1.0.0-rc.1
+
+  # The actors a ragdoll takes over, and `SimulationVersion`.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+  # The graphics vocabulary, named here directly.
+  flutter3d_hardware: ^1.0.0-rc.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+  # A device with no GPU under it, for the wrecks' meshes and the elements.
+  flutter3d_cpu: ^1.0.0-rc.1

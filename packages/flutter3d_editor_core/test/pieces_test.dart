@@ -108,7 +108,7 @@ void main() {
       editing.nudge(Vector3(0.0, 1.0, 0.0));
 
       expect(editing.light!.position.y, 3.0);
-      expect(editing.level.brushes.single.centre.y, 0.0);
+      expect(editing.level.brushes.single.center.y, 0.0);
     });
   });
 

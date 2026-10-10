@@ -222,7 +222,7 @@ void main() {
       // edge is split and the fact is reported instead.
       expect(report.splitNonManifold, greaterThanOrEqualTo(1));
       expect(mesh.faceCount, 3, reason: 'no face is lost');
-      expect(report.worthReporting, isTrue);
+      expect(report.isWorthReporting, isTrue);
       mesh.validate();
 
       // The detached face has its own copies of the two vertices, so the mesh
@@ -233,7 +233,7 @@ void main() {
     test('an ordinary model reports nothing worth reporting', () {
       final (_, report, _) = importMeshData(CuboidShape().build());
 
-      expect(report.worthReporting, isFalse);
+      expect(report.isWorthReporting, isFalse);
       expect(report.toString(), contains('12 faces'));
     });
   });

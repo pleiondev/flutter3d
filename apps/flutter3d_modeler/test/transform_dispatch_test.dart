@@ -91,7 +91,7 @@ void main() {
       // Median: the two objects sit at 1 and 3, the middle is 2, and a half
       // turn about Y there swaps their places along X.
       final Outcome swung = asMedian.apply(project, selection);
-      expect(swung.ok, isTrue);
+      expect(swung.isOk, isTrue);
       expect(swung.project![1]!.transform.getTranslation().x, closeTo(3, 1e-4));
       expect(swung.project![2]!.transform.getTranslation().x, closeTo(1, 1e-4));
 
@@ -111,7 +111,7 @@ void main() {
       // Individual: each object turns about its own origin, so both stay
       // exactly where they were.
       final Outcome spun = asIndividual.apply(project, selection);
-      expect(spun.ok, isTrue);
+      expect(spun.isOk, isTrue);
       expect(spun.project![1]!.transform.getTranslation().x, closeTo(1, 1e-4));
       expect(spun.project![2]!.transform.getTranslation().x, closeTo(3, 1e-4));
     });

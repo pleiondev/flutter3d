@@ -43,7 +43,11 @@ Future<void> replayGolden({
   required int height,
   required FrameBuilder frame,
   required String goldenPath,
+
+  /// The step handed to [onStep], in seconds.
   double dt = 1.0 / 60.0,
+
+  /// As [expectMatchesGolden]'s: a percentage of pixels allowed to differ.
   double tolerance = 0.0,
   String? reason,
 }) async {

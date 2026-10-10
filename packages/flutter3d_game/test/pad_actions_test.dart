@@ -17,11 +17,10 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pad_input/pad_input.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// A gamepad that does whatever the test says.
 final class FakePad extends GamepadPlatform {
-  final PadSnapshot state = PadSnapshot()..connected = true;
+  final PadSnapshot state = PadSnapshot()..isConnected = true;
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
 
@@ -45,30 +44,22 @@ final class FakePad extends GamepadPlatform {
 Gamepad _bare(FakePad fake) =>
     Gamepad(platform: fake, deadzone: const Deadzone(stick: 0.0, trigger: 0.0));
 
-/// A fourth stick use, written the way a game would write one.
-///
-/// Nothing in `flutter3d_game` knows this exists, which is the point: it is
-/// routed because a use carries its own [PadStickUse.route], not because
-/// something in the package has a case for it.
-final class _LeanStick extends PadStickUse {
-  double roll = 0.0;
-  double pitch = 0.0;
+/// A two-number action of a game's own, as a game would declare one.
+const DualAxisAction _lean = DualAxisAction('lean');
 
-  @override
-  String get name => 'lean';
+/// A map binding the left stick to [_lean] and nothing else.
+ActionMap _leaning() => ActionMap(
+  actions: ActionSet.common,
+  axes: <ActionBinding>[DualAxisBinding(_lean, InputSource.padStick('left'))],
+);
 
-  @override
-  void route(PadStickTarget to, double x, double y, double dt) {
-    roll = x;
-    pitch = y;
-  }
-
-  @override
-  void letGo(PadStickTarget of) {
-    roll = 0.0;
-    pitch = 0.0;
-  }
-}
+/// A map of the driving defaults and nothing else.
+ActionMap _driving(GameAction steerLeft, GameAction steerRight) =>
+    PadInput.addDrivingDefaultsTo(
+      ActionMap(actions: ActionSet.common),
+      steerLeft: steerLeft,
+      steerRight: steerRight,
+    );
 
 void main() {
   const dash = GameAction('dash');
@@ -117,71 +108,58 @@ void main() {
       PadInput(
         state: input,
         pad: _bare(fake),
-        routes: PadRoutes.driving(steerLeft: steerLeft, steerRight: steerRight),
+        actions: _driving(steerLeft, steerRight),
       ).tick(1 / 60);
 
       expect(input.moveAxis.x, 0.0);
     });
   });
 
-  group('a stick use written outside this package', () {
-    // The three built in are instances rather than cases, so a game can add a
-    // fourth. Before that they were an enum switched over in one method: a game
-    // could not say its stick leans the ship, and adding a value to say so
-    // broke every `switch` in every game already shipped.
-    //
-    // `_LeanStick` below is exactly what a game would write, and it is written
-    // in a test file on purpose — if this compiles here it compiles there.
+  group('a stick bound to an action of the game\'s own', () {
+    // What a stick is for is a binding, not a case in this package: a game
+    // binds its stick to its own two-number action and the pad drives it.
 
-    test('is routed, with no case in this package knowing it exists', () {
+    test('drives it, with no case in this package knowing it exists', () {
       final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 0.5);
-      final lean = _LeanStick();
+      final input = InputState();
       PadInput(
-        state: InputState(),
+        state: input,
         pad: _bare(fake),
-        routes: PadRoutes(leftStick: lean, rightStick: PadStickUse.ignored),
+        actions: _leaning(),
       ).tick(1 / 60);
 
-      expect(lean.roll, closeTo(0.5, 1e-9));
+      expect(input.dualAxis(_lean).x, closeTo(0.5, 1e-9));
+      expect(input.moveAxis.x, 0.0, reason: 'the stick walked as well');
     });
 
-    test('is asked to let go with the rest of the pad', () {
-      // What `letGo` is for: a use that writes somewhere outliving the frame
-      // has to clear it, and only a use that was writing may. The built-in
-      // `move` does; `look` does not, because its delta dies with the frame.
+    test('and lets go of it with the rest of the pad', () {
       final fake = FakePad()..state.setAxis(PadAxis.leftStickX, 1.0);
-      final lean = _LeanStick();
-      final pad = PadInput(
-        state: InputState(),
-        pad: _bare(fake),
-        routes: PadRoutes(leftStick: lean, rightStick: PadStickUse.ignored),
-      )..tick(1 / 60);
+      final input = InputState();
+      final pad = PadInput(state: input, pad: _bare(fake), actions: _leaning())
+        ..tick(1 / 60);
 
-      expect(lean.roll, closeTo(1.0, 1e-9));
-      fake.state.connected = false;
+      expect(input.dualAxis(_lean).x, closeTo(1.0, 1e-9));
+      fake.state.isConnected = false;
       pad.tick(1 / 60);
-      expect(lean.roll, 0.0, reason: 'the pad went away and the roll stayed');
+      expect(
+        input.dualAxis(_lean).x,
+        0.0,
+        reason: 'the pad went away and the lean stayed',
+      );
     });
 
-    test('gets the deflection the device reported, unflipped', () {
-      // Whether y wants negating depends on what the use means, so the engine
-      // does not decide it. A pad reports positive downwards; this asserts the
-      // use is handed that, rather than something already turned over for it.
+    test('gets the deflection the device reported, unless it says invert', () {
+      // Whether y wants negating depends on what the action means, so the
+      // binding decides: walking's default inverts it, this one does not.
       final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -1.0);
-      final lean = _LeanStick();
+      final input = InputState();
       PadInput(
-        state: InputState(),
+        state: input,
         pad: _bare(fake),
-        routes: PadRoutes(leftStick: lean, rightStick: PadStickUse.ignored),
+        actions: _leaning(),
       ).tick(1 / 60);
 
-      expect(lean.pitch, closeTo(-1.0, 1e-9));
-    });
-
-    test('and the three built in still answer to their names', () {
-      expect(PadStickUse.move.name, 'move');
-      expect('${PadStickUse.look}', 'PadStickUse.look');
-      expect(PadStickUse.ignored.name, 'ignored');
+      expect(input.dualAxis(_lean).y, closeTo(-1.0, 1e-9));
     });
   });
 
@@ -193,15 +171,14 @@ void main() {
       // is the same class of bug the fixed step exists to prevent.
       final fake = FakePad()..state.setAxis(PadAxis.rightStickX, 1.0);
       final input = InputState();
-      final routes = PadRoutes(lookRate: 1000.0);
 
       final whole = Vector2.zero();
-      PadInput(state: input, pad: _bare(fake), routes: routes)
+      PadInput(state: input, pad: _bare(fake), lookRate: 1000.0)
         ..tick(0.5)
         ..drainLook(whole);
 
       final halves = Vector2.zero();
-      PadInput(state: input, pad: _bare(fake), routes: routes)
+      PadInput(state: input, pad: _bare(fake), lookRate: 1000.0)
         ..tick(0.25)
         ..tick(0.25)
         ..drainLook(halves);
@@ -219,7 +196,7 @@ void main() {
       final pad = PadInput(
         state: InputState(),
         pad: _bare(fake),
-        routes: const PadRoutes(lookRate: 100.0),
+        lookRate: 100.0,
       )..tick(1.0);
 
       final out = Vector2(7.0, 3.0);
@@ -234,7 +211,7 @@ void main() {
       final pad = PadInput(
         state: InputState(),
         pad: _bare(fake),
-        routes: const PadRoutes(lookRate: 100.0),
+        lookRate: 100.0,
       )..tick(1.0);
 
       final first = Vector2.zero();
@@ -290,7 +267,11 @@ void main() {
       final bindings = Bindings()
         ..bind(InputSource.pad(PadButton.shoulderLeft.id), dash)
         ..bind(InputSource.pad(PadButton.shoulderRight.id), dash);
-      final pad = PadInput(state: input, pad: _bare(fake), bindings: bindings);
+      final pad = PadInput(
+        state: input,
+        pad: _bare(fake),
+        actions: _map(bindings),
+      );
 
       fake.state
         ..setDown(PadButton.shoulderLeft, down: true)
@@ -330,7 +311,9 @@ void main() {
       final pad = PadInput(
         state: input,
         pad: _bare(fake),
-        slotButtons: PadInput.dpadSlots,
+        actions: PadInput.addSlotDefaultsTo(
+          PadInput.addDefaultsTo(_map(Bindings())),
+        ),
       );
 
       fake.state.setDown(PadButton.dpadRight, down: true);
@@ -346,15 +329,16 @@ void main() {
       );
     });
 
-    test('and it wins over what the button was bound to', () {
-      // The d-pad walks by default and selects in a game that says so, exactly
-      // as `DesktopInput` resolves the number row before the letters.
+    test('and it takes the button from walking', () {
+      // The d-pad walks by default and selects in a game that says so.
       final fake = FakePad()..state.setDown(PadButton.dpadUp, down: true);
       final input = InputState();
       PadInput(
         state: input,
         pad: _bare(fake),
-        slotButtons: PadInput.dpadSlots,
+        actions: PadInput.addSlotDefaultsTo(
+          PadInput.addDefaultsTo(_map(Bindings())),
+        ),
       ).tick(1 / 60);
 
       expect(input.slotRequest, 0);
@@ -380,7 +364,11 @@ void main() {
       // double, and the input layer could only answer one or nothing.
       final fake = FakePad()..state.setAxis(PadAxis.triggerRight, 0.42);
       final input = InputState();
-      PadInput(state: input, pad: _bare(fake), bindings: pedal()).tick(1 / 60);
+      PadInput(
+        state: input,
+        pad: _bare(fake),
+        actions: _map(pedal()),
+      ).tick(1 / 60);
 
       expect(input.value(throttle), closeTo(0.42, 1e-6));
     });
@@ -398,9 +386,11 @@ void main() {
       final pad = PadInput(
         state: input,
         pad: _bare(fake),
-        bindings: Bindings()
-          ..bind(InputSource.pad(PadButton.triggerLeft.id), throttle)
-          ..bind(InputSource.pad(PadButton.triggerRight.id), throttle),
+        actions: _map(
+          Bindings()
+            ..bind(InputSource.pad(PadButton.triggerLeft.id), throttle)
+            ..bind(InputSource.pad(PadButton.triggerRight.id), throttle),
+        ),
       );
 
       pad.tick(1 / 60);
@@ -432,7 +422,11 @@ void main() {
         ..bind(InputSource.pad(PadButton.triggerLeft.id), throttle)
         ..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
       final input = InputState();
-      final pad = PadInput(state: input, pad: _bare(fake), bindings: bindings);
+      final pad = PadInput(
+        state: input,
+        pad: _bare(fake),
+        actions: _map(bindings),
+      );
 
       pad.tick(1 / 60);
       expect(input.value(throttle), closeTo(1.0, 1e-6));
@@ -452,7 +446,11 @@ void main() {
       // weapon firing at the frame rate.
       final fake = FakePad();
       final input = InputState();
-      final pad = PadInput(state: input, pad: _bare(fake), bindings: pedal());
+      final pad = PadInput(
+        state: input,
+        pad: _bare(fake),
+        actions: _map(pedal()),
+      );
 
       fake.state.setAxis(PadAxis.triggerRight, 0.55);
       pad.tick(1 / 60);
@@ -482,7 +480,11 @@ void main() {
       // brush a trigger once, and the throttle is dead until relaunch.
       final fake = FakePad()..state.setAxis(PadAxis.triggerRight, 0.8);
       final input = InputState()..press(throttle); // as if a key were down
-      final pad = PadInput(state: input, pad: _bare(fake), bindings: pedal());
+      final pad = PadInput(
+        state: input,
+        pad: _bare(fake),
+        actions: _map(pedal()),
+      );
 
       pad.tick(1 / 60);
       expect(
@@ -509,7 +511,7 @@ void main() {
       PadInput(
         state: input,
         pad: _bare(fake),
-        routes: PadRoutes.driving(steerLeft: steerLeft, steerRight: steerRight),
+        actions: _driving(steerLeft, steerRight),
       ).tick(1 / 60);
 
       expect(input.value(steerRight), closeTo(0.6, 1e-6));
@@ -524,7 +526,7 @@ void main() {
       PadInput(
         state: input,
         pad: _bare(fake),
-        routes: PadRoutes.driving(steerLeft: steerLeft, steerRight: steerRight),
+        actions: _driving(steerLeft, steerRight),
       ).tick(1 / 60);
 
       expect(input.value(steerLeft), closeTo(1.0, 1e-6));
@@ -571,8 +573,11 @@ void main() {
       final input = InputState();
       final bindings = Bindings()
         ..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
-      final pad = PadInput(state: input, pad: _bare(fake), bindings: bindings)
-        ..tick(1 / 60);
+      final pad = PadInput(
+        state: input,
+        pad: _bare(fake),
+        actions: _map(bindings),
+      )..tick(1 / 60);
       expect(input.value(throttle), closeTo(1.0, 1e-9));
 
       fake.state.disconnect();
@@ -587,7 +592,7 @@ void main() {
       final pad = PadInput(
         state: InputState(),
         pad: _bare(fake),
-        routes: const PadRoutes(lookRate: 100.0),
+        lookRate: 100.0,
       )..tick(1.0);
 
       fake.state.disconnect();
@@ -615,7 +620,7 @@ void main() {
       // The whole reason the device package spells buttons `face.south`: this
       // string is in the player's file, and on a PlayStation pad the same
       // button is called Cross.
-      final bindings = PadInput.addDefaultsTo(Bindings());
+      final bindings = PadInput.addDefaultsTo(_map(Bindings())).buttons;
       final read = Bindings.fromJson(bindings.toJson());
 
       expect(read[InputSource.pad('face.south')], GameAction.jump);
@@ -624,7 +629,9 @@ void main() {
 
     test('and they join the keyboard in one table', () {
       // One file holds both, which is what `Bindings` was always for.
-      final bindings = PadInput.addDefaultsTo(DesktopInput.defaultBindings());
+      final bindings = PadInput.addDefaultsTo(
+        DesktopInput.addDefaultsTo(_map(Bindings())),
+      ).buttons;
 
       expect(bindings[InputSource.pad('face.south')], GameAction.jump);
       expect(
@@ -642,11 +649,11 @@ void main() {
       final saved = Bindings()
         ..bind(InputSource.key(32), GameAction.jump)
         ..bind(InputSource.key(9), dash);
-      expect(PadInput.knowsPad(saved), isFalse);
+      expect(PadInput.knowsPad(_map(saved)), isFalse);
 
-      PadInput.addDefaultsTo(saved);
+      PadInput.addDefaultsTo(_map(saved));
 
-      expect(PadInput.knowsPad(saved), isTrue);
+      expect(PadInput.knowsPad(_map(saved)), isTrue);
       expect(saved[InputSource.key(9)], dash, reason: 'their rebinding');
       expect(saved[InputSource.pad('face.south')], GameAction.jump);
     });
@@ -654,10 +661,14 @@ void main() {
     test('and each call hands out its own', () {
       // A shared default is rebound for the menu, the second window and the
       // next level by the first player who changes anything.
-      PadInput.defaultBindings().unbind(InputSource.pad('face.south'));
+      PadInput.addDefaultsTo(
+        _map(Bindings()),
+      ).buttons.unbind(InputSource.pad('face.south'));
 
       expect(
-        PadInput.defaultBindings()[InputSource.pad('face.south')],
+        PadInput.addDefaultsTo(_map(Bindings())).buttons[InputSource.pad(
+          'face.south',
+        )],
         GameAction.jump,
       );
     });
@@ -681,43 +692,21 @@ void main() {
 
   group('settings', () {
     test('are read from the config, so three games spell them once', () {
-      final config = GameConfig()
-        ..setSetting('pad.look', 250.0)
-        ..setSetting('pad.deadzone.stick', 0.3);
+      final config = const GameSettings()
+          .withValue(GameSettingKeys.padLook, 250.0)
+          .withValue(GameSettingKeys.stickDeadZone, 0.3);
       final fake = FakePad();
       final pad = PadInput(
         state: InputState(),
         pad: Gamepad(platform: fake),
       )..applySettings(config);
 
-      expect(pad.routes.lookRate, 250.0);
+      expect(pad.lookRate, 250.0);
       expect(pad.pad.deadzone.stick, 0.3);
       expect(
         pad.pad.deadzone.trigger,
         const Deadzone().trigger,
-        reason: 'a name the config does not carry keeps its default',
-      );
-    });
-
-    test('and go back, so a slider survives a relaunch', () {
-      final fake = FakePad();
-      final pad = PadInput(
-        state: InputState(),
-        pad: Gamepad(platform: fake, deadzone: const Deadzone(stick: 0.22)),
-        routes: const PadRoutes(lookRate: 800.0),
-      );
-      final config = GameConfig();
-      pad.storeSettings(config);
-
-      expect(
-        GameConfig.fromJson(config.toJson()).settingOf('pad.look', 0.0),
-        800.0,
-      );
-      expect(
-        GameConfig.fromJson(
-          config.toJson(),
-        ).settingOf('pad.deadzone.stick', 0.0),
-        0.22,
+        reason: 'a key the settings do not carry is its fallback',
       );
     });
   });
@@ -736,3 +725,7 @@ void main() {
     });
   });
 }
+
+/// [buttons] as the action map a pad reads.
+ActionMap _map(Bindings buttons) =>
+    ActionMap(actions: ActionSet.common, buttons: buttons);

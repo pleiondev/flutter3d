@@ -15,6 +15,8 @@ import 'dart:io';
 
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,6 +42,18 @@ void main() {
 
     ({double x, double z}) positionOf(SphereVehicle car) =>
         (x: car.position.x, z: car.position.z);
+
+    test('the cars sweep on the run\'s physics: the core by default', () {
+      // Run with --dart-define=FLUTTER3D_PHYSICS=dart, the reference.
+      final world = identity(1).cars.single.world;
+      // Mutation: a world staged without asking, which leaves the cars on
+      // Dart under a run on the core.
+      expect(
+        world.sweeps,
+        askedPhysics == 'dart' ? isNull : isA<NativeWorldSweeps>(),
+      );
+      expect(usePhysics().name, askedPhysics == 'dart' ? 'dart' : 'native');
+    });
 
     test('with no grid order, car i starts in slot i, as it always did', () {
       final slots = identity(3);

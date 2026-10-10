@@ -14,7 +14,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _size = 96;
 
@@ -64,12 +63,12 @@ Future<_Frame> _render(
     height: size,
     scene: scene,
     views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0, 0, 0, 1)),
+      RenderView(camera: camera, clearColorSrgb: Vector4(0, 0, 0, 1)),
     ],
     settings: const RenderSettings(),
   );
-  final bytes = await device.readPixels(frame.frame);
-  return _Frame(bytes!.buffer.asUint8List(), size);
+  final bytes = await device.readback(frame.frame);
+  return _Frame(bytes.buffer.asUint8List(), size);
 }
 
 CpuDevice _device([int size = _size]) => CpuDevice(
@@ -82,14 +81,14 @@ MeshNode _line(
   CpuDevice device,
   List<Vector3> points, {
   double width = 16,
-  List<Vector4>? colours,
+  List<LinearColor>? colors,
   int viewport = _size,
 }) => MeshNode(
   DeviceMesh.upload(
     device,
-    buildPolyline(points, width: width, colours: colours),
+    buildPolyline(points, width: width, colors: colors),
   ),
-  Material.polyline(
+  RenderMaterial.polyline(
     viewportWidth: viewport.toDouble(),
     viewportHeight: viewport.toDouble(),
   ),
@@ -154,7 +153,10 @@ void main() {
       _line(
         device,
         <Vector3>[Vector3(-1.2, 0, 0), Vector3(1.2, 0, 0)],
-        colours: <Vector4>[Vector4(1, 0, 0, 1), Vector4(0, 0, 1, 1)],
+        colors: <LinearColor>[
+          const LinearColor(1, 0, 0),
+          const LinearColor(0, 0, 1),
+        ],
       ),
     ]);
 
@@ -182,7 +184,10 @@ void main() {
         _line(
           device,
           line,
-          colours: <Vector4>[Vector4(1, 1, 0, 1), Vector4(1, 1, 0, 1)],
+          colors: <LinearColor>[
+            const LinearColor(1, 1, 0),
+            const LinearColor(1, 1, 0),
+          ],
         ),
         if (hill)
           MeshNode(
@@ -190,9 +195,9 @@ void main() {
               device,
               CuboidShape(size: Vector3(0.8, 0.8, 0.4)).build(),
             ),
-            Material(
+            RenderMaterial(
               lighting: LightingModel.unlit,
-              baseColor: Vector4(0, 0.6, 0, 1),
+              baseColor: LinearColor.fromSrgb(0, 0.6, 0, 1),
             ),
           ),
       ]);

@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 
 /// `net-02`'s relay: one process, rooms named by a code in the URL path,
 /// no accounts.
@@ -8,9 +13,9 @@ import 'dart:io';
 /// `/room/<code>` — the first two sockets to ask for a given code are
 /// joined, and everything one of them sends is forwarded to the other,
 /// verbatim and unparsed. A third asking for a code already holding two is
-/// refused rather than queued: `net-01`'s own `NetSession` is a two-player
-/// design, and a relay that queued a third would be promising something
-/// nothing on the other end can use.
+/// refused rather than queued: a room is two machines, and a relay that
+/// queued a third would be promising something nothing on the other end can
+/// use. A party is `/party`, below.
 ///
 /// **Doubles as either half of `net-02`'s two transports, and does not
 /// need to know which.** For [WebSocketTransport] this *is* the data path,
@@ -22,9 +27,93 @@ import 'dart:io';
 /// directly. Both are opaque JSON as far as this file is concerned, which
 /// is the whole reason one relay serves both.
 ///
+/// `/party/<code>?size=N` — a party of up to N (two to thirty-two), for
+/// this package's `RollbackSession` and `flame_multiplayer`'s
+/// `AuthorityServer`: everything
+/// one sends goes to every other, and each is told its slot first, in a
+/// message of the relay's own — `{"relay": "welcome", "slot": k, "size":
+/// N}` — since a party's slots have to be the same numbers on every
+/// machine and only the relay sees the order they arrive in. Who leaves is
+/// said too, `{"relay": "left", "slot": k}`. `/watch/<code>` joins a party
+/// to watch: its slot comes after the players', it hears everything and
+/// what it says reaches the players, so a spectator can ask for the tape.
+///
+/// **A party has an owner, and only who the owner invites watches.** The
+/// machine that opens a party is told a token in its welcome, `"owner"`,
+/// and `/watch/<code>?owner=<token>` is the only way in as a spectator: a
+/// watcher hears every frame and speaks to every player, and a party's code
+/// is five letters anybody can try. A party holds at most [_maxWatchers]
+/// watchers, and the relay at most [_maxCodes] rooms and parties at once.
+///
+/// **Every request is served on its own.** A machine that is slow to
+/// upgrade, or never answers the close frame of a refusal, holds up its own
+/// request and nobody else's.
+///
+/// `/match?size=N&game=<name>` — matchmaking for strangers: a party of N
+/// for that game that is still filling, or a new one under a fresh code.
+/// The welcome carries the `code`, so friends can still be sent after a
+/// matched party, and once a party has all its players everyone in it is
+/// told `{"relay": "full", "size": N}` — the moment a game can start. A
+/// full party is matched no further, even when somebody leaves it: a race
+/// under way is not where a stranger should land.
+///
+/// `terms=<text>` on any of the three — what every machine in a room or
+/// party has to share for their simulations to agree, such as the physics
+/// backend a game steps on. The first machine sets them; one asking with
+/// other terms is closed with a policy violation whose reason names both.
+/// Matchmaking keys on them, so strangers on different terms are never put
+/// together. No `terms` is the empty text, and is held to like any other.
+///
+/// `simulation=<text>` on any of the three — the game's simulation
+/// (`SimulationVersion.describe`, as `WireHello.simulation` carries it),
+/// held like terms: the first machine sets it, one on another is closed with
+/// a reason naming both, and matchmaking keys on it, so a match forms only
+/// between builds that compute the same step. No `simulation` is one of its
+/// own, "none", met only by another that names none.
+///
+/// `protocol=<major>.<minor>` — the protocol the machine speaks. One whose
+/// major is not this relay's is closed with a reason naming the major to
+/// update to; a lower or higher minor is let in, since within a major the
+/// protocol only grows. A machine that names no protocol is let in as
+/// before: the relay forwards what it cannot read, and the machines' own
+/// hello (`PeerRoom`) judges each other. A party's welcome names the
+/// relay's protocol as `"protocol": [major, minor]`.
+///
 /// [port] defaults to `0`, which asks the system for whichever port is
 /// free — the line this prints on startup is how a caller that bound to
 /// `0` (a test, most often) reads back which one it actually got.
+/// One party: its players by slot, nobody in a slot that was left, and its
+/// spectators.
+final class _Party {
+  _Party(this.size, this.terms, this.simulation, this.owner);
+
+  final int size;
+  final String terms;
+
+  /// The token its first machine was told, which a watcher presents.
+  final String owner;
+
+  /// The simulation version its first machine named, "none" for none.
+  final String simulation;
+  final List<WebSocket?> players = <WebSocket?>[];
+  final List<WebSocket> watchers = <WebSocket>[];
+
+  Iterable<WebSocket> get everyone => <WebSocket>[
+    for (final player in players) ?player,
+    ...watchers,
+  ];
+}
+
+/// The most watchers one party holds.
+const int _maxWatchers = 8;
+
+/// The most rooms and parties the relay holds at once.
+const int _maxCodes = 4096;
+
+/// Close code 1013, "try again later", from the IANA registry RFC 6455
+/// keeps; `dart:io` names no constant for it.
+const int _tryAgainLater = 1013;
+
 Future<void> main(List<String> args) async {
   final port = args.isNotEmpty ? int.parse(args[0]) : 0;
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
@@ -34,30 +123,100 @@ Future<void> main(List<String> args) async {
   stdout.writeln('flutter3d_net relay listening on ${server.port}');
 
   final rooms = <String, List<WebSocket>>{};
+  // What the first socket of each room asked for: terms and simulation.
+  final roomTerms = <String, String>{};
+  final roomSimulation = <String, String>{};
+  final parties = <String, _Party>{};
+  // The party still filling for each game and size, by its code.
+  final filling = <String, String>{};
+  final dice = math.Random.secure();
 
-  await for (final request in server) {
+  bool crowded() => rooms.length + parties.length >= _maxCodes;
+
+  Future<void> serve(HttpRequest request) async {
     if (!WebSocketTransformer.isUpgradeRequest(request)) {
       request.response
         ..statusCode = HttpStatus.badRequest
         ..write('this is a WebSocket relay, not a page');
       await request.response.close();
-      continue;
+      return;
     }
     final segments = request.uri.pathSegments;
+    if (segments.length == 1 && segments[0] == 'match') {
+      final query = request.uri.queryParameters;
+      final size = (int.tryParse(query['size'] ?? '') ?? 4).clamp(2, 32);
+      final key =
+          '${query['game'] ?? ''}/$size/${_termsOf(request)}'
+          '/${_simulationOf(request)}';
+      final open = filling[key];
+      final code = open != null && parties.containsKey(open)
+          ? open
+          : filling[key] = _freshCode(dice, parties);
+      await _joinParty(
+        request,
+        parties,
+        code,
+        watching: false,
+        size: size,
+        onFull: () => filling.remove(key),
+        crowded: crowded,
+        dice: dice,
+      );
+      return;
+    }
+    if (segments.length == 2 &&
+        (segments[0] == 'party' || segments[0] == 'watch') &&
+        segments[1].isNotEmpty) {
+      await _joinParty(
+        request,
+        parties,
+        segments[1],
+        watching: segments[0] == 'watch',
+        crowded: crowded,
+        dice: dice,
+      );
+      return;
+    }
     if (segments.length != 2 || segments[0] != 'room' || segments[1].isEmpty) {
       request.response.statusCode = HttpStatus.notFound;
       await request.response.close();
-      continue;
+      return;
     }
     final code = segments[1];
     final socket = await WebSocketTransformer.upgrade(request);
+    if (await _refusedProtocol(socket, request)) return;
+    if (!rooms.containsKey(code) && crowded()) {
+      await socket.close(
+        _tryAgainLater,
+        'this relay holds as many rooms and parties as it can',
+      );
+      return;
+    }
     final room = rooms.putIfAbsent(code, () => <WebSocket>[]);
     if (room.length >= 2) {
       await socket.close(
         WebSocketStatus.policyViolation,
         'room $code already has two peers',
       );
-      continue;
+      return;
+    }
+    final terms = _termsOf(request);
+    final held = roomTerms.putIfAbsent(code, () => terms);
+    if (held != terms) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        _otherTerms('room $code', held, terms),
+      );
+      return;
+    }
+    final simulation = _simulationOf(request);
+    final heldSimulation = roomSimulation.putIfAbsent(code, () => simulation);
+    if (heldSimulation != simulation) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        _otherSimulation('room $code', heldSimulation, simulation),
+      );
+      return;
     }
     room.add(socket);
     socket.listen(
@@ -68,8 +227,264 @@ Future<void> main(List<String> args) async {
       },
       onDone: () {
         room.remove(socket);
-        if (room.isEmpty) rooms.remove(code);
+        if (room.isEmpty) {
+          rooms.remove(code);
+          roomTerms.remove(code);
+          roomSimulation.remove(code);
+        }
       },
     );
+  }
+
+  server.listen((HttpRequest request) {
+    unawaited(
+      serve(request).catchError((Object error) {
+        // One machine's broken request is its own; the relay goes on.
+        stderr.writeln('a request to ${request.uri.path} failed: $error');
+      }),
+    );
+  });
+}
+
+/// Joins [request] to the party [code] — as the next player, or with
+/// [watching] as a spectator — tells it its slot, and forwards what it
+/// sends to everybody else there.
+Future<void> _joinParty(
+  HttpRequest request,
+  Map<String, _Party> parties,
+  String code, {
+  required bool watching,
+  int? size,
+  void Function()? onFull,
+  required bool Function() crowded,
+  required math.Random dice,
+}) async {
+  final asked =
+      size ?? int.tryParse(request.uri.queryParameters['size'] ?? '') ?? 4;
+  final party = parties[code];
+  if (party == null && watching) {
+    request.response.statusCode = HttpStatus.notFound;
+    await request.response.close();
+    return;
+  }
+  final terms = _termsOf(request);
+  final simulation = _simulationOf(request);
+  final socket = await WebSocketTransformer.upgrade(request);
+  if (await _refusedProtocol(socket, request)) return;
+  if (watching) {
+    final presented = request.uri.queryParameters['owner'];
+    if (!_sameToken(presented, party!.owner)) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        'watching party $code takes the token its owner was welcomed with',
+      );
+      return;
+    }
+    if (party.watchers.length >= _maxWatchers) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        'party $code already has $_maxWatchers watchers',
+      );
+      return;
+    }
+  }
+  final opening = !parties.containsKey(code);
+  if (opening && crowded()) {
+    await socket.close(
+      _tryAgainLater,
+      'this relay holds as many rooms and parties as it can',
+    );
+    return;
+  }
+  final room = parties[code] ??= _Party(
+    asked.clamp(2, 32),
+    terms,
+    simulation,
+    _ownerToken(dice),
+  );
+  final refusal = room.terms != terms
+      ? _otherTerms('party $code', room.terms, terms)
+      : room.simulation != simulation
+      ? _otherSimulation('party $code', room.simulation, simulation)
+      : null;
+  if (refusal != null) {
+    await socket.close(WebSocketStatus.policyViolation, refusal);
+    if (room.everyone.isEmpty) parties.remove(code);
+    return;
+  }
+  final int slot;
+  if (watching) {
+    slot = room.size + room.watchers.length;
+    room.watchers.add(socket);
+  } else {
+    final free = room.players.indexOf(null);
+    if (free < 0 && room.players.length >= room.size) {
+      await socket.close(
+        WebSocketStatus.policyViolation,
+        'party $code already has ${room.size} players',
+      );
+      return;
+    }
+    slot = free >= 0 ? free : room.players.length;
+    if (free >= 0) {
+      room.players[free] = socket;
+    } else {
+      room.players.add(socket);
+    }
+  }
+  socket.add(
+    jsonEncode(<String, Object?>{
+      'relay': 'welcome',
+      'slot': slot,
+      'size': room.size,
+      'watching': watching,
+      'code': code,
+      'owner': ?(opening ? room.owner : null),
+      'protocol': <int>[
+        WireHello.currentProtocolMajor,
+        WireHello.currentProtocolMinor,
+      ],
+    }),
+  );
+  if (!watching && room.players.nonNulls.length == room.size) {
+    onFull?.call();
+    for (final other in room.everyone) {
+      other.add(
+        jsonEncode(<String, Object?>{'relay': 'full', 'size': room.size}),
+      );
+    }
+  }
+  socket.listen(
+    (message) {
+      for (final other in room.everyone) {
+        if (!identical(other, socket)) other.add(message);
+      }
+    },
+    onDone: () {
+      if (watching) {
+        room.watchers.remove(socket);
+      } else {
+        room.players[slot] = null;
+      }
+      for (final other in room.everyone) {
+        other.add(jsonEncode(<String, Object?>{'relay': 'left', 'slot': slot}));
+      }
+      if (room.everyone.isEmpty) parties.remove(code);
+    },
+  );
+}
+
+/// A party's owner token: 128 random bits, URL-safe.
+String _ownerToken(math.Random dice) => base64Url
+    .encode(List<int>.generate(16, (_) => dice.nextInt(256)))
+    .replaceAll('=', '');
+
+/// Whether [presented] is [token], looking at every byte of both whatever
+/// the first difference, so a guess is not answered faster as it gets
+/// closer.
+bool _sameToken(String? presented, String token) {
+  final a = utf8.encode(presented ?? '');
+  final b = utf8.encode(token);
+  final differs = List<int>.generate(
+    b.length,
+    (int i) => (i < a.length ? a[i] : 0) ^ b[i],
+  ).fold(a.length ^ b.length, (int acc, int x) => acc | x);
+  return presented != null && differs == 0;
+}
+
+/// The terms [request] asked for, the empty text when it named none.
+String _termsOf(HttpRequest request) =>
+    request.uri.queryParameters['terms'] ?? '';
+
+/// The simulation version [request] named, "none" when it named none.
+String _simulationOf(HttpRequest request) =>
+    request.uri.queryParameters['simulation'] ?? 'none';
+
+/// Closes [socket] when [request] names a protocol whose major is not this
+/// relay's, with a reason naming the major to update to; whether it did.
+/// A request naming no protocol, or one this relay cannot read, is let in.
+Future<bool> _refusedProtocol(WebSocket socket, HttpRequest request) async {
+  final named = request.uri.queryParameters['protocol'];
+  final major = int.tryParse(named?.split('.').first ?? '');
+  const ours = WireHello.currentProtocolMajor;
+  if (major == null || major == ours) return false;
+  await socket.close(
+    WebSocketStatus.policyViolation,
+    _cut(
+      major < ours
+          ? 'this relay speaks protocol $ours and this machine $named: '
+                'update to protocol $ours'
+          : 'this relay speaks protocol $ours and this machine $named: '
+                'the relay has to update to protocol $major',
+    ),
+  );
+  return true;
+}
+
+/// Why a machine on simulation version [asked] was turned away from
+/// [what], which runs [held]: which side has to update, and to what.
+///
+/// **What to do comes first.** A close reason is cut to 123 bytes, and a
+/// party's code and two simulations (`engine 1, racing 7`) fill that; said
+/// last, the version to update to was the part that went.
+String _otherSimulation(String what, String held, String asked) {
+  final update = _newerSimulation(held, asked) == true
+      ? 'its players have to update to simulation $asked'
+      : 'update to simulation $held';
+  return _cut('$update: $what runs simulation $held, this machine $asked');
+}
+
+/// Whether [asked] is newer than [held], both as
+/// `SimulationVersion.describe` writes them (`engine 1, racing 7`): true
+/// when every number in it is at least the other's and one is more, false
+/// for the other way round, null when they name different parts or each is
+/// ahead somewhere. A number alone (`7`) is a part with no name.
+bool? _newerSimulation(String held, String asked) {
+  Map<String, int>? parts(String described) {
+    final read = <String, int>{};
+    for (final piece in described.split(',')) {
+      final match = RegExp(r'^\s*(.*?)\s*(\d+)\s*$').firstMatch(piece);
+      if (match == null) return null;
+      read[match.group(1)!] = int.parse(match.group(2)!);
+    }
+    return read;
+  }
+
+  final (h, a) = (parts(held), parts(asked));
+  if (h == null || a == null || h.length != a.length) return null;
+  if (!h.keys.every(a.containsKey)) return null;
+  final ahead = h.keys.where((k) => a[k]! > h[k]!).length;
+  final behind = h.keys.where((k) => a[k]! < h[k]!).length;
+  return switch ((ahead, behind)) {
+    (> 0, 0) => true,
+    (0, > 0) => false,
+    _ => null,
+  };
+}
+
+/// Why a machine asking with [asked] was turned away from [what], held to
+/// [held]. The close reason a client shows, cut to the 123 bytes a close
+/// frame carries.
+String _otherTerms(String what, String held, String asked) =>
+    _cut('$what plays under "$held", and this machine asked for "$asked"');
+
+/// [reason] cut to the 123 bytes a close frame carries.
+String _cut(String reason) {
+  final bytes = utf8.encode(reason);
+  return bytes.length <= 123
+      ? reason
+      : utf8.decode(bytes.sublist(0, 123), allowMalformed: true);
+}
+
+/// Five letters no one misreads, for a party nobody named: the alphabet of
+/// the racing game's room codes, without I, O, 0 and 1.
+String _freshCode(math.Random dice, Map<String, _Party> parties) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  while (true) {
+    final code = String.fromCharCodes(<int>[
+      for (var i = 0; i < 5; i++)
+        alphabet.codeUnitAt(dice.nextInt(alphabet.length)),
+    ]);
+    if (!parties.containsKey(code)) return code;
   }
 }

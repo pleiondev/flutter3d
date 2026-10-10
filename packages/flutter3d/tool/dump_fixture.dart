@@ -19,7 +19,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/parity_scene.dart';
+// The parity fixtures are the engine's own test scene, not its API.
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -49,7 +51,7 @@ void main() {
         height: 1,
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+      );
       final renderer = Renderer.create(
         device: device,
         fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -67,10 +69,10 @@ void main() {
       );
       final elapsed = DateTime.now().difference(started);
 
-      final pixels = await device.readPixels(result.frame);
+      final pixels = await device.readback(result.frame);
       final file = File('${out.path}/${which.name}.png');
       file.writeAsBytesSync(
-        encodePng(pixels!.buffer.asUint8List(), _width, _height),
+        encodePng(pixels.buffer.asUint8List(), _width, _height),
       );
 
       // The time, because it is the one number that separates this backend from

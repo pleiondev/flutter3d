@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -36,8 +37,10 @@ final class SoundOcclusion {
 
   final CollisionWorld world;
 
-  /// What one wall lets through: half, which is roughly the ten decibels a
-  /// closed door costs and reads as "muffled" rather than "gone".
+  /// What one wall lets through, as a share of the gain: half, −6 dB, which
+  /// reads as "muffled" rather than "gone". A closed door costs nearer ten
+  /// decibels, about 0.32; this is gentler, because a game wall stands for
+  /// whatever is between, and two of them already make a quarter.
   final double perObstacle;
 
   /// How many walls are counted before the ray gives up. Four walls is
@@ -46,7 +49,8 @@ final class SoundOcclusion {
 
   /// The least a sound is reduced to while it is in range at all. Zero would
   /// let a wall silence a sound the attenuation still carries, which is a
-  /// sound that stops and starts as the player rounds a corner.
+  /// sound that stops and starts as the player rounds a corner. A fraction of
+  /// the sound's gain, nought to one.
   final double floor;
 
   /// Which collision layers stop sound.

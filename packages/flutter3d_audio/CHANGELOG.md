@@ -1,3 +1,63 @@
+## 1.0.0-rc.1
+
+- **Breaking: `Issue` and `IssueSink` are not re-exported.** They are
+  `flutter3d_foundation`'s, where they are declared; the plugin API is no
+  longer a dependency. The audio model is still this package's, re-exported
+  from `flutter3d_audio_core` by name.
+
+- **A sound started under a pause waits for the resume.** `SoLoudBackend`
+  starts a voice held while it is paused (`isPaused`), and `resume` lets it
+  go with the rest; it used to play over the pause menu.
+- **Breaking: `openSpeakers` throws instead of answering null.** No audio
+  device is an `AudioDeviceException`, a `ResourceException`, and a game
+  catches it and plays silent; nothing is printed for it any more. The
+  `Future<Speakers?>` is a `Future<Speakers>`.
+- **Breaking: `Speakers.backend` is an `AudioBackend`**, not the SoLoud
+  class, so a test or a host with its own device hands one in the same
+  shape. `Speakers` gains `pause`, `resume` and `dispose`.
+- **Breaking: one issue type.** `AudioIssue` and `AudioIssueSink` are gone:
+  the backend reports through `Issue` and `IssueSink`, the type
+  `flutter3d_app` reports in, now from `flutter3d_plugin_api` and exported
+  here. `dart fix` carries the renames.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **Breaking: `flutter3d_audio_core` is re-exported by name**, so a type added
+  to it is not this package's API until it is listed.
+
+- **The mix model is re-exported, and the speakers take a renderer.** This
+  package now re-exports `AudioEmitter`, `AudioPlugin`, `MixSnapshot`,
+  `DuckRule`, the bus effects, `SpatialRenderer` with `EqualPowerPanner`,
+  the opt-in `MixingBackend` and `DirectionalBackend`, `PoseSource` and the
+  units. `openSpeakers(spatial: ...)` hands the scene a renderer other than
+  equal-power panning.
+
+- **Breaking: `package:flutter3d_audio/testing.dart` is gone.**
+  `soundTableIn` checked three demo games' sound banks against their
+  source, which is repository hygiene rather than API; it lives in the
+  repository's unpublished `flutter3d_demo_content` now.
+
+- **`SoLoudBackend` pauses.** It extends `AudioBackend`, whose `open` and
+  `dispose` its own now override, and `pause` and `resume` hold and release
+  every voice it started.
+
+- **Breaking: `SoundEmitter` is no longer exported**; it is `AudioEmitter`,
+  the same type.
+
+**Moves with the stack to 1.0.0**, whose `flutter3d_hardware` gives
+`PassEncoder.draw` a window of the bound indices and every `PassEncoder`
+`setAlphaToCoverage`. Nothing in this package changed.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.2
 
 **The positional half is `flutter3d_audio_core` now.** `AudioScene`, the

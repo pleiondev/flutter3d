@@ -18,7 +18,7 @@
 /// **Units are picked out by a ray, halls by the picking pass, and the split is
 /// forced.** `Renderer.pickPixel` answers with the node that was drawn, and the
 /// whole crowd is one instanced batch — it can say a unit was clicked and never
-/// which one. So `Selection` in the game package tests the ray against each
+/// which one. So `UnitSelection` in the game package tests the ray against each
 /// unit's radius, and the pass keeps the buildings, where a silhouette is a
 /// better answer than the box around a hall.
 ///
@@ -48,23 +48,31 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart'
+    show AudioDeviceException, AudioListener, Speakers, openSpeakers;
 import 'package:flutter3d_game/flutter3d_game.dart' show SaveFile;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
+import 'package:flutter3d_game_ui/access.dart' show Spoken, SpokenEvents;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show DigestTrace, FixedStep, Snapshot;
+    show EngineLoop, EntityKinds, InputState;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'src/backend.dart';
 import 'src/command.dart';
+import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/hud_readout.dart';
 import 'src/level_document.dart';
+import 'src/map_world.dart';
 import 'src/match_demo_file.dart';
+import 'src/match_recording.dart';
 import 'src/pointing.dart';
 import 'src/run.dart';
+import 'src/sound.dart';
 import 'src/staging.dart';
 
 /// Which build wrote a `.f3drun` — see the other three demos' own identical
@@ -73,6 +81,24 @@ import 'src/staging.dart';
 const String _buildStamp = String.fromEnvironment(
   'FLUTTER3D_BUILD_STAMP',
   defaultValue: 'dev',
+);
+
+/// How the map is drawn.
+///
+/// **The shadows reach as far as the camera does.** The engine's default fits
+/// its cascades to the first sixty metres from the eye, which is the right
+/// answer for a chase camera and the wrong one for a map camera hanging fifty
+/// metres up: everything on screen lies past that, falls through to the last
+/// cascade fitted round the whole map, and a castle's shadow comes out as a
+/// staircase of half-metre blocks. Fitted to the furthest the view pulls back
+/// and split closer to evenly, every cascade lands on ground somebody can see.
+const RenderSettings _settings = RenderSettings(
+  shadows: ShadowSettings(
+    cascades: kShadowCascades,
+    resolution: kShadowResolution,
+    viewDistance: 130.0,
+    cascadeSplit: 0.45,
+  ),
 );
 
 void main() => runApp(const StrategyDemo());
@@ -128,6 +154,23 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   Renderer? _renderer;
   Staged? _staged;
 
+  /// The water, the fires and the thrown stones over the map: a world of
+  /// the physics core's, stepped with the match. Made with each match, from
+  /// its map, before anything of a save is put back into it — the world a
+  /// replay of this match makes again.
+  MapWorld? _world;
+
+  /// That world drawn and heard, once there is a renderer to draw it
+  /// through. It only reads the world, so a run drawn and a run not drawn
+  /// are the same run.
+  MapEffects? _effects;
+
+  /// What the effects sound like, and the speakers they play through; null
+  /// while they open, or on a machine with none.
+  Speakers? _speakers;
+  StrategySound? _sound;
+  final AudioListener _listener = AudioListener();
+
   /// Whom the player has picked out, and the one door their orders go through.
   ///
   /// **State on the widget, because a selection is not a fact about the
@@ -167,23 +210,12 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   /// its own rather than reusing theirs.
   MatchDemoFile? _demos;
 
-  /// Where the match being recorded started. A `StrategySimulation` snapshot
-  /// rather than a `Match` one — see `test/demo_test.dart`'s own doc comment
-  /// for why a replay has to stay at the level `OrderTapePlayback.applyTo`
-  /// itself is written for.
-  Snapshot? _demoStart;
-  String? _demoLevel;
-  String? _demoLevelHash;
-
-  /// A checkpoint every so many steps, taken live while the match is
-  /// recorded.
-  DigestTrace? _demoCheckpoints;
-
-  /// The demo's own recorder. Hung on `StrategySimulation.orders` directly
-  /// rather than kept in a loop's own list — this genre records orders, not
-  /// input, and the queue is where every order already passes regardless of
-  /// which side gave it or why.
-  OrderTapeRecorder? _demoRecorder;
+  /// The match being written down: its start — a `StrategySimulation`
+  /// snapshot rather than a `Match` one, see `test/demo_test.dart`'s own doc
+  /// comment for why — its order tape, hung on `StrategySimulation.orders`
+  /// directly because this genre records orders rather than input, its
+  /// checkpoints, and where the crowd stood. Null once written.
+  MatchRecording? _recording;
 
   /// Starts writing the match down, from the state the crowd is in now.
   ///
@@ -193,15 +225,16 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   /// names the same gap for the same reason, and it stands here too: a match
   /// resumed from a save begins its demo at the map's opening crowd rather
   /// than at the crowd the save actually held.
+  ///
+  /// Attached to [_loop], so the file carries the loop's journal and each
+  /// step's event digest beside the orders, as every other demo's does.
   void _beginDemo(String asset, String levelHash, Staged staged) {
-    final start = staged.simulation.save();
-    _demoStart = start;
-    _demoLevel = asset;
-    _demoLevelHash = levelHash;
-    _demoCheckpoints = DigestTrace();
-    final recorder = OrderTapeRecorder(seed: staged.simulation.random.state);
-    _demoRecorder = recorder;
-    staged.simulation.orders.recorder = recorder;
+    _recording?.detach();
+    _recording = MatchRecording(
+      level: asset,
+      levelHash: levelHash,
+      simulation: staged.simulation,
+    )..attach(_loop);
   }
 
   /// Writes the match down once it is over, either way.
@@ -211,47 +244,135 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   /// keeps this file the one place besides that one that has to agree with
   /// `RunSession` about when a match has ended.
   void _endDemo(Staged staged) {
-    final recorder = _demoRecorder;
-    final start = _demoStart;
-    final level = _demoLevel;
-    final levelHash = _demoLevelHash;
-    final checkpoints = _demoCheckpoints;
-    _demoRecorder = null;
-    staged.simulation.orders.recorder = null;
-    if (recorder == null ||
-        start == null ||
-        level == null ||
-        levelHash == null ||
-        checkpoints == null) {
+    final recording = _recording;
+    _recording = null;
+    if (recording == null) {
+      staged.simulation.orders.recorder = null;
       return;
     }
+    recording.stop(staged.simulation);
     _demos?.write(
-      MatchDemo(
-        level: level,
-        levelHash: levelHash,
-        start: start,
-        tape: recorder.tape,
+      recording.recorded(
         buildStamp: _buildStamp,
-        checkpoints: checkpoints,
         platform: defaultTargetPlatform.name,
       ),
     );
   }
 
-  /// Real time turned into whole steps of simulated time.
+  /// The match's step, installed into [_loop]: it steps whichever match
+  /// [_place] last handed it, and adds the map's entity kinds to the
+  /// engine's.
+  final StrategyPlugin _plugin = StrategyPlugin(kinds: strategyKinds);
+
+  /// The engine's frame: the fixed steps phase by phase, then the frame's.
   ///
-  /// **Two of what it offers are deliberately not read here, and saying which
-  /// is worth more than pretending otherwise.** `alpha` is the fraction of a
-  /// step the frame sits past the last one, for a picture that draws between
-  /// two simulated states; the crowd is one instanced batch written from where
-  /// everybody is *now*, and blending would mean the batch keeping each unit's
-  /// previous transform as well — a second buffer of a thousand matrices, for a
-  /// unit that is a few pixels across from a camera this high up. `droppedSteps`
-  /// is the count of simulated time thrown away when a frame asked for more
-  /// steps than the ceiling allows, and it belongs in a frame overlay this demo
-  /// does not have. Both are the clock's to report the day either is worth
-  /// spending; neither is worth faking a use for today.
-  final FixedStep _clock = strategyClock();
+  /// **The step order a recorded match was written in, phase by phase.**
+  /// What one step of the old hand-written loop did, in order, is what the
+  /// phases now run:
+  ///
+  /// 1. `input` — the near camp restocked ([CommandPost.restock]), asked
+  ///    before the step so the order is in the queue the step drains;
+  /// 2. `physics` — `strategy.step`, the plugin's: the bots, then the
+  ///    simulation, and the map's world hanging on its `afterStep`;
+  /// 3. `publish` — the recording's checkpoint and poses, then the selection
+  ///    pruned of the fallen.
+  ///
+  /// Nothing else runs inside a step, so a tape recorded before the move
+  /// replays to the same bits after it. The loop is handed no input: this
+  /// genre records orders, and an `InputState` nobody writes is the loop's
+  /// own business.
+  ///
+  /// **Two of what it offers are deliberately not read here.** `alpha` is
+  /// for a picture that draws between two simulated states; the crowd is one
+  /// instanced batch written from where everybody is *now*, and blending
+  /// would mean the batch keeping each unit's previous transform as well — a
+  /// second buffer of a thousand matrices, for a unit a few pixels across.
+  /// `lostSteps` belongs in a frame overlay this demo does not have.
+  late final EngineLoop _loop = EngineLoop(
+    input: InputState(),
+    timing: strategyWorld,
+    longestFrame: _longestFrame,
+    plugins: <Flutter3dPlugin>[_plugin, _spoken],
+    registries: <PluginRegistry>[EntityKinds()],
+  );
+
+  /// How a match ends, said to a screen reader: a view plugin on the bus's
+  /// frame channel, so a match played with it and without it is the same
+  /// match step for step.
+  final SpokenEvents _spoken = SpokenEvents(<Spoken<BusEvent>>[
+    Spoken<MatchDecided>(
+      (MatchDecided decided) => switch (decided.winner) {
+        null => 'The match is drawn.',
+        viewerSide => 'You won the match.',
+        _ => 'You lost the match.',
+      },
+    ),
+  ]);
+
+  /// Adds this screen's own systems to [_loop], around the plugin's step.
+  void _systems() {
+    _loop
+      // The near camp has no policy behind it, and a hall makes nothing it was
+      // not asked for, so without this the player's side would open with the
+      // crowd the document gave it and never gain another while the far camps
+      // grew.
+      ..addSystem(
+        'strategy_demo.restock',
+        LoopPhase.input,
+        (_) => _command?.restock(),
+      )
+      ..addSystem('strategy_demo.record', LoopPhase.publish, (_) {
+        final Staged? staged = _staged;
+        if (staged != null) _recording?.observe(staged.simulation);
+      })
+      // After the record, and before the picture and the readout: a squad the
+      // player is holding may have lost somebody to the step that just ran,
+      // and both the count on the screen and the next order given would
+      // otherwise be about a crowd one larger than the one on the map. Cheap —
+      // it walks the crowd only while something is selected.
+      ..addSystem(
+        'strategy_demo.prune',
+        LoopPhase.publish,
+        (_) => _command?.prune(),
+        after: const <String>['strategy_demo.record'],
+      )
+      // Once the steps have run and never between two of them: a save taken
+      // mid-frame would describe a match half a frame old, and the outcome the
+      // session republishes has to be the one the last step decided.
+      ..addSystem('strategy_demo.session', LoopPhase.animate, (context) {
+        final StrategyRun? run = _run;
+        final Staged? staged = _staged;
+        if (run == null || staged == null) return;
+        run.observe();
+        // The simulated time this frame accepted, which the steps ran.
+        _keep(run, staged, context.dt);
+      })
+      ..addSystem(
+        'strategy_demo.visuals',
+        LoopPhase.animate,
+        (_) => _staged?.visuals.sync(),
+        after: const <String>['strategy_demo.session'],
+      )
+      // The camera eases in real time — the frame's, clamped — rather than in
+      // steps. The effects and the sound go with it because they read the eye
+      // this frame placed: what the effects draw of the world is what this
+      // frame shows of the match.
+      ..addSystem('strategy_demo.camera', LoopPhase.camera, (context) {
+        final Staged? staged = _staged;
+        if (staged == null) return;
+        final double dt = context.realDt;
+        staged.camera.place(dt);
+        _camera
+          ..setPositionFrom(staged.camera.eye)
+          ..lookAt(staged.camera.target);
+        _effects?.update(dt, eye: staged.camera.eye);
+        _listener.aimAlong(
+          staged.camera.eye,
+          staged.camera.target - staged.camera.eye,
+        );
+        _sound?.update(_listener);
+      });
+  }
 
   /// What the ticker read last, so a frame can be told from a total.
   ///
@@ -279,6 +400,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       appName: 'flutter3d_demo_strategy',
       onIssue: printIssue,
     );
+    _systems();
     _open();
   }
 
@@ -296,12 +418,20 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
 
     // The scene, and the one thing in it that belongs to the view rather than
     // to any particular match: a sun does not come out of the document.
-    _scene = Scene(name: 'map');
+    //
+    // And a sky to fill the side the sun is not on. The engine's own ambient
+    // is a token six per cent, which leaves every face turned from the sun
+    // and every shadow on the grass pitch black: a castle's north wall reads
+    // as a hole, a rock as half a rock. A cool fill at about a sixth of the
+    // sun is what an open hillside under a blue sky actually gets.
+    _scene = Scene(name: 'map')
+      ..ambientIntensity = 0.55 * Photometric.legacyUnit
+      ..ambientColor = LinearColor(0.78, 0.86, 1.0);
     _scene.add(
       LightNode(
         type: LightType.directional,
-        color: vm.Vector3(1.0, 0.96, 0.88),
-        intensity: 3.2,
+        color: LinearColor(1.0, 0.96, 0.88),
+        intensity: 3.2 * Photometric.legacyUnit,
         name: 'sun',
       )..lookAt(vm.Vector3(0.35, -1.0, 0.5)),
     );
@@ -323,8 +453,76 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     await run.begin();
     if (!mounted) return;
 
+    final renderer = Renderer.create(device: device);
+    // A machine with no audio device plays the same map, silent.
+    final speakers = openSpeakers(bank: StrategySound.bank)
+        .then<Speakers?>((Speakers it) => it)
+        .onError<AudioDeviceException>(
+          (AudioDeviceException _, StackTrace _) => null,
+        );
+    await _draw(renderer);
+    if (!mounted) {
+      _effects?.dispose();
+      renderer.dispose();
+      unawaited(speakers.then((Speakers? it) => it?.dispose()));
+      return device.dispose();
+    }
+    unawaited(_listen(speakers));
+
     _ticker = createTicker(_frame)..start();
-    setState(() => _renderer = Renderer.create(device: device));
+    setState(() => _renderer = renderer);
+  }
+
+  /// Draws the world of the match that is up, through [renderer], in place
+  /// of whatever drew the last one.
+  ///
+  /// A match opened after the first — the next one, once this is won —
+  /// comes with a world of its own, and is drawn once its view is open; the
+  /// match is stepped meanwhile, and only the picture waits.
+  Future<void> _draw(Renderer renderer) async {
+    final Staged? staged = _staged;
+    final MapWorld? world = _world;
+    if (staged == null || world == null) return;
+    final effects = await MapEffects.open(
+      device: renderer.device,
+      scene: _scene,
+      renderer: renderer,
+      world: world,
+      staged: staged,
+      sunAlong: _sunAlong,
+      sunLight: vm.Vector3(1.0, 0.96, 0.88)..scale(3.2),
+    );
+    if (!mounted || !identical(world, _world)) {
+      effects.dispose();
+      return;
+    }
+    _effects?.dispose();
+    _effects = effects;
+    final Speakers? speakers = _speakers;
+    _sound?.stop();
+    _sound = speakers == null
+        ? null
+        : StrategySound(speakers.scene, effects.hearing);
+  }
+
+  /// Which way the sunlight falls: where the sun above is pointed, fresh
+  /// each time so that nobody normalising or scaling it moves the sun.
+  static vm.Vector3 get _sunAlong => vm.Vector3(0.35, -1.0, 0.5)..normalize();
+
+  /// Takes the speakers the effects are heard through once they open, after
+  /// the first frame rather than before it: a machine with no sound plays
+  /// the same map.
+  Future<void> _listen(Future<Speakers?> opening) async {
+    final speakers = await opening;
+    if (!mounted) {
+      await speakers?.dispose();
+      return;
+    }
+    _speakers = speakers;
+    final MapEffects? effects = _effects;
+    if (speakers != null && effects != null) {
+      _sound = StrategySound(speakers.scene, effects.hearing);
+    }
   }
 
   /// Takes a staged match and gives the screen its half of it.
@@ -335,6 +533,16 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   void _place(Staged staged) {
     staged.visuals.addTo(_scene);
     _staged = staged;
+    // The last match's world goes with it, and this one's is made from its
+    // map: the world a replay of this match will make again.
+    _sound?.stop();
+    _sound = null;
+    _effects?.dispose();
+    _effects = null;
+    _world?.dispose();
+    _world = mapWorldOf(staged.simulation);
+    final Renderer? renderer = _renderer;
+    if (renderer != null) unawaited(_draw(renderer));
     _command = CommandPost(simulation: staged.simulation, side: viewerSide);
   }
 
@@ -345,50 +553,13 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     final StrategyRun? run = _run;
     if (staged == null || command == null || run == null) return;
 
-    // Clamped once, here, and everything else in the frame is given the clamped
-    // number: the camera eases in real time rather than in steps, and handing it
-    // the raw frame after a hitch would swing the view somewhere the match has
-    // not been.
+    // The wall clock is read here and nowhere else; the loop clamps it to
+    // [_longestFrame], spends it in whole steps, and hands the frame phases
+    // the clamped number — see [_loop] for what runs where.
     final double frame =
         (elapsed - _since).inMicroseconds / Duration.microsecondsPerSecond;
     _since = elapsed;
-    final double dt = frame.isNaN ? 0.0 : frame.clamp(0.0, _longestFrame);
-
-    final int steps = _clock.advance(dt);
-    for (var i = 0; i < steps; i++) {
-      // The near camp has no policy behind it, and a hall makes nothing it was
-      // not asked for, so without this the player's side would open with the
-      // crowd the document gave it and never gain another while the far camps
-      // grew. Asked before the step so the order is in the queue the step
-      // drains.
-      command.restock();
-      staged.match.step(_clock.stepSeconds);
-      final demoRecorder = _demoRecorder;
-      if (demoRecorder != null) {
-        _demoCheckpoints?.observe(
-          demoRecorder.tape.steps,
-          staged.simulation.save().toJson(),
-        );
-      }
-      // Before the picture and before the readout: a squad the player is
-      // holding may have lost somebody to the step that just ran, and both the
-      // count on the screen and the next order given would otherwise be about a
-      // crowd that is one larger than the one on the map. Cheap — it walks the
-      // crowd only while something is selected.
-      command.prune();
-    }
-
-    // Once the steps have run and never between two of them: a save taken
-    // mid-frame would describe a match half a frame old, and the outcome the
-    // session republishes has to be the one the last step decided.
-    run.observe();
-    _keep(run, staged, steps * _clock.stepSeconds);
-
-    staged.visuals.sync();
-    staged.camera.place(dt);
-    _camera
-      ..setPositionFrom(staged.camera.eye)
-      ..lookAt(staged.camera.target);
+    _loop.frame(frame);
     setState(() {});
   }
 
@@ -427,7 +598,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   /// the Y flip and the aspect ratio, which are exactly the two things that get
   /// silently reversed when a game writes them out again. What comes back is
   /// handed down as an origin and a direction, which is the seam every genre
-  /// here uses for pointing and what keeps `Selection` testable with no camera.
+  /// here uses for pointing and what keeps `UnitSelection` testable with no camera.
   ///
   /// **The two vectors are the caster's own and are overwritten by the next
   /// aim.** A raycaster keeps one ray so that pointing costs no allocation, so
@@ -465,7 +636,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     final ray = _aim(at);
     switch (command.unitUnder(ray.origin, ray.direction)) {
       // One of ours: it becomes the selection, replacing whatever was picked.
-      case final Unit unit when unit.side == viewerSide:
+      case final StrategyUnit unit when unit.side == viewerSide:
         setState(() => command.select(unit));
 
       // Theirs. **This is where an attack order goes, and there is not one to
@@ -474,7 +645,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       // document with nowhere to be carried out. Doing nothing is the honest
       // answer — in particular the selection is left standing, because a click
       // that cannot be obeyed must not disband the squad the player gathered.
-      case final Unit _:
+      case final StrategyUnit _:
         break;
 
       // Empty ground: an order, for the picked units and nobody else.
@@ -517,7 +688,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     if (staged == null || command == null) return;
 
     final ray = _aim(at);
-    final Unit? unit = command.unitUnder(ray.origin, ray.direction);
+    final StrategyUnit? unit = command.unitUnder(ray.origin, ray.direction);
     final bool seen =
         unit != null &&
         (unit.side == viewerSide ||
@@ -597,14 +768,18 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
         ? node
         : null;
     if (identical(wanted, _lit)) return;
-    _lit?.material.emissive.setZero();
+    _lit?.material.emissive = LinearColor.black;
     _lit = wanted;
-    wanted?.material.emissive.setValues(0.30, 0.26, 0.10);
+    wanted?.material.emissive = LinearColor(0.30, 0.26, 0.10);
   }
 
   @override
   void dispose() {
     _ticker?.dispose();
+    _sound?.stop();
+    unawaited(_speakers?.dispose());
+    _effects?.dispose();
+    _world?.dispose();
     final renderer = _renderer;
     if (renderer != null) {
       renderer.dispose();
@@ -696,7 +871,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
               height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
               scene: _scene,
               views: <RenderView>[_view],
-              settings: const RenderSettings(),
+              settings: _settings,
             );
             return Stack(
               children: <Widget>[

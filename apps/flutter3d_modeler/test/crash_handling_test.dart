@@ -17,7 +17,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Matrix4;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
@@ -32,7 +32,7 @@ import 'support/fake_graphics_backend.dart';
 
 /// A storage kept in memory — the same fake `autosaving_test.dart` and
 /// `main_recovery_test.dart` already use for `BinaryStorage`.
-final class FakeBinaryStorage implements BinaryStorage {
+final class FakeBinaryStorage extends BinaryStorage {
   final Map<String, Uint8List> documents = <String, Uint8List>{};
 
   /// Refuses every write, the way a real storage with nowhere to write does —

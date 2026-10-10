@@ -275,7 +275,7 @@ final pages = await PagedSplatOctree.open(
   (offset, length) => fetchRange(url, offset, length),   // an HTTP Range request
 );
 final lod = SplatLod.paged(pages, budget: 400000);
-renderer.addContributor(SplatContributor.lod(lod));
+renderer.renderSteps.addContributor(SplatContributor.lod(lod));
 ```
 
 `open` reads the header, the node table and the root's page. After that a page is fetched only when the cut wants to draw finer than what has arrived, most visible first and at most `maxInFlight` (4) requests at a time, so a distant cloud on a slow connection costs the pages it is seen at. The fetching is the caller's: a `SplatRangeReader` is one function from a byte range to its bytes, and this package depends on no network library. `splatBytesReader` wraps bytes already in memory. `SplatLod.budget` is the most splats a cut may hold, and a budget below the root's own count draws nothing.

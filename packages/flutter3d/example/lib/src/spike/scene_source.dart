@@ -37,7 +37,7 @@ final class ProceduralSource extends SceneSource {
       name: label,
       // Checkerboard rather than flat white: a procedural shape with no material
       // is exactly where UV mistakes hide.
-      material: Material(albedo: checkerAlbedo, roughness: 0.35),
+      material: RenderMaterial(albedo: checkerAlbedo, roughness: 0.35),
     );
   }
 }

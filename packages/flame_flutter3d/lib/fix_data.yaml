@@ -1,0 +1,80 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: flame_flutter3d-ChaseCamera'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart', 'package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      class: 'ChaseCamera'
+    changes:
+      - kind: 'rename'
+        newName: 'FlameChaseCamera'
+  - title: 'flutter3d 1.0.0-rc.1: flame_flutter3d-ChaseCameraComponent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      class: 'ChaseCameraComponent'
+    changes:
+      - kind: 'rename'
+        newName: 'FlameChaseCameraComponent'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_flutter3d-TrailComponent-TrailComponent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      constructor: ''
+      inClass: 'TrailComponent'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_flutter3d-TrailComponent-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      field: 'colour'
+      inClass: 'TrailComponent'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_flutter3d-CellGridComponent-CellGridComponent'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      constructor: ''
+      inClass: 'CellGridComponent'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_flutter3d-CellGridComponent-centreOf'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      method: 'centreOf'
+      inClass: 'CellGridComponent'
+    changes:
+      - kind: 'rename'
+        newName: 'centerOf'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_flutter3d-CellGridComponent-colour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      field: 'colour'
+      inClass: 'CellGridComponent'
+    changes:
+      - kind: 'rename'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-flame_flutter3d-CameraSyncController-takeRest'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart']
+      method: 'takeRest'
+      inClass: 'CameraSyncController'
+    changes:
+      - kind: 'rename'
+        newName: 'captureRest'

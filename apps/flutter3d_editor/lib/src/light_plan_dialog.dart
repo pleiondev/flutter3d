@@ -1,7 +1,7 @@
 import 'dart:isolate';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/material.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
@@ -66,7 +66,7 @@ Future<bool> showLightPlan(BuildContext context, LightPlan plan) async {
           child: const Text('Keep the lights'),
         ),
         TextButton(
-          onPressed: plan.changes
+          onPressed: plan.hasChanges
               ? () => Navigator.of(context).pop(true)
               : null,
           child: const Text('Apply'),

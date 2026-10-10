@@ -1,15 +1,19 @@
 # Rigid bodies
 
 Stage one of two: mass, gravity, impulses, being pushed, and coming to rest.
-A rigid body here has no rotation and no inertia tensor, which is what makes
-contact between two boxes exact and cheap rather than a search over a
-manifold. Which is why the crates on this page slide and stack but never
-tumble.
+The crates here do not turn. A body can be built with `canRotate: true` and
+then has an orientation, a spin and an inertia tensor, but no contact turns it
+yet, and every shipped level was tuned against crates that do not tip. A body
+that cannot turn keeps contact between two boxes exact and cheap rather than a
+search over a manifold. Which is why the crates on this page slide and stack
+but never tumble.
 
 ## Step 1: A world with something to fall onto
 
-`Dynamics` is the solver; `CollisionWorld` is still what everything, moving
-or not, lives in.
+The solver comes from the run's physics: `usePhysics().dynamics(world)` is the
+native core's `NativeDynamics`, or `Dynamics`, the Dart reference, where the
+core will not start. Both are a `RigidDynamics`, so nothing below cares which.
+`CollisionWorld` is still what everything, moving or not, lives in.
 
 {{code world}}
 

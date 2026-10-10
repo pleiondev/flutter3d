@@ -24,6 +24,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -79,7 +80,7 @@ MeshData _lid() => _mesh(
 
 SurfaceMaterial _grey(String name) => SurfaceMaterial(
   name: name,
-  baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+  baseColor: LinearColor.fromSrgb(0.5, 0.5, 0.5, 1.0),
   roughness: 0.5,
 );
 

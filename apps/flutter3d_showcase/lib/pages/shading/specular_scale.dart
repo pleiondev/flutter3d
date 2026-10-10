@@ -6,12 +6,11 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class SpecularScaleDemo extends ShowcaseDemo {
   double specular = 1.5;
 
-  late final Material _ball;
+  late final RenderMaterial _ball;
   late final LightNode _sun;
 
   @override
@@ -24,10 +23,10 @@ final class SpecularScaleDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region material
-    _ball = Material(
+    _ball = RenderMaterial(
       name: 'ball',
       lighting: LightingModel.pbr,
-      baseColor: Vector4(0.75, 0.2, 0.2, 1.0),
+      baseColor: LinearColor.fromSrgb(0.75, 0.2, 0.2, 1.0),
       metallic: 0.9,
       roughness: 0.18,
     );
@@ -43,7 +42,7 @@ final class SpecularScaleDemo extends ShowcaseDemo {
     );
 
     // #region light
-    _sun = LightNode(name: 'sun', intensity: 3.0)
+    _sun = LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
       ..setLocalForward(Vector3(-0.3, -0.6, -0.7));
     // #endregion light
 

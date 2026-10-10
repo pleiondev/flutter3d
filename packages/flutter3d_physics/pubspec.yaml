@@ -1,6 +1,6 @@
 name: flutter3d_physics
 description: "Collision shapes, a broadphase, queries, a character controller and an XPBD cloth solver. No Flutter, no renderer, no game."
-version: 0.8.2+1
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -14,7 +14,25 @@ resolution: workspace
 environment:
   sdk: ">=3.12.0 <4.0.0"
 
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 dependencies:
+  # `WorldPosition`, `Portable` and the crossings into `vector_math`.
+  flutter3d_foundation: ^1.0.0-rc.1
+  # What a world and its bodies are made of: `WorldProperties`, the material
+  # catalogue, the standard world. Re-exported while its readers move to it.
+  flutter3d_matter: ^1.0.0-rc.1
+  # `SnapshotPart`: a world's state is a part of the run's snapshot.
+  flutter3d_plugin_api: ^1.0.0-rc.1
   vector_math: ^2.2.0
 
 dev_dependencies:

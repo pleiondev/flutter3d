@@ -14,16 +14,15 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
 import 'package:flutter3d_stereo/flutter3d_stereo.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region tracker
 /// Turns pointer drags into a head pose, the same shape a sensor would.
-final class _PointerHeadTracker implements HeadTracker {
+final class _PointerHeadTracker extends HeadTracker {
   final ValueNotifier<HeadPose> _pose = ValueNotifier<HeadPose>(
     HeadPose.still(),
   );
@@ -55,9 +54,9 @@ final class HeadTrackingDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final material = f3d.Material(
+    final material = f3d.RenderMaterial(
       name: 'ball',
-      baseColor: Vector4(0.8, 0.5, 0.3, 1.0),
+      baseColor: LinearColor.fromSrgb(0.8, 0.5, 0.3, 1.0),
     );
     final ball = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 24).build()),

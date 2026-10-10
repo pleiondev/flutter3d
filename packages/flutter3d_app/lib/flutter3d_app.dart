@@ -41,15 +41,21 @@ library;
 
 export 'src/backend_native.dart'
     if (dart.library.js_interop) 'src/backend_web.dart'
-    show kFixedResolution, openDevice, presentFrame;
+    show fixedResolution, openDevice, platformDevices, presentFrame;
+export 'src/declarative/scene_widgets.dart';
 export 'src/diagnostics/issues.dart';
+export 'src/diagnostics/render_extensions.dart';
+export 'src/diagnostics/render_inspection.dart';
+export 'src/hot_swap/hot_swap.dart';
+export 'src/l10n/app_localizations.dart';
 export 'src/level/level_loader.dart';
 export 'src/level/model_visuals.dart';
 export 'src/level/prop_visuals.dart';
 export 'src/level/shared_meshes.dart';
-export 'src/level/surface_mesh.dart';
 export 'src/level/terrain_tiles.dart';
 export 'src/level/visibility_culler.dart';
+export 'src/materials/material_language_stage.dart';
+export 'src/photo/photo_shelf.dart';
 export 'src/storage/storage.dart';
 export 'src/surface/did_not_start.dart';
 export 'src/surface/frame_clock.dart';
@@ -58,6 +64,8 @@ export 'src/surface/memory_pressure.dart';
 export 'src/surface/scene_semantics.dart';
 export 'src/surface/scene_surface.dart';
 export 'src/surface/status_screens.dart';
+export 'src/view/flutter3d_view.dart';
+export 'src/view/frame_info.dart';
 export 'src/widget_surface/widget_surface.dart';
 export 'src/widget_surface/widget_surface_pipeline.dart';
 export 'src/widget_surface/widget_surface_visuals.dart';

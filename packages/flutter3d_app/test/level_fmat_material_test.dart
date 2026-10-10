@@ -113,7 +113,11 @@ void main() {
     expect(material.parameterBlock, 'WaterParams');
     expect(material.parameters['speed'], <double>[2.5]);
     expect(material.parameters['tint'], hasLength(3));
-    expect(material.name, 'canal water');
+    expect(
+      material.name,
+      'wall',
+      reason: 'the level\'s name for it, which the editor addresses it by',
+    );
     expect(
       material.roughness,
       closeTo(0.05, 1e-6),
@@ -125,9 +129,36 @@ void main() {
     expect(material.albedo, isNotNull);
   });
 
+  test(
+    'and a parameter dragged in the editor reaches the running wall',
+    () async {
+      // `HR4`: the panel sends `parameters/speed` under the level material's
+      // name, and the game finds the wall by it.
+      //
+      // Mutation: bind the file under its own name (`canal water`) again. No
+      // material is called `wall`, nothing is touched, and the speed stays 2.5.
+      final loaded = await const LevelLoader().build(
+        Level.fromJson(_levelJson(fmat: 'materials/water.fmat')),
+        device: device,
+        registry: registry,
+        readAsset: readAsset,
+      );
+      final swap = HotSwap(enabled: true)..registerScene(loaded.scene);
+
+      final touched = swap.setMaterial('wall', <String, Object?>{
+        'parameters/speed': <double>[3.5],
+      });
+
+      expect(touched, 1);
+      expect(loaded.brushNodes.single.material.parameters['speed'], <double>[
+        3.5,
+      ]);
+    },
+  );
+
   test('and its hints travel with it, describing without constraining', () async {
     // A hint is a description for an inspector, so it stops at the document —
-    // a `Material` is what the renderer draws and has no use for a slider's
+    // a `RenderMaterial` is what the renderer draws and has no use for a slider's
     // ends. What this measures is that the path a level names is the path the
     // hints arrive by: the same bytes, read through the loader's own reader.
     //

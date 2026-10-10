@@ -39,9 +39,11 @@ export 'particle_gradient.dart';
 final class CurveKey {
   const CurveKey(this.at, this.value, {this.ease = KeyEase.linear});
 
-  /// Where in the particle's life this key sits, in `[0, 1]`.
+  /// Where in the particle's life this key sits, in `[0, 1]`: a fraction of
+  /// its life.
   final double at;
 
+  /// The value at this key, in the units of whatever the curve drives.
   final double value;
 
   /// How the value leaves this key on its way to the next. Never read on the

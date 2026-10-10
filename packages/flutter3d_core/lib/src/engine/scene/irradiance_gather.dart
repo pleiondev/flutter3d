@@ -27,8 +27,12 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
+import '../render/engine_light_units.dart';
+import '../render/material.dart' show RenderMaterialInternals;
 import 'irradiance_field.dart';
 import 'light_buffer.dart';
 import 'light_node.dart';
@@ -36,7 +40,7 @@ import 'raycaster.dart';
 import 'scene.dart';
 
 /// How far a probe looks before deciding it is seeing the sky.
-const double kIrradianceReach = 60.0;
+const double irradianceReach = 60.0;
 
 /// Fills every probe of [field] from [scene].
 ///
@@ -48,9 +52,9 @@ void gather(
   IrradianceField field,
   Scene scene, {
   int rays = 128,
-  Vector3? sky,
+  LinearColor sky = LinearColor.black,
 }) {
-  final caster = Raycaster()..maxDistance = kIrradianceReach;
+  final caster = Raycaster()..maxDistance = irradianceReach;
   for (var z = 0; z < field.countZ; z++) {
     for (var y = 0; y < field.countY; y++) {
       for (var x = 0; x < field.countX; x++) {
@@ -79,13 +83,13 @@ void gatherProbe(
   int y,
   int z, {
   int rays = 128,
-  Vector3? sky,
+  LinearColor sky = LinearColor.black,
   Raycaster? caster,
 }) {
   final probe = field.probeIndex(x, y, z);
   final at = field.probePosition(x, y, z);
-  final ray = caster ?? (Raycaster()..maxDistance = kIrradianceReach);
-  final skyColour = sky ?? Vector3.zero();
+  final ray = caster ?? (Raycaster()..maxDistance = irradianceReach);
+  final skyColour = Vector3(sky.r, sky.g, sky.b);
 
   // **The rays first, then the convolution.** What a tile holds is irradiance
   // — what a surface facing a direction receives — and that is the incoming
@@ -108,7 +112,7 @@ void gatherProbe(
       // the sky is worth. Zero by default rather than a guess — an engine that
       // invented a sky colour here would light an interior through its walls.
       radiances[i].setFrom(skyColour);
-      distances[i] = kIrradianceReach;
+      distances[i] = irradianceReach;
       continue;
     }
     _directLight(scene, hit, radiances[i]);
@@ -184,7 +188,7 @@ void _directLight(Scene scene, HitResult hit, Vector3 out) {
   final aim = Vector3.zero();
   final channels = hit.node?.lightChannels ?? LightChannels.all;
   for (final light in scene.lights) {
-    if (!light.visibleInHierarchy) continue;
+    if (!light.isVisibleInHierarchy) continue;
     // The same three things the shader applies before a light reaches a
     // surface — its channel, its range window, its cone. Leaving them out
     // lit a probe from a spot aimed the other way and from a lamp whose range
@@ -193,7 +197,7 @@ void _directLight(Scene scene, HitResult hit, Vector3 out) {
     if (!LightBuffer.reaches(light, channels)) continue;
 
     double attenuation;
-    if (light.type == LightType.directional) {
+    if (light.type.base == LightType.directional) {
       light.readDirectionToLight(toLight);
       attenuation = 1.0;
     } else {
@@ -209,41 +213,47 @@ void _directLight(Scene scene, HitResult hit, Vector3 out) {
         final window = (1.0 - ratio * ratio * ratio * ratio).clamp(0.0, 1.0);
         attenuation *= window * window;
       }
-      if (light.type == LightType.spot) {
-        // The shader's ramp between the two cone cosines, with the inner one
-        // held inside the outer the way `LightBuffer` packs them.
+      if (light.type.base == LightType.spot) {
+        // The shader's ramp between the two cone cosines, squared, with the
+        // inner one held inside the outer the way `LightBuffer` packs them.
         final outer = light.outerConeAngle.clamp(0.0, math.pi / 2.0);
         final inner = light.innerConeAngle.clamp(0.0, outer);
         final cosOuter = math.cos(outer);
         final cosInner = math.max(math.cos(inner), cosOuter + 1e-4);
         final cosAngle = -light.readDirection(aim).dot(toLight);
-        attenuation *= ((cosAngle - cosOuter) / (cosInner - cosOuter)).clamp(
+        final ramp = ((cosAngle - cosOuter) / (cosInner - cosOuter)).clamp(
           0.0,
           1.0,
         );
+        attenuation *= ramp * ramp;
       }
     }
 
     final facing = hit.normal.dot(toLight);
     if (facing <= 0.0) continue;
 
-    final scale = light.intensity * attenuation * facing;
+    final scale = luxToEngine(light.intensity) * attenuation * facing;
     out
-      ..x += light.color.x * scale
-      ..y += light.color.y * scale
-      ..z += light.color.z * scale;
+      ..x += light.color.r * scale
+      ..y += light.color.g * scale
+      ..z += light.color.b * scale;
   }
 
   // **Times the surface's own colour, which is where the bounce gets its
   // tint.** A ray that lands on a red wall under a white lamp brings back red;
   // dropping this multiply is the version of this file that compiles, runs, and
   // makes every room's indirect light the colour of its lamps.
-  final albedo = hit.node?.material.baseColor;
-  if (albedo != null) {
+  //
+  // The encoded value, as this bake has always multiplied by: a linear
+  // albedo here is the better bounce and a different picture, which is a
+  // change of its own to make with its goldens.
+  final node = hit.node;
+  if (node != null) {
+    final albedo = node.material.baseColorEncoded;
     out
-      ..x *= albedo.x
-      ..y *= albedo.y
-      ..z *= albedo.z;
+      ..x *= albedo.r
+      ..y *= albedo.g
+      ..z *= albedo.b;
   }
 }
 

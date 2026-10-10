@@ -45,7 +45,7 @@ part of 'command.dart';
 /// to hold. Counting the bytes says exactly that, and 512 MB is what a
 /// sculpting session can spend on being able to go back without being the
 /// reason the session runs out of memory.
-const int kHistoryBudgetBytes = 512 * 1024 * 1024;
+const int defaultHistoryBudgetBytes = 512 * 1024 * 1024;
 
 /// The sculpt mesh kept for an [EditMesh], and the mesh journal depth it was
 /// last known to agree with.
@@ -82,7 +82,7 @@ SculptMesh _sculptFor(EditMesh mesh) {
 ///
 /// See this library's own doc comment for why a stroke rather than a dab, and
 /// for how a stroke reaches the document's mesh. [pressures] scales
-/// [Brush.strength] per point — a tablet's own reading, or a list of ones for
+/// [MeshBrush.strength] per point — a tablet's own reading, or a list of ones for
 /// a mouse, which is also what an empty [pressures] means.
 final class SculptStroke extends ModelCommand {
   const SculptStroke({
@@ -102,7 +102,11 @@ final class SculptStroke extends ModelCommand {
   /// Which brush — [BrushKind.draw], `clay`, `smooth` and the rest.
   final BrushKind kind;
 
+  /// In metres, in the mesh's own space.
   final double radius;
+
+  /// As [MeshBrush.strength]: metres of push for draw and inflate, a 0..1 fraction
+  /// of the way for smooth and flatten.
   final double strength;
 
   /// Where the brush was dragged, in the mesh's own space, in order.
@@ -192,7 +196,7 @@ final class SculptStroke extends ModelCommand {
       }
       final BrushResult result = applyBrushStroke(
         sculpt,
-        Brush(
+        MeshBrush(
           kind: kind,
           radius: radius,
           strength: strength * pressure,

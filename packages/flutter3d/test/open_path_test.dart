@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Forty metres straight ahead (along -Z), then a right-angle turn right.
 OpenPath _bend() => OpenPath(<Vector3>[

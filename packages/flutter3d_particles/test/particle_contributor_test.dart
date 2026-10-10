@@ -10,6 +10,12 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/render_node.dart'
+    show FrameContextInternals;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
@@ -29,13 +35,12 @@ void main() {
         encoder: pass,
         device: used,
         services: _RecordingServices(),
-        state: FramePassState(),
         settings: const RenderSettings(),
         width: 320,
         height: 200,
         view: RenderView(camera: CameraNode()),
         viewProjection: vm.Matrix4.identity(),
-      );
+      )..state = FramePassState();
     }
 
     setUp(() {
@@ -152,7 +157,7 @@ void main() {
 ///
 /// Copied with the group it serves, for the same reason `fake_backend.dart`
 /// is: it is a test fixture, and the alternative is a public fake.
-final class _RecordingServices implements RenderServices {
+final class _RecordingServices with RenderServices {
   final List<SceneShadows> shadows = <SceneShadows>[];
   final List<vm.Matrix4> viewProjections = <vm.Matrix4>[];
   PassEncoder? encoder;
@@ -160,7 +165,7 @@ final class _RecordingServices implements RenderServices {
 
   @override
   void encodeScene({
-    required NodeFrame frame,
+    required RenderFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
@@ -188,7 +193,7 @@ final class _RecordingServices implements RenderServices {
 /// The fake backend hands out opaque handles, so a mesh here is a description
 /// and nothing more — which is the whole of what an instanced draw needs from
 /// one: two buffers, two counts and an index type.
-final class _FakeMesh implements DrawableGeometry {
+final class _FakeMesh extends DrawableGeometry {
   _FakeMesh(this.vertices, this.indices);
 
   @override
@@ -243,13 +248,12 @@ void _meshParticleTests() {
       encoder: pass,
       device: device,
       services: _RecordingServices(),
-      state: FramePassState(),
       settings: const RenderSettings(),
       width: 320,
       height: 200,
       view: RenderView(camera: CameraNode()),
       viewProjection: vm.Matrix4.identity(),
-    );
+    )..state = FramePassState();
 
     test('binds the mesh in slot zero and the placements in slot one', () {
       MeshParticleContributor(particles, mesh: mesh).encode(frame());

@@ -75,7 +75,7 @@ void main() {
 
       particles.drawWith(renderer, shard);
       expect(
-        renderer.contributors.all.whereType<MeshParticleContributor>(),
+        renderer.renderSteps.contributors.whereType<MeshParticleContributor>(),
         hasLength(1),
       );
       // Handed the renderer again: moved, not doubled, and with the blend
@@ -85,16 +85,17 @@ void main() {
         shard,
         blend: MeshParticleContributor.darkening,
       );
-      expect(renderer.contributors.all, hasLength(1));
+      expect(renderer.renderSteps.contributors, hasLength(1));
       expect(
-        (renderer.contributors.all.single as MeshParticleContributor).blend,
+        (renderer.renderSteps.contributors.single as MeshParticleContributor)
+            .blend,
         MeshParticleContributor.darkening,
       );
 
       particles.removeFromParent();
       await game.ready();
       expect(
-        renderer.contributors.all.whereType<MeshParticleContributor>(),
+        renderer.renderSteps.contributors.whereType<MeshParticleContributor>(),
         isEmpty,
       );
 
@@ -103,9 +104,10 @@ void main() {
       // Mutation: forget the drawing when it is removed.
       await game.add(particles);
       await game.ready();
-      expect(renderer.contributors.all, hasLength(1));
+      expect(renderer.renderSteps.contributors, hasLength(1));
       expect(
-        (renderer.contributors.all.single as MeshParticleContributor).blend,
+        (renderer.renderSteps.contributors.single as MeshParticleContributor)
+            .blend,
         MeshParticleContributor.darkening,
       );
     },

@@ -38,7 +38,7 @@ import 'selection.dart';
 /// `builtInModelWriters` carries, so STL and USDZ were written, tested and
 /// unreachable from the application that ships them. `exporting_test.dart`
 /// holds the two lists against each other both ways round, the same way
-/// `flutter3d_model_mcp`'s own tool table is held against its command names:
+/// `flutter3d_mcp/model.dart`'s own tool table is held against its command names:
 /// a writer added there without a member here is a failing test rather than
 /// a format nobody can pick.
 enum ExportFormat {
@@ -218,7 +218,7 @@ ModelProject bakeAllTransforms(ModelProject project) {
     final outcome = ApplyTransform(
       object.id,
     ).apply(next, ProjectSelection.none);
-    if (outcome.ok) next = outcome.project!;
+    if (outcome.isOk) next = outcome.project!;
   }
   return next;
 }
@@ -361,6 +361,8 @@ ModelProject _withoutModifiers(ModelProject project) => ModelProject(
   skeletons: project.skeletons,
   clips: project.clips,
   lighting: project.lighting,
+  animationGraphs: project.animationGraphs,
+  unknown: project.unknown,
 );
 
 /// [project] with nothing in it but [keep] and everything hanging under
@@ -408,6 +410,8 @@ ModelProject _narrowedTo(ModelProject project, Set<int> keep) {
     skeletons: project.skeletons,
     clips: project.clips,
     lighting: project.lighting,
+    animationGraphs: project.animationGraphs,
+    unknown: project.unknown,
   );
 }
 
@@ -491,8 +495,15 @@ final class _ImagesOverride extends ModelDocument {
 /// padding, the same way a GPU's own compressed-texture upload path treats
 /// a non-block-sized mip.
 EncodedImage _encodeAsKtx2(EncodedImage image) {
-  final decoded = decodePng(image.bytes) ?? decodeJpeg(image.bytes);
-  if (decoded == null) return image;
+  final DecodedImage decoded;
+  try {
+    decoded = isPng(image.bytes)
+        ? decodePng(image.bytes)
+        : decodeJpeg(image.bytes);
+  } on ImageFormatException {
+    // Neither format this package decodes: the image is carried over as-is.
+    return image;
+  }
 
   final width = decoded.width;
   final height = decoded.height;

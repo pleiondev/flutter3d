@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class DistanceFogDemo extends ShowcaseDemo {
   double density = 0.03;
@@ -26,9 +25,9 @@ final class DistanceFogDemo extends ShowcaseDemo {
 
   @override
   Scene build(DemoContext context) {
-    final Material stone = Material(
+    final RenderMaterial stone = RenderMaterial(
       name: 'stone',
-      baseColor: Vector4(0.62, 0.58, 0.52, 1.0),
+      baseColor: LinearColor.fromSrgb(0.62, 0.58, 0.52, 1.0),
       roughness: 0.9,
     );
     final DeviceMesh pillar = DeviceMesh.upload(
@@ -47,7 +46,7 @@ final class DistanceFogDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -0.8, -0.5)),
       );
     // #region pillars
@@ -68,8 +67,8 @@ final class DistanceFogDemo extends ShowcaseDemo {
     fog: FogSettings(
       // Read off the sky at the horizon, so the far end melts into it.
       color: matchSky
-          ? _sky.sample(Vector3(0.0, 0.0, -1.0))
-          : Vector3(0.6, 0.2, 0.2),
+          ? _sky.sample(Vector3(0.0, 0.0, -1.0)).toLinearColor()
+          : const LinearColor(0.6, 0.2, 0.2),
       density: density,
     ),
     // #endregion fog

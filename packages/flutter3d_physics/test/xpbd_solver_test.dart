@@ -312,23 +312,23 @@ void main() {
       // Mutation: pass no span to the obstacle push, and the midpoints go
       // back inside.
       const radius = 0.2;
-      final centre = Vector3(0.68, 1.0, 0.6);
+      final center = Vector3(0.68, 1.0, 0.6);
       final mesh = ClothMesh.grid(
         cols: 16,
         rows: 16,
         spacing: 0.09,
         height: 1.7,
       );
-      final obstacles = [ClothObstacle(CollisionSphere(radius), centre)];
+      final obstacles = [ClothObstacle(CollisionSphere(radius), center)];
       for (var step = 0; step < 400; step++) {
         stepCloth(mesh, const ClothSettings(), 1 / 60, obstacles: obstacles);
       }
       final p = mesh.positions;
       final t = mesh.triangles;
       double fromCentre(double x, double y, double z) => math.sqrt(
-        (x - centre.x) * (x - centre.x) +
-            (y - centre.y) * (y - centre.y) +
-            (z - centre.z) * (z - centre.z),
+        (x - center.x) * (x - center.x) +
+            (y - center.y) * (y - center.y) +
+            (z - center.z) * (z - center.z),
       );
       var near = 0;
       for (var k = 0; k < t.length; k += 3) {

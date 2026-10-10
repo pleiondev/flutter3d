@@ -3,11 +3,13 @@
 library;
 
 import 'package:flame/components.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../host/bridge_priority.dart';
 import '../host/has_fixed_step.dart';
 import '../host/step_clock.dart';
+import '../host/step_cut.dart';
 import 'actor_component.dart';
 
 /// The one place a bridged game's frame steps a shared [ActorSystem].
@@ -33,7 +35,7 @@ import 'actor_component.dart';
 ///
 /// **In fixed steps, not in frames**, for the reason
 /// `PhysicsStepComponent` gives: the frame's time is spent in whole steps of
-/// [step]'s size, the `beginStep`/`step` pair once per step, and an
+/// its `timing`'s size, the `beginStep`/`step` pair once per step, and an
 /// [ActorComponent] handed this component draws its actor [alpha] of the
 /// way between its last two places.
 ///
@@ -46,7 +48,7 @@ import 'actor_component.dart';
 /// hand [ActorSystem.step] a focus that has actually moved since.
 ///
 /// **In a `HasFixedStep` game it steps with the game**, once in each of the
-/// game's steps, and [step] is not used: see [HasFixedStep]. The system's
+/// game's steps, and its own `timing` is not used: see [HasFixedStep]. The system's
 /// step is opened — [ActorSystem.beginStep] — at the *start* of the game's
 /// step, before the game's own logic, and the actors are stepped later in it.
 /// Opened just before the actors, it wiped whatever the game's logic had
@@ -65,13 +67,14 @@ final class ActorSystemComponent extends Component
     this.focus,
     this.focusBody,
     this.foci,
-    FixedStep? step,
+    WorldTiming timing = const WorldTiming(),
+    CatchUp catchUp = const CatchUp.announce(),
     super.priority = BridgePriority.actors,
   }) : assert(
          (focus == null) != (foci == null),
          'an actor system is stepped towards one focus or several foci',
        ),
-       step = step ?? FixedStep();
+       _step = StepCut(timing: timing, catchUp: catchUp);
 
   /// The actor system every [ActorComponent] in this game shares.
   final ActorSystem system;
@@ -87,14 +90,15 @@ final class ActorSystemComponent extends Component
   /// stays put, since [ActorSystem.damageToFoci] is read by it.
   final List<FocusPoint> Function()? foci;
 
-  /// How the frame's time is cut into steps: one sixtieth of a second each
-  /// unless given otherwise.
-  final FixedStep step;
+  // How the frame's time is cut into steps when the game does not step
+  // this: the `timing` and `catchUp` it was made with, a sixtieth of a
+  // second each and at most five a frame unless given otherwise.
+  final StepCut _step;
 
   /// How far this frame is past the last step, from 0 up to 1: the game's,
   /// when the game steps it.
   @override
-  double get alpha => _game?.alpha ?? step.alpha;
+  double get alpha => _game?.alpha ?? _step.alpha;
 
   HasFixedStep? _game;
 
@@ -137,10 +141,10 @@ final class ActorSystemComponent extends Component
   void update(double dt) {
     super.update(dt);
     if (_game != null) return;
-    final steps = step.advance(dt);
+    final steps = _step.advance(dt);
     for (var i = 0; i < steps; i++) {
       _open();
-      fixedUpdate(step.stepSeconds);
+      fixedUpdate(_step.stepSeconds);
     }
   }
 

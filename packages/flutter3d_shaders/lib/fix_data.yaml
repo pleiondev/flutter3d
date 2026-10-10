@@ -1,0 +1,63 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-shaders-LayerInfoBlock-sceneColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_shaders/typed_blocks.dart']
+      field: 'sceneColour'
+      inClass: 'LayerInfoBlock'
+    changes:
+      - kind: 'rename'
+        newName: 'sceneColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-shaders-kRequiredShaders'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_shaders/flutter3d_shaders.dart']
+      variable: 'kRequiredShaders'
+    changes:
+      - kind: 'rename'
+        newName: 'requiredShaders'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-shaders-kComputeShaders'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_shaders/flutter3d_shaders.dart']
+      variable: 'kComputeShaders'
+    changes:
+      - kind: 'rename'
+        newName: 'computeShaders'
+  - title: 'flutter3d 1.0.0-rc.1: c-webgl-WebGlSectionSources (WebGlSectionSources)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgl/flutter3d_webgl.dart']
+      typedef: 'WebGlSectionSources'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_shaders/translate.dart']
+          typedef: 'WebGlSectionSources'
+  - title: 'flutter3d 1.0.0-rc.1: c-webgl-decodeWebGlSection (decodeWebGlSection)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgl/flutter3d_webgl.dart']
+      function: 'decodeWebGlSection'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_shaders/translate.dart']
+          function: 'decodeWebGlSection'
+  - title: 'flutter3d 1.0.0-rc.1: c-webgl-encodeWebGlSection (encodeWebGlSection)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgl/flutter3d_webgl.dart']
+      function: 'encodeWebGlSection'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_shaders/translate.dart']
+          function: 'encodeWebGlSection'

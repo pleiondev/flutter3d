@@ -6,8 +6,8 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as f3d show Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as f3d show RenderMaterial;
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_showcase/src/demo/scene_kit.dart';
@@ -42,8 +42,8 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
     final level = Level(
       name: 'corridor',
       brushes: <Brush>[
-        Brush(centre: Vector3(5, -2, 2), size: Vector3(14, 4, 4)),
-        Brush(centre: Vector3(5, 1, 2), size: Vector3(1.0, 8, 4)),
+        Brush(center: Vector3(5, -2, 2), size: Vector3(14, 4, 4)),
+        Brush(center: Vector3(5, 1, 2), size: Vector3(1.0, 8, 4)),
       ],
     );
     // #endregion level
@@ -52,9 +52,9 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
     final visibility = LevelVisibility.bake(level, cellSize: 1.0);
     // #endregion bake
 
-    final material = f3d.Material(
+    final material = f3d.RenderMaterial(
       name: 'room',
-      baseColor: Vector4(0.6, 0.6, 0.8, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.8, 1.0),
     );
     final nearMarker = MeshNode(
       DeviceMesh.upload(context.device, CuboidShape().build()),
@@ -83,8 +83,8 @@ final class BakedVisibilityDemo extends ShowcaseDemo {
 
     _report =
         'standing on the near side, $hiddenFromNearSide of 2 batches are '
-        'hidden; near marker visible: ${nearMarker.visible}, far marker '
-        'visible: ${farMarker.visible}';
+        'hidden; near marker visible: ${nearMarker.isVisible}, far marker '
+        'visible: ${farMarker.isVisible}';
 
     // #region live
     // The same culler, over four markers, asked again from wherever the eye

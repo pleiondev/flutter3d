@@ -10,9 +10,12 @@
 library;
 
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'heard.dart';
 
 const double _dt = 1.0 / 60.0;
 const GameAction _crouch = PlatformerActions.dropThrough;
@@ -30,7 +33,7 @@ final class _Run {
       materials: <String, LevelMaterial>{'rock': LevelMaterial()},
       brushes: <Brush>[
         Brush(
-          centre: Vector3(0.0, -0.5, 0.0),
+          center: Vector3(0.0, -0.5, 0.0),
           size: Vector3(80.0, 1.0, 80.0),
           material: 'rock',
         ),
@@ -64,13 +67,17 @@ final class _Run {
       mechanisms: mechanisms,
       random: GameRandom(1),
     );
+    sim.publishTo(heard.bus);
   }
 
-  final CollisionWorld world = CollisionWorld();
+  final CollisionWorld world = CollisionWorld(properties: platformerWorld);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final PlatformerSimulation sim;
+
+  /// What [sim] publishes, step by step.
+  final Heard heard = Heard();
 
   final Set<GameAction> _held = <GameAction>{};
 
@@ -86,7 +93,7 @@ final class _Run {
       ..clear()
       ..addAll(holding);
     sim.step(_dt);
-    lastStep = sim.events.drain();
+    lastStep = heard.take();
     input.endStep();
   }
 
@@ -102,7 +109,7 @@ final class _Run {
 
 /// A roof a standing runner does not fit under and a crouched one does.
 Brush _lowRoof({double z = 6.0}) => Brush(
-  centre: Vector3(0.0, 1.6, z),
+  center: Vector3(0.0, 1.6, z),
   size: Vector3(8.0, 0.6, 6.0),
   material: 'rock',
 );
@@ -164,7 +171,13 @@ void main() {
         reason: 'there is a roof overhead',
       );
 
-      run.run(120, holding: <GameAction>{GameAction.moveForward});
+      // A hundred and fifty, not the hundred and twenty this took when the
+      // legs pushed at 70 m/s²: getting up to a crouch's 2.4 m/s at the
+      // grip's 16.3 takes 0.15 s rather than 0.03, and each of the two
+      // starts leaves the runner 0.14 m further back — two crouch-walks of
+      // two seconds then end about 9.25, short of standing clear of a roof
+      // whose back edge is at 9.
+      run.run(150, holding: <GameAction>{GameAction.moveForward});
       expect(run.runner.isCrouching, isFalse, reason: 'it is clear now');
     });
   });
@@ -193,10 +206,10 @@ void main() {
     test('it says so on the step it starts', () {
       final run = _Run()
         ..run(60, holding: <GameAction>{GameAction.moveForward});
-      expect(run.lastStep.has<Slid>(), isFalse);
+      expect(run.lastStep.whereType<Slid>().isNotEmpty, isFalse);
 
       run.step(holding: <GameAction>{GameAction.moveForward, _crouch});
-      expect(run.lastStep.has<Slid>(), isTrue);
+      expect(run.lastStep.whereType<Slid>().isNotEmpty, isTrue);
       expect(run.runner.isSliding, isTrue);
 
       run.run(60, holding: <GameAction>{_crouch});
@@ -379,7 +392,9 @@ void main() {
         run.runner.body.teleport(Vector3(0.0, height, 0.0));
         for (var i = 0; i < 300; i++) {
           run.step();
-          if (run.lastStep.has<Landed>()) return run.runner.landingSpeed;
+          if (run.lastStep.whereType<Landed>().isNotEmpty) {
+            return run.runner.landingSpeed;
+          }
         }
         return -1.0;
       }

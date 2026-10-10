@@ -2,8 +2,8 @@
 library;
 
 import 'package:flutter/widgets.dart' show BoxFit, FilterQuality;
+import 'package:flutter3d_app/flutter3d_app.dart' show openDevice;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
 
@@ -13,7 +13,7 @@ import 'golden_store.dart';
 ///
 /// Read from the URL, exactly the way the golden scene and the record/compare
 /// direction are read, and for exactly the same arithmetic: one dart2js run
-/// serves seventy-eight scenes because the scene is a query parameter, and one
+/// serves 96 scenes because the scene is a query parameter, and one
 /// dart2js run serves the browser backends because this is one too. A
 /// `--dart-define` here would be a build per backend, which is the whole saving
 /// of the browser golden stand spent on a single word.
@@ -47,7 +47,11 @@ Future<GraphicsDevice> createBackend({
   try {
     return switch (requested) {
       'webgl' => _openWebGl(width: width, height: height),
-      'webgpu' => _presentable(await openWebGpu(width: width, height: height)),
+      'webgpu' => await openDevice(
+        width: width,
+        height: height,
+        registry: _webGpuOnly(),
+      ),
       _ => throw StateError(
         'the page asked for the "$requested" backend and this build draws '
         'through webgl and webgpu. Refusing rather than drawing the wrong '
@@ -61,7 +65,7 @@ Future<GraphicsDevice> createBackend({
     // ninety-second stall with no reason in it — which is a worse answer than
     // the same one given at once. Every way of failing here goes through this,
     // not just a name nobody recognises: a browser with no `navigator.gpu` and
-    // a machine whose GPU is blocklisted both fail inside `openWebGpu`, and
+    // a machine whose GPU is blocklisted both fail inside `WebGpuDevice.open`, and
     // those are the two a WebGPU run will actually meet.
     final scene = sceneOverride;
     if (scene != null) reportLine('GOLDEN $scene: $error');
@@ -69,16 +73,22 @@ Future<GraphicsDevice> createBackend({
   }
 }
 
-/// [device], once something is registered to show its frames.
+/// A registry of WebGPU alone, with its presenter, to open the device from.
 ///
 /// `flutter3d_app` registers a WebGPU presenter only in a build that asks for
 /// WebGPU at compile time, and this one picks the backend from the URL, so
 /// nothing had: every frame of a WebGPU page threw from `presentFrame` and the
 /// canvas stayed empty, while the golden run, which reads the frame back
-/// rather than looking at the canvas, passed. WebGL2 needs nothing here,
-/// because `flutter3d_app` always registers it.
-GraphicsDevice _presentable(GraphicsDevice device) {
-  _webGpuPresenter ??= registerDevicePresenter<WebGpuDevice>(
+/// rather than looking at the canvas, passed. A device `openDevice` opened
+/// remembers the registry, so `presentFrame` finds the presenter here. WebGL2
+/// needs nothing, because `flutter3d_app` always registers it.
+DeviceRegistry _webGpuOnly() => DeviceRegistry()
+  ..addBackend(
+    'WebGPU',
+    ({required int width, required int height}) =>
+        WebGpuDevice.open(width: width, height: height),
+  )
+  ..addPresenter<WebGpuDevice>(
     (
       GraphicsDevice device,
       TextureHandle frame, {
@@ -91,29 +101,12 @@ GraphicsDevice _presentable(GraphicsDevice device) {
       quality: quality,
     ),
   );
-  return device;
-}
 
-PresenterRegistration? _webGpuPresenter;
-
-/// WebGL2, over the canvas it creates for itself.
-///
-/// Separate from [createBackend] because it is the one branch that answers
-/// without waiting, and inlining a null check into a `switch` arm would have
-/// cost the arm its shape.
-GraphicsDevice _openWebGl({required int width, required int height}) {
-  final device = WebGlDevice.create(
-    width: width,
-    height: height,
-    sources: engineShaders,
-  );
-  if (device == null) {
-    throw StateError(
-      'no WebGL2 context. This build needs it; there is no software path.',
-    );
-  }
-  return device;
-}
+/// WebGL2, over the canvas it creates for itself. Throws a
+/// `DeviceUnavailableException` where there is no WebGL2 context: this build
+/// needs it, and there is no software path.
+GraphicsDevice _openWebGl({required int width, required int height}) =>
+    WebGlDevice.open(width: width, height: height);
 
 /// What to call this build in a diagnostic.
 ///

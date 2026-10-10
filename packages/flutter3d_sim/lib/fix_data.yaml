@@ -1,0 +1,353 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Health-Health'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'Health'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'armour'
+        newName: 'armor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Health-armour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'armour'
+      inClass: 'Health'
+    changes:
+      - kind: 'rename'
+        newName: 'armor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Health-armourShare'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'armourShare'
+      inClass: 'Health'
+    changes:
+      - kind: 'rename'
+        newName: 'armorShare'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-HeightfieldGeometry-build'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'build'
+      inClass: 'HeightfieldGeometry'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresPerTexture'
+        newName: 'metersPerTexture'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-HeightfieldTiles-build'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'build'
+      inClass: 'HeightfieldTiles'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresPerTexture'
+        newName: 'metersPerTexture'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-InputState-analogueValues'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'analogueValues'
+      inClass: 'InputState'
+    changes:
+      - kind: 'rename'
+        newName: 'analogValues'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LevelMaterial-texelsPerMetre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'texelsPerMetre'
+      inClass: 'LevelMaterial'
+    changes:
+      - kind: 'rename'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightBehaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'LightBehaviour'
+    changes:
+      - kind: 'rename'
+        newName: 'LightBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightFixture-LightFixture'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'LightFixture'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'behaviour'
+        newName: 'behavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightFixture-behaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'behaviour'
+      inClass: 'LightFixture'
+    changes:
+      - kind: 'rename'
+        newName: 'behavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightFixtureKind-LightFixtureKind'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'LightFixtureKind'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'defaultBehaviour'
+        newName: 'defaultBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightFixtureKind-defaultBehaviour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'defaultBehaviour'
+      inClass: 'LightFixtureKind'
+    changes:
+      - kind: 'rename'
+        newName: 'defaultBehavior'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Lightmap-Lightmap'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'Lightmap'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'texelsPerMetre'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Lightmap-texelsPerMetre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'texelsPerMetre'
+      inClass: 'Lightmap'
+    changes:
+      - kind: 'rename'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightmapBaker-LightmapBaker'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'LightmapBaker'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'texelsPerMetre'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightmapBaker-texelsPerMetre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'texelsPerMetre'
+      inClass: 'LightmapBaker'
+    changes:
+      - kind: 'rename'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightmapLayout-plan'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'plan'
+      inClass: 'LightmapLayout'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'texelsPerMetre'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightmapLayout-texelCentre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'texelCentre'
+      inClass: 'LightmapLayout'
+    changes:
+      - kind: 'rename'
+        newName: 'texelCenter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LightmapLayout-texelsPerMetre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'texelsPerMetre'
+      inClass: 'LightmapLayout'
+    changes:
+      - kind: 'rename'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-NavGrid-centreOf'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'centreOf'
+      inClass: 'NavGrid'
+    changes:
+      - kind: 'rename'
+        newName: 'centerOf'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-NavGrid-centreOfCell'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'centreOfCell'
+      inClass: 'NavGrid'
+    changes:
+      - kind: 'rename'
+        newName: 'centerOfCell'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-LevelMaterial-LevelMaterial'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'LevelMaterial'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'texelsPerMetre'
+        newName: 'texelsPerMeter'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Brush-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'centre'
+      inClass: 'Brush'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Brush-Brush'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      constructor: ''
+      inClass: 'Brush'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-KeyRing-take'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'take'
+      inClass: 'KeyRing'
+    changes:
+      - kind: 'rename'
+        newName: 'add'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-TriggerVolume-takeOutcome'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'takeOutcome'
+      inClass: 'TriggerVolume'
+    changes:
+      - kind: 'rename'
+        newName: 'drainOutcome'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-CameraRig-extraFov'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'extraFov'
+      inClass: 'CameraRig'
+    changes:
+      - kind: 'rename'
+        newName: 'extraFovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Automap-everythingRevealed'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'everythingRevealed'
+      inClass: 'Automap'
+    changes:
+      - kind: 'rename'
+        newName: 'isEverythingRevealed'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Mover-reverseWhenBlocked'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'reverseWhenBlocked'
+      inClass: 'Mover'
+    changes:
+      - kind: 'rename'
+        newName: 'reversesWhenBlocked'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-MovingPlatform-reverseWhenBlocked'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'reverseWhenBlocked'
+      inClass: 'MovingPlatform'
+    changes:
+      - kind: 'rename'
+        newName: 'reversesWhenBlocked'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Pace-behind'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'behind'
+      inClass: 'Pace'
+    changes:
+      - kind: 'rename'
+        newName: 'isBehind'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-RewindBuffer-keyframeDue'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'keyframeDue'
+      inClass: 'RewindBuffer'
+    changes:
+      - kind: 'rename'
+        newName: 'isKeyframeDue'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-EcsWorld-alive'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'alive'
+      inClass: 'EcsWorld'
+    changes:
+      - kind: 'rename'
+        newName: 'isAlive'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-sim-Lightmap-kScale'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'kScale'
+      inClass: 'Lightmap'
+    changes:
+      - kind: 'rename'
+        newName: 'irradianceScale'
+  - title: 'flutter3d 1.0.0-rc.1: b1-editor_core-OpenKind (OpenKind)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'OpenKind'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+          class: 'OpenKind'
+  - title: 'flutter3d 1.0.0-rc.1: b1-game-OpenKind (OpenKind)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart', 'package:flutter3d_game/flutter3d_game.dart']
+      class: 'OpenKind'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+          class: 'OpenKind'
+  - title: 'flutter3d 1.0.0-rc.1: c-net-firstDifferingPath (firstDifferingPath)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_net/flutter3d_net.dart']
+      function: 'firstDifferingPath'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+          function: 'firstDifferingPath'

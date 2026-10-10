@@ -1,3 +1,5 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -36,15 +38,23 @@ final class ProjectileSystem {
     this.radius = 0.12,
   }) : _resolver = BlastResolver(world),
        entities = entities ?? EcsWorld() {
-    this.entities
+    this.entities.components
       ..register<InFlight>(
-        'inFlight',
-        encode: (InFlight value) => value.toJson(),
-        decode: InFlight.fromJson,
+        ComponentCodec<InFlight>.of(
+          id: 'inFlight',
+          encode: (value) => value.toJson(),
+          decode: (data, _) => InFlight.fromJson(data),
+        ),
       )
-      ..exclude<FiredBy>(
-        'a collider is a live object in one process, and the field stops '
-        'mattering the moment the rocket has cleared its own launcher',
+      ..register<FiredBy>(
+        ComponentCodec<FiredBy>.of(
+          id: 'firedBy',
+          encode: (value) => _ownerKey(value.collider),
+          decode: (data, _) => switch (_ownerNamed(data)) {
+            final Collider owner => FiredBy(owner),
+            null => null,
+          },
+        ),
       );
   }
 
@@ -52,9 +62,12 @@ final class ProjectileSystem {
 
   /// Where the rockets live.
   ///
-  /// Injected so that the next system to move across shares it and one
-  /// `save()` covers both. While exactly one system has moved, a caller that
-  /// passes nothing gets a world of its own and nothing is worse off.
+  /// **Shared with the actors**: the staging hands the run's one world to
+  /// both, which the shooter's plugin puts in the loop's snapshots (the run
+  /// is a part) and its published worlds, so a rollback and the view cover
+  /// the rockets with nothing more said. A caller that passes nothing gets a
+  /// world of its own, which is for a test or a tool that steps the rockets
+  /// alone.
   final EcsWorld entities;
 
   /// The most that may be in the air at once.
@@ -62,9 +75,49 @@ final class ProjectileSystem {
 
   /// How fat a rocket is, for the sweep. Not zero: a point squeezes through the
   /// seam between two brushes that meet exactly.
+  /// In metres.
   final double radius;
 
   final BlastResolver _resolver;
+
+  final Map<String, Collider> _named = <String, Collider>{};
+
+  /// Gives [owner] a [name] a save can carry, for a launcher that is not an
+  /// actor in [entities]: the player, a turret the game built itself.
+  ///
+  /// **Why a rocket's owner is saved at all.** It was excluded, as a live
+  /// object in one process; a restore then cleared it, and after a rollback
+  /// or a rewind a rocket in the air met its own launcher a step out of the
+  /// muzzle and credited nobody, so the resimulated step was not the step
+  /// that was recorded. An actor's collider is named by its entity, whose
+  /// body a restore keeps in place; anything else is named here, and an
+  /// owner with no name is still left out, as before.
+  void nameOwner(String name, Collider owner) => _named[name] = owner;
+
+  /// What a save writes for [owner]: `{"named": …}`, `{"entity": [index,
+  /// generation]}`, or null for an owner nobody named.
+  Object? _ownerKey(Collider owner) {
+    for (final MapEntry(:key, :value) in _named.entries) {
+      if (identical(value, owner)) return <String, Object?>{'named': key};
+    }
+    if (owner.userData case final Actor actor) {
+      final body = entities.get<Body>(actor.entity);
+      if (identical(body?.controller.collider, owner)) {
+        return <String, Object?>{
+          'entity': <int>[actor.entity.index, actor.entity.generation],
+        };
+      }
+    }
+    return null;
+  }
+
+  /// The collider [key], one [_ownerKey] wrote, names here, or null.
+  Collider? _ownerNamed(Object? key) => switch (key) {
+    {'named': final String name} => _named[name],
+    {'entity': [final int index, final int generation]} =>
+      entities.get<Body>(Entity.of(index, generation))?.controller.collider,
+    _ => null,
+  };
 
   /// Explosions produced by the last [step], for the game to react to.
   ///
@@ -77,7 +130,7 @@ final class ProjectileSystem {
   int get dropped => _dropped;
   int _dropped = 0;
 
-  int get activeCount => entities.query<InFlight>().length;
+  int get activeCount => entities.queryOf<InFlight>().length;
 
   final SweepHit _hit = SweepHit();
   final Vector3 _delta = Vector3.zero();
@@ -112,7 +165,7 @@ final class ProjectileSystem {
   }
 
   void clear() {
-    for (final entity in entities.query<InFlight>()) {
+    for (final entity in entities.queryOf<InFlight>()) {
       entities.despawn(entity);
     }
     detonations.clear();
@@ -122,7 +175,7 @@ final class ProjectileSystem {
     detonations.clear();
     final shape = CollisionSphere(radius);
 
-    for (final entity in entities.query<InFlight>()) {
+    for (final entity in entities.queryOf<InFlight>()) {
       final rocket = entities.get<InFlight>(entity)!;
 
       rocket.life -= dt;

@@ -83,7 +83,7 @@ final class SweepHit {
 
   Collider? collider;
 
-  bool get hit => fraction < 1.0;
+  bool get didHit => fraction < 1.0;
 
   void reset() {
     fraction = 1.0;

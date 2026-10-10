@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart';
+import 'package:flutter3d_mcp/kit.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
+    show choosePhysics, usePhysics;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -30,11 +33,29 @@ PictureAnswer _refuse(String says) => (did: false, says: says, png: null);
 /// has anything worth keeping is the only time it is allowed to replace
 /// what came before.
 final class SimSession {
-  SimSession({required this.game});
+  SimSession({required this.game, this.entities, ProjectRoot? root})
+    : root = root ?? ProjectRoot.around(null);
+
+  /// The directory every path this session is handed must lie inside: the
+  /// level [open] reads, the runs [verify] and [bisect] read and the level
+  /// each of them names, and the `.f3drun` [writeRun] and [expect] write.
+  /// The working directory when not given.
+  final ProjectRoot root;
 
   /// What this session plays — `flutter3d_game_shooter`'s
   /// `ShooterHeadlessGame`, for the crypt.
   final HeadlessGame game;
+
+  /// Where [game]'s saves keep their entities, so [bisect] can name the
+  /// entity and the component two runs part on rather than only a path into
+  /// the raw save; null when the host did not say, and a `bisect` call may
+  /// say instead.
+  ///
+  /// **The host's to give, not the game's to answer.** [HeadlessGame] is an
+  /// interface every genre implements, and a save is whatever that genre's
+  /// `save()` writes; the composition that hands this server a game is the
+  /// one place that knows both.
+  final EntityLayout? entities;
 
   HeadlessRun? _run;
   InputTapeRecorder? _recorder;
@@ -55,13 +76,15 @@ final class SimSession {
   PictureAnswer open(String path) {
     final Level level;
     try {
-      final json = jsonDecode(File(path).readAsStringSync());
+      final json = jsonDecode(_readInside(path));
       level = Level.fromJson((json as Map).cast<String, Object?>());
     } catch (error) {
       return _refuse('could not read a level from "$path": $error');
     }
-    final world = CollisionWorld();
+    // The session's physics, chosen the first time it is asked.
+    final world = CollisionWorld(backend: usePhysics());
     level.addTo(world);
+    world.backend.attach(world);
     final run = game.start(level, world, _input);
     world.update();
 
@@ -105,6 +128,53 @@ final class SimSession {
     }
 
     return _ok('stepped to $_step. ${run.summary}');
+  }
+
+  /// Gives the order [verb] with [arguments], then steps [steps] fixed steps
+  /// with the stick at rest — for a [game] that is an [OrderedGame].
+  ///
+  /// **The order goes through the input**, as [OrderTunes] writes it, so it
+  /// is on the tape with the first of those steps: [writeRun] keeps it,
+  /// [verify] and [bisect] give it again at the same step. The buttons stay
+  /// as the last [step] left them.
+  ///
+  /// Refused for a game that takes no orders, for a verb it does not know,
+  /// and for an argument the verb does not read or that is not a number.
+  PictureAnswer order({
+    required String verb,
+    Map<String, Object?> arguments = const <String, Object?>{},
+    int steps = 1,
+  }) {
+    final run = _run;
+    if (run == null) return _refuse('no level open — call open first');
+    final game = this.game;
+    if (game is! OrderedGame) {
+      return _refuse('the ${game.name} takes no orders; step it instead');
+    }
+    final known = game.orders[verb];
+    if (known == null) {
+      return _refuse(
+        'the ${game.name} has no order "$verb"; it has '
+        '${game.orders.keys.join(', ')}',
+      );
+    }
+    if (steps <= 0) return _refuse('steps must be at least 1');
+    final numbers = <String, double>{};
+    for (final MapEntry(:key, :value) in arguments.entries) {
+      if (!known.arguments.containsKey(key)) {
+        return _refuse(
+          '"$verb" reads no "$key"; it reads '
+          '${known.arguments.isEmpty ? 'nothing' : known.arguments.keys.join(', ')}',
+        );
+      }
+      if (value is! num) return _refuse('"$key" is a number');
+      numbers[key] = value.toDouble();
+    }
+    OrderTunes.give(_input, verb, numbers);
+    for (var i = 0; i < steps; i++) {
+      _advance(run, 0.0, 0.0, 0.0, 0.0);
+    }
+    return _ok('gave "$verb", stepped to $_step. ${run.summary}');
   }
 
   /// Steps with one intent held — the same arguments as [step] — until
@@ -187,6 +257,106 @@ final class SimSession {
           );
   }
 
+  /// Two runs of one level played side by side, each in a world of its own,
+  /// to the first step at which they differ — and what differs there, as
+  /// a path into the state: `actors.3.health`.
+  ///
+  /// **Every step, not every checkpoint.** A run's checkpoints bracket a
+  /// defect to tens of steps; two tapes in hand can be stepped together and
+  /// compared at each, which names the step the two first part on. Two runs
+  /// on other physics, or in other versions of the level, would part at the
+  /// first step for a reason nobody needs told, so both are refused.
+  ///
+  /// With [layout], or the session's [entities] when it is left out, the
+  /// answer also names every entity component that differs at that step,
+  /// the first of them where the path starts: `7.vitality.hp`. A step where
+  /// the runs part outside the entities — in the player, in the random
+  /// state — says that no component differs there, which is news too.
+  PictureAnswer bisect(String pathA, String pathB, {EntityLayout? layout}) {
+    final entityLayout = layout ?? entities;
+    final runs = <Demo>[];
+    for (final path in <String>[pathA, pathB]) {
+      try {
+        final json = jsonDecode(_readInside(path));
+        runs.add(Demo.fromJson((json as Map).cast<String, Object?>()));
+      } on DemoFormatException catch (error) {
+        return _refuse('"$path" is not a run: ${error.message}');
+      } catch (error) {
+        return _refuse('could not read a run from "$path": $error');
+      }
+    }
+    final [a, b] = runs;
+    if (a.levelHash != b.levelHash) {
+      return _refuse(
+        'the two were played in different levels, or different versions of '
+        'one (${a.levelHash} and ${b.levelHash})',
+      );
+    }
+    if (a.physics != b.physics) {
+      return _refuse(
+        'the two were played on different physics (${a.physics} and '
+        '${b.physics}), which are not promised to agree',
+      );
+    }
+    if (a.levelSwaps.isNotEmpty || b.levelSwaps.isNotEmpty) {
+      return _refuse('a run with its level edited under it is not bisected');
+    }
+    final Level level;
+    try {
+      final json = jsonDecode(_readInside(a.level));
+      level = Level.fromJson((json as Map).cast<String, Object?>());
+    } catch (error) {
+      return _refuse('could not read the runs\' level "${a.level}": $error');
+    }
+    if (level.digestHex != a.levelHash) {
+      return _refuse(
+        'the level at "${a.level}" has changed since the runs were recorded',
+      );
+    }
+    return _onPhysicsOf(a, () {
+      // Each side a run of its own in a loop of its own: the loop's captures
+      // hold the run's save as a part, so the rewinds and the comparisons go
+      // the loop's one way, and the layout reads the save inside them.
+      ReplaySide? side(Demo demo) {
+        final world = CollisionWorld(backend: usePhysics());
+        level.addTo(world);
+        world.backend.attach(world);
+        final input = InputState();
+        final run = game.start(level, world, input);
+        world.update();
+        // The standard rate, sixty a second: the loop hands the run 1 / 60,
+        // which is [_dt], the step the runs were recorded at.
+        final stepped = RunLoop(run, input: input);
+        if (!stepped.isRestorable) return null;
+        return ReplaySide.loop(
+          stepped.loop,
+          tape: demo.tape,
+          start: stepped.captureFrom(demo.start),
+        );
+      }
+
+      final (one, two) = (side(a), side(b));
+      if (one == null || two == null) {
+        return _refuse(
+          'a ${game.name} run cannot be put back to a state it saved, which '
+          'bisecting two runs needs',
+        );
+      }
+      final inLoop = entityLayout?.under(RunLoop.savePath);
+      return switch (bisectTapes(a: one, b: two, layout: inLoop)) {
+        TapesAgree() && final agree => (did: true, says: '$agree', png: null),
+        final TapesDiverge parted => (
+          did: true,
+          says:
+              'the runs agree for ${parted.step - 1} steps and part at step '
+              '${parted.step}: $parted'
+              '${entityLayout == null ? '' : _components(parted)}',
+          png: null,
+        ),
+      };
+    });
+  }
+
   /// Replays the `.f3drun` at [path] into a fresh run of its own level and
   /// answers whether it retraces the checkpoints it was written with — and,
   /// when [predicate] is given, whether that claim holds where the replay
@@ -201,12 +371,33 @@ final class SimSession {
   PictureAnswer verify(String path, {Map<String, Object?>? predicate}) {
     final Demo demo;
     try {
-      final json = jsonDecode(File(path).readAsStringSync());
+      final json = jsonDecode(_readInside(path));
       demo = Demo.fromJson((json as Map).cast<String, Object?>());
     } on DemoFormatException catch (error) {
       return _refuse('"$path" is not a run: ${error.message}');
     } catch (error) {
       return _refuse('could not read a run from "$path": $error');
+    }
+    // A tape of intents means something only in the simulation that recorded
+    // it (decision 9): refused before playing, with both numbers named, when
+    // the game can say which one it is. What still plays is the pose record.
+    if (game.simulation case final SimulationVersion simulation) {
+      if (demo.refusalOn(simulation) case final String reason) {
+        return _refuse(
+          '"$path" is not replayed: $reason'
+          '${demo.poses == null ? '' : ' — its pose record still shows the run'}',
+        );
+      }
+    }
+    // A swapped level goes in through the game's own build, which a session
+    // over a bare simulation does not have; playing through the swap would
+    // answer with a divergence the simulation did not cause.
+    if (demo.levelSwaps case [final first, ...]) {
+      return _refuse(
+        '"$path" has the level edited under it at step ${first.step}, and '
+        'this replays a run in one level — play it in the game it was '
+        'recorded in',
+      );
     }
     final ReadingPredicate? claim;
     try {
@@ -216,57 +407,58 @@ final class SimSession {
     }
     final Level level;
     try {
-      final json = jsonDecode(File(demo.level).readAsStringSync());
+      final json = jsonDecode(_readInside(demo.level));
       level = Level.fromJson((json as Map).cast<String, Object?>());
     } catch (error) {
       return _refuse('could not read the run\'s level "${demo.level}": $error');
     }
-    if (level.digestHex != demo.levelHash) {
-      return _refuse(
-        'the level at "${demo.level}" has changed since the run was recorded '
-        '(hash ${level.digestHex}, the run says ${demo.levelHash}) — a tape '
-        'played into different geometry proves nothing',
-      );
+    // The same replay N7's telemetry server reads metrics off, so a run this
+    // tool calls verified is a run that server would take.
+    final ResimulationRetraced retraced;
+    switch (_onPhysicsOf(
+      demo,
+      // The backend `_onPhysicsOf` just chose, handed in: `resimulate`'s
+      // own default is the Dart one, which refuses a native run.
+      () => resimulate(
+        game: game,
+        level: level,
+        demo: demo,
+        dt: _dt,
+        physics: usePhysics(),
+      ),
+    )) {
+      case ResimulationLevelChanged(:final found, :final recorded):
+        return _refuse(
+          'the level at "${demo.level}" has changed since the run was '
+          'recorded (hash $found, the run says $recorded) — a tape played '
+          'into different geometry proves nothing',
+        );
+      case ResimulationOnOtherPhysics(:final recorded, :final running):
+        return _refuse(
+          '"$path" was recorded on the $recorded physics and this session '
+          'runs $running, which is not promised to agree with it',
+        );
+      // A run that does not start where the recording started diverges
+      // before its first step, and saying so is more use than the
+      // checkpoint after.
+      case ResimulationStartDiffers():
+        return _refuse(
+          'diverges before the first step: a fresh ${game.name} run of '
+          '"${demo.level}" does not start where "$path" started',
+        );
+      case final ResimulationDiverged diverged:
+        return _refuse(
+          'diverges — ${diverged.divergence}; the difference arose after '
+          'step ${diverged.agreedUntil}',
+        );
+      case final ResimulationRetraced found:
+        retraced = found;
     }
-
-    final world = CollisionWorld();
-    level.addTo(world);
-    final input = InputState();
-    final run = game.start(level, world, input);
-    world.update();
-    // A run that does not start where the recording started diverges before
-    // its first step, and saying so is more use than the checkpoint after.
-    if (StateDigest.of(run.save().toJson()) !=
-        StateDigest.of(demo.start.toJson())) {
-      return _refuse(
-        'diverges before the first step: a fresh ${game.name} run of '
-        '"${demo.level}" does not start where "$path" started',
-      );
-    }
-
-    final playback = InputTapePlayback(demo.tape);
-    final trace = DigestTrace(every: demo.checkpoints.every);
-    for (var step = 1; step <= demo.steps; step++) {
-      playback.applyTo(input);
-      input.beginStep();
-      run.step(_dt);
-      if (step % trace.every == 0) trace.observe(step, run.save().toJson());
-      input.endStep();
-    }
-
-    final divergence = trace.divergenceFrom(demo.checkpoints.digests);
-    if (divergence != null) {
-      return _refuse(
-        'diverges — $divergence; the difference arose after step '
-        '${math.max(0, divergence.step - trace.every)}',
-      );
-    }
-    final hex = StateDigest.of(
-      run.save().toJson(),
-    ).toRadixString(16).padLeft(8, '0');
+    final run = retraced.run;
+    final hex = retraced.finalDigest.toRadixString(16).padLeft(8, '0');
     final agrees =
         'replayed ${demo.steps} steps of "$path": agrees at all '
-        '${trace.steps.length} checkpoints, ends at step ${demo.steps}, '
+        '${retraced.checkpoints} checkpoints, ends at step ${demo.steps}, '
         'digest $hex';
     if (claim == null) return _ok('$agrees. ${run.summary}');
     try {
@@ -342,6 +534,11 @@ final class SimSession {
     return _ok('step ${digests.steps.last}: ${digests.hexDigests.last}');
   }
 
+  /// The text of the file at [path], refused by [root] before it is opened
+  /// when it lies outside: a parse error would quote what it read.
+  String _readInside(String path) =>
+      File(root.resolve(path)).readAsStringSync();
+
   PictureAnswer writeRun(String path) {
     final recorder = _recorder;
     final digests = _digests;
@@ -364,9 +561,11 @@ final class SimSession {
       tape: _recorder!.tape,
       buildStamp: 'flutter3d_sim_mcp',
       checkpoints: _digests!,
+      physics: usePhysics().name,
+      simulation: game.simulation,
     );
     try {
-      File(path).writeAsStringSync(jsonEncode(demo.toJson()));
+      File(root.resolve(path)).writeAsStringSync(jsonEncode(demo.toJson()));
     } catch (error) {
       return 'could not write "$path": $error';
     }
@@ -382,15 +581,15 @@ final class SimSession {
     if (run == null || path == null) return _refuse('no level open');
     try {
       final renderer = _renderer ??= await SimRenderer.open(
-        path,
+        root.resolve(path),
         registry: game.registry(),
+        root: root,
       );
-      final eye = Vector3.zero();
+      // The eye in the world, in doubles: the renderer narrows it through
+      // its scene's own origin, which it keeps near the eye.
       final aim = Vector3.zero();
-      run
-        ..eye(eye)
-        ..aim(aim);
-      final png = await renderer.frame(at: eye, aim: aim);
+      run.aim(aim);
+      final png = await renderer.frameFrom(eye: run.eye, aim: aim);
       return _ok(
         'a frame from the player\'s own eye, ${png.length} bytes',
         png,
@@ -398,5 +597,31 @@ final class SimSession {
     } catch (error) {
       return _refuse('could not draw a frame: $error');
     }
+  }
+}
+
+/// The sentence a bisection read through an [EntityLayout] ends with: the
+/// first component that differs and every other one, or that none does.
+String _components(TapesDiverge parted) => switch (parted.components) {
+  [] => '. No entity component differs at that step',
+  [final first] => '. The component that differs is $first',
+  [final first, ...final rest] =>
+    '. The first component that differs is $first; also '
+        '${rest.take(12).join(', ')}'
+        '${rest.length > 12 ? ' and ${rest.length - 12} more' : ''}',
+};
+
+/// [body] on the physics [demo] was recorded on, and the session's own
+/// again after: the two backends are not promised to agree, so a run is
+/// verified on its own. Where that one cannot be had, `resimulate` says so.
+T _onPhysicsOf<T>(Demo demo, T Function() body) {
+  final was = usePhysics().name;
+  final wanted = demo.physics ?? was;
+  if (wanted == was) return body();
+  choosePhysics(wanted);
+  try {
+    return body();
+  } finally {
+    choosePhysics(was);
   }
 }

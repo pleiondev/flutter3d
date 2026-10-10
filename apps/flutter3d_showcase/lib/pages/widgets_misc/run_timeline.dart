@@ -2,10 +2,13 @@
 /// a live rewind buffer.
 ///
 /// **`flutter3d_game`'s real `RunTimeline` is not a dependency of this
-/// app.** Every field it holds and every line it runs is a type this app
-/// already depends on through `flutter3d_sim` — `RewindBuffer`,
-/// `InputState`, `InputTapePlayback`, `Snapshot` — so this page carries the
-/// class over in full rather than approximating it.
+/// app.** Its mechanism is made of types this app already depends on
+/// through `flutter3d_sim` — `RewindBuffer`, `InputState`,
+/// `InputTapePlayback`, `Snapshot` — so this page carries the mechanism over
+/// with a step and a restore of the toy's own. The real class steps and
+/// restores through an `EngineLoop` and its snapshots instead
+/// (`RunTimeline(rewind:, loop:)`), so a rewind covers every part of the
+/// state.
 ///
 /// Quoted by `run_timeline.md` and shown whole in the Source tab.
 library;
@@ -14,7 +17,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
-import 'package:vector_math/vector_math.dart';
 
 // #region timeline
 /// Pause, step and rewind, over a live [RewindBuffer] — carried over from
@@ -83,9 +85,9 @@ final class RunTimelineDemo extends ShowcaseDemo {
     _afterOneStep = afterOneStep;
     _afterRelease = afterRelease;
     _timelinePausedAfterRelease = timelinePausedAfterRelease;
-    final material = Material(
+    final material = RenderMaterial(
       name: 'runner',
-      baseColor: Vector4(0.6, 0.8, 0.5, 1.0),
+      baseColor: LinearColor.fromSrgb(0.6, 0.8, 0.5, 1.0),
     );
     final node = MeshNode(
       DeviceMesh.upload(context.device, SphereShape(segments: 16).build()),
@@ -94,7 +96,7 @@ final class RunTimelineDemo extends ShowcaseDemo {
     return Scene()
       ..add(node)
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
   }
@@ -119,7 +121,7 @@ final class RunTimelineDemo extends ShowcaseDemo {
     // records every step for the rewind buffer.
     for (var i = 0; i < 20; i++) {
       buffer.recorder.tape.frames.add(InputFrame(stickX: 1.0));
-      if (buffer.keyframeDue) {
+      if (buffer.isKeyframeDue) {
         buffer.keyframe(Snapshot(<String, Object?>{'x': x}));
       }
       timeline.stepSim(1 / 10);

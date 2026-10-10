@@ -39,12 +39,12 @@ TextureHandle _blackThenWhite(CpuDevice device) {
     height: 2,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(pixels),
-  )!;
+  );
 }
 
 BoundTexture _bound(CpuDevice device, SamplerAddressMode mode) => BoundTexture(
   _blackThenWhite(device).backend as CpuTexture,
-  SamplerOptions(widthAddressMode: mode, heightAddressMode: mode),
+  SamplerDescriptor(widthAddressMode: mode, heightAddressMode: mode),
 );
 
 void main() {

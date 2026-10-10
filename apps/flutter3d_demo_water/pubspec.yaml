@@ -1,0 +1,54 @@
+name: flutter3d_demo_water
+description: "A valley with a spring, a stream that runs down it, a waterfall off a cliff and a pond at its foot; drop stones and logs in."
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The renderer, and what every application repeats over it: the device
+  # `openDevice` picks, the frame surface and clock.
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_app: ^1.0.0-rc.1
+
+  # The water and the bodies in it: the physics core's shallow water, its
+  # spray, and the stones and logs that fall into it.
+  flutter3d_physics_native: ^1.0.0-rc.1
+
+  # The loop the world is stepped by: a fixed step at the world's rate,
+  # phase by phase, and the frame after it.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # The water and the fire, drawn.
+  flutter3d_effects: ^1.0.0-rc.1
+  # The elements' simulation the effects draw: the bodies, waters and
+  # fires stepped, and their events.
+  flutter3d_elements: ^1.0.0-rc.1
+
+  # The run file a played run is written into: `DemoRecording`, which
+  # takes the loop's journal and each step's event digest with the input.
+  flutter3d_game: ^1.0.0-rc.1
+
+  vector_math: ^2.2.0
+
+  # The game parts other games use too (`tasks/1.0-addons.md`).
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+
+  # The plugin contract: the loop's phases, the bus and the host.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
+  # The foundation's value types and their crossings into `vector_math`.
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -16,21 +16,36 @@ library;
 import 'dart:async';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final class _Toy {
   _Toy(int seed) : dice = GameRandom(seed);
   final GameRandom dice;
+  final Tunables tunables = Tunables(const <String, double>{'speed': 1.0});
   double x = 0.0;
 
-  void step(InputState input) => x += 1.0;
+  void step(InputState input) {
+    tunables.readFrom(input);
+    x += tunables['speed'];
+  }
 
-  Snapshot save() => Snapshot(<String, Object?>{'x': x, 'random': dice.state});
+  Snapshot save() => Snapshot(<String, Object?>{
+    'x': x,
+    // `N4`'s tracks read the toy as one entity; restore ignores it, since
+    // it repeats `x`.
+    'entities': <String, Object?>{
+      'toy': <String, Object?>{'x': x},
+    },
+    'random': dice.state,
+    'tunables': tunables.toJson(),
+  });
 
   void restore(Snapshot snapshot) {
     x = snapshot.data.number('x');
     dice.state = snapshot.data.integer('random');
+    tunables.restore(snapshot.data['tunables']! as Map<String, Object?>);
   }
 }
 
@@ -39,16 +54,56 @@ void main() {
     final toy = _Toy(1);
     final input = InputState();
     final rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
-    final timeline = RunTimeline(
-      rewind: rewind,
-      input: input,
-      stepSim: (dt) => toy.step(input),
-      restore: toy.restore,
-    );
     final frameTimes = StepTimeTrace();
     var stepNumber = 0;
+    // The toy as one part of the loop's snapshots, under `toy`, and its step
+    // a system, timed when it is a live step rather than a replay.
+    final loop = EngineLoop(input: input)
+      ..snapshots.add(
+        SnapshotPart.of(
+          id: 'toy',
+          capture: () => toy.save().data,
+          restore: (Object? data, int _) {
+            if (data is Map) {
+              toy.restore(Snapshot(data.cast<String, Object?>()));
+            }
+          },
+        ),
+      )
+      ..addSystem('toy', LoopPhase.rules, (LoopContext step) {
+        if (step.isResimulated) {
+          toy.step(input);
+        } else {
+          frameTimes.record(++stepNumber, () => toy.step(input));
+        }
+      });
+    rewind.attach(loop);
+    final timeline = RunTimeline(rewind: rewind, loop: loop);
+    // `HR3`: a level the toy plays on, taken from outside as the editor
+    // sends it. The toy reads nothing from it; what is checked from outside is
+    // that a brush change branches the timeline and a look change does not.
+    registerLevelExtension(
+      LiveLevel(
+        level: Level.fromJson(const <String, Object?>{
+          'version': 1,
+          'brushes': <Object?>[
+            <String, Object?>{
+              'at': <double>[0, 0, 0],
+              'size': <double>[1, 1, 1],
+              'material': 'stone',
+            },
+          ],
+        }),
+        present: (next, diff) {},
+        rebuild: (next) {},
+        timeline: timeline,
+      ),
+    );
+    registerTuningExtensions(input, toy.tunables);
     registerTimelineExtensions(
       timeline,
+      entityLayout: EntityLayout.rows('entities'),
+      trackedPart: 'toy',
       frameTimes: frameTimes,
       bugReport: () => <String, Object?>{'x': toy.x, 'step': stepNumber},
     );
@@ -58,11 +113,7 @@ void main() {
     // connects to it, and a running game's loop does not wait for anyone.
     final ticker = Timer.periodic(const Duration(milliseconds: 16), (_) {
       if (timeline.isPaused) return;
-      rewind.recorder.record(input);
-      input.beginStep();
-      if (rewind.keyframeDue) rewind.keyframe(toy.save());
-      frameTimes.record(++stepNumber, () => toy.step(input));
-      input.endStep();
+      loop.runSteps(1);
     });
 
     // Long enough for a client to connect, drive the timeline through every

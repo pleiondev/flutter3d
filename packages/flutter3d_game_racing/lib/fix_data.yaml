@@ -1,0 +1,227 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: game_racing-ReadoutStyle'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_platformer/bridge.dart', 'package:flutter3d_game_racing/bridge.dart', 'package:flutter3d_game_shooter/bridge.dart']
+      class: 'ReadoutStyle'
+    changes:
+      - kind: 'rename'
+        newName: 'RacingReadoutStyle'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-RoadMeshSettings-RoadMeshSettings'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/bridge.dart']
+      constructor: ''
+      inClass: 'RoadMeshSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'metresPerTile'
+        newName: 'metersPerTile'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-RoadMeshSettings-metresPerTile'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/bridge.dart']
+      field: 'metresPerTile'
+      inClass: 'RoadMeshSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'metersPerTile'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SkyPreset-colourAt'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      method: 'colourAt'
+      inClass: 'SkyPreset'
+    changes:
+      - kind: 'rename'
+        newName: 'colorAt'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SkyPreset-horizonFogColour'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      getter: 'horizonFogColour'
+      inClass: 'SkyPreset'
+    changes:
+      - kind: 'rename'
+        newName: 'horizonFogColor'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SphereVehicle-SphereVehicle'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      constructor: ''
+      inClass: 'SphereVehicle'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'tyres'
+        newName: 'tireSet'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SphereVehicle-fitTyres'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      method: 'fitTyres'
+      inClass: 'SphereVehicle'
+    changes:
+      - kind: 'rename'
+        newName: 'fitTires'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SphereVehicle-tyres'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'tyres'
+      inClass: 'SphereVehicle'
+    changes:
+      - kind: 'rename'
+        newName: 'tireSet'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SurfaceBand-SurfaceBand'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      constructor: ''
+      inClass: 'SurfaceBand'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SurfaceBand-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'centre'
+      inClass: 'SurfaceBand'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-TrackSpline-TrackSpline'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      constructor: ''
+      inClass: 'TrackSpline'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-TrackSpline-centre'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'centre'
+      inClass: 'TrackSpline'
+    changes:
+      - kind: 'rename'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-TrackSpline-centreAt'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      method: 'centreAt'
+      inClass: 'TrackSpline'
+    changes:
+      - kind: 'rename'
+        newName: 'centerAt'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-Tyres'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      class: 'Tyres'
+    changes:
+      - kind: 'rename'
+        newName: 'TireSet'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-ChaseCamera-fov'
+    date: 2026-10-08
+    element:
+      uris: ['package:flame_flutter3d/flame_flutter3d.dart', 'package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      getter: 'fov'
+      inClass: 'ChaseCamera'
+    changes:
+      - kind: 'rename'
+        newName: 'fovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-ChaseTuning-ChaseTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      constructor: ''
+      inClass: 'ChaseTuning'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'baseFov'
+        newName: 'baseFovY'
+      - kind: 'renameParameter'
+        oldName: 'fovPerSpeed'
+        newName: 'fovYPerSpeed'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-ChaseTuning-baseFov'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'baseFov'
+      inClass: 'ChaseTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'baseFovY'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-ChaseTuning-fovPerSpeed'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      field: 'fovPerSpeed'
+      inClass: 'ChaseTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'fovYPerSpeed'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-RacerProgress-finished'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      getter: 'finished'
+      inClass: 'RacerProgress'
+    changes:
+      - kind: 'rename'
+        newName: 'isFinished'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-SphereVehicle-grounded'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      getter: 'grounded'
+      inClass: 'SphereVehicle'
+    changes:
+      - kind: 'rename'
+        newName: 'isGrounded'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-VehicleController-grounded'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      getter: 'grounded'
+      inClass: 'VehicleController'
+    changes:
+      - kind: 'rename'
+        newName: 'isGrounded'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-AiTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      class: 'AiTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'AiSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-ChaseTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      class: 'ChaseTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'ChaseSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-game_racing-VehicleTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_racing/flutter3d_game_racing.dart']
+      class: 'VehicleTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'VehicleSettings'

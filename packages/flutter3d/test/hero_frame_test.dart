@@ -32,7 +32,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 160;
@@ -57,7 +56,7 @@ const String _fixtures = '../flutter3d/test/fixtures';
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-  )!;
+  );
   return (
     device: device,
     renderer: Renderer.create(
@@ -85,8 +84,10 @@ Future<({int pixels, int width, int height, double tall})> _shoot(
   final instance = asset.instantiate(scene, name: 'runner');
 
   scene.add(
-    LightNode(type: LightType.directional, intensity: 2.0)
-      ..setLocalForward(Vector3(-0.3, -0.9, 0.2)),
+    LightNode(
+      type: LightType.directional,
+      intensity: 2.0 * Photometric.legacyUnit,
+    )..setLocalForward(Vector3(-0.3, -0.9, 0.2)),
   );
   final camera = CameraNode()
     ..setPosition(0.0, 1.0, -4.0)
@@ -99,9 +100,9 @@ Future<({int pixels, int width, int height, double tall})> _shoot(
     views: <RenderView>[RenderView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = (await engine.device.readPixels(
+  final pixels = (await engine.device.readback(
     frame.frame,
-  ))!.buffer.asUint8List();
+  )).buffer.asUint8List();
 
   var minX = _width, maxX = -1, minY = _height, maxY = -1, lit = 0;
   for (var y = 0; y < _height; y++) {

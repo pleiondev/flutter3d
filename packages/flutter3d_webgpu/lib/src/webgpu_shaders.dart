@@ -48,11 +48,17 @@
 /// the device implements over `GPUDevice.createShaderModule`.
 library;
 
+import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_shaders/stage_bindings.dart';
-import 'package:flutter3d_shaders/uniform_blocks.dart' show uniformBlocks;
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
+import 'package:flutter3d_shaders/internal.dart';
+// The generated uniform tables are shared by the engine and its backends,
+// released together, and are nobody else's API since 1.0.
+// ignore: implementation_imports
 
-import '../engine_compute_shaders.dart';
+import 'engine_compute_shaders.dart';
 import 'webgpu_bundle_section.dart';
 import 'webgpu_compute_stage.dart';
 
@@ -60,14 +66,18 @@ import 'webgpu_compute_stage.dart';
 ///
 /// **One method, because one method is the whole of what a shader library
 /// cannot do without a device.** Everything else here — looking a name up,
-/// merging two stages' reflection, turning a [VertexLayoutSpec] into buffers
+/// merging two stages' reflection, turning a [VertexLayoutDescriptor] into buffers
 /// and locations — is arithmetic over the sidecar and belongs on the VM.
 /// Declaring the seam as an interface is what keeps it there, and it is what
 /// lets a test compile a "module" that is a `String` and still exercise the
 /// caching, the refusals and the reload.
 ///
 /// Implemented by the device, which is the only holder of a `GPUDevice`.
-abstract interface class WgslModuleCompiler {
+///
+/// **Mixed in, not implemented**, outside this library: a `base` type, so a
+/// member added in a 1.x release arrives with a body and nothing that mixes
+/// it in has to change.
+abstract base mixin class WgslModuleCompiler {
   /// The module for [wgsl], or a throw naming [name] and quoting the compiler.
   ///
   /// **A throw is allowed and cannot be required, and the difference is a fact
@@ -185,9 +195,11 @@ ShaderHandle compileWebGpuStage(
   required bool isVertex,
   StageBindings? kept,
   Map<String, Map<String, UniformMemberLayout>>? layouts,
-}) => ShaderHandle(
+  void Function(ShaderHandle handle)? release,
+}) => wrapShader(
   kept: kept,
   layouts: layouts,
+  release: release,
   backend: WebGpuShader(
     name: name,
     isVertex: isVertex,
@@ -208,7 +220,7 @@ ShaderHandle compileWebGpuStage(
 /// any other JavaScript object. So this library ends by being dropped, and
 /// [debugTrackedModuleCount] is for a test to read rather than for a device to
 /// drive to zero.
-final class WebGpuShaderLibrary implements ShaderLibrary {
+final class WebGpuShaderLibrary with ShaderLibrary {
   WebGpuShaderLibrary(this._compiler, this._stages);
 
   final WgslModuleCompiler _compiler;
@@ -230,13 +242,14 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
     // bindings its pipeline layout is built from.
     final compute = engineComputeShaders[name];
     if (compute != null) {
-      return ShaderHandle(
+      return wrapShader(
         backend: WebGpuComputeShader(
           name: name,
           stage: compute,
           module: _compiler.compileModule(name, compute.wgsl),
         ),
         name: name,
+        release: _forget,
       );
     }
     final isVertex = _stages.vertex.containsKey(name);
@@ -254,8 +267,13 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
       isVertex: isVertex,
       kept: stageBindings[name],
       layouts: uniformBlocks[name],
+      release: _forget,
     );
   }
+
+  /// A disposed handle's release. A `GPUShaderModule` has no `destroy`, so
+  /// forgetting the handle is what lets it be collected.
+  void _forget(ShaderHandle handle) => forgetShader(_handles, handle);
 
   /// Drops the handles this library has handed out.
   ///
@@ -280,7 +298,7 @@ final class WebGpuShaderLibrary implements ShaderLibrary {
 ///
 /// [name] is carried through because it is the only thing an error message can
 /// say, and because the two ways of building this list — from the sidecar's own
-/// attribute table and from a [VertexLayoutSpec] — agree about nothing else.
+/// attribute table and from a [VertexLayoutDescriptor] — agree about nothing else.
 final class WebGpuVertexAttribute {
   const WebGpuVertexAttribute({
     required this.name,
@@ -351,9 +369,9 @@ final class WebGpuPipeline {
   /// Kept beside [buffers] rather than thrown away once the locations are
   /// resolved, because it is what the pipeline cache's signature is rendered
   /// from: two layouts over one stage pair are two pipelines, and the
-  /// fingerprint of a `VertexLayoutSpec` is the string that says so. See
+  /// fingerprint of a `VertexLayoutDescriptor` is the string that says so. See
   /// `webgpu_pipeline_cache.dart`.
-  final VertexLayoutSpec layout;
+  final VertexLayoutDescriptor layout;
 
   /// The vertex stage's module, as the device's own type.
   ///
@@ -529,7 +547,7 @@ final class WebGpuGroupShape {
 PipelineHandle createWebGpuPipeline(
   ShaderHandle vertex,
   ShaderHandle fragment, {
-  VertexLayoutSpec? layout,
+  VertexLayoutDescriptor? layout,
 }) {
   final vertexStage = _stageOf(vertex, wantVertex: true);
   final fragmentStage = _stageOf(fragment, wantVertex: false);
@@ -541,7 +559,7 @@ PipelineHandle createWebGpuPipeline(
   // layout like any other rather than a second way of packing a buffer.
   final spec = layout ?? _derivedLayout(vertexStage.stage);
   final name = '${vertex.name}+${fragment.name}';
-  return PipelineHandle(
+  return wrapPipeline(
     backend: WebGpuPipeline(
       name: name,
       vertexModule: vertexStage.module,
@@ -594,11 +612,11 @@ WebGpuShader _stageOf(ShaderHandle handle, {required bool wantVertex}) {
 /// location order already, and sorting is how that stays a fact about the bytes
 /// rather than a habit of the generator.
 ///
-/// A `VertexLayoutSpec` and not the resolved buffers, so that a derived layout
+/// A `VertexLayoutDescriptor` and not the resolved buffers, so that a derived layout
 /// and a stated one are the same thing by the time anything reads them — and so
 /// that the pipeline cache's signature can be rendered from a layout whether or
 /// not the caller wrote it out.
-VertexLayoutSpec _derivedLayout(WebGpuStage stage) {
+VertexLayoutDescriptor _derivedLayout(WebGpuStage stage) {
   final ordered = <WebGpuAttribute>[...stage.attributes]
     ..sort(
       (WebGpuAttribute a, WebGpuAttribute b) =>
@@ -617,7 +635,7 @@ VertexLayoutSpec _derivedLayout(WebGpuStage stage) {
     );
     at += attribute.format.bytesPerElement;
   }
-  return VertexLayoutSpec(<BufferLayout>[
+  return VertexLayoutDescriptor(<BufferLayout>[
     BufferLayout(strideInBytes: at, attributes: attributes),
   ]);
 }
@@ -736,7 +754,7 @@ List<T> _sorted<T>(Map<int, T>? byBinding, Comparator<T> order) =>
 List<WebGpuVertexBuffer> _resolvedBuffers(
   String stageName,
   WebGpuStage stage,
-  VertexLayoutSpec layout,
+  VertexLayoutDescriptor layout,
 ) {
   final byName = <String, WebGpuAttribute>{
     for (final attribute in stage.attributes) attribute.name: attribute,
@@ -843,7 +861,8 @@ Map<String, WebGpuSampler> _mergedSamplers(
         (seen.group != sampler.group ||
             seen.textureBinding != sampler.textureBinding ||
             seen.samplerBinding != sampler.samplerBinding ||
-            seen.dimension != sampler.dimension)) {
+            seen.dimension != sampler.dimension ||
+            seen.comparison != sampler.comparison)) {
       throw StateError(
         'the stages "${vertex.name}" and "${fragment.name}" both declare the '
         'sampler "${sampler.name}" and put it in different places: group '

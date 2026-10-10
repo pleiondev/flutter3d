@@ -16,6 +16,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -48,7 +49,7 @@ Level _level({List<Map<String, Object?>> entities = const []}) =>
     });
 
 Brush _box(double x, double y, double z, double sx, double sy, double sz) =>
-    Brush(centre: Vector3(x, y, z), size: Vector3(sx, sy, sz));
+    Brush(center: Vector3(x, y, z), size: Vector3(sx, sy, sz));
 
 /// Rooms A (x 0..8), B (x 10..18) and C (x 20..28); a doorway between A and
 /// B, a solid wall between B and C — the level the culler's own tests use.
@@ -191,7 +192,7 @@ void main() {
     VisibilityBatch roomC() => (
       node: MeshNode(
         CpuMesh(CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build()),
-        Material(),
+        RenderMaterial(),
         name: 'c',
       ),
       bounds: Aabb3.minMax(Vector3(20.5, 0.0, 0.0), Vector3(27.5, 4.0, 8.0)),
@@ -219,12 +220,12 @@ void main() {
       final loaded = level(probe: probe, batch: c);
 
       loaded.cull(inRoomA, device: device);
-      expect(c.node.visible, isTrue, reason: 'held for the probe');
+      expect(c.node.isVisible, isTrue, reason: 'held for the probe');
       expect(loaded.culler!.hidden, 0);
 
       probe.markCaptured();
       loaded.cull(inRoomA, device: device);
-      expect(c.node.visible, isFalse, reason: 'behind the wall, as before');
+      expect(c.node.isVisible, isFalse, reason: 'behind the wall, as before');
       expect(loaded.culler!.hidden, 1);
     });
 
@@ -233,11 +234,11 @@ void main() {
       final c = roomC();
       final loaded = level(probe: probe, batch: c);
       loaded.cull(inRoomA, device: device);
-      expect(c.node.visible, isFalse);
+      expect(c.node.isVisible, isFalse);
 
       probe.invalidate();
       loaded.cull(inRoomA, device: device);
-      expect(c.node.visible, isTrue, reason: 'the redraw wants every wall');
+      expect(c.node.isVisible, isTrue, reason: 'the redraw wants every wall');
     });
 
     test('does not wait for a device that builds no probe', () {
@@ -248,7 +249,7 @@ void main() {
       final loaded = level(probe: ReflectionProbeNode(), batch: c);
 
       loaded.cull(inRoomA, device: FakeBackend(supportsRenderToMip: false));
-      expect(c.node.visible, isFalse);
+      expect(c.node.isVisible, isFalse);
     });
   });
 }

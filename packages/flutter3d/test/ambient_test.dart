@@ -22,7 +22,6 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 64;
 const int _height = 48;
@@ -56,7 +55,7 @@ const int _height = 48;
 /// off the shoulder of the tone curve — two bands that are both saturated agree
 /// with each other whatever the ambient did.
 ({Scene scene, CameraNode camera}) _ball({double ambient = 0.5}) {
-  final scene = Scene()..ambientIntensity = ambient;
+  final scene = Scene()..ambientIntensity = ambient * Photometric.legacyUnit;
   final device = CpuDevice(
     width: 4,
     height: 4,
@@ -65,9 +64,9 @@ const int _height = 48;
   scene.add(
     MeshNode(
       DeviceMesh.upload(device, SphereShape(radius: 1.0).build()),
-      Material(
+      RenderMaterial(
         name: 'ball',
-        baseColor: Vector4(0.6, 0.6, 0.6, 1.0),
+        baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0),
         lighting: LightingModel.lambert,
       ),
       name: 'ball',
@@ -91,9 +90,9 @@ Future<Uint8List> _pixels(
     views: <RenderView>[RenderView(camera: room.camera)],
     settings: settings,
   );
-  final pixels = await engine.device.readPixels(frame.frame);
+  final pixels = await engine.device.readback(frame.frame);
   expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
+  return pixels.buffer.asUint8List();
 }
 
 /// Average colour of a horizontal band, as fractions of 255.
@@ -127,9 +126,9 @@ final RenderSettings _colouredSky = RenderSettings(
   bloom: const BloomSettings(enabled: false),
   sky: SkySettings(
     enabled: true,
-    zenith: Vector3(0.05, 0.15, 0.7),
-    horizon: Vector3(0.1, 0.2, 0.6),
-    nadir: Vector3(0.6, 0.3, 0.05),
+    zenith: LinearColor(0.05, 0.15, 0.7),
+    horizon: LinearColor(0.1, 0.2, 0.6),
+    nadir: LinearColor(0.6, 0.3, 0.05),
   ),
 );
 
@@ -141,7 +140,7 @@ void main() {
     // approximately, bit for bit.
     //
     // Mutation: default either end of the hemisphere to anything but white.
-    // Seventy-eight goldens move at once.
+    // 96 goldens move at once.
     final lit = await _pixels(_ball(), _noSky);
     final top = _band(lit, 0.15, 0.35);
     final bottom = _band(lit, 0.65, 0.85);
@@ -196,12 +195,12 @@ void main() {
       bloom: const BloomSettings(enabled: false),
       sky: SkySettings(
         enabled: true,
-        zenith: Vector3(0.05, 0.15, 0.7),
-        horizon: Vector3(0.1, 0.2, 0.6),
-        nadir: Vector3(0.6, 0.3, 0.05),
+        zenith: LinearColor(0.05, 0.15, 0.7),
+        horizon: LinearColor(0.1, 0.2, 0.6),
+        nadir: LinearColor(0.6, 0.3, 0.05),
         // Straight up, and blindingly bright.
         directionToSun: Vector3(0.0, 1.0, 0.0),
-        sunIntensity: 400.0,
+        sunIntensity: 400.0 * Photometric.legacyUnit,
       ),
     );
 
@@ -226,7 +225,7 @@ void main() {
     // Mutation: drop the tint from `_updateAmbient`. This test is the only
     // thing in the repository that would notice.
     final plain = await _pixels(_ball(), _noSky);
-    final tinted = _ball()..scene.ambientColor = Vector3(1.0, 0.2, 0.2);
+    final tinted = _ball()..scene.ambientColor = LinearColor(1.0, 0.2, 0.2);
     final red = await _pixels(tinted, _noSky);
 
     final was = _band(plain, 0.3, 0.7);

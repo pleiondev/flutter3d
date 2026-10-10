@@ -22,7 +22,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_lti/flutter3d_lti.dart';
+import 'package:flutter3d_education/lti.dart';
 
 Future<void> main(List<String> args) async {
   if (args.isEmpty || args.length > 2) {

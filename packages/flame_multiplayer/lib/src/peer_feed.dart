@@ -1,7 +1,7 @@
 /// The other machine's latest word about itself, for a ghost or a score.
 library;
 
-import 'peer_wire.dart';
+import 'package:flutter3d_net/flutter3d_net.dart' show PeerWire;
 
 /// Two machines playing their own games side by side — a race over the same
 /// course — each telling the other where it is.

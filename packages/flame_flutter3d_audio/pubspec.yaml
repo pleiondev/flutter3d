@@ -1,6 +1,6 @@
 name: flame_flutter3d_audio
 description: "Sound for a Flame game bridged to flutter3d: the game's audio scene as a component, silent until the player's first input, and loops that play for as long as their component lives."
-version: 0.8.4
+version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -12,6 +12,18 @@ resolution: workspace
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+# Declared rather than left to pub.dev's detector: Flutter with nothing in
+# reach of its libraries that a browser lacks, so every platform Flutter builds
+# for.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
 
 dependencies:
   flutter:
@@ -21,13 +33,13 @@ dependencies:
 
   # The bridge, for the game's 3D camera the ears ride on and the scene
   # position a bridged component makes its sound at.
-  flame_flutter3d: ^0.8.4
+  flame_flutter3d: ^1.0.0-rc.1
 
   # The sound itself. **Its own package, not part of the bridge**, because
   # this brings SoLoud's native library, and on the web its script, into
   # every application that depends on it: a bridged game with no sound
   # should not carry either.
-  flutter3d_audio: ^0.8.1
+  flutter3d_audio: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
 
@@ -37,6 +49,6 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flame_test: ^2.3.1
   # The scene nodes a test's bridged craft is drawn as.
-  flutter3d: ^0.8.3
+  flutter3d: ^1.0.0-rc.1
   # A device that records rather than draws, to open a game's 3D world on.
-  flutter3d_hardware: ^0.8.0
+  flutter3d_hardware: ^1.0.0-rc.1

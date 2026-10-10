@@ -72,9 +72,18 @@ final class FrameGraph {
   /// produces, a cycle, a requested output that does not exist. All of it at
   /// compile rather than mid-frame, which is the difference between a message
   /// naming two passes and a blank screen.
+  ///
+  /// [switchedOff] names the passes that belong to a step the caller switched
+  /// off through its settings — `RenderSettings.without`. It decides nothing
+  /// about the frame: such a pass is already inactive by its own
+  /// [FrameGraphNode.isActive], and the name only changes what that inactivity
+  /// is reported as, [PassSkip.settings] becoming [PassSkip.switchedOff]. A
+  /// pass in it that turned out active anyway runs and is not reported, since
+  /// the report is about what happened rather than about what was asked.
   CompiledFrameGraph compile({
     required List<ResourceId> outputs,
     Set<String> disabled = const <String>{},
+    Set<String> switchedOff = const <String>{},
   }) {
     // Known at all, whether or not it runs this frame. The difference between
     // this and the active set is the difference between a misspelled name and
@@ -156,7 +165,7 @@ final class FrameGraph {
     // a pass this device cannot run is dropped the same way, and the reason
     // it is reported by is the one thing about it a caller cannot fix.
     final active = _nodes
-        .where((n) => n.isActive && n.supported && !disabled.contains(n.name))
+        .where((n) => n.isActive && n.isSupported && !disabled.contains(n.name))
         .toList();
 
     // Versions, in registration order rather than in the order the frame turns
@@ -210,17 +219,24 @@ final class FrameGraph {
     // whole point of the graph is that registration order need not be run
     // order — so such a read means "the resource as the frame finally leaves
     // it" and binds to the last version instead.
-    void resolveForwardReferences(Map<String, int> bindings) {
+    //
+    // Never to a version the reader writes itself. A link in a chain whose
+    // producer is off — the occlusion's history with the occlusion switched
+    // off — reads version zero and writes version one, and bound forward it
+    // read its own output, counted as fed, and ran: blending a history of an
+    // effect nobody drew. Left at zero it starves, as its documentation
+    // always said it would.
+    void resolveForwardReferences(Map<String, int> bindings, int reader) {
       for (final name in bindings.keys.toList()) {
         if (bindings[name] != 0 || _external.contains(name)) continue;
         final last = current[name] ?? 0;
-        if (last > 0) bindings[name] = last;
+        if (last > 0 && writes[reader][name] != last) bindings[name] = last;
       }
     }
 
     for (var i = 0; i < active.length; i++) {
-      resolveForwardReferences(reads[i]);
-      resolveForwardReferences(hardReads[i]);
+      resolveForwardReferences(reads[i], i);
+      resolveForwardReferences(hardReads[i], i);
     }
 
     final producer = <ResourceVersion, int>{};
@@ -360,7 +376,8 @@ final class FrameGraph {
             // that cannot run a pass makes its settings beside the point.
             null => switch (node) {
               _ when disabled.contains(node.name) => PassSkip.disabled,
-              _ when !node.supported => PassSkip.unsupported,
+              _ when !node.isSupported => PassSkip.unsupported,
+              _ when switchedOff.contains(node.name) => PassSkip.switchedOff,
               _ => PassSkip.settings,
             },
             final i when !runnable[i] => PassSkip.starved,

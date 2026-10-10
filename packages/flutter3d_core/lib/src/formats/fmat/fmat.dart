@@ -1,13 +1,23 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
 import 'package:vector_math/vector_math.dart';
 
+import '../format_exceptions.dart';
 import '../lighting_model.dart';
 import '../material_document.dart';
 import '../surface_material.dart';
+import 'lighting_json.dart';
 
-/// The version this reader writes and the only one it accepts.
+/// The version this reader writes, and the newest it reads.
+///
+/// Every version up to it is read: a later one that changes what a key means
+/// lifts the older file in `readFmat` before anything is decoded, and mints a
+/// fixture under `test/fixtures/v<N>/` (decision 8 of
+/// `tasks/1.0-stability.md`). Only a file from the future is refused.
 ///
 /// **Additions do not bump it, and `hints` is the case that proves why.** The
 /// gate below refuses a whole file whose number is larger than this one, so
@@ -16,7 +26,22 @@ import '../surface_material.dart';
 /// for a key those readers would have ignored anyway. A version is for a
 /// difference that changes what the old reader would *draw*; a new key that an
 /// old reader skips with a warning is not one.
-const int kFmatVersion = 1;
+const int fmatVersion = 1;
+
+/// `.fmat` in the format registry.
+///
+/// **The envelope is additive at version 1.** [writeFmat] puts the shared
+/// envelope first and keeps the format's own key, `fmat`, after it, because
+/// a `.fmat` travels inside a `.f3d` bundle that a 0.8 reader still opens, and
+/// that reader refuses a material without `fmat`. A file from before the
+/// envelope, with `fmat` alone, is the same version 1.
+const FormatSpec fmatFormat = FormatSpec(
+  id: 'f3d.fmat',
+  version: fmatVersion,
+  suffixes: <String>['.fmat'],
+  fixture: 'test/fixtures/v<N>/brass.fmat',
+  legacyVersionKey: 'fmat',
+);
 
 /// Whether [bytes] look like a `.fmat`.
 ///
@@ -26,8 +51,14 @@ const int kFmatVersion = 1;
 bool isFmat(Uint8List bytes) {
   // Cheap enough to be worth doing before parsing, and the parse is what would
   // otherwise throw on a PNG.
-  final head = bytes.length < 64 ? bytes : bytes.sublist(0, 64);
-  return utf8.decode(head, allowMalformed: true).contains('"fmat"');
+  // The envelope comes first in what this build writes, so the format's id
+  // is what the head holds; a file from before the envelope starts with the
+  // `fmat` key.
+  final head = utf8.decode(
+    bytes.length < 64 ? bytes : bytes.sublist(0, 64),
+    allowMalformed: true,
+  );
+  return head.contains('"${fmatFormat.id}"') || head.contains('"fmat"');
 }
 
 /// Reads a `.fmat` material.
@@ -52,51 +83,40 @@ bool isFmat(Uint8List bytes) {
 /// uniform: both exist so a custom shader can ask for something this engine
 /// has never heard of.
 MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
-  final Object? parsed = json.decode(utf8.decode(bytes));
+  final Object? parsed;
+  try {
+    parsed = json.decode(utf8.decode(bytes));
+  } on FormatException catch (error) {
+    throw FmatFormatException('$name is not JSON: ${error.message}');
+  }
   if (parsed is! Map<String, Object?>) {
-    throw FormatException('$name is not a JSON object');
+    throw FmatFormatException('$name is not a JSON object');
   }
-  final version = (parsed['fmat'] as num?)?.toInt();
-  if (version == null) {
-    throw FormatException('$name has no "fmat" version key');
-  }
-  if (version > kFmatVersion) {
-    throw FormatException(
-      '$name is version $version and this engine reads $kFmatVersion. Newer '
-      'material files are not read as older ones, because the difference '
-      'between the two versions is precisely what would be silently dropped.',
+  // A JSON object that names neither this format nor carries its own key is
+  // somebody else's JSON, not a version 1 material with every default.
+  if (!fmatFormat.claims(parsed)) {
+    throw FmatFormatException(
+      '$name has no "fmat" version key and no "format": "${fmatFormat.id}"',
     );
   }
+  // A newer version, another format's document or a `requires` this build
+  // does not know is refused here, naming both versions. Newer material files
+  // are not read as older ones, because the difference between the two
+  // versions is precisely what would be silently dropped. Version 1 is the
+  // only one, so there is nothing to lift yet.
+  fmatFormat.open(
+    parsed,
+    refuse: (String message) => FmatFormatException('$name: $message'),
+  );
 
   // Exactly the keys `writeFmat` emits, so the two halves of the format
   // cannot drift: a key added to the writer and not to this set warns on the
   // writer's own output, which `fmat_test.dart`'s round trip catches.
-  const knownKeys = <String>{
-    'fmat',
-    'name',
-    'lighting',
-    'lightingModel',
-    'baseColor',
-    'metallic',
-    'roughness',
-    'normalScale',
-    'occlusionStrength',
-    'emissive',
-    'emissiveStrength',
-    'alphaMode',
-    'alphaCutoff',
-    'doubleSided',
-    'unlit',
-    'textures',
-    'parameterBlock',
-    'parameters',
-    'hints',
-    'extensions',
-  };
+  const knownKeys = _writtenKeys;
   final warnings = <String>[
     for (final key in parsed.keys)
       if (!knownKeys.contains(key))
-        '"$key" is not a key this reader knows; ignored',
+        '"$key" is not a key this reader knows; kept as it is',
   ];
   final images = <String>[];
   final texturePaths = <String, int>{};
@@ -120,6 +140,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     return TextureBinding(
       imageIndex: imageIndex(path),
       sampling: _readSampling(value),
+      transform: _readTransform(value['transform'], warnings),
     );
   }
 
@@ -161,7 +182,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
   return MaterialDocument(
     surface: surface,
     images: images,
-    lighting: _readLighting(parsed['lighting'], warnings),
+    lighting: readLightingJson(parsed['lighting'], warnings),
     parameterBlock: parsed['parameterBlock'] as String? ?? 'MaterialParams',
     parameters: <String, Float32List>{
       for (final entry
@@ -178,6 +199,10 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
             entry.key: slot,
     },
     warnings: warnings,
+    unknown: <String, Object?>{
+      for (final MapEntry(:key, :value) in parsed.entries)
+        if (!knownKeys.contains(key)) key: value,
+    },
   );
 }
 
@@ -200,8 +225,13 @@ String writeFmat(MaterialDocument document) {
     final path = pathOf(binding);
     if (path == null) return null;
     final sampling = binding!.sampling;
+    final transform = switch (binding.transform) {
+      final TextureTransform moved when !moved.isIdentity => moved,
+      _ => null,
+    };
     const plain = TextureSampling();
-    if (sampling.magLinear == plain.magLinear &&
+    if (transform == null &&
+        sampling.magLinear == plain.magLinear &&
         sampling.minLinear == plain.minLinear &&
         sampling.useMipmaps == plain.useMipmaps &&
         sampling.mipLinear == plain.mipLinear &&
@@ -218,8 +248,11 @@ String writeFmat(MaterialDocument document) {
       if (!sampling.minLinear) 'minLinear': false,
       if (!sampling.useMipmaps) 'mipmaps': false,
       if (!sampling.mipLinear) 'mipLinear': false,
-      if (sampling.wrapS != TextureWrap.repeat) 'wrapS': sampling.wrapS.name,
-      if (sampling.wrapT != TextureWrap.repeat) 'wrapT': sampling.wrapT.name,
+      if (sampling.wrapS != TextureWrap.repeat)
+        'wrapS': _wrapWord(sampling.wrapS),
+      if (sampling.wrapT != TextureWrap.repeat)
+        'wrapT': _wrapWord(sampling.wrapT),
+      if (transform != null) 'transform': _writeTransform(transform),
     };
   }
 
@@ -238,8 +271,11 @@ String writeFmat(MaterialDocument document) {
 
   final lighting = document.lighting;
   final json = const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-    'fmat': kFmatVersion,
-    if (lighting != null) 'lighting': _writeLighting(lighting),
+    ...fmatFormat.envelope(),
+    // Beside the envelope for a 0.8 reader, which refuses a material without
+    // it (see [fmatFormat]).
+    'fmat': fmatVersion,
+    if (lighting != null) 'lighting': writeLightingJson(lighting),
     ...surfaceMaterialToJson(surface),
     if (textures.isNotEmpty) 'textures': textures,
     if (surface.extensions case final layers?)
@@ -254,6 +290,10 @@ String writeFmat(MaterialDocument document) {
           entry.key: <double>[for (final v in entry.value) _cleanFloat32(v)],
       },
     if (document.hints.isNotEmpty) 'hints': _writeHints(document.hints),
+    // What a later build wrote and this one does not read, last and as it
+    // came, so opening and saving a material does not lose it.
+    for (final MapEntry(:key, :value) in document.unknown.entries)
+      if (!_writtenKeys.contains(key)) key: value,
   });
   return '${_ensureFloatLiterals(json)}\n';
 }
@@ -274,8 +314,8 @@ String writeFmat(MaterialDocument document) {
 /// (`readFmat`'s own `_number` and the version check both do), so appending
 /// `.0` costs nothing to read — including to the handful of fields, like a
 /// colour hint's channel count, that happen to be genuine integers. `fmat`
-/// itself is the one exception worth keeping bare: a version number that
-/// looks like one.
+/// and the envelope's `version` are the exceptions worth keeping bare: a
+/// version number that looks like one.
 final RegExp _bareIntegerLine = RegExp(
   r'^(\s*(?:"[^"]+"\s*:\s*)?)(-?\d+)(,?)\s*$',
 );
@@ -283,7 +323,10 @@ final RegExp _bareIntegerLine = RegExp(
 String _ensureFloatLiterals(String json) => json
     .split('\n')
     .map((line) {
-      if (line.trimLeft().startsWith('"fmat"')) return line;
+      final trimmed = line.trimLeft();
+      if (trimmed.startsWith('"fmat"') || trimmed.startsWith('"version"')) {
+        return line;
+      }
       final match = _bareIntegerLine.firstMatch(line);
       return match == null ? line : '${match[1]}${match[2]}.0${match[3]}';
     })
@@ -309,10 +352,11 @@ String _ensureFloatLiterals(String json) => json
 Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
     <String, Object?>{
       if (surface.name != null) 'name': surface.name,
+      // sRGB-encoded in the file, as it always was.
       'baseColor': <double>[
-        _cleanFloat32(surface.baseColor.r),
-        _cleanFloat32(surface.baseColor.g),
-        _cleanFloat32(surface.baseColor.b),
+        _cleanFloat32(surface.baseColor.toSrgb().r),
+        _cleanFloat32(surface.baseColor.toSrgb().g),
+        _cleanFloat32(surface.baseColor.toSrgb().b),
         _cleanFloat32(surface.baseColor.a),
       ],
       if (surface.metallic != 0.0) 'metallic': surface.metallic,
@@ -320,7 +364,9 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
       if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
       if (surface.occlusionStrength != 1.0)
         'occlusionStrength': surface.occlusionStrength,
-      if (surface.emissive.length2 != 0.0)
+      if (surface.emissive.r != 0.0 ||
+          surface.emissive.g != 0.0 ||
+          surface.emissive.b != 0.0)
         'emissive': <double>[
           _cleanFloat32(surface.emissive.r),
           _cleanFloat32(surface.emissive.g),
@@ -329,12 +375,16 @@ Map<String, Object?> surfaceMaterialToJson(SurfaceMaterial surface) =>
       if (surface.emissiveStrength != 1.0)
         'emissiveStrength': surface.emissiveStrength,
       if (surface.alphaMode != SurfaceAlphaMode.opaque)
-        'alphaMode': surface.alphaMode.name,
+        'alphaMode': switch (surface.alphaMode) {
+          SurfaceAlphaMode.opaque => 'opaque',
+          SurfaceAlphaMode.mask => 'mask',
+          SurfaceAlphaMode.blend => 'blend',
+        },
       if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
       if (surface.doubleSided) 'doubleSided': true,
       if (surface.unlit) 'unlit': true,
       if (surface.lightingModel case final LightingModel model)
-        'lightingModel': _writeLighting(model),
+        'lightingModel': writeLightingJson(model),
     };
 
 /// The inverse of [surfaceMaterialToJson]: a [SurfaceMaterial] built from
@@ -359,7 +409,10 @@ SurfaceMaterial surfaceMaterialFromJson(
   MaterialExtensions? extensions,
 }) => SurfaceMaterial(
   name: json['name'] as String? ?? name,
-  baseColor: _vec4(json['baseColor']) ?? Vector4(1.0, 1.0, 1.0, 1.0),
+  baseColor: switch (_vec4(json['baseColor'])) {
+    final Vector4 srgb => LinearColor.fromSrgb(srgb.x, srgb.y, srgb.z, srgb.w),
+    null => LinearColor.white,
+  },
   metallic: _number(json['metallic'], 0.0),
   roughness: _number(json['roughness'], 0.5),
   baseColorTexture: baseColorTexture,
@@ -369,19 +422,62 @@ SurfaceMaterial surfaceMaterialFromJson(
   occlusionTexture: occlusionTexture,
   occlusionStrength: _number(json['occlusionStrength'], 1.0),
   emissiveTexture: emissiveTexture,
-  emissive: _vec3(json['emissive']) ?? Vector3.zero(),
+  emissive: switch (_vec3(json['emissive'])) {
+    final Vector3 linear => LinearColor(linear.x, linear.y, linear.z),
+    null => LinearColor.black,
+  },
   emissiveStrength: _number(json['emissiveStrength'], 1.0),
   alphaMode: _alphaMode(json['alphaMode'], warnings ?? <String>[]),
   alphaCutoff: _number(json['alphaCutoff'], 0.5),
   doubleSided: json['doubleSided'] as bool? ?? false,
   unlit: json['unlit'] as bool? ?? false,
-  lightingModel: _readLighting(
+  lightingModel: readLightingJson(
     json['lightingModel'],
     warnings ?? <String>[],
     key: 'lightingModel',
   ),
   extensions: extensions,
 );
+
+/// A slot's `transform`, `KHR_texture_transform`'s three fields under its
+/// own names (`offset` for its `offset`, `scale`, `rotation` in radians),
+/// each optional — an additive key, read by nothing older, so no version.
+/// Null when the slot has none or moves nothing.
+TextureTransform? _readTransform(Object? json, List<String> warnings) {
+  if (json == null) return null;
+  if (json is! Map<String, Object?>) {
+    warnings.add('a texture slot\'s "transform" is not an object; ignored');
+    return null;
+  }
+  Vector2? pair(String key) => switch (json[key]) {
+    [final num u, final num v] => Vector2(u.toDouble(), v.toDouble()),
+    null => null,
+    _ => () {
+      warnings.add('a texture transform\'s "$key" is not two numbers; ignored');
+      return null;
+    }(),
+  };
+  final rotation = switch (json['rotation']) {
+    final num turn => turn.toDouble(),
+    _ => 0.0,
+  };
+  final transform = TextureTransform(
+    offset: pair('offset'),
+    scale: pair('scale'),
+    rotation: rotation,
+  );
+  return transform.isIdentity ? null : transform;
+}
+
+/// [transform] as [_readTransform] reads it, with only the fields that move.
+Map<String, Object?> _writeTransform(TextureTransform transform) =>
+    <String, Object?>{
+      if (transform.offset.x != 0.0 || transform.offset.y != 0.0)
+        'offset': <double>[transform.offset.x, transform.offset.y],
+      if (transform.scale.x != 1.0 || transform.scale.y != 1.0)
+        'scale': <double>[transform.scale.x, transform.scale.y],
+      if (transform.rotation != 0.0) 'rotation': transform.rotation,
+    };
 
 TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
   magLinear: json['magLinear'] as bool? ?? true,
@@ -392,101 +488,19 @@ TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
   wrapT: _wrap(json['wrapT']),
 );
 
+/// The word a `.fmat` file says for [wrap] — the inverse of [_wrap], spelled
+/// out so a rename of a value does not change what the file says.
+String _wrapWord(TextureWrap wrap) => switch (wrap) {
+  TextureWrap.repeat => 'repeat',
+  TextureWrap.clampToEdge => 'clampToEdge',
+  TextureWrap.mirroredRepeat => 'mirroredRepeat',
+};
+
 TextureWrap _wrap(Object? value) => switch (value) {
   'clampToEdge' => TextureWrap.clampToEdge,
   'mirroredRepeat' => TextureWrap.mirroredRepeat,
   _ => TextureWrap.repeat,
 };
-
-/// Reads the shader this material asks for.
-///
-/// A string names one the engine ships; an object describes one it does not, and
-/// must then declare what the compiled shader binds. The flags default to the
-/// same values [LightingModel] does, so a custom lit shader is three keys.
-LightingModel? _readLighting(
-  Object? value,
-  List<String> warnings, {
-  String key = 'lighting',
-}) {
-  if (value == null) return null;
-  if (value is String) {
-    for (final model in LightingModel.builtIn) {
-      if (model.shaderName.toLowerCase() == value.toLowerCase()) return model;
-    }
-    warnings.add(
-      '"$value" is not a shader this engine ships. Name it as an object with '
-      'a "shader" key to use one from your own bundle; the scene\'s model is '
-      'used instead.',
-    );
-    return null;
-  }
-  if (value is! Map<String, Object?>) {
-    warnings.add('"$key" is neither a name nor an object; ignored');
-    return null;
-  }
-  final shader = value['shader'];
-  if (shader is! String) {
-    warnings.add('"$key" has no "shader" name; ignored');
-    return null;
-  }
-  return LightingModel(
-    value['label'] as String? ?? shader,
-    shader,
-    vertexShaderName: value['vertexShader'] as String?,
-    usesFragInfo: value['fragInfo'] as bool? ?? true,
-    usesAlbedoTexture: value['albedoTexture'] as bool? ?? true,
-    usesMaterialMaps: value['materialMaps'] as bool? ?? true,
-    usesMetallicRoughnessMap:
-        value['metallicRoughnessMap'] as bool? ??
-        (value['materialMaps'] as bool? ?? true),
-    usesMaterialParameters: value['materialParameters'] as bool? ?? true,
-    usesMetallic: value['metallic'] as bool? ?? false,
-    usesEnvironment: value['environment'] as bool? ?? false,
-    usesLightList: value['lightList'] as bool?,
-    usesFogInfo: value['fogInfo'] as bool?,
-    // Absent in every file written before 0.7.3, a saved polyline among them,
-    // and `PolylineVertex` declares no morphs: reading it as true brought back
-    // the "Failed to bind texture" 0.7.2 fixed. Any other stage is written
-    // from `MeshVertex` and does.
-    vertexStageMorphs:
-        value['vertexMorphs'] as bool? ??
-        (LightingModel.polyline.vertexShaderName != value['vertexShader']),
-  );
-}
-
-Object _writeLighting(LightingModel model) {
-  for (final built in LightingModel.builtIn) {
-    if (identical(built, model)) return model.shaderName;
-  }
-  const plain = LightingModel('', '');
-  return <String, Object?>{
-    'shader': model.shaderName,
-    if (model.label != model.shaderName) 'label': model.label,
-    // The vertex stage a material brings (`gfx-75n`). Left out, a material
-    // saved and read back drew with the engine's own vertex stage — an ocean
-    // gone flat, with nothing in the file to say why.
-    if (model.vertexShaderName case final String vertex) 'vertexShader': vertex,
-    if (model.usesFragInfo != plain.usesFragInfo)
-      'fragInfo': model.usesFragInfo,
-    if (model.usesAlbedoTexture != plain.usesAlbedoTexture)
-      'albedoTexture': model.usesAlbedoTexture,
-    if (model.usesMaterialMaps != plain.usesMaterialMaps)
-      'materialMaps': model.usesMaterialMaps,
-    if (model.usesMetallicRoughnessMap != model.usesMaterialMaps)
-      'metallicRoughnessMap': model.usesMetallicRoughnessMap,
-    if (model.usesLightList != model.usesMaterialMaps)
-      'lightList': model.usesLightList,
-    if (model.usesFogInfo != model.usesFragInfo) 'fogInfo': model.usesFogInfo,
-    if (model.vertexStageMorphs != plain.vertexStageMorphs)
-      'vertexMorphs': model.vertexStageMorphs,
-    if (model.usesMaterialParameters != plain.usesMaterialParameters)
-      'materialParameters': model.usesMaterialParameters,
-    if (model.usesMetallic != plain.usesMetallic)
-      'metallic': model.usesMetallic,
-    if (model.usesEnvironment != plain.usesEnvironment)
-      'environment': model.usesEnvironment,
-  };
-}
 
 /// Reads the `hints` block, which describes the entries in `parameters`.
 ///
@@ -634,7 +648,7 @@ double _cleanFloat32(double v) {
   if (!v.isFinite) return v;
   final Float32List probe = Float32List(1);
   probe[0] = v;
-  final double target = probe[0];
+  final target = probe[0];
   for (var digits = 1; digits <= 9; digits++) {
     final double candidate = double.parse(v.toStringAsPrecision(digits));
     probe[0] = candidate;
@@ -667,3 +681,29 @@ Vector4? _vec4(Object? value) => value is List<Object?> && value.length >= 3
         value.length > 3 ? _number(value[3], 1.0) : 1.0,
       )
     : null;
+
+/// Exactly the keys [writeFmat] emits; [readFmat] keeps every other one in
+/// [MaterialDocument.unknown].
+const Set<String> _writtenKeys = <String>{
+  ...FormatSpec.envelopeKeys,
+  'fmat',
+  'name',
+  'lighting',
+  'lightingModel',
+  'baseColor',
+  'metallic',
+  'roughness',
+  'normalScale',
+  'occlusionStrength',
+  'emissive',
+  'emissiveStrength',
+  'alphaMode',
+  'alphaCutoff',
+  'doubleSided',
+  'unlit',
+  'textures',
+  'parameterBlock',
+  'parameters',
+  'hints',
+  'extensions',
+};

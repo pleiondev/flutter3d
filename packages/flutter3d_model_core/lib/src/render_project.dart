@@ -20,12 +20,16 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show CapabilityException, LinearColor;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_sync.dart';
 import 'panorama_sync.dart';
 import 'project.dart';
 import 'scene_from_project.dart';
+import 'selection_tint.dart';
 
 /// The six axis views plus a three-quarter angle.
 ///
@@ -51,7 +55,10 @@ final class RenderProjectView {
 
   /// Camera placement, in the same `yaw`/`pitch` vocabulary
   /// `OrbitController.apply` turns into a position — see [_frame].
+  /// In radians.
   final double yaw;
+
+  /// In radians.
   final double pitch;
 
   static const RenderProjectView front = RenderProjectView._('front', 0.0, 0.0);
@@ -204,9 +211,10 @@ final class RenderRequest {
 /// Named rather than left as a bare [ArgumentError]: the acceptance text asks
 /// for "a refusal that names the limit," which a caller reads out of
 /// [message] without parsing an arbitrary error string.
-final class RenderRefusal implements Exception {
+final class RenderRefusal extends CapabilityException {
   RenderRefusal(this.message);
 
+  @override
   final String message;
 
   @override
@@ -277,7 +285,7 @@ Future<Uint8List> renderProject(
     height: 1,
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(Uint8List.fromList(<int>[128, 128, 255, 255])),
-  )!;
+  );
   final renderer = Renderer.create(
     device: device,
     fallbackNormal: fallbackNormal,
@@ -286,7 +294,7 @@ Future<Uint8List> renderProject(
   final scene = sceneFromProject(
     request.project,
     device,
-    restyle: (ModelObject object, Material material) =>
+    restyle: (ModelObject object, RenderMaterial material) =>
         _restyle(request, object, material),
     weightsJoint: request.shading == RenderShading.weights
         ? request.weightsJoint
@@ -311,7 +319,7 @@ Future<Uint8List> renderProject(
   // lights.
   final RenderSettings lit = LightingSync()
       .apply(const RenderSettings(), request.project.lighting)
-      .copyWith(debug: const DebugDrawOptions());
+      .copyWith(debug: const DebugDrawSettings());
   // `tut-11`'s own fix: a vertex colour named by hex is not scene-referred
   // light, and only reads back as that hex with tonemapping and exposure
   // out of the way. The wireframe wants the same for the same reason: both
@@ -339,7 +347,7 @@ Future<Uint8List> renderProject(
     views: <RenderView>[RenderView(camera: camera)],
     settings: settings,
   );
-  final pixels = (await device.readPixels(frame.frame))!.buffer.asUint8List();
+  final pixels = (await device.readback(frame.frame)).buffer.asUint8List();
   return encodeCompressedPng(width, height, pixels);
 }
 
@@ -376,7 +384,7 @@ void _frame(
       : math.max(box.min.distanceTo(box.max) / 2, 1e-5);
 
   final fovY = switch (camera.projection) {
-    PerspectiveProjection(:final fovYRadians) => fovYRadians,
+    PerspectiveProjection(:final fovY) => fovY,
     _ => math.pi / 4,
   };
   // A margin over the tight fit, so an object's silhouette does not touch
@@ -387,7 +395,7 @@ void _frame(
   // precision on empty space for a small model and clips it outright once the
   // camera is closer than a tenth of a metre.
   camera.projection = PerspectiveProjection(
-    fovYRadians: fovY,
+    fovY: fovY,
     near: math.max(distance * 0.01, 1e-6),
     far: distance * 10.0 + 10.0,
   );
@@ -405,13 +413,13 @@ void _frame(
 
 /// [material], shaded the way [request] asks and tinted when [object] is in
 /// its selection.
-Material _restyle(
+RenderMaterial _restyle(
   RenderRequest request,
   ModelObject object,
-  Material material,
+  RenderMaterial material,
 ) {
   final shaded = switch (request.shading) {
-    RenderShading.normals => Material(
+    RenderShading.normals => RenderMaterial(
       name: material.name,
       lighting: LightingModel.normals,
       baseColor: material.baseColor,
@@ -424,31 +432,25 @@ Material _restyle(
     // be. `baseColor` is dropped with the lighting — the model's own greys
     // and browns are not information here, and one ground makes every wire
     // read the same against every object.
-    RenderShading.wireframe => Material(
+    RenderShading.wireframe => RenderMaterial(
       name: material.name,
       lighting: LightingModel.unlit,
-      baseColor: Vector4(0.82, 0.83, 0.85, material.baseColor.a),
+      baseColor: LinearColor.fromSrgb(0.82, 0.83, 0.85, material.baseColor.a),
       doubleSided: material.doubleSided,
     ),
     _ => material,
   };
   if (!request.selection.contains(object.id)) return shaded;
   // Blended into `baseColor` itself, not left to `emissive`: the CPU backend
-  // only ever reads `Material.emissive` behind a bound `emissiveTexture`
+  // only ever reads `RenderMaterial.emissive` behind a bound `emissiveTexture`
   // (`applyEmissiveMap` in `flutter3d_cpu/lib/src/cpu_shaders_surface.dart`
   // returns before touching it otherwise), so a highlight with no texture of
   // its own would be set and never drawn. A colour every lighting model
   // already samples has no such gate.
-  final highlight = Vector4(1.0, 0.55, 0.0, shaded.baseColor.a);
-  return Material(
+  return RenderMaterial(
     name: shaded.name,
     lighting: shaded.lighting,
-    baseColor: Vector4(
-      shaded.baseColor.r * 0.4 + highlight.r * 0.6,
-      shaded.baseColor.g * 0.4 + highlight.g * 0.6,
-      shaded.baseColor.b * 0.4 + highlight.b * 0.6,
-      shaded.baseColor.a,
-    ),
+    baseColor: selectionTint(shaded.baseColor),
     metallic: shaded.metallic,
     roughness: shaded.roughness,
     doubleSided: shaded.doubleSided,

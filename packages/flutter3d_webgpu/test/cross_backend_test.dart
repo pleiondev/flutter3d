@@ -127,6 +127,17 @@ const int _channel = 8;
 /// paragraph on the line where its name already is, which is how the two
 /// siblings grew every explanation they carry.
 const Map<String, double> _budgets = <String, double>{
+  'material-language': 0.01,
+  'material-light-hook': 0.01,
+  'material-instance-data': 0.01,
+  'widget-scene': 0.01,
+  // 0.565% measured, on the discs' rims and nowhere else: coverage here,
+  // the hard cutoff on Impeller — `RenderMaterial.alphaToCoverage`, two of four.
+  'alpha-to-coverage': 0.65,
+  'orthographic-metal': 0.01,
+  'orthographic-shadows': 0.01,
+  'orthographic-particles': 0.01,
+  'debug-view-split': 0.01,
   'teapot-generated-normals': 0.01,
   'shadow-teapot': 0.01,
   'bloom-sphere': 0.01,
@@ -182,6 +193,9 @@ const Map<String, double> _budgets = <String, double>{
   'cascade-walk': 0.01,
   'clearcoat-car-paint': 0.01,
   'easu-half': 0.01,
+  'lens-flare': 0.01,
+  'lens-distortion': 0.01,
+  'smaa-teapot': 0.01,
   'evsm-soft': 0.33,
   'fog-torches': 0.01,
   'glass-stack-oit': 0.01,
@@ -198,6 +212,9 @@ const Map<String, double> _budgets = <String, double>{
   'sheen-fabric': 0.01,
   // 0.000% measured. It was 2.039%, and not sampling: the puff's hash used
   // 64-bit integers, so a browser baked a different sheet.
+  // `P5`. 0 of 172800 measured against Impeller on 2026-10-01, both.
+  'sky-physical-dusk': 0.01,
+  'sky-physical-night': 0.01,
   'smoke-six-way': 0.01,
   'splat-gltf': 0.01,
   // Was 40.38, over a reference that was a black frame: the hashed splats'
@@ -222,6 +239,16 @@ const Map<String, double> _budgets = <String, double>{
   'transmission-glass': 0.01,
   'velocity-shapes': 0.01,
   'window-interior': 0.01,
+  // `P3`, 0 of 172800 measured on 2026-10-01.
+  'decal-floor': 0.01,
+  // `P4`. 0 of 172800 measured against Impeller on 2026-10-01.
+  'planar-mirror': 0.01,
+  'render-texture': 0.01,
+  // `N9`. 0 of 172800 measured against Impeller on 2026-10-06. Its first
+  // recording disagreed on 54.646%, the same as WebGL2's to a few pixels,
+  // because both are built by dart2js and both baked the stage's paving
+  // through a hash that overflowed thirty-two bits.
+  'high-contrast': 0.01,
 };
 
 /// Scenes this set holds no picture of, and why the picture was refused.

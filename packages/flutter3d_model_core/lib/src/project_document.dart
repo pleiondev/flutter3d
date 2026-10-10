@@ -17,6 +17,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show AnimationGraphJson;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_mesh/flutter3d_mesh.dart';
@@ -133,6 +134,12 @@ final class ProjectModelDocument extends ModelDocument {
 
   @override
   List<AnimationClip> animations = const <AnimationClip>[];
+
+  /// The project's animation graphs in the root `extras`, under
+  /// `AnimationGraphJson.extrasKey`; null for a project with none, so its
+  /// export is the file it always was.
+  @override
+  DocumentAsset? asset;
 
   /// The stack evaluator this document folds modifiers through — `ux-13`.
   ///
@@ -431,6 +438,13 @@ final class ProjectModelDocument extends ModelDocument {
               : indexOfId[skeleton.skeletonRoot!],
         ),
     ];
+    asset = project.animationGraphs.isEmpty
+        ? null
+        : DocumentAsset(
+            extras: <String, Object?>{
+              AnimationGraphJson.extrasKey: project.animationGraphs,
+            },
+          );
     animations = <AnimationClip>[
       for (final ProjectClip clip in project.clips)
         AnimationClip(
@@ -533,8 +547,12 @@ enum UpAxis {
 /// lives. It composes for free with the existing hierarchy walk: a root's
 /// children inherit the correction by inheriting the root's transform, the
 /// same way they inherit everything else about where it sits.
-final class ImportOptions {
-  const ImportOptions({this.scale = 1.0, this.upAxis = UpAxis.y});
+final class ImportSettings {
+  const ImportSettings({this.scale = 1.0, this.upAxis = UpAxis.y});
+
+  /// A copy with the given fields replaced.
+  ImportSettings copyWith({double? scale, UpAxis? upAxis}) =>
+      ImportSettings(scale: scale ?? this.scale, upAxis: upAxis ?? this.upAxis);
 
   /// Multiplies every root's translation and scale. STL carries no unit at
   /// all and is conventionally millimetres; `0.001` reads such a file as
@@ -549,7 +567,7 @@ final class ImportOptions {
 /// belongs to the workspace rather than to the model.
 ModelProject fromModelDocument(
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final nodes = document.nodes;
   final taken = List<bool>.filled(nodes.length, false);
@@ -657,6 +675,7 @@ ModelProject fromModelDocument(
   project = project.copyWith(
     skeletons: _skeletonsOf(document.skins, objectIdOfNode),
     clips: _clipsOf(document.animations, objectIdOfNode),
+    animationGraphs: _graphsOf(document.asset),
   );
 
   if (options.scale != 1.0 || options.upAxis == UpAxis.z) {
@@ -748,7 +767,7 @@ final class ImportReport {
 /// in alongside the project it produces.
 ImportReport importReportOf(
   ModelDocument document, {
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) {
   final project = fromModelDocument(document, options: options);
   return ImportReport(
@@ -801,6 +820,20 @@ List<ProjectSkeleton> _skeletonsOf(
 /// dropped rather than kept under a fabricated id — a track is one entry in
 /// a clip, not a positional slot anything else addresses, so dropping one
 /// costs nothing downstream the way dropping a skeleton would.
+/// The graphs [asset]'s root `extras` keeps, as JSON by name — every one, as
+/// the project file keeps them: one this build cannot read is kept for the
+/// build that can and refused only when somebody sets it.
+Map<String, Map<String, Object?>> _graphsOf(DocumentAsset? asset) {
+  final kept = asset?.extras?[AnimationGraphJson.extrasKey];
+  if (kept is! Map<String, Object?>) {
+    return const <String, Map<String, Object?>>{};
+  }
+  return <String, Map<String, Object?>>{
+    for (final MapEntry(:key, :value) in kept.entries)
+      if (value is Map<String, Object?>) key: value,
+  };
+}
+
 List<ProjectClip> _clipsOf(
   List<AnimationClip> animations,
   Map<int, int> objectIdOfNode,

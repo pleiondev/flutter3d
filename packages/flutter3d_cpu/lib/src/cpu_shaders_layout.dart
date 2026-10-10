@@ -25,7 +25,10 @@ const int kVTangent = 12; // vec4
 /// Where the fragment is in the level's lightmap; zero from every stage but
 /// the lightmapped one, which reads it out of the colour attribute.
 const int kVLightmap = 16; // vec2
-const int kMeshVaryings = 18;
+/// An instance's own four numbers — `P8`; nought from every stage but the
+/// instanced one, which reads them out of slot 1.
+const int kVInstance = 18; // vec4
+const int kMeshVaryings = 22;
 
 /// Lights per frame, from `kMaxLights` in `surface.glsl`.
 const int kMaxLights = 8;

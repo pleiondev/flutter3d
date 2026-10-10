@@ -217,7 +217,11 @@ void main() {
       ],
       roots: <int>[0, 1],
       materials: <SurfaceMaterial>[
-        SurfaceMaterial(name: 'brass', baseColor: brass, metallic: 1.0),
+        SurfaceMaterial(
+          name: 'brass',
+          baseColor: _fromSrgb(brass),
+          metallic: 1.0,
+        ),
       ],
     );
     final it = fakeTestDevice(width: 8, height: 8);
@@ -289,7 +293,7 @@ void main() {
         materials: <SurfaceMaterial>[
           SurfaceMaterial(
             name: 'painted',
-            baseColor: teal,
+            baseColor: _fromSrgb(teal),
             baseColorTexture: const TextureBinding(imageIndex: 0),
           ),
         ],
@@ -512,7 +516,7 @@ void main() {
       final opened = await openDocument(
         document,
         device: it.device,
-        options: const ImportOptions(scale: 0.001),
+        options: const ImportSettings(scale: 0.001),
       );
 
       final rig = opened.project.objects.firstWhere(
@@ -580,3 +584,6 @@ void main() {
     });
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

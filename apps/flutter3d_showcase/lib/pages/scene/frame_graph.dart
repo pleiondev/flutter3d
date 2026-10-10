@@ -3,7 +3,6 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 final class FrameGraphDemo extends ShowcaseDemo {
   bool bloom = true;
@@ -24,17 +23,17 @@ final class FrameGraphDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region scene
-    final Material bright = Material(
+    final RenderMaterial bright = RenderMaterial(
       name: 'bright metal',
-      baseColor: Vector4(0.7, 0.2, 0.08, 1.0),
-      emissive: Vector3(1.0, 0.16, 0.03),
-      emissiveStrength: 2.5,
+      baseColor: LinearColor.fromSrgb(0.7, 0.2, 0.08, 1.0),
+      emissive: LinearColor(1.0, 0.16, 0.03),
+      emissiveStrength: 2.5 * Photometric.legacyNits,
       metallic: 0.62,
       roughness: 0.22,
     );
     _scene = Scene()
-      ..ambientColor = Vector3(0.38, 0.46, 0.64)
-      ..ambientIntensity = 0.12
+      ..ambientColor = LinearColor(0.38, 0.46, 0.64)
+      ..ambientIntensity = 0.12 * Photometric.legacyUnit
       ..add(
         MeshNode(
           DeviceMesh.upload(
@@ -46,7 +45,7 @@ final class FrameGraphDemo extends ShowcaseDemo {
         ),
       )
       ..add(
-        LightNode(name: 'sun', intensity: 3.0)
+        LightNode(name: 'sun', intensity: 3.0 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.45, -0.82, -0.35)),
       );
     // #endregion scene

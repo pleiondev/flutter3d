@@ -42,7 +42,7 @@ only appears at speed and looks like teleporting.
 Slopes it can climb and slopes it slides off, steps it walks up without a jump,
 ramps it follows, a coyote window after walking off an edge, a jump buffered
 just before landing. Each is a decision with a test beside it saying which way
-it went — change `MovementTuning`, not the order of the step.
+it went — change `MovementSettings`, not the order of the step.
 
 That order is load-bearing: carry with the ground, resolve overlap, accelerate,
 gravity, jump, move horizontally, then settle vertically. Moving before

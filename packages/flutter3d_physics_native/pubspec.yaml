@@ -1,0 +1,65 @@
+name: flutter3d_physics_native
+description: "The physics core in C11: rigid bodies stepped natively through dart:ffi, and in the browser as WebAssembly. flutter3d_physics is its reference."
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - physics
+  - simulation
+  - ffi
+  - game-development
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: the C core through
+# `dart:ffi` on every native platform and as WebAssembly in the browser,
+# chosen by `if (dart.library.js_interop)`.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+dependencies:
+  # The build hook: `native_toolchain_c` compiles `csrc/` with the C compiler
+  # a Flutter developer already has — Xcode's, the NDK's, MSVC — so a game
+  # depending on this package needs no other toolchain. `code_assets` and
+  # `hooks` are what the hook speaks; `logging` is what the builder reports
+  # through.
+  # The hook fetches wgpu-native for the GPU passes: `archive` unpacks it and
+  # `crypto` checks its sha256 against the one pinned in the hook.
+  archive: ^4.2.0
+  code_assets: ^2.1.0
+  crypto: ^3.0.6
+  hooks: ^2.0.0
+  logging: ^1.3.0
+  native_toolchain_c: ^0.19.5
+  vector_math: ^2.2.0
+  # What NativeDynamics stands under: its bodies, colliders and world. Also
+  # the reference the tests hold a native world to, with a tolerance, since
+  # that one is in doubles.
+  flutter3d_physics: ^1.0.0-rc.1
+  # `WorldPosition`: a body's place in the world in doubles, the origin
+  # added, which `NativeWorld.positionOf` answers with.
+  flutter3d_foundation: ^1.0.0-rc.1
+  # The material catalogue and the standard world: what the core's heat and
+  # liquid presets are views of, and what `tool/gen_materials.dart` writes
+  # the C header from.
+  flutter3d_matter: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# The core as a WebAssembly module, for the browser: a Flutter web app
+# serves it from assets/packages/flutter3d_physics_native/web/.
+flutter:
+  assets:
+    - web/f3d_physics.wasm
+    - web/f3d_physics_threads.wasm
+    - web/f3d_worker.js

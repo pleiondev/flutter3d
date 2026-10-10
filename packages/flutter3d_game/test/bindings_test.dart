@@ -103,19 +103,18 @@ void main() {
 
   group('the defaults', () {
     test('every call gets a table of its own', () {
-      // Mutation: make `defaultBindings` a `static final` field. Rebinding
+      // Mutation: keep the defaults in a `static final` table. Rebinding
       // anything then rebinds it for every other DesktopInput in the process —
       // the menu, the next level, the second window.
-      final first = DesktopInput.defaultBindings()
-        ..clearAction(GameAction.jump);
-      final second = DesktopInput.defaultBindings();
+      final first = _keyboard()..clearAction(GameAction.jump);
+      final second = _keyboard();
 
       expect(first.sourcesFor(GameAction.jump), isEmpty);
       expect(second.sourcesFor(GameAction.jump), isNotEmpty);
     });
 
     test('the arrow keys walk as well as WASD', () {
-      final bindings = DesktopInput.defaultBindings();
+      final bindings = _keyboard();
       expect(
         bindings[InputSource.key(LogicalKeyboardKey.arrowUp.keyId)],
         GameAction.moveForward,
@@ -127,3 +126,7 @@ void main() {
     });
   });
 }
+
+/// The keyboard's defaults, as a button table.
+Bindings _keyboard() =>
+    DesktopInput.addDefaultsTo(ActionMap(actions: ActionSet.common)).buttons;

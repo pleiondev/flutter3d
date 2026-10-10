@@ -16,16 +16,21 @@
 /// that is really an object stays in the collision world as before.
 library;
 
+export 'src/actions.dart';
 export 'src/ai/ai_driver.dart';
 export 'src/ai/ai_tuning.dart';
 export 'src/chase_camera.dart';
 export 'src/events.dart';
 export 'src/ghost.dart';
+export 'src/headless.dart';
 export 'src/layers.dart';
+export 'src/plugin.dart';
 export 'src/race_phase.dart';
 export 'src/race_state.dart';
 export 'src/racer_progress.dart';
+export 'src/racing_world.dart';
 export 'src/simulation.dart';
+export 'src/simulation_version.dart';
 export 'src/sky.dart';
 export 'src/sky_presets.dart';
 export 'src/track.dart';

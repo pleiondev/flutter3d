@@ -1,4 +1,4 @@
-/// The mesh each of an object's own [LodSpec]s actually produces, cached
+/// The mesh each of an object's own [LodSettings]s actually produces, cached
 /// across calls — `pro-lod-03`'s own row.
 ///
 /// **The same bargain [ReadinessCache] strikes, for the same reason.**
@@ -57,7 +57,7 @@ final class LodMeshCache {
       return cached.mesh;
     }
 
-    final LodSpec spec = object.lods[lodIndex];
+    final LodSettings spec = object.lods[lodIndex];
     final int target = (base.triangleCount * spec.ratio).round().clamp(
       1,
       base.triangleCount,

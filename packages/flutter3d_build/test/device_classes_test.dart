@@ -8,8 +8,7 @@ import 'dart:io';
 
 import 'package:code_assets/code_assets.dart';
 import 'package:flutter3d_build/flutter3d_build.dart';
-import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:image/image.dart' as img;
 import 'package:test/test.dart';
 
@@ -297,9 +296,10 @@ classes:
       ];
       expect(written, <String>['sphere.f3d']);
       final cache =
-          jsonDecode(
-                File('$generated/.flutter3d_cache.json').readAsStringSync(),
-              )
+          (jsonDecode(
+                    File('$generated/.flutter3d_cache.json').readAsStringSync(),
+                  )
+                  as Map<String, Object?>)['entries']!
               as Map<String, Object?>;
       expect(cache.keys, <String>['${project.path}/assets_src/sphere.obj']);
       expect((cache.values.single! as Map)['lods'], '');
@@ -333,13 +333,16 @@ classes:
     final desktop = _measure('${scratch.path}/sphere.desktop.f3d');
     expect(desktop.levels, 1);
     expect(desktop.sides, <int>[64]);
-    expect(ConvertOptions.parse(<String>['a.obj', '--classes', 'tv']), isNull);
     expect(
-      ConvertOptions.parse(<String>[
+      () => ConvertSettings.parse(<String>['a.obj', '--classes', 'tv']),
+      throwsA(isA<ConvertUsageException>()),
+    );
+    expect(
+      ConvertSettings.parse(<String>[
         'a.obj',
         '--classes',
         'web,phone',
-      ])!.classes,
+      ]).classes,
       <DeviceClass>[DeviceClass.web, DeviceClass.phone],
     );
   }, timeout: _slow);

@@ -57,6 +57,7 @@ final class LodGroup extends SceneNode {
     required List<LodLevel> levels,
     this.hysteresis = defaultHysteresis,
     this.pixelError = defaultPixelError,
+    this.crossFade = defaultCrossFade,
     super.name,
   }) : _levels = List<LodLevel>.of(levels)
          ..sort((a, b) => b.maxScreenFraction.compareTo(a.maxScreenFraction)) {
@@ -76,6 +77,14 @@ final class LodGroup extends SceneNode {
         'hysteresis',
         'must be zero or positive: a negative band would switch finer before '
             'the threshold it is meant to widen',
+      );
+    }
+    if (!(crossFade >= 0.0)) {
+      throw ArgumentError.value(
+        crossFade,
+        'crossFade',
+        'must be zero or positive: it is a share of each threshold, and zero '
+            'is the hard switch',
       );
     }
     for (final level in _levels) {
@@ -104,9 +113,10 @@ final class LodGroup extends SceneNode {
   /// Materials run finest first, matching [levels].
   factory LodGroup.forMaterials({
     required MeshGeometry mesh,
-    required List<Material> materials,
+    required List<RenderMaterial> materials,
     required List<double> maxScreenFractions,
     double hysteresis = defaultHysteresis,
+    double crossFade = defaultCrossFade,
     String? name,
   }) {
     if (materials.length != maxScreenFractions.length) {
@@ -119,6 +129,7 @@ final class LodGroup extends SceneNode {
     return LodGroup(
       name: name,
       hysteresis: hysteresis,
+      crossFade: crossFade,
       levels: <LodLevel>[
         for (var i = 0; i < materials.length; i++)
           LodLevel(
@@ -132,6 +143,7 @@ final class LodGroup extends SceneNode {
   }
 
   /// The band given by default: a tenth of each threshold.
+  /// A 0..1 fraction of each threshold.
   static const double defaultHysteresis = 0.1;
 
   /// How far past a threshold, as a fraction of it, the object has to grow
@@ -160,6 +172,33 @@ final class LodGroup extends SceneNode {
   /// file hold for every viewport size, which a screen fraction does not —
   /// a tenth of a phone and a tenth of a monitor are different pixels.
   final double pixelError;
+
+  /// The band given by default: a tenth of each threshold.
+  /// A 0..1 fraction of each threshold.
+  static const double defaultCrossFade = 0.1;
+
+  /// How far past a coarser level's threshold, as a share of it, that level
+  /// starts to be drawn beside the finer one — `A1.3`. Zero is the hard
+  /// switch every release before 1.0 drew, and the old picture.
+  ///
+  /// **A pop is the one thing a level of detail must not do**, and a hard
+  /// switch is a pop by construction: one frame the finer mesh, the next the
+  /// coarser, and a silhouette that jumps by however many pixels the two
+  /// disagree. Over the band the two are drawn together instead, the coarser
+  /// taking more of the object the nearer it is to fitting: an opaque pair
+  /// splits the pixels between them through one pattern
+  /// ([MeshNode.lodFade]), a transparent pair splits the opacity. At the
+  /// threshold itself the coarser level is whole, so the declared numbers
+  /// keep their meaning.
+  ///
+  /// **The band follows the measure, not the clock**, so a still camera
+  /// shows a still picture and a replay or a golden draws the same frame
+  /// every time. [hysteresis] then has nothing left to do for the picture:
+  /// a measure that jitters across a threshold moves the split by as much as
+  /// it jittered, and nothing pops. It still decides [activeLevel], which a
+  /// game reads to decide something else by the same distance — so during a
+  /// fade the level drawn most is not always the active one.
+  final double crossFade;
 
   final List<LodLevel> _levels;
   int _active = -1;
@@ -243,8 +282,64 @@ final class LodGroup extends SceneNode {
       if (!fits) break;
       chosen = i;
     }
-    _apply(chosen);
+    if (crossFade <= 0.0) {
+      _apply(chosen);
+      return chosen;
+    }
+
+    // `A1.3`: the picture by the measure alone. The coarsest level that fits
+    // its own threshold unwidened is drawn, and the next coarser one beside
+    // it once the object is within [crossFade] of that one's threshold — a
+    // share rising from nought at the band's far edge to the whole object at
+    // the threshold, where it fits and the next frame draws it alone.
+    var base = 0;
+    double? next;
+    for (var i = 0; i < _levels.length; i++) {
+      final ratio = _ratio(_levels[i], fraction, pixelsPerOwnUnit);
+      if (ratio > 1.0) {
+        // The first level that does not fit is the one after [base]; with
+        // none fitting at all the finest is drawn whole.
+        if (i > 0) next = ratio;
+        break;
+      }
+      base = i;
+    }
+    final share = next == null || base + 1 >= _levels.length
+        ? 0.0
+        : ((1.0 + crossFade - next) / crossFade).clamp(0.0, 1.0);
+    _active = chosen;
+    for (var i = 0; i < _levels.length; i++) {
+      final node = _levels[i].node;
+      if (i == base) {
+        node
+          ..isVisible = share < 1.0
+          ..lodFade = share > 0.0 ? 1.0 - share : 1.0;
+      } else if (i == base + 1 && share > 0.0) {
+        node
+          ..isVisible = true
+          ..lodFade = share < 1.0 ? -share : 1.0;
+      } else {
+        node
+          ..isVisible = false
+          ..lodFade = 1.0;
+      }
+    }
     return chosen;
+  }
+
+  /// How far [level] is from fitting, as a share of its own threshold: one
+  /// or below fits, above is too coarse for the object at this size.
+  double _ratio(LodLevel level, double fraction, double? pixelsPerOwnUnit) {
+    final error = level.error;
+    if (error != null && pixelsPerOwnUnit != null) {
+      if (error == 0.0) return 0.0;
+      return pixelError > 0.0
+          ? error * pixelsPerOwnUnit / pixelError
+          : double.infinity;
+    }
+    return level.maxScreenFraction > 0.0
+        ? fraction / level.maxScreenFraction
+        : double.infinity;
   }
 
   /// How much of the viewport's height this object's bounding sphere covers.
@@ -273,18 +368,18 @@ final class LodGroup extends SceneNode {
     // fallback stays for a projection that answers null and is not the
     // orthographic case handled above, which is a projection this engine does
     // not ship.
-    final fov =
+    final fovY =
         verticalFieldOfView ?? projection.verticalFieldOfView ?? math.pi / 4;
 
     final eye = camera.readWorldPosition();
-    final distance = (node.worldBoundsCentre - eye).length;
+    final distance = (node.worldBoundsCenter - eye).length;
     // Inside the sphere the object fills the frame, and the formula below would
     // divide by a distance smaller than the radius and blow up.
     if (distance <= radius) return 1.0;
 
     // The half-height of the view volume at the object's distance; the sphere's
     // diameter over that is the fraction of the frame it covers.
-    final halfHeight = math.tan(fov * 0.5) * distance;
+    final halfHeight = math.tan(fovY * 0.5) * distance;
     if (halfHeight <= 0.0) return 1.0;
     return math.min(1.0, radius / halfHeight);
   }
@@ -310,20 +405,22 @@ final class LodGroup extends SceneNode {
       return height <= 0.0 ? double.infinity : viewportHeight / height;
     }
 
-    final fov =
+    final fovY =
         verticalFieldOfView ?? projection.verticalFieldOfView ?? math.pi / 4;
     final node = _levels.first.node;
     final distance =
-        (node.worldBoundsCentre - camera.readWorldPosition()).length -
+        (node.worldBoundsCenter - camera.readWorldPosition()).length -
         node.worldBoundsRadius;
-    final viewHeight = 2.0 * math.tan(fov * 0.5) * distance;
+    final viewHeight = 2.0 * math.tan(fovY * 0.5) * distance;
     return viewHeight <= 0.0 ? double.infinity : viewportHeight / viewHeight;
   }
 
   void _apply(int index) {
     if (index == _active) return;
     for (var i = 0; i < _levels.length; i++) {
-      _levels[i].node.visible = i == index;
+      _levels[i].node
+        ..isVisible = i == index
+        ..lodFade = 1.0;
     }
     _active = index;
   }

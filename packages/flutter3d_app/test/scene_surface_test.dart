@@ -11,7 +11,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -148,5 +148,44 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('and hands over what the frame was, the frame it shows', (
+    WidgetTester tester,
+  ) async {
+    // The editor's render-graph view reads this; it used to be dropped.
+    //
+    // Mutation: delete the `onFrame?.call(frame)` line. Nothing is handed
+    // over and the list stays empty.
+    final it = _stage();
+    final frames = <FrameResult>[];
+    final shown = <TextureHandle>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SceneSurface(
+          renderer: it.renderer,
+          scene: it.scene,
+          view: it.view,
+          onBeforeFrame: () {},
+          settings: () => const RenderSettings(),
+          onFrame: (FrameInfo frame) => frames.add(frame.result!),
+          presentFrame:
+              (
+                GraphicsDevice device,
+                TextureHandle frame, {
+                BoxFit fit = BoxFit.fill,
+                FilterQuality quality = FilterQuality.none,
+              }) {
+                shown.add(frame);
+                return const SizedBox.shrink();
+              },
+        ),
+      ),
+    );
+
+    expect(frames, hasLength(1));
+    expect(frames.single.frame, same(shown.single));
+    expect(frames.single.passes, isNotEmpty);
   });
 }

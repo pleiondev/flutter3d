@@ -18,6 +18,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/src/cpu_shaders_builtin.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -38,7 +39,7 @@ BoundTexture _map(double Function(double x, double y) depth) {
       texture.pixels[(j * _tile + i) * 4] = depth(x, y);
     }
   }
-  return BoundTexture(texture, SamplerOptions.nearestClamp);
+  return BoundTexture(texture, SamplerDescriptor.nearestClamp);
 }
 
 /// The light that survives at [world] with [normal], against [map], with a

@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'bridged3d.dart';
 import 'object3d_component.dart' show shownInFlame;
@@ -59,11 +60,13 @@ class Node3dComponent extends Component
   /// How it is scaled, along each of its own axes.
   final Vector3 scale3;
 
+  /// How opaque it is, a 0..1 fraction multiplied into its tint's alpha:
+  /// what Flame's `OpacityEffect` moves.
   @override
   double opacity = 1.0;
 
   @override
-  final Vector4 tint = Vector4.all(1.0);
+  LinearColor tint = LinearColor.white;
 
   final Vector3 _writtenPosition = Vector3.all(double.nan);
   final Quaternion _writtenRotation = Quaternion(
@@ -129,12 +132,12 @@ class Node3dComponent extends Component
     }
     final shown = shownInFlame(this);
     if (_visibleWritten != shown) {
-      node.visible = shown;
+      node.isVisible = shown;
       _visibleWritten = shown;
     }
-    final alpha = tint.w * opacity;
+    final alpha = tint.a * opacity;
     final plain =
-        tint.x == 1.0 && tint.y == 1.0 && tint.z == 1.0 && alpha == 1.0;
+        tint.r == 1.0 && tint.g == 1.0 && tint.b == 1.0 && alpha == 1.0;
     if (plain && !_tintWritten) return;
     _tintWritten = !plain;
     _paint(node, alpha);
@@ -142,7 +145,7 @@ class Node3dComponent extends Component
 
   /// Its own meshes; a [Node3dComponent] under it paints its own.
   void _paint(SceneNode at, double alpha) {
-    if (at is MeshNode) at.tint.setValues(tint.x, tint.y, tint.z, alpha);
+    if (at is MeshNode) at.tint = tint.withAlpha(alpha);
     for (final child in at.children) {
       if (_isOwnNode(child)) continue;
       _paint(child, alpha);
@@ -216,7 +219,11 @@ class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
   @override
   void apply(double progress) {
     final dProgress = progress - previousProgress;
-    _step.setAxisAngle(axis, angle * dProgress);
+    // `setAxisAngle` would ask `dart:math` for the half angle's sine and
+    // cosine, and the turn it adds up is the component's own, which a game
+    // may step on; `axis` is already unit.
+    final (:sin, :cos) = Portable.sinCos(angle * dProgress * 0.5);
+    _step.setValues(axis.x * sin, axis.y * sin, axis.z * sin, cos);
     target.rotation3.setFrom(target.rotation3 * _step);
   }
 }

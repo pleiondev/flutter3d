@@ -74,7 +74,7 @@ SnapshotCamera snapshotCameraFor(ModelProject project) {
       ..transform(worldTransformOf(project, object.id));
     box = box == null ? world : (box..hull(world));
   }
-  final Vector3 centre = box?.center ?? Vector3.zero();
+  final Vector3 center = box?.center ?? Vector3.zero();
   final double radius = box == null
       ? 1.0
       : math.max(box.min.distanceTo(box.max) / 2, 1e-5);
@@ -90,10 +90,10 @@ SnapshotCamera snapshotCameraFor(ModelProject project) {
     math.cos(yaw) * math.cos(pitch),
   )..scale(distance);
   return SnapshotCamera(
-    position: centre + offset,
-    target: centre,
+    position: center + offset,
+    target: center,
     projection: PerspectiveProjection(
-      fovYRadians: fovY,
+      fovY: fovY,
       near: math.max(distance * 0.01, 1e-6),
       far: distance * 10.0 + 10.0,
     ),

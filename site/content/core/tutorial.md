@@ -29,9 +29,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d: ^0.8.0
-  flutter3d_impeller: ^0.8.0
-  flutter3d_particles: ^0.8.0
+  flutter3d: ^1.0.0-rc.1
+  flutter3d_impeller: ^1.0.0-rc.1
+  flutter3d_particles: ^1.0.0-rc.1
 
   vector_math: ^2.2.0
 
@@ -115,7 +115,7 @@ class _SceneScreenState extends State<SceneScreen>
   Future<void> _openGraphics() async {
     final GpuRenderBackend device;
     try {
-      device = await GpuRenderBackend.create();
+      device = await GpuRenderBackend.open();
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -245,23 +245,23 @@ void _buildScene(GraphicsDevice device) {
     name: 'ball',
   )..setPosition(0.0, 1.0, 0.0);
 
-  // Key light: the one that casts shadows.
-  final sun = LightNode(type: LightType.directional, intensity: 3.2)
+  // Key light: the one that casts shadows. Lux, a hazy sun.
+  final sun = LightNode(type: LightType.directional, intensity: 18500.0)
     ..castsShadow = true
     ..setLocalForward(Vector3(-0.4, -1.0, -0.3));
 
-  // Fill, and a spot for shape.
+  // Fill, and a spot for shape. Candela, for a camera exposed for daylight.
   final fill = LightNode(
     type: LightType.point,
     color: Vector3(0.4, 0.6, 1.0),
-    intensity: 8.0,
+    intensity: 46300.0,
     range: 14.0,
   )..setPosition(-5.0, 3.0, 4.0);
 
   final spot = LightNode(
     type: LightType.spot,
     color: Vector3(1.0, 0.86, 0.7),
-    intensity: 18.0,
+    intensity: 104000.0,
     range: 20.0,
     innerConeAngle: 0.25,
     outerConeAngle: 0.5,
@@ -280,11 +280,11 @@ Up to **eight** lights of any type. They are packed into `vec4[8]` uniform array
 
 ```dart
 final CameraNode _camera = CameraNode(
-  projection: const PerspectiveProjection(fovYRadians: 1.05, near: 0.1, far: 200.0),
+  projection: const PerspectiveProjection(fovY: 1.05, near: 0.1, far: 200.0),
   name: 'main',
 );
 late final RenderView _view = RenderView(camera: _camera)
-  ..clearColor = Vector4(0.05, 0.07, 0.10, 1.0);
+  ..clearColorSrgb = Vector4(0.05, 0.07, 0.10, 1.0);
 
 late final OrbitController _orbit = OrbitController(_camera, distance: 8.0);
 ```
@@ -440,7 +440,7 @@ void _pick(Offset local, Size size) {
 final ParticleSystem _particles = ParticleSystem(capacity: 2000);
 
 // once, after the renderer exists
-_renderer?.addContributor(ParticleContributor(_particles));
+_renderer?.renderSteps.addContributor(ParticleContributor(_particles));
 
 // once a frame
 _particles.advance(dt);
@@ -457,7 +457,7 @@ Turn on the debug overlay while you are still finding out where things are. All 
 
 ```dart
 _settings = _settings.copyWith(
-  debug: const DebugDrawOptions(
+  debug: const DebugDrawSettings(
     bounds: true,
     normals: false,
     lightGizmos: true,

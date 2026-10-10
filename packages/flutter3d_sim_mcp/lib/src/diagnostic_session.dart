@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_mcp_kit/flutter3d_mcp_kit.dart' show PictureAnswer;
+import 'package:flutter3d_mcp/kit.dart' show PictureAnswer, ProjectRoot;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -37,6 +37,13 @@ String describePass(DiagnosticView view) => switch (view) {
 /// redrawing one of their own, so three calls describing "the same picture"
 /// are guaranteed to mean it.
 final class DiagnosticSession {
+  DiagnosticSession({ProjectRoot? root})
+    : root = root ?? ProjectRoot.around(null);
+
+  /// The directory the level [open] reads, and every file it names, must
+  /// lie inside; the working directory when not given.
+  final ProjectRoot root;
+
   DiagnosticRenderer? _renderer;
   DiagnosticFrame? _last;
 
@@ -48,12 +55,21 @@ final class DiagnosticSession {
       // check for it — the same trade a purely genre-agnostic tool makes
       // everywhere else in this session.
       final renderer = await DiagnosticRenderer.open(
-        path,
+        root.resolve(path),
         registry: EntityRegistry(const <EntityKind>[]),
+        root: root,
       );
       _renderer = renderer;
       _last = null;
-      return _ok('opened "$path" for diagnosis.');
+      // What the loader let go of is said: a texture refused or missing
+      // draws a flat wall, which looks the same as one meant to be flat.
+      final said = <String>[for (final issue in renderer.issues) '$issue'];
+      return _ok(
+        said.isEmpty
+            ? 'opened "$path" for diagnosis.'
+            : 'opened "$path" for diagnosis, with ${said.length} '
+                  '${said.length == 1 ? 'issue' : 'issues'}:\n${said.join('\n')}',
+      );
     } catch (error) {
       return _refuse('could not open "$path": $error');
     }

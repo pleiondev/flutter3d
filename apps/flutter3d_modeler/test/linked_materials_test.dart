@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart'
     show MaterialDocument, SurfaceMaterial, writeFmat;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/files/linked_materials.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,11 +32,11 @@ ModelProject _linkedTo(List<String?> paths) => const ModelProject().copyWith(
 );
 
 /// A `.fmat` naming a base colour, as bytes.
-Uint8List _fmat(Vector4 colour) => Uint8List.fromList(
+Uint8List _fmat(Vector4 color) => Uint8List.fromList(
   utf8.encode(
     writeFmat(
       MaterialDocument(
-        surface: SurfaceMaterial(name: 'oak', baseColor: colour),
+        surface: SurfaceMaterial(name: 'oak', baseColor: _fromSrgb(color)),
       ),
     ),
   ),
@@ -155,7 +156,7 @@ void main() {
       final ModelHistory history = ModelHistory(project);
       expect(history.run(relinks.single), isNull);
       expect(
-        history.project.materials.single.surface.baseColor.x,
+        history.project.materials.single.surface.baseColor.toSrgb().r,
         // `Vector4` holds 32-bit floats, and a `.fmat` is written and read
         // as text: 0.9 comes back as the nearest float to it.
         closeTo(0.9, 1e-6),
@@ -220,3 +221,6 @@ void main() {
     expect(fake.opened, <String>['oak.fmat']);
   });
 }
+
+/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
+LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

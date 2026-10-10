@@ -1,3 +1,65 @@
+## 1.0.0-rc.1
+
+- **Breaking: `renderFrame(clearColor:)` is `clearColorSrgb:`**, the same
+  sRGB `Vector4`, named as `RenderView.clearColorSrgb` is.
+- **Breaking: a replay steps the run through the engine's loop.**
+  `ReplaySubject` lost `restore`, `step` and `save`, and has `loop` (an
+  `EngineLoop` built on `ReplayStart.input`, the genre installed and its run
+  set) and `genre` (the `GenrePlugin` whose run the tape recorded) in their
+  place. `expectReplayMatches` restores the tape's start as the genre's part
+  of the loop's snapshots (`loop.rewindTo(0, state: genre.loopStateOf(start))`),
+  plays the tape as the loop's playback one `runSteps(1)` at a time, and
+  digests the genre's part of `loop.capture()` at each checkpoint — the one
+  path a rollback takes, rather than a second copy of the game's step written
+  for the test. A tape's start and checkpoints are still the run's own
+  snapshot, so every recorded tape keeps passing. A subject whose loop reads
+  another `InputState`, or lacks the genre, is refused before a step.
+
+- **Breaking: a boolean reads as a question, and no `bool` is positional.**
+  `PacingReport.even` is `isEven`. `dart fix` carries the renames.
+- **Breaking: `PacingReport` and `replayPacing` speak seconds**
+  (docs/CONTRACTS.md): `millis` and `limitMillis` are `seconds` and `limit`
+  (0.05 by default), and `p50`, `p99` and `max` are seconds. `toJson` still
+  writes milliseconds, under the keys it always had.
+- **1.0.0 is a promise: strict semver from there.** This release candidate
+  already keeps it. A patch fixes bugs and
+  breaks nothing, a minor adds, and a break waits for a major. The whole
+  public API is stable, with no experimental exceptions, and is held to the
+  snapshot in `api/`. A deprecated name stays until the next major and for
+  at least six months, and says what replaces it.
+  [CONTRIBUTING.md](https://github.com/pleiondev/flutter3d/blob/main/CONTRIBUTING.md#the-api-is-a-snapshot)
+  has the rules, and
+  [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md)
+  says which releases get fixes and on which platforms.
+
+- **`MaterialProgramStage` moved to `flutter3d_app`**, which a game can
+  depend on; this package carries `flutter_test`.
+
+* **`testReplay` turns a recorded run into a test that needs no GPU.**
+  `testReplay('test/tapes/level.f3drun', start: …, digestAt: …, goldensAt: …)`
+  registers a test that plays the tape into the game on the software
+  backend. At each step in `digestAt` (every checkpoint the tape holds, by
+  default) the digest of the game's snapshot must equal the recorded one; a
+  divergence names its step and the last checkpoint that agreed. At each
+  step in `goldensAt` the frame is compared with
+  `test/goldens/<tape>-<step>.png`. The game implements `ReplaySubject`
+  (`levelHash`, `restore`, `step`, `save`, `frame`) and gets a `ReplayStart`
+  with the tape, the input to read and the device to upload to. A step past
+  the end of the tape, a digest where the tape has no checkpoint, a test
+  that checks nothing and a level changed since the recording all fail
+  before the first step. `expectReplayMatches` does the same for a `Demo`
+  in memory, and `readTape` reads a `.f3drun` or says why it cannot.
+
+- **Breaking: `FramePacing` is `PacingReport`.** `flutter3d_core` has a
+  `FramePacing` of its own, the renderer's pacing policy, and a file that
+  imported both met two types of one name. `dart fix` renames it.
+
+- **Breaking: `ReplaySubject` is an `abstract base class`**, extended
+  rather than implemented, so a member added in a minor release can arrive
+  with a body. `levelHash` is null by default.
+
+Its `flutter3d_*` dependencies ask for `^1.0.0`.
+
 ## 0.8.0
 
 * **Two pictures can be compared the way an eye would.** `flip` takes two

@@ -118,7 +118,7 @@ Future<FileOpened> openBytes(
 /// [bytes] decoded as a model — `ui-16`'s own lower half of [openBytes],
 /// pulled out so an import screen can decode a file, ask a person about
 /// units/axis/cleanup, and only then call [openDocument] with the
-/// [ImportOptions] they chose, instead of always getting the defaults
+/// [ImportSettings] they chose, instead of always getting the defaults
 /// [openBytes] itself commits to.
 Future<ModelDocument> decodeBytes(Uint8List bytes, String name) => decodeModel(
   ModelLoadRequest(source: _Bytes(name, bytes), decoders: modelerDecoders),
@@ -209,7 +209,7 @@ final class _Bytes extends AssetSource {
 Future<OpenedModel> openDocument(
   ModelDocument document, {
   required GraphicsDevice device,
-  ImportOptions options = const ImportOptions(),
+  ImportSettings options = const ImportSettings(),
 }) =>
     openProject(fromModelDocument(document, options: options), device: device);
 

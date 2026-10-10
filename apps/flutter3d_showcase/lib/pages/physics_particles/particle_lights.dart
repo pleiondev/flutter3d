@@ -5,10 +5,11 @@
 /// Quoted by `particle_lights.md` and shown whole in the Source tab.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_showcase/src/demo/demo.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Mixing in [LightEmitter] is the whole of what it takes to become a source
 /// the particle system will measure. It carries no fields of its own.
@@ -37,7 +38,10 @@ final class ParticleLightsDemo extends ShowcaseDemo {
     // #region emit
     final ParticleEffect flame = ParticleEffect(
       count: 1,
-      emitter: const ConeEmitter(speed: Range(0.8, 1.6), halfAngleDegrees: 12),
+      emitter: const ConeEmitter(
+        speed: Range(0.8, 1.6),
+        halfAngle: 12.0 * math.pi / 180.0,
+      ),
       lifetime: const Range(0.4, 0.7),
       size: const Range(0.08, 0.14),
       color: Vector4(1.0, 0.6, 0.2, 1.0),
@@ -52,10 +56,16 @@ final class ParticleLightsDemo extends ShowcaseDemo {
     );
     // #endregion emit
 
-    context.renderer.addContributor(ParticleContributor(_particles));
+    context.renderer.renderSteps.addContributor(
+      ParticleContributor(_particles),
+    );
 
     // #region light
-    _glow = LightNode(name: 'glow', type: LightType.point, intensity: 0.0);
+    _glow = LightNode(
+      name: 'glow',
+      type: LightType.point,
+      intensity: 0.0 * Photometric.legacyUnit,
+    );
     // #endregion light
 
     return Scene()..add(_glow);
@@ -69,9 +79,9 @@ final class ParticleLightsDemo extends ShowcaseDemo {
 
     // #region follow
     final ParticleGlow glow = _torch.glow;
-    if (glow.located) {
-      _glow.setPositionFrom(glow.centre);
-      _glow.intensity = glow.power * 0.6;
+    if (glow.isLocated) {
+      _glow.setPositionFrom(glow.center);
+      _glow.intensity = glow.power * 0.6 * Photometric.legacyUnit;
     }
     // #endregion follow
   }

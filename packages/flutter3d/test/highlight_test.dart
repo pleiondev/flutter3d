@@ -16,7 +16,6 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 120;
@@ -57,9 +56,9 @@ void main() {
         device,
         CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'box',
-        baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+        baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
         lighting: LightingModel.unlit,
       ),
       name: 'box',
@@ -67,11 +66,7 @@ void main() {
     scene.add(box);
 
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 50.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 50.0),
     );
     camera.lookAt(Vector3(0.0, 0.0, -6.0));
     scene.add(camera);
@@ -81,13 +76,11 @@ void main() {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: RenderSettings(highlighted: <SceneNode>[box]),
     );
-    final pixels = (await device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final pixels = (await device.readback(result.frame)).buffer.asUint8List();
 
     // The box is white; the outline is `DebugColors.selection`, a green with
     // very little red in it.
@@ -151,7 +144,7 @@ void main() {
           device,
           CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
         ),
-        Material(name: 'far', lighting: LightingModel.unlit),
+        RenderMaterial(name: 'far', lighting: LightingModel.unlit),
         name: 'far',
       )..setPosition(0.0, 0.0, -60.0),
     );
@@ -163,9 +156,9 @@ void main() {
           device,
           CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
         ),
-        Material(
+        RenderMaterial(
           name: 'box',
-          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+          baseColor: LinearColor.fromSrgb(1.0, 1.0, 1.0, 1.0),
           lighting: LightingModel.unlit,
         ),
         name: 'box',
@@ -174,11 +167,7 @@ void main() {
     scene.add(holder);
 
     final camera = CameraNode(
-      projection: const PerspectiveProjection(
-        fovYRadians: 1.0,
-        near: 0.1,
-        far: 200.0,
-      ),
+      projection: const PerspectiveProjection(fovY: 1.0, near: 0.1, far: 200.0),
     );
     camera.lookAt(Vector3(0.0, 0.0, -6.0));
     scene.add(camera);
@@ -188,13 +177,11 @@ void main() {
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+        RenderView(camera: camera, clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0)),
       ],
       settings: RenderSettings(highlighted: <SceneNode>[holder]),
     );
-    final pixels = (await device.readPixels(
-      result.frame,
-    ))!.buffer.asUint8List();
+    final pixels = (await device.readback(result.frame)).buffer.asUint8List();
 
     final white = _boundsOf(pixels, (r, g, b) => r > 200 && g > 200 && b > 200);
     final green = _boundsOf(pixels, (r, g, b) => g > 120 && r < 140 && b < 140);

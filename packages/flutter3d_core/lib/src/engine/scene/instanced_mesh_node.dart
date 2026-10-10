@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -21,7 +22,10 @@ import 'mesh_node.dart';
 /// A transform **in the node's space** and a colour that multiplies the
 /// vertex colour. Relative to the node rather than to the world, so the
 /// batch moves with its node the way a child would, and moving a batch of a
-/// thousand costs one uniform write. Sixteen floats each: three rows of a 3x4
+/// thousand costs one uniform write. In the terms of "Space" in
+/// `docs/CONTRACTS.md` that is local space: a batch added at the scene's root
+/// with no transform of its own has it equal to scene space, and a tree
+/// planted at a `WorldPosition` there goes in at `scene.toScene(at)`. Sixteen floats each: three rows of a 3x4
 /// affine matrix — the bottom row of one is always `(0, 0, 0, 1)`, and a
 /// quarter of the buffer would be spent saying so — and an RGBA colour.
 ///
@@ -72,8 +76,12 @@ final class InstancedMeshNode extends MeshNode {
     }
   }
 
-  /// Floats one instance occupies: three rows of the transform, then RGBA.
-  static const int floatsPerInstance = 16;
+  /// Floats one instance occupies: three rows of the transform, then RGBA,
+  /// then four of the game's own — `P8`, see [setInstanceData].
+  static const int floatsPerInstance = 20;
+
+  /// Where an instance's own four floats start within its record.
+  static const int _dataOffset = 16;
 
   /// Bytes one instance occupies.
   static const int strideInBytes = floatsPerInstance * 4;
@@ -221,14 +229,38 @@ final class InstancedMeshNode extends MeshNode {
   }
 
   /// Tints instance [index]: multiplied into the vertex colour.
-  void setColor(int index, Vector4 color) {
+  void setColor(int index, LinearColor color) {
     _check(index);
     final at = index * floatsPerInstance + 12;
-    _data[at] = color.x;
-    _data[at + 1] = color.y;
-    _data[at + 2] = color.z;
-    _data[at + 3] = color.w;
+    _data[at] = color.r;
+    _data[at + 1] = color.g;
+    _data[at + 2] = color.b;
+    _data[at + 3] = color.a;
     _touched();
+  }
+
+  /// Gives instance [index] four numbers of the game's own — `P8`.
+  ///
+  /// **What a material reads as `instance`.** The instanced vertex stage
+  /// hands them to the fragment as they are, so a material written in the
+  /// language can colour, fade or animate each copy of a batch by a value
+  /// only the game knows: a health, a team, a phase. Nought until set, and
+  /// nought for every draw that is not instanced.
+  void setInstanceData(int index, Vector4 data) {
+    _check(index);
+    final at = index * floatsPerInstance + _dataOffset;
+    _data[at] = data.x;
+    _data[at + 1] = data.y;
+    _data[at + 2] = data.z;
+    _data[at + 3] = data.w;
+    _touched();
+  }
+
+  /// Reads instance [index]'s own four numbers back into [out].
+  void readInstanceData(int index, Vector4 out) {
+    _check(index);
+    final at = index * floatsPerInstance + _dataOffset;
+    out.setValues(_data[at], _data[at + 1], _data[at + 2], _data[at + 3]);
   }
 
   /// Appends an instance and returns its index.
@@ -237,7 +269,7 @@ final class InstancedMeshNode extends MeshNode {
   /// overran it has a bug, and growing quietly underneath it would hide the
   /// bug and the reallocation both. [ensureCapacity] is how a caller that
   /// means to grow says so.
-  int addInstance(Matrix4 transform, {Vector4? color}) {
+  int addInstance(Matrix4 transform, {LinearColor? color, Vector4? data}) {
     if (_count >= _capacity) {
       throw StateError(
         'InstancedMeshNode "$name" is full at $capacity instances.',
@@ -246,6 +278,7 @@ final class InstancedMeshNode extends MeshNode {
     final index = _count++;
     setTransform(index, transform);
     if (color != null) setColor(index, color);
+    if (data != null) setInstanceData(index, data);
     return index;
   }
 
@@ -265,7 +298,11 @@ final class InstancedMeshNode extends MeshNode {
   ///
   /// Grows the buffer when it is full, the way [ensureCapacity] does: a
   /// batch of things that come and go has no size to name in advance.
-  InstanceHandle acquire({Matrix4? transform, Vector4? color}) {
+  InstanceHandle acquire({
+    Matrix4? transform,
+    LinearColor color = LinearColor.white,
+    Vector4? data,
+  }) {
     ensureCapacity(_count + 1);
     final index = _count;
     final handle = InstanceHandle._(this, index);
@@ -275,7 +312,10 @@ final class InstancedMeshNode extends MeshNode {
     _holders[index] = handle;
     count = index + 1;
     setTransform(index, transform ?? Matrix4.identity());
-    setColor(index, color ?? Vector4.all(1.0));
+    setColor(index, color);
+    // A slot a released member left holds its numbers; the new one starts
+    // from nought, as a fresh batch does.
+    setInstanceData(index, data ?? Vector4.zero());
     final weights = _weights;
     if (weights != null) {
       weights.fillRange(
@@ -292,7 +332,7 @@ final class InstancedMeshNode extends MeshNode {
   /// and morph weights with it, and [count] drops by one. Releasing a
   /// handle twice, or one from another batch, is a mistake and throws.
   void release(InstanceHandle handle) {
-    if (!identical(handle._batch, this) || !handle.live) {
+    if (!identical(handle._batch, this) || !handle.isLive) {
       throw StateError('That instance is not held in "$name".');
     }
     final hole = handle._index;
@@ -509,12 +549,12 @@ final class InstanceHandle {
 
   /// Whether the slot is still this handle's: false once released, or once
   /// the batch was cleared.
-  bool get live => _index >= 0;
+  bool get isLive => _index >= 0;
 
   /// The slot's index in the batch right now; it changes when another
   /// instance is released. Read it at the moment of a write, do not keep it.
   int get index {
-    if (!live) throw StateError('A released instance has no slot.');
+    if (!isLive) throw StateError('A released instance has no slot.');
     return _index;
   }
 
@@ -522,5 +562,9 @@ final class InstanceHandle {
   void setTransform(Matrix4 transform) => _batch.setTransform(index, transform);
 
   /// Tints the instance.
-  void setColor(Vector4 color) => _batch.setColor(index, color);
+  void setColor(LinearColor color) => _batch.setColor(index, color);
+
+  /// Gives the instance four numbers of the game's own — see
+  /// [InstancedMeshNode.setInstanceData].
+  void setData(Vector4 data) => _batch.setInstanceData(index, data);
 }

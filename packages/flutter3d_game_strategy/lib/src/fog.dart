@@ -56,7 +56,10 @@ final class FogOfWar {
   final int sides;
 
   /// The corner the lattice starts at.
+  /// Both in metres of world X and Z.
   final double originX;
+
+  /// The corner's Z, in metres.
   final double originZ;
 
   /// How many cells across and down.
@@ -86,8 +89,8 @@ final class FogOfWar {
   }
 
   /// Where a cell's middle is, along X and Z.
-  double centreX(int cell) => originX + (cell % columns + 0.5) * cellSize;
-  double centreZ(int cell) => originZ + (cell ~/ columns + 0.5) * cellSize;
+  double centerX(int cell) => originX + (cell % columns + 0.5) * cellSize;
+  double centerZ(int cell) => originZ + (cell ~/ columns + 0.5) * cellSize;
 
   /// Whether [side] can see [cell] at this moment.
   bool isVisible(int side, int cell) =>
@@ -171,8 +174,8 @@ final class FogOfWar {
     final int base = side * cellCount;
     for (var cell = 0; cell < cellCount; cell++) {
       if (_state[base + cell] & _explored != 0) continue;
-      final double cellX = centreX(cell);
-      final double cellZ = centreZ(cell);
+      final double cellX = centerX(cell);
+      final double cellZ = centerZ(cell);
       final double dx = cellX - x;
       final double dz = cellZ - z;
       final double at = dx * dx + dz * dz;
@@ -185,7 +188,7 @@ final class FogOfWar {
   }
 
   /// A cell's middle as a point, for a caller that wants somewhere to walk.
-  Vector3 centreOf(int cell) => Vector3(centreX(cell), 0.0, centreZ(cell));
+  Vector3 centerOf(int cell) => Vector3(centerX(cell), 0.0, centerZ(cell));
 
   /// What every side knows, as one string, plus the shape of the lattice it
   /// was written on.

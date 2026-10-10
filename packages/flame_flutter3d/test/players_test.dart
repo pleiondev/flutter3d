@@ -9,7 +9,7 @@ import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show Bindings, InputSource, PadInput;
+    show ActionMap, Bindings, InputSource, PadInput;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pad_input/pad_input.dart';
@@ -17,9 +17,12 @@ import 'package:pad_input/pad_input.dart';
 const GameAction _up = GameAction('up');
 
 FlameInputBridge _player(LogicalKeyboardKey key) => FlameInputBridge(
-  bindings: Bindings(<InputSource, GameAction>{
-    InputSource.key(key.keyId): _up,
-  }),
+  actions: ActionMap(
+    actions: ActionSet.common,
+    buttons: Bindings(<InputSource, GameAction>{
+      InputSource.key(key.keyId): _up,
+    }),
+  ),
   inputState: InputState(),
 );
 
@@ -41,7 +44,7 @@ final class _HeldA extends GamepadPlatform {
   @override
   void read(PadSnapshot out) {
     out
-      ..connected = true
+      ..isConnected = true
       ..setDown(PadButton.faceSouth, down: true);
   }
 }

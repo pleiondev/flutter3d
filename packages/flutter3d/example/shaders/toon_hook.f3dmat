@@ -1,0 +1,28 @@
+// The example's lighting hook — `P8`: a material written in the engine's
+// material language that answers each light itself, inside the engine's
+// light loop. `tool/build_material.dart` compiles it beside `rim_glow`, and
+// the `material-light-hook` golden draws it on all four backends from this
+// one source.
+//
+// The `light` block runs once per light. What it returns is how the surface
+// answers that light; the engine multiplies it by the light's radiance, its
+// n·l and its shadow, as it does for every lit model. Here n·l is cut into
+// three bands and divided back out, so the bands are what is left — a cel
+// look. The fragment body reads `lit`, the surface lit through that block
+// with the ambient and the emissive added as the engine adds them, and puts
+// a rim on top.
+material ToonHook {
+  param float bands = 3.0;
+  uniform vec3 paint = vec3(0.25, 0.45, 0.85);
+  uniform vec3 rimColor = vec3(1.0, 0.85, 0.6);
+
+  light {
+    let banded = floor(nDotL * bands + 0.5) / bands;
+    return albedo * paint * banded / max(nDotL, 0.001);
+  }
+
+  fragment {
+    let rim = pow(1.0 - clamp(nDotV, 0.0, 1.0), 4.0);
+    return vec4(lit + rimColor * rim * 0.5, 1.0);
+  }
+}

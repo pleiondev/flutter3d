@@ -97,6 +97,52 @@ String titleFromFileName(String fileName) {
 
 typedef _Result = ({SourceFormat? format, int triangles, String? refusal});
 
+/// [inspectUpload]'s reading, on the calling isolate and with no deadline of
+/// its own — for a caller that already runs in an isolate it can kill, such
+/// as a conversion deciding whether the file it was sent can be kept as it
+/// is.
+Future<Inspection> inspectInPlace(Uint8List bytes, String fileName) async {
+  if (bytes.isEmpty) return Rejected('$fileName is empty.');
+  return switch (await _inspect(bytes, fileName)) {
+    (format: final format?, triangles: final triangles, refusal: null) =>
+      Accepted(format, triangles),
+    (refusal: final refusal?, format: _, triangles: _) => Rejected(refusal),
+    _ => Rejected('$fileName could not be read.'),
+  };
+}
+
+/// A model the service stored, read back as a document by the same decoders
+/// that accepted it — so a format it was kept in is a format it can be
+/// written out of. A modeller project is flattened the way the modeller's own
+/// export flattens it (`toModelDocument`).
+///
+/// Throws [StateError] with a sentence for a person when the bytes no longer
+/// read. Runs on the calling isolate; `exporter.dart` calls it from one it
+/// kills at its deadline.
+Future<ModelDocument> decodeStoredModel(Uint8List bytes, String name) async {
+  if (isProjectFile(bytes)) {
+    return switch (readProject(bytes)) {
+      ProjectOpened(:final project) when project.objects.isEmpty =>
+        throw StateError('there is nothing in this project to write out.'),
+      ProjectOpened(:final project) => toModelDocument(project),
+      ProjectRefused(:final because) => throw StateError(because),
+    };
+  }
+  final format = _sniff(bytes);
+  return decodeModelBytes(
+    ModelLoadRequest(
+      source: _Upload(name, bytes),
+      format: switch (format) {
+        SourceFormat.glb || SourceFormat.gltf => ModelFormat.gltf,
+        SourceFormat.obj => ModelFormat.obj,
+        SourceFormat.f3d || SourceFormat.project => ModelFormat.f3d,
+      },
+    ),
+    bytes,
+    _embeddedOnly,
+  );
+}
+
 Future<_Result> _inspect(Uint8List bytes, String name) async {
   if (isProjectFile(bytes)) {
     return switch (readProject(bytes)) {
@@ -115,21 +161,10 @@ Future<_Result> _inspect(Uint8List bytes, String name) async {
 
   final format = _sniff(bytes);
   try {
-    final document = await decodeModelBytes(
-      ModelLoadRequest(
-        source: _Upload(name, bytes),
-        // Named from the bytes rather than left to the suffix, so that a GLB
-        // renamed to `.obj` is read as what it is instead of failing as what
-        // its name claims.
-        format: switch (format) {
-          SourceFormat.glb || SourceFormat.gltf => ModelFormat.gltf,
-          SourceFormat.obj => ModelFormat.obj,
-          SourceFormat.f3d || SourceFormat.project => ModelFormat.f3d,
-        },
-      ),
-      bytes,
-      _embeddedOnly,
-    );
+    // The format is named from the bytes rather than left to the suffix
+    // (`decodeStoredModel` does that), so that a GLB renamed to `.obj` is
+    // read as what it is instead of failing as what its name claims.
+    final document = await decodeStoredModel(bytes, name);
     // The OBJ reader accepts any text and answers with an empty document, so a
     // photograph renamed to `.obj` decodes without complaint. Empty is a
     // refusal here for the same reason the modeller refuses to open it.

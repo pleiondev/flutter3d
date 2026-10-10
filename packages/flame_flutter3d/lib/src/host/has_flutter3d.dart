@@ -1,7 +1,7 @@
 import 'package:flame/components.dart' show World;
 import 'package:flame/game.dart';
 import 'package:flutter/painting.dart' show Color;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
 
 import '../debug/hitboxes3d.dart';
 import '../transform/projector.dart';
@@ -73,9 +73,13 @@ mixin HasFlutter3d<W extends World> on FlameGame<W> {
   /// its projector.
   final List<RenderView> moreViews3d = <RenderView>[];
 
-  /// Behind everything the 3D layer draws. The same vector every frame, so
-  /// changing its components changes the sky on the next one.
-  final Vector4 clearColor = Vector4(0.05, 0.05, 0.07, 1.0);
+  /// Behind everything the 3D layer draws, in linear light: read before
+  /// every frame and encoded to sRGB for the view there, so assigning a new
+  /// one changes the sky on the next frame.
+  ///
+  /// A colour picked on screen or written as a hex code is sRGB:
+  /// `clearColor = LinearColor.fromSrgb(0.55, 0.75, 0.95)`.
+  LinearColor clearColor = LinearColor.fromSrgb(0.05, 0.05, 0.07);
 
   /// The fog the 3D layer is drawn through: what an `AtmosphereComponent`
   /// in the game writes as its day turns. The rest of the air, the sky and

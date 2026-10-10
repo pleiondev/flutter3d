@@ -1,7 +1,7 @@
 # cloud/lti
 
 `edu-03` (`doc/edu-03-lti-plan.md`): LTI 1.3 launch and grade/xAPI
-passback, on top of the `packages/flutter3d_lti` client library
+passback, on top of the LTI client library in `packages/flutter3d_education` (`lti.dart`)
 (`lti-00` to `lti-02`, closed). It is its own service on its own subdomain,
 for the same reasons `cloud/lessons/README.md` gives for sitting apart from
 `cloud/server`. The audience is different: an LMS launching this tool with a
@@ -70,7 +70,7 @@ cd cloud/lti/server && dart test
 ```
 
 `test/support/fake_platform.dart` generates a real RSA key pair and signs
-real `id_token`s. That is the same check `flutter3d_lti`'s own tests make,
+real `id_token`s. That is the same check `flutter3d_education/lti.dart`'s own tests make,
 applied here to this service's routes instead of the library underneath them.
 
 ### What was actually run against the sandbox above (2026-09-15)
@@ -79,7 +79,7 @@ No browser was available in this session to click through Moodle's admin UI
 and register the tool for real, so the full loop (course link → `/login` →
 platform login → `/launch` → lesson) is not proven end to end; see
 `doc/edu-03-lti-plan.md` §7. Two things are proven. The real sandbox's
-`/mod/lti/certs.php` JWKS parses through `flutter3d_lti`'s own JWK code
+`/mod/lti/certs.php` JWKS parses through `flutter3d_education/lti.dart`'s own JWK code
 unmodified. And a real `cloud/lti/server` process's `/login` reached the real
 sandbox's `/mod/lti/auth.php` and got back an HTTP 200, not a connection
 failure.
@@ -92,7 +92,7 @@ cloud/lti/tool/deploy.sh
 
 The script builds the executable in a `linux/amd64` Dart container, builds the
 viewer, rsyncs both to `bob:/opt/flutter3d-lti` and restarts the unit. The
-container gets `packages/flutter3d_lti` copied in alongside `cloud/lti/server`,
+container gets `packages/flutter3d_education` (and the plain Dart packages its overrides name) copied in alongside `cloud/lti/server`,
 because this service depends on it by path; `cloud/lessons` depends on no
 engine package and does not need that.
 

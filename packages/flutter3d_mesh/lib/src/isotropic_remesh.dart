@@ -41,9 +41,17 @@ final class MeshQualityStats {
 
   final int edgeCount;
   final int triangleCount;
+
+  /// In metres.
   final double meanEdgeLength;
+
+  /// In metres.
   final double edgeLengthStdDev;
+
+  /// The mean [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
   final double meanAspectRatio;
+
+  /// The largest [triangleAspectRatio]: a unitless ratio, 1 for equilateral.
   final double maxAspectRatio;
 
   /// Standard deviation over the mean — scale-free, so a sphere of radius one
@@ -131,6 +139,8 @@ final class RemeshReport {
   });
 
   final int iterations;
+
+  /// In metres.
   final double targetEdgeLength;
   final int edgeSplits;
   final int edgeCollapses;
@@ -234,6 +244,8 @@ final class RemeshReport {
   EditMesh mesh, {
   required double targetEdgeLength,
   int iterations = 5,
+
+  /// The 0..1 fraction of the way each smoothing step moves a vertex.
   double tangentialLambda = 1.0,
 }) {
   if (targetEdgeLength <= 0) {

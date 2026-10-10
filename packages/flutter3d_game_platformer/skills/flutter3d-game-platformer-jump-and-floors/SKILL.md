@@ -12,7 +12,7 @@ sim.step(dt);          // input, jump, movement, riders, hazards, pickups, exits
 
 | | |
 |---|---|
-| `Runner`, `RunnerTuning` | coyote time, jump buffering, a second jump, a dash, dropping through a one-way floor |
+| `Runner`, `RunnerSettings` | coyote time, jump buffering, a second jump, a dash, dropping through a one-way floor |
 | `Surfaces` | ice, moss and mud as a table on the brushes |
 | `Purse`, `Collectible` | what is picked up, and the total at the end |
 | `Crate`, `Spring`, `Hazard`, `Checkpoint`, `Patrol`, `Leaper` | the furniture, each an entity kind the level format spawns |
@@ -24,7 +24,7 @@ mechanisms, movers, riders, exits, health, the ECS and the snapshot.
 
 ## Tune the jump, do not rewrite it
 
-`RunnerTuning` is where a jump's feel lives, and each of coyote time, buffering,
+`RunnerSettings` is where a jump's feel lives, and each of coyote time, buffering,
 the second jump, the dash and the one-way drop is a number with a test beside
 it. Changing the numbers is the intended way to make a different game; changing
 the order inside `Runner.step` is how forgiveness stops being reproducible.

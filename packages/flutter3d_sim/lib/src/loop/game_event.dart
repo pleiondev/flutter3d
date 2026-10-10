@@ -1,3 +1,5 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+
 /// Something a step did, told to whoever is watching.
 ///
 /// The seam a game needs and a simulation kept refusing to give it: a shot was
@@ -11,110 +13,155 @@
 /// **Open, deliberately.** A game invents events the way it invents weapons,
 /// and a closed list would mean a template deciding what can happen in a game
 /// written on top of it. Subclass this, put whatever the moment carries on the
-/// subclass, and hand it to [GameEvents.add] from your own step.
+/// subclass, declare it on the engine's bus with a codec
+/// (`EventRegistry.declare`) and publish it from your own step.
 ///
 /// **It says what happened, not what to do about it.** No sound, no particle,
 /// no screen shake — those are decisions, and they belong to the game. A
 /// simulation that named a sound file would be a simulation that could not run
 /// on a server, and running there is the whole reason this package has no
 /// Flutter in it.
+///
 /// **`base`, so this can grow.** A game may `extends` this and may not
 /// `implements` it. The difference is what happens the day a member is added
 /// here: an `extends` inherits it, an `implements` stops compiling. Adding to
 /// a type a published package invites you to subclass has to be free, and the
 /// price is one keyword on the subclass — `final class MyEvent extends
 /// GameEvent`.
-abstract base class GameEvent {
+///
+/// **On the engine's bus, and only there.** A genre's simulation publishes
+/// each event onto the bus it was handed (`publishTo`, which its
+/// `GenrePlugin` calls) from inside the step that raised it, which puts it on
+/// the step channel; a game subscribes with `onStep` or `onFrame`. Nothing is
+/// buffered on the simulation, so there is nothing to drain and nothing lost
+/// for want of draining. A simulation stepped by hand publishes onto a
+/// [DirectBus].
+///
+/// **[name] is the name it is declared under**, `<genre>.<event>`, which is
+/// how the bus finds its codec: a declared codec is what a run's event digest
+/// folds in, so two runs that differ in an event's fields differ in their
+/// digests at that step.
+abstract base class GameEvent extends BusEvent {
   const GameEvent();
 
-  /// For logs, tests and a debug overlay. Not an identity: two events of the
-  /// same name are still two events, and nothing here dispatches on it.
+  /// The name the event is declared and published under, and its identity
+  /// in a digest. Not an identity between two events: two of the same name
+  /// are still two events.
+  @override
   String get name;
+}
+
+/// The bus for a simulation stepped by hand, without an `EngineLoop`: a
+/// test, a server, a tool that plays a level blind.
+///
+/// **Each event is handed out as it is published**, to the step subscribers
+/// and then to the frame subscribers, in registration order, since nothing
+/// here opens or closes a step. So a handler runs inside the step that
+/// published the event: one that changes the world changes it mid-step, and
+/// a run that has to replay belongs in an `EngineLoop`, whose bus delivers at
+/// the step's end and digests what it delivered. Nothing is digested or
+/// reconciled here.
+///
+/// [step] is what [Delivered.step] says, for a caller that counts its own
+/// steps; [Delivered.sequence] counts the events published since [step] was
+/// last set.
+final class DirectBus extends EventRegistry {
+  DirectBus();
+
+  final List<EventDeclaration> _declared = <EventDeclaration>[];
+  final List<void Function(BusEvent event, BusChannel channel)> _step =
+      <void Function(BusEvent, BusChannel)>[];
+  final List<void Function(BusEvent event, BusChannel channel)> _frame =
+      <void Function(BusEvent, BusChannel)>[];
+
+  int _stepNumber = 0;
+  int _sequence = 0;
+
+  /// The step [Delivered.step] reports. Setting it starts the count of
+  /// [Delivered.sequence] again.
+  int get step => _stepNumber;
+  set step(int value) {
+    _stepNumber = value;
+    _sequence = 0;
+  }
 
   @override
-  String toString() => name;
-}
+  List<EventDeclaration> get declared =>
+      List<EventDeclaration>.unmodifiable(_declared);
 
-/// What a step recorded, for the frame that is about to read it.
-///
-/// **A drained buffer rather than a `Stream`, and that is not a preference.**
-/// A stream delivers asynchronously: the listener runs on a later microtask,
-/// after the step that produced the event has finished and possibly after the
-/// next one has started. Every simulation here is fixed-step, and two of them
-/// reproduce a recorded run exactly — a racing replay and an input tape. An
-/// event arriving between two steps would let a listener mutate the world in
-/// the gap, which is precisely the state no replay can reproduce, and the
-/// failure would be a race that only shows up on somebody else's machine.
-///
-/// So events are appended during the step and drained by the caller after it,
-/// in the order they happened, on the same turn of the loop.
-///
-/// **Nobody watching is the normal case.** A headless test, a server, and every
-/// one of this repository's thousands of simulation tests step without draining.
-/// So the buffer is capped: past [limit] the oldest go, because a simulation
-/// that grows a list forever is a simulation that runs out of memory on a long
-/// game rather than a short test. [dropped] says how many were lost, so a
-/// caller that cares can notice rather than wonder.
-final class GameEvents {
-  GameEvents({this.limit = 256}) : assert(limit > 0, 'a buffer of none is off');
-
-  /// How many events are kept before the oldest are dropped.
-  ///
-  /// Generous for one step of anything here — a busy shooter step is a handful
-  /// — and small enough that forgetting to drain costs nothing that matters.
-  final int limit;
-
-  final List<GameEvent> _pending = <GameEvent>[];
-
-  /// How many events were dropped, in total, because nobody drained.
-  ///
-  /// Stays at zero for a caller that drains every frame. A number here means
-  /// either a game that is not reading its events or a step that is producing
-  /// far more than expected, and both are worth knowing.
-  int dropped = 0;
-
-  /// Whether anything is waiting. Cheaper than draining to find out.
-  bool get isEmpty => _pending.isEmpty;
-
-  /// Records [event]. Called from inside a step.
-  void add(GameEvent event) {
-    if (_pending.length >= limit) {
-      _pending.removeAt(0);
-      dropped++;
+  @override
+  Registration declare<T extends BusEvent>(
+    String name, {
+    BusChannel channel = BusChannel.step,
+    String? description,
+    EventCodec<T>? codec,
+  }) {
+    for (final d in _declared) {
+      if (d.name == name) {
+        throw ArgumentError.value(
+          name,
+          'name',
+          'the event "$name" is declared by ${d.declaredBy} (${d.type}) and '
+              'again ($T); an event name is unique on one bus',
+        );
+      }
     }
-    _pending.add(event);
+    final declaration = EventDeclaration(
+      name: name,
+      type: T,
+      channel: channel,
+      declaredBy: 'app',
+      description: description,
+      codec: codec,
+    );
+    _declared.add(declaration);
+    return Registration(() => _declared.remove(declaration));
   }
 
-  /// Takes everything recorded since the last call, oldest first.
-  ///
-  /// Returns a fresh list and empties the buffer, so a caller may hold what it
-  /// took across frames without the next step writing into it.
-  List<GameEvent> drain() {
-    if (_pending.isEmpty) return const <GameEvent>[];
-    final taken = List<GameEvent>.of(_pending);
-    _pending.clear();
-    return taken;
+  @override
+  Registration onStep<T extends BusEvent>(
+    String label,
+    EventHandler<T> handler,
+  ) => _subscribe<T>(_step, handler);
+
+  @override
+  Registration onFrame<T extends BusEvent>(
+    String label,
+    EventHandler<T> handler,
+  ) => _subscribe<T>(_frame, handler);
+
+  Registration _subscribe<T extends BusEvent>(
+    List<void Function(BusEvent event, BusChannel channel)> into,
+    EventHandler<T> handler,
+  ) {
+    void deliver(BusEvent event, BusChannel channel) {
+      if (event is! T) return;
+      handler(
+        Delivered<T>(
+          event: event,
+          channel: channel,
+          step: _stepNumber,
+          sequence: _sequence,
+          resimulated: false,
+        ),
+      );
+    }
+
+    into.add(deliver);
+    return Registration(() => into.remove(deliver));
   }
 
-  /// Forgets everything pending, without reading it.
-  ///
-  /// For a game that is restarting a level: the events of the run that just
-  /// ended are not events of the run about to start, and delivering them after
-  /// the reset would fire a death sound over a fresh spawn.
-  void clear() => _pending.clear();
-}
+  @override
+  void publish(BusEvent event) {
+    for (final deliver in List.of(_step)) {
+      deliver(event, BusChannel.step);
+    }
+    for (final deliver in List.of(_frame)) {
+      deliver(event, BusChannel.frame);
+    }
+    _sequence++;
+  }
 
-/// The question every reader of a drained step asks first.
-///
-/// A frame wants "did the runner jump" and "how many coins were taken", and
-/// both are one line on the list [GameEvents.drain] hands back. Written as an
-/// extension rather than as methods on [GameEvents] because the list outlives
-/// the buffer: a caller drains once and asks several times, which is the only
-/// safe order when more than one thing is listening.
-extension StepEvents on List<GameEvent> {
-  /// Whether anything of type [T] happened.
-  bool has<T extends GameEvent>() => whereType<T>().isNotEmpty;
-
-  /// How many of type [T] happened. The count a flag could never give.
-  int count<T extends GameEvent>() => whereType<T>().length;
+  @override
+  EventRegistry forPlugin(PluginScope scope) => this;
 }

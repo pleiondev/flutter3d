@@ -89,13 +89,25 @@ int blendFactorToGl(BlendFactor factor) => switch (factor) {
   BlendFactor.blendAlpha => web.WebGLRenderingContext.CONSTANT_ALPHA,
   BlendFactor.oneMinusBlendAlpha =>
     web.WebGLRenderingContext.ONE_MINUS_CONSTANT_ALPHA,
+  // `WEBGL_blend_func_extended`, which `package:web` has no binding for: the
+  // values are the extension's own `GLenum`s, the same numbers GL ES's
+  // `EXT_blend_func_extended` gives them. Reaching here without the
+  // extension is refused earlier, in `WebGlEncoder.setBlend`.
+  BlendFactor.source1Color => 0x88F9, // SRC1_COLOR_WEBGL
+  BlendFactor.oneMinusSource1Color => 0x88FA, // ONE_MINUS_SRC1_COLOR_WEBGL
+  BlendFactor.source1Alpha => 0x8589, // SRC1_ALPHA_WEBGL
+  BlendFactor.oneMinusSource1Alpha => 0x88FB, // ONE_MINUS_SRC1_ALPHA_WEBGL
 };
 
+/// Min and max are WebGL2 core (`EXT_blend_minmax` in WebGL1), so every
+/// value has an answer here.
 int blendOperationToGl(BlendOperation op) => switch (op) {
   BlendOperation.add => web.WebGLRenderingContext.FUNC_ADD,
   BlendOperation.subtract => web.WebGLRenderingContext.FUNC_SUBTRACT,
   BlendOperation.reverseSubtract =>
     web.WebGLRenderingContext.FUNC_REVERSE_SUBTRACT,
+  BlendOperation.min => web.WebGL2RenderingContext.MIN,
+  BlendOperation.max => web.WebGL2RenderingContext.MAX,
 };
 
 int indexTypeToGl(IndexType type) => switch (type) {
@@ -124,12 +136,115 @@ int indexSizeInBytes(IndexType type) => switch (type) {
 /// nothing, and an `r8` one was refused for being a quarter of the size four
 /// bytes a texel expected.
 ///
-/// Null for the depth formats, which no caller fills from bytes and whose
-/// transfer types this backend has never been asked for, and for everything
-/// [textureFormatToGl] refuses.
+/// The depth formats answer the pairs WebGL2 accepts for them —
+/// `DEPTH_COMPONENT` with `UNSIGNED_SHORT` or `FLOAT`, and `DEPTH_STENCIL`
+/// with `UNSIGNED_INT_24_8` — so `GraphicsDevice.writeTexture` can fill one.
+/// Null for `d32FloatS8UInt`, whose only transfer type
+/// (`FLOAT_32_UNSIGNED_INT_24_8_REV`) WebGL2 accepts with no data at all,
+/// and for everything [textureFormatToGl] refuses.
 ({int format, int type, int texelBytes})? webglTransferOf(
   TextureFormat format,
 ) => switch (format) {
+  TextureFormat.r8g8b8a8SNormInt => (
+    format: web.WebGLRenderingContext.RGBA,
+    type: web.WebGLRenderingContext.BYTE,
+    texelBytes: 4,
+  ),
+  TextureFormat.r8g8b8a8UInt => (
+    format: web.WebGL2RenderingContext.RGBA_INTEGER,
+    type: web.WebGLRenderingContext.UNSIGNED_BYTE,
+    texelBytes: 4,
+  ),
+  TextureFormat.r8g8b8a8SInt => (
+    format: web.WebGL2RenderingContext.RGBA_INTEGER,
+    type: web.WebGLRenderingContext.BYTE,
+    texelBytes: 4,
+  ),
+  TextureFormat.r16Float => (
+    format: web.WebGL2RenderingContext.RED,
+    type: web.WebGL2RenderingContext.HALF_FLOAT,
+    texelBytes: 2,
+  ),
+  TextureFormat.r16g16Float => (
+    format: web.WebGL2RenderingContext.RG,
+    type: web.WebGL2RenderingContext.HALF_FLOAT,
+    texelBytes: 4,
+  ),
+  TextureFormat.r16g16b16a16UInt => (
+    format: web.WebGL2RenderingContext.RGBA_INTEGER,
+    type: web.WebGLRenderingContext.UNSIGNED_SHORT,
+    texelBytes: 8,
+  ),
+  TextureFormat.r16g16b16a16SInt => (
+    format: web.WebGL2RenderingContext.RGBA_INTEGER,
+    type: web.WebGLRenderingContext.SHORT,
+    texelBytes: 8,
+  ),
+  TextureFormat.r32UInt => (
+    format: web.WebGL2RenderingContext.RED_INTEGER,
+    type: web.WebGLRenderingContext.UNSIGNED_INT,
+    texelBytes: 4,
+  ),
+  TextureFormat.r32SInt => (
+    format: web.WebGL2RenderingContext.RED_INTEGER,
+    type: web.WebGLRenderingContext.INT,
+    texelBytes: 4,
+  ),
+  TextureFormat.r32g32Float => (
+    format: web.WebGL2RenderingContext.RG,
+    type: web.WebGLRenderingContext.FLOAT,
+    texelBytes: 8,
+  ),
+  TextureFormat.r32g32UInt => (
+    format: web.WebGL2RenderingContext.RG_INTEGER,
+    type: web.WebGLRenderingContext.UNSIGNED_INT,
+    texelBytes: 8,
+  ),
+  TextureFormat.r32g32SInt => (
+    format: web.WebGL2RenderingContext.RG_INTEGER,
+    type: web.WebGLRenderingContext.INT,
+    texelBytes: 8,
+  ),
+  TextureFormat.r32g32b32a32UInt => (
+    format: web.WebGL2RenderingContext.RGBA_INTEGER,
+    type: web.WebGLRenderingContext.UNSIGNED_INT,
+    texelBytes: 16,
+  ),
+  TextureFormat.r32g32b32a32SInt => (
+    format: web.WebGL2RenderingContext.RGBA_INTEGER,
+    type: web.WebGLRenderingContext.INT,
+    texelBytes: 16,
+  ),
+  TextureFormat.r10g10b10a2UNormInt => (
+    format: web.WebGLRenderingContext.RGBA,
+    type: web.WebGL2RenderingContext.UNSIGNED_INT_2_10_10_10_REV,
+    texelBytes: 4,
+  ),
+  TextureFormat.r11g11b10UFloat => (
+    format: web.WebGLRenderingContext.RGB,
+    type: web.WebGL2RenderingContext.UNSIGNED_INT_10F_11F_11F_REV,
+    texelBytes: 4,
+  ),
+  TextureFormat.r9g9b9e5UFloat => (
+    format: web.WebGLRenderingContext.RGB,
+    type: web.WebGL2RenderingContext.UNSIGNED_INT_5_9_9_9_REV,
+    texelBytes: 4,
+  ),
+  TextureFormat.d16UNormInt => (
+    format: web.WebGLRenderingContext.DEPTH_COMPONENT,
+    type: web.WebGLRenderingContext.UNSIGNED_SHORT,
+    texelBytes: 2,
+  ),
+  TextureFormat.d32Float => (
+    format: web.WebGLRenderingContext.DEPTH_COMPONENT,
+    type: web.WebGLRenderingContext.FLOAT,
+    texelBytes: 4,
+  ),
+  TextureFormat.d24UnormS8Uint => (
+    format: web.WebGLRenderingContext.DEPTH_STENCIL,
+    type: web.WebGL2RenderingContext.UNSIGNED_INT_24_8,
+    texelBytes: 4,
+  ),
   TextureFormat.r8UNormInt => (
     format: web.WebGL2RenderingContext.RED,
     type: web.WebGLRenderingContext.UNSIGNED_BYTE,
@@ -179,6 +294,25 @@ int textureFormatToGl(TextureFormat format) => switch (format) {
   TextureFormat.d24UnormS8Uint => web.WebGL2RenderingContext.DEPTH24_STENCIL8,
   TextureFormat.d32FloatS8UInt => web.WebGL2RenderingContext.DEPTH32F_STENCIL8,
   TextureFormat.r32Float => web.WebGL2RenderingContext.R32F,
+  TextureFormat.r8g8b8a8SNormInt => web.WebGL2RenderingContext.RGBA8_SNORM,
+  TextureFormat.r8g8b8a8UInt => web.WebGL2RenderingContext.RGBA8UI,
+  TextureFormat.r8g8b8a8SInt => web.WebGL2RenderingContext.RGBA8I,
+  TextureFormat.r16Float => web.WebGL2RenderingContext.R16F,
+  TextureFormat.r16g16Float => web.WebGL2RenderingContext.RG16F,
+  TextureFormat.r16g16b16a16UInt => web.WebGL2RenderingContext.RGBA16UI,
+  TextureFormat.r16g16b16a16SInt => web.WebGL2RenderingContext.RGBA16I,
+  TextureFormat.r32UInt => web.WebGL2RenderingContext.R32UI,
+  TextureFormat.r32SInt => web.WebGL2RenderingContext.R32I,
+  TextureFormat.r32g32Float => web.WebGL2RenderingContext.RG32F,
+  TextureFormat.r32g32UInt => web.WebGL2RenderingContext.RG32UI,
+  TextureFormat.r32g32SInt => web.WebGL2RenderingContext.RG32I,
+  TextureFormat.r32g32b32a32UInt => web.WebGL2RenderingContext.RGBA32UI,
+  TextureFormat.r32g32b32a32SInt => web.WebGL2RenderingContext.RGBA32I,
+  TextureFormat.r10g10b10a2UNormInt => web.WebGL2RenderingContext.RGB10_A2,
+  TextureFormat.r11g11b10UFloat => web.WebGL2RenderingContext.R11F_G11F_B10F,
+  TextureFormat.r9g9b9e5UFloat => web.WebGL2RenderingContext.RGB9_E5,
+  TextureFormat.d16UNormInt => web.WebGL2RenderingContext.DEPTH_COMPONENT16,
+  TextureFormat.d32Float => web.WebGL2RenderingContext.DEPTH_COMPONENT32F,
   // Deliberately unsupported, and loudly. `a8` and `b8g8r8a8` have no sized
   // internal format in WebGL2 — the byte order is fixed at RGBA. A backend
   // that quietly substituted RGBA8 for BGRA8 would swap red and blue in
@@ -218,6 +352,7 @@ int textureFormatToGl(TextureFormat format) => switch (format) {
     'If the engine needs it, the HAL needs a capability query rather than '
     'this backend needs a substitute.',
   ),
+  _ => throw UnsupportedError('WebGL2 has no internal format for $format'),
 };
 
 /// The filter, as `gl.texParameteri` wants it.
@@ -238,13 +373,13 @@ int minMagFilterToGl(MinMagFilter filter) => switch (filter) {
 /// as a mirror at every roughness.
 ///
 /// [MipFilter.nearest] is left as the plain filter rather than turned into
-/// `*_MIPMAP_NEAREST`, and deliberately: it is [SamplerOptions]' default, it
+/// `*_MIPMAP_NEAREST`, and deliberately: it is [SamplerDescriptor]' default, it
 /// is what a texture with a single level is bound with, and turning it into a
 /// mipmap filter would change nothing there but the driver's opinion of it.
 ///
 /// **What this does move.** Every sampler that says [MipFilter.linear] now
 /// minifies through the chain, not only the probe's cube:
-/// `SamplerOptions.trilinearRepeat` under the particle sprite and under a
+/// `SamplerDescriptor.trilinearRepeat` under the particle sprite and under a
 /// level's tiling textures, and `samplerOptionsFor`, which pairs the filter
 /// with `TextureSampling.useMipmaps` and so covers every model texture that
 /// carries a chain. That is the filtering those assets asked for and this
@@ -323,6 +458,143 @@ final class CompressedTextureSupport {
         bptc: gl.getExtension('EXT_texture_compression_bptc') != null,
         astc: gl.getExtension('WEBGL_compressed_texture_astc') != null,
       );
+}
+
+/// What a WebGL2 context was granted at creation, as far as which formats it
+/// can do what with — the input [webglTextureFormatSupport] answers from.
+final class WebGlFormatCaps {
+  const WebGlFormatCaps({
+    required this.colorBufferFloat,
+    required this.floatLinear,
+    required this.floatBlend,
+    required this.halfFloatMultisample,
+    required this.compressed,
+  });
+
+  /// `EXT_color_buffer_float`: every float format, and `R11F_G11F_B10F`,
+  /// becomes colour-renderable.
+  final bool colorBufferFloat;
+
+  /// `OES_texture_float_linear`: 32-bit float textures filter linearly.
+  final bool floatLinear;
+
+  /// `EXT_float_blend`: a 32-bit float attachment blends.
+  final bool floatBlend;
+
+  /// Whether a multisampled `RGBA16F` renderbuffer was proven to allocate —
+  /// the probe `WebGlDevice` runs at creation, since mobile drivers
+  /// advertise it and then refuse.
+  final bool halfFloatMultisample;
+
+  final CompressedTextureSupport compressed;
+}
+
+/// What [format] can be used for on a context with [caps] — the table
+/// `GraphicsDevice.textureFormatSupport` answers.
+///
+/// **The OpenGL ES 3.0 format table, plus what the extensions add**, stated
+/// per family rather than queried, because WebGL2 has no per-format query
+/// beyond sample counts and that one lies on the drivers this backend has
+/// met (see the multisample probe in `WebGlDevice.open`):
+///
+///  * The eight-bit unsigned normalised formats and `RGB10_A2` are
+///    everything — sampled, filtered, drawn into, blended, multisampled.
+///  * `RGBA8_SNORM` and `RGB9_E5` sample and filter but are not
+///    colour-renderable in ES 3.0.
+///  * Integer formats sample and draw, never filter or blend, and an ES 3.0
+///    renderbuffer of an integer format may not be multisampled.
+///  * Half floats and `R11F_G11F_B10F` filter in core and draw only with
+///    `EXT_color_buffer_float`. Only `RGBA16F` has its multisampling proven,
+///    so only it answers yes there; the others say no rather than guess.
+///  * 32-bit floats filter only with `OES_texture_float_linear`, draw with
+///    `EXT_color_buffer_float`, and blend with `EXT_float_blend` on top.
+///  * Depth formats are depth attachments and sample, unfiltered: ES 3.0
+///    makes a depth texture with a linear filter and no comparison
+///    incomplete.
+///  * A compressed format samples and filters where its extension was
+///    granted, and does nothing else anywhere.
+///
+/// `sampled` is exactly what `supportsTextureFormat` answered before 1.0:
+/// whether [textureFormatToGl] (or, for a compressed format,
+/// [compressedTextureFormatToGl]) has a name for it.
+TextureFormatSupport webglTextureFormatSupport(
+  TextureFormat format,
+  WebGlFormatCaps caps,
+) {
+  if (format.isCompressed) {
+    try {
+      compressedTextureFormatToGl(format, caps.compressed);
+      return const TextureFormatSupport(sampled: true, filterable: true);
+    } on UnsupportedError {
+      return TextureFormatSupport.none;
+    }
+  }
+  const everything = TextureFormatSupport(
+    sampled: true,
+    filterable: true,
+    renderable: true,
+    blendable: true,
+    multisample: true,
+    resolve: true,
+  );
+  const sampleOnly = TextureFormatSupport(sampled: true, filterable: true);
+  const integer = TextureFormatSupport(sampled: true, renderable: true);
+  const depth = TextureFormatSupport(
+    sampled: true,
+    depthStencil: true,
+    multisample: true,
+  );
+  final cbf = caps.colorBufferFloat;
+  return switch (format) {
+    TextureFormat.r8UNormInt ||
+    TextureFormat.r8g8UNormInt ||
+    TextureFormat.r8g8b8a8UNormInt ||
+    TextureFormat.r8g8b8a8UNormIntSRGB ||
+    TextureFormat.r10g10b10a2UNormInt => everything,
+    TextureFormat.r8g8b8a8SNormInt ||
+    TextureFormat.r9g9b9e5UFloat => sampleOnly,
+    TextureFormat.r8g8b8a8UInt ||
+    TextureFormat.r8g8b8a8SInt ||
+    TextureFormat.r16g16b16a16UInt ||
+    TextureFormat.r16g16b16a16SInt ||
+    TextureFormat.r32UInt ||
+    TextureFormat.r32SInt ||
+    TextureFormat.r32g32UInt ||
+    TextureFormat.r32g32SInt ||
+    TextureFormat.r32g32b32a32UInt ||
+    TextureFormat.r32g32b32a32SInt => integer,
+    TextureFormat.r16g16b16a16Float => TextureFormatSupport(
+      sampled: true,
+      filterable: true,
+      renderable: cbf,
+      blendable: cbf,
+      multisample: cbf && caps.halfFloatMultisample,
+      resolve: cbf && caps.halfFloatMultisample,
+    ),
+    TextureFormat.r16Float ||
+    TextureFormat.r16g16Float ||
+    TextureFormat.r11g11b10UFloat => TextureFormatSupport(
+      sampled: true,
+      filterable: true,
+      renderable: cbf,
+      blendable: cbf,
+    ),
+    TextureFormat.r32Float ||
+    TextureFormat.r32g32Float ||
+    TextureFormat.r32g32b32a32Float => TextureFormatSupport(
+      sampled: true,
+      filterable: caps.floatLinear,
+      renderable: cbf,
+      blendable: cbf && caps.floatBlend,
+    ),
+    TextureFormat.d16UNormInt ||
+    TextureFormat.d24UnormS8Uint ||
+    TextureFormat.d32Float ||
+    TextureFormat.d32FloatS8UInt => depth,
+    // No sized internal format: see [textureFormatToGl]. The compressed tail
+    // was answered above.
+    _ => TextureFormatSupport.none,
+  };
 }
 
 /// The WebGL2 internal format for a compressed [format], given what

@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_app/flutter3d_app.dart' show presentFrame;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_app/flutter3d_app.dart'
+    show Flutter3dEngine, Flutter3dView, FrameInfo, ListenerPose;
 
 import 'stereo_rig.dart';
 import 'stereo_viewer.dart';
 
-/// The widget that draws a stereo pair and hands it to Flutter.
+/// The widget that draws a stereo pair and hands it to Flutter: a
+/// `Flutter3dView` drawing the [rig]'s two views into one frame.
 ///
-/// `SceneSurface` in `flutter3d_app` with two differences, and both of them
-/// are the reason this is not a parameter on that one:
+/// The view owns the frame clock, focus, lifecycle and the pause a route
+/// change brings; this adds the two things a stereo pair needs on top, and
+/// both are the reason it is a widget rather than a parameter:
 ///
 /// * it renders a **pair** — two views into one target, left half and right —
 ///   so the frame it produces is twice as wide as an eye;
@@ -22,6 +25,9 @@ import 'stereo_viewer.dart';
 /// What it does not do is choose the frusta: [StereoRig.fitToViewport] fills
 /// them in from the surface while nothing better is known, and stops the moment
 /// a runtime states the real ones.
+///
+/// [renderer] is borrowed, and its device with it: the view leaves both alone
+/// when it goes.
 class StereoSurface extends StatelessWidget {
   const StereoSurface({
     super.key,
@@ -30,26 +36,27 @@ class StereoSurface extends StatelessWidget {
     required this.rig,
     required this.settings,
     required this.onBeforeFrame,
-    this.verticalFieldOfView = 1.0,
+    this.fovY = 1.0,
     this.viewer,
     this.screen,
+    this.onListenerMoved,
   });
 
   final Renderer renderer;
   final Scene scene;
   final StereoRig rig;
 
-  /// What this frame should be drawn with, before the stereo rules are applied
-  /// to it. Called once per frame, after [onBeforeFrame], so anything derived
-  /// from where the head ended up is derived from where it actually ended up.
+  /// What the frame should be drawn with, before the stereo rules are applied
+  /// to it. Asked whenever the surface is built.
   final RenderSettings Function() settings;
 
-  /// The last thing before the frame: place the rig, advance the simulation.
+  /// Called every frame before it is drawn: place the rig, advance the
+  /// simulation.
   final VoidCallback onBeforeFrame;
 
-  /// What one eye sees vertically while no runtime has said otherwise, and
-  /// while no [viewer] is given.
-  final double verticalFieldOfView;
+  /// What one eye sees vertically, in radians, while no runtime has said
+  /// otherwise, and while no [viewer] is given.
+  final double fovY;
 
   /// The holder the phone is in, when it is in one.
   ///
@@ -69,12 +76,15 @@ class StereoSurface extends StatelessWidget {
   /// them.
   final StereoScreen? screen;
 
+  /// Told after every frame where the left eye is, which way it faces and
+  /// which way is up, as one [ListenerPose]: where the audio listener goes.
+  final void Function(ListenerPose ears)? onListenerMoved;
+
   @override
   Widget build(BuildContext context) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        onBeforeFrame();
         // Two, not one: a pair whose target is a single pixel wide has no
         // halves to divide into.
         final width = (constraints.maxWidth * dpr).round().clamp(2, 8192);
@@ -89,20 +99,18 @@ class StereoSurface extends StatelessWidget {
                 ),
           );
         } else {
-          rig.fitToViewport(
-            width: width,
-            height: height,
-            verticalFieldOfView: verticalFieldOfView,
-          );
+          rig.fitToViewport(width: width, height: height, fovY: fovY);
         }
-        final frame = renderer.render(
-          width: width,
-          height: height,
+        return Flutter3dView(
+          device: renderer.device,
+          renderer: renderer,
           scene: scene,
+          camera: rig.camera(Eye.left),
           views: rig.views,
           settings: settings().forStereo(),
+          onFrame: (Flutter3dEngine engine, FrameInfo frame) => onBeforeFrame(),
+          onListenerMoved: onListenerMoved,
         );
-        return presentFrame(renderer.device, frame.frame);
       },
     );
   }

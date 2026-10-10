@@ -471,7 +471,12 @@ final class _SelfCollision {
   static const double _skin = 0.5;
 
   final int n;
+
+  /// How far apart two layers are kept, in metres.
   final double thickness;
+
+  /// Coulomb friction between layers, a unitless coefficient; see
+  /// `ClothSettings.friction`.
   final double friction;
   final Float64List rest;
   final Float64List invMass;

@@ -54,6 +54,25 @@ import 'package:test/test.dart';
 /// multisampling on silhouettes, and an additive quad's edge deposits too
 /// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
+  // 0.291% measured, on the silhouette, which Impeller multisamples; the
+  // body and the rim the source computes agree inside it.
+  'material-language': 0.35,
+  'material-light-hook': 0.6,
+  'material-instance-data': 0.5,
+  'widget-scene': 0.05,
+  // 0.005% measured: both draw the hard cutoff, Impeller and this set alike.
+  'alpha-to-coverage': 0.01,
+  // 0.385% measured, on the spheres' and the floor's edges, which Impeller
+  // multisamples and this set does not; the highlights, fog and sky agree.
+  // 0.575% under the gradient sky and the flat fog, before `P5` made the
+  // physical sky and the height fog the defaults. Recorded first from an
+  // Impeller build by mistake, which read 0%.
+  'orthographic-metal': 0.45,
+  'orthographic-shadows': 1.1,
+  'orthographic-particles': 0.1,
+  // 0.567% measured, on the silhouette and the floor's far edge, which
+  // Impeller multisamples; both halves of the wipe agree inside.
+  'debug-view-split': 0.65,
   // 0.025% measured, down from 0.633%. Screen-space reflections are a march,
   // and what is left is the two rasterisers disagreeing about where a ray ends
   // — an edge inside the reflection rather than an edge in the scene. The rest
@@ -100,11 +119,13 @@ const Map<String, double> _budgets = <String, double>{
   // 0.431%, except `particles-recycled` at 0.417%. Set just above, which is
   // the rule this file is built on — a budget far from what was measured has
   // stopped watching.
-  // The sky itself agrees exactly — every pixel of gradient, lobe and disc is
-  // the same number on both backends, which is what a transcription is for.
-  // What differs is the teapot's silhouette against it: 392 pixels of edge,
-  // where one backend multisamples and the other does not. Measured 0.227%.
-  'sky': 0.24,
+  // The sky itself agrees to within the comparison's eight levels — not a
+  // pixel of it differs beyond them on either backend, which is what a
+  // transcription is for. What differs is the teapot's silhouette against
+  // it: 281 pixels of edge, where one backend multisamples and the other does
+  // not. Measured 0.163% against the physical sky an uncoloured one has been
+  // since `P5`; 0.227% against the gradient before it.
+  'sky': 0.18,
   'particle-stack': 0.45,
   'particles-burst': 0.45,
   // A pool that has been round several times, which every other particle
@@ -250,6 +271,14 @@ const Map<String, double> _budgets = <String, double>{
   // 1.501% measured: the upscale sharpens the rasteriser's edges and
   // Impeller's multisampled ones differently.
   'easu-half': 1.66,
+  // 0.028% measured, on the panel's edge; the flare's ghosts agree.
+  'lens-flare': 0.04,
+  // 0.725% measured, on the silhouette: `shadow-teapot`'s edge magnified
+  // by the barrel.
+  'lens-distortion': 0.8,
+  // 0.778% measured: SMAA here smooths edges that Impeller has already
+  // multisampled, so the two smooth different steps by different amounts.
+  'smaa-teapot': 0.85,
   'evsm-soft': 0.5,
   // 0.069% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of
@@ -271,6 +300,13 @@ const Map<String, double> _budgets = <String, double>{
   'rough-metals': 0.26,
   'scan-chunks': 0.57,
   'sheen-fabric': 0.39,
+  // `P5`. 0.451% measured, the boxes' silhouettes and the row where the
+  // floor meets the far plane: Impeller multisamples both and the software
+  // rasteriser does not. The sky itself agrees, march and all.
+  'sky-physical-dusk': 0.5,
+  // 0.028% measured, edges of the block; every star is where Impeller put it,
+  // because the hash is rounded to single precision here as it is there.
+  'sky-physical-night': 0.04,
   'smoke-six-way': 0.01,
   'splat-gltf': 0.02,
   // 0.011% measured, since the hash reads the pixel the same way up and
@@ -297,6 +333,24 @@ const Map<String, double> _budgets = <String, double>{
   'transmission-glass': 0.01,
   'velocity-shapes': 0.01,
   'window-interior': 0.39,
+  // `P3`. 0.0845% measured, single pixels along the ring's alpha edge, the
+  // boxes' edges and the box's shadow: where a sample lands on either side
+  // of a picture's texel or a box's face is decided in float32 here and in
+  // half floats and the GPU's own arithmetic there. It was 0.067% until the
+  // far cascade's bias was capped in metres (1.0.0); the extra pixels are on
+  // the box's shadow edge, where the smaller bias puts more samples right at
+  // the stored depth.
+  'decal-floor': 0.095,
+  // `P4`. 0.841% and 0.962% measured, every pixel on a silhouette edge,
+  // which Impeller multisamples and this rasteriser does not: the inside of
+  // the mirror's reflection and of the monitor's picture agree.
+  'planar-mirror': 0.9,
+  'render-texture': 1.0,
+  // `N9`. 0 of 172800 measured against Impeller on 2026-10-06, worst
+  // channel 3: the look reads the surface buffer at nearest and draws its
+  // lines and rings without multisampling on both, so the silhouettes that
+  // usually separate the two sets are the look's own, drawn alike.
+  'high-contrast': 0.01,
 };
 
 /// How far apart two channels may be before the pixel counts as differing.
@@ -307,9 +361,6 @@ const int _channel = 8;
 
 Future<Uint8List> _rgba(File file) async {
   final decoded = await decodeImagePure(await file.readAsBytes());
-  if (decoded == null) {
-    throw StateError('${file.path} did not decode as a PNG.');
-  }
   return decoded.pixels;
 }
 

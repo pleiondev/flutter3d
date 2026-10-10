@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -57,7 +58,7 @@ final class CrateKind extends EntityKind {
   CrateKind({this.dynamics}) : super(PlatformerEntities.crate);
 
   /// Where a crate goes once there is a world. Null while validating.
-  Dynamics? dynamics;
+  RigidDynamics? dynamics;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {

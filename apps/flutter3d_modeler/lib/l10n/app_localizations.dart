@@ -3355,6 +3355,54 @@ abstract class AppLocalizations {
   /// **'Ограничения'**
   String get animConstraints;
 
+  /// Раздел панели анимации: графы состояний персонажей.
+  ///
+  /// In ru, this message translates to:
+  /// **'Графы анимации'**
+  String get animGraphs;
+
+  /// Пустой список графов анимации.
+  ///
+  /// In ru, this message translates to:
+  /// **'Графов пока нет. Задайте имя и граф в JSON.'**
+  String get animGraphsNone;
+
+  /// Поле имени графа анимации.
+  ///
+  /// In ru, this message translates to:
+  /// **'Имя графа'**
+  String get animGraphName;
+
+  /// Поле JSON графа анимации.
+  ///
+  /// In ru, this message translates to:
+  /// **'Граф (JSON)'**
+  String get animGraphJson;
+
+  /// Кнопка: задать граф анимации по имени.
+  ///
+  /// In ru, this message translates to:
+  /// **'Задать граф'**
+  String get animGraphSet;
+
+  /// Подсказка кнопки удаления графа анимации.
+  ///
+  /// In ru, this message translates to:
+  /// **'Удалить граф'**
+  String get animGraphRemove;
+
+  /// Сводка графа анимации: число состояний и переходов.
+  ///
+  /// In ru, this message translates to:
+  /// **'{states} сост. · {transitions} перех.'**
+  String animGraphSummary(int states, int transitions);
+
+  /// Ошибка разбора JSON графа анимации.
+  ///
+  /// In ru, this message translates to:
+  /// **'Это не JSON: {error}'**
+  String animGraphNotJson(String error);
+
   /// No description provided for @crashTitle.
   ///
   /// In ru, this message translates to:

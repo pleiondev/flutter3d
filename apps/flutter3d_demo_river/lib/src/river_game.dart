@@ -31,10 +31,13 @@ import 'package:flutter/painting.dart'
     show EdgeInsets, FontWeight, Shadow, TextStyle;
 import 'package:flutter/services.dart' show KeyEvent, LogicalKeyboardKey;
 import 'package:flutter/widgets.dart' show KeyEventResult;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+// The river's own `Level` (levels.dart) is a course, not a level document.
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_game/flutter3d_game.dart' show Bindings, InputSource;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show ActionMap, Bindings, InputSource;
+import 'package:flutter3d_game_physics/wrecks.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart'
     show
         ConeEmitter,
@@ -50,7 +53,7 @@ import 'package:flutter3d_particles/flutter3d_particles.dart'
         Range,
         SphereEmitter;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show GameAction, GameRandom, InputState;
+    show ActionSet, GameAction, GameRandom, InputState;
 
 import 'course.dart';
 import 'levels.dart';
@@ -80,8 +83,20 @@ enum Phase {
 /// What brought the last jet down.
 enum Crash { bank, collision, fuel }
 
+/// The run on the river: the jet, the pieces and the course.
+///
+/// **Its hits are found in the steps** ([HasFixedStepCollisions]): every
+/// piece moves in [fixedUpdate], and a shot that crossed a target between
+/// two steps of one frame was found nowhere when the detection waited for
+/// the frame. Now each step's positions are tested, after the step's moves
+/// and before its input is closed.
 final class RiverGame extends FlameGame
-    with HasFlutter3d, HasFixedStep, KeyboardEvents, HasCollisionDetection {
+    with
+        HasFlutter3d,
+        HasFixedStep,
+        KeyboardEvents,
+        HasCollisionDetection,
+        HasFixedStepCollisions {
   /// [models] loads the craft models over the primitives once the river is
   /// open; the tests leave it off, having no app bundle to load them from.
   /// [billboards] draws the reeds on the banks and the flash of a blast,
@@ -92,7 +107,7 @@ final class RiverGame extends FlameGame
     this.billboards = false,
     this.speakers,
   }) : course = Course(seed: seed) {
-    clearColor.setValues(_haze.x, _haze.y, _haze.z, 1.0);
+    clearColor = LinearColor.fromSrgb(_haze.x, _haze.y, _haze.z);
   }
 
   final bool models;
@@ -138,16 +153,35 @@ final class RiverGame extends FlameGame
   @override
   CameraNode createCamera3d() => CameraNode(
     name: 'eye',
-    projection: const PerspectiveProjection(
-      fovYRadians: 0.85,
-      near: 0.5,
-      far: 400.0,
-    ),
+    projection: const PerspectiveProjection(fovY: 0.85, near: 0.5, far: 400.0),
   );
 
+  /// How thick the haze is, per metre.
+  static const double hazeDensity = 0.004;
+
+  /// How far anything can be seen through the haze, m: Koschmieder's visual
+  /// range, ln(1/0.02)/σ = 3.912/σ, the distance at which a dark object's
+  /// contrast against the horizon has fallen to the two per cent an eye can
+  /// still tell — about 980 m here.
+  static double get seenThroughHaze => 3.912 / hazeDensity;
+
+  /// The haze, and the shadows fitted to as far as it lets anything be seen.
+  ///
+  /// **The shadows' cascades are fitted to what can be seen.** Left at their
+  /// sixty metres, the two near cascades reached about thirty metres from
+  /// the camera, ten or twenty past the jet's nose, and everything further
+  /// fell to the last one, fitted to the whole valley: 880 m across, a metre
+  /// of river to a texel at 1024 and a depth bias of a metre and a half
+  /// (0.0015 of its depth range), more than a tanker stands out of the
+  /// water. A tanker's or a bridge's shadow came in only as the jet flew up
+  /// to it. Fitted to the haze's range — held at the camera's far plane,
+  /// 400 m, by the renderer — the near two reach about 170 m along the line
+  /// of sight, past the top of the frame, 10 cm and 25 cm a texel.
   @override
-  RenderSettings renderSettings() =>
-      RenderSettings(fog: FogSettings(color: _haze, density: 0.004));
+  RenderSettings renderSettings() => RenderSettings(
+    fog: FogSettings(color: _haze.toLinearColor(), density: hazeDensity),
+    shadows: ShadowSettings(viewDistance: seenThroughHaze),
+  );
 
   /// Opens the river, and dresses its craft when there are models to load.
   @override
@@ -197,33 +231,36 @@ final class RiverGame extends FlameGame
 
   final InputState input = InputState();
   late final FlameInputBridge inputBridge = FlameInputBridge(
-    bindings: Bindings(<InputSource, GameAction>{
-      for (final key in <LogicalKeyboardKey>[
-        LogicalKeyboardKey.arrowUp,
-        LogicalKeyboardKey.keyW,
-      ])
-        InputSource.key(key.keyId): GameAction.moveForward,
-      for (final key in <LogicalKeyboardKey>[
-        LogicalKeyboardKey.arrowDown,
-        LogicalKeyboardKey.keyS,
-      ])
-        InputSource.key(key.keyId): GameAction.moveBack,
-      for (final key in <LogicalKeyboardKey>[
-        LogicalKeyboardKey.arrowLeft,
-        LogicalKeyboardKey.keyA,
-      ])
-        InputSource.key(key.keyId): GameAction.moveLeft,
-      for (final key in <LogicalKeyboardKey>[
-        LogicalKeyboardKey.arrowRight,
-        LogicalKeyboardKey.keyD,
-      ])
-        InputSource.key(key.keyId): GameAction.moveRight,
-      for (final key in <LogicalKeyboardKey>[
-        LogicalKeyboardKey.space,
-        LogicalKeyboardKey.enter,
-      ])
-        InputSource.key(key.keyId): fire,
-    }),
+    actions: ActionMap(
+      actions: ActionSet.common,
+      buttons: Bindings(<InputSource, GameAction>{
+        for (final key in <LogicalKeyboardKey>[
+          LogicalKeyboardKey.arrowUp,
+          LogicalKeyboardKey.keyW,
+        ])
+          InputSource.key(key.keyId): GameAction.moveForward,
+        for (final key in <LogicalKeyboardKey>[
+          LogicalKeyboardKey.arrowDown,
+          LogicalKeyboardKey.keyS,
+        ])
+          InputSource.key(key.keyId): GameAction.moveBack,
+        for (final key in <LogicalKeyboardKey>[
+          LogicalKeyboardKey.arrowLeft,
+          LogicalKeyboardKey.keyA,
+        ])
+          InputSource.key(key.keyId): GameAction.moveLeft,
+        for (final key in <LogicalKeyboardKey>[
+          LogicalKeyboardKey.arrowRight,
+          LogicalKeyboardKey.keyD,
+        ])
+          InputSource.key(key.keyId): GameAction.moveRight,
+        for (final key in <LogicalKeyboardKey>[
+          LogicalKeyboardKey.space,
+          LogicalKeyboardKey.enter,
+        ])
+          InputSource.key(key.keyId): fire,
+      }),
+    ),
     inputState: input,
   );
 
@@ -291,6 +328,30 @@ final class RiverGame extends FlameGame
     soot.drawWith(drawing, _kit.puff, blend: MeshParticleContributor.darkening);
   }
 
+  /// What the run's hits leave burning on the river, from when the river's
+  /// water is drawn: the fires burn in its elements.
+  BurningWrecks? wrecks;
+
+  /// Whether the game draws its own water, a plane at nought under every
+  /// stretch: until something draws the river's water in its place.
+  bool get drawsPlane => _drawsPlane;
+  bool _drawsPlane = true;
+
+  /// The river's water is drawn by something else from now on: the game's
+  /// plane is no longer drawn, on the stretches there are or to come.
+  void waterDrawnElsewhere() {
+    _drawsPlane = false;
+    for (final stretch in _stretches.chunks) {
+      stretch.water.isVisible = false;
+    }
+  }
+
+  @override
+  void onRemove() {
+    wrecks?.clear();
+    super.onRemove();
+  }
+
   /// Fire, sparks and spray: everything on screen that glows or shines,
   /// one pool and one draw.
   late final Particles3dComponent blasts;
@@ -351,7 +412,7 @@ final class RiverGame extends FlameGame
   /// **Aimed so the jet sits in the lower third, above the panel.** Looking
   /// further up the river put the jet four fifths of the way down the
   /// frame, behind Flame's instrument panel, where nobody could see it bank.
-  late final ChaseCamera chase;
+  late final FlameChaseCamera chase;
 
   /// What brought the last jet down, for the tests and for anyone asking.
   Crash? lastCrash;
@@ -395,11 +456,14 @@ final class RiverGame extends FlameGame
       case TargetKind.tanker:
         fireball(at..y = 0.9, size: 0.7);
         splash(at..y = 0.1);
+        // Its cargo spills and burns on the water.
+        wrecks?.oil(at);
       case TargetKind.helicopter:
         fireball(at, size: 0.6);
       case TargetKind.jet:
         fireball(at, size: 1.1);
       case TargetKind.depot:
+        wrecks?.timbers(at.clone()..y = 0.5);
         fireball(at..y = 1.2, size: 1.6);
         chase.rig.shake(0.25);
         _detonate(target);
@@ -474,20 +538,40 @@ final class RiverGame extends FlameGame
     }
   }
 
-  /// A helicopter at [from] fires at where the jet is now.
+  /// A helicopter at [from] fires at where the jet is now: a red flash at
+  /// its nose, and a streak laid along the way it flies.
   void enemyFire({required Vector2 from}) {
     final aim = (jet.position - from)..normalize();
+    final muzzle = from + aim * 1.4;
     _sayAt(Sounds.tracer, river.to3d(from, at: flightHeight));
+    _muzzleFlash(river.to3d(muzzle, at: flightHeight));
     add(
       EnemyShotComponent(
-        node: MeshNode(_kit.shard, _kit.tracer, name: 'tracer')
-          ..setUniformScale(0.7),
+        // The rod turned inside a node of its own: the component writes
+        // the outer node's place, and the streak keeps its heading.
+        node: SceneNode(name: 'tracer')
+          ..add(
+            MeshNode(_kit.bullet, _kit.tracer)
+              ..setRotation(_facing(aim.x, aim.y)),
+          ),
         scene: _scene,
-        position: from + aim * 1.4,
+        position: muzzle,
         velocity: aim * EnemyShotComponent.speed,
       ),
     );
   }
+
+  void _muzzleFlash(Vector3 at) => blasts.system.burst(
+    ParticleEffect(
+      count: 10,
+      emitter: const SphereEmitter(speed: Range(1.5, 3.5)),
+      lifetime: const Range(0.2, 0.3),
+      size: const Range(0.5, 0.8),
+      color: _muzzle,
+      affectors: const <ParticleAffector>[ParticleSizeOverLife()],
+    ),
+    at,
+  );
 
   /// Fire: glowing shards thrown up and out, falling, shrinking, dimming
   /// from orange to a dull red, round the flash of the blast itself.
@@ -523,13 +607,15 @@ final class RiverGame extends FlameGame
       count: (14 * size).round(),
       emitter: ConeEmitter(
         speed: Range(2.5 * size, 6.5 * size),
-        halfAngleDegrees: 80.0,
+        halfAngle: 80.0 * math.pi / 180.0,
       ),
       lifetime: const Range(0.6, 0.9),
       size: Range(0.8 * size, 1.1 * size),
       color: _flame,
       affectors: <ParticleAffector>[
-        const ParticleGravity(-14.0),
+        // Ballistic: falls by the world's gravity, as everything
+        // thrown in this game does (once a fixed -14 of its own).
+        const ParticleGravity(),
         ParticleColorOverLife(_flame, _ember),
         const ParticleSizeOverLife(),
       ],
@@ -540,6 +626,7 @@ final class RiverGame extends FlameGame
   static Vector4 get _flame => Vector4(4.0, 2.2, 0.6, 1.0);
   static Vector4 get _ember => Vector4(1.2, 0.2, 0.05, 1.0);
   static Vector4 get _spark => Vector4(4.0, 3.4, 1.6, 1.0);
+  static Vector4 get _muzzle => Vector4(4.0, 0.9, 0.4, 1.0);
   static Vector4 get _spray => Vector4(0.7, 0.8, 0.9, 1.0);
 
   /// How much of what is behind it a puff of smoke takes away, fresh and
@@ -561,7 +648,7 @@ final class RiverGame extends FlameGame
       count: 2,
       emitter: const ConeEmitter(
         speed: Range(0.5, 1.3),
-        halfAngleDegrees: 30.0,
+        halfAngle: 30.0 * math.pi / 180.0,
       ),
       lifetime: const Range(1.6, 2.2),
       size: const Range(0.9, 1.2),
@@ -583,13 +670,15 @@ final class RiverGame extends FlameGame
       count: (12 * size).round(),
       emitter: ConeEmitter(
         speed: Range(3.0 * size, 9.0 * size),
-        halfAngleDegrees: 35.0,
+        halfAngle: 35.0 * math.pi / 180.0,
       ),
       lifetime: const Range(0.6, 0.8),
       size: const Range.exact(0.6),
       color: _spray,
       affectors: const <ParticleAffector>[
-        ParticleGravity(-18.0),
+        // Ballistic: falls by the world's gravity, as everything
+        // thrown in this game does (once a fixed -18 of its own).
+        ParticleGravity(),
         ParticleSizeOverLife(),
       ],
     ),
@@ -605,7 +694,9 @@ final class RiverGame extends FlameGame
       size: const Range.exact(0.35),
       color: _spark,
       affectors: const <ParticleAffector>[
-        ParticleGravity(-14.0),
+        // Ballistic: falls by the world's gravity, as everything
+        // thrown in this game does (once a fixed -14 of its own).
+        ParticleGravity(),
         ParticleSizeOverLife(),
       ],
     ),
@@ -640,19 +731,19 @@ final class RiverGame extends FlameGame
 
   /// How the speakers open: SoLoud unless given otherwise, as the tests give
   /// a silent pair they can listen to.
-  final Future<OpenedSpeakers?> Function()? speakers;
+  final Future<Speakers> Function()? speakers;
 
   final SoundEmitterComponent _engineLoop = SoundEmitterComponent(
     Sounds.engine,
-    playing: false,
+    isPlaying: false,
   );
   final SoundEmitterComponent _refuelLoop = SoundEmitterComponent(
     Sounds.refuel,
-    playing: false,
+    isPlaying: false,
   );
   final SoundEmitterComponent _alarmLoop = SoundEmitterComponent(
     Sounds.lowFuel,
-    playing: false,
+    isPlaying: false,
   );
   int _reserveHeard = RunState.startingReserve;
 
@@ -744,6 +835,7 @@ final class RiverGame extends FlameGame
   }
 
   void _step(double dt) {
+    wrecks?.step(distance);
     switch (phase) {
       case Phase.ready:
         if (input.pressed(fire) || input.moveAxis.length2 > 0.04) {

@@ -57,7 +57,7 @@ final class AmmoType {
 final class WeaponDef {
   const WeaponDef({
     required this.name,
-    required this.behaviour,
+    required this.behavior,
     this.alternate,
     this.magazine,
     this.reloadSeconds = 1.5,
@@ -123,9 +123,9 @@ final class WeaponDef {
   /// be controlled.
   final double recoilRecovery;
 
-  /// How a shot is delivered. See [WeaponBehaviour] for why this is an object
+  /// How a shot is delivered. See [WeaponBehavior] for why this is an object
   /// and the numbers below are not.
-  final WeaponBehaviour behaviour;
+  final WeaponBehavior behavior;
 
   final AmmoType ammo;
 
@@ -135,6 +135,7 @@ final class WeaponDef {
   /// that connect, which is what makes range matter to it and not to a pistol.
   final double damage;
 
+  /// How many shots it fires per second at most.
   final double shotsPerSecond;
   final int ammoPerShot;
 
@@ -162,20 +163,25 @@ final class WeaponDef {
   /// Half-angle of the cone the rays fall in, in radians.
   final double spread;
 
+  /// How far a ray reaches, in metres.
   final double range;
 
   /// Whether holding the trigger keeps firing.
   final bool automatic;
 
   /// Distance at which damage starts dropping. Zero disables falloff.
+  /// In metres.
   final double falloffStart;
 
   /// Distance at which damage has dropped to [minimumDamageFraction].
+  /// In metres.
   final double falloffEnd;
 
+  /// The fraction of [damage] still delivered past [falloffEnd], from 0 to 1.
   final double minimumDamageFraction;
 
   /// Impulse applied to what is hit, along the ray.
+  /// In newton-seconds.
   final double knockback;
 
   /// How far this is heard, in metres.
@@ -200,6 +206,7 @@ final class WeaponDef {
   final double projectileSpeed;
 
   /// How far the explosion reaches. Zero for anything that does not explode.
+  /// In metres.
   final double splashRadius;
 
   /// Fraction of the damage still delivered at the edge of the blast.
@@ -215,11 +222,9 @@ final class WeaponDef {
           knockback: knockback,
         );
 
-  /// Seconds between shots.
-  Duration get cooldown =>
-      Duration(microseconds: (1e6 / shotsPerSecond).round());
-
-  double get cooldownSeconds => 1.0 / shotsPerSecond;
+  /// Seconds between shots: simulation time, so a `double` of seconds, not
+  /// a `Duration`.
+  double get cooldown => 1.0 / shotsPerSecond;
 
   /// Damage a single ray does at [distance].
   ///

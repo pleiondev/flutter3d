@@ -4,11 +4,12 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/animation/animation.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String kSamples = kSamplesPath;
+const String kSamples = samplesPath;
 
 Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
@@ -64,25 +65,25 @@ final class _FakeSkinnedDocument extends ModelDocument {
   ];
 }
 
-MeshData triangle({Vector4? colour}) {
+MeshData triangle({LinearColor? color}) {
   final builder = MeshBuilder(VertexLayout.standard);
   final a = builder.addVertex(
     position: Vector3(0.0, 0.0, 0.0),
     normal: Vector3(0.0, 0.0, 1.0),
     texcoord: Vector2(0.0, 0.0),
-    color: colour,
+    color: color,
   );
   final b = builder.addVertex(
     position: Vector3(1.0, 0.0, 0.0),
     normal: Vector3(0.0, 0.0, 1.0),
     texcoord: Vector2(1.0, 0.0),
-    color: colour,
+    color: color,
   );
   final c = builder.addVertex(
     position: Vector3(0.0, 1.0, 0.0),
     normal: Vector3(0.0, 0.0, 1.0),
     texcoord: Vector2(0.0, 1.0),
-    color: colour,
+    color: color,
   );
   builder.addTriangle(a, b, c);
   return builder.build();
@@ -231,7 +232,7 @@ void main() {
     test('every material field, including the texture slots', () {
       final source = SurfaceMaterial(
         name: 'brushed',
-        baseColor: Vector4(0.2, 0.4, 0.6, 0.8),
+        baseColor: LinearColor.fromSrgb(0.2, 0.4, 0.6, 0.8),
         metallic: 0.75,
         roughness: 0.25,
         baseColorTexture: const TextureBinding(imageIndex: 0),
@@ -251,7 +252,7 @@ void main() {
         occlusionTexture: const TextureBinding(imageIndex: 3),
         occlusionStrength: 0.4,
         emissiveTexture: const TextureBinding(imageIndex: 4),
-        emissive: Vector3(0.1, 0.2, 0.3),
+        emissive: LinearColor(0.1, 0.2, 0.3),
         emissiveStrength: 2.5,
         alphaMode: SurfaceAlphaMode.mask,
         alphaCutoff: 0.35,
@@ -274,13 +275,13 @@ void main() {
 
       final m = document.materials.single;
       expect(m.name, 'brushed');
-      expect(m.baseColor.x, closeTo(0.2, 1e-6));
-      expect(m.baseColor.w, closeTo(0.8, 1e-6));
+      expect(m.baseColor.toSrgb().r, closeTo(0.2, 1e-6));
+      expect(m.baseColor.a, closeTo(0.8, 1e-6));
       expect(m.metallic, closeTo(0.75, 1e-6));
       expect(m.roughness, closeTo(0.25, 1e-6));
       expect(m.normalScale, closeTo(1.5, 1e-6));
       expect(m.occlusionStrength, closeTo(0.4, 1e-6));
-      expect(m.emissive.y, closeTo(0.2, 1e-6));
+      expect(m.emissive.g, closeTo(0.2, 1e-6));
       expect(m.emissiveStrength, closeTo(2.5, 1e-6));
       expect(m.alphaMode, SurfaceAlphaMode.mask);
       expect(m.alphaCutoff, closeTo(0.35, 1e-6));
@@ -650,17 +651,17 @@ void main() {
       ).write();
       // Bump the version in place; everything else stays valid, so the version
       // check is the only thing that can reject it.
-      ByteData.view(
-        encoded.buffer,
-      ).setUint32(4, kF3dVersion + 1, Endian.little);
+      ByteData.view(encoded.buffer).setUint32(4, f3dVersion + 1, Endian.little);
 
+      // Only the future is refused since 1.0 (every older version is read),
+      // so the advice is to update the engine, not to convert again.
       expect(
         () => F3dDocument.parse(encoded),
         throwsA(
           isA<F3dFormatException>().having(
             (e) => e.message,
             'message',
-            allOf(contains('version'), contains('flutter3d_build:convert')),
+            allOf(contains('version'), contains('Update flutter3d')),
           ),
         ),
       );

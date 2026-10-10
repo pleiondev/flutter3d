@@ -71,3 +71,8 @@ fi
   ${WEBGPU_SECTION[@]+"${WEBGPU_SECTION[@]}"} \
   --name example \
   --out "$EXAMPLE/assets/shaders/example.f3dshaders")
+
+# `P8`: the example's materials written in the engine's material language,
+# compiled the way the build hook compiles a game's — every GPU section and
+# the source beside them for the software backend.
+"$DART" run tool/build_material.dart

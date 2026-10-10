@@ -36,6 +36,7 @@ extension VertexFormatToGpu on VertexFormat {
     VertexFormat.sint32x2 => gpu.VertexFormat.sint32x2,
     VertexFormat.sint32x3 => gpu.VertexFormat.sint32x3,
     VertexFormat.sint32x4 => gpu.VertexFormat.sint32x4,
+    _ => throw UnsupportedError('flutter_gpu has no vertex format for $this'),
   };
 }
 
@@ -77,7 +78,7 @@ extension VertexStepModeFromGpu on gpu.VertexStepMode {
 
 /// The whole layout, which is a structure rather than an enum and so is
 /// translated by construction rather than by a `switch`.
-extension VertexLayoutSpecToGpu on VertexLayoutSpec {
+extension VertexLayoutSpecToGpu on VertexLayoutDescriptor {
   gpu.VertexLayout toGpu() => gpu.VertexLayout(
     buffers: <gpu.VertexBuffer>[
       for (final buffer in buffers)

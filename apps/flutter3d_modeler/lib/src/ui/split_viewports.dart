@@ -16,8 +16,8 @@
 /// acceptance that tear-off cannot satisfy.
 library;
 
-import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter/material.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:multi_split_view/multi_split_view.dart';
 
 import '../modeler_viewport.dart';

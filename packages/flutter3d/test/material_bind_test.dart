@@ -7,7 +7,7 @@
 /// `loadMaterialDocument`, which is pure — bytes in, a document out. What it
 /// leaves is everything after: resolving the document's image paths, uploading
 /// them, and carrying the two things a standalone material exists for into the
-/// `Material` the renderer draws with — the application's own parameters and
+/// `RenderMaterial` the renderer draws with — the application's own parameters and
 /// the textures its own shader samples. `bindMaterial` and `loadMaterial` are
 /// exported from `flutter3d.dart` and were called by nothing in this
 /// repository, so an author reading the API was the first person to run them.
@@ -20,6 +20,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/material_loader.dart';
+import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,38 +51,35 @@ MaterialDocument _document() => MaterialDocument(
 );
 
 void main() {
-  test(
-    'an application\'s own textures and parameters reach the material',
-    () async {
-      // **The seam, end to end on the reading side.** Nothing about `ramp_texture`
-      // or `WaterParams` is known to this engine: the document names them, this
-      // function carries them across, and the encoder binds them by those names.
-      //
-      // Mutation: drop the `extraTextures: extra` argument from the `Material`
-      // that `bindMaterial` returns — the two slots come back empty and this
-      // fails. Drop `parameters: document.parameters` and the second group does.
-      final device = FakeBackend();
-      final material = await bindMaterial(
-        _document(),
-        device: device,
-        resolveUri: (request) async =>
-            buildKtx2(vkFormat: VkFormat.bc7UNormBlock),
-      );
+  test('an application\'s own textures and parameters reach the material', () async {
+    // **The seam, end to end on the reading side.** Nothing about `ramp_texture`
+    // or `WaterParams` is known to this engine: the document names them, this
+    // function carries them across, and the encoder binds them by those names.
+    //
+    // Mutation: drop the `extraTextures: extra` argument from the `RenderMaterial`
+    // that `bindMaterial` returns — the two slots come back empty and this
+    // fails. Drop `parameters: document.parameters` and the second group does.
+    final device = FakeBackend();
+    final material = await bindMaterial(
+      _document(),
+      device: device,
+      resolveUri: (request) async =>
+          buildKtx2(vkFormat: VkFormat.bc7UNormBlock),
+    );
 
-      expect(material.extraTextures.keys, <String>[
-        'ramp_texture',
-        'flow_texture',
-      ]);
-      expect(material.extraTextures['ramp_texture'], isNotNull);
-      expect(material.parameterBlock, 'WaterParams');
-      expect(material.parameters['wave']!.first, 0.25);
-      expect(
-        material.lighting.shaderName,
-        'Water',
-        reason: 'a file that names a shader wins over the scene\'s model',
-      );
-    },
-  );
+    expect(material.extraTextures.keys, <String>[
+      'ramp_texture',
+      'flow_texture',
+    ]);
+    expect(material.extraTextures['ramp_texture'], isNotNull);
+    expect(material.parameterBlock, 'WaterParams');
+    expect(material.parameters['wave']!.first, 0.25);
+    expect(
+      material.lighting.shaderName,
+      'Water',
+      reason: 'a file that names a shader wins over the scene\'s model',
+    );
+  });
 
   test('an image it cannot read costs the slot and not the material', () async {
     // The rule stated on `bindMaterial`: a missing map should cost a map, not

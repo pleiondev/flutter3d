@@ -1,11 +1,11 @@
 /// What a `ui.*` MCP tool (`mcp-16d`) can ask this screen to do — the seam
-/// between `flutter3d_model_mcp`'s tool table (`dart:io` behind it, through
+/// between `flutter3d_mcp/model.dart`'s tool table (`dart:io` behind it, through
 /// `ModelHttpServer`) and this screen's live `ModelerCubit`, stage and
 /// dialogs.
 ///
 /// **A standalone library, not a `part of 'main.dart'`, and importing
 /// nothing.** `main.dart` is compiled for the web build too, and
-/// `flutter3d_model_mcp`'s own barrel export reaches `dart:io` through
+/// `flutter3d_mcp/model.dart`'s own barrel export reaches `dart:io` through
 /// `ModelHttpServer` — a web build can never see the inside of that import.
 /// `mcp_ui_tools.dart`, which turns a [UiActions] into the real tools
 /// `dart_mcp`'s `Tool` type describes, is imported only from
@@ -14,7 +14,7 @@
 /// sides can import without either pulling the other's platform in.
 library;
 
-/// did/says, the same shape `flutter3d_mcp_kit`'s own `Answer` is — a record,
+/// did/says, the same shape `flutter3d_mcp/kit.dart`'s own `Answer` is — a record,
 /// so nothing here needs to import that package to agree with it.
 typedef UiAnswer = ({bool did, String says});
 
@@ -133,11 +133,11 @@ abstract interface class UiActions {
   /// `gal-06`: what the gallery offers, as one line per item — the id an
   /// insert takes, the name, the category and the licence.
   ///
-  /// [category] and [licence] narrow it the same way the screen's own
+  /// [category] and [license] narrow it the same way the screen's own
   /// chips do; both left out lists everything, including the items that
   /// ask for a credit. An agent that wants only the free ones asks for
   /// `cc0`, and the answer says which is which regardless.
-  Future<UiAnswer> galleryList({String? category, String? licence});
+  Future<UiAnswer> galleryList({String? category, String? license});
 
   /// Inserts the gallery item [id] beside what is already open, and
   /// answers with the ids it made — the same one-step, one-undo insert the

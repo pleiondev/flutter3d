@@ -13,7 +13,7 @@
 // atlas, one cluster texture, one LTC table); this is what says so when one
 // does not.
 
-import 'package:flutter3d_shaders/stage_bindings.dart';
+import 'package:flutter3d_shaders/internal.dart';
 import 'package:test/test.dart';
 
 /// `MAX_TEXTURE_IMAGE_UNITS`, the minimum WebGL2 guarantees.

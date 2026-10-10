@@ -50,6 +50,23 @@ final class CpuTexture {
   /// then the same code as sampling anything else.
   List<CpuTexture>? faces;
 
+  /// The layers of a 2D array — or the cubes of a cube array, each carrying
+  /// its own [faces] — with this texture as layer zero. Null for every
+  /// texture that is not an array.
+  ///
+  /// Hung off layer zero the way [faces] hang off face zero, so that
+  /// anything treating an array as a plain 2D texture reads its first layer
+  /// rather than nothing, and each layer owns its own [levels].
+  List<CpuTexture>? layers;
+
+  /// The depth slices of one level of a 3D texture, with this texture as
+  /// slice zero. Null for every texture that is not 3D.
+  ///
+  /// Per level rather than per slice, unlike [layers]: a 3D texture's chain
+  /// halves the depth too, so level one of a sixteen-deep volume has eight
+  /// slices, and each entry of the base's [levels] carries its own.
+  List<CpuTexture>? slices;
+
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
@@ -74,10 +91,56 @@ final class CpuTexture {
   /// sampler reads. A 2D texture ignores [face], as the interface says it may;
   /// a level the texture does not have is a caller mistake and throws, which
   /// is what the other two backends do with an attachment out of range.
-  CpuTexture subresource({int face = 0, int mipLevel = 0}) {
-    final base = faces?[face] ?? this;
-    if (mipLevel == 0) return base;
-    final chain = base.levels;
+  ///
+  /// [layer] picks the layer of an array or the cube of a cube array before
+  /// either, as `ColorTarget.layer` does; on a 3D texture it is the slice of
+  /// level [mipLevel] instead, the level chosen first.
+  CpuTexture subresource({int face = 0, int mipLevel = 0, int layer = 0}) {
+    if (slices != null) return plane(mipLevel: mipLevel, z: layer);
+    final owner = layer == 0 ? this : _layer(layer);
+    final base = owner.faces?[face] ?? owner;
+    return base._level(mipLevel);
+  }
+
+  /// The plane a `TextureRegion.z` or `TextureCopyLocation.z` names: the
+  /// layer of an array, the face of a cube, `layer × 6 + face` of a cube
+  /// array, or the slice of a 3D texture — at level [mipLevel].
+  CpuTexture plane({int mipLevel = 0, int z = 0}) {
+    if (slices != null) {
+      final level = _level(mipLevel);
+      final atLevel = level.slices ?? <CpuTexture>[level];
+      if (z < 0 || z >= atLevel.length) {
+        throw RangeError('slice $z of a level ${atLevel.length} deep');
+      }
+      return atLevel[z];
+    }
+    final perLayer = faces == null ? 1 : 6;
+    return subresource(
+      face: z % perLayer,
+      layer: z ~/ perLayer,
+      mipLevel: mipLevel,
+    );
+  }
+
+  /// How many planes [plane] can address at level [mipLevel].
+  int planeCount([int mipLevel = 0]) {
+    if (slices != null) return _level(mipLevel).slices?.length ?? 1;
+    return (layers?.length ?? 1) * (faces == null ? 1 : 6);
+  }
+
+  CpuTexture _layer(int layer) {
+    final all = layers;
+    if (all == null || layer < 0 || layer >= all.length) {
+      throw RangeError(
+        'layer $layer of a texture with ${all?.length ?? 1} layer(s)',
+      );
+    }
+    return all[layer];
+  }
+
+  CpuTexture _level(int mipLevel) {
+    if (mipLevel == 0) return this;
+    final chain = levels;
     if (chain == null || mipLevel > chain.length) {
       throw RangeError(
         'mip level $mipLevel of a texture with '
@@ -102,7 +165,7 @@ final class CpuTexture {
 /// The first version of this backend ignored the sampler entirely and always
 /// filtered bilinearly with clamped edges, on the strength of a comment saying
 /// every sampler the engine binds is clamped. That comment was wrong:
-/// `SamplerOptions.linearRepeat` is documented as the default for material
+/// `SamplerDescriptor.linearRepeat` is documented as the default for material
 /// textures. It cost about a percent and a half of every textured golden, and
 /// it did not look like a sampler bug in the picture — it looked like the
 /// checkerboard was very slightly the wrong size.
@@ -110,7 +173,7 @@ final class BoundTexture {
   const BoundTexture(this.texture, this.sampler);
 
   final CpuTexture texture;
-  final SamplerOptions sampler;
+  final SamplerDescriptor sampler;
 
   int get width => texture.width;
   int get height => texture.height;
@@ -191,7 +254,7 @@ final class BoundTexture {
     if (lod <= 0.0) {
       return BoundTexture(
         cube[face],
-        SamplerOptions.linearClamp,
+        SamplerDescriptor.linearClamp,
       )._sampleLevel(cube[face], u, v);
     }
 
@@ -205,10 +268,10 @@ final class BoundTexture {
     if (chain == null || chain.isEmpty) {
       return BoundTexture(
         cube[face],
-        SamplerOptions.linearClamp,
+        SamplerDescriptor.linearClamp,
       )._sampleLevel(cube[face], u, v);
     }
-    final bound = BoundTexture(cube[face], SamplerOptions.linearClamp);
+    final bound = BoundTexture(cube[face], SamplerDescriptor.linearClamp);
     final top = chain.length;
     if (lod >= top) return bound._sampleLevel(chain[top - 1], u, v);
     final lower = lod.floor();
@@ -222,6 +285,248 @@ final class BoundTexture {
       a.y + (b.y - a.y) * t,
       a.z + (b.z - a.z) * t,
       a.w + (b.w - a.w) * t,
+    );
+  }
+
+  /// Samples layer [layer] of a 2D array at [u], [v] — GLSL's
+  /// `texture(sampler2DArray, vec3(u, v, layer))`.
+  ///
+  /// The layer is rounded and clamped to the array, as every API specifies;
+  /// the derivatives are [sample]'s. A texture that is not an array is its
+  /// own only layer.
+  Vector4 sampleLayer(
+    double u,
+    double v,
+    double layer, {
+    double du = 0.0,
+    double dv = 0.0,
+  }) {
+    final all = texture.layers;
+    if (all == null) return sample(u, v, du: du, dv: dv);
+    return BoundTexture(
+      all[_layerIndex(layer, all.length)],
+      sampler,
+    ).sample(u, v, du: du, dv: dv);
+  }
+
+  /// Samples cube [layer] of a cube array in `direction` at level [lod] —
+  /// `texture(samplerCubeArray, vec4(direction, layer))`. See [sampleCube].
+  Vector4 sampleCubeLayer(
+    double x,
+    double y,
+    double z,
+    double layer, [
+    double lod = 0.0,
+  ]) {
+    final all = texture.layers;
+    if (all == null) return sampleCube(x, y, z, lod);
+    return BoundTexture(
+      all[_layerIndex(layer, all.length)],
+      sampler,
+    ).sampleCube(x, y, z, lod);
+  }
+
+  static int _layerIndex(double layer, int count) {
+    final i = layer.round();
+    return i < 0 ? 0 : (i >= count ? count - 1 : i);
+  }
+
+  /// Samples a 3D texture at ([u], [v], [w]) and level of detail [lod] —
+  /// `textureLod(sampler3D, …)`.
+  ///
+  /// Filtered across slices by the sampler's mag filter and addressed along
+  /// the depth by `SamplerDescriptor.depthAddressMode`, the third axis behaving
+  /// exactly as the first two do. The level is asked for rather than derived,
+  /// as [sampleCube]'s is: a volume's footprint has three axes and the
+  /// rasteriser hands a stage two. A texture that is not 3D is one slice
+  /// deep.
+  Vector4 sample3D(double u, double v, double w, {double lod = 0.0}) {
+    final chain = texture.levels;
+    final clamped = _clampLod(lod);
+    final top = chain?.length ?? 0;
+    if (clamped <= 0.0 || top == 0) return _sampleVolume(texture, u, v, w);
+    if (clamped >= top) return _sampleVolume(chain![top - 1], u, v, w);
+    final lower = clamped.floor();
+    final near = lower == 0 ? texture : chain![lower - 1];
+    if (sampler.mipFilter == MipFilter.nearest) {
+      return _sampleVolume(near, u, v, w);
+    }
+    return _mix(
+      _sampleVolume(near, u, v, w),
+      _sampleVolume(chain![lower], u, v, w),
+      clamped - lower,
+    );
+  }
+
+  Vector4 _sampleVolume(CpuTexture level, double u, double v, double w) {
+    final planes = level.slices ?? <CpuTexture>[level];
+    final depth = planes.length;
+    final mode = sampler.depthAddressMode;
+    final border = sampler.borderColor;
+    Vector4 slice(int i) {
+      if (border != null &&
+          mode == SamplerAddressMode.clampToEdge &&
+          (i < 0 || i >= depth)) {
+        return _borderOf(border);
+      }
+      return _sampleLevel(planes[_address(i, depth, mode)], u, v);
+    }
+
+    if (sampler.magFilter == MinMagFilter.nearest) {
+      return slice((w * depth).floor());
+    }
+    final z = w * depth - 0.5;
+    final z0 = z.floor();
+    return _mix(slice(z0), slice(z0 + 1), z - z0);
+  }
+
+  /// A comparison sample — `texture(sampler2DShadow, vec3(u, v, reference))`:
+  /// the share of the footprint where `reference <compare> stored` holds,
+  /// with the sampler's `SamplerDescriptor.compare` as the test.
+  ///
+  /// Reads the depth a pass wrote when the texture has one, and red
+  /// otherwise — a depth copied into a float colour target is the same
+  /// number. Linear filtering compares each of the four texels and blends
+  /// the answers, which is hardware percentage-closer filtering; nearest
+  /// compares one. Throws a [StateError] for a sampler that is not a
+  /// comparison sampler.
+  double sampleCompare(double u, double v, double reference) {
+    final compare = sampler.compare;
+    if (compare == null) {
+      throw StateError(
+        'sampleCompare through a sampler with no compare function — bind a '
+        'SamplerOptions(compare: …) for a comparison sample',
+      );
+    }
+    final width = texture.width;
+    final height = texture.height;
+    final depth = texture.depth;
+    final border = sampler.borderColor;
+    double passes(int ix, int iy) {
+      final outside = ix < 0 || iy < 0 || ix >= width || iy >= height;
+      final double stored;
+      if (outside &&
+          border != null &&
+          ((ix < 0 || ix >= width) &&
+                  sampler.widthAddressMode == SamplerAddressMode.clampToEdge ||
+              (iy < 0 || iy >= height) &&
+                  sampler.heightAddressMode ==
+                      SamplerAddressMode.clampToEdge)) {
+        stored = _borderOf(border).x;
+      } else {
+        final x = _address(ix, width, sampler.widthAddressMode);
+        final y = _address(iy, height, sampler.heightAddressMode);
+        stored = depth != null
+            ? depth[y * width + x]
+            : texture.pixels[(y * width + x) * 4];
+      }
+      return _compares(compare, reference, stored) ? 1.0 : 0.0;
+    }
+
+    if (sampler.magFilter == MinMagFilter.nearest) {
+      return passes((u * width).floor(), (v * height).floor());
+    }
+    final x = u * width - 0.5;
+    final y = v * height - 0.5;
+    final x0 = x.floor();
+    final y0 = y.floor();
+    final fx = x - x0;
+    final fy = y - y0;
+    return (passes(x0, y0) * (1 - fx) + passes(x0 + 1, y0) * fx) * (1 - fy) +
+        (passes(x0, y0 + 1) * (1 - fx) + passes(x0 + 1, y0 + 1) * fx) * fy;
+  }
+
+  static bool _compares(CompareFunction f, double reference, double stored) =>
+      switch (f) {
+        CompareFunction.never => false,
+        CompareFunction.always => true,
+        CompareFunction.less => reference < stored,
+        CompareFunction.lessEqual => reference <= stored,
+        CompareFunction.greater => reference > stored,
+        CompareFunction.greaterEqual => reference >= stored,
+        CompareFunction.equal => reference == stored,
+        CompareFunction.notEqual => reference != stored,
+      };
+
+  static Vector4 _borderOf(SamplerBorderColor color) => switch (color) {
+    SamplerBorderColor.transparentBlack => Vector4.zero(),
+    SamplerBorderColor.opaqueBlack => Vector4(0, 0, 0, 1),
+    SamplerBorderColor.opaqueWhite => Vector4(1, 1, 1, 1),
+  };
+
+  static Vector4 _mix(Vector4 a, Vector4 b, double t) => Vector4(
+    a.x + (b.x - a.x) * t,
+    a.y + (b.y - a.y) * t,
+    a.z + (b.z - a.z) * t,
+    a.w + (b.w - a.w) * t,
+  );
+
+  /// Whether the sampler narrows the levels it may read.
+  bool get _clampsLod =>
+      sampler.lodMinClamp != 0.0 || sampler.lodMaxClamp != 32.0;
+
+  double _clampLod(double lod) {
+    if (lod < sampler.lodMinClamp) return sampler.lodMinClamp;
+    if (lod > sampler.lodMaxClamp) return sampler.lodMaxClamp;
+    return lod;
+  }
+
+  /// [sample] for a sampler with a level-of-detail clamp: the level the
+  /// footprint asks for, held inside `lodMinClamp..lodMaxClamp`.
+  ///
+  /// One tap, at the clamped level: a sampler that narrows its levels and
+  /// also asks for anisotropy gets the clamp and not the taps, since the
+  /// taps exist to choose a sharper level than the footprint and the clamp
+  /// exists to forbid exactly that choice.
+  Vector4 _sampleClamped(double u, double v, double du, double dv) {
+    final chain = texture.levels;
+    final footprint = math.max(du * width, dv * height);
+    final wanted = du == 0.0 && dv == 0.0 || footprint <= 1.0
+        ? 0.0
+        : portableLog2(footprint);
+    final lod = _clampLod(wanted);
+    final top = chain?.length ?? 0;
+    if (lod <= 0.0 || top == 0) return _sampleLevel(texture, u, v);
+    if (lod >= top) return _sampleLevel(chain![top - 1], u, v);
+    final lower = lod.floor();
+    final near = lower == 0 ? texture : chain![lower - 1];
+    if (sampler.mipFilter == MipFilter.nearest) return _sampleLevel(near, u, v);
+    return _mix(
+      _sampleLevel(near, u, v),
+      _sampleLevel(chain![lower], u, v),
+      lod - lower,
+    );
+  }
+
+  /// [_sampleLevel] for a sampler with a border colour: every tap that
+  /// falls outside the texture along a clamped axis reads the border
+  /// instead of the edge texel.
+  Vector4 _sampleBordered(CpuTexture level, double u, double v) {
+    final width = level.width;
+    final height = level.height;
+    final border = _borderOf(sampler.borderColor!);
+    final clampU = sampler.widthAddressMode == SamplerAddressMode.clampToEdge;
+    final clampV = sampler.heightAddressMode == SamplerAddressMode.clampToEdge;
+    Vector4 tap(int ix, int iy) {
+      if (clampU && (ix < 0 || ix >= width)) return border;
+      if (clampV && (iy < 0 || iy >= height)) return border;
+      return level._texel(
+        _address(ix, width, sampler.widthAddressMode),
+        _address(iy, height, sampler.heightAddressMode),
+      );
+    }
+
+    if (sampler.magFilter == MinMagFilter.nearest) {
+      return tap((u * width).floor(), (v * height).floor());
+    }
+    final x = u * width - 0.5;
+    final y = v * height - 0.5;
+    final x0 = x.floor();
+    final y0 = y.floor();
+    return _mix(
+      _mix(tap(x0, y0), tap(x0 + 1, y0), x - x0),
+      _mix(tap(x0, y0 + 1), tap(x0 + 1, y0 + 1), x - x0),
+      y - y0,
     );
   }
 
@@ -279,6 +584,7 @@ final class BoundTexture {
     double dudy = 0.0,
     double dvdy = 0.0,
   }) {
+    if (_clampsLod) return _sampleClamped(u, v, du, dv);
     final chain = texture.levels;
     if (chain == null || chain.isEmpty || (du == 0.0 && dv == 0.0)) {
       return _sampleLevel(texture, u, v);
@@ -300,7 +606,7 @@ final class BoundTexture {
     // from the short one.
     //
     // **A sampler that did not ask is untouched**, which is what makes this
-    // safe to add to a backend seventy-eight golden scenes are recorded on: with
+    // safe to add to a backend 96 golden scenes are recorded on: with
     // `anisotropy` at one — the default everywhere in this engine — the
     // arithmetic below is not reached and the bytes are the ones that were
     // recorded. `anisotropic-floor` is the one scene that asks.
@@ -434,6 +740,7 @@ final class BoundTexture {
   }
 
   Vector4 _sampleLevel(CpuTexture texture, double u, double v) {
+    if (sampler.borderColor != null) return _sampleBordered(texture, u, v);
     final width = texture.width;
     final height = texture.height;
     final x = u * width - 0.5;

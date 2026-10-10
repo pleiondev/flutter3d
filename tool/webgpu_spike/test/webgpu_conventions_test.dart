@@ -48,6 +48,26 @@ const Set<String> _textureFormats = <String>{
   'astc-4x4-unorm-srgb',
   'astc-8x8-unorm',
   'astc-8x8-unorm-srgb',
+  // The 1.0 tail of TextureFormat.
+  'rgba8snorm',
+  'rgba8uint',
+  'rgba8sint',
+  'r16float',
+  'rg16float',
+  'rgba16uint',
+  'rgba16sint',
+  'r32uint',
+  'r32sint',
+  'rg32float',
+  'rg32uint',
+  'rg32sint',
+  'rgba32uint',
+  'rgba32sint',
+  'rgb10a2unorm',
+  'rg11b10ufloat',
+  'rgb9e5ufloat',
+  'depth16unorm',
+  'depth32float',
 };
 
 const Set<String> _blendFactors = <String>{
@@ -64,6 +84,11 @@ const Set<String> _blendFactors = <String>{
   'src-alpha-saturated',
   'constant',
   'one-minus-constant',
+  // `dual-source-blending`.
+  'src1',
+  'one-minus-src1',
+  'src1-alpha',
+  'one-minus-src1-alpha',
 };
 
 const Set<String> _blendOperations = <String>{

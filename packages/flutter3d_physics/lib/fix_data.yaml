@@ -1,0 +1,403 @@
+# Generated from flutter3d_build/lib/migrations/*.yaml by
+# `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
+# table-stamp: 54406fbf88b0c706
+#
+# Read by `dart fix` and the IDE: see "A break comes with its migration"
+# in CONTRIBUTING.md.
+version: 1
+transforms:
+  - title: 'flutter3d 1.0.0-rc.1: physics-contactBetween (contactBetween)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'contactBetween'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'contactBetween'
+  - title: 'flutter3d 1.0.0-rc.1: physics-pushOutsideObstacle (pushOutsideObstacle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'pushOutsideObstacle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'pushOutsideObstacle'
+  - title: 'flutter3d 1.0.0-rc.1: physics-pushParticleOutside (pushParticleOutside)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'pushParticleOutside'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'pushParticleOutside'
+  - title: 'flutter3d 1.0.0-rc.1: physics-readNumber (readNumber)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'readNumber'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'readNumber'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-physics-Contact-touching'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_physics/flutter3d_physics.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      field: 'touching'
+      inClass: 'Contact'
+    changes:
+      - kind: 'rename'
+        newName: 'isTouching'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-physics-RayHit-hit'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_physics/flutter3d_physics.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'hit'
+      inClass: 'RayHit'
+    changes:
+      - kind: 'rename'
+        newName: 'didHit'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-physics-SweepHit-hit'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_physics/flutter3d_physics.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      getter: 'hit'
+      inClass: 'SweepHit'
+    changes:
+      - kind: 'rename'
+        newName: 'didHit'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-physics-MovementTuning'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_physics/flutter3d_physics.dart', 'package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'MovementTuning'
+    changes:
+      - kind: 'rename'
+        newName: 'MovementSettings'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CharacterController)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CharacterController'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CharacterController'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (ClothMesh)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'ClothMesh'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'ClothMesh'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (ClothObstacle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'ClothObstacle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'ClothObstacle'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (ClothSettings)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'ClothSettings'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'ClothSettings'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (Collider)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Collider'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'Collider'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (ColliderKind)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      enum: 'ColliderKind'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          enum: 'ColliderKind'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionBox)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionBox'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionBox'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionCapsule)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionCapsule'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionCapsule'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionHeightfield)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionHeightfield'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionHeightfield'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionListener)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionListener'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionListener'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionShape)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionShape'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionShape'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionSphere)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionSphere'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionSphere'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionWedge)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionWedge'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionWedge'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (CollisionWorld)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'CollisionWorld'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'CollisionWorld'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (Contact)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Contact'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'Contact'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (ContactFilter)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      typedef: 'ContactFilter'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          typedef: 'ContactFilter'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (Dynamics)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Dynamics'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'Dynamics'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (Layers)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Layers'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'Layers'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (Nearly)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'Nearly'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'Nearly'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (RayHit)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'RayHit'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'RayHit'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (RigidBody)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'RigidBody'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'RigidBody'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (SpatialGrid)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'SpatialGrid'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'SpatialGrid'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (SweepHit)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'SweepHit'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'SweepHit'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (SweptContact)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'SweptContact'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'SweptContact'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (WedgeUphill)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      enum: 'WedgeUphill'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          enum: 'WedgeUphill'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (WindSettings)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      class: 'WindSettings'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          class: 'WindSettings'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (contactBetween)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'contactBetween'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'contactBetween'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (pushOutsideObstacle)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'pushOutsideObstacle'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'pushOutsideObstacle'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (pushParticleOutside)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'pushParticleOutside'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'pushParticleOutside'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (readNumber)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'readNumber'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'readNumber'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (readVector)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'readVector'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'readVector'
+  - title: 'flutter3d 1.0.0-rc.1: c-sim-physics-library (stepCloth)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      function: 'stepCloth'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_physics/flutter3d_physics.dart']
+          function: 'stepCloth'

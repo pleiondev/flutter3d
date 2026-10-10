@@ -26,10 +26,10 @@ final class MeshOverlayDemo extends ShowcaseDemo {
   @override
   Scene build(DemoContext context) {
     // #region contributor
-    _overlay = context.renderer.addContributor(
+    _overlay = context.renderer.renderSteps.addContributor(
       MeshOverlay(
-        vertexShader: context.renderer.debugLineVertexShader,
-        fragmentShader: context.renderer.debugLineFragmentShader,
+        vertexShader: context.renderer.shaders['DebugLineVertex']!,
+        fragmentShader: context.renderer.shaders['DebugLine']!,
       ),
     );
     // #endregion contributor
@@ -40,19 +40,19 @@ final class MeshOverlayDemo extends ShowcaseDemo {
         context.device,
         CuboidShape(size: Vector3.all(2.0)).build(),
       ),
-      Material(
+      RenderMaterial(
         name: 'editable surface',
-        baseColor: Vector4(0.16, 0.32, 0.52, 1.0),
+        baseColor: LinearColor.fromSrgb(0.16, 0.32, 0.52, 1.0),
         roughness: 0.58,
       ),
       name: 'editable cube',
     );
     final Scene scene = Scene()
-      ..ambientColor = Vector3(0.45, 0.52, 0.68)
-      ..ambientIntensity = 0.16
+      ..ambientColor = LinearColor(0.45, 0.52, 0.68)
+      ..ambientIntensity = 0.16 * Photometric.legacyUnit
       ..add(cube)
       ..add(
-        LightNode(name: 'key', intensity: 3.6)
+        LightNode(name: 'key', intensity: 3.6 * Photometric.legacyUnit)
           ..setLocalForward(Vector3(-0.45, -0.8, -0.35)),
       );
     // #endregion surface
@@ -66,7 +66,7 @@ final class MeshOverlayDemo extends ShowcaseDemo {
     final values = cameraWorld.storage;
     final Vector3 right = Vector3(values[0], values[1], values[2]);
     final Vector3 up = Vector3(values[4], values[5], values[6]);
-    final double fov =
+    final double fovY =
         context.camera.projection.verticalFieldOfView ?? math.pi / 4;
     _overlay
       ..clear()
@@ -74,7 +74,7 @@ final class MeshOverlayDemo extends ShowcaseDemo {
         eye: context.camera.readWorldPosition(),
         right: right,
         up: up,
-        pixel: 2.0 * math.tan(fov * 0.5) / _viewportHeight,
+        pixel: 2.0 * math.tan(fovY * 0.5) / _viewportHeight,
       );
     _writeGeometry();
   }
@@ -87,7 +87,7 @@ final class MeshOverlayDemo extends ShowcaseDemo {
         for (final double y in <double>[-1, 1])
           for (final double x in <double>[-1, 1]) Vector3(x, y, z),
     ];
-    final Vector4 edgeColour = Vector4(0.2, 0.82, 1.0, 1.0);
+    final LinearColor edgeColour = LinearColor.fromSrgb(0.2, 0.82, 1.0);
     for (final (int a, int b) in <(int, int)>[
       (0, 1),
       (0, 2),
@@ -106,11 +106,11 @@ final class MeshOverlayDemo extends ShowcaseDemo {
     }
     if (_vertices) {
       for (final Vector3 corner in corners) {
-        _overlay.point(corner, Vector4(1.0, 0.72, 0.12, 1.0), size: 11);
+        _overlay.point(corner, LinearColor.fromSrgb(1.0, 0.72, 0.12), size: 11);
       }
     }
     if (_face) {
-      final Vector4 selected = Vector4(0.2, 1.0, 0.45, 1.0);
+      final LinearColor selected = LinearColor.fromSrgb(0.2, 1.0, 0.45);
       _overlay
         ..wash(corners[4], corners[5], corners[7], selected)
         ..wash(corners[4], corners[7], corners[6], selected)
@@ -122,15 +122,18 @@ final class MeshOverlayDemo extends ShowcaseDemo {
           ..edge(
             Vector3(-1.6, 0.0, 0.0),
             Vector3(1.6, 0.0, 0.0),
-            Vector4(0.78, 0.42, 1.0, 1.0),
+            LinearColor.fromSrgb(0.78, 0.42, 1.0),
           )
           ..ribbon(
             Vector3(0.0, -1.6, 0.0),
             Vector3(0.0, 1.6, 0.0),
-            Vector4(0.78, 0.42, 1.0, 1.0),
+            LinearColor.fromSrgb(0.78, 0.42, 1.0),
             width: 7,
           )
-          ..point(Vector3(0.0, 1.6, 0.0), Vector4(0.78, 0.42, 1.0, 1.0));
+          ..point(
+            Vector3(0.0, 1.6, 0.0),
+            LinearColor.fromSrgb(0.78, 0.42, 1.0),
+          );
       });
     }
   }

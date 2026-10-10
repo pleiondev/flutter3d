@@ -9,6 +9,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show ComponentCodec;
 import 'package:flutter3d_sim/src/actors/actor.dart';
 import 'package:flutter3d_sim/src/actors/actor_components.dart';
 import 'package:flutter3d_sim/src/actors/actor_system.dart';
@@ -450,10 +452,13 @@ void main() {
       final system = ActorSystem(world: world, random: GameRandom(1));
       final walker = _walker(system);
       system.entities
-        ..register<_Suspicion>(
-          'suspicion',
-          encode: (_Suspicion value) => value.level,
-          decode: (Object? data) => _Suspicion((data! as num).toDouble()),
+        ..components.register<_Suspicion>(
+          ComponentCodec<_Suspicion>.of(
+            id: 'suspicion',
+            encode: (_Suspicion value) => value.level,
+            decode: (Object? data, int _) =>
+                _Suspicion((data! as num).toDouble()),
+          ),
         )
         ..set(walker.entity, _Suspicion(0.75));
 

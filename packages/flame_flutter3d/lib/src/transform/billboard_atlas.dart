@@ -2,8 +2,8 @@ import 'dart:typed_data' show Float32List;
 import 'dart:ui' as ui;
 
 import 'package:flame/components.dart' show Sprite, TextPaint;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
-import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart' show Matrix4;
 
 /// The pictures sprite billboards are drawn with, shared: one texture and
@@ -26,8 +26,8 @@ final class BillboardAtlas {
   /// Keyed by how it is sampled as well as by the picture: a caller asking
   /// for [materialOf] `smooth` after another asked for it sharp got the
   /// sharp one.
-  final Map<(ui.Image, bool), Future<engine.Material?>> _materials =
-      <(ui.Image, bool), Future<engine.Material?>>{};
+  final Map<(ui.Image, bool), Future<engine.RenderMaterial?>> _materials =
+      <(ui.Image, bool), Future<engine.RenderMaterial?>>{};
 
   /// Set by [dispose]. An upload still reading its pixels when the atlas is
   /// disposed checks it before making a texture nothing would give back.
@@ -46,31 +46,32 @@ final class BillboardAtlas {
   /// lettering and anything drawn at a finer grain. Uploaded the first time
   /// it is asked for in each sampling; null if the image cannot be read, or
   /// if the atlas was disposed while it was being read.
-  Future<engine.Material?> materialOf(ui.Image image, {bool smooth = false}) =>
-      _materials.putIfAbsent((image, smooth), () async {
-        final pixels = await image.toByteData(
-          format: ui.ImageByteFormat.rawStraightRgba,
-        );
-        if (pixels == null || _disposed) return null;
-        final texture = device.createTextureFromPixels(
-          width: image.width,
-          height: image.height,
-          format: TextureFormat.r8g8b8a8UNormInt,
-          pixels: pixels,
-        );
-        if (texture == null) return null;
-        _textures.add(texture);
-        return engine.Material(
-          name: 'sprite',
-          lighting: LightingModel.unlit,
-          albedo: texture,
-          albedoSampler: smooth
-              ? SamplerOptions.linearClamp
-              : SamplerOptions.nearestClamp,
-          alphaMode: MaterialAlphaMode.mask,
-          doubleSided: true,
-        );
-      });
+  Future<engine.RenderMaterial?> materialOf(
+    ui.Image image, {
+    bool smooth = false,
+  }) => _materials.putIfAbsent((image, smooth), () async {
+    final pixels = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
+    if (pixels == null || _disposed) return null;
+    final texture = device.createTextureFromPixels(
+      width: image.width,
+      height: image.height,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: pixels,
+    );
+    _textures.add(texture);
+    return engine.RenderMaterial(
+      name: 'sprite',
+      lighting: LightingModel.unlit,
+      albedo: texture,
+      albedoSampler: smooth
+          ? SamplerDescriptor.linearClamp
+          : SamplerDescriptor.nearestClamp,
+      alphaMode: MaterialAlphaMode.mask,
+      doubleSided: true,
+    );
+  });
 
   /// A card showing the part of its image [sprite] is cut from: a quad a
   /// metre square facing +Z, its foot at the origin. Its own corners rather

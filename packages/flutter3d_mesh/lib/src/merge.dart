@@ -69,6 +69,7 @@ final class MergeReport {
 
   /// The distance under which two vertices were taken for one, or zero for a
   /// merge that was told which vertices to weld rather than asked to find them.
+  /// In metres.
   final double distance;
 
   /// Where every old vertex and face went, or [EditMesh.none] where it did not.
@@ -78,7 +79,7 @@ final class MergeReport {
   int get merged => sourceVertices - vertices;
 
   /// Whether anything happened that a person should be told about.
-  bool get worthReporting =>
+  bool get isWorthReporting =>
       droppedDegenerate > 0 || droppedCoincident > 0 || splitNonManifold > 0;
 
   @override
@@ -165,7 +166,7 @@ final class MergeReport {
     groupOf[vertex] = found;
   }
 
-  return _rebuild(mesh, groupOf, members, _centres(mesh, members), epsilon);
+  return _rebuild(mesh, groupOf, members, _centers(mesh, members), epsilon);
 }
 
 /// Welds the vertices [selection] names into one, standing at [at].
@@ -224,17 +225,17 @@ double _defaultDistance(EditMesh mesh, List<int> live) {
   return math.max((high - low).length * 1e-6, 1e-9);
 }
 
-List<Vector3> _centres(EditMesh mesh, List<List<int>> members) {
+List<Vector3> _centers(EditMesh mesh, List<List<int>> members) {
   final at = Vector3.zero();
-  final centres = <Vector3>[];
+  final centers = <Vector3>[];
   for (final group in members) {
-    final centre = Vector3.zero();
+    final center = Vector3.zero();
     for (final vertex in group) {
-      centre.add(mesh.positionOf(vertex, at));
+      center.add(mesh.positionOf(vertex, at));
     }
-    centres.add(centre..scale(1 / group.length));
+    centers.add(center..scale(1 / group.length));
   }
-  return centres;
+  return centers;
 }
 
 /// Builds the mesh the grouping describes, and reports what it cost.
@@ -433,7 +434,7 @@ void _carryAttributes(
   List<int> origins,
 ) {
   final hasUv = mesh.hasLayer(MeshDomain.corner, MeshAttribute.uv0);
-  final hasColour = mesh.hasLayer(MeshDomain.corner, MeshAttribute.colour);
+  final hasColour = mesh.hasLayer(MeshDomain.corner, MeshAttribute.color);
   final hasCrease = mesh.hasLayer(MeshDomain.edge, MeshAttribute.crease);
   final hasEdgeFlags = mesh.hasLayer(MeshDomain.edge, MeshAttribute.flags);
   final hasFaceFlags = mesh.hasLayer(MeshDomain.face, MeshAttribute.flags);

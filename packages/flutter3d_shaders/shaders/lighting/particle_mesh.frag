@@ -27,27 +27,19 @@ in vec3 v_normal;
 
 out vec4 frag_color;
 
-/// The same block the other particle stage declares, for the same reason: this
-/// shader shares none of the lit shaders' headers.
-uniform FogInfo {
-  /// rgb: linear fog colour. w: density per metre, zero for no fog.
-  vec4 fog;
-
-  /// xyz: camera position in world space.
-  vec4 eye;
-}
-fog_info;
+#include <lib/contributor_eye.glsl>
 
 void main() {
-  vec3 to_eye = fog_info.eye.xyz - v_world_position;
-  float distance_to_eye = length(to_eye);
+  // Back along the ray that reached the fragment: to the eye, or against the
+  // view axis through an orthographic lens — `P7`.
+  vec3 towards_eye = TowardsEyeFrom(v_world_position);
 
   // `abs`, not `max(dot, 0)`. Nothing here is culled — a particle mesh is seen
   // from every side as it tumbles — so a back face is as visible as a front
   // one, and clamping would make half of every shard go black rather than dim.
   vec3 n = normalize(v_normal);
-  float facing = distance_to_eye > 0.0
-      ? abs(dot(n, to_eye / distance_to_eye))
+  float facing = dot(towards_eye, towards_eye) > 0.0
+      ? abs(dot(n, towards_eye))
       : 1.0;
 
   // Never all the way to zero. A silhouette edge is exactly perpendicular to
@@ -60,7 +52,8 @@ void main() {
   // additive particle *add* fog to the wall behind it.
   float fogged = 1.0;
   if (fog_info.fog.w > 0.0) {
-    fogged = clamp(exp(-fog_info.fog.w * distance_to_eye), 0.0, 1.0);
+    fogged = clamp(
+        exp(-fog_info.fog.w * FogDistance(v_world_position)), 0.0, 1.0);
   }
 
   frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);

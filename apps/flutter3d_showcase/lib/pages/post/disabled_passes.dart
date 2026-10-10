@@ -1,4 +1,5 @@
-/// Switching a pass off by its name, and asking the frame what became of it.
+/// Switching steps of the frame off, and asking the frame what became of
+/// their passes.
 ///
 /// Quoted by `disabled_passes.md` and shown whole in the Source tab.
 library;
@@ -9,21 +10,17 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 
 final class DisabledPassesDemo extends ShowcaseDemo {
   // #region names
-  /// The passes this scene turns on, in the order the frame runs them.
-  static final List<String> switchable = <String>[
-    for (final String name in RenderSettings.passOrder)
-      if (const <String>{
-        'directional shadows',
-        'ssao',
-        'contact shadows',
-        'bloom',
-        'antialias',
-      }.contains(name))
-        name,
+  /// The steps this scene turns on, in the order the frame runs them.
+  static const List<RenderStep> switchable = <RenderStep>[
+    RenderStep.shadows,
+    RenderStep.ambientOcclusion,
+    RenderStep.contactShadows,
+    RenderStep.bloom,
+    RenderStep.edgeSmoothing,
   ];
   // #endregion names
 
-  final Set<String> disabled = <String>{'bloom'};
+  final Set<RenderStep> off = <RenderStep>{RenderStep.bloom};
 
   @override
   void configureView(DemoContext context) => PostStage.frame(context);
@@ -33,37 +30,40 @@ final class DisabledPassesDemo extends ShowcaseDemo {
       PostStage.build(context, shadows: true).scene;
 
   @override
-  RenderSettings settings(DemoContext context) => RenderSettings(
-    ambientOcclusion: const AmbientOcclusionSettings(
-      enabled: true,
-      radius: 0.8,
-    ),
-    contactShadows: const ContactShadowSettings(enabled: true),
-    antiAlias: const AntiAliasSettings(enabled: true),
-    bloom: const BloomSettings(intensity: 0.3),
-    // #region disabled
-    disabledPasses: <String>{...disabled},
-    // #endregion disabled
-  );
+  RenderSettings settings(DemoContext context) =>
+      const RenderSettings(
+        ambientOcclusion: AmbientOcclusionSettings(enabled: true, radius: 0.8),
+        contactShadows: ContactShadowSettings(enabled: true),
+        antiAlias: AntiAliasSettings(enabled: true),
+        bloom: BloomSettings(intensity: 0.3),
+      )
+      // #region disabled
+      .without(<RenderStep>{...off});
+  // #endregion disabled
 
   @override
   List<DemoControl> controls(DemoContext context) => <DemoControl>[
-    for (final String name in switchable)
+    for (final RenderStep step in switchable)
       ToggleControl(
-        'Skip $name',
-        value: () => disabled.contains(name),
-        onChanged: (bool skip) =>
-            skip ? disabled.add(name) : disabled.remove(name),
+        'Skip ${step.name}',
+        value: () => off.contains(step),
+        onChanged: (bool skip) => skip ? off.add(step) : off.remove(step),
       ),
   ];
 
   @override
   void verify(Scene scene, FrameResult frame) {
     // #region report
-    for (final String name in disabled) {
-      final PassSkip? why = frame.skipReasonOf(name);
-      if (why != PassSkip.disabled) {
-        throw StateError('"$name" was named and the frame says $why');
+    for (final RenderStep step in off) {
+      for (final String pass in step.passes) {
+        final PassSkip? why = frame.skipReasonOf(pass);
+        if (passRan(frame, pass) ||
+            (why != null && why != PassSkip.switchedOff)) {
+          throw StateError(
+            '"$pass" of $step was switched off and the frame '
+            'says ${why ?? 'it ran'}',
+          );
+        }
       }
     }
     // #endregion report

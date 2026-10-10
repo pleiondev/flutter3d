@@ -1,0 +1,79 @@
+# The public API of flame_multiplayer.
+# Generated from v0.8.5 by `dart run api_snapshot:api_baseline` in tool/api. Do not edit.
+# A change here is a semver decision: see "The API is a snapshot" in CONTRIBUTING.md.
+
+library package:flame_multiplayer/flame_multiplayer.dart
+
+final class BatonStream
+  BatonStream(this.transport, {required this._holding, required this.onFrame, required this.onEvent, required this.onBaton, this.catchUpAfter = 4})
+  bool get holding
+  final PeerWire transport
+  final int catchUpAfter
+  final void Function(Map<String, Object?> event) onEvent
+  final void Function(Map<String, Object?> frame) onFrame
+  final void Function(Map<String, Object?> state) onBaton
+  int get behind
+  void pass(Map<String, Object?> state)
+  void step()
+  void take()
+  void tellEvent(Map<String, Object?> event)
+  void tellFrame(Map<String, Object?> frame)
+
+final class LoopbackWire implements PeerWire
+  int lost
+  static (LoopbackWire, LoopbackWire) pair({int delaySteps = 0, double lossRate = 0.0, int seed = 1})
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message, {bool reliable = true})
+  void tick()
+
+final class PeerFeed
+  Map<String, Object?>? get latest
+  PeerFeed(this.transport, {this.every = 1})
+  final PeerWire transport
+  final int every
+  void tell(Map<String, Object?> Function() state)
+
+final class PeerRoom
+  Map<String, Object?>? get peer
+  PeerRoom(this.wire, {required this.slot, this.about = const <String, Object?>{}, this.helloEvery = 0.5})
+  PeerWire channel(String tag)
+  bool get isHost
+  bool get met
+  final Map<String, Object?> about
+  final PeerWire wire
+  final double helloEvery
+  final int slot
+  int get otherSlot
+  void step(double dt)
+
+abstract interface class PeerWire
+  void listen(void Function(Map<String, Object?> message) onMessage)
+  void send(Map<String, Object?> message, {bool reliable = true})
+
+final class RollbackPlay<S>
+  ({int step, S after})? get agreedEnd
+  RollbackPlay({required PeerWire wire, required this.localSlot, required this.capture, required this.applyAndStep, required S Function() save, required void Function(S state) restore, this.endsAt, this.onSettled, int inputDelay = 3, int maxRollbackFrames = 20})
+  bool get connected
+  final Map<String, Object?> Function() capture
+  final bool Function(S after)? endsAt
+  final int localSlot
+  final void Function(List<Map<String, Object?>> bySlot) applyAndStep
+  final void Function(int step, S after)? onSettled
+  late final RollbackSession<S> session
+  void advance()
+
+final class RollbackSession<S>
+  RollbackSession({required this.wire, required this.captureLocalFrame, required this.applyAndStep, required this.save, required this.restore, this.inputDelay = 2, this.maxRollbackFrames = 8, this.redundancy = 8, this.onSettled})
+  final Map<String, Object?> Function() captureLocalFrame
+  final PeerWire wire
+  final S Function() save
+  final int inputDelay
+  final int maxRollbackFrames
+  final int redundancy
+  final void Function(Map<String, Object?> local, Map<String, Object?> remote) applyAndStep
+  final void Function(S state) restore
+  final void Function(int step, S after)? onSettled
+  int droppedCorrections
+  int get step
+  void advance()
+  void receive(Map<String, Object?> message)

@@ -24,7 +24,7 @@ import 'package:pad_input/src/standard_mapping.dart';
 /// parts that are easy to get wrong live above the channel and would otherwise
 /// only be reachable by running a game and waving a controller at it.
 final class FakePad extends GamepadPlatform {
-  final PadSnapshot state = PadSnapshot()..connected = true;
+  final PadSnapshot state = PadSnapshot()..isConnected = true;
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
 
@@ -136,7 +136,7 @@ void main() {
       // So a caller that does not care which buttons are analogue never has to
       // find out.
       final snapshot = PadSnapshot()
-        ..connected = true
+        ..isConnected = true
         ..setDown(PadButton.faceSouth, down: true);
 
       expect(snapshot.down(PadButton.faceSouth), isTrue);
@@ -148,13 +148,13 @@ void main() {
       // Not stale values. A controller whose battery dies mid-corner must not
       // leave the throttle where it was.
       final snapshot = PadSnapshot()
-        ..connected = true
+        ..isConnected = true
         ..setAxis(PadAxis.triggerRight, 1.0)
         ..setDown(PadButton.faceSouth, down: true);
 
       snapshot.disconnect();
 
-      expect(snapshot.connected, isFalse);
+      expect(snapshot.isConnected, isFalse);
       expect(snapshot.axis(PadAxis.triggerRight), 0.0);
       expect(snapshot.down(PadButton.faceSouth), isFalse);
     });
@@ -170,7 +170,7 @@ void main() {
 
       pad.read(out);
 
-      expect(out.connected, isTrue);
+      expect(out.isConnected, isTrue);
       expect(out.axis(PadAxis.leftStickX), 0.0);
       expect(out.axis(PadAxis.leftStickY), 0.0);
     });
@@ -233,7 +233,7 @@ void main() {
       fake.unplug();
       pad.read(out);
 
-      expect(out.connected, isFalse);
+      expect(out.isConnected, isFalse);
       expect(out.axis(PadAxis.triggerRight), 0.0);
       await Future<void>.delayed(Duration.zero);
       expect(seen, <PadConnection>[PadConnection.disconnected]);
@@ -276,11 +276,11 @@ void main() {
       // Never try-and-see: asking the channel and catching the failure costs
       // every unsupported platform a `MissingPluginException` at first use.
       final pad = Gamepad(platform: UnsupportedGamepad());
-      final out = PadSnapshot()..connected = true;
+      final out = PadSnapshot()..isConnected = true;
 
       expect(pad.isSupported, isFalse);
       pad.read(out);
-      expect(out.connected, isFalse);
+      expect(out.isConnected, isFalse);
     });
 
     test('and the default is whichever this build actually has', () {
@@ -304,12 +304,13 @@ void main() {
         debugDefaultTargetPlatformOverride = platform;
         // The native platforms written today, and this is the list that has to
         // change the day another one is — which is the point: a platform table
-        // nobody has to update is one that goes stale. Windows and Linux are
-        // what is left, and neither has an XInput or an evdev side yet.
+        // nobody has to update is one that goes stale. Fuchsia is what is left.
         const written = <TargetPlatform>{
           TargetPlatform.android,
           TargetPlatform.macOS,
           TargetPlatform.iOS,
+          TargetPlatform.windows,
+          TargetPlatform.linux,
         };
         expect(
           Gamepad().isSupported,
@@ -478,7 +479,7 @@ void main() {
       );
 
       expect(snapshot.down(PadButton.faceSouth), isFalse);
-      expect(snapshot.connected, isTrue);
+      expect(snapshot.isConnected, isTrue);
     });
   });
 
