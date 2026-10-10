@@ -49,6 +49,7 @@ library;
 export 'package:flutter3d/flutter3d.dart';
 export 'package:flutter3d_app/flutter3d_app.dart'
     show
+        DeviceSettings,
         DidNotStart,
         Flutter3dEngine,
         Flutter3dView,
@@ -56,7 +57,11 @@ export 'package:flutter3d_app/flutter3d_app.dart'
         LevelLoader,
         ListenerPose,
         LoadedLevel,
+        LoopSettings,
+        PluginSettings,
         SharedMeshes,
+        SimulationPlacement,
+        ViewSettings,
         ViewResolution;
 // What a first game reaches for beyond drawing (§E.14 of
 // `tasks/1.0-api-review.md`): the level, the step loop and its input from

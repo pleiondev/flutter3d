@@ -1759,12 +1759,17 @@ class _GameScreenState extends State<GameScreen> {
               child: Flutter3dView(
                 scene: _empty,
                 camera: _camera,
-                device: widget.device,
-                input: _input,
-                drainLook: _drainLook,
-                plugins: _plugins,
-                registries: _registries,
-                settings: _renderSettings(),
+                device: DeviceSettings(device: widget.device),
+                loop: LoopSettings(input: _input, drainLook: _drainLook),
+                plugins: PluginSettings(
+                  plugins: _plugins,
+                  registries: _registries,
+                ),
+                view: ViewSettings(
+                  settings: _renderSettings(),
+                  placeholder: const Center(child: CircularProgressIndicator()),
+                  failure: _failed,
+                ),
                 focusNode: _keyboard,
                 autofocus: true,
                 onKeyEvent: _onKey,
@@ -1772,8 +1777,6 @@ class _GameScreenState extends State<GameScreen> {
                 onBeforeFrame: _beforeFrame,
                 onFrame: _afterFrame,
                 onListenerMoved: _listenerMoved,
-                placeholder: const Center(child: CircularProgressIndicator()),
-                failure: _failed,
               ),
             ),
             // **`gfx-71n`.** This build ships to Android and iOS, and the

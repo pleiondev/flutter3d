@@ -1,5 +1,42 @@
 ## 1.0.0-rc.1
 
+- **`Flutter3dView` takes its options in four groups.** `device:` is a
+  `DeviceSettings` (the device or renderer to borrow, the registry to open
+  from, the presenter, the loss callbacks, `fallbackBanner`), `view:` a
+  `ViewSettings` (`settings`, `render` — the `RenderViewSettings` that was
+  `viewOptions` —, `resolution`, `views`, `continuous`, `frameRateCap`,
+  `placeholder`, `failure`, `warmUp`, `onWarmUpProgress`), `loop:` a
+  `LoopSettings` (`timing`, `input`, `drainLook`, `originShift`,
+  `simulation`) and `plugins:` a `PluginSettings` (`plugins`, `formats`,
+  `registries`). Thirty-four named parameters were a constructor nobody
+  read; each group is final and const with a full `copyWith`, so an option
+  added later lands in one group with a default. The scene, the camera, the
+  callbacks, focus, restoration and the log stay at the top.
+  `Flutter3dView.defaultOriginShift` is `LoopSettings.defaultOriginShift`.
+- **The simulation can run in an isolate of its own.**
+  `LoopSettings(simulation: SimulationPlacement.isolate(factory))` builds the
+  loop in a spawned isolate from a top-level factory (`SimulationFactory`),
+  steps it by each frame's time and pauses it with the view; the game reads
+  and submits through `Flutter3dEngine.simulation`, a `SimulationHandle`
+  that is a `LocalSimulation` over the view's loop by default
+  (`SimulationPlacement.inline`). On the web, where a package cannot spawn
+  an isolate, the same factory's loop runs here, stepped the same way.
+- **The view warms its pipelines up after the device opens.** Once it is
+  laid out it calls `Renderer.warmUpInSlices` with its scene and size, a
+  slice at a time between frames, so the first seconds of play do not stall
+  on each material's first draw. `ViewSettings.warmUp` turns it off and
+  `onWarmUpProgress` is told how far it got.
+- **A view that draws on the CPU says so.** When the GPU backend would not
+  start — Impeller off — and the software rasteriser draws instead, a
+  banner over the picture says which backend draws and how to turn
+  Impeller on, until it is closed. `DeviceSettings.fallbackBanner: false`
+  turns it off; `Flutter3dEngine.backendRefusals` holds the reasons.
+- **Each engine keeps an `EngineLog`.** `Flutter3dView.log` (or one of the
+  view's own, `Flutter3dEngine.log`) is told the device opened, a backend
+  that refused, a device lost or back, a failed warm-up; an error thrown
+  by `onCreated`, `onBeforeFrame`, `onFrame` or the loop goes to its crash
+  reporters (`EngineLog.onCrash`) before it reaches Flutter.
+
 - **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
   `ext.flutter3d.assets.swap`, its name since it was added.
 
