@@ -114,12 +114,13 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
     // #region orbit
     final double c = math.cos(angle) * 3.0;
     final double s = math.sin(angle) * 3.0;
+    // The slider is in multiples of the default, as the lights were built.
     _red
       ..setPosition(-c, 0.0, -s)
-      ..intensity = intensity;
+      ..intensity = intensity * LightNode.defaultIntensity;
     _blue
       ..setPosition(c, 0.0, s)
-      ..intensity = intensity;
+      ..intensity = intensity * LightNode.defaultIntensity;
     _sheet.ambient.setValues(ambient, ambient, ambient);
     // #endregion orbit
 
