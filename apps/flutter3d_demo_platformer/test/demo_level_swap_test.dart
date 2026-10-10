@@ -16,6 +16,8 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_demo_platformer/src/run.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart'
+    show platformerSimulationVersion;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -122,6 +124,9 @@ void main() {
       // The backend the run is on, as `main.dart` names it: a replay plays
       // on what the file says it was recorded on, and refuses another.
       physics: usePhysics(),
+      // And the simulation, as `main.dart` stamps it: a replay is refused on
+      // any simulation but the one the file names.
+      simulation: platformerSimulationVersion,
       level: _first,
       levelHash: run.level!.loaded.level.digestHex,
       start: start,
