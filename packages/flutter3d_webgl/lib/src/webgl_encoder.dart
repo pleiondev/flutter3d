@@ -16,9 +16,8 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
 
 import 'webgl_buffers.dart';
@@ -585,8 +584,8 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   /// constructor puts it back to transparent black — see the reset beside the
   /// stencil's.
   @override
-  void setBlendColor(Vector4 color) =>
-      _gl.blendColor(color.x, color.y, color.z, color.w);
+  void setBlendColor(LinearColor color) =>
+      _gl.blendColor(color.r, color.g, color.b, color.a);
 
   @override
   void bindPipeline(PipelineHandle pipeline) {

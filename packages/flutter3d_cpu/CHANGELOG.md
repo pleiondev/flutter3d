@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0; the blend reads the same four
+  channels.
 - **`CpuDevice.dispose` is reported as a device loss.** The first call sets
   `isLost` and sends one `DeviceLossReason.destroyed` on `lost`, then
   closes the stream; it used to do nothing, and `lost` never fired.

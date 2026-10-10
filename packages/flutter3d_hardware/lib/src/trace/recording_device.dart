@@ -16,7 +16,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import '../capabilities.dart';
 import '../command_encoder.dart';
@@ -706,8 +707,8 @@ final class _RecordingEncoder extends PassEncoder with CommandEncoder {
   }
 
   @override
-  void setBlendColor(Vector4 color) {
-    _events.add(TraceSetBlendColor(_pass, color.clone()));
+  void setBlendColor(LinearColor color) {
+    _events.add(TraceSetBlendColor(_pass, color));
     _inner.setBlendColor(color);
   }
 

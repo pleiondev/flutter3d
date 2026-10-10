@@ -14,7 +14,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
@@ -141,7 +141,7 @@ final class WebGpuSpikeEncoder extends PassEncoder with CommandEncoder {
   /// have no WebGPU spelling, and the contract says a backend that answers false
   /// throws from here rather than drawing the term as zero.
   @override
-  void setBlendColor(Vector4 color) => throw UnsupportedCapability(
+  void setBlendColor(LinearColor color) => throw UnsupportedCapability(
     DeviceFeature.blendConstant,
     backend: spikeBackendName,
     reason:

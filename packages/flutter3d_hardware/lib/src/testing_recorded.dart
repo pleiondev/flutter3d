@@ -3,16 +3,23 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 /// One thing recorded into a pass, in order.
 ///
-/// A sealed hierarchy rather than a list of strings, so a test asserts on
+/// A hierarchy of values rather than a list of strings, so a test asserts on
 /// values it can construct rather than on a rendering of them — a string
 /// comparison would pass for the wrong reasons the first time a `toString`
 /// changed.
-sealed class Recorded {
+///
+/// **Open, not sealed, since 1.0.** A pass gains calls in minor releases, and
+/// each new kind of record would have been a new case every exhaustive
+/// `switch` over a sealed type had to add: a break in a minor. A `switch`
+/// over a [Recorded] ends with a wildcard, as a test that names only the
+/// records it cares about already does.
+abstract base class Recorded {
   const Recorded();
 }
 
@@ -47,7 +54,7 @@ final class RecordedBlend extends Recorded {
 
 final class RecordedBlendColor extends Recorded {
   const RecordedBlendColor(this.color);
-  final Vector4 color;
+  final LinearColor color;
 }
 
 final class RecordedTexture extends Recorded {

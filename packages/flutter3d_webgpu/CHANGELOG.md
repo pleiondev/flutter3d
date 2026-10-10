@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0. It is still refused: WebGPU
+  cannot form two of the four constant factors.
 - **Breaking: `beginFrame` throws what the browser refused.** Every error
   a validation scope caught, each `uncapturederror` and each WGSL
   compilation error is held and thrown once at the next `beginFrame`: a

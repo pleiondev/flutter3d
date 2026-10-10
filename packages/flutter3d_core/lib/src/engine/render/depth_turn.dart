@@ -9,8 +9,9 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' as vm;
 
 import 'pass_contributor.dart' show ContributorFrame;
 
@@ -100,7 +101,7 @@ abstract base class DepthTurningEncoder extends PassEncoder {
       _inner.setAlphaToCoverage(enabled: enabled);
 
   @override
-  void setBlendColor(vm.Vector4 color) => _inner.setBlendColor(color);
+  void setBlendColor(LinearColor color) => _inner.setBlendColor(color);
 
   @override
   void bindPipeline(PipelineHandle pipeline) => _inner.bindPipeline(pipeline);

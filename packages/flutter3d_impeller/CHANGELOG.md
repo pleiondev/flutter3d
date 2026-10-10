@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `GpuCommandEncoder.setBlendColor` takes a `LinearColor`**,
+  as `PassEncoder.setBlendColor` does since 1.0. It is still refused, since
+  flutter_gpu has no blend-constant setter.
 - **`GpuRenderBackend.dispose` is reported as a device loss.** The first
   call sets `isLost` and sends one `DeviceLossReason.destroyed` on `lost`,
   then closes it; `lost` used to be empty. A context the platform takes

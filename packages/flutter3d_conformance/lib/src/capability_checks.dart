@@ -25,10 +25,9 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../flutter3d_conformance.dart';
 
@@ -159,8 +158,10 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
   DeviceFeature.blendConstant: (
     needs: const <DeviceFeature>[],
     refusalOnly: false,
-    run: (GraphicsDevice d) async =>
-        _inPass(d, (CommandEncoder p) => p.setBlendColor(Vector4.zero())),
+    run: (GraphicsDevice d) async => _inPass(
+      d,
+      (CommandEncoder p) => p.setBlendColor(LinearColor.transparent),
+    ),
   ),
   DeviceFeature.wireframe: (
     needs: const <DeviceFeature>[],

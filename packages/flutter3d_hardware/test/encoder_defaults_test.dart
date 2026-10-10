@@ -13,11 +13,10 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 final class _BarePass extends PassEncoder with CommandEncoder {
   final List<String> draws = <String>[];
@@ -79,7 +78,7 @@ void main() {
       final cases = <String, (DeviceFeature, void Function(PassEncoder))>{
         'setBlendColor': (
           DeviceFeature.blendConstant,
-          (p) => p.setBlendColor(Vector4.zero()),
+          (p) => p.setBlendColor(LinearColor.black),
         ),
         'drawIndexed with a base vertex': (
           DeviceFeature.baseVertexBaseInstance,

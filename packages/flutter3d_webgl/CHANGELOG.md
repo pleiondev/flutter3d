@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebGlEncoder.setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0; the same four channels reach
+  `blendColor`.
 - **A compile refusal says where.** `compileWebGlShader` fills the
   `ShaderCompileException`'s `stage`, `target` (`webgl`) and
   `diagnostics`, read from the driver's log with the source line of each

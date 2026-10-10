@@ -3,8 +3,9 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'backend_handles.dart';
 import 'handle_checks.dart';
@@ -193,9 +194,9 @@ final class FakePass extends PassEncoder
       commands.add(RecordedBlend(state, attachment));
 
   @override
-  void setBlendColor(Vector4 color) {
+  void setBlendColor(LinearColor color) {
     _passOnly('setBlendColor');
-    commands.add(RecordedBlendColor(color.clone()));
+    commands.add(RecordedBlendColor(color));
   }
 
   @override

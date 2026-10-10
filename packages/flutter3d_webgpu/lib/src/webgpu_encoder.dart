@@ -60,7 +60,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
@@ -1242,7 +1242,7 @@ final class WebGpuEncoder extends WebGpuRecorder with CommandEncoder {
   /// true would promise four factors and honour two. The capability is one
   /// answer for all four, so the honest answer loses the two it could have had.
   @override
-  void setBlendColor(Vector4 color) => _device.features.require(
+  void setBlendColor(LinearColor color) => _device.features.require(
     DeviceFeature.blendConstant,
     backend: _backend,
     reason: _noBlendConstant,
@@ -1427,7 +1427,7 @@ final class WebGpuBundleEncoder extends WebGpuRecorder
   void setStencilReference(int value) => _passOnly('setStencilReference');
 
   @override
-  void setBlendColor(Vector4 color) => _passOnly('setBlendColor');
+  void setBlendColor(LinearColor color) => _passOnly('setBlendColor');
 
   @override
   void beginOcclusionQuery(int queryIndex) => _passOnly('beginOcclusionQuery');

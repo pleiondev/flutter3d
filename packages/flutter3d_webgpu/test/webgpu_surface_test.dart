@@ -12,7 +12,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu_web.dart';
@@ -345,7 +345,7 @@ void main() {
       refuses(DeviceFeature.samplerBorderColor),
     );
     expect(
-      () => pass.setBlendColor(Vector4.zero()),
+      () => pass.setBlendColor(LinearColor.transparent),
       refuses(DeviceFeature.blendConstant),
     );
     expect(

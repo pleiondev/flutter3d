@@ -92,7 +92,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import 'capabilities.dart';
 import 'compute.dart';
@@ -241,7 +242,7 @@ abstract base mixin class PassEncoder {
   /// `a blend constant reaches the blend, or is refused`, which draws with the
   /// constant on a backend that has one and demands the two refusals from a
   /// backend that has not.
-  void setBlendColor(Vector4 color) =>
+  void setBlendColor(LinearColor color) =>
       refuseByDefault(this, DeviceFeature.blendConstant);
 
   /// Binds the pair of stages the following draws run.

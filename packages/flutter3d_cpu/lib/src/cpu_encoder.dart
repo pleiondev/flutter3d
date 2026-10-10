@@ -4,6 +4,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -298,9 +300,9 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   }
 
   @override
-  void setBlendColor(Vector4 color) {
+  void setBlendColor(LinearColor color) {
     _features.require(DeviceFeature.blendConstant, backend: cpuBackendName);
-    _blendColor.setFrom(color);
+    _blendColor.setValues(color.r, color.g, color.b, color.a);
   }
 
   /// Forgets every binding, as the contract says every backend does.

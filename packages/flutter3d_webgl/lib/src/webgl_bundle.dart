@@ -15,9 +15,10 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
 
 import 'webgl_device.dart';
@@ -79,7 +80,7 @@ final class WebGlRenderBundleEncoder extends PassEncoder
   void setScissor(ScreenRect rect) => _passOnly('setScissor');
 
   @override
-  void setBlendColor(Vector4 color) => _passOnly('setBlendColor');
+  void setBlendColor(LinearColor color) => _passOnly('setBlendColor');
 
   @override
   void setStencilReference(int value) => _passOnly('setStencilReference');

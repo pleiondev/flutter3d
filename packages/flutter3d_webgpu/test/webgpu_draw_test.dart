@@ -21,7 +21,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/src/webgpu_device.dart';
 import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
@@ -753,7 +753,7 @@ void main() {
         RenderPassDescriptor(colors: <ColorTarget>[_clearTo(scene.target())]),
       );
       expect(
-        () => pass.setBlendColor(Vector4(1, 1, 1, 1)),
+        () => pass.setBlendColor(LinearColor.white),
         throwsA(isA<UnsupportedCapability>()),
       );
       expect(

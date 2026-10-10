@@ -10,6 +10,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../formats.dart';
@@ -80,6 +82,21 @@ ScreenRect screenRectFromJson(Object? json) {
 }
 
 List<Object?> vector4ToJson(Vector4 v) => <Object?>[v.x, v.y, v.z, v.w];
+
+/// A colour on the wire as a [Vector4] is, four numbers, red first: the
+/// blend constant was a `Vector4` before 1.0, and a trace written then
+/// reads the same.
+List<Object?> linearColorToJson(LinearColor c) => <Object?>[c.r, c.g, c.b, c.a];
+
+LinearColor linearColorFromJson(Object? json) {
+  final v = (json! as List<Object?>).cast<num>();
+  return LinearColor(
+    v[0].toDouble(),
+    v[1].toDouble(),
+    v[2].toDouble(),
+    v[3].toDouble(),
+  );
+}
 
 Vector4 vector4FromJson(Object? json) {
   final v = (json! as List<Object?>).cast<num>();

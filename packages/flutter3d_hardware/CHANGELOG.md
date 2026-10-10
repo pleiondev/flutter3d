@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **Breaking (for outside backends): `PassEncoder.setBlendColor` takes a
+  `LinearColor`**, the engine's one colour type, where it took a `Vector4`;
+  `RecordedBlendColor.color` and `TraceSetBlendColor.color` hold one too. A
+  trace writes it as the same four numbers, so a trace recorded before reads
+  the same. An encoder of your own changes the parameter's type; a caller
+  writes `setBlendColor(LinearColor(r, g, b, a))`, which `dart run
+  flutter3d_build:migrate` does for it.
+- **Breaking: `Recorded` is an `abstract base class`**, not `sealed`: a pass
+  gains calls in minor releases, and each would have been a new case every
+  exhaustive `switch` had to add. A `switch` over a `Recorded` ends with a
+  wildcard; `migrate` adds one where it is missing.
 - **Every feature-gated encoder member has a default body.** The
   1.0 members of `PassEncoder` (`drawIndexed`, `multiDraw`,
   `multiDrawIndirect`, `executeBundles`, the query, depth-bias,

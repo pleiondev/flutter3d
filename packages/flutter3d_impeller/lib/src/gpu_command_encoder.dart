@@ -10,10 +10,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'gpu_device.dart';
 import 'gpu_formats.dart';
@@ -238,7 +237,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // TODO(impeller): no blend-constant setter on flutter_gpu's RenderPass —
   // unblocked by an upstream RenderPass.setBlendConstant.
   @override
-  Never setBlendColor(Vector4 color) => throw UnsupportedCapability(
+  Never setBlendColor(LinearColor color) => throw UnsupportedCapability(
     DeviceFeature.blendConstant,
     backend: impellerBackendName,
     reason:
