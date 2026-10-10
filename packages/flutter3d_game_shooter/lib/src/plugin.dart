@@ -13,8 +13,8 @@ import 'step_phases.dart';
 ///
 /// * **One system, `shooter.step`, in the engine's `physics` phase**, which
 ///   steps [simulation] by the loop's `dt`. The shooter's own moments —
-///   [ShooterPhases] and the two every genre has, run through
-///   [GameSimulation.systems] — are **sub-phases of this one system**: the
+///   [ShooterPhases], run through
+///   [GameSimulation.addSystem] — are **sub-phases of this one system**: the
 ///   order inside a shooter's step is the genre's, documented on
 ///   [ShooterPhases], and a tape recorded under it replays only while that
 ///   order holds. The engine's phases order what comes before and after the
@@ -80,7 +80,7 @@ final class ShooterPlugin extends GenrePlugin<GameSimulation> {
 
   @override
   void stepSimulation(GameSimulation simulation, LoopContext context) =>
-      simulation.step(context.dt);
+      simulation.step(context.dt, context: context);
 
   @override
   Registration publishEvents(GameSimulation simulation, EventRegistry bus) =>

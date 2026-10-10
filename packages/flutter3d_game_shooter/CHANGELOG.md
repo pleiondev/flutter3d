@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a game's rules hang on the step through `addSystem`.**
+  `GameSimulation.systems` (sim's `StepSystems`) is gone: a rule is added
+  with `addSystem(name, ShooterPhases.afterActors, (LoopContext c) {...},
+  after: [...], before: [...])` and removed by cancelling the
+  `Registration` it returns, as a system of the engine's loop is. A system
+  is handed a `LoopContext`: the loop's own, with `phase` the shooter's,
+  when the plugin steps the run, and one of the run's own when it is
+  stepped by hand. `ShooterPhases` holds `LoopPhase`s named `shooter.…`,
+  with `begin` and `end` of its own in place of `StepPhase.begin` and
+  `StepPhase.end`, and `all` in step order; a phase the shooter does not
+  announce, or a name used twice, is refused. `GameSimulation.step` takes
+  the loop's context as an optional `context:`.
+- **The weapon view's lights are in lux and candela.** The key is
+  26 058 lux and the fill 17 372 cd, the picture they gave before, written
+  as numbers rather than through the pre-1.0 light unit.
+
 - **A rocket's launcher survives a rewind.** `FiredBy` is saved under
   `firedBy`, where it was excluded. An actor's launcher is named by its
   entity; anything else is named through `ProjectileSystem.nameOwner`, and

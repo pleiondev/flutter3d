@@ -7,18 +7,32 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'events.dart';
+import 'genre_systems.dart';
 import 'race_state.dart';
 import 'track.dart';
 import 'vehicle/vehicle_controller.dart';
 
-/// The moments inside a race's step that a game can hang its own rules off,
-/// beside the two every genre has ([StepPhase.begin], [StepPhase.end]).
+/// The moments inside a race's step that a game hangs its own rules off,
+/// through [RacingSimulation.addSystem], in the order the step reaches them.
+///
+/// **Phases of the loop's kind** (`LoopPhase.step`), named for the genre, so
+/// a system written for a loop phase is written the same way for one of
+/// these: it is handed a `LoopContext` either way.
 abstract final class RacingPhases {
+  /// The top of a step of a race that is not finished, after the lights.
+  static const LoopPhase begin = LoopPhase.step('racing.begin');
+
   /// Every car has driven, the cars have been pushed apart and handed to the
   /// dynamics: where a rule that changes how a car moves — a slipstream, a
   /// boost pad, a replacement controller writing the cars itself — belongs.
   /// Progress, the overlaps and the recoveries come after it.
-  static const StepPhase afterVehicles = StepPhase('racing.afterVehicles');
+  static const LoopPhase afterVehicles = LoopPhase.step('racing.afterVehicles');
+
+  /// The bottom, after progress is read and fallen cars are put back.
+  static const LoopPhase end = LoopPhase.step('racing.end');
+
+  /// Every phase, in the order the step reaches them.
+  static const List<LoopPhase> all = <LoopPhase>[begin, afterVehicles, end];
 }
 
 /// A racing game's step, in the order it has to happen in.
@@ -126,14 +140,51 @@ final class RacingSimulation {
 
   void _publish(GameEvent event) => _bus?.publish(event);
 
-  /// Rules a game adds to the step, by phase: [StepPhase.begin], the cars'
-  /// moment [RacingPhases.afterVehicles], and [StepPhase.end].
+  /// Adds [system] to [phase], one of [RacingPhases], under [name],
+  /// returning the registration that removes it again.
   ///
   /// **Where a game replaces or extends what the cars do without editing the
   /// genre's step**: a rule is hung at a named moment inside the step rather
   /// than wrapped round it, so the order a tape replays stays the genre's.
   /// Run only while the race is not finished.
-  final StepSystems systems = StepSystems();
+  ///
+  /// Systems run in the order they were added, moved only by [after] and
+  /// [before], which name other systems of the same phase (a name nothing
+  /// registered is ignored) — the rule the engine's loop orders its own
+  /// systems by. The system is handed the loop's `LoopContext` when a loop
+  /// steps the race, with [LoopContext.phase] the genre's phase; stepped by
+  /// hand, a context of the race's own, which publishes onto the bus of
+  /// [publishTo] and has no `world`.
+  ///
+  /// Throws an [ArgumentError] for a [name] already added or a [phase] that
+  /// is not one of [RacingPhases.all].
+  Registration addSystem(
+    String name,
+    LoopPhase phase,
+    LoopSystem system, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _systems.add(name, phase, system, after: after, before: before);
+
+  /// The names of [phase]'s systems, in the order they run.
+  List<String> systemsIn(LoopPhase phase) => _systems.namesIn(phase);
+
+  late final GenreSystems _systems = GenreSystems(
+    RacingPhases.all,
+    publish: (BusEvent event) => _bus?.publish(event),
+  );
+
+  /// Steps run by [step], for a system's `LoopContext.step` when no loop
+  /// steps the race.
+  int _steps = 0;
+
+  /// The loop's context for the step being run, or null for one run by hand.
+  LoopContext? _context;
+
+  void _run(LoopPhase phase, double dt) {
+    if (_systems.isEmpty) return;
+    _systems.run(phase, dt, step: _steps, outer: _context);
+  }
 
   /// Advances one fixed step.
   ///
@@ -155,14 +206,19 @@ final class RacingSimulation {
   /// 10. cars that have fallen off the world, or spent too long off it, are put
   ///     back, and the broadphase is told, because it is still holding them
   ///     where they went.
-  void step(double dt) {
+  ///
+  /// [context] is the loop's, when a loop steps the race, and what
+  /// [addSystem]'s systems are handed.
+  void step(double dt, {LoopContext? context}) {
+    _context = context;
+    _steps++;
     race.clearStepFlags();
 
     if (race.phase == RacePhase.finished) return;
 
     final racing = _runLights(dt);
     race.elapsed += dt;
-    systems.run(StepPhase.begin, dt);
+    _run(RacingPhases.begin, dt);
 
     _world.movers(dt);
     _world.index(dt);
@@ -186,7 +242,7 @@ final class RacingSimulation {
         dynamics!.push(vehicle.collider, vehicle.velocity);
       }
     }
-    systems.run(RacingPhases.afterVehicles, dt);
+    _run(RacingPhases.afterVehicles, dt);
 
     for (var i = 0; i < vehicles.length; i++) {
       _readProgress(i, dt, racing);
@@ -198,7 +254,7 @@ final class RacingSimulation {
     for (var i = 0; i < vehicles.length; i++) {
       _recover(i, dt);
     }
-    systems.run(StepPhase.end, dt);
+    _run(RacingPhases.end, dt);
   }
 
   /// Runs the countdown. Returns whether the cars may actually drive.

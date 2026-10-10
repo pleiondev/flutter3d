@@ -250,7 +250,7 @@ class _RaceScreenState extends State<RaceScreen>
 
   Vector4 _skyColour() {
     final color = _sky.colorAt(_gaze);
-    return Vector4(color.x, color.y, color.z, 1.0);
+    return Vector4(color.r, color.g, color.b, 1.0);
   }
 
   /// The one [RenderSettings] this game draws with — pulled out of `build`

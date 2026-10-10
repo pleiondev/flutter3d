@@ -50,6 +50,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -94,9 +95,9 @@ final class SkyPreset {
   /// Radians clockwise from north, in the same frame the track is laid out in.
   final double sunAzimuth;
 
-  /// The colour and strength of the directional light. The generator derives the
-  /// level's one sun from these rather than repeating them.
-  final Vector3 sunColor;
+  /// The colour and strength of the directional light, linear. The generator
+  /// derives the level's one sun from these rather than repeating them.
+  final LinearColor sunColor;
 
   /// The strength is a unitless multiplier on [sunColor], in the pre-1.0 light
   /// scale [ambientIntensity] is in.
@@ -107,9 +108,9 @@ final class SkyPreset {
   /// [belowHorizon] is what the sky reads as when the camera is looking down at
   /// nothing — over the edge of an elevated section, mostly. It is the ground's
   /// haze rather than the sky's, and it is darker for it.
-  final Vector3 zenith;
-  final Vector3 horizon;
-  final Vector3 belowHorizon;
+  final LinearColor zenith;
+  final LinearColor horizon;
+  final LinearColor belowHorizon;
 
   /// The wide scattering lobe around the sun: how sharp it is, and how bright.
   ///
@@ -138,9 +139,9 @@ final class SkyPreset {
 
   /// What the renderer is told about the light that is not the sun, and how much
   /// light the camera is set for.
-  /// [ambientIntensity] is in the pre-1.0 engine unit (times
-  /// `Photometric.legacyUnit` it is lux); [exposure] is a linear multiplier, as
-  /// `RenderSettings.exposure` takes it.
+  /// [ambientIntensity] is the track file's number, in the level format's
+  /// light scale, which the level's reader turns into lux; [exposure] is a
+  /// linear multiplier, as `RenderSettings.exposure` takes it.
   final double ambientIntensity;
 
   /// A linear multiplier on the light.
@@ -180,36 +181,24 @@ final class SkyPreset {
     );
   }
 
-  /// The colour of the sky in [direction], which need not be normalised.
+  /// The linear colour of the sky in [direction], which need not be
+  /// normalised.
   ///
   /// Two parts. The gradient is a smoothstep in height so the band near the
   /// horizon is wide and the zenith is flat, which is roughly what the sky does
   /// and is certainly what a linear ramp does not. On top of it sits the wide
   /// lobe around the sun, added rather than mixed, because scattered light is
   /// light arriving and not paint.
-  Vector3 colorAt(Vector3 direction) {
+  LinearColor colorAt(Vector3 direction) {
     final length = direction.length;
-    if (length <= 0.0) return Vector3.copy(horizon);
+    if (length <= 0.0) return horizon;
     final y = (direction.y / length).clamp(-1.0, 1.0);
 
-    final Vector3 base;
-    if (y >= 0.0) {
-      // Squared rather than linear so the horizon band is wide: half the sky's
-      // visible interest happens in the first fifteen degrees.
-      final t = _smoothstep(y);
-      base = Vector3(
-        horizon.x + (zenith.x - horizon.x) * t,
-        horizon.y + (zenith.y - horizon.y) * t,
-        horizon.z + (zenith.z - horizon.z) * t,
-      );
-    } else {
-      final t = _smoothstep(-y);
-      base = Vector3(
-        horizon.x + (belowHorizon.x - horizon.x) * t,
-        horizon.y + (belowHorizon.y - horizon.y) * t,
-        horizon.z + (belowHorizon.z - horizon.z) * t,
-      );
-    }
+    // Squared rather than linear so the horizon band is wide: half the sky's
+    // visible interest happens in the first fifteen degrees.
+    final base = y >= 0.0
+        ? LinearColor.lerp(horizon, zenith, _smoothstep(y))
+        : LinearColor.lerp(horizon, belowHorizon, _smoothstep(-y));
 
     final toSun = directionToSun;
     final towards =
@@ -219,10 +208,10 @@ final class SkyPreset {
         length;
     if (towards <= 0.0) return base;
     final lobe = glowStrength * math.pow(towards, glowWide).toDouble();
-    return Vector3(
-      base.x + sunColor.x * lobe,
-      base.y + sunColor.y * lobe,
-      base.z + sunColor.z * lobe,
+    return LinearColor(
+      base.r + sunColor.r * lobe,
+      base.g + sunColor.g * lobe,
+      base.b + sunColor.b * lobe,
     );
   }
 
@@ -234,7 +223,7 @@ final class SkyPreset {
   /// band where the ground ends and no way for the two to be authored apart.
   /// The generator writes this into the level's `fogColor` by computing it the
   /// same way, which is why `fogColor` is not a field anybody types.
-  Vector3 get horizonFogColor {
+  LinearColor get horizonFogColor {
     final toSun = directionToSun;
     // Perpendicular to the sun in the ground plane, so the neutral haze is not
     // the sun's own glow. A sun straight overhead has no azimuth worth speaking
@@ -250,7 +239,7 @@ final class SkyPreset {
   /// sentence: the same corner is a different picture depending on which way it
   /// is taken, and a car ahead in the distance is a silhouette into the sun and
   /// a shape away from it.
-  Vector3 inScatterAlong(Vector3 viewDir) {
+  LinearColor inScatterAlong(Vector3 viewDir) {
     final base = horizonFogColor;
     final length = viewDir.length;
     if (length <= 0.0) return base;
@@ -262,7 +251,7 @@ final class SkyPreset {
     final boost =
         1.0 +
         fogBacklitStrength * math.pow(towards, fogBacklitExponent).toDouble();
-    return Vector3(base.x * boost, base.y * boost, base.z * boost);
+    return base.scaled(boost);
   }
 
   /// Reads a preset out of a track file's `"sky"` block, falling back field by
@@ -287,9 +276,11 @@ final class SkyPreset {
     // each component that was not a number became nought on its own. The
     // shared reader takes all three or none, which for a preset means the time
     // of day it was falling back to anyway.
-    Vector3 color(String key, Vector3 fallbackValue) {
+    LinearColor color(String key, LinearColor fallbackValue) {
       final out = Vector3.zero();
-      return readVector(json[key], out) ? out : fallbackValue;
+      return readVector(json[key], out)
+          ? LinearColor(out.x, out.y, out.z)
+          : fallbackValue;
     }
 
     final name = json['name'];

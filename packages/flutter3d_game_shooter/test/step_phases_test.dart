@@ -9,12 +9,14 @@
 /// announced in and about what is true by the time each one is — the same
 /// argument `WorldStep` makes about the six calls it holds.
 ///
-/// `step_systems_test.dart` in `flutter3d_game` covers the registry itself.
-/// Nothing here re-tests it; what is tested here is the wiring.
+/// The last tests hold the table itself to the loop's rule: the order of
+/// adding, moved by `after` and `before`; a phase the genre lacks refused;
+/// and the context a system is handed, by hand and inside a loop.
 library;
 
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -49,13 +51,13 @@ CollisionWorld _ground() {
 }
 
 /// The phases this genre announces, in the order it announces them.
-const List<StepPhase> _order = <StepPhase>[
-  StepPhase.begin,
+const List<LoopPhase> _order = <LoopPhase>[
+  ShooterPhases.begin,
   ShooterPhases.afterPlayer,
   ShooterPhases.afterWorld,
   ShooterPhases.afterWeapons,
   ShooterPhases.afterActors,
-  StepPhase.end,
+  ShooterPhases.end,
 ];
 
 void main() {
@@ -65,11 +67,11 @@ void main() {
     // gives is worse than an undocumented one: somebody would have written a
     // rule against the sentence.
     //
-    // Mutation: move any `systems.run` line — fails here, naming both orders.
+    // Mutation: move any `_run` line — fails here, naming both orders.
     final harness = _harness();
     final seen = <String>[];
-    for (final phase in _order) {
-      harness.sim.systems.add(phase, (_) => seen.add(phase.name));
+    for (final phase in _order.reversed) {
+      harness.sim.addSystem(phase.name, phase, (_) => seen.add(phase.name));
     }
 
     harness.sim.step(_dt);
@@ -101,7 +103,7 @@ void main() {
     );
     final seen = <String>[];
     for (final phase in _order) {
-      sim.systems.add(phase, (_) => seen.add(phase.name));
+      sim.addSystem(phase.name, phase, (_) => seen.add(phase.name));
     }
 
     sim.step(_dt);
@@ -120,7 +122,8 @@ void main() {
     harness.input.setStickAxis(0.0, 1.0);
 
     var observed = 0.0;
-    harness.sim.systems.add(
+    harness.sim.addSystem(
+      'observe',
       ShooterPhases.afterPlayer,
       (_) => observed = harness.player.body.position.z,
     );
@@ -138,7 +141,7 @@ void main() {
   });
 
   test('and the state a system reads at the end is this step\'s', () {
-    // What `StepPhase.end` claims: the game state is resolved by then. A rule
+    // What `ShooterPhases.end` claims: the game state is resolved by then. A rule
     // that reacts to the player dying — a message, a sound, a save — should not
     // be a step behind the death.
     //
@@ -146,8 +149,9 @@ void main() {
     // sees `playing` on the step the player died and this fails.
     final harness = _harness();
     final states = <GameState>[];
-    harness.sim.systems.add(
-      StepPhase.end,
+    harness.sim.addSystem(
+      'states',
+      ShooterPhases.end,
       (_) => states.add(harness.sim.state),
     );
 
@@ -164,15 +168,96 @@ void main() {
     // while a real step is running through it.
     final harness = _harness();
     var ran = 0;
-    late SystemRegistration once;
-    once = harness.sim.systems.add(ShooterPhases.afterActors, (_) {
+    late Registration once;
+    once = harness.sim.addSystem('once', ShooterPhases.afterActors, (_) {
       ran++;
-      harness.sim.systems.remove(once);
+      once.cancel();
     });
 
     harness.sim.step(_dt);
     harness.sim.step(_dt);
 
     expect(ran, 1);
+    expect(harness.sim.systemsIn(ShooterPhases.afterActors), isEmpty);
+  });
+
+  test('systems of one phase run in the order added, moved by after and '
+      'before', () {
+    // Mutation: sort by name, or ignore `before`, and the order changes.
+    final harness = _harness();
+    final order = <String>[];
+    harness.sim
+      ..addSystem('b', ShooterPhases.afterWorld, (_) => order.add('b'))
+      ..addSystem('a', ShooterPhases.afterWorld, (_) => order.add('a'))
+      ..addSystem(
+        'first',
+        ShooterPhases.afterWorld,
+        (_) => order.add('first'),
+        before: <String>['b'],
+      )
+      ..addSystem(
+        'last',
+        ShooterPhases.afterWorld,
+        (_) => order.add('last'),
+        after: <String>['a', 'not registered'],
+      );
+    harness.sim.step(_dt);
+    expect(order, <String>['first', 'b', 'a', 'last']);
+    expect(harness.sim.systemsIn(ShooterPhases.afterWorld), order);
+  });
+
+  test('a phase the genre does not have, and a name used twice, are '
+      'refused', () {
+    // Mutation: drop either check and nothing throws.
+    final sim = _harness().sim;
+    expect(
+      () => sim.addSystem('x', LoopPhase.rules, (_) {}),
+      throwsArgumentError,
+    );
+    sim.addSystem('x', ShooterPhases.end, (_) {});
+    expect(
+      () => sim.addSystem('x', ShooterPhases.begin, (_) {}),
+      throwsArgumentError,
+    );
+  });
+
+  test('stepped by hand, a system is told the step, its dt and its phase', () {
+    // Mutation: hand the system the loop phase, or another dt, and an
+    // expectation fails.
+    final sim = _harness().sim;
+    final steps = <int>[];
+    sim.addSystem('watch', ShooterPhases.afterWeapons, (LoopContext c) {
+      steps.add(c.step);
+      expect(c.dt, _dt);
+      expect(c.phase, ShooterPhases.afterWeapons);
+      expect(c.isResimulated, isFalse);
+      expect(() => c.world, throwsStateError);
+    });
+    sim
+      ..step(_dt)
+      ..step(_dt);
+    expect(steps, <int>[1, 2]);
+  });
+
+  test('in a loop, a system is handed the loop\'s context with the genre\'s '
+      'phase', () {
+    // Mutation: hand the system the loop's own context unchanged, and its
+    // phase is `physics`.
+    final plugin = ShooterPlugin();
+    final loop = EngineLoop(
+      input: InputState(),
+      plugins: <Flutter3dPlugin>[plugin],
+    );
+    final sim = _harness().sim;
+    plugin.simulation = sim;
+    final seen = <String>{};
+    final steps = <int>[];
+    sim.addSystem('watch', ShooterPhases.begin, (LoopContext c) {
+      seen.add(c.phase.name);
+      steps.add(c.step);
+    });
+    loop.runSteps(3);
+    expect(seen, <String>{'shooter.begin'});
+    expect(steps, hasLength(3));
   });
 }

@@ -120,12 +120,15 @@ final class Match {
   /// What the step did goes onto the bus [publishTo] named, from inside the
   /// step: a [UnitFired] for each of the step's shots, in the order they were
   /// fired, and a [MatchDecided] on the step the match is decided.
-  void step(double dt) {
+  ///
+  /// [context] is the loop's, when a loop steps the match: what the
+  /// simulation's systems are handed.
+  void step(double dt, {LoopContext? context}) {
     if (_standing.isOver) return;
     for (final Bot bot in bots) {
       bot.step(simulation);
     }
-    simulation.step(dt);
+    simulation.step(dt, context: context);
     _standing = _judge();
     final bus = _bus;
     if (bus == null) return;
@@ -141,9 +144,13 @@ final class Match {
   /// [MatchDecided] — until the registration is cancelled: the run's
   /// `publishTo`, as every genre's run has. One bus at a time; a second call
   /// moves the events to the new one.
+  /// The simulation's systems publish onto it too, when no loop steps the
+  /// match.
   Registration publishTo(EventRegistry bus) {
     _bus = bus;
+    final systems = simulation.publishTo(bus);
     return Registration(() {
+      systems.cancel();
       if (identical(_bus, bus)) _bus = null;
     });
   }

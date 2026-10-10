@@ -45,7 +45,7 @@ void main() {
     input = InputState();
     sim = _sim(input);
     stepped = 0;
-    sim.systems.add(StepPhase.begin, (StepContext _) => stepped++);
+    sim.addSystem('count', ShooterPhases.begin, (LoopContext _) => stepped++);
     plugin = ShooterPlugin(kinds: const <EntityKind>[SecretKind(), NoteKind()])
       ..simulation = sim;
     kinds = EntityKinds();
@@ -84,7 +84,11 @@ void main() {
 
     final heard = <int>[];
     loop.events.onStep<PlayerDied>('test', (d) => heard.add(d.step));
-    sim.systems.add(StepPhase.end, (StepContext _) => sim.hurtPlayer(1e9));
+    sim.addSystem(
+      'die',
+      ShooterPhases.end,
+      (LoopContext _) => sim.hurtPlayer(1e9),
+    );
     loop.runSteps(1);
     // Mutation: `publishEvents` not overridden — nothing reaches the bus.
     expect(heard, <int>[0]);
@@ -100,7 +104,11 @@ void main() {
   test('a new simulation is stepped and forwarded in place of the old', () {
     final next = _sim(input);
     var nextStepped = 0;
-    next.systems.add(StepPhase.begin, (StepContext _) => nextStepped++);
+    next.addSystem(
+      'count',
+      ShooterPhases.begin,
+      (LoopContext _) => nextStepped++,
+    );
     plugin.simulation = next;
     final heard = <String>[];
     loop.events.onStep<SecretFound>('test', (d) => heard.add('found'));

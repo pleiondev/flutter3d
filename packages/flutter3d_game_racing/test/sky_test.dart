@@ -9,12 +9,13 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-double _brightness(Vector3 color) =>
-    0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
+double _brightness(LinearColor color) =>
+    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 
 void main() {
   group('the sun', () {
@@ -70,7 +71,7 @@ void main() {
 
       for (final direction in directions) {
         final color = preset.colorAt(direction);
-        for (final component in <double>[color.x, color.y, color.z]) {
+        for (final component in <double>[color.r, color.g, color.b]) {
           expect(component.isFinite, isTrue, reason: '$direction');
           expect(component, greaterThanOrEqualTo(0.0), reason: '$direction');
         }
@@ -100,9 +101,9 @@ void main() {
         'belowHorizon': <double>[0.0, 0.0, 0.0],
       });
 
-      expect(preset.colorAt(Vector3(0.0, 1.0, 0.0)).z, closeTo(0.9, 1e-6));
-      expect(preset.colorAt(Vector3(1.0, 0.0, 0.0)).x, closeTo(0.8, 1e-6));
-      expect(preset.colorAt(Vector3(0.0, -1.0, 0.0)).x, closeTo(0.0, 1e-6));
+      expect(preset.colorAt(Vector3(0.0, 1.0, 0.0)).b, closeTo(0.9, 1e-6));
+      expect(preset.colorAt(Vector3(1.0, 0.0, 0.0)).r, closeTo(0.8, 1e-6));
+      expect(preset.colorAt(Vector3(0.0, -1.0, 0.0)).r, closeTo(0.0, 1e-6));
     });
 
     test('a low sun is warm and a high one is not', () {
@@ -110,10 +111,10 @@ void main() {
       // the arithmetic works: if `golden` ever stops being warm, somebody has
       // been editing numbers by feel with the game shut.
       final golden = SkyPresets.golden.horizon;
-      expect(golden.x, greaterThan(golden.z), reason: 'golden hour is warm');
+      expect(golden.r, greaterThan(golden.b), reason: 'golden hour is warm');
 
       final noon = SkyPresets.noon.horizon;
-      expect(noon.z, greaterThan(noon.x), reason: 'midday is blue');
+      expect(noon.b, greaterThan(noon.r), reason: 'midday is blue');
     });
   });
 
@@ -134,7 +135,14 @@ void main() {
 
         final sky = preset.colorAt(across.normalized());
         final fog = preset.horizonFogColor;
-        expect((sky - fog).length, lessThan(1e-6), reason: preset.name);
+        expect(
+          math.max(
+            (sky.r - fog.r).abs(),
+            math.max((sky.g - fog.g).abs(), (sky.b - fog.b).abs()),
+          ),
+          lessThan(1e-6),
+          reason: preset.name,
+        );
       }
     });
 
@@ -249,11 +257,13 @@ void main() {
     expect(preset.zenith, SkyPresets.morning.zenith);
   });
 
-  test('and a colour that is three numbers is read', () {
+  test('and a colour that is three numbers is read, as a linear colour', () {
+    // Mutation: read the three as sRGB, or into anything but `LinearColor`,
+    // and this fails.
     final preset = SkyPreset.fromJson(<String, Object?>{
       'zenith': <double>[0.1, 0.2, 0.3],
     });
 
-    expect(preset.zenith, Vector3(0.1, 0.2, 0.3));
+    expect(preset.zenith, const LinearColor(0.1, 0.2, 0.3));
   });
 }
