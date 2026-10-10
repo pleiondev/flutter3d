@@ -24,6 +24,27 @@
 /// wants the graph itself reaches it through [Scene3DController] and keeps
 /// every imperative call it had; nothing here is a second engine.
 ///
+/// **Three layers, one engine.** [Scene3D] is sugar: a [Flutter3dView] —
+/// the widget that owns a device, a renderer, a loop, focus and the
+/// lifecycle — with these widgets built into its scene. Anything the view
+/// can do, a scene of widgets does through [Scene3DController.engine], and a
+/// game that outgrows the widgets moves to the view without moving engines.
+/// Under both is `SceneSurface`, which only hands a frame a caller rendered
+/// to Flutter, for a caller that owns everything else itself.
+///
+/// **The reconciliation contract**, held by
+/// `test/scene3d_reconciliation_test.dart`:
+///
+/// * **Identity is the key.** A widget that keeps its key — moved among its
+///   siblings, or under another parent with a `GlobalKey` — keeps its node.
+/// * **A rebuild loads nothing.** A rebuild hands the node the widget's
+///   properties; a [Model3D] is not loaded again and a [Mesh3D] whose shape
+///   builds the same vertices is not uploaded again.
+/// * **Gone is released.** A widget gone takes its node out of the scene,
+///   and what it made on the device — a [Mesh3D]'s upload, a [Model3D]'s
+///   asset — goes back to it. What the caller handed in (a geometry, a
+///   material) stays the caller's.
+///
 /// **Named with a `3D` suffix.** The plan called them `SceneNode` and
 /// `SceneMesh`; `SceneNode` is the engine's own class, exported beside these
 /// from the same import, and two classes of one name there is a compile
@@ -89,12 +110,15 @@ final class Scene3DController {
 
 /// The root of a scene written as widgets — `P10`.
 ///
-/// **A [Flutter3dView] underneath, since 1.0**: it opens a device (unless
-/// [device] is given), makes the renderer and the loop, and owns the frame
-/// clock, focus, lifecycle and teardown as it does for any engine. What this
-/// adds is the scene: [children] built into it, the [Camera3D] built last
-/// drawn through, models and particles advanced before each frame.
-/// [placeholder] is shown while the device opens.
+/// **Sugar on [Flutter3dView], since 1.0, not a second engine.** The view
+/// opens a device (unless [device] is given), makes the renderer and the
+/// loop, and owns the frame clock, focus, lifecycle and teardown as it does
+/// for any engine. What this adds is the scene: [children] built into it,
+/// the [Camera3D] built last drawn through, models and particles advanced
+/// before each frame. [placeholder] is shown while the device opens. The
+/// engine underneath is [Scene3DController.engine]; `SceneSurface` is the
+/// layer under the view, for a caller that draws the frame itself. The
+/// library's documentation states how the widgets reconcile with the scene.
 ///
 /// **One frame per vsync while [continuous]**, which a scene with an
 /// animation needs; with it off a frame is drawn when this widget is built
@@ -457,6 +481,11 @@ class _Node3DState extends _SpatialState<Node3D, SceneNode> {
 /// drawn with the nearest [Material3D] above it — `P10`.
 ///
 /// Directly below a [Mirror3D], the mesh is one of its reflecting surfaces.
+///
+/// **What it uploaded it gives back.** The mesh built from [shape] is this
+/// widget's: replaced by another upload, or with the widget gone, it goes
+/// back to the device once no frame in flight still draws it. A [geometry]
+/// handed in is the caller's and is left alone.
 class Mesh3D extends Spatial3D {
   const Mesh3D({
     super.key,
@@ -496,6 +525,30 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
   Shape? _built;
   MeshData? _data;
 
+  /// The mesh this widget uploaded, and the renderer it goes back through
+  /// once no frame in flight still draws it: the one drawing when it was
+  /// uploaded, so a mesh of a device lost since goes with that renderer
+  /// rather than to the device that replaced it. A [Mesh3D.geometry] handed
+  /// in is the caller's and is never here.
+  DeviceMesh? _owned;
+  Renderer? _ownedBy;
+
+  DeviceMesh _upload(_Scene3DScope scope, MeshData data) {
+    _release();
+    final mesh = DeviceMesh.upload(scope.device, data);
+    _owned = mesh;
+    _ownedBy = scope.host.renderer;
+    return mesh;
+  }
+
+  void _release() {
+    final mesh = _owned;
+    if (mesh == null) return;
+    _owned = null;
+    _ownedBy?.releaseMeshAfterFrame(mesh);
+    _ownedBy = null;
+  }
+
   MeshGeometry _geometry(_Scene3DScope scope) {
     final given = widget.geometry;
     if (given != null) return given;
@@ -503,7 +556,7 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
     final data = shape.build();
     _built = shape;
     _data = data;
-    return DeviceMesh.upload(scope.device, data);
+    return _upload(scope, data);
   }
 
   /// The mirror this mesh is a surface of, while it hangs directly from one.
@@ -538,12 +591,16 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
   void dispose() {
     if (_node case final node?) _reflector?.surfaces.remove(node);
     super.dispose();
+    _release();
   }
 
   @override
   void apply(MeshNode node, _Scene3DScope scope) {
     if (widget.geometry case final given?) {
-      if (!identical(node.mesh, given)) node.mesh = given;
+      if (!identical(node.mesh, given)) {
+        node.mesh = given;
+        _release();
+      }
       _built = null;
       _data = null;
     } else if (!identical(_built, widget.shape)) {
@@ -555,7 +612,7 @@ class _Mesh3DState extends _SpatialState<Mesh3D, MeshNode> {
           !listEquals(previous.vertices, data.vertices) ||
           !listEquals(previous.indices, data.indices)) {
         _data = data;
-        node.mesh = DeviceMesh.upload(scope.device, data);
+        node.mesh = _upload(scope, data);
       }
     }
     node
@@ -775,6 +832,14 @@ abstract interface class _Animated {
 /// taken out when it has; with none, nothing does. [animation] names the
 /// clip to play — null plays none — at [speed], paused while [playing] is
 /// false; changing either changes the clip in place, where it is.
+///
+/// **Loaded once, owned, and released.** The asset is read when the widget
+/// is first built; a rebuild — a new position, another clip — changes the
+/// instance it became and loads nothing. A widget with another [source]
+/// is another model: give it another key. The asset is the widget's, from
+/// [source] or from [load] alike, and is disposed when the widget goes, or as
+/// it arrives when the widget went while it loaded; a loader that hands out
+/// an asset something else keeps instantiates it itself, under a [Node3D].
 class Model3D extends Spatial3D {
   const Model3D({
     super.key,
@@ -827,6 +892,9 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
     return SceneNode(name: widget.source ?? 'model');
   }
 
+  /// The asset this widget loaded, disposed with it.
+  ModelAsset? _asset;
+
   Future<void> _loadInto(_Scene3DScope scope) async {
     final asset = switch (widget.load) {
       final load? => await load(scope.device),
@@ -835,7 +903,13 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
         device: scope.device,
       ),
     };
-    if (!mounted) return;
+    if (!mounted) {
+      // Arrived for a widget that went while it loaded: nothing will draw
+      // it, and nobody else holds it.
+      asset.dispose();
+      return;
+    }
+    _asset = asset;
     final instance = asset.instantiate(scope.host.scene, parent: node);
     setState(() => _instance = instance);
     _applyAnimation();
@@ -880,6 +954,9 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
   void dispose() {
     _scope?.host.animated.remove(this);
     super.dispose();
+    // The instance went out of the scene with the node it hangs from.
+    _asset?.dispose();
+    _asset = null;
   }
 
   @override

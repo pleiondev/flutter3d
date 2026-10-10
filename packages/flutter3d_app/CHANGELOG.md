@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **How `Scene3D` reconciles, written down and held by a test.** A widget
+  that keeps its key keeps its node, moved among its siblings or under
+  another parent; a rebuild loads and uploads nothing new; a widget gone
+  takes its node out and gives back what it made on the device. That last
+  part is new: a `Mesh3D`'s upload goes back once no frame in flight draws
+  it (and when a new shape replaces it), and a `Model3D` disposes the asset
+  it loaded, from `source` or from `load`, even one that arrives after the
+  widget went. A `geometry` handed in stays the caller's. `Scene3D` is
+  documented as what it is, a `Flutter3dView` with a scene of widgets, and
+  `SceneSurface` as the layer under the view.
+
 - **`Light3D.sun()` and `Light3D.lamp()`, in lux and candela.** The sun is
   a warm directional light of 15 000 lux (`Light3D.sunIlluminance`, the sun
   through a thin haze, which the default camera exposes as daylight) that
