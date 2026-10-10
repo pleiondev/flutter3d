@@ -126,7 +126,7 @@ final class StrategyStart {
   final Match match;
 
   /// The units side nought commands, which in the application is the mouse.
-  final List<Unit> mine;
+  final List<StrategyUnit> mine;
 
   /// The crowd and the ground it walks on.
   StrategySimulation get simulation => match.simulation;
@@ -191,7 +191,7 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
     simulation.stock[it.integer('side') ?? 0].amount = it.number('amount')!;
   }
 
-  final mine = <Unit>[];
+  final mine = <StrategyUnit>[];
   for (final EntityDef it in level.ofType(StrategyEntities.worker)) {
     final int side = it.integer('side') ?? 0;
     final int count = workers ?? it.integer('count')!;
@@ -201,8 +201,8 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
     final Building home = halls[it.string('home')]!;
 
     for (var i = 0; i < count; i++) {
-      final Unit unit = simulation.add(
-        Unit(
+      final StrategyUnit unit = simulation.add(
+        StrategyUnit(
           position: Vector3(
             it.position.x + (i % across) * spacing,
             0.0,

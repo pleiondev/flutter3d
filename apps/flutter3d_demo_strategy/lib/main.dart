@@ -636,7 +636,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     final ray = _aim(at);
     switch (command.unitUnder(ray.origin, ray.direction)) {
       // One of ours: it becomes the selection, replacing whatever was picked.
-      case final Unit unit when unit.side == viewerSide:
+      case final StrategyUnit unit when unit.side == viewerSide:
         setState(() => command.select(unit));
 
       // Theirs. **This is where an attack order goes, and there is not one to
@@ -645,7 +645,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
       // document with nowhere to be carried out. Doing nothing is the honest
       // answer — in particular the selection is left standing, because a click
       // that cannot be obeyed must not disband the squad the player gathered.
-      case final Unit _:
+      case final StrategyUnit _:
         break;
 
       // Empty ground: an order, for the picked units and nobody else.
@@ -688,7 +688,7 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
     if (staged == null || command == null) return;
 
     final ray = _aim(at);
-    final Unit? unit = command.unitUnder(ray.origin, ray.direction);
+    final StrategyUnit? unit = command.unitUnder(ray.origin, ray.direction);
     final bool seen =
         unit != null &&
         (unit.side == viewerSide ||

@@ -16,7 +16,12 @@ Heightfield _flat() => Heightfield(
 );
 
 /// A base, a seam twenty metres from it, and one worker between them.
-({StrategySimulation sim, Unit worker, ResourceNode seam, Building base})
+({
+  StrategySimulation sim,
+  StrategyUnit worker,
+  ResourceNode seam,
+  Building base,
+})
 _camp({double amount = 1000.0}) {
   final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
   final base = sim.build(
@@ -25,7 +30,7 @@ _camp({double amount = 1000.0}) {
   final seam = sim.addResource(
     ResourceNode(at: Vector3(40.0, 0.0, 20.0), amount: amount),
   );
-  final worker = sim.add(Unit(position: Vector3(26.0, 0.0, 20.0)));
+  final worker = sim.add(StrategyUnit(position: Vector3(26.0, 0.0, 20.0)));
   worker.job = HarvestJob(node: seam, dropOff: base);
   return (sim: sim, worker: worker, seam: seam, base: base);
 }
@@ -161,7 +166,7 @@ void main() {
       expect(maker.ordered, 0);
       expect(maker.isWanted, isFalse);
       expect(
-        sim.units.every((Unit it) => it.type == UnitType.soldier),
+        sim.units.every((StrategyUnit it) => it.type == UnitType.soldier),
         isTrue,
         reason: 'a hall asked for soldiers made something else',
       );

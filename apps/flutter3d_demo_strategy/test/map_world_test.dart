@@ -194,8 +194,8 @@ void main() {
           ..y = 0.0
           ..normalize();
         final Vector3 from = ford - way * 8.0;
-        final List<Unit> squad = start.mine.take(8).toList();
-        for (final (int i, Unit unit) in squad.indexed) {
+        final List<StrategyUnit> squad = start.mine.take(8).toList();
+        for (final (int i, StrategyUnit unit) in squad.indexed) {
           final double x = from.x + (i % 4) * 0.8, z = from.z + (i ~/ 4) * 0.8;
           unit.position.setValues(x, start.simulation.ground.heightAt(x, z), z);
         }
@@ -215,7 +215,7 @@ void main() {
         for (var i = 0; i < 200; i++) {
           start.match.step(strategyStep);
           if (world == null) continue;
-          for (final Unit unit in squad) {
+          for (final StrategyUnit unit in squad) {
             final NativeShallowSample? s = world.world.sampleShallow(
               world.river,
               unit.position.x,
@@ -226,7 +226,7 @@ void main() {
         }
         final double covered =
             squad
-                .map((Unit unit) => (unit.position - from).dot(way))
+                .map((StrategyUnit unit) => (unit.position - from).dot(way))
                 .reduce((a, b) => a + b) /
             squad.length;
         world?.dispose();
@@ -248,7 +248,7 @@ void main() {
       final start = openMatch(_map());
       final world = mapWorldOf(start.simulation);
       final ground = start.simulation.ground;
-      Unit stand(Unit unit, double x, double z) {
+      StrategyUnit stand(StrategyUnit unit, double x, double z) {
         unit
           ..job = null
           ..order = const UnitOrder.hold();
@@ -256,8 +256,8 @@ void main() {
         return unit;
       }
 
-      final Unit near = stand(start.mine[0], 31.0, 60.0);
-      final Unit far = stand(start.mine[1], 60.0, 75.0);
+      final StrategyUnit near = stand(start.mine[0], 31.0, 60.0);
+      final StrategyUnit far = stand(start.mine[1], 60.0, 75.0);
       // A heap of dry brush burning a tenth of a kilogram a second a metre
       // from the near one: a megawatt and a third, its flame standing
       // metres over the heap, so the near one stands at its foot.

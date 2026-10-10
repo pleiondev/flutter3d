@@ -1137,7 +1137,7 @@ final class MapWorld {
   /// the surface stands over the ground the unit stands on — the
   /// simulation's ground, what the player sees it wade — with the current
   /// along its way. One out of the water.
-  double _pace(Unit unit, double x, double z) {
+  double _pace(StrategyUnit unit, double x, double z) {
     final MapWater w = water;
     final double px = unit.position.x, pz = unit.position.z;
     if (px < w.x0 ||
@@ -1164,7 +1164,7 @@ final class MapWorld {
     final List<NativeFire> fires = world.fires();
     if (fires.isEmpty) return;
     final at = Vector3.zero();
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (!unit.isAlive) continue;
       at.setValues(unit.position.x, unit.position.y + 1.0, unit.position.z);
       final double rate = harmRate(FireExposure.fluxAt(fires, at));
@@ -1255,7 +1255,7 @@ final class MapWorld {
   /// unit it hit.
   void _shots(StrategySimulation simulation) {
     for (final UnitShot shot in simulation.shots) {
-      final Unit unit = shot.shooter;
+      final StrategyUnit unit = shot.shooter;
       final Vector3 at = unit.position;
       if (unit.side != viewer && !simulation.fog.sees(viewer, at.x, at.z)) {
         continue;
@@ -1275,7 +1275,7 @@ final class MapWorld {
   }
 
   /// The hall of another side [unit] stands close enough to to be hitting.
-  MapHall? _hallBeside(Unit unit) {
+  MapHall? _hallBeside(StrategyUnit unit) {
     for (final MapHall hall in halls) {
       final Building b = hall.building;
       if (b.side == unit.side) continue;

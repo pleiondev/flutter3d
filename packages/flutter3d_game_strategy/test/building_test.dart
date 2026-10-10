@@ -81,7 +81,7 @@ void main() {
         Building(center: Vector3(40.0, 0.0, 40.0), width: 24.0, depth: 8.0),
       );
 
-      final unit = sim.add(Unit(position: Vector3(40.0, 0.0, 20.0)));
+      final unit = sim.add(StrategyUnit(position: Vector3(40.0, 0.0, 20.0)));
       unit.order = UnitOrder.moveTo(Vector3(40.0, 0.0, 60.0));
 
       var wentThrough = false;
@@ -109,7 +109,7 @@ void main() {
       // `build`. Nothing throws, nothing is drawn wrong, and the unit is simply
       // still at (40, 40) two thousand steps later.
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
-      final buried = sim.add(Unit(position: Vector3(40.0, 0.0, 40.0)));
+      final buried = sim.add(StrategyUnit(position: Vector3(40.0, 0.0, 40.0)));
 
       final hall = sim.build(
         Building(center: Vector3(40.0, 0.0, 40.0), width: 10.0, depth: 10.0),

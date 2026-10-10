@@ -32,7 +32,7 @@ void main() {
   group('an order', () {
     test('walks a unit towards where it points', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
-      final unit = sim.add(Unit(position: Vector3(4.0, 0.0, 4.0)));
+      final unit = sim.add(StrategyUnit(position: Vector3(4.0, 0.0, 4.0)));
       unit.order = UnitOrder.moveTo(Vector3(50.0, 0.0, 50.0));
 
       final before = unit.position.clone();
@@ -51,8 +51,8 @@ void main() {
       // Mutation: drop the `continue` on a null goal — a held unit then
       // descends whichever field was built last and wanders off.
       final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
-      final held = sim.add(Unit(position: Vector3(10.0, 0.0, 10.0)));
-      final sent = sim.add(Unit(position: Vector3(20.0, 0.0, 20.0)))
+      final held = sim.add(StrategyUnit(position: Vector3(10.0, 0.0, 10.0)));
+      final sent = sim.add(StrategyUnit(position: Vector3(20.0, 0.0, 20.0)))
         ..order = UnitOrder.moveTo(Vector3(50.0, 0.0, 50.0));
 
       final where = held.position.clone();
@@ -73,7 +73,7 @@ void main() {
       final sim = StrategySimulation(random: GameRandom(1), ground: _ground());
       for (var i = 0; i < 200; i++) {
         sim
-            .add(Unit(position: Vector3(2.0 + i % 20 * 0.9, 0.0, 2.0)))
+            .add(StrategyUnit(position: Vector3(2.0 + i % 20 * 0.9, 0.0, 2.0)))
             .order = UnitOrder.moveTo(
           Vector3(50.0 + (i.isEven ? 0.1 : -0.1), 0.0, 50.0),
         );
@@ -103,7 +103,7 @@ void main() {
       for (var i = 0; i < 40; i++) {
         sim
             .add(
-              Unit(
+              StrategyUnit(
                 position: Vector3(20.0 + i % 8 * 0.9, 0.0, 20.0 + i ~/ 8 * 0.9),
               ),
             )
@@ -144,7 +144,7 @@ void main() {
         for (var i = 0; i < 50; i++) {
           sim
               .add(
-                Unit(
+                StrategyUnit(
                   position: Vector3(
                     10.0 + i % 10 * 0.8,
                     0.0,
@@ -180,7 +180,7 @@ void main() {
         random: GameRandom(1),
         ground: _ground((column, row) => column * 0.4),
       );
-      final unit = sim.add(Unit(position: Vector3(4.0, 0.0, 30.0)));
+      final unit = sim.add(StrategyUnit(position: Vector3(4.0, 0.0, 30.0)));
       unit.order = UnitOrder.moveTo(Vector3(40.0, 0.0, 30.0));
 
       expect(unit.position.y, closeTo(sim.ground.heightAt(4.0, 30.0), 1e-6));

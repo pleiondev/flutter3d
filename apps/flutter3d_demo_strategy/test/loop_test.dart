@@ -146,7 +146,7 @@ void main() {
     );
     // Every unit standing is in the record, under its entity's name, and
     // its last place is where it stands now.
-    final Unit unit = start.simulation.units.first;
+    final StrategyUnit unit = start.simulation.units.first;
     final String name = 'unit.${unit.entity.packed}';
     expect(poses.bodies, contains(name));
     expect(

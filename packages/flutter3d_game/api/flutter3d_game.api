@@ -1395,7 +1395,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   UniformBlock from flutter3d_hardware
   UniformMemberLayout from flutter3d_hardware
   UniversalTarget from flutter3d_core
-  UnsupportedCapability from flutter3d_hardware
+  UnsupportedCapability from flutter3d_foundation
   UsdzModelWriter from flutter3d_core
   UsdzWriter from flutter3d_core
   Vector3Foundation from flutter3d_foundation

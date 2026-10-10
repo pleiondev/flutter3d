@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Unit` is `StrategyUnit`.** `Unit` is the foundation's unit
+  of measurement now, and a public name has one home. `dart fix` renames
+  it; every signature that took or returned a `Unit` takes or returns a
+  `StrategyUnit`, and nothing else changed.
+
 - **The headless run's `position` is measured from the world's origin.**
   The units live in a frame no origin shift moves, so their middle is
   converted against `WorldPosition.origin` rather than the loop's current

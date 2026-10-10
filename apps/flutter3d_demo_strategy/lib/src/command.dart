@@ -21,7 +21,7 @@
 /// own. Buildings keep the pass: they are real nodes, and a silhouette is a
 /// better answer there than the box around a hall.
 ///
-/// **The orders go into the queue.** Nothing here assigns `Unit.order`. A
+/// **The orders go into the queue.** Nothing here assigns `StrategyUnit.order`. A
 /// pointer callback runs between steps, so an order written straight onto a
 /// unit lands at whatever moment the mouse happened to be released and is
 /// invisible to a recorder; queued, it is carried out at the top of the next
@@ -50,11 +50,11 @@ final class CommandPost {
   /// screen has to be able to sit in front of.
   final int side;
 
-  final List<Unit> _selected = <Unit>[];
+  final List<StrategyUnit> _selected = <StrategyUnit>[];
 
   /// Who is picked out, in the order they were picked, which is the order the
   /// arrangement hands out its places in.
-  List<Unit> get selected => List<Unit>.unmodifiable(_selected);
+  List<StrategyUnit> get selected => List<StrategyUnit>.unmodifiable(_selected);
 
   /// How many are picked out.
   int get count => _selected.length;
@@ -65,8 +65,8 @@ final class CommandPost {
   /// stockpile back into workers while the match runs, so any list held from
   /// the opening is a list that is wrong by minute two — which is exactly the
   /// bug the crowd-wide click was built on.
-  List<Unit> get mine => <Unit>[
-    for (final Unit unit in simulation.units)
+  List<StrategyUnit> get mine => <StrategyUnit>[
+    for (final StrategyUnit unit in simulation.units)
       if (unit.side == side) unit,
   ];
 
@@ -75,7 +75,7 @@ final class CommandPost {
   /// Both sides, because this is also what the readout under the cursor asks:
   /// a player pointing at the other side's worker wants to be told it is
   /// theirs, not told there is nothing there.
-  Unit? unitUnder(Vector3 origin, Vector3 direction) =>
+  StrategyUnit? unitUnder(Vector3 origin, Vector3 direction) =>
       UnitSelection(simulation.units).unitAt(origin, direction);
 
   /// Picks out [unit] alone, and returns whether it could be.
@@ -84,7 +84,7 @@ final class CommandPost {
   /// unit picks out nothing — and leaves what was already picked standing,
   /// because a click that cannot be obeyed should not quietly disband the squad
   /// the player gathered.
-  bool select(Unit unit) {
+  bool select(StrategyUnit unit) {
     if (unit.side != side) return false;
     _selected
       ..clear()
@@ -94,7 +94,7 @@ final class CommandPost {
 
   /// Picks out the unit under a ray, and returns whether anything was picked.
   bool selectAt(Vector3 origin, Vector3 direction) {
-    final Unit? hit = unitUnder(origin, direction);
+    final StrategyUnit? hit = unitUnder(origin, direction);
     return hit != null && select(hit);
   }
 
@@ -105,12 +105,12 @@ final class CommandPost {
   /// takes and why: a frustum test would put the camera inside the answer and
   /// make a replay depend on where somebody was looking.
   int selectWithin(Vector3 corner, Vector3 opposite) {
-    final List<Unit> inside = UnitSelection(
+    final List<StrategyUnit> inside = UnitSelection(
       simulation.units,
     ).unitsWithin(corner, opposite);
     _selected
       ..clear()
-      ..addAll(inside.where((Unit unit) => unit.side == side));
+      ..addAll(inside.where((StrategyUnit unit) => unit.side == side));
     return _selected.length;
   }
 
@@ -160,7 +160,8 @@ final class CommandPost {
   /// moves, which is the kind of wrong that gets explained away for a year.
   void prune() {
     if (_selected.isEmpty) return;
-    final Set<Unit> onMap = Set<Unit>.identity()..addAll(simulation.units);
-    _selected.removeWhere((Unit unit) => !onMap.contains(unit));
+    final Set<StrategyUnit> onMap = Set<StrategyUnit>.identity()
+      ..addAll(simulation.units);
+    _selected.removeWhere((StrategyUnit unit) => !onMap.contains(unit));
   }
 }

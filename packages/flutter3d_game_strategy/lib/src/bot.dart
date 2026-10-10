@@ -8,7 +8,7 @@
 /// up as the wrong side winning rather than as a number a hair out.
 ///
 /// **It gives its orders through the queue, and that is the same door the
-/// mouse uses.** Nothing here writes `Unit.order` or `Unit.job`: a policy asks
+/// mouse uses.** Nothing here writes `StrategyUnit.order` or `StrategyUnit.job`: a policy asks
 /// `StrategySimulation.orders` for a move or a job the way a click does, and
 /// the step carries both out at the same moment. That is what makes a match
 /// recordable at all — see `order_tape.dart` — and it is also the honest test
@@ -121,7 +121,7 @@ final class Bot {
 
   /// Puts every idle digger back on a seam, or sends it to find one.
   void _dig(StrategySimulation simulation) {
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (unit.side != side || unit.type.isArmed) continue;
       final HarvestJob? job = unit.job;
       // Idle, or standing at a seam that has run out: both mean "needs
@@ -154,7 +154,7 @@ final class Bot {
   void _make(StrategySimulation simulation) {
     var workers = 0;
     var fighters = 0;
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (unit.side != side) continue;
       if (unit.type.isArmed) {
         fighters++;
@@ -182,12 +182,12 @@ final class Bot {
   /// the day the two are not identical it would be a squad that changes its
   /// mind about which enemy to chase twice a second.
   void _hunt(StrategySimulation simulation) {
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (unit.side != side || !unit.type.isArmed) continue;
       if (unit.order.target != null) continue;
 
-      if (_nearestFoe(simulation, unit) case final Unit quarry) {
-        simulation.orders.attackWith(<Unit>[unit], quarry);
+      if (_nearestFoe(simulation, unit) case final StrategyUnit quarry) {
+        simulation.orders.attackWith(<StrategyUnit>[unit], quarry);
         continue;
       }
       // Nothing in sight. March on whatever enemy ground this side has found —
@@ -203,7 +203,7 @@ final class Bot {
       // arrival, so "it still has somewhere to go" stayed true for the rest of
       // the match and the map beyond that point was never looked at.
       if (_nearestFoundHall(simulation) case final Building hall) {
-        simulation.orders.moveTo(<Unit>[unit], hall.center);
+        simulation.orders.moveTo(<StrategyUnit>[unit], hall.center);
         continue;
       }
       _scout(simulation, unit);
@@ -219,10 +219,10 @@ final class Bot {
   /// leaves no mark in the picture — the soldiers simply always turn the right
   /// way. See `fog_test` and `combat_test`, which exist to make that cheat
   /// fail rather than to hope it is absent.
-  Unit? _nearestFoe(StrategySimulation simulation, Unit from) {
-    Unit? best;
+  StrategyUnit? _nearestFoe(StrategySimulation simulation, StrategyUnit from) {
+    StrategyUnit? best;
     var bestAt = double.infinity;
-    for (final Unit other in simulation.units) {
+    for (final StrategyUnit other in simulation.units) {
       if (other.side == side) continue;
       if (!simulation.fog.sees(side, other.position.x, other.position.z)) {
         continue;
@@ -294,7 +294,7 @@ final class Bot {
   ///
   /// A squad of one, which takes a slot of nothing: a formation centres its
   /// block on the goal, and a block one unit wide is centred on it exactly.
-  void _scout(StrategySimulation simulation, Unit unit) {
+  void _scout(StrategySimulation simulation, StrategyUnit unit) {
     final int cell = simulation.fog.nearestUnexplored(
       side,
       unit.position.x,
@@ -305,7 +305,9 @@ final class Bot {
       },
     );
     if (cell < 0) return;
-    simulation.orders.moveTo(<Unit>[unit], simulation.fog.centerOf(cell));
+    simulation.orders.moveTo(<StrategyUnit>[
+      unit,
+    ], simulation.fog.centerOf(cell));
   }
 
   /// The nearest deposit this side has found that still has something in it.

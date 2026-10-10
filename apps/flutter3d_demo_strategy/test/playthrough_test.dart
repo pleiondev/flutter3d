@@ -145,7 +145,7 @@ void main() {
     // queue, or the producer behind it — and the crowd stays exactly the size
     // it opened at, while everything else here still passes.
     final int mine = start.simulation.units
-        .where((Unit it) => it.side == viewerSide)
+        .where((StrategyUnit it) => it.side == viewerSide)
         .length;
     expect(
       mine,

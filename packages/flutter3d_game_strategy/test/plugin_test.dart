@@ -38,9 +38,15 @@ final class _CampKind extends EntityKind {
 Match _duel() {
   final sim = StrategySimulation(random: GameRandom(3), ground: flat());
   sim
-    ..add(Unit(position: Vector3(30.0, 0.0, 30.0), type: UnitType.soldier))
     ..add(
-      Unit(position: Vector3(33.0, 0.0, 30.0), type: UnitType.soldier, side: 1),
+      StrategyUnit(position: Vector3(30.0, 0.0, 30.0), type: UnitType.soldier),
+    )
+    ..add(
+      StrategyUnit(
+        position: Vector3(33.0, 0.0, 30.0),
+        type: UnitType.soldier,
+        side: 1,
+      ),
     );
   return Match(simulation: sim, bots: const <Bot>[]);
 }

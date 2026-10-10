@@ -127,7 +127,7 @@ void main() {
     test('loses sight of ground its crowd has walked away from', () {
       final sim = StrategySimulation(random: GameRandom(1), ground: _flat());
       final scout = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(10.0, 0.0, 10.0),
           type: UnitType.worker.copyWith(sight: 8.0),
         ),
@@ -155,7 +155,7 @@ void main() {
 
   group('a bot in the dark', () {
     /// A camp with its only seam well outside anybody's sight.
-    ({Match match, Unit worker, ResourceNode seam}) camp() {
+    ({Match match, StrategyUnit worker, ResourceNode seam}) camp() {
       final sim = StrategySimulation(
         random: GameRandom(1),
         ground: _flat(samples: 21),
@@ -172,7 +172,7 @@ void main() {
         ResourceNode(at: Vector3(32.0, 0.0, 8.0), amount: 200.0),
       );
       final worker = sim.add(
-        Unit(
+        StrategyUnit(
           position: Vector3(12.0, 0.0, 8.0),
           type: UnitType.worker.copyWith(sight: 7.0),
         ),

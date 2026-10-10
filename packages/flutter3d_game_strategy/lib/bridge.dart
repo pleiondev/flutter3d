@@ -67,7 +67,7 @@ final class MeshLook {
 /// no look is still drawn — in [StrategyVisuals.crowd], as a box — so a game
 /// that adds a fourth kind sees it on the map before it has a model.
 final class UnitLook {
-  /// Dresses units of [kind]; [sides] is indexed by `Unit.side`, wrapping
+  /// Dresses units of [kind]; [sides] is indexed by `StrategyUnit.side`, wrapping
   /// round when there are more sides than looks.
   const UnitLook({required this.kind, required this.sides})
     : assert(sides.length > 0, 'a kind dressed in nothing');
@@ -547,7 +547,7 @@ final class StrategyVisuals {
     // see is exactly the part of that bill it should not be paying.
     final int? side = viewer;
     _filled.fillRange(0, _filled.length, 0);
-    for (final Unit unit in simulation.units) {
+    for (final StrategyUnit unit in simulation.units) {
       if (side != null && !_showsUnit(side, unit)) continue;
       final List<int>? dressed = _byKind[unit.type.name];
       final int which = dressed == null
@@ -654,7 +654,7 @@ final class StrategyVisuals {
   /// each time, so a unit shoved sideways by a neighbour for a frame does not
   /// spin round to face the shove. A unit that has not moved keeps the
   /// heading it had — a worker at a seam faces the seam it walked to.
-  double _headingOf(Unit unit) {
+  double _headingOf(StrategyUnit unit) {
     final Vector3 at = unit.position;
     final Float64List? known = _facing[unit];
     if (known == null) {
@@ -753,7 +753,7 @@ final class StrategyVisuals {
   /// crowd that allocated a colour apiece would spend the saving on the
   /// collector. [InstancedMeshNode.setColor] copies the components straight
   /// into the buffer, so nothing holds on to the object afterwards.
-  Vector4 _woundOf(Unit unit) {
+  Vector4 _woundOf(StrategyUnit unit) {
     final double left = unit.health / unit.type.health;
     if (left >= 1.0) return _tint..setValues(1.0, 1.0, 1.0, 1.0);
     // The green and blue give way and the red is held back only a little, so a
@@ -774,7 +774,7 @@ final class StrategyVisuals {
   /// the fog — a side's own units light the ground they stand on, so the fog
   /// would say yes as well — but it is the answer that stays right when
   /// somebody gives a unit a sight of nothing, and it costs a comparison.
-  bool _showsUnit(int side, Unit unit) =>
+  bool _showsUnit(int side, StrategyUnit unit) =>
       unit.side == side ||
       simulation.fog.sees(side, unit.position.x, unit.position.z);
 
@@ -809,7 +809,7 @@ final class StrategyVisuals {
 
 /// How big a unit is drawn, in metres.
 ///
-/// The drawn size, not the simulated one: `Unit.radius` is how much room a unit
+/// The drawn size, not the simulated one: `StrategyUnit.radius` is how much room a unit
 /// needs and this is how much of it a player sees, and a game is free to make
 /// the second larger than the first so that a crowd reads as a crowd rather
 /// than as a scatter of dots.

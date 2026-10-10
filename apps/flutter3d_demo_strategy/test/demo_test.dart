@@ -53,7 +53,7 @@ String _bytes(Snapshot snapshot) => jsonEncode(snapshot.toJson());
 
 /// Where everybody stands, and nothing else.
 String _crowd(StrategySimulation simulation) => jsonEncode(<List<double>>[
-  for (final Unit unit in simulation.units)
+  for (final StrategyUnit unit in simulation.units)
     <double>[unit.position.x, unit.position.z],
 ]);
 
@@ -91,7 +91,7 @@ void main() {
       ..normalize();
     final corner = Vector3(23.5, 0.0, 43.5),
         opposite = Vector3(28.0, 0.0, 47.0);
-    final List<Unit> squad = UnitSelection(
+    final List<StrategyUnit> squad = UnitSelection(
       live.simulation.units,
     ).unitsWithin(corner, opposite);
     expect(command.selectWithin(corner, opposite), greaterThan(6));
@@ -116,7 +116,7 @@ void main() {
           live.simulation.save().toJson(),
         );
       }
-      for (final Unit unit in squad) {
+      for (final StrategyUnit unit in squad) {
         final NativeShallowSample? water = liveWorld.world.sampleShallow(
           liveWorld.river,
           unit.position.x,

@@ -152,7 +152,7 @@ void main() {
 
     // Everybody is on the ground rather than at the height the document
     // happened to write for the block they came from.
-    for (final Unit unit in sim.units) {
+    for (final StrategyUnit unit in sim.units) {
       expect(
         unit.position.y,
         closeTo(map.ground.heightAt(unit.position.x, unit.position.z), stored),

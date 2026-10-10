@@ -2,8 +2,12 @@
 /// below the simulation.
 ///
 /// * [Flutter3dException] and its four families, the root of everything the
-///   engine throws, [DocumentFormatException], and the two leaves every
-///   backend and loader share, [ShaderCompileException] and [AssetNotFoundException];
+///   engine throws, [DocumentFormatException], and the leaves every layer
+///   shares: [ShaderCompileException] with its [ShaderDiagnostic]s,
+///   [AssetNotFoundException], and [UnsupportedCapability], the refusal of
+///   a [Capability];
+/// * [Unit] and [Quantity], a unit as a vector of dimension exponents and a
+///   value that refuses to cross dimensions;
 /// * [WorldPosition], a place in the world in double precision, and
 ///   [LinearColor], the one colour type, with their crossings into
 ///   `vector_math`'s float32 vectors ([WorldPositionVector],
@@ -32,5 +36,6 @@ export 'src/linear_color.dart';
 export 'src/placed_event.dart';
 export 'src/portable_math.dart';
 export 'src/registration.dart';
+export 'src/units.dart';
 export 'src/vectors.dart';
 export 'src/world_position.dart';

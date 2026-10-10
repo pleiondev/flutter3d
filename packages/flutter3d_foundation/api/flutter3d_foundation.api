@@ -12,8 +12,37 @@ final class AssetNotFoundException extends ResourceException
   final String key
   final String? detail
 
+abstract base class Capability
+  String? get askedBy
+  abstract String get name
+  const Capability()
+
 abstract base class CapabilityException extends Flutter3dException
   const CapabilityException()
+
+final class Dimension
+  Dimension operator *(Dimension other)
+  Dimension operator /(Dimension other)
+  Dimension pow(int power)
+  Map<String, int> toJson()
+  String toString()
+  bool get isNone
+  bool operator ==(Object other)
+  const Dimension(this.exponents)
+  final Map<String, int> exponents
+  int get hashCode
+  int operator [](String base)
+  static Dimension fromJson(Object? json)
+  static const Dimension amount = Dimension(<String, int>{'mol': 1})
+  static const Dimension angle = Dimension(<String, int>{'rad': 1})
+  static const Dimension current = Dimension(<String, int>{'A': 1})
+  static const Dimension length = Dimension(<String, int>{'m': 1})
+  static const Dimension luminousIntensity = Dimension(<String, int>{'cd': 1})
+  static const Dimension mass = Dimension(<String, int>{'kg': 1})
+  static const Dimension none = Dimension(<String, int>{})
+  static const Dimension temperature = Dimension(<String, int>{'K': 1})
+  static const Dimension time = Dimension(<String, int>{'s': 1})
+  static const List<String> bases = <String>['kg', 'm', 's', 'A', 'K', 'mol', 'cd', 'rad']
 
 final class DocumentFormatException extends Flutter3dFormatException
   String toString()
@@ -116,6 +145,24 @@ abstract final class Portable
   static double sin(double radians)
   static double tan(double radians)
 
+final class Quantity implements Comparable<Quantity>
+  Map<String, Object?> toJson()
+  Quantity operator *(Quantity other)
+  Quantity operator +(Quantity other)
+  Quantity operator -(Quantity other)
+  Quantity operator /(Quantity other)
+  Quantity to(Unit target)
+  String toString()
+  bool operator ==(Object other)
+  const Quantity(this.value, this.unit)
+  double valueIn(Unit target)
+  final Unit unit
+  final double value
+  int compareTo(Quantity other)
+  int get hashCode
+  static Quantity fromJson(Object? json, {Iterable<Unit> also = const <Unit>[]})
+  static Quantity parse(String text, {Iterable<Unit> also = const <Unit>[]})
+
 final class Registration
   Registration(void Function() onCancel)
   bool get isCanceled
@@ -125,13 +172,117 @@ abstract base class ResourceException extends Flutter3dException
   const ResourceException()
 
 final class ShaderCompileException extends Flutter3dFormatException
+  Map<String, Object?> toJson()
   String get message
   String toString()
-  const ShaderCompileException({required this.shader, required this.backend, required this.log, this.cause})
+  String? get excerpt
+  const ShaderCompileException({required this.shader, required this.backend, required this.log, this.stage, this.target, this._line, this._column, this._excerpt, this.diagnostics = const <ShaderDiagnostic>[], this.cause})
+  final List<ShaderDiagnostic> diagnostics
   final Object? cause
   final String backend
   final String log
   final String shader
+  final String? stage
+  final String? target
+  int? get column
+  int? get line
+
+final class ShaderDiagnostic
+  Map<String, Object?> toJson()
+  String toString()
+  bool operator ==(Object other)
+  const ShaderDiagnostic(this.message, {this.stage, this.line, this.column, this.excerpt})
+  final String message
+  final String? excerpt
+  final String? stage
+  final int? column
+  final int? line
+  int get hashCode
+  static List<ShaderDiagnostic> parseLog(String log, {String? stage, String? source})
+  static ShaderDiagnostic fromJson(Object? json)
+
+final class Unit
+  Object toJson()
+  String toString()
+  Unit operator *(Unit other)
+  Unit operator /(Unit other)
+  Unit pow(int power)
+  bool isCompatibleWith(Unit other)
+  bool operator ==(Object other)
+  const Unit(this.symbol, this.dimension, {this.scale = 1, this.offset = 0})
+  final Dimension dimension
+  final String symbol
+  final double offset
+  final double scale
+  int get hashCode
+  static Unit fromJson(Object? json, {Iterable<Unit> also = const <Unit>[]})
+  static Unit parse(String text, {Iterable<Unit> also = const <Unit>[]})
+  static Unit? tryParse(String text, {Iterable<Unit> also = const <Unit>[]})
+  static const List<Unit> named = …
+  static const Unit ampere = Unit('A', Dimension.current)
+  static const Unit bar = Unit('bar', Dimension(<String, int>{'kg': 1, 'm': -1, 's': -2}), scale: 1e5)
+  static const Unit candela = Unit('cd', Dimension.luminousIntensity)
+  static const Unit celsius = Unit('°C', Dimension.temperature, offset: 273.15)
+  static const Unit centimeter = Unit('cm', Dimension.length, scale: 0.01)
+  static const Unit coulomb = Unit('C', Dimension(<String, int>{'A': 1, 's': 1}))
+  static const Unit cubicMeter = Unit('m³', Dimension(<String, int>{'m': 3}))
+  static const Unit degree = Unit('°', Dimension.angle, scale: math.pi / 180)
+  static const Unit gram = Unit('g', Dimension.mass, scale: 1e-3)
+  static const Unit hertz = Unit('Hz', Dimension(<String, int>{'s': -1}))
+  static const Unit hour = Unit('h', Dimension.time, scale: 3600)
+  static const Unit joule = Unit('J', Dimension(<String, int>{'kg': 1, 'm': 2, 's': -2}))
+  static const Unit kelvin = Unit('K', Dimension.temperature)
+  static const Unit kilogram = Unit('kg', Dimension.mass)
+  static const Unit kilogramPerCubicMeter = Unit('kg/m³', Dimension(<String, int>{'kg': 1, 'm': -3}))
+  static const Unit kilometer = Unit('km', Dimension.length, scale: 1000)
+  static const Unit kilopascal = Unit('kPa', Dimension(<String, int>{'kg': 1, 'm': -1, 's': -2}), scale: 1000)
+  static const Unit liter = Unit('L', Dimension(<String, int>{'m': 3}), scale: 1e-3)
+  static const Unit lumen = Unit('lm', Dimension(<String, int>{'cd': 1, 'rad': 2}))
+  static const Unit lux = Unit('lx', Dimension(<String, int>{'cd': 1, 'rad': 2, 'm': -2}))
+  static const Unit meter = Unit('m', Dimension.length)
+  static const Unit meterPerSecond = Unit('m/s', Dimension(<String, int>{'m': 1, 's': -1}))
+  static const Unit meterPerSecondSquared = Unit('m/s²', Dimension(<String, int>{'m': 1, 's': -2}))
+  static const Unit millimeter = Unit('mm', Dimension.length, scale: 1e-3)
+  static const Unit millisecond = Unit('ms', Dimension.time, scale: 1e-3)
+  static const Unit minute = Unit('min', Dimension.time, scale: 60)
+  static const Unit mole = Unit('mol', Dimension.amount)
+  static const Unit newton = Unit('N', Dimension(<String, int>{'kg': 1, 'm': 1, 's': -2}))
+  static const Unit newtonPerMeter = Unit('N/m', Dimension(<String, int>{'kg': 1, 's': -2}))
+  static const Unit nit = Unit('nit', Dimension(<String, int>{'cd': 1, 'm': -2}))
+  static const Unit ohm = Unit('Ω', Dimension(<String, int>{'kg': 1, 'm': 2, 's': -3, 'A': -2}))
+  static const Unit one = Unit('1', Dimension.none)
+  static const Unit pascal = Unit('Pa', Dimension(<String, int>{'kg': 1, 'm': -1, 's': -2}))
+  static const Unit pascalSecond = Unit('Pa·s', Dimension(<String, int>{'kg': 1, 'm': -1, 's': -1}))
+  static const Unit percent = Unit('%', Dimension.none, scale: 0.01)
+  static const Unit radian = Unit('rad', Dimension.angle)
+  static const Unit radianPerSecond = Unit('rad/s', Dimension(<String, int>{'rad': 1, 's': -1}))
+  static const Unit second = Unit('s', Dimension.time)
+  static const Unit squareMeter = Unit('m²', Dimension(<String, int>{'m': 2}))
+  static const Unit steradian = Unit('sr', Dimension(<String, int>{'rad': 2}))
+  static const Unit volt = Unit('V', Dimension(<String, int>{'kg': 1, 'm': 2, 's': -3, 'A': -1}))
+  static const Unit watt = Unit('W', Dimension(<String, int>{'kg': 1, 'm': 2, 's': -3}))
+
+final class UnitFormatException extends Flutter3dFormatException
+  String get message
+  String toString()
+  const UnitFormatException(this.text, this.reason)
+  final String reason
+  final String text
+
+final class UnitMismatchException extends Flutter3dFormatException
+  String get message
+  String toString()
+  const UnitMismatchException(this.from, this.to)
+  final Unit from
+  final Unit to
+
+final class UnsupportedCapability extends CapabilityException
+  String get message
+  String toString()
+  const UnsupportedCapability(this.feature, {required this.backend, this.reason})
+  final Capability feature
+  final String backend
+  final String? reason
 
 extension Vector3Foundation on Vector3
   LinearColor toLinearColor([double alpha = 1])

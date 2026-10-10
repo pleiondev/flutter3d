@@ -29,7 +29,7 @@ final class UnitSelection {
   const UnitSelection(this.units);
 
   /// The crowd to search, in the order the simulation steps it.
-  final List<Unit> units;
+  final List<StrategyUnit> units;
 
   /// The unit a ray hits first, or null for a ray that hits none.
   ///
@@ -40,11 +40,15 @@ final class UnitSelection {
   ///
   /// [reach] bounds the search so that a click on empty ground stops at the far
   /// edge of the map rather than walking the crowd twice.
-  Unit? unitAt(Vector3 origin, Vector3 direction, {double reach = 1000.0}) {
-    Unit? nearest;
+  StrategyUnit? unitAt(
+    Vector3 origin,
+    Vector3 direction, {
+    double reach = 1000.0,
+  }) {
+    StrategyUnit? nearest;
     var nearestAt = reach;
 
-    for (final Unit unit in units) {
+    for (final StrategyUnit unit in units) {
       // The classic ray-sphere test, written out: the vector to the centre,
       // its projection along the ray, and what is left over across it.
       final double ox = unit.position.x - origin.x;
@@ -82,14 +86,14 @@ final class UnitSelection {
   ///
   /// The corners may arrive in any order, because a drag that started at the
   /// bottom right is still a rectangle.
-  List<Unit> unitsWithin(Vector3 corner, Vector3 opposite) {
+  List<StrategyUnit> unitsWithin(Vector3 corner, Vector3 opposite) {
     final double minX = math.min(corner.x, opposite.x);
     final double maxX = math.max(corner.x, opposite.x);
     final double minZ = math.min(corner.z, opposite.z);
     final double maxZ = math.max(corner.z, opposite.z);
 
-    return <Unit>[
-      for (final Unit unit in units)
+    return <StrategyUnit>[
+      for (final StrategyUnit unit in units)
         if (unit.position.x >= minX &&
             unit.position.x <= maxX &&
             unit.position.z >= minZ &&
