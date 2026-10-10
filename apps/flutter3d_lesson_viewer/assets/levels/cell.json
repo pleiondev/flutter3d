@@ -1,113 +1,386 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "ls-e-02 cell structure",
-  "fogColor": [0.05, 0.04, 0.06],
+  "fogColor": [
+    0.05,
+    0.04,
+    0.06
+  ],
   "fogDensity": 0.0,
   "materials": {
-    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
-    "wall": { "baseColor": [0.5, 0.47, 0.44, 1.0], "roughness": 0.85 },
-    "pedestal": { "baseColor": [0.6, 0.56, 0.4, 1.0], "roughness": 0.5 },
-    "membrane": { "baseColor": [0.55, 0.75, 0.85, 0.5], "roughness": 0.3 },
-    "cytoplasm": { "baseColor": [0.85, 0.8, 0.55, 0.6], "roughness": 0.5 },
-    "mitochondria": { "baseColor": [0.75, 0.25, 0.2, 1.0], "roughness": 0.4 },
-    "nucleus": { "baseColor": [0.35, 0.25, 0.55, 1.0], "roughness": 0.35 }
+    "floor": {
+      "baseColor": [
+        0.42,
+        0.4,
+        0.38,
+        1.0
+      ],
+      "roughness": 0.9
+    },
+    "wall": {
+      "baseColor": [
+        0.5,
+        0.47,
+        0.44,
+        1.0
+      ],
+      "roughness": 0.85
+    },
+    "pedestal": {
+      "baseColor": [
+        0.6,
+        0.56,
+        0.4,
+        1.0
+      ],
+      "roughness": 0.5
+    },
+    "membrane": {
+      "baseColor": [
+        0.55,
+        0.75,
+        0.85,
+        0.5
+      ],
+      "roughness": 0.3
+    },
+    "cytoplasm": {
+      "baseColor": [
+        0.85,
+        0.8,
+        0.55,
+        0.6
+      ],
+      "roughness": 0.5
+    },
+    "mitochondria": {
+      "baseColor": [
+        0.75,
+        0.25,
+        0.2,
+        1.0
+      ],
+      "roughness": 0.4
+    },
+    "nucleus": {
+      "baseColor": [
+        0.35,
+        0.25,
+        0.55,
+        1.0
+      ],
+      "roughness": 0.35
+    }
   },
   "brushes": [
-    { "at": [0.0, -0.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "floor" },
-    { "at": [0.0, 4.5, 0.0], "size": [12.0, 1.0, 12.0], "material": "wall" },
-    { "at": [0.0, 2.0, -6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
-    { "at": [0.0, 2.0, 6.5], "size": [12.0, 4.0, 1.0], "material": "wall" },
-    { "at": [-6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [6.5, 2.0, 0.0], "size": [1.0, 4.0, 14.0], "material": "wall" },
-    { "at": [0.0, 0.4, 0.0], "size": [2.0, 0.8, 2.0], "material": "pedestal" }
+    {
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        12.0,
+        1.0,
+        12.0
+      ],
+      "material": "floor",
+      "id": "8a4aa796"
+    },
+    {
+      "at": [
+        0.0,
+        4.5,
+        0.0
+      ],
+      "size": [
+        12.0,
+        1.0,
+        12.0
+      ],
+      "material": "wall",
+      "id": "e7f36b78"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        -6.5
+      ],
+      "size": [
+        12.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall",
+      "id": "f57848d2"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        6.5
+      ],
+      "size": [
+        12.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall",
+      "id": "2ecc3152"
+    },
+    {
+      "at": [
+        -6.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        14.0
+      ],
+      "material": "wall",
+      "id": "996f6266"
+    },
+    {
+      "at": [
+        6.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        14.0
+      ],
+      "material": "wall",
+      "id": "53adb7e6"
+    },
+    {
+      "at": [
+        0.0,
+        0.4,
+        0.0
+      ],
+      "size": [
+        2.0,
+        0.8,
+        2.0
+      ],
+      "material": "pedestal",
+      "id": "d80b15db"
+    }
   ],
   "lights": [
-    { "type": "point", "at": [0.0, 3.2, 0.0], "color": [1.0, 0.95, 0.85], "intensity": 9.0, "range": 14.0 }
+    {
+      "type": "point",
+      "at": [
+        0.0,
+        3.2,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.95,
+        0.85
+      ],
+      "intensity": 52115.252201999996,
+      "range": 14.0,
+      "id": "88ce8d88"
+    }
   ],
   "entities": [
     {
       "type": "edu_sequence",
       "name": "cell-structure",
-      "title": "Строение клетки",
-      "steps": ["step-1", "step-2", "step-3", "step-4"]
+      "props": {
+        "title": "Строение клетки",
+        "steps": [
+          "step-1",
+          "step-2",
+          "step-3",
+          "step-4"
+        ]
+      },
+      "id": "1a39c68c"
     },
     {
       "type": "part",
       "name": "cell-membrane",
-      "at": [0.0, 1.2, 0.0],
-      "size": [1.6, 1.6, 1.6],
-      "material": "membrane"
+      "at": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "props": {
+        "size": [
+          1.6,
+          1.6,
+          1.6
+        ],
+        "material": "membrane"
+      },
+      "id": "4d56e144"
     },
     {
       "type": "part",
       "name": "cytoplasm",
-      "at": [0.0, 1.2, 0.0],
-      "size": [1.3, 1.3, 1.3],
-      "material": "cytoplasm"
+      "at": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "props": {
+        "size": [
+          1.3,
+          1.3,
+          1.3
+        ],
+        "material": "cytoplasm"
+      },
+      "id": "40cea16a"
     },
     {
       "type": "part",
       "name": "mitochondria",
-      "at": [0.35, 1.2, 0.2],
-      "size": [0.35, 0.18, 0.18],
-      "material": "mitochondria"
+      "at": [
+        0.35,
+        1.2,
+        0.2
+      ],
+      "props": {
+        "size": [
+          0.35,
+          0.18,
+          0.18
+        ],
+        "material": "mitochondria"
+      },
+      "id": "3ded14dd"
     },
     {
       "type": "part",
       "name": "nucleus",
-      "at": [0.0, 1.2, 0.0],
-      "size": [0.55, 0.55, 0.55],
-      "material": "nucleus"
+      "at": [
+        0.0,
+        1.2,
+        0.0
+      ],
+      "props": {
+        "size": [
+          0.55,
+          0.55,
+          0.55
+        ],
+        "material": "nucleus"
+      },
+      "id": "812c1a41"
     },
     {
       "type": "edu_step",
       "name": "step-1",
-      "at": [2.2, 1.8, 2.2],
+      "at": [
+        2.2,
+        1.8,
+        2.2
+      ],
       "yaw": 2.5,
-      "caption": "Клетка в целом",
-      "check": {
-        "question": "Как называется внешняя оболочка клетки?",
-        "answers": ["клеточная мембрана", "мембрана", "плазматическая мембрана"],
-        "attempts": 3
-      }
+      "props": {
+        "caption": "Клетка в целом",
+        "check": {
+          "question": "Как называется внешняя оболочка клетки?",
+          "answers": [
+            "клеточная мембрана",
+            "мембрана",
+            "плазматическая мембрана"
+          ],
+          "attempts": 3
+        }
+      },
+      "id": "a06c2772"
     },
     {
       "type": "edu_step",
       "name": "step-2",
-      "at": [1.6, 1.9, 1.6],
+      "at": [
+        1.6,
+        1.9,
+        1.6
+      ],
       "yaw": 2.4,
-      "caption": "Убираем мембрану — видна цитоплазма",
-      "hidden": ["cell-membrane"],
-      "check": {
-        "question": "Как называется жидкая среда клетки, в которой расположены органеллы?",
-        "answers": ["цитоплазма", "цитозоль", "гиалоплазма"],
-        "attempts": 3
-      }
+      "props": {
+        "caption": "Убираем мембрану — видна цитоплазма",
+        "hidden": [
+          "cell-membrane"
+        ],
+        "check": {
+          "question": "Как называется жидкая среда клетки, в которой расположены органеллы?",
+          "answers": [
+            "цитоплазма",
+            "цитозоль",
+            "гиалоплазма"
+          ],
+          "attempts": 3
+        }
+      },
+      "id": "2d9489da"
     },
     {
       "type": "edu_step",
       "name": "step-3",
-      "at": [1.6, 1.9, 1.6],
+      "at": [
+        1.6,
+        1.9,
+        1.6
+      ],
       "yaw": 2.4,
-      "caption": "Убираем гиалоплазму — видны митохондрии, органоиды цитоплазмы",
-      "hidden": ["cytoplasm"],
-      "check": {
-        "question": "Какую функцию выполняют митохондрии?",
-        "answers": ["синтез атф", "синтез atp", "образование атф", "клеточное дыхание", "выработка энергии", "производство энергии", "энергия"],
-        "attempts": 3
-      }
+      "props": {
+        "caption": "Убираем гиалоплазму — видны митохондрии, органоиды цитоплазмы",
+        "hidden": [
+          "cytoplasm"
+        ],
+        "check": {
+          "question": "Какую функцию выполняют митохондрии?",
+          "answers": [
+            "синтез атф",
+            "синтез atp",
+            "образование атф",
+            "клеточное дыхание",
+            "выработка энергии",
+            "производство энергии",
+            "энергия"
+          ],
+          "attempts": 3
+        }
+      },
+      "id": "fbfbc131"
     },
     {
       "type": "edu_step",
       "name": "step-4",
-      "at": [1.6, 1.9, 1.6],
+      "at": [
+        1.6,
+        1.9,
+        1.6
+      ],
       "yaw": 2.4,
-      "caption": "В центре — ядро",
-      "check": {
-        "question": "Что хранится в ядре клетки?",
-        "answers": ["днк", "генетическая информация", "хромосомы"],
-        "attempts": 3
-      }
+      "props": {
+        "caption": "В центре — ядро",
+        "check": {
+          "question": "Что хранится в ядре клетки?",
+          "answers": [
+            "днк",
+            "генетическая информация",
+            "хромосомы"
+          ],
+          "attempts": 3
+        }
+      },
+      "id": "47604208"
     }
   ]
 }

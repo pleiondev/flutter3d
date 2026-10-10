@@ -1,69 +1,154 @@
 {
-  "version": 1,
+  "format": "f3d.level",
+  "version": 5,
+  "requires": [],
+  "generator": "flutter3d",
   "name": "edu-07 teardown demo",
   "materials": {
-    "floor": { "baseColor": [0.42, 0.4, 0.38, 1.0], "roughness": 0.9 },
-    "body": { "baseColor": [0.35, 0.36, 0.4, 1.0], "roughness": 0.6 },
-    "cover": { "baseColor": [0.75, 0.2, 0.2, 1.0], "roughness": 0.4 }
+    "floor": {
+      "baseColor": [
+        0.42,
+        0.4,
+        0.38,
+        1.0
+      ],
+      "roughness": 0.9
+    },
+    "body": {
+      "baseColor": [
+        0.35,
+        0.36,
+        0.4,
+        1.0
+      ],
+      "roughness": 0.6
+    },
+    "cover": {
+      "baseColor": [
+        0.75,
+        0.2,
+        0.2,
+        1.0
+      ],
+      "roughness": 0.4
+    }
   },
   "brushes": [
     {
-      "at": [0.0, -0.5, 0.0],
-      "size": [8.0, 1.0, 8.0],
-      "material": "floor"
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        8.0,
+        1.0,
+        8.0
+      ],
+      "material": "floor",
+      "id": "645c1d16"
     }
   ],
   "entities": [
     {
       "type": "prop",
       "name": "engine-body",
-      "at": [0.0, 0.0, 0.0],
-      "shape": "box",
-      "size": [1.2, 1.0, 1.2],
-      "material": "body"
+      "at": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "props": {
+        "shape": "box",
+        "size": [
+          1.2,
+          1.0,
+          1.2
+        ],
+        "material": "body"
+      },
+      "id": "1d29a669"
     },
     {
       "type": "prop",
       "name": "engine-body#valve_cover",
-      "at": [0.0, 0.6, 0.0],
-      "shape": "box",
-      "size": [1.0, 0.2, 1.0],
-      "material": "cover"
+      "at": [
+        0.0,
+        0.6,
+        0.0
+      ],
+      "props": {
+        "shape": "box",
+        "size": [
+          1.0,
+          0.2,
+          1.0
+        ],
+        "material": "cover"
+      },
+      "id": "798a35c8"
     },
     {
       "type": "edu_data_source",
       "name": "block-temp",
-      "kind": "sampler"
+      "props": {
+        "kind": "sampler"
+      },
+      "id": "74b9206e"
     },
     {
       "type": "edu_sequence",
       "name": "teardown",
-      "title": "Engine teardown (placeholder geometry)",
-      "steps": ["step-1", "step-2"]
+      "props": {
+        "title": "Engine teardown (placeholder geometry)",
+        "steps": [
+          "step-1",
+          "step-2"
+        ]
+      },
+      "id": "ec8359f6"
     },
     {
       "type": "edu_step",
       "name": "step-1",
-      "at": [2.5, 1.6, 2.5],
+      "at": [
+        2.5,
+        1.6,
+        2.5
+      ],
       "yaw": 2.4,
-      "caption": "Whole engine",
-      "bindings": [
-        {
-          "source": "block-temp",
-          "path": "value",
-          "target": "engine-body.material.emissiveStrength"
-        }
-      ]
+      "props": {
+        "caption": "Whole engine",
+        "bindings": [
+          {
+            "source": "block-temp",
+            "path": "value",
+            "target": "engine-body.material.emissiveStrength"
+          }
+        ]
+      },
+      "id": "68edc344"
     },
     {
       "type": "edu_step",
       "name": "step-2",
-      "at": [1.6, 1.8, -0.6],
+      "at": [
+        1.6,
+        1.8,
+        -0.6
+      ],
       "yaw": 2.1,
-      "caption": "Cover removed",
-      "offsets": {
-        "engine-body#valve_cover": [0.0, 0.6, 0.0]
-      }
+      "props": {
+        "caption": "Cover removed",
+        "offsets": {
+          "engine-body#valve_cover": [
+            0.0,
+            0.6,
+            0.0
+          ]
+        }
+      },
+      "id": "2ec049ca"
     }
   ]
 }
