@@ -90,5 +90,6 @@ export 'src/formats/splat/splat.dart';
 export 'src/formats/srgb.dart';
 export 'src/formats/stl/stl.dart';
 export 'src/formats/surface_material.dart';
+export 'src/formats/texture_codecs.dart';
 export 'src/formats/texture_transform_bake.dart';
 export 'src/formats/usdz/usdz.dart';

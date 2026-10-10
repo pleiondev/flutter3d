@@ -4,6 +4,8 @@ library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show BusEvent;
 
+import 'render_hooks.dart';
+
 /// The renderer's pacing: frames in flight, holding a frame when the GPU is
 /// behind, and the threshold above which a pipeline build is a stall.
 ///
@@ -34,6 +36,7 @@ final class FramePacing {
     this.framesInFlight = _maxFramesInFlight,
     this.holdWhenBehind = true,
     this.stallThreshold = const Duration(milliseconds: 8),
+    this.policy,
   }) : assert(
          framesInFlight >= 1 && framesInFlight <= _maxFramesInFlight,
          'frames in flight are one to three',
@@ -52,6 +55,11 @@ final class FramePacing {
   /// [PipelineStall]. Eight milliseconds is half a frame at sixty.
   final Duration stallThreshold;
 
+  /// A plugin's or an application's own rule for holding a frame, asked
+  /// before the engine's — [holdWhenBehind] — and answering for it where it
+  /// answers at all (D22b). Null for the engine's rule alone.
+  final PacingPolicy? policy;
+
   /// The depth of the renderer's deferred-release rings and of the backends'
   /// per-frame uniform rings, and so the most frames that may be in flight.
   ///
@@ -64,10 +72,13 @@ final class FramePacing {
     int? framesInFlight,
     bool? holdWhenBehind,
     Duration? stallThreshold,
+    PacingPolicy? policy,
+    bool clearPolicy = false,
   }) => FramePacing(
     framesInFlight: framesInFlight ?? this.framesInFlight,
     holdWhenBehind: holdWhenBehind ?? this.holdWhenBehind,
     stallThreshold: stallThreshold ?? this.stallThreshold,
+    policy: clearPolicy ? null : policy ?? this.policy,
   );
 }
 

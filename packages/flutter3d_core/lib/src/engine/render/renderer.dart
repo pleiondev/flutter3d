@@ -72,6 +72,7 @@ import 'pass_contributor.dart';
 import 'physical_sky.dart';
 import 'probe_faces.dart';
 import 'procedural_texture.dart';
+import 'render_hooks.dart';
 import 'render_list.dart';
 import 'render_listener.dart';
 import 'render_node.dart';
@@ -334,6 +335,11 @@ final class Renderer with RenderServices {
   /// and code (D22). A plugin reaches it as `host.registry<LightTypes>()`,
   /// through [renderSteps].
   LightTypes get lightTypes => renderSteps._store.lightTypes;
+
+  /// The hooks into what this renderer draws — the draw-list hooks, the
+  /// level-of-detail policy, the skinning hooks (D22b). A plugin reaches it
+  /// as `host.registry<RenderHooks>()`, through [renderSteps].
+  RenderHooks get hooks => renderSteps._store.hooks;
 
   final ShaderHandle _vertexShader;
 
@@ -942,6 +948,22 @@ final class Renderer with RenderServices {
   bool get _gpuIsBehind {
     final older = _unfinished.where((f) => f != _latestSubmitted).length;
     return older >= math.max(pacing.framesInFlight - 1, 1);
+  }
+
+  /// Whether this frame is held: [pacing]'s policy where it answers (D22b),
+  /// and otherwise its rule — held while the GPU is behind by every frame in
+  /// flight.
+  bool _holdsFrame() {
+    final behind = _gpuIsBehind;
+    return pacing.policy?.hold(
+          PacingContext(
+            frameIndex: _frameIndex,
+            unfinishedFrames: _unfinished.length,
+            framesInFlight: pacing.framesInFlight,
+            gpuIsBehind: behind,
+          ),
+        ) ??
+        (pacing.holdWhenBehind && behind);
   }
 
   /// What the last drawn frame answered, for a held frame to answer again,
@@ -2175,6 +2197,7 @@ final class Renderer with RenderServices {
   /// every light buffer the light types plugins register (D22).
   void _attachSteps() {
     renderSteps._store.renderer = this;
+    _renderList.hooks = hooks;
     for (final buffer in <LightBuffer>[
       _frameLights,
       _passLights,
@@ -4731,9 +4754,8 @@ final class Renderer with RenderServices {
     final previous = _lastResult;
     if (previous != null &&
         !_warmingUp &&
-        pacing.holdWhenBehind &&
-        _gpuIsBehind &&
-        _lastRequestedSize == (width, height)) {
+        _lastRequestedSize == (width, height) &&
+        _holdsFrame()) {
       _heldFrames++;
       final held = previous.toHeld();
       listener?.notify(held);

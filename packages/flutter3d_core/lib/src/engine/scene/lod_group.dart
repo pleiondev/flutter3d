@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_core/geometry.dart';
 
 import '../render/material.dart';
+import '../render/render_hooks.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';
 import 'projection.dart';
@@ -230,11 +231,15 @@ final class LodGroup extends SceneNode {
   /// [viewportHeight] is the height of the view in pixels, which is what
   /// turns a level's [LodLevel.error] into pixels; the renderer passes its
   /// own. Without it every level is switched by its screen fraction.
+  ///
+  /// [policy], when given, has the last word: the level it answers is shown
+  /// instead of the engine's choice, with no cross-fade (D22b).
   int select(
     CameraNode camera, {
     double? verticalFieldOfView,
     double? orthographicHeight,
     double? viewportHeight,
+    LodPolicy? policy,
   }) {
     final fraction = screenFraction(
       camera,
@@ -281,6 +286,21 @@ final class LodGroup extends SceneNode {
           : fraction <= level.maxScreenFraction * widen;
       if (!fits) break;
       chosen = i;
+    }
+    if (policy != null) {
+      final picked = policy.select(
+        LodContext(
+          group: this,
+          camera: camera,
+          choice: chosen,
+          viewportHeight: viewportHeight,
+        ),
+      );
+      if (picked != null) {
+        final index = picked.clamp(0, _levels.length - 1);
+        _apply(index);
+        return index;
+      }
     }
     if (crossFade <= 0.0) {
       _apply(chosen);

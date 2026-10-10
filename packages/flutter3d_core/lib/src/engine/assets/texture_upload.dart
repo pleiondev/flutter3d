@@ -113,6 +113,9 @@ Rgba8Image fitRgba8Image(Rgba8Image image, {required int maxDimension}) {
 /// without BC7 gets no texture rather than a guess at one, because the guess
 /// would be a decoder this engine does not have.
 ///
+/// [codecs], the image formats plugins brought (`ModelDecoders.textureCodecs`),
+/// are offered the bytes before anything else — D22b.
+///
 /// [report] hears why an image was left out, in a sentence naming the
 /// format or the feature — a refused supercompression scheme, a family the
 /// device does not sample, a size that is not whole blocks. Null loses the
@@ -150,9 +153,39 @@ Future<TextureHandle?> uploadEncodedImage(
   void Function(String message)? report,
   int? maxDimension,
   bool platformDecode = true,
+  TextureCodecs? codecs,
 }) async {
   if (encoded.isEmpty) return null;
   final cap = textureDecodeCap(device, maxDimension: maxDimension);
+
+  // A plugin's own image format first (D22b): the first codec that claims
+  // the bytes decodes them, and what it decodes is uploaded as a PNG's
+  // pixels would be.
+  final codec = codecs?.codecFor(encoded);
+  if (codec != null) {
+    final Rgba8Image? decoded;
+    try {
+      decoded = await codec.decode(
+        TextureDecodeContext(
+          bytes: encoded,
+          maxDimension: cap,
+          report: report,
+        ),
+      );
+    } catch (error) {
+      report?.call('${codec.name} could not read the image: $error');
+      return null;
+    }
+    if (decoded == null) return null;
+    final image = fitRgba8Image(decoded, maxDimension: cap);
+    return _uploadRgba8(
+      device,
+      sampling,
+      image.width,
+      image.height,
+      ByteData.sublistView(image.pixels),
+    );
+  }
 
   if (isKtx2File(encoded)) {
     return _uploadKtx2(device, sampling, encoded, report, cap);

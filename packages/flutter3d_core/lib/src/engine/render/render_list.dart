@@ -11,6 +11,7 @@ import '../scene/scene_spheres.dart';
 import 'key_sort.dart';
 import 'material.dart';
 import 'packed_keys.dart';
+import 'render_hooks.dart';
 import 'render_view.dart';
 
 /// One entry in a render list.
@@ -36,6 +37,10 @@ final class DrawItem {
 /// The two halves need different sort
 /// orders, so separating them is simpler than one list with a mixed comparator.
 final class RenderList {
+  /// The renderer's hooks: what a plugin's draw-list hooks keep, and the
+  /// order they give (D22b). Null, or none registered, is the engine's list.
+  RenderHooks? hooks;
+
   /// RenderMaterial ids for the state sort term. Owned here because this is the only
   /// place they are used.
   final MaterialSortIds materialIds = MaterialSortIds();
@@ -228,6 +233,15 @@ final class RenderList {
           viewRow[10] * center.z +
           viewRow[14];
 
+      // A plugin's say comes last, so it only narrows what the engine kept.
+      final hooks = this.hooks;
+      if (hooks != null && hooks.drawListHooks.isNotEmpty) {
+        final context = hooks.contextFor(node, view, -eyeZ);
+        for (final hook in hooks.drawListHooks) {
+          if (!hook.keeps(context)) return;
+        }
+      }
+
       _claim()
         ..node = node
         ..viewDepth = -eyeZ;
@@ -328,9 +342,13 @@ final class RenderList {
 
   /// Sorts both halves according to the view's sort modes.
   void sort(RenderView view) {
+    _sortView = view;
     _sortRange(opaque, view.opaqueSort);
     _sortRange(transparent, view.transparentSort);
   }
+
+  /// The view [sort] is ordering, for a draw-list hook's sort key.
+  RenderView? _sortView;
 
   void _sortRange(List<int> indices, SortMode mode) {
     final count = indices.length;
@@ -382,6 +400,18 @@ final class RenderList {
     // `P7`: the node's own order on top of its material's.
     final bucket = (material.drawBucket + item.requireNode.drawOrder + 128)
         .clamp(0, 255);
+
+    // A plugin's order below the bucket, when a draw-list hook gives one —
+    // D22b. The first hook to answer decides.
+    final hooks = this.hooks;
+    final view = _sortView;
+    if (hooks != null && view != null && hooks.drawListHooks.isNotEmpty) {
+      final context = hooks.contextFor(item.requireNode, view, item.viewDepth);
+      for (final hook in hooks.drawListHooks) {
+        final key = hook.sortKey(context);
+        if (key != null) return bucket * _b35 + key.clamp(0, _b35 - 1);
+      }
+    }
 
     switch (mode) {
       case SortMode.stateThenDepth:

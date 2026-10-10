@@ -119,6 +119,7 @@ export 'src/engine/render/physical_sky.dart' show PhysicalSky, PhysicalSkyRay;
 export 'src/engine/render/probe_faces.dart';
 export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/quality_table.dart';
+export 'src/engine/render/render_hooks.dart';
 export 'src/engine/render/render_list.dart' hide DrawItem, RenderList;
 export 'src/engine/render/render_node.dart' hide FrameContextInternals;
 export 'src/engine/render/render_step_addon.dart';

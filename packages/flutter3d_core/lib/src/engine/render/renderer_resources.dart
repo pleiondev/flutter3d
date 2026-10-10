@@ -118,7 +118,8 @@ extension _RendererResources on Renderer {
       () => _timedBuild(
         () => instanced
             ? device.createPipeline(
-                _instancedVertexShader,
+                _materialVariantStage(model, VertexStageVariant.instanced) ??
+                    _instancedVertexShader,
                 _fragmentShaderFor(model, opaque: opaque),
                 layout: _kInstancedLayout,
               )
@@ -156,7 +157,11 @@ extension _RendererResources on Renderer {
     required bool lightmapped,
   }) {
     final supplied = model.vertexShaderName;
-    if (supplied == null || lightmapped) {
+    if (lightmapped) {
+      return _materialVariantStage(model, VertexStageVariant.lightmapped) ??
+          _lightmappedVertexShader;
+    }
+    if (supplied == null) {
       return skinned
           ? _skinnedVertexShader
           : lightmapped
@@ -185,6 +190,44 @@ extension _RendererResources on Renderer {
       return shader;
     });
   }
+}
+
+extension _MaterialVariants on Renderer {
+  /// [model]'s own vertex stage for [variant] — `<name>Instanced`,
+  /// `<name>Lightmapped` — when it lists the variant (D22b), or null for
+  /// the engine's. A listed stage no library answers to is refused by name,
+  /// as a material's skinned half is.
+  ShaderHandle? _materialVariantStage(
+    LightingModel model,
+    VertexStageVariant variant,
+  ) {
+    final supplied = model.vertexShaderName;
+    if (supplied == null || !model.vertexVariants.contains(variant)) {
+      return null;
+    }
+    final wanted = '$supplied${variant.suffix}';
+    return _materialVertexShaders.putIfAbsent(wanted, () {
+      final shader = shaders[wanted];
+      if (shader == null) {
+        throw StateError(
+          'Material "${model.label}" lists the ${variant.name} vertex stage '
+          '"$wanted", which no shader library the renderer was given answers '
+          'to. Pass it to Renderer.create as `materials:`, or rebuild the '
+          "backend's bundle with it in.",
+        );
+      }
+      return shader;
+    });
+  }
+}
+
+/// The vertex layouts of the engine's geometry that a material's own vertex
+/// stage reads (D22b): what `VertexStageVariant.instanced` is drawn with.
+abstract final class MeshVertexLayouts {
+  /// An instanced draw: the standard vertex in slot 0, one per vertex, and
+  /// the instance's rows, colour and own four numbers in slot 1, one per
+  /// instance (`i_row0`–`i_row2`, `i_color`, `i_data`).
+  static VertexLayoutDescriptor get instanced => _kInstancedLayout;
 }
 
 /// The two slots an instanced draw binds: the standard vertex in slot 0, one

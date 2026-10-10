@@ -270,7 +270,11 @@ extension _ScenePasses on Renderer {
       for (final group in scene.lodGroups) {
         // The view's own height in pixels, so a measured level is switched
         // by how many of them it would be wrong by.
-        group.select(camera, viewportHeight: viewRect.height.toDouble());
+        group.select(
+          camera,
+          viewportHeight: viewRect.height.toDouble(),
+          policy: hooks.lodPolicy,
+        );
       }
       developer.Timeline.finishSync();
       final frustum = _DepthConvention._viewFrustum(viewProjection);

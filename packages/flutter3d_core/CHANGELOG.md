@@ -27,6 +27,21 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **Hooks into what a renderer draws and when.** `RenderHooks`
+  (`Renderer.hooks`, `host.registry<RenderHooks>()`) holds a plugin's
+  `DrawListHook`s — which meshes a view keeps and the order it draws them
+  in, asked after the engine's own tests with a `DrawListContext` — its
+  `LodPolicy`, which has the last word on a `LodGroup`'s level
+  (`LodGroup.select(policy:)`), and its `SkinningHook`s, the seam a
+  skinning pass of one's own comes through. `FramePacing.policy`
+  (`PacingPolicy`) decides whether a frame is held, `AdaptiveQuality`'s
+  third argument (`QualityPolicy`) which row the next is drawn at.
+  `TextureCodecs` (`ModelDecoders.textureCodecs`) holds the image formats
+  plugins read (`TextureCodec`, `TextureDecodeContext`), which
+  `uploadEncodedImage(codecs:)` offers the bytes first. A material's own
+  vertex stage may ship its instanced and lightmapped variants
+  (`LightingModel.vertexVariants`, `VertexStageVariant`), drawn against the
+  layouts in `MeshVertexLayouts`.
 - **Hooks in the light loop.** `LightTypeHook` packs the lights of a
   `LightType.custom` of a plugin's own, registered with the renderer's
   `LightTypes` (`host.registry<LightTypes>()`, `Renderer.lightTypes`): each

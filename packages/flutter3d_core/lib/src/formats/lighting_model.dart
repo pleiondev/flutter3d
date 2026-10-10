@@ -62,6 +62,7 @@ final class LightingModel {
     this.usesSceneDepth = false,
     this.vertexStageInDepthPasses = false,
     this.slots = MaterialSlotTable.none,
+    this.vertexVariants = const <VertexStageVariant>{},
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -276,11 +277,11 @@ final class LightingModel {
   /// renderer asks for it when a skinned draw reaches it and says which name it
   /// wanted when the bundle has not got it.
   ///
-  /// Instanced and lightmapped draws keep the engine's stages. Both read a
-  /// second buffer whose layout the engine declares — the instance rows, the
-  /// lightmap coordinate — and a stage supplied from outside cannot be held to
-  /// a layout it has never seen. That is a limit rather than an oversight, and
-  /// `gfx-84n` is where the language that would describe those layouts goes.
+  /// Instanced and lightmapped draws keep the engine's stages unless the
+  /// material lists them in [vertexVariants]. Both read a second buffer whose
+  /// layout the engine declares — the instance rows, the lightmap coordinate
+  /// — so a stage of one's own for them is written against that layout
+  /// (`MeshVertexLayouts.instanced`), and says so by listing the variant.
   ///
   /// The stage must write the varyings the fragment side reads and take the
   /// same `FrameInfo` block. `MeshVertex` in `flutter3d_shaders` is the
@@ -386,6 +387,19 @@ final class LightingModel {
   /// to a light. Ignored when [vertexShaderName] is null.
   final bool vertexStageInDepthPasses;
 
+  /// The variants of [vertexShaderName] this material ships beyond the
+  /// plain and the skinned stage, each `<vertexShaderName><suffix>` (D22b).
+  ///
+  /// **What lets a material's vertex stage reach instanced and lightmapped
+  /// geometry.** Those draws read a second buffer whose layout the engine
+  /// declares — `MeshVertexLayouts.instanced` for the instance rows, the
+  /// lightmap coordinate for a baked level — and a stage that declares it
+  /// draws them: an instanced draw of this material goes through
+  /// `<name>Instanced` when [VertexStageVariant.instanced] is here, and a
+  /// lightmapped one through `<name>Lightmapped`. Without them both keep the
+  /// engine's stages, as before. Ignored when [vertexShaderName] is null.
+  final Set<VertexStageVariant> vertexVariants;
+
   /// What the stage binds beyond the engine's own blocks and samplers: its
   /// uniform blocks — `MaterialParams` and blocks of its own — and its own
   /// textures, in the order a backend numbers them (D21).
@@ -449,6 +463,59 @@ final class LightingModel {
   /// holds, for the reason above it — and because binding a texture a compiled
   /// shader has no slot for is a native crash, not a no-op.
   final bool usesEnvironment;
+}
+
+/// A variant of a material's own vertex stage, for geometry that reads
+/// more than the standard vertex (D22b).
+///
+/// An open set (S0): a class with constants, so a variant a later minor adds
+/// (a morphed stage, a stage for points) breaks no `switch`.
+final class VertexStageVariant {
+  const VertexStageVariant._(this.name, this.suffix);
+
+  /// A skinned draw: joints and weights beside the standard vertex. Every
+  /// material stage has it, as `<name>Skinned`; listed for completeness.
+  static const VertexStageVariant skinned = VertexStageVariant._(
+    'skinned',
+    'Skinned',
+  );
+
+  /// An instanced draw: the instance rows in a second buffer, stepped per
+  /// instance — `MeshVertexLayouts.instanced`.
+  static const VertexStageVariant instanced = VertexStageVariant._(
+    'instanced',
+    'Instanced',
+  );
+
+  /// A lightmapped draw: a level's baked coordinate beside the standard
+  /// vertex.
+  static const VertexStageVariant lightmapped = VertexStageVariant._(
+    'lightmapped',
+    'Lightmapped',
+  );
+
+  static const List<VertexStageVariant> values = <VertexStageVariant>[
+    skinned,
+    instanced,
+    lightmapped,
+  ];
+
+  /// The variant called [name], or null for one this version does not know.
+  static VertexStageVariant? byName(String name) {
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return null;
+  }
+
+  /// The stable name, and the wire name.
+  final String name;
+
+  /// What the stage's entry point adds to the material's vertex stage name.
+  final String suffix;
+
+  @override
+  String toString() => 'VertexStageVariant.$name';
 }
 
 /// The lighting models a document may name in one engine: the engine's
