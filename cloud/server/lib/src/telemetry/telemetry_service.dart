@@ -272,6 +272,8 @@ _Replayed _replayed(
     steps: steps,
     trail: trail,
   ),
+  // An answer a later release adds is one this server cannot vouch for.
+  final Resimulation other => _refused('the replay answered $other'),
 };
 
 _Replayed _refused(String why) =>
