@@ -206,6 +206,8 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     this.stageBindings,
     this.framebufferOrigin = FramebufferOrigin.topLeft,
     Iterable<DeviceFeature> extraFeatures = const <DeviceFeature>[],
+    this.refusingPipelines = const <String>{},
+    this.refusedBuilds,
   }) : assert(
          !extraFeatures.contains(DeviceFeature.compute),
          'a fake runs no compute stage, so it cannot report compute',
@@ -705,6 +707,54 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     return _born(wrapPipeline(owner: this, backend: name, name: name));
   }
 
+  /// Pipelines, by name, that this fake's driver will not link — the
+  /// lazily linking OpenGL ES driver a phone falls back to, which accepts a
+  /// pipeline at `createPipeline` and refuses it at the first draw.
+  ///
+  /// A draw with one is skipped and reported to [pipelineRefusals], as the
+  /// contract on `PassEncoder.draw` says; the next draw builds it again,
+  /// until it is left refused.
+  final Set<String> refusingPipelines;
+
+  /// How many builds of a pipeline in [refusingPipelines] fail before one
+  /// links; null for every build. One is the driver that refused once and
+  /// links at the rebuild.
+  final int? refusedBuilds;
+
+  /// How many times each pipeline in [refusingPipelines] was built at a
+  /// draw, refused or not: what a test holds the rebuild bound to.
+  final Map<String, int> pipelineBuilds = <String, int>{};
+
+  /// The pipelines built at a draw and linked, which need no build again.
+  final Set<PipelineHandle> _linkedAtDraw = Set<PipelineHandle>.identity();
+
+  /// Whether a draw with [pipeline] goes ahead: builds it at its first draw
+  /// as a lazy driver does, and reports a refusal instead of throwing.
+  bool _linksAtDraw(PipelineHandle pipeline) {
+    if (!refusingPipelines.contains(pipeline.name)) return true;
+    if (_linkedAtDraw.contains(pipeline)) return true;
+    if (pipelineRefusals.isRefused(pipeline)) return false;
+    final builds = pipelineBuilds.update(
+      pipeline.name,
+      (int n) => n + 1,
+      ifAbsent: () => 1,
+    );
+    if (builds > (refusedBuilds ?? builds)) {
+      _linkedAtDraw.add(pipeline);
+      return true;
+    }
+    pipelineRefusals.report(
+      pipeline,
+      PipelineRefused(
+        pipeline: pipeline.name,
+        backend: _name,
+        reason: PipelineRefusalReason.link,
+        detail: "the fake's driver will not link it",
+      ),
+    );
+    return false;
+  }
+
   /// Recorded with its usage, because a backend exists that cannot change its
   /// mind about one later.
   final List<GeometryUsage> uploads = <GeometryUsage>[];
@@ -804,6 +854,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
       stageBindings: stageBindings,
       violations: bindingViolations,
       features: features,
+      links: _linksAtDraw,
     );
     passes.add(pass);
     return pass;

@@ -30,9 +30,13 @@ final class FakePass extends PassEncoder
     this.stageBindings,
     List<String>? violations,
     DeviceFeatures? features,
+    bool Function(PipelineHandle pipeline)? links,
   }) : violations = violations ?? <String>[],
        features = features ?? DeviceFeatures.none,
-       bundleDescriptor = null;
+       bundleDescriptor = null,
+       // A named parameter may not be private.
+       // ignore: prefer_initializing_formals
+       _links = links;
 
   /// A bundle encoder: records like a pass, and [finish]es into a
   /// [RenderBundle] whose backend object is this pass.
@@ -42,7 +46,14 @@ final class FakePass extends PassEncoder
   }) : descriptor = const RenderPassDescriptor(colors: <ColorTarget>[]),
        stageBindings = null,
        violations = <String>[],
-       features = features ?? DeviceFeatures.none;
+       features = features ?? DeviceFeatures.none,
+       _links = null;
+
+  /// Whether a draw with the bound pipeline goes ahead — the device's lazy
+  /// link, which reports a refusal and answers false. Null takes every
+  /// pipeline as linked.
+  final bool Function(PipelineHandle pipeline)? _links;
+  PipelineHandle? _pipeline;
 
   /// What the pass was opened with; a descriptor with no attachments for a
   /// bundle, which has none of its own.
@@ -203,6 +214,7 @@ final class FakePass extends PassEncoder
   void bindPipeline(PipelineHandle pipeline) {
     debugCheckLive(pipeline, 'bindPipeline');
     commands.add(RecordedPipeline(pipeline));
+    _pipeline = pipeline;
     _pipelineName = pipeline.name;
     _forget();
   }
@@ -287,6 +299,12 @@ final class FakePass extends PassEncoder
 
   @override
   void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    // A pipeline the device's driver would not link is skipped, not
+    // recorded: the draw never happened, as on a real backend.
+    final pipelineHandle = _pipeline;
+    if (pipelineHandle != null && !(_links?.call(pipelineHandle) ?? true)) {
+      return;
+    }
     final window = switch (_boundIndices) {
       final bound? => indexWindow(
         bound,

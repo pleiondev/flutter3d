@@ -71,6 +71,9 @@ export 'src/mip_chain.dart';
 // file's header for why it is here rather than in the engine.
 export 'src/pass_state.dart';
 
+/// A pipeline the backend could not build, and the device's record of them.
+export 'src/pipeline_refusal.dart';
+
 /// What a readback may ask for, checked once for every backend.
 export 'src/readback.dart';
 
