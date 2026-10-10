@@ -591,7 +591,22 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   @override
   void bindPipeline(PipelineHandle pipeline) {
     debugCheckLive(pipeline, 'bindPipeline');
-    final program = pipeline.backend as WebGlProgram;
+    // A pair the linker refused is linked again here, and while it will not
+    // link the draws until the next bind are skipped rather than drawn with
+    // whatever program the context had before.
+    final program = switch (pipeline.backend) {
+      final WebGlUnlinkedPipeline unlinked => _device.linkRefused(
+        pipeline,
+        unlinked,
+      ),
+      final other => other as WebGlProgram,
+    };
+    _pipelineRefused = program == null;
+    if (program == null) {
+      clearBindings();
+      _program = null;
+      return;
+    }
     // **Attribute arrays are global state and outlive the program that enabled
     // them.** A stage with more attributes than the next one leaves the extras
     // switched on, pointing at whatever buffer follows — and in WebGL2 an
@@ -1088,7 +1103,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     // buffer, so the start is added to the one the binding already carries.
     final offset =
         _indexOffset + window.first * (_indexType == IndexType.int16 ? 2 : 4);
-    _clearWhatWasNotBound();
+    if (!_mayDraw()) return;
     if (instanceCount == 1) {
       // Not `drawElementsInstanced` with a count of one. They are specified to
       // draw the same thing, but this path is every draw the engine has made
@@ -1153,6 +1168,20 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
       }
     }
   }
+
+  /// Whether the draw about to be made goes ahead: false while the bound
+  /// pipeline would not link, whose draws are skipped — see
+  /// `GraphicsDevice.pipelineRefusals`. Otherwise holds the program's
+  /// declarations to what the draw was handed, and answers true.
+  bool _mayDraw() {
+    if (_pipelineRefused) return false;
+    _clearWhatWasNotBound();
+    return true;
+  }
+
+  /// Whether the pipeline last bound would not link: its draws are skipped
+  /// until the next bind.
+  bool _pipelineRefused = false;
 
   /// Holds the program's declarations to what this draw was handed.
   ///
@@ -1426,7 +1455,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
       indexCount: draw.indexCount,
     );
     if (draw.instanceCount <= 0) return;
-    _clearWhatWasNotBound();
+    if (!_mayDraw()) return;
     _device.baseVertexBaseInstanceExtension!.callMethodVarArgs<JSAny?>(
       'drawElementsInstancedBaseVertexBaseInstanceWEBGL'.toJS,
       <JSAny?>[
@@ -1469,7 +1498,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
           indexCount: draw.indexCount,
         ),
     ];
-    _clearWhatWasNotBound();
+    if (!_mayDraw()) return;
     extension.multiDrawElementsInstancedWEBGL(
       _primitive,
       Int32List.fromList(<int>[for (final w in windows) w.count]).toJS,
@@ -1518,7 +1547,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
       );
     }
     if (instanceCount <= 0 || vertexCount == 0) return;
-    _clearWhatWasNotBound();
+    if (!_mayDraw()) return;
     if (firstInstance != 0) {
       _device.baseVertexBaseInstanceExtension!.callMethodVarArgs<JSAny?>(
         'drawArraysInstancedBaseInstanceWEBGL'.toJS,

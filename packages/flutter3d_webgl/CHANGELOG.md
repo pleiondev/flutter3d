@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A pair the browser will not link is a refused pipeline, not a throw.**
+  `createPipeline` reports a `PipelineRefused` (`link`, with the linker's
+  `ShaderCompileException` as its cause) to
+  `GraphicsDevice.pipelineRefusals` and hands the handle back; the draws
+  with it are skipped, and it is linked again at its next bind until it is
+  left refused. A caller that wants the old throw reads
+  `pipelineRefusals.refusalOf(handle)`.
 - **A uniform block costs no allocation.** `bindUniformBlock` and
   `bindUniformBytes` fill the device's `UniformScratch` for the block's
   size, which `bufferData` copies, where each made a fresh list per draw.
