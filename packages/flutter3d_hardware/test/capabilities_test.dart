@@ -29,8 +29,32 @@ void main() {
           'mesh-shaders',
           'bindless-resources',
           'immediate-data',
+          // 1.0: the shape of what comes after, named so nothing else takes
+          // the names.
+          'variable-rate-shading',
+          'depth-resolve',
+          'async-compute',
+          'shader-int64',
+          'conservative-rasterization',
+          'depth-bounds',
+          'presenter-color-spaces',
         ]),
       );
+    });
+
+    test('multiview and sharing are stable, with calls behind them', () {
+      // Mutation: reserve one of them, and no backend could ever report
+      // the call the contract already carries.
+      for (final feature in <DeviceFeature>[
+        DeviceFeature.multiview,
+        DeviceFeature.sharedTextures,
+        DeviceFeature.sharedBuffers,
+        DeviceFeature.sharedFences,
+      ]) {
+        expect(feature.stability, FeatureStability.stable, reason: '$feature');
+        expect(DeviceFeature.byName(feature.name), same(feature));
+      }
+      expect(DeviceFeature.multiview.name, 'multiview');
     });
   });
 

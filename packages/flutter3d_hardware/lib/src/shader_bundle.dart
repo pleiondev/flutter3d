@@ -147,6 +147,19 @@ final class ShaderBundle {
   /// disagree with the stage beside it.
   static const String materialSection = 'material';
 
+  /// The section every device with compute reads — 1.0: the source of each
+  /// compute kernel written in `.f3dmat compute`, by stage name, as JSON.
+  /// See [encodeKernelSection].
+  ///
+  /// **One source for every placement.** A kernel runs on the device that
+  /// draws, on a compute-only sidecar or on the CPU, and which it is is
+  /// decided per frame, after the bundle was built. So the bundle carries
+  /// the kernel once, as written, and each device translates it as it loads
+  /// it: to WGSL on WebGPU and on the wgpu sidecar, to a Dart kernel on the
+  /// software rasteriser, both from `flutter3d_shaders`' one parse of it. A
+  /// device without compute refuses a bundle that claims a kernel, by name.
+  static const String kernelSection = 'kernel';
+
   /// What the bundle is called, and what a refusal names.
   final String name;
 
@@ -440,9 +453,38 @@ const int materialSectionVersion = 1;
 ///
 /// Versioned inside the document, as the WebGPU section is, so the payload
 /// can grow without the container's version moving.
-ByteData encodeMaterialSection(Map<String, String> sources) {
+ByteData encodeMaterialSection(Map<String, String> sources) =>
+    _encodeSources(materialSectionVersion, sources);
+
+/// The sources [encodeMaterialSection] wrote, or empty when [bundle] has no
+/// material section. Throws a [ShaderBundleException] naming the bundle for
+/// one that is not that payload, and a stale one for a payload newer than
+/// [materialSectionVersion].
+Map<String, String> decodeMaterialSection(ShaderBundle bundle) =>
+    _decodeSources(
+      bundle,
+      ShaderBundle.materialSection,
+      materialSectionVersion,
+    );
+
+/// The version of [ShaderBundle.kernelSection]'s payload that
+/// [encodeKernelSection] writes and the newest [decodeKernelSection] reads.
+const int kernelSectionVersion = 1;
+
+/// The payload of [ShaderBundle.kernelSection]: each compute kernel's
+/// `.f3dmat compute` source, by stage name — 1.0. The same document as
+/// [encodeMaterialSection]'s, under a version of its own.
+ByteData encodeKernelSection(Map<String, String> sources) =>
+    _encodeSources(kernelSectionVersion, sources);
+
+/// The kernel sources [encodeKernelSection] wrote, or empty when [bundle]
+/// has no kernel section; refuses as [decodeMaterialSection] does.
+Map<String, String> decodeKernelSection(ShaderBundle bundle) =>
+    _decodeSources(bundle, ShaderBundle.kernelSection, kernelSectionVersion);
+
+ByteData _encodeSources(int version, Map<String, String> sources) {
   final text = jsonEncode(<String, Object?>{
-    'version': materialSectionVersion,
+    'version': version,
     'stages': <String, String>{
       for (final name in sources.keys.toList()..sort()) name: sources[name]!,
     },
@@ -450,16 +492,16 @@ ByteData encodeMaterialSection(Map<String, String> sources) {
   return ByteData.sublistView(Uint8List.fromList(utf8.encode(text)));
 }
 
-/// The sources [encodeMaterialSection] wrote, or empty when [bundle] has no
-/// material section. Throws a [ShaderBundleException] naming the bundle for
-/// one that is not that payload, and a stale one for a payload newer than
-/// [materialSectionVersion].
-Map<String, String> decodeMaterialSection(ShaderBundle bundle) {
-  final section = bundle.sections[ShaderBundle.materialSection];
+Map<String, String> _decodeSources(
+  ShaderBundle bundle,
+  String sectionId,
+  int newest,
+) {
+  final section = bundle.sections[sectionId];
   if (section == null) return const <String, String>{};
   ShaderBundleException notThePayload(String why) => ShaderBundleException(
     name: bundle.name,
-    reason: 'its "${ShaderBundle.materialSection}" section $why',
+    reason: 'its "$sectionId" section $why',
   );
   final Object? json;
   try {
@@ -482,13 +524,12 @@ Map<String, String> decodeMaterialSection(ShaderBundle bundle) {
   // being stale, which a rebuild cures. Mutation: compare with `!=` and a
   // bumped constant refuses every bundle already built.
   final version = json['version'];
-  if (version is! int || version < 1 || version > materialSectionVersion) {
+  if (version is! int || version < 1 || version > newest) {
     throw ShaderBundleException(
       name: bundle.name,
       reason:
-          'its "${ShaderBundle.materialSection}" section is version $version '
-          'and this build reads up to $materialSectionVersion; rebuild the '
-          'bundle with this flutter3d',
+          'its "$sectionId" section is version $version and this build '
+          'reads up to $newest; rebuild the bundle with this flutter3d',
       stale: true,
     );
   }

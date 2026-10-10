@@ -24,8 +24,14 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Registration;
 
+import 'compute_placement.dart';
 import 'device_exceptions.dart';
 import 'graphics_device.dart';
+
+/// Opens a compute-only [GraphicsDevice] for a [ComputePlacement], or
+/// throws: the wgpu sidecar, a CPU device — 1.0. No size, because it
+/// presents nothing.
+typedef ComputeOpener = Future<GraphicsDevice> Function();
 
 /// Opens a [GraphicsDevice] at [width] by [height], or throws.
 ///
@@ -161,5 +167,56 @@ final class DeviceRegistry<P extends Object> {
       if (entry.accepts(device)) return entry.presenter;
     }
     return null;
+  }
+
+  final List<({ComputePlacement placement, String name, ComputeOpener open})>
+  _compute =
+      <({ComputePlacement placement, String name, ComputeOpener open})>[];
+
+  /// Adds [open] as the device for [placement] — 1.0: `flutter3d_wgpu` adds
+  /// the sidecar, `flutter3d_cpu` the CPU — named [name] for the line
+  /// [computeExecutors] reports when it will not start. The latest added
+  /// for a placement wins until its registration is cancelled.
+  ///
+  /// [ComputePlacement.device] is not added here: it is the device the
+  /// frame is drawn on, whichever [open] started.
+  Registration addComputeDevice(
+    ComputePlacement placement,
+    String name,
+    ComputeOpener open,
+  ) {
+    final entry = (placement: placement, name: name, open: open);
+    _compute.add(entry);
+    return Registration(() => _compute.remove(entry));
+  }
+
+  /// The executors a frame drawn on [device] may place compute on: [device]
+  /// itself, and the newest sidecar and CPU device added that will start.
+  /// One that refuses to start is left out and [onRefused] told why; the
+  /// frame then places its steps on what is left.
+  Future<ComputeExecutors> computeExecutors(
+    GraphicsDevice device, {
+    void Function(String message)? onRefused,
+  }) async {
+    Future<GraphicsDevice?> openFor(ComputePlacement placement) async {
+      for (final entry in _compute.reversed) {
+        if (entry.placement != placement) continue;
+        try {
+          return await entry.open();
+        } catch (error) {
+          onRefused?.call(
+            '${entry.name} (${placement.name} compute) would not start: '
+            '$error',
+          );
+        }
+      }
+      return null;
+    }
+
+    return ComputeExecutors(
+      device: device,
+      sidecar: await openFor(ComputePlacement.sidecar),
+      cpu: await openFor(ComputePlacement.cpu),
+    );
   }
 }
