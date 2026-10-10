@@ -15,7 +15,7 @@ library;
 import 'dart:js_interop';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ShaderCompileException;
+    show ShaderCompileException, ShaderDiagnostic;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 // The generated uniform tables are shared by the engine and its backends,
@@ -160,12 +160,16 @@ web.WebGLShader compileWebGlShader(
       gl.getShaderParameter(shader, web.WebGLRenderingContext.COMPILE_STATUS)!
           as JSBoolean;
   if (!ok.toDart) {
-    final log = gl.getShaderInfoLog(shader);
+    final log = gl.getShaderInfoLog(shader)?.trim() ?? '';
     gl.deleteShader(shader);
+    final stage = isVertex ? 'vertex' : 'fragment';
     throw ShaderCompileException(
       shader: name,
       backend: webglBackendName,
-      log: log?.trim() ?? '',
+      log: log,
+      stage: stage,
+      target: ShaderBundle.webglSection,
+      diagnostics: ShaderDiagnostic.parseLog(log, stage: stage, source: source),
     );
   }
   return shader;
@@ -350,6 +354,7 @@ final class WebGlShaderLibrary with ShaderLibrary {
         shader: '${vertex.name} with ${fragment.name}',
         backend: webglBackendName,
         log: log?.trim() ?? '',
+        target: ShaderBundle.webglSection,
       );
     }
 

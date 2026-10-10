@@ -211,7 +211,12 @@ void main() {
         isA<ShaderCompileException>()
             .having((e) => e.shader, 'shader', 'Broken')
             .having((e) => e.backend, 'backend', 'WebGL2')
-            .having((e) => e.log, 'log', isNotEmpty),
+            .having((e) => e.log, 'log', isNotEmpty)
+            // Mutation: drop `diagnostics:` from the throw — a tool would
+            // have the sentence and no line to point at.
+            .having((e) => e.target, 'target', 'webgl')
+            .having((e) => e.stage, 'stage', isNotNull)
+            .having((e) => e.diagnostics, 'diagnostics', isNotEmpty),
       ),
     );
   });

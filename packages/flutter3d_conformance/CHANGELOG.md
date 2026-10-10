@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Depends on `flutter3d_foundation`**, where `UnsupportedCapability`,
+  the refusal the capability checks hold every backend to, lives now.
+
 - **The readback check asks for the HDR target whole.** A backend has to
   hand back the whole of its `hdrColorFormat` texture as eight-bit RGBA
   through its converting path, cleared green and still green, and refuse a

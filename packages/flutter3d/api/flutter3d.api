@@ -619,7 +619,7 @@ export package:flutter3d_core/flutter3d_core.dart show AdaptiveQuality, Adaptive
   writeKtx2
   writeKtx2WithMips
 
-export package:flutter3d_foundation/flutter3d_foundation.dart show AssetNotFoundException, CapabilityException, Flutter3dException, Flutter3dFormatException, LinearColor, LinearColorVector, PluginException, ResourceException, ShaderCompileException, Vector3Foundation, Vector4Foundation, WorldPosition, WorldPositionVector
+export package:flutter3d_foundation/flutter3d_foundation.dart show AssetNotFoundException, CapabilityException, Flutter3dException, Flutter3dFormatException, LinearColor, LinearColorVector, PluginException, ResourceException, ShaderCompileException, UnsupportedCapability, Vector3Foundation, Vector4Foundation, WorldPosition, WorldPositionVector
   AssetNotFoundException
   CapabilityException
   Flutter3dException
@@ -629,12 +629,13 @@ export package:flutter3d_foundation/flutter3d_foundation.dart show AssetNotFound
   PluginException
   ResourceException
   ShaderCompileException
+  UnsupportedCapability
   Vector3Foundation
   Vector4Foundation
   WorldPosition
   WorldPositionVector
 
-export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, BlendFactor, BlendOperation, BlendState, BufferDescriptor, BufferLayout, BufferTextureLayout, BufferUsage, ColorTarget, ColorWriteMask, CommandEncoder, CompareFunction, ComputeEncoder, ComputePipelineHandle, CullMode, DepthBias, DepthRange, DepthTarget, DeviceFeature, DeviceFeatures, DeviceLimits, DeviceRegistry, DeviceResourceException, DeviceUnavailableException, FeatureStability, FramebufferOrigin, GeometryBuffer, GeometryUsage, GpuFrameTimings, GpuPassTiming, GraphicsDevice, IndexType, IndexedDraw, InputAttribute, LoadAction, LoadedShaderLibrary, MapMode, MappedBuffer, MinMagFilter, MipChain, MipFilter, PassEncoder, PassState, PassTimestampWrites, PipelineHandle, PolygonMode, PrimitiveType, QuerySet, QueryType, RenderBundle, RenderBundleDescriptor, RenderBundleEncoder, RenderPassDescriptor, RenderTargetPool, RenderTargetDescriptor, SamplerAddressMode, SamplerBorderColor, SamplerDescriptor, ScreenRect, ShaderBundle, ShaderBundleException, ShaderBundleStage, ShaderHandle, ShaderLibrary, StageBindings, StencilOperation, StencilState, StorageBuffer, StorageMode, StorageTextureAccess, StoreAction, SynchronousBufferReadback, TextureAllocator, TextureCopyLocation, TextureDescriptor, TextureDimension, TextureFormat, TextureFormatStencil, TextureFormatSupport, TextureHandle, TextureRegion, TextureType, TextureUsage, TransferEncoder, UniformBlock, UniformMemberLayout, UnsupportedCapability, VertexFormat, VertexLayoutDescriptor, VertexStepMode, WindingOrder, decodeMaterialSection, encodeMaterialSection, indexWindow, readbackFormats, readbackRegionOf
+export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, BlendFactor, BlendOperation, BlendState, BufferDescriptor, BufferLayout, BufferTextureLayout, BufferUsage, ColorTarget, ColorWriteMask, CommandEncoder, CompareFunction, ComputeEncoder, ComputePipelineHandle, CullMode, DepthBias, DepthRange, DepthTarget, DeviceFeature, DeviceFeatures, DeviceLimits, DeviceRegistry, DeviceResourceException, DeviceUnavailableException, FeatureStability, FramebufferOrigin, GeometryBuffer, GeometryUsage, GpuFrameTimings, GpuPassTiming, GraphicsDevice, IndexType, IndexedDraw, InputAttribute, LoadAction, LoadedShaderLibrary, MapMode, MappedBuffer, MinMagFilter, MipChain, MipFilter, PassEncoder, PassState, PassTimestampWrites, PipelineHandle, PolygonMode, PrimitiveType, QuerySet, QueryType, RenderBundle, RenderBundleDescriptor, RenderBundleEncoder, RenderPassDescriptor, RenderTargetPool, RenderTargetDescriptor, SamplerAddressMode, SamplerBorderColor, SamplerDescriptor, ScreenRect, ShaderBundle, ShaderBundleException, ShaderBundleStage, ShaderHandle, ShaderLibrary, StageBindings, StencilOperation, StencilState, StorageBuffer, StorageMode, StorageTextureAccess, StoreAction, SynchronousBufferReadback, TextureAllocator, TextureCopyLocation, TextureDescriptor, TextureDimension, TextureFormat, TextureFormatStencil, TextureFormatSupport, TextureHandle, TextureRegion, TextureType, TextureUsage, TransferEncoder, UniformBlock, UniformMemberLayout, VertexFormat, VertexLayoutDescriptor, VertexStepMode, WindingOrder, decodeMaterialSection, encodeMaterialSection, indexWindow, readbackFormats, readbackRegionOf
   BackendOpener
   BlendFactor
   BlendOperation
@@ -721,7 +722,6 @@ export package:flutter3d_hardware/flutter3d_hardware.dart show BackendOpener, Bl
   TransferEncoder
   UniformBlock
   UniformMemberLayout
-  UnsupportedCapability
   VertexFormat
   VertexLayoutDescriptor
   VertexStepMode

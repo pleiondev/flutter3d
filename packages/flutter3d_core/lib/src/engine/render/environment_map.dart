@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException;

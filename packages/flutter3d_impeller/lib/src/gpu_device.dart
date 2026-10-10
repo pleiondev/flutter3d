@@ -14,6 +14,8 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
