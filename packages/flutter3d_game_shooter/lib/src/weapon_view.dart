@@ -50,7 +50,8 @@ final class WeaponView {
     _scene.add(
       LightNode(
           color: LinearColor(1.0, 0.92, 0.82),
-          intensity: 4.5 * Photometric.legacyUnit,
+          // Lux: a bright key, about a quarter of noon sun.
+          intensity: 26058.0,
           name: 'key',
         )
         ..setPosition(1.0, 1.4, 0.8)
@@ -60,7 +61,8 @@ final class WeaponView {
       LightNode(
         type: LightType.point,
         color: LinearColor(1.0, 0.7, 0.4),
-        intensity: 3.0 * Photometric.legacyUnit,
+        // Candela: a warm lamp a hand's breadth from the weapon.
+        intensity: 17372.0,
         range: 5.0,
         name: 'fill',
       )..setPosition(-0.8, -0.4, 0.6),

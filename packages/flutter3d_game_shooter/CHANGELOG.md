@@ -12,6 +12,10 @@
   `StepPhase.end`, and `all` in step order; a phase the shooter does not
   announce, or a name used twice, is refused. `GameSimulation.step` takes
   the loop's context as an optional `context:`.
+- **The weapon view's lights are in lux and candela.** The key is
+  26 058 lux and the fill 17 372 cd, the picture they gave before, written
+  as numbers rather than through the pre-1.0 light unit.
+
 - **A rocket's launcher survives a rewind.** `FiredBy` is saved under
   `firedBy`, where it was excluded. An actor's launcher is named by its
   entity; anything else is named through `ProjectileSystem.nameOwner`, and

@@ -17,6 +17,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
 import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
@@ -340,9 +341,9 @@ void main() {
 
       expect(sun.type, LevelLightType.directional);
       expect(sun.intensity, morning.sunIntensity);
-      _closeTo(sun.color, morning.sunColor, 0.001);
+      _closeTo(sun.color, _rgb(morning.sunColor), 0.001);
       _closeTo(sun.direction, morning.sunDirection, 0.001);
-      _closeTo(racing.level.fogColor, morning.horizonFogColor, 0.001);
+      _closeTo(racing.level.fogColor, _rgb(morning.horizonFogColor), 0.001);
       expect(racing.level.fogDensity, morning.fogDensity);
     });
   });
@@ -450,6 +451,9 @@ void main() {
 /// Reports [a] and [b] as the same direction or colour, component by
 /// component — a `Vector3` has no matcher of its own and `closeTo` takes a
 /// number.
+/// [color]'s three channels, to hold against a level's colour.
+Vector3 _rgb(LinearColor color) => Vector3(color.r, color.g, color.b);
+
 void _closeTo(Vector3 a, Vector3 b, double slack) {
   expect(a.x, closeTo(b.x, slack));
   expect(a.y, closeTo(b.y, slack));

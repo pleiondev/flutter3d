@@ -12,6 +12,10 @@
   (`Match.publishTo` names it for the simulation). `Match.step` and
   `StrategySimulation.step` take the loop's context as an optional
   `context:`.
+- **`StrategyVisuals.dressProp` takes a `LinearColor`.** The tint was a
+  `Vector4` converted inside; it is the linear colour the instance is
+  multiplied by.
+
 - **Breaking: `Unit` is `StrategyUnit`.** `Unit` is the foundation's unit
   of measurement now, and a public name has one home. `dart fix` renames
   it; every signature that took or returned a `Unit` takes or returns a

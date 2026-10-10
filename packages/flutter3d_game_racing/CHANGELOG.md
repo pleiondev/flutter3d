@@ -9,6 +9,13 @@
   `LoopContext`: the loop's, with the race's phase, when the plugin steps
   the race, or one of the race's own when it is stepped by hand. `step`
   takes the loop's context as an optional `context:`.
+- **Breaking: a sky preset's colours are `LinearColor`s.** `SkyPreset`'s
+  `sunColor`, `zenith`, `horizon` and `belowHorizon`, and what `colorAt`,
+  `horizonFogColor` and `inScatterAlong` return, are linear colours where
+  they were `Vector3`s. The numbers mean what they did: `Vector3(r, g, b)`
+  becomes `LinearColor(r, g, b)`, and `.x`, `.y`, `.z` are `.r`, `.g`,
+  `.b`. A track file's `"sky"` block is read as before.
+
 - **The blind run's position is read against the world's origin.**
   `RacingHeadlessGame`'s `position` and `eye` took the car's float32
   position as an offset from the world's origin, which is wrong once the

@@ -350,7 +350,7 @@ final class StrategyVisuals {
   List<Matrix4> propPlacementsOf(int batch) =>
       List<Matrix4>.unmodifiable(_placements[batch]);
 
-  /// Draws prop [placement] of batch [batch] tinted [color] and, when
+  /// Draws prop [placement] of batch [batch] tinted [color], linear, and, when
   /// [transform] is given, placed by it rather than where it was planted;
   /// false, and nothing done, while the viewer has not found it yet.
   ///
@@ -360,13 +360,13 @@ final class StrategyVisuals {
   bool dressProp(
     int batch,
     int placement, {
-    required Vector4 color,
+    required LinearColor color,
     Matrix4? transform,
   }) {
     final int slot = _slots[batch][placement];
     if (slot < 0) return false;
     final InstancedMeshNode node = _props[batch];
-    node.setColor(slot, color.toLinearColor());
+    node.setColor(slot, color);
     if (transform != null) node.setTransform(slot, transform);
     return true;
   }

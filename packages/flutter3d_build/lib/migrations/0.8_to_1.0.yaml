@@ -18349,3 +18349,33 @@ entries:
       were passed to `systems.add` (`2f-game_shooter-GameSimulation-systems`
       says how); only their type, `LoopPhase`, and the name each carries
       (`shooter.afterActors`) changed, which no call spells.
+
+  # SkyPreset's colours are LinearColors
+  - id: 2f-game_racing-SkyPreset-colors
+    package: flutter3d_game_racing
+    symbol: SkyPreset
+    kind: manual
+    wave: 2
+    guidance: >-
+      A sky preset's colours are `LinearColor`s: `sunColor`, `zenith`,
+      `horizon` and `belowHorizon` in the constructor and as fields, and what
+      `colorAt`, `horizonFogColor` and `inScatterAlong` return. The numbers
+      mean what they did (linear), so `Vector3(0.7, 0.5, 0.4)` becomes
+      `LinearColor(0.7, 0.5, 0.4)`, and `.x`, `.y`, `.z` read as `.r`, `.g`,
+      `.b`. Directions (`sunDirection`, `directionToSun`) stay `Vector3`s.
+
+  # VehicleTuning(gravity:) is gone: a car falls by its world's gravity
+  - id: 2f-game_racing-VehicleTuning-gravity
+    package: flutter3d_game_racing
+    symbol: VehicleTuning.VehicleTuning
+    kind: parameters
+    wave: 2
+    changes:
+      - remove: gravity
+    guidance: >-
+      A car falls by the gravity of the world it drives in, as every body
+      does, so the settings no longer carry one. `racingWorld` (20 m/s²,
+      `racingGravity`) is the world a race is run in and `raceIn` stages it;
+      to keep a number of your own, give the race's world
+      `racingWorld.copyWith(gravity: Vector3(0, -g, 0))`. A tyre's grip is
+      its μ times that gravity.
