@@ -18316,3 +18316,35 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  # ---- The game facade: open sets, classes for records.
+
+  - id: 2f-game-TimelineCommand-open
+    package: flutter3d_game
+    symbol: TimelineCommand
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `TimelineCommand` is an `abstract base class` rather than `sealed`, so
+      a command added in a minor release breaks no `switch`: a switch that
+      named every command gains a case for the rest.
+
+  - id: 2f-game-LevelWalk-spawnIn
+    package: flutter3d_game
+    symbol: LevelWalk.spawnIn
+    kind: none
+    wave: 2
+    reason: >-
+      `spawnIn` returns a `SpawnPoint`, a class whose getters `at` and `yaw`
+      read as the record's fields did, so `spawn.at` and `spawn.yaw` are
+      unchanged; a destructuring `(:at, :yaw)` becomes `SpawnPoint(:at,
+      :yaw)`, which `2f-game-SpawnPoint-class` marks.
+
+  - id: 2f-game-SpawnPoint-class
+    package: flutter3d_game
+    symbol: SpawnPoint
+    kind: recordToClass
+    wave: 2
+    fields:
+      at: at
+      yaw: yaw

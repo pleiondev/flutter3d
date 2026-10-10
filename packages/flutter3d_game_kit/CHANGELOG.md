@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **`ghostOfRun` returns a `RunGhost`** (`ghost`, `note`) in place of a
+  record, so it can say more in a minor release.
+
+- **`Daylight.defaultSunIntensity` is written in lux: 15 000.** It was
+  2.6 × `Photometric.legacyUnit`, the same sun within half a percent, stated
+  in the unit of the renderer before 1.0.
+
 - **Breaking: `soundtrack.dart` does not re-export the sound types.**
   `AudioBus`, `Heard`, `SoundBank` and `SoundDef` are
   `flutter3d_audio_core`'s, and `flutter3d_audio` names them too.

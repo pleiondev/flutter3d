@@ -1,5 +1,43 @@
 ## 1.0.0-rc.1
 
+- **The facade names what it re-exports from `flutter3d`.** The shell came
+  through whole; it comes through by a `show` list now, as every other
+  re-export of the facade does, so a name added to `flutter3d` is this
+  package's only once it is listed. The list holds every name `flutter3d`
+  exports today, so nothing a game wrote stops resolving.
+
+- **Breaking: `TimelineCommand` is open.** It is an `abstract base class`
+  rather than `sealed`, so the history can gain a command in a minor
+  release; a `switch` that named all eight needs a case for the rest, which
+  `migrate` adds. A command the timeline's extensions do not know is shown
+  by its `toString`.
+
+- **`ActionBinding` is open.** An `abstract base class` rather than
+  `sealed`: a sixth shape — a later release's, or a game's own — sits in an
+  `ActionMap` beside the five and reads as nothing on a build that does not
+  know it.
+
+- **Breaking: `LevelWalk.spawnIn` returns a `SpawnPoint`.** A class with
+  `at` and `yaw`, which read as the record's fields did; a destructuring
+  `(:at, :yaw)` becomes `SpawnPoint(:at, :yaw)`. The level extension's
+  `answerLevelApply` and `answerLevelPatch` return a `LevelExtensionAnswer`
+  (`result`, `error`, `isStale`) in place of records. A class can say more
+  in a minor release; a record cannot.
+
+- **`outlineColorOf` answers a `LinearColor`.** The colour the engine takes
+  everywhere, decoded from the swatch's sRGB; `ActorVisuals.outlineOf` and
+  `FixtureVisuals.outlineOf` answer one too. It was a `Vector3` of display
+  channels that `OutlineMarks` decoded on the way in.
+
+- **`SettingKey<int>.decode` never throws.** A hand-written `1e999` reads as
+  infinity, and rounding it threw; infinity and NaN read as null now, and
+  the setting as its fallback.
+
+- **A lamp's glow is counted in its own unit.** `FixtureVisuals` multiplied
+  a level's `glow` by `Photometric.legacyNits`; the 1843.2 nits one unit of
+  `glow` stands for is the visuals' own constant now, so the number in a
+  level keeps its meaning whatever becomes of the renderer's old unit.
+
 - **A corpse is let go when its actor stands again.** `ActorVisuals` kept
   an actor its `corpses` had taken over for good, so after a rewind to
   before the death the actor stood frozen and a second death made no
