@@ -91,7 +91,7 @@ void main() {
     expect(tracks.at('${hero.index}', 'Health', 39)!.value, 10);
     expect(tracks.at('${hero.index}', 'Health', 40)!.value, 7);
     expect(tracks.at('${crate.index}', 'Health', 80)!.present, isFalse);
-    expect(tracks.span, (first: 0, last: 99));
+    expect(tracks.span, const StepSpan(first: 0, last: 99));
   });
 
   test('a step observed twice is not a second history', () {

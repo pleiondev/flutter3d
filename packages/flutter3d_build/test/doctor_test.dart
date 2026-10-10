@@ -44,7 +44,7 @@ void main() {
     expect(behind.fix, contains('flutter3d migrate --data'));
 
     level.writeAsStringSync(
-      '{"format": "f3d.level", "version": 4, "name": "start"}\n',
+      '{"format": "f3d.level", "version": 5, "name": "start"}\n',
     );
     expect(
       run().firstWhere((DoctorCheck c) => c.name == 'Data files').status,
