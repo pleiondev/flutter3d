@@ -49,7 +49,7 @@ void main() {
   test('every editor tool declares its answer and its hints', () {
     // Mutation: leave a tool out of `editorToolNames`, or offer one without
     // `editorAnswerSchema`, and its name is listed here.
-    final level = File('${workspace.path}/level.json')
+    final level = File('${workspace.path}/level.first.json')
       ..writeAsStringSync(
         File('test/editor/fixtures/shooter.first.json').readAsStringSync(),
       );
