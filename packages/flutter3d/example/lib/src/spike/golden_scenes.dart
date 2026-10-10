@@ -397,14 +397,15 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // atlas at all, and passing the wrong texture down that path would have shown
   // up first in a shipped game.
   //
-  // The held box is deliberately placed on the far side of the world cube from
-  // the point light, so the face turned towards the light is *inside* the
-  // cube's shadow. That is not decoration: it was checked by breaking it. With
-  // the atlas replaced by the white fallback on this path — the exact
-  // regression a previous attempt at the fix would have shipped — the box's
-  // shadowed face lights up and **4335 of 172800 pixels** differ. A scene where
-  // the weapon happened to stand clear of every shadow would have passed either
-  // way and pinned nothing.
+  // **What it pins now is the opposite of what it was written for.** It was
+  // written when the held box was lit by the world and stood in the cube's
+  // point shadow. Since the view model is lit by its own scene — the default
+  // key light here, since it holds none — it takes no world shadow at all, and
+  // the picture says so: the box's front and top faces lit, the face turned
+  // from that light dark. A world shadow leaking onto it shows as the front
+  // face going dark, which is what the directional caster index did once
+  // depth was reversed — the "no caster" minus one truncated to light 0 in
+  // `shadow.glsl`, and the empty map's stand-in read as an occluder.
   const GoldenScene(
     name: 'view-model-point-shadow',
     source: 'Cube',

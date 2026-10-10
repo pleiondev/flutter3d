@@ -10095,7 +10095,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -13005,7 +13012,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -15944,7 +15958,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -19756,7 +19777,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -23542,7 +23570,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -28555,7 +28590,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -31465,7 +31507,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -34418,7 +34467,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -38227,7 +38283,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -42013,7 +42076,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
@@ -59711,7 +59781,14 @@ float ShadowNoise() {
 float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   float strength = frag_info.shadow_params.w;
   if (strength <= 0.0) return 1.0;
-  if (lightIndex != int(frag_info.frame_params.z + 0.5)) return 1.0;
+  // **Rounded down, not truncated.** Minus one is "no caster", and `int()`
+  // truncates towards nought: `int(-1.0 + 0.5)` is light 0, so a draw handed
+  // no map at all tested its first light against whatever `shadow_texture`
+  // held. That was the white stand-in, which read as lit until the map's
+  // depth was turned round; turned, white is an occluder at the light, and
+  // the view model's own key light went dark wherever the world's sun matrix
+  // happened to cover it. `floor` is what the software backend always did.
+  if (lightIndex != int(floor(frag_info.frame_params.z + 0.5))) return 1.0;
 
   // Normal offset: move the sample point along the surface normal before
   // projecting it. It costs nothing and fixes the shadow acne that a depth bias
