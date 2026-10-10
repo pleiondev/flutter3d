@@ -1650,7 +1650,7 @@ abstract final class GoldenStages {
   /// has to choose between, and local exposure need not.
   static Future<GoldenStaged> windowInterior(GoldenStage stage) async {
     stage.sun
-      ..intensity = 6.0
+      ..intensity = 6.0 * LightNode.defaultIntensity
       ..setLocalForward(Vector3(0.25, -0.55, 1.0).normalized());
     stage.scene.ambientIntensity = 0.03 * LightNode.defaultIntensity;
     final device = stage.device;
