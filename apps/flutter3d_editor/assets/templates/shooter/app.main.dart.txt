@@ -364,6 +364,7 @@ class _LevelScreenState extends State<LevelScreen> {
                           ),
                         ),
                       ),
+                      _ => const SizedBox.shrink(),
                     },
           ),
         ],
