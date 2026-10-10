@@ -145,8 +145,10 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   }
 
   @override
-  void releaseStorageBuffer(StorageBuffer buffer) =>
-      calls.add(RecordedCall('releaseStorageBuffer', buffer));
+  void releaseStorageBuffer(StorageBuffer buffer) {
+    _live.remove(buffer);
+    calls.add(RecordedCall('releaseStorageBuffer', buffer));
+  }
 
   static UnsupportedCapability _noCompute() => UnsupportedCapability(
     DeviceFeature.compute,
@@ -326,21 +328,23 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
       features.require(DeviceFeature.storageTextures, backend: _name);
     }
     calls.add(RecordedCall('createTexture', descriptor));
-    return wrapTexture(
-      owner: this,
-      backend: 'fake ${_serial++}',
-      width: descriptor.width,
-      height: descriptor.height,
-      format: descriptor.format,
-      sampleCount: descriptor.sampleCount,
-      storageMode: descriptor.storageMode,
-      type: descriptor.dimension == TextureDimension.cube
-          ? TextureType.textureCube
-          : TextureType.texture2D,
-      dimension: descriptor.dimension,
-      depthOrArrayLayers: descriptor.depthOrArrayLayers,
-      mipLevelCount: descriptor.mipLevelCount,
-      usage: descriptor.usage,
+    return _born(
+      wrapTexture(
+        owner: this,
+        backend: 'fake ${_serial++}',
+        width: descriptor.width,
+        height: descriptor.height,
+        format: descriptor.format,
+        sampleCount: descriptor.sampleCount,
+        storageMode: descriptor.storageMode,
+        type: descriptor.dimension == TextureDimension.cube
+            ? TextureType.textureCube
+            : TextureType.texture2D,
+        dimension: descriptor.dimension,
+        depthOrArrayLayers: descriptor.depthOrArrayLayers,
+        mipLevelCount: descriptor.mipLevelCount,
+        usage: descriptor.usage,
+      ),
     );
   }
 
@@ -381,14 +385,16 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
             lengthInBytes: descriptor.lengthInBytes,
           )
         : null;
-    return wrapStorageBuffer(
-      owner: this,
-      backend: 'fake buffer $serial',
-      lengthInBytes: descriptor.lengthInBytes,
-      hostReadable: descriptor.usage.contains(BufferUsage.hostReadable),
-      asIndices: view(BufferUsage.index),
-      asVertices: view(BufferUsage.vertex),
-      usage: descriptor.usage,
+    return _born(
+      wrapStorageBuffer(
+        owner: this,
+        backend: 'fake buffer $serial',
+        lengthInBytes: descriptor.lengthInBytes,
+        hostReadable: descriptor.usage.contains(BufferUsage.hostReadable),
+        asIndices: view(BufferUsage.index),
+        asVertices: view(BufferUsage.vertex),
+        usage: descriptor.usage,
+      ),
     );
   }
 
@@ -414,11 +420,13 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   QuerySet createQuerySet(QueryType type, int count) {
     features.require(type.feature, backend: _name);
     calls.add(RecordedCall('createQuerySet', (type: type, count: count)));
-    return wrapQuerySet(
-      owner: this,
-      backend: 'fake queries ${_serial++}',
-      type: type,
-      count: count,
+    return _born(
+      wrapQuerySet(
+        owner: this,
+        backend: 'fake queries ${_serial++}',
+        type: type,
+        count: count,
+      ),
     );
   }
 
@@ -431,8 +439,10 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   }) async => List<int>.filled(count ?? querySet.count - first, 0);
 
   @override
-  void releaseQuerySet(QuerySet querySet) =>
-      calls.add(RecordedCall('releaseQuerySet', querySet));
+  void releaseQuerySet(QuerySet querySet) {
+    _live.remove(querySet);
+    calls.add(RecordedCall('releaseQuerySet', querySet));
+  }
 
   @override
   TransferEncoder beginTransferPass({String? label}) =>
@@ -490,13 +500,15 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
       format: format,
       mipLevels: mipLevels,
     ));
-    return wrapTexture(
-      owner: this,
-      backend: 'fake cube ${_serial++}',
-      width: size,
-      height: size,
-      format: format,
-      type: TextureType.textureCube,
+    return _born(
+      wrapTexture(
+        owner: this,
+        backend: 'fake cube ${_serial++}',
+        width: size,
+        height: size,
+        format: format,
+        type: TextureType.textureCube,
+      ),
     );
   }
 
@@ -509,13 +521,15 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     // of a call, not the contents of a texture.
     List<List<ByteData>>? mipLevels,
   }) => faces.length == 6
-      ? wrapTexture(
-          owner: this,
-          backend: const Object(),
-          width: size,
-          height: size,
-          format: format,
-          type: TextureType.textureCube,
+      ? _born(
+          wrapTexture(
+            owner: this,
+            backend: const Object(),
+            width: size,
+            height: size,
+            format: format,
+            type: TextureType.textureCube,
+          ),
         )
       : throw refuseResource(
           'createCubeTextureFromPixels',
@@ -555,14 +569,16 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
 
   TextureHandle _createTarget(RenderTargetDescriptor spec) {
     createdTextures.add(spec);
-    return wrapTexture(
-      owner: this,
-      backend: 'fake ${_serial++}',
-      width: spec.width,
-      height: spec.height,
-      format: spec.format,
-      sampleCount: spec.sampleCount,
-      storageMode: spec.storageMode,
+    return _born(
+      wrapTexture(
+        owner: this,
+        backend: 'fake ${_serial++}',
+        width: spec.width,
+        height: spec.height,
+        format: spec.format,
+        sampleCount: spec.sampleCount,
+        storageMode: spec.storageMode,
+      ),
     );
   }
 
@@ -688,7 +704,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   }) {
     final name = '${vertex.name}+${fragment.name}';
     linkedPipelines.add(name);
-    return wrapPipeline(owner: this, backend: name, name: name);
+    return _born(wrapPipeline(owner: this, backend: name, name: name));
   }
 
   /// Recorded with its usage, because a backend exists that cannot change its
@@ -698,7 +714,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
     uploads.add(usage);
-    return _geometry(bytes, release: releaseGeometry);
+    return _born(_geometry(bytes, release: releaseGeometry));
   }
 
   GeometryBuffer _geometry(
@@ -803,6 +819,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   @override
   void dispose() {
     _isDisposed = true;
+    _live.clear();
     unawaited(_lost.close());
   }
 
@@ -834,9 +851,39 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   final List<GeometryBuffer> releasedGeometry = <GeometryBuffer>[];
 
   @override
-  void releaseTexture(TextureHandle texture) => releasedTextures.add(texture);
+  void releaseTexture(TextureHandle texture) {
+    _live.remove(texture);
+    releasedTextures.add(texture);
+  }
 
   @override
-  void releaseGeometry(GeometryBuffer geometry) =>
-      releasedGeometry.add(geometry);
+  void releaseGeometry(GeometryBuffer geometry) {
+    _live.remove(geometry);
+    releasedGeometry.add(geometry);
+  }
+
+  @override
+  void releasePipeline(PipelineHandle pipeline) => _live.remove(pipeline);
+
+  /// Every handle this device made and nobody has given back yet, oldest
+  /// first: textures, geometry buffers, buffers, pipelines and query sets.
+  ///
+  /// **What a leak looks like on a fake.** A real backend's leak is memory
+  /// that never comes back, which no test sees; here it is a handle still in
+  /// this list after the test has torn down what it built. A handle leaves it
+  /// when its `dispose` (or the device's `release…`) runs, and the list
+  /// empties when the device itself is disposed, since that ends them all.
+  /// A view (`StorageBuffer.asIndices`, `GeometryBuffer.slice`) is its
+  /// buffer's, not a handle of its own, and is never listed.
+  List<Object> get liveHandles => List<Object>.unmodifiable(_live);
+
+  /// How many handles [liveHandles] holds.
+  int get liveHandleCount => _live.length;
+
+  final Set<Object> _live = Set<Object>.identity();
+
+  T _born<T extends Object>(T handle) {
+    _live.add(handle);
+    return handle;
+  }
 }

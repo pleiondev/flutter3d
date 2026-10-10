@@ -508,9 +508,16 @@ final class RenderBundle {
   final void Function(RenderBundle)? _release;
 
   /// Gives this back to the device that made it, once: what `dispose` means
-  /// on every handle. A second call does nothing. A handle a backend made
-  /// without naming its device (a test's fake) has nothing to give back.
+  /// on every handle. **A second call is a mistake**: an assertion in a debug
+  /// build, nothing in a release one. A handle a backend made without naming
+  /// its device (a test's fake, a view) has nothing to give back, and is not
+  /// checked.
   void dispose() {
+    assert(
+      !_disposed || _release == null,
+      '$this was disposed twice. A handle has one owner, and only the owner '
+      'disposes it.',
+    );
     if (_disposed) return;
     _disposed = true;
     _release?.call(this);
@@ -543,9 +550,16 @@ final class QuerySet {
   final void Function(QuerySet)? _release;
 
   /// Gives this back to the device that made it, once: what `dispose` means
-  /// on every handle. A second call does nothing. A handle a backend made
-  /// without naming its device (a test's fake) has nothing to give back.
+  /// on every handle. **A second call is a mistake**: an assertion in a debug
+  /// build, nothing in a release one. A handle a backend made without naming
+  /// its device (a test's fake, a view) has nothing to give back, and is not
+  /// checked.
   void dispose() {
+    assert(
+      !_disposed || _release == null,
+      '$this was disposed twice. A handle has one owner, and only the owner '
+      'disposes it.',
+    );
     if (_disposed) return;
     _disposed = true;
     _release?.call(this);

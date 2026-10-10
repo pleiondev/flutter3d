@@ -7,6 +7,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'backend_handles.dart';
+import 'handle_checks.dart';
 import 'testing_recorded.dart';
 
 /// A pass that was opened, and everything that went into it.
@@ -199,6 +200,7 @@ final class FakePass extends PassEncoder
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
+    debugCheckLive(pipeline, 'bindPipeline');
     commands.add(RecordedPipeline(pipeline));
     _pipelineName = pipeline.name;
     _forget();
@@ -209,8 +211,10 @@ final class FakePass extends PassEncoder
     GeometryBuffer buffer,
     int vertexCount, {
     int slot = 0,
-  }) =>
-      commands.add(RecordedVertices(vertexCount, transient: false, slot: slot));
+  }) {
+    debugCheckLive(buffer, 'bindVertexBuffer');
+    commands.add(RecordedVertices(vertexCount, transient: false, slot: slot));
+  }
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
@@ -218,6 +222,7 @@ final class FakePass extends PassEncoder
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    debugCheckLive(buffer, 'bindIndexBuffer');
     commands.add(RecordedIndices(type, indexCount, transient: false));
     _boundIndices = indexCount;
   }
@@ -264,6 +269,7 @@ final class FakePass extends PassEncoder
     TextureHandle texture, {
     SamplerDescriptor? sampler,
   }) {
+    debugCheckLive(texture, 'bindTexture');
     if (!shader.mayBindSampler(slot)) return false;
     commands.add(RecordedTexture(slot, texture, sampler, shader: shader));
     if (!_declares(shader, slot, sampler: true)) return false;
@@ -343,6 +349,7 @@ final class FakePass extends PassEncoder
     int offsetInBytes = 0,
     int? sizeInBytes,
   }) {
+    debugCheckLive(buffer, 'bindStorageBuffer');
     _gated(DeviceFeature.renderStageStorage, 'bindStorageBuffer', (
       shader: shader,
       name: name,
@@ -361,6 +368,7 @@ final class FakePass extends PassEncoder
     int mipLevel = 0,
     StorageTextureAccess access = StorageTextureAccess.writeOnly,
   }) {
+    debugCheckLive(texture, 'bindStorageTexture');
     _gated(DeviceFeature.renderStageStorage, 'bindStorageTexture', (
       shader: shader,
       name: name,
@@ -442,6 +450,9 @@ final class FakePass extends PassEncoder
   @override
   void executeBundles(List<RenderBundle> bundles) {
     _passOnly('executeBundles');
+    for (final bundle in bundles) {
+      debugCheckLive(bundle, 'executeBundles');
+    }
     _gated(
       DeviceFeature.renderBundles,
       'executeBundles',

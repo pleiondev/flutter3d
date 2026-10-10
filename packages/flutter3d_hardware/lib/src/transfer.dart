@@ -11,10 +11,14 @@
 ///
 /// Every copy is gated by its own `DeviceFeature`, and a backend without it
 /// throws `UnsupportedCapability` from the copy — opening the pass itself is
-/// never refused, so a caller can ask per copy rather than per pass.
+/// never refused, so a caller can ask per copy rather than per pass. That
+/// refusal is each copy's default body: a backend overrides the copies it
+/// has, and one written before a later copy is added keeps compiling.
 library;
 
+import 'capabilities.dart';
 import 'compute.dart';
+import 'encoder_defaults.dart';
 import 'resources.dart';
 import 'texture.dart';
 
@@ -60,7 +64,7 @@ abstract base class TransferEncoder {
     StorageBuffer destination,
     int destinationOffset,
     int size,
-  );
+  ) => refuseByDefault(this, DeviceFeature.bufferCopy);
 
   /// Zeroes [sizeInBytes] bytes (to the end by default) of [buffer] from
   /// [offsetInBytes]. `DeviceFeature.bufferCopy`.
@@ -68,7 +72,7 @@ abstract base class TransferEncoder {
     StorageBuffer buffer, {
     int offsetInBytes = 0,
     int? sizeInBytes,
-  });
+  }) => refuseByDefault(this, DeviceFeature.bufferCopy);
 
   /// Copies a [width] × [height] × [depthOrArrayLayers] box of texels from
   /// [source] to [destination]. The two textures share a format (or differ
@@ -79,7 +83,7 @@ abstract base class TransferEncoder {
     required int width,
     required int height,
     int depthOrArrayLayers = 1,
-  });
+  }) => refuseByDefault(this, DeviceFeature.textureCopy);
 
   /// Copies texels laid out in [source] as [layout] into [destination].
   /// `DeviceFeature.bufferTextureCopy`.
@@ -90,7 +94,7 @@ abstract base class TransferEncoder {
     required int width,
     required int height,
     int depthOrArrayLayers = 1,
-  });
+  }) => refuseByDefault(this, DeviceFeature.bufferTextureCopy);
 
   /// Copies texels from [source] into [destination], laid out as [layout].
   /// `DeviceFeature.bufferTextureCopy`.
@@ -101,7 +105,7 @@ abstract base class TransferEncoder {
     required int width,
     required int height,
     int depthOrArrayLayers = 1,
-  });
+  }) => refuseByDefault(this, DeviceFeature.bufferTextureCopy);
 
   /// Resolves the multisampled [source] into the single-sample
   /// [destination] of the same size and format — the explicit form of a
@@ -111,7 +115,7 @@ abstract base class TransferEncoder {
   void resolveTexture(
     TextureCopyLocation source,
     TextureCopyLocation destination,
-  );
+  ) => refuseByDefault(this, DeviceFeature.offscreenMultisample);
 
   /// Hands the copies to the queue. Nothing recorded after this reaches it.
   void submit();

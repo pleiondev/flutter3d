@@ -53,11 +53,16 @@ final class GeometryBuffer {
   final void Function(GeometryBuffer)? _release;
 
   /// Gives this buffer back to the device that made it, once; a second call
-  /// does nothing. **A [slice] is a view** and its `dispose` does nothing:
-  /// dispose the buffer it was cut from. A buffer a backend made without
-  /// naming its device (a storage buffer's view, a test's fake) has nothing
-  /// to give back.
+  /// is a mistake, an assertion in a debug build. **A [slice] is a view** and
+  /// its `dispose` does nothing: dispose the buffer it was cut from. A buffer
+  /// a backend made without naming its device (a storage buffer's view, a
+  /// test's fake) has nothing to give back, and is not checked.
   void dispose() {
+    assert(
+      !_disposed || _release == null,
+      '$this was disposed twice. A handle has one owner, and only the owner '
+      'disposes it.',
+    );
     if (_disposed) return;
     _disposed = true;
     _release?.call(this);

@@ -1,5 +1,31 @@
 ## 1.0.0-rc.1
 
+- **Every feature-gated encoder member has a default body.** The
+  1.0 members of `PassEncoder` (`drawIndexed`, `multiDraw`,
+  `multiDrawIndirect`, `executeBundles`, the query, depth-bias,
+  write-mask, depth-clamp and storage members, `bindUniformBytes`,
+  `drawIndirect`, `drawNonIndexed`) and `setBlendColor`, the gated members
+  of `ComputeEncoder` and every copy of `TransferEncoder` throw
+  `UnsupportedCapability` naming their feature unless a backend overrides
+  them; `drawIndexed` with both bases zero is `draw`, and
+  `setAlphaToCoverage` is ignored, as a device without it promises. An
+  encoder from outside this repository written against 1.0.0 keeps
+  compiling when a minor adds a member.
+- **The dispose contract is written down and checked in debug builds.**
+  `GraphicsDevice` says who owns a handle and what `dispose` promises on each
+  backend. Disposing a texture, buffer, pipeline, query set or bundle twice
+  asserts, and `debugCheckLive` (from `backend.dart`) is the check a backend
+  makes before it uses a handle it was given; `FakePass` makes it at every
+  bind. A `ShaderHandle`, handed by its library to every caller that names
+  it, is not checked.
+- **`FakeBackend.liveHandles`** lists what a test made and did not give back,
+  oldest first, and `liveHandleCount` counts it: a leak on a fake is a handle
+  still listed after the test has torn down what it built.
+- **`backend.dart` is as stable as the contract.** The handle constructors
+  and `debugCheckLive` are in the snapshot and gain only optional parameters
+  within a major, so a backend written against 1.0.0 compiles against every
+  1.x.
+
 - **`UnsupportedCapability` moved to `flutter3d_foundation`**, and
   `DeviceFeature` extends the foundation's `Capability`. Import the
   refusal from the foundation (or `package:flutter3d/flutter3d.dart`, which
