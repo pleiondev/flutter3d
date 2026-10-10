@@ -5,7 +5,7 @@
   here from `internal.dart`, which keeps the typed blocks (**Breaking**
   for outside backends that imported them from there). Beside them:
   `MaterialCompiler`, `MaterialCompileRequest`, `MaterialCompileResult`,
-  `MaterialCompileRefused` and `MaterialCompilerRegistry` — how a backend
+  `MaterialCompileException` and `MaterialCompilerRegistry` — how a backend
   compiles the material language into its section of a bundle, found by
   backend name by the build hook and by `RuntimeShaders`; `ShaderTarget`;
   and `StageInterface`, `StageVariable`, `StageBlockMember`,

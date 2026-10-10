@@ -219,7 +219,8 @@ abstract base class ShadowTechnique {
   /// (`docs/CONTRACTS.md`, "The shader ABI", says where that stands).
   RenderNode? shadowMapProducer(ShadowProducerContext context) => null;
 
-  /// A node that maintains the cube atlas of point and spot lights — keeps
+  /// For a technique an application or a plugin writes: a node that
+  /// maintains the cube atlas of point and spot lights — keeps
   /// `FrameResourceIds.cubeShadow` — in place of the engine's `point
   /// shadows`, or null for the engine's own (D22). The atlas's layout, a
   /// row of six faces per light in the slot the engine assigned, is the

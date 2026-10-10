@@ -87,14 +87,14 @@ final class MaterialCompileResult {
 
 /// A compiler that cannot compile what it was asked, with the sentence
 /// that says why and what to do instead.
-final class MaterialCompileRefused extends CapabilityException {
-  const MaterialCompileRefused(this.message);
+final class MaterialCompileException extends CapabilityException {
+  const MaterialCompileException(this.message);
 
   @override
   final String message;
 
   @override
-  String toString() => 'MaterialCompileRefused: $message';
+  String toString() => 'MaterialCompileException: $message';
 }
 
 /// How one backend turns a `.f3dmat` source into its section of a
@@ -126,7 +126,7 @@ abstract base class MaterialCompiler {
   /// the build only.
   bool get compilesAtRunTime => false;
 
-  /// The section [request] compiles to. Throws a [MaterialCompileRefused]
+  /// The section [request] compiles to. Throws a [MaterialCompileException]
   /// for a source this backend cannot draw, saying why.
   MaterialCompileResult compile(MaterialCompileRequest request);
 

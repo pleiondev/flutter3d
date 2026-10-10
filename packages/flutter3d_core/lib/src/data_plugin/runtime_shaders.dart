@@ -13,7 +13,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart'
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_shaders/backend.dart'
     show
-        MaterialCompileRefused,
+        MaterialCompileException,
         MaterialCompileRequest,
         MaterialCompilerRegistry,
         MaterialStageSource;
@@ -215,7 +215,7 @@ ShaderBundle runtimeMaterialBundle(
         compiler.bundleSection: result.section,
         ShaderBundle.materialSection: material,
       });
-    } on MaterialCompileRefused catch (refused) {
+    } on MaterialCompileException catch (refused) {
       throw RuntimeShadersException('$from: ${refused.message}');
     }
   }

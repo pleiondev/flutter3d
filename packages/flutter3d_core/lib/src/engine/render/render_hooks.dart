@@ -231,7 +231,8 @@ final class RenderHooks extends PluginRegistry {
   /// engine's rule.
   LodPolicy? get lodPolicy => _store.lod.lastOrNull;
 
-  /// The skinning hooks, in the order they were added.
+  /// The skinning hooks, in the order they were added: what an application
+  /// or a tool lists to say who skins what.
   List<SkinningHook> get skinningHooks =>
       List<SkinningHook>.unmodifiable(_store.skinning);
 
@@ -243,7 +244,8 @@ final class RenderHooks extends PluginRegistry {
   /// cancelled; the one added last decides.
   Registration addLodPolicy(LodPolicy policy) => _add(_store.lod, policy);
 
-  /// Adds [hook] to the skinning hooks until the result is cancelled.
+  /// Adds [hook] to the skinning hooks until the result is cancelled: what
+  /// a plugin's skinning pass, or an application's, registers with.
   Registration addSkinningHook(SkinningHook hook) =>
       _add(_store.skinning, hook);
 

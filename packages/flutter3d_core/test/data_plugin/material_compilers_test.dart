@@ -41,7 +41,7 @@ final class _Vulkan extends MaterialCompiler {
   @override
   MaterialCompileResult compile(MaterialCompileRequest request) {
     if (request.stages.single.glsl.isEmpty) {
-      throw const MaterialCompileRefused('no GLSL');
+      throw const MaterialCompileException('no GLSL');
     }
     final bytes = Uint8List.fromList(request.stages.single.name.codeUnits);
     return MaterialCompileResult(section: bytes.buffer.asByteData());

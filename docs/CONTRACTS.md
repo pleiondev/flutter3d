@@ -465,7 +465,7 @@ A backend compiles the material language into its section of a material's
 section, says whether it compiles while a game runs, and takes one
 `MaterialCompileRequest` (the source, the stages the engine's emitter
 wrote as GLSL, the engine's headers, and backend options by name) to a
-`MaterialCompileResult`, or refuses with a `MaterialCompileRefused` saying
+`MaterialCompileResult`, or refuses with a `MaterialCompileException` saying
 why. A `MaterialCompilerRegistry` finds it by backend: the build hook asks
 it for every backend it builds, and `RuntimeShaders` for the backend the
 game runs on, before the engine's own three run-time paths. Two backends
