@@ -182,7 +182,10 @@ class ModifierFields extends StatelessWidget {
           ],
         );
       default:
-        return Text('$label: no control for $hint');
+        // A hint a later release adds has no control here yet: the field is
+        // shown with its value, read-only, rather than left out.
+        final Object shown = valueOf(field) ?? '\u2014';
+        return Text('$label: $shown');
     }
   }
 }
