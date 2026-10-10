@@ -65,7 +65,7 @@ const int _height = 96;
 void main() {
   for (final model in LightingModel.builtIn) {
     test('${model.shaderName} draws something', () async {
-      final device = WebGlDevice.open(
+      final device = await WebGlDevice.open(
         width: _width,
         height: _height,
         sources: webGlEngineShaders,

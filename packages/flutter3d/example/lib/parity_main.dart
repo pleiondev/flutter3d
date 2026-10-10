@@ -47,7 +47,10 @@ class _ParityAppState extends State<ParityApp> {
     GraphicsDevice? device;
     Renderer? renderer;
     try {
-      device = await GpuRenderBackend.open();
+      device = await GpuRenderBackend.open(
+        width: kParityWidth,
+        height: kParityHeight,
+      );
       final white = device.createTextureFromPixels(
         width: 1,
         height: 1,

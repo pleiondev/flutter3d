@@ -46,6 +46,34 @@ import 'vertex_layout_spec.dart';
 /// second interface an implementation opts into, or a member with a default
 /// on a base class — so an implementation written against 1.0 keeps
 /// compiling.
+///
+/// ## Who owns a handle, and what `dispose` promises
+///
+/// Every handle a device makes — [TextureHandle], [GeometryBuffer],
+/// [StorageBuffer], [PipelineHandle], [ComputePipelineHandle], [QuerySet],
+/// [RenderBundle] — has **one owner**: the code that asked for it, until it
+/// hands it on and says so. The owner ends it with the handle's `dispose`,
+/// which gives it back to this device once (the device's `release…` member is
+/// the same call from the other side). A container documents whether it owns
+/// what it holds or borrows it.
+///
+/// - **Disposing twice is a mistake.** A debug build asserts on the second
+///   call; a release build ignores it.
+/// - **Using a disposed handle is a mistake.** A backend calls
+///   `debugCheckLive` (from `package:flutter3d_hardware/backend.dart`) before
+///   it binds, draws from, copies or reads a handle, so a debug build names
+///   the call that used it; a release build does not check.
+/// - **What release frees is the backend's.** WebGL2 deletes the object,
+///   WebGPU destroys it, the software rasteriser drops its lists, and on
+///   Impeller, whose `flutter_gpu` objects have no native dispose, memory
+///   returns through the collector once nothing holds the object.
+/// - **The device's own [dispose] ends every handle it made**, whoever owns
+///   it; a handle used after that draws nothing on any backend.
+///
+/// A [ShaderHandle] is the exception, and its doc says why: a library hands
+/// one stage to every caller that names it, so its `dispose` gives back a
+/// reference rather than ending the stage. `FakeBackend.liveHandles` counts
+/// what a test made and did not give back.
 abstract base class GraphicsDevice with TextureAllocator {
   /// The colour format this device prefers.
   ///
@@ -461,10 +489,10 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// method makes uniformly.** WebGL2 objects are explicitly deletable — a
   /// `WebGLTexture` or `WebGLBuffer` the driver is still holding onto is a real
   /// leak, not a GC artefact — so that backend actually calls `gl.deleteTexture`
-  /// and friends here. flutter_gpu's `Texture` has no native dispose at all;
-  /// see the note at `GpuRenderBackend.supportsCubeTextures` for why letting one
-  /// go out of scope is the only release path that backend has, which makes its
-  /// implementation of this method a deliberate no-op rather than an omission.
+  /// and friends here. flutter_gpu's `Texture` has no native dispose at all,
+  /// so letting one go out of scope is the only release path that backend
+  /// has, which makes its implementation of this method a deliberate no-op
+  /// rather than an omission: there, memory returns through the collector.
   /// The software rasteriser holds nothing but Dart lists, which the garbage
   /// collector already reclaims, so its implementation is a no-op for a third,
   /// unrelated reason.
@@ -483,18 +511,12 @@ abstract base class GraphicsDevice with TextureAllocator {
   // ------------------------------------------------------------------------
 
   /// Sets where each frame's GPU timings go, a frame or two after it was
-  /// encoded; null stops them. Never called on a device whose
-  /// [supportsGpuTimestamps] is false.
+  /// encoded; null stops them. The engine does not call it on a device whose
+  /// features lack `DeviceFeature.gpuTimestamps`; a backend without the
+  /// feature may still answer a caller that asks, with what it can measure
+  /// and its doc saying what that is (Impeller times each labelled pass from
+  /// submission to completion, and puts it on the Dart timeline).
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
-
-  /// A storage buffer holding [bytes]. [hostReadable] allows [readBuffer];
-  /// [bindableAsIndices] gives it a `StorageBuffer.asIndices` a draw can
-  /// bind as 32-bit indices once a compute pass has written them — `H11`.
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => throw refuse(DeviceFeature.compute);
 
   /// A pipeline from a compute stage of this device's shader library.
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
@@ -541,10 +563,22 @@ abstract base class GraphicsDevice with TextureAllocator {
 
   /// What this device can do — every optional capability, as one set.
   ///
-  /// Ask this rather than the `supportsX` getters, which read it. A feature
-  /// this version of the contract does not name cannot be in it; a feature it
-  /// names and this device lacks answers false, and every call that feature
-  /// gates throws `UnsupportedCapability`.
+  /// The one place to ask; the `supportsX` getters it replaced are gone since
+  /// 1.0. A feature this version of the contract does not name cannot be in
+  /// it; a feature it names and this device lacks answers false, and every
+  /// call that feature gates throws `UnsupportedCapability`.
+  ///
+  /// **A mixin is a capability too, and the two agree.** Three capabilities
+  /// are types a device opts into rather than members every device carries:
+  /// [EncodedImageUpload], `SynchronousBufferReadback` (from
+  /// `package:flutter3d_hardware/testing.dart`, not the main library) and the
+  /// `RenderBundleEncoder` an encoder mixes in. Each is asked with `is`, and
+  /// where a [DeviceFeature] names the same thing
+  /// ([DeviceFeature.synchronousReadback], [DeviceFeature.renderBundles]) a
+  /// device lists the feature exactly when it is the type. A mixin is used
+  /// where the capability is a member with no honest refusal for most
+  /// devices; a feature is used where every device carries the member and
+  /// the ones without it refuse.
   DeviceFeatures get features;
 
   /// How much of everything this device has. See [DeviceLimits].
@@ -575,13 +609,20 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// A buffer of [BufferDescriptor.lengthInBytes] bytes, for the usages it
   /// names, holding [contents] (zeros by default).
   ///
-  /// The general form of [createStorageBuffer] and [uploadGeometry]: one
-  /// allocation a compute pass writes, an indirect draw reads its counts
-  /// from, and a draw binds as vertices (`StorageBuffer.asVertices`) or
-  /// indices (`StorageBuffer.asIndices`). `DeviceFeature.buffers`; a
+  /// The general form of [uploadGeometry]: one allocation a compute pass
+  /// writes, an indirect draw reads its counts from, and a draw binds as
+  /// vertices (`StorageBuffer.asVertices`) or indices
+  /// (`StorageBuffer.asIndices`). `DeviceFeature.buffers`; a
   /// [BufferUsage.storage] buffer needs `compute` or `renderStageStorage`,
   /// and a [BufferUsage.indirect] one `indirectDraw` or `indirectDispatch`.
   /// Released through [releaseStorageBuffer].
+  ///
+  /// **The one way to make a storage buffer, since 1.0.** `createStorageBuffer`
+  /// was a second call for a subset of this one: what it made is
+  /// [BufferUsage.standardStorage] with the bytes as [contents], plus
+  /// [BufferUsage.hostReadable] for `hostReadable: true` and
+  /// [BufferUsage.index] for `bindableAsIndices: true` (`H11`: a compute pass
+  /// writes a draw's order and the draw reads it, nothing crossing back).
   StorageBuffer createBuffer(
     BufferDescriptor descriptor, {
     ByteData? contents,
@@ -592,7 +633,7 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// that do not fit throw an [ArgumentError] before anything is written.
   ///
   /// The call a simulation makes every step to feed a compute pass its
-  /// inputs. Any buffer [createStorageBuffer] or [createBuffer] made with
+  /// inputs. Any buffer [createBuffer] made with
   /// [BufferUsage.copyDestination]. Gated by `compute` or `buffers`,
   /// whichever made the buffer possible.
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) =>
@@ -766,31 +807,6 @@ abstract base class GraphicsDevice with TextureAllocator {
   String? labelOf(Object resource) => _labels[resource];
 
   final Expando<String> _labels = Expando<String>('resource labels');
-}
-
-/// A device that reads a buffer back in the calling turn —
-/// `DeviceFeature.synchronousReadback`.
-///
-/// **A capability a device opts into, not a member every device carries**,
-/// since 1.0 (E.12 of the API review): WebGPU has no such call by design, and
-/// a member every device had to answer was a member three of four answered
-/// with a refusal. Asked with `device is SynchronousBufferReadback`; a device
-/// that is one lists [DeviceFeature.synchronousReadback] in its features.
-/// The software rasteriser and WebGL2 are.
-base mixin SynchronousBufferReadback on GraphicsDevice {
-  /// The bytes of [buffer] (a range of them), read back in the calling turn.
-  ///
-  /// **A stall, on purpose.** The call waits for every pass submitted before
-  /// it, which is the price WebGL2's `getBufferSubData` charges and the
-  /// reason WebGPU has no such call. For a tool or a test that would rather
-  /// block than restructure; a frame loop wants
-  /// [GraphicsDevice.readBuffer] or [GraphicsDevice.mapBuffer]. [buffer]
-  /// must be [BufferUsage.hostReadable].
-  ByteData readBufferSync(
-    StorageBuffer buffer, {
-    int offsetInBytes = 0,
-    int? sizeInBytes,
-  });
 }
 
 /// Why a device stopped working — `GraphicsDevice.lost`.

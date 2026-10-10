@@ -30,7 +30,7 @@ const double _standoff = 0.35;
 
 void main() {
   test('a wall lit by a torch has no straight edge across it', () async {
-    final device = WebGlDevice.open(
+    final device = await WebGlDevice.open(
       width: _width,
       height: _height,
       sources: webGlEngineShaders,

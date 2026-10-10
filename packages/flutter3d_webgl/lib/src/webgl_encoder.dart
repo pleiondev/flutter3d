@@ -16,9 +16,9 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
+import 'package:flutter3d_hardware/backend.dart' show debugCheckLive;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
 
 import 'webgl_buffers.dart';
@@ -585,11 +585,12 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
   /// constructor puts it back to transparent black — see the reset beside the
   /// stencil's.
   @override
-  void setBlendColor(Vector4 color) =>
-      _gl.blendColor(color.x, color.y, color.z, color.w);
+  void setBlendColor(LinearColor color) =>
+      _gl.blendColor(color.r, color.g, color.b, color.a);
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
+    debugCheckLive(pipeline, 'bindPipeline');
     final program = pipeline.backend as WebGlProgram;
     // **Attribute arrays are global state and outlive the program that enabled
     // them.** A stage with more attributes than the next one leaves the extras
@@ -635,6 +636,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     int vertexCount, {
     int slot = 0,
   }) {
+    debugCheckLive(buffer, 'bindVertexBuffer');
     _gl.bindBuffer(
       web.WebGLRenderingContext.ARRAY_BUFFER,
       buffer.backend as web.WebGLBuffer,
@@ -784,6 +786,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    debugCheckLive(buffer, 'bindIndexBuffer');
     _gl.bindBuffer(
       web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
       buffer.backend as web.WebGLBuffer,
@@ -820,7 +823,9 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     final block = _declaredBlock(shader, blockName);
     if (block == null) return false;
 
-    final data = Float32List(block.sizeInBytes ~/ 4);
+    // Filled in the device's scratch for this size: `bufferData` copies it
+    // at the call, so one buffer serves every block of the size.
+    final data = _device.uniformScratch.zeroed(block.sizeInBytes);
     members.forEach((String name, Float32List values) {
       final offset = block.offsets[name];
       if (offset == null) {
@@ -915,12 +920,12 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
         'handed ${bytes.lengthInBytes}',
       );
     }
-    final data = Uint8List(block.sizeInBytes)
-      ..setRange(
-        0,
-        bytes.lengthInBytes,
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      );
+    final data = _device.uniformScratch.zeroed(block.sizeInBytes);
+    Uint8List.sublistView(data).setRange(
+      0,
+      bytes.lengthInBytes,
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
     _uploadBlock(block, blockName, data.toJS);
     return true;
   }
@@ -934,6 +939,7 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     TextureHandle texture, {
     SamplerDescriptor? sampler,
   }) {
+    debugCheckLive(texture, 'bindTexture');
     // Gated before the slot is looked at: a refusal names the sampler's
     // feature whatever slot it was aimed at.
     webglGateSampler(_device, sampler);

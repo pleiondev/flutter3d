@@ -12,7 +12,6 @@ library;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
-import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'webgpu_bundle_section.dart' show WebGpuSampler;
@@ -21,7 +20,7 @@ import 'webgpu_formats.dart'
     show gpuStorageTextureAccess, gpuTextureFormat, gpuWritableBytes;
 import 'webgpu_interop.dart';
 import 'webgpu_types.dart'
-    show WebGpuGeometry, WebGpuQueries, WebGpuTexture, gpuSamplerLayoutEntries;
+    show WebGpuQueries, WebGpuTexture, gpuSamplerLayoutEntries;
 
 /// A storage buffer: the GPU buffer and the length it was asked for, which
 /// may be less than the buffer's own four-byte-rounded size.
@@ -45,54 +44,6 @@ int _roundUp4(int n) => (n + 3) & ~3;
 
 /// What the backend calls the device in a refusal.
 const String _backend = 'WebGPU';
-
-/// A buffer holding [bytes], usable as storage and as either end of a copy —
-/// and as a draw's index buffer when [bindableAsIndices] asks, which is a
-/// usage bit a WebGPU buffer has to be born with.
-StorageBuffer webgpuCreateStorageBuffer(
-  GPUDevice gpu,
-  ByteData bytes, {
-  required bool hostReadable,
-  bool bindableAsIndices = false,
-}) {
-  final size = _roundUp4(bytes.lengthInBytes < 4 ? 4 : bytes.lengthInBytes);
-  final buffer = gpu.createBuffer(
-    GPUBufferDescriptor(
-      size: size,
-      usage:
-          GpuBufferUsage.storage |
-          GpuBufferUsage.copyDst |
-          GpuBufferUsage.copySrc |
-          (bindableAsIndices ? GpuBufferUsage.index : 0),
-      label: 'storage ${bytes.lengthInBytes}',
-    ),
-  );
-  if (bytes.lengthInBytes > 0) {
-    final padded = Uint8List(size)
-      ..setRange(
-        0,
-        bytes.lengthInBytes,
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
-      );
-    gpu.queue.writeBuffer(
-      buffer,
-      0,
-      gpuWritableBytes(ByteData.sublistView(padded)).toJS,
-    );
-  }
-  return wrapStorageBuffer(
-    backend: WebGpuStorage(buffer, bytes.lengthInBytes),
-    lengthInBytes: bytes.lengthInBytes,
-    hostReadable: hostReadable,
-    asIndices: bindableAsIndices
-        ? wrapGeometry(
-            backend: WebGpuGeometry(buffer),
-            offsetInBytes: 0,
-            lengthInBytes: bytes.lengthInBytes,
-          )
-        : null,
-  );
-}
 
 /// A pipeline for [shader], with a bind group layout per group its storage
 /// buffers, uniform blocks, textures and storage textures name, every entry

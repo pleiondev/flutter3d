@@ -236,7 +236,7 @@ final class ColorTarget {
   /// that size for the pass. A depth attachment beside it has to be that size
   /// too, and is a plain 2D texture at its own base level.
   ///
-  /// Ask `GraphicsDevice.supportsRenderToMip` before asking for anything but
+  /// Ask `features.has(DeviceFeature.renderToMipLevel)` before asking for anything but
   /// zero. The one backend that cannot — flutter_gpu on OpenGL ES — refuses
   /// at the attachment, which is louder than drawing into the base level and
   /// leaving the chain as it was allocated.

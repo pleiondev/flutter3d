@@ -2013,7 +2013,7 @@ final class Renderer with RenderServices {
   ///
   /// The backend arrives as a value rather than being reached for, which is the
   /// whole of how a second one will be selected: an application constructs
-  /// `GpuRenderBackend.open()` and hands it over. A compile-time choice could
+  /// `GpuRenderBackend.open(width:, height:)` and hands it over. A compile-time choice could
   /// not be faked, and a fake is the only way anything below this line is ever
   /// exercised without a GPU.
   ///

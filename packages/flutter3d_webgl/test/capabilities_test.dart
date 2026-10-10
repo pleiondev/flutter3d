@@ -24,8 +24,8 @@ import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter3d_webgl/src/webgl_formats.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-WebGlDevice _device() {
-  final device = WebGlDevice.open(
+Future<WebGlDevice> _device() async {
+  final device = await WebGlDevice.open(
     width: 8,
     height: 8,
     sources: webGlEngineShaders,
@@ -154,11 +154,11 @@ void main() {
   });
 
   group('a real context', () {
-    test('reports what it can and refuses what it cannot', () {
+    test('reports what it can and refuses what it cannot', () async {
       // Mutation: list `compute` or `cubeArrayTextures` in `_decideFeatures`
       // — the first of these fails; or make a refusal a bare UnsupportedError
       // and the second half does.
-      final device = _device();
+      final device = await _device();
       final features = device.features;
       for (final never in <DeviceFeature>[
         DeviceFeature.compute,
@@ -200,8 +200,13 @@ void main() {
         _refusing(DeviceFeature.pipelineStatisticsQuery),
       );
       expect(
-        () => device.createStorageBuffer(ByteData(16)),
-        _refusing(DeviceFeature.compute),
+        () => device.createBuffer(
+          const BufferDescriptor(
+            lengthInBytes: 16,
+            usage: BufferUsage.standardStorage,
+          ),
+        ),
+        _refusing(DeviceFeature.renderStageStorage),
       );
       expect(device.limits.maxComputeInvocationsPerWorkgroup, 0);
       expect(
@@ -211,11 +216,11 @@ void main() {
       device.dispose();
     });
 
-    test('a refused call leaves the pass able to submit', () {
+    test('a refused call leaves the pass able to submit', () async {
       // Mutation: tear the pass down before throwing, as `_fail` does — the
       // submit below then throws StateError, and the conformance probes,
       // which submit in a `finally`, would report that instead.
-      final device = _device();
+      final device = await _device();
       final pass = device.beginRenderPass(
         RenderPassDescriptor(
           colors: <ColorTarget>[
@@ -266,7 +271,7 @@ void main() {
       // Mutation: drop the row reversal from `webglWriteTexture` — a
       // texture made to be drawn into stores its top at the last row here,
       // `readback` turns it over, and the picture comes back upside down.
-      final device = _device();
+      final device = await _device();
       final texture = device.createTexture(
         const TextureDescriptor(
           width: 2,
@@ -280,11 +285,11 @@ void main() {
       device.dispose();
     });
 
-    test('one layer of an array copies out alone', () {
+    test('one layer of an array copies out alone', () async {
       // Mutation: attach `layer: 0` in the transfer encoder's `_attach`
       // whatever the location says — the copy then reads the zeros of the
       // first layer rather than the colours written into the second.
-      final device = _device();
+      final device = await _device();
       final array = device.createTexture(
         TextureDescriptor(
           width: 2,
@@ -327,7 +332,7 @@ void main() {
       // Mutation: record a query as written without calling `beginQuery` —
       // reading its result is then INVALID_OPERATION, and the drain below
       // names it.
-      final device = _device();
+      final device = await _device();
       final set = device.createQuerySet(QueryType.occlusion, 2);
       device.beginRenderPass(
           RenderPassDescriptor(
@@ -354,11 +359,11 @@ void main() {
       device.dispose();
     });
 
-    test('one buffer cannot hold indices and vertices', () {
+    test('one buffer cannot hold indices and vertices', () async {
       // Mutation: let `webglCreateBuffer` accept index | vertex. The buffer
       // is typed by its first binding, and the vertex binding at the first
       // draw is then an INVALID_OPERATION nobody sees.
-      final device = _device();
+      final device = await _device();
       expect(
         () => device.createBuffer(
           BufferDescriptor(
@@ -371,10 +376,10 @@ void main() {
       device.dispose();
     });
 
-    test('a bundle recorded for other attachments is refused', () {
+    test('a bundle recorded for other attachments is refused', () async {
       // Mutation: skip the descriptor comparison in `executeBundles` — a
       // bundle for a float target replays into an eight-bit one.
-      final device = _device();
+      final device = await _device();
       final bundle = device
           .createRenderBundleEncoder(
             const RenderBundleDescriptor(

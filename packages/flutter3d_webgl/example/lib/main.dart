@@ -119,18 +119,21 @@ class _HarnessAppState extends State<HarnessApp> {
   @override
   void initState() {
     super.initState();
-    try {
-      _run();
-    } catch (error, stack) {
-      _say('THREW: $error');
-      _say('$stack');
-      _failed = true;
-    }
-    if (mounted) setState(() {});
+    _run().then(
+      (_) {
+        if (mounted) setState(() {});
+      },
+      onError: (Object error, StackTrace stack) {
+        _say('THREW: $error');
+        _say('$stack');
+        _failed = true;
+        if (mounted) setState(() {});
+      },
+    );
   }
 
-  void _run() {
-    final device = WebGlDevice.open(
+  Future<void> _run() async {
+    final device = await WebGlDevice.open(
       width: kWidth,
       height: kHeight,
       sources: const ShaderSources(

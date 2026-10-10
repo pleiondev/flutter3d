@@ -14,7 +14,8 @@ import 'gpu_device.dart';
 Registration registerGpuBackend(DeviceRegistry registry) {
   final opener = registry.addBackend(
     'Impeller',
-    ({required int width, required int height}) => GpuRenderBackend.open(),
+    ({required int width, required int height}) =>
+        GpuRenderBackend.open(width: width, height: height),
   );
   final presenter = registry.addPresenter<GpuRenderBackend>(
     (

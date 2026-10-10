@@ -1364,7 +1364,6 @@ export package:flutter3d/flutter3d.dart (whole library)
   StoreAction from flutter3d_hardware
   SurfaceAlphaMode from flutter3d_core
   SurfaceMaterial from flutter3d_core
-  SynchronousBufferReadback from flutter3d_hardware
   TangentMethod from flutter3d_core
   TemporalClip from flutter3d_core
   TemporalSettings from flutter3d_core

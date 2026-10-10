@@ -16,7 +16,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart' show Vector4;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 
 import '../capabilities.dart';
 import '../command_encoder.dart';
@@ -29,6 +30,7 @@ import '../render_target_pool.dart';
 import '../resources.dart';
 import '../sampler.dart';
 import '../shader.dart';
+import '../synchronous_readback.dart';
 import '../texture.dart';
 import '../transfer.dart';
 import '../vertex_layout_spec.dart';
@@ -415,31 +417,6 @@ final class RecordingDevice extends GraphicsDevice
   // ------------------------------------------------------------- compute
 
   @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) {
-    final buffer = inner.createStorageBuffer(
-      bytes,
-      hostReadable: hostReadable,
-      bindableAsIndices: bindableAsIndices,
-    );
-    final indices = buffer.asIndices;
-    events.add(
-      TraceCreateStorageBuffer(
-        id: _name(_storageIds, buffer),
-        bytes: _copy(bytes),
-        hostReadable: hostReadable,
-        // Named as geometry, so a draw that binds it is recorded as one
-        // binding any other index buffer — `H11`.
-        indices: indices == null ? null : _name(_geometryIds, indices.backend),
-      ),
-    );
-    return buffer;
-  }
-
-  @override
   void releaseStorageBuffer(StorageBuffer buffer) {
     events.add(TraceReleaseStorageBuffer(_name(_storageIds, buffer)));
     inner.releaseStorageBuffer(buffer);
@@ -520,14 +497,47 @@ final class RecordingDevice extends GraphicsDevice
     );
   }
 
+  /// A storage buffer — the usages `createStorageBuffer` made before 1.0
+  /// folded it in here, with its whole contents given or none — is recorded
+  /// as `createStorageBuffer`, the event a trace has always carried for one;
+  /// any other buffer is passed on and noted as unrecorded.
   @override
   StorageBuffer createBuffer(
     BufferDescriptor descriptor, {
     ByteData? contents,
   }) {
-    _unrecorded('createBuffer');
-    return inner.createBuffer(descriptor, contents: contents);
+    final buffer = inner.createBuffer(descriptor, contents: contents);
+    final usage = descriptor.usage;
+    final traced =
+        usage.contains(BufferUsage.standardStorage) &&
+        _storageShaped.contains(usage) &&
+        (contents == null ||
+            contents.lengthInBytes == descriptor.lengthInBytes);
+    if (!traced) {
+      _unrecorded('createBuffer');
+      return buffer;
+    }
+    final indices = buffer.asIndices;
+    events.add(
+      TraceCreateStorageBuffer(
+        id: _name(_storageIds, buffer),
+        bytes: contents == null
+            ? ByteData(descriptor.lengthInBytes)
+            : _copy(contents),
+        hostReadable: usage.contains(BufferUsage.hostReadable),
+        // Named as geometry, so a draw that binds it is recorded as one
+        // binding any other index buffer — `H11`.
+        indices: indices == null ? null : _name(_geometryIds, indices.backend),
+      ),
+    );
+    return buffer;
   }
+
+  /// Every usage a traced storage buffer may have.
+  static final BufferUsage _storageShaped = tracedStorageUsage(
+    hostReadable: true,
+    indices: true,
+  );
 
   @override
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes) {
@@ -706,8 +716,8 @@ final class _RecordingEncoder extends PassEncoder with CommandEncoder {
   }
 
   @override
-  void setBlendColor(Vector4 color) {
-    _events.add(TraceSetBlendColor(_pass, color.clone()));
+  void setBlendColor(LinearColor color) {
+    _events.add(TraceSetBlendColor(_pass, color));
     _inner.setBlendColor(color);
   }
 
@@ -1131,3 +1141,15 @@ final class _RecordingComputeEncoder extends ComputeEncoder {
     _inner.endPipelineStatisticsQuery();
   }
 }
+
+/// The usages of a storage buffer a `createStorageBuffer` event names: the
+/// standard storage ones, with the host read and the index binding where
+/// the event says so. What a replay makes the buffer with.
+BufferUsage tracedStorageUsage({
+  required bool hostReadable,
+  required bool indices,
+}) => <BufferUsage>[
+  BufferUsage.standardStorage,
+  if (hostReadable) BufferUsage.hostReadable,
+  if (indices) BufferUsage.index,
+].reduce((BufferUsage a, BufferUsage b) => a | b);

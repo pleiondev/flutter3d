@@ -46,7 +46,7 @@ Future<GraphicsDevice> createBackend({
   final requested = _requestedBackend;
   try {
     return switch (requested) {
-      'webgl' => _openWebGl(width: width, height: height),
+      'webgl' => await _openWebGl(width: width, height: height),
       'webgpu' => await openDevice(
         width: width,
         height: height,
@@ -105,7 +105,7 @@ DeviceRegistry _webGpuOnly() => DeviceRegistry()
 /// WebGL2, over the canvas it creates for itself. Throws a
 /// `DeviceUnavailableException` where there is no WebGL2 context: this build
 /// needs it, and there is no software path.
-GraphicsDevice _openWebGl({required int width, required int height}) =>
+Future<GraphicsDevice> _openWebGl({required int width, required int height}) =>
     WebGlDevice.open(width: width, height: height);
 
 /// What to call this build in a diagnostic.

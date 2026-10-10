@@ -1,5 +1,75 @@
 ## 1.0.0-rc.1
 
+- **`UniformScratch`, in `backend.dart`**: one zeroed buffer per uniform
+  block size, kept for the device's life, for a backend's
+  `bindUniformBlock` to fill before its API copies it. Every backend here
+  made a fresh list per block per draw, six to ten a mesh a view and four
+  kilobytes for a skinned one's joints, all garbage the moment it was
+  copied.
+- **Breaking (for outside backends): `DeviceRegistry` is typed by its
+  presenter.** `DeviceRegistry<P>` holds presenters of type `P`:
+  `addPresenter` takes one and `presenterFor` answers one, where both used
+  `Object` and every caller cast. `flutter3d_app`'s `platformDevices` makes
+  a `DeviceRegistry<FramePresenter>`; a bare `DeviceRegistry()` is a
+  `DeviceRegistry<Object>` and behaves as before. A backend's
+  `register…Backend` still takes `DeviceRegistry`, and what it adds is
+  checked against the registry's own type when it is added.
+- **Breaking (for outside backends): `EncodedImageUpload.decodeTexture`
+  throws where it answered null.** An image the platform will not decode is
+  a `DeviceResourceException`, which a caller catches to decode on the CPU
+  instead; the future completes with a `TextureHandle`, never null.
+- **Breaking (for outside backends): `createStorageBuffer` is folded into
+  `createBuffer`.** A storage buffer is `createBuffer(BufferDescriptor(
+  lengthInBytes: n, usage: BufferUsage.standardStorage), contents: bytes)`,
+  with `BufferUsage.hostReadable` for `hostReadable: true` and
+  `BufferUsage.index` for `bindableAsIndices: true`; one call where there
+  were two for one allocation. A backend drops its override and makes the
+  storage usages in `createBuffer`. `RecordingDevice` records such a buffer
+  as the `createStorageBuffer` event a trace has always carried, so traces
+  read and replay as before. `dart run flutter3d_build:migrate` rewrites a
+  call with no named arguments.
+- **Breaking (for outside backends): `SynchronousBufferReadback` is not in
+  the main library.** A stall belongs in a test or a tool, never a frame:
+  a caller imports it from `package:flutter3d_hardware/testing.dart`, and a
+  backend mixes it in from `backend.dart`. Its member and its meaning are
+  unchanged.
+- **Breaking (for outside backends): `PassEncoder.setBlendColor` takes a
+  `LinearColor`**, the engine's one colour type, where it took a `Vector4`;
+  `RecordedBlendColor.color` and `TraceSetBlendColor.color` hold one too. A
+  trace writes it as the same four numbers, so a trace recorded before reads
+  the same. An encoder of your own changes the parameter's type; a caller
+  writes `setBlendColor(LinearColor(r, g, b, a))`, which `dart run
+  flutter3d_build:migrate` does for it.
+- **Breaking: `Recorded` is an `abstract base class`**, not `sealed`: a pass
+  gains calls in minor releases, and each would have been a new case every
+  exhaustive `switch` had to add. A `switch` over a `Recorded` ends with a
+  wildcard; `migrate` adds one where it is missing.
+- **Every feature-gated encoder member has a default body.** The
+  1.0 members of `PassEncoder` (`drawIndexed`, `multiDraw`,
+  `multiDrawIndirect`, `executeBundles`, the query, depth-bias,
+  write-mask, depth-clamp and storage members, `bindUniformBytes`,
+  `drawIndirect`, `drawNonIndexed`) and `setBlendColor`, the gated members
+  of `ComputeEncoder` and every copy of `TransferEncoder` throw
+  `UnsupportedCapability` naming their feature unless a backend overrides
+  them; `drawIndexed` with both bases zero is `draw`, and
+  `setAlphaToCoverage` is ignored, as a device without it promises. An
+  encoder from outside this repository written against 1.0.0 keeps
+  compiling when a minor adds a member.
+- **The dispose contract is written down and checked in debug builds.**
+  `GraphicsDevice` says who owns a handle and what `dispose` promises on each
+  backend. Disposing a texture, buffer, pipeline, query set or bundle twice
+  asserts, and `debugCheckLive` (from `backend.dart`) is the check a backend
+  makes before it uses a handle it was given; `FakePass` makes it at every
+  bind. A `ShaderHandle`, handed by its library to every caller that names
+  it, is not checked.
+- **`FakeBackend.liveHandles`** lists what a test made and did not give back,
+  oldest first, and `liveHandleCount` counts it: a leak on a fake is a handle
+  still listed after the test has torn down what it built.
+- **`backend.dart` is as stable as the contract.** The handle constructors
+  and `debugCheckLive` are in the snapshot and gain only optional parameters
+  within a major, so a backend written against 1.0.0 compiles against every
+  1.x.
+
 - **`UnsupportedCapability` moved to `flutter3d_foundation`**, and
   `DeviceFeature` extends the foundation's `Capability`. Import the
   refusal from the foundation (or `package:flutter3d/flutter3d.dart`, which
@@ -9,10 +79,13 @@
   `readbackConverts` answers false for an sRGB format, so a backend sends
   it to `readbackRegionOf`, which refuses it with its own reason, as it
   already refused a region of one.
-- **`GraphicsDevice.lost` is every backend's.** Its contract now says each
-  backend reports there what its API lets it see, and at least its own
-  `dispose` as `DeviceLossReason.destroyed`, with `isLost` answering for a
-  caller that subscribed late.
+- **Breaking (for outside backends): `GraphicsDevice.lost` is every
+  backend's obligation.** Its contract now says each backend reports there
+  what its API lets it see, and at least its own `dispose` as
+  `DeviceLossReason.destroyed`, with `isLost` answering for a caller that
+  subscribed late. The signatures are unchanged, and the empty default
+  still compiles; a backend of your own that inherits it reads as never
+  lost, and owes the report.
 
 - **Breaking: `Registration` is not re-exported.** It is
   `flutter3d_foundation`'s, imported from there.

@@ -4,9 +4,10 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:vector_math/vector_math.dart';
 
 import 'cpu_resources.dart';
 import 'cpu_shader.dart';
@@ -75,7 +76,7 @@ final class CpuRenderBundleEncoder extends PassEncoder
   void setScissor(ScreenRect rect) => _notInBundle('setScissor');
 
   @override
-  void setBlendColor(Vector4 color) => _notInBundle('setBlendColor');
+  void setBlendColor(LinearColor color) => _notInBundle('setBlendColor');
 
   @override
   void setStencilReference(int value) => _notInBundle('setStencilReference');

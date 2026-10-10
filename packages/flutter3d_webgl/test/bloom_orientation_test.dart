@@ -46,7 +46,7 @@ const double _lift = 0.9;
 
 void main() {
   test('the glow is on the same side of the frame as what is glowing', () async {
-    final device = WebGlDevice.open(
+    final device = await WebGlDevice.open(
       width: _width,
       height: _height,
       sources: webGlEngineShaders,

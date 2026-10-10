@@ -36,8 +36,8 @@ const int _canvas = 64;
 const int _frame = 16;
 
 void main() {
-  test('presenting covers the canvas even when the frame is smaller', () {
-    final device = WebGlDevice.open(
+  test('presenting covers the canvas even when the frame is smaller', () async {
+    final device = await WebGlDevice.open(
       width: _canvas,
       height: _canvas,
       sources: webGlEngineShaders,

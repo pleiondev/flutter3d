@@ -40,7 +40,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show ShaderDiagnostic, UnsupportedCapability;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
@@ -336,21 +336,6 @@ final class WebGpuDevice extends GraphicsDevice
       : null;
 
   @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => _guard(
-    'a ${bytes.lengthInBytes}-byte storage buffer',
-    () => webgpuCreateStorageBuffer(
-      _gpuDevice,
-      bytes,
-      hostReadable: hostReadable,
-      bindableAsIndices: bindableAsIndices,
-    ),
-  );
-
-  @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
     final stage = shader.backend;
     if (stage is! WebGpuComputeShader) {
@@ -529,10 +514,20 @@ final class WebGpuDevice extends GraphicsDevice
       module.getCompilationInfo().toDart.then((GPUCompilationInfo info) {
         for (final message in info.messages.toDart) {
           if (message.type != 'error') continue;
+          final line = message.lineNum;
+          final lines = wgsl.split('\n');
           _ledger.complainOfShader(
             name,
-            'line ${message.lineNum}, column ${message.linePos}: '
-            '${message.message}',
+            'line $line, column ${message.linePos}: ${message.message}',
+            // WebGPU counts both from one, and zero when it names no place.
+            diagnostic: ShaderDiagnostic(
+              message.message,
+              line: line > 0 ? line : null,
+              column: message.linePos > 0 ? message.linePos : null,
+              excerpt: line > 0 && line <= lines.length
+                  ? lines[line - 1]
+                  : null,
+            ),
           );
         }
       }),
@@ -668,6 +663,10 @@ final class WebGpuDevice extends GraphicsDevice
   /// Where a uniform block written this frame lands. See
   /// `webgpu_resources.dart` for why one arena reset per frame is safe.
   final WebGpuFrameArena _uniformArena;
+
+  /// The buffers a uniform block is filled in before `queue.writeBuffer`
+  /// copies it, one per block size, for the device's life.
+  final UniformScratch _uniformScratch = UniformScratch();
 
   /// Where `PassEncoder.bindVertexData`'s bytes land.
   final WebGpuFrameArena _vertexArena;
@@ -1089,26 +1088,33 @@ final class WebGpuDevice extends GraphicsDevice
   /// `webgpu_image_decode.dart`.
   ///
   /// [maxDimension] is held to the device's own `maxTextureDimension2D` as
-  /// well, so no cap still means an image the device can allocate.
+  /// well, so no cap still means an image the device can allocate. An image
+  /// the browser will not decode is refused with a
+  /// `DeviceResourceException`.
   @override
-  Future<TextureHandle?> decodeTexture(
+  Future<TextureHandle> decodeTexture(
     Uint8List encoded, {
     bool mipmaps = false,
     int? maxDimension,
-  }) {
+  }) async {
     final limit = limits.maxTextureDimension2D;
     final cap = maxDimension == null || maxDimension > limit
         ? limit
         : maxDimension;
-    return webgpuCreateTextureFromEncodedImage(
-      _gpuDevice,
-      _textures,
-      _mips,
-      encoded,
-      mipmaps: mipmaps,
-      guard: _guard,
-      maxDimension: cap,
-    );
+    return await webgpuCreateTextureFromEncodedImage(
+          _gpuDevice,
+          _textures,
+          _mips,
+          encoded,
+          mipmaps: mipmaps,
+          guard: _guard,
+          maxDimension: cap,
+        ) ??
+        (throw refuseResource(
+          'decodeTexture',
+          'the browser would not decode these ${encoded.length} bytes as an '
+              'image',
+        ));
   }
 
   @override
@@ -2375,6 +2381,7 @@ extension WebGpuDeviceInternals on WebGpuDevice {
   GPUDevice get gpuDevice => _gpuDevice;
   WebGpuFrameArena get indexArena => _indexArena;
   WebGpuFrameArena get uniformArena => _uniformArena;
+  UniformScratch get uniformScratch => _uniformScratch;
   WebGpuFrameArena get vertexArena => _vertexArena;
   WebGpuPipelineCache<GPURenderPipeline> get pipelines => _pipelines;
   GPUBindGroup bindGroupFor(

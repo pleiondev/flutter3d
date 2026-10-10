@@ -88,8 +88,8 @@ const bool _tryWebGpu = bool.fromEnvironment(
 /// unless `FLUTTER3D_WEBGPU=false`, WebGPU preferred, each with its
 /// presenter. A new registry each call, which an engine owns; see the native
 /// half's doc.
-DeviceRegistry platformDevices() {
-  final registry = DeviceRegistry();
+DeviceRegistry<FramePresenter> platformDevices() {
+  final registry = DeviceRegistry<FramePresenter>();
   registerWebGlBackend(registry);
   if (_tryWebGpu) {
     registry
@@ -125,10 +125,17 @@ final Expando<DeviceRegistry> _openedFrom = Expando<DeviceRegistry>(
 /// [openDevice] did not open and handed no registry. Nothing outside this
 /// file can add to it: a backend or presenter of one's own goes into a
 /// registry the caller owns, from [platformDevices], and is passed.
-DeviceRegistry get _platformPresenters => _presenters ??= platformDevices();
-DeviceRegistry? _presenters;
+DeviceRegistry<FramePresenter> get _platformPresenters =>
+    _presenters ??= platformDevices();
+DeviceRegistry<FramePresenter>? _presenters;
 
 /// Opens the backend, or throws with something worth putting on screen.
+///
+/// **Sugar, and nothing else**: `(registry ?? platformDevices()).open(width:,
+/// height:)`, printing each backend that refused before the next is tried,
+/// with the device remembering its registry. Every backend opens in that one
+/// shape since 1.0 — asynchronous, given the size — so this adds no way of
+/// opening of its own.
 ///
 /// With no [registry], this platform's backends ([platformDevices], made for
 /// the call); hand one over to try a backend of your own first — a test's
@@ -162,17 +169,24 @@ Widget presentFrame(
   FilterQuality quality = FilterQuality.none,
   DeviceRegistry? registry,
 }) {
-  final presenter =
-      (registry ?? _openedFrom[device] ?? _platformPresenters).presenterFor(
-            device,
-          )
-          as FramePresenter?;
-  if (presenter == null) {
-    throw ArgumentError(
+  final from = registry ?? _openedFrom[device] ?? _platformPresenters;
+  return switch (from.presenterFor(device)) {
+    final FramePresenter present => present(
+      device,
+      frame,
+      fit: fit,
+      quality: quality,
+    ),
+    null => throw ArgumentError(
       'presentFrame: no presenter added for ${device.runtimeType} — call '
       'registry.addPresenter<${device.runtimeType}>(...) on the registry the '
       'device came from, before presenting a frame from this backend',
-    );
-  }
-  return presenter(device, frame, fit: fit, quality: quality);
+    ),
+    final Object other => throw ArgumentError(
+      'presentFrame: the presenter added for ${device.runtimeType} is a '
+      '${other.runtimeType}, not a FramePresenter — make the registry a '
+      'DeviceRegistry<FramePresenter> (platformDevices() is one), so a '
+      'presenter of another type is refused where it is added',
+    ),
+  };
 }

@@ -39,11 +39,11 @@ Rgba8Image _flat(int width, int height, int level) => Rgba8Image(
 /// A device that decodes images itself, as the browser backends do, and
 /// records what it was asked. Every other member is unreachable here.
 final class _DecodingDevice extends GraphicsDevice with EncodedImageUpload {
-  _DecodingDevice({this.maxTexture = 8192});
+  _DecodingDevice({this.maxTexture = 8192, this.refuses = false});
 
-  /// Whether the platform decode refuses; never, since the per-call cap is
-  /// the only cap left (the process-wide one went in 1.0).
-  final bool refuses = false;
+  /// Whether the platform decode refuses, as a browser does an image it
+  /// cannot read.
+  final bool refuses;
   final int maxTexture;
   final List<({bool mipmaps, int? maxDimension})> asked =
       <({bool mipmaps, int? maxDimension})>[];
@@ -55,13 +55,13 @@ final class _DecodingDevice extends GraphicsDevice with EncodedImageUpload {
   DeviceFeatures get features => FakeBackend().features;
 
   @override
-  Future<TextureHandle?> decodeTexture(
+  Future<TextureHandle> decodeTexture(
     Uint8List encoded, {
     bool mipmaps = false,
     int? maxDimension,
   }) async {
     asked.add((mipmaps: mipmaps, maxDimension: maxDimension));
-    if (refuses) return null;
+    if (refuses) throw refuseResource('decodeTexture', 'refused by the test');
     return wrapTexture(
       backend: Object(),
       width: 1,
@@ -143,6 +143,31 @@ void main() {
     );
     expect(device.asked.single.maxDimension, 2048);
   });
+
+  test(
+    'a platform that will not decode throws, and the CPU is asked',
+    () async {
+      // Mutation: `uploadEncodedImage` letting the refusal escape. Since 1.0
+      // `decodeTexture` throws where it answered null, and the load must
+      // still fall back rather than lose the model.
+      final device = _DecodingDevice(refuses: true);
+      expect(
+        () => device.decodeTexture(_pngHeader(4, 4)),
+        throwsA(isA<DeviceResourceException>()),
+      );
+      var cpuAsked = false;
+      final handle = await uploadEncodedImage(
+        device,
+        _pngHeader(4, 4),
+        decodeImage: (_) async {
+          cpuAsked = true;
+          return null;
+        },
+      );
+      expect(cpuAsked, isTrue);
+      expect(handle, isNull);
+    },
+  );
 
   test('platformDecode false and a refusal both reach the CPU decoder', () {
     final device = FakeBackend();

@@ -10,6 +10,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ShaderCompileException, ShaderDiagnostic;
 import 'package:meta/meta.dart';
 
 import 'shader_bundle_build_exception.dart';
@@ -93,6 +95,7 @@ Future<List<Uri>> buildShaderBundle({
   if (result.exitCode != 0) {
     throw ShaderBundleBuildException(
       'impellerc failed (${result.exitCode}):\n${result.stderr}',
+      cause: impellercRefusal('${result.stderr}', bundle: manifest.path),
     );
   }
 
@@ -108,6 +111,33 @@ Future<List<Uri>> buildShaderBundle({
     ).listSync(recursive: true))
       if (entity is File) entity.uri,
   ];
+}
+
+/// What `impellerc` said when it refused [bundle], as a
+/// [ShaderCompileException]: its log whole, and each error it placed as a
+/// [ShaderDiagnostic] — `impellerc` writes glslang's
+/// `file:line:column: error: message` — with the stage taken from the
+/// file's extension when every error names the same kind.
+ShaderCompileException impellercRefusal(String log, {required String bundle}) {
+  final diagnostics = ShaderDiagnostic.parseLog(log);
+  final stages = <String?>{
+    for (final line in log.split('\n'))
+      if (RegExp(r'\.(vert|frag|comp)(?:\.glsl)?:\d+').firstMatch(line)
+          case final m?)
+        switch (m[1]) {
+          'vert' => 'vertex',
+          'frag' => 'fragment',
+          _ => 'compute',
+        },
+  };
+  return ShaderCompileException(
+    shader: bundle,
+    backend: 'Impeller',
+    log: log.trim(),
+    target: 'impeller',
+    stage: stages.length == 1 ? stages.single : null,
+    diagnostics: diagnostics,
+  );
 }
 
 /// Resolves another workspace package's own root directory by reading

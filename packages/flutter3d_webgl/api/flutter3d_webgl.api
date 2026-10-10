@@ -28,7 +28,7 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes)
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
-  Future<TextureHandle?> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
+  Future<TextureHandle> decodeTexture(Uint8List encoded, {bool mipmaps = false, int? maxDimension})
   Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
   List<TextureFormat> get hdrOutputFormats
@@ -38,7 +38,6 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
-  StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
   Stream<DeviceLoss> get lost
   String debugCanvasState()
   String debugFramebufferStatus()
@@ -57,7 +56,7 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   int get debugTrackedResourceCount
   int get preferredSampleCount
   late final String viewType
-  static WebGlDevice open({required int width, required int height, ShaderSources? sources, bool highpMaterials = false})
+  static Future<WebGlDevice> open({required int width, required int height, ShaderSources? sources, bool highpMaterials = false})
   void beginFrame()
   void blitToCanvas(TextureHandle frame)
   void dispose()

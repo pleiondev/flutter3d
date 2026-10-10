@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`: a storage buffer is
+  `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or
+  `index` where it was asked for. `readBufferSync` is still the device's,
+  mixed in from `backend.dart`.
+- **Breaking: `setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0; the blend reads the same four
+  channels.
 - **`CpuDevice.dispose` is reported as a device loss.** The first call sets
   `isLost` and sends one `DeviceLossReason.destroyed` on `lost`, then
   closes the stream; it used to do nothing, and `lost` never fired.

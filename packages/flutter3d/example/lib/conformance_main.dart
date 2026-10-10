@@ -55,7 +55,9 @@ class _ConformanceAppState extends State<ConformanceApp> {
       // behind should fail on its own account rather than on the previous
       // check's.
       try {
-        await check.run(await GpuRenderBackend.open());
+        // The size is the conformance checks' own; Impeller sizes each
+        // target as it is drawn.
+        await check.run(await GpuRenderBackend.open(width: 64, height: 64));
         log.writeln('PASS  ${check.name}');
       } on ConformanceDeclinedException catch (reason) {
         // **Never PASS.** A check the backend was not in a position to answer

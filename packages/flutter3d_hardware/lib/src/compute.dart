@@ -5,15 +5,17 @@
 /// here is implemented by each backend package, which is pinned to this one by
 /// a caret range, so a member added in a patch release would break the backend
 /// that shipped before it. 0.8.0 therefore carries the whole shape. WebGPU and
-/// the software rasteriser run it; WebGL2 and Impeller answer
-/// [GraphicsDevice.supportsCompute] with false and refuse the creators with an
-/// [UnsupportedError]. Impeller follows when flutter_gpu exposes compute
+/// the software rasteriser run it; WebGL2 and Impeller leave
+/// `DeviceFeature.compute` out of their features and refuse the creators with
+/// `UnsupportedCapability`. Impeller follows when flutter_gpu exposes compute
 /// pipelines (flutter/flutter#188480), and the shape follows its proposal
 /// (#188474) so that becomes a mapping rather than a redesign.
 library;
 
 import 'dart:typed_data';
 
+import 'capabilities.dart';
+import 'encoder_defaults.dart';
 import 'geometry_buffer.dart';
 import 'graphics_device.dart';
 import 'resources.dart';
@@ -39,9 +41,16 @@ final class StorageBuffer {
   final void Function(StorageBuffer)? _release;
 
   /// Gives this back to the device that made it, once: what `dispose` means
-  /// on every handle. A second call does nothing. A handle a backend made
-  /// without naming its device (a test's fake) has nothing to give back.
+  /// on every handle. **A second call is a mistake**: an assertion in a debug
+  /// build, nothing in a release one. A handle a backend made without naming
+  /// its device (a test's fake, a view) has nothing to give back, and is not
+  /// checked.
   void dispose() {
+    assert(
+      !_disposed || _release == null,
+      '$this was disposed twice. A handle has one owner, and only the owner '
+      'disposes it.',
+    );
     if (_disposed) return;
     _disposed = true;
     _release?.call(this);
@@ -57,9 +66,7 @@ final class StorageBuffer {
   /// back to the CPU. Null otherwise. Released with this buffer.
   final GeometryBuffer? asVertices;
 
-  /// What it was made for. [BufferUsage.standardStorage] for every buffer
-  /// `createStorageBuffer` makes; whatever `createBuffer` was asked for
-  /// otherwise.
+  /// What it was made for: whatever `createBuffer` was asked for.
   final BufferUsage usage;
 
   final Object backend;
@@ -93,9 +100,16 @@ final class ComputePipelineHandle {
   final void Function(ComputePipelineHandle)? _release;
 
   /// Gives this back to the device that made it, once: what `dispose` means
-  /// on every handle. A second call does nothing. A handle a backend made
-  /// without naming its device (a test's fake) has nothing to give back.
+  /// on every handle. **A second call is a mistake**: an assertion in a debug
+  /// build, nothing in a release one. A handle a backend made without naming
+  /// its device (a test's fake, a view) has nothing to give back, and is not
+  /// checked.
   void dispose() {
+    assert(
+      !_disposed || _release == null,
+      '$this was disposed twice. A handle has one owner, and only the owner '
+      'disposes it.',
+    );
     if (_disposed) return;
     _disposed = true;
     _release?.call(this);
@@ -167,28 +181,32 @@ abstract base class ComputeEncoder {
     TextureHandle texture, {
     int mipLevel = 0,
     StorageTextureAccess access = StorageTextureAccess.writeOnly,
-  });
+  }) => refuseByDefault(this, DeviceFeature.storageTextures);
 
   /// Fills the uniform block [block] of [stage] from [bytes], laid out the
   /// way the compiled stage lays the block out (std140 for the engine's
   /// bundles). For integer and packed members a float map cannot carry.
   /// False when the stage declares no such block. `DeviceFeature.uniformBytes`.
-  bool bindUniformBytes(ShaderHandle stage, String block, ByteData bytes);
+  bool bindUniformBytes(ShaderHandle stage, String block, ByteData bytes) =>
+      refuseByDefault(this, DeviceFeature.uniformBytes);
 
   /// Runs the bound pipeline over the grid [arguments] holds at
   /// [offsetInBytes] — see `dispatchIndirectArguments` for the twelve bytes.
   /// The buffer must have been made with [BufferUsage.indirect].
   /// `DeviceFeature.indirectDispatch`.
-  void dispatchIndirect(StorageBuffer arguments, {int offsetInBytes = 0});
+  void dispatchIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) =>
+      refuseByDefault(this, DeviceFeature.indirectDispatch);
 
   /// Starts counting into query [queryIndex] of [querySet], a
   /// [QueryType.pipelineStatistics] set —
   /// `DeviceFeature.pipelineStatisticsQuery`. Only
   /// [PipelineStatistic.computeShaderInvocations] counts in a compute pass.
-  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex);
+  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) =>
+      refuseByDefault(this, DeviceFeature.pipelineStatisticsQuery);
 
   /// Stops the query [beginPipelineStatisticsQuery] opened.
-  void endPipelineStatisticsQuery();
+  void endPipelineStatisticsQuery() =>
+      refuseByDefault(this, DeviceFeature.pipelineStatisticsQuery);
 
   /// Binds the uniform block [block] of [stage], by member name, exactly as
   /// `PassEncoder.bindUniformBlock` does. False when the stage declares no

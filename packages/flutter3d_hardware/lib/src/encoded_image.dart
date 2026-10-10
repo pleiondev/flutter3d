@@ -27,9 +27,13 @@ import 'texture.dart';
 /// The WebGL2 and WebGPU backends implement it.
 base mixin EncodedImageUpload on GraphicsDevice {
   /// A sampled `r8g8b8a8UNormInt` texture holding [encoded] — a PNG, JPEG,
-  /// WebP or GIF — decoded by the platform, or null when the platform will
-  /// not decode it. Null is a fallback, not an error: the caller decodes on
-  /// the CPU instead, and a file neither path reads is a texture left out.
+  /// WebP or GIF — decoded by the platform.
+  ///
+  /// **Throws a `DeviceResourceException` when the platform will not decode
+  /// it**, since 1.0, where it answered null: a refusal the caller can name,
+  /// and still a fallback rather than a failure of the load. The caller
+  /// catches it and decodes on the CPU instead, and a file neither path
+  /// reads is a texture left out.
   ///
   /// [maxDimension] caps the longer side; a larger image is scaled down
   /// while it is decoded, keeping its aspect ([cappedImageSize]), so the full
@@ -39,7 +43,7 @@ base mixin EncodedImageUpload on GraphicsDevice {
   /// The pixels are straight (not premultiplied) and not colour-converted:
   /// a normal map's bytes are vectors, and a decoder that "corrected" them
   /// for a display profile would bend every normal.
-  Future<TextureHandle?> decodeTexture(
+  Future<TextureHandle> decodeTexture(
     Uint8List encoded, {
     bool mipmaps = false,
     int? maxDimension,

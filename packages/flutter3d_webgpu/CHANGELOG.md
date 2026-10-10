@@ -1,5 +1,27 @@
 ## 1.0.0-rc.1
 
+- **A WGSL refusal says where.** The `ShaderCompileException` thrown at
+  the next `beginFrame` carries `target` (`webgpu`) and a `ShaderDiagnostic`
+  for each error the browser's compiler gave, with its line, column and the
+  source line, as WebGL's has; it carried the log alone.
+- **A uniform block costs no allocation.** `bindUniformBlock` and
+  `bindUniformBytes` fill the device's `UniformScratch` for the block's
+  size, which `queue.writeBuffer` copies, where each made a fresh list per
+  draw.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` before they reach WebGPU, in a debug
+  build.
+- **Breaking: `WebGpuDevice.decodeTexture` throws where it answered null.**
+  An image the browser will not decode is a `DeviceResourceException`, as
+  `EncodedImageUpload` says since 1.0; the engine's loader catches it and
+  decodes on the CPU.
+- **Breaking: `WebGpuDevice.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`: a storage buffer is
+  `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or
+  `index` where it was asked for.
+- **Breaking: `setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0. It is still refused: WebGPU
+  cannot form two of the four constant factors.
 - **Breaking: `beginFrame` throws what the browser refused.** Every error
   a validation scope caught, each `uncapturederror` and each WGSL
   compilation error is held and thrown once at the next `beginFrame`: a

@@ -16,8 +16,9 @@
 /// here, in the vocabulary every backend already depends on. **Showing a
 /// frame returns a Flutter `Widget`**, which this package must not name, so
 /// only the generic half lives here: a presenter registered for a device
-/// type and looked up by `device is T`, held as [Object] and cast by
-/// `flutter3d_app`, the one place a `Widget` is allowed to be named.
+/// type and looked up by `device is T`, of the type [DeviceRegistry]'s `P`
+/// names — `flutter3d_app`'s `FramePresenter`, the one place a `Widget` is
+/// allowed to be named.
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
@@ -27,12 +28,29 @@ import 'device_exceptions.dart';
 import 'graphics_device.dart';
 
 /// Opens a [GraphicsDevice] at [width] by [height], or throws.
+///
+/// **The one shape of opening, on every backend**, since 1.0: asynchronous,
+/// and given the size of the surface it starts at. A backend that sizes its
+/// targets per frame (Impeller) takes the size and is not held to it; one
+/// that cannot (the software rasteriser, WebGL2's canvas) draws at it.
 typedef BackendOpener =
     Future<GraphicsDevice> Function({required int width, required int height});
 
 /// The backends one engine may open, in the order it tries them, and the
-/// presenters that show their frames.
-final class DeviceRegistry {
+/// presenters of type [P] that show their frames.
+///
+/// **Typed by what a presenter is, since 1.0.** A presenter was held as an
+/// [Object] and every caller cast what [presenterFor] answered; now the
+/// registry is made for one presenter type — `DeviceRegistry<FramePresenter>`
+/// in `flutter3d_app`, whose `platformDevices` makes one — so [addPresenter]
+/// takes only that type and [presenterFor] answers it. A registry used only
+/// to open devices, a test's or a tool's, is a `DeviceRegistry<Object>`.
+///
+/// A backend's own `register…Backend` takes the registry as a
+/// `DeviceRegistry<Object>`, because a backend package cannot name the
+/// application's presenter type; what it adds is checked against the
+/// registry's real `P` when it is added, not when a frame is first shown.
+final class DeviceRegistry<P extends Object> {
   /// An empty registry: no backend until one is added.
   DeviceRegistry();
 
@@ -40,8 +58,8 @@ final class DeviceRegistry {
       <({String name, BackendOpener open})>[];
   final List<({String name, BackendOpener open})> _fallbacks =
       <({String name, BackendOpener open})>[];
-  final List<({bool Function(GraphicsDevice) accepts, Object presenter})>
-  _presenters = <({bool Function(GraphicsDevice) accepts, Object presenter})>[];
+  final List<({bool Function(GraphicsDevice) accepts, P presenter})>
+  _presenters = <({bool Function(GraphicsDevice) accepts, P presenter})>[];
 
   /// The names of the backends [open] would try, in the order it tries them —
   /// for an application's diagnostics screen, or a test checking what it
@@ -119,14 +137,15 @@ final class DeviceRegistry {
   }
 
   /// Adds [presenter] as what shows a frame from a device that `is` a [T] —
-  /// `flutter3d_app`'s `FramePresenter`, held here as an [Object]. The latest
-  /// addition a device matches wins until its registration is cancelled.
+  /// `flutter3d_app`'s `FramePresenter`, for the registry that app makes.
+  /// The latest addition a device matches wins until its registration is
+  /// cancelled.
   ///
   /// **Matched with `is`, not by exact runtime type, since 1.0**, so a
   /// presenter for a backend's device also shows a frame from a subclass of
   /// it, and a wrapper that extends the device it wraps is not left without
   /// one.
-  Registration addPresenter<T extends GraphicsDevice>(Object presenter) {
+  Registration addPresenter<T extends GraphicsDevice>(P presenter) {
     final entry = (
       accepts: (GraphicsDevice device) => device is T,
       presenter: presenter,
@@ -137,7 +156,7 @@ final class DeviceRegistry {
 
   /// What shows a frame from [device] — the latest presenter added for a
   /// type [device] is — or null when nothing was added for it (absent).
-  Object? presenterFor(GraphicsDevice device) {
+  P? presenterFor(GraphicsDevice device) {
     for (final entry in _presenters.reversed) {
       if (entry.accepts(device)) return entry.presenter;
     }

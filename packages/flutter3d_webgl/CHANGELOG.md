@@ -1,5 +1,26 @@
 ## 1.0.0-rc.1
 
+- **A uniform block costs no allocation.** `bindUniformBlock` and
+  `bindUniformBytes` fill the device's `UniformScratch` for the block's
+  size, which `bufferData` copies, where each made a fresh list per draw.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` before they reach GL, in a debug build.
+- **Breaking: `WebGlDevice.open` is asynchronous.** Every backend opens in
+  one shape since 1.0, `await X.open(width:, height:)`; WebGL2 was the one
+  that answered synchronously. The future completes in the same turn, and a
+  browser without WebGL2 completes it with the
+  `DeviceUnavailableException` it threw. Put `await` in front of the call.
+- **Breaking: `WebGlDevice.decodeTexture` throws where it answered null.**
+  An image the browser will not decode is a `DeviceResourceException`, as
+  `EncodedImageUpload` says since 1.0; the engine's loader catches it and
+  decodes on the CPU.
+- **Breaking: `WebGlDevice.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`; it refused every call here, and
+  `createBuffer` refuses a storage usage the same way. `readBufferSync` is
+  still the device's, mixed in from `backend.dart`.
+- **Breaking: `WebGlEncoder.setBlendColor` takes a `LinearColor`**, as
+  `PassEncoder.setBlendColor` does since 1.0; the same four channels reach
+  `blendColor`.
 - **A compile refusal says where.** `compileWebGlShader` fills the
   `ShaderCompileException`'s `stage`, `target` (`webgl`) and
   `diagnostics`, read from the driver's log with the source line of each

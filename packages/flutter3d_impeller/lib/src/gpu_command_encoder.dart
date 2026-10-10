@@ -10,10 +10,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
+import 'package:flutter3d_hardware/backend.dart' show debugCheckLive;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
-import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'gpu_device.dart';
 import 'gpu_formats.dart';
@@ -32,6 +32,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     this._frame, {
     this._depthReadOnly = false,
     this._stencilReadOnly = false,
+    this._label,
   }) {
     if (_depthReadOnly) _pass.setDepthWriteEnable(false);
   }
@@ -46,6 +47,10 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   final bool _stencilReadOnly;
 
   final GpuFrame _frame;
+
+  /// `RenderPassDescriptor.label`: a labelled pass is timed, see
+  /// `GpuFrame.timePass`.
+  final String? _label;
 
   DeviceFeatures get _features => _backend.features;
 
@@ -238,7 +243,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
   // TODO(impeller): no blend-constant setter on flutter_gpu's RenderPass —
   // unblocked by an upstream RenderPass.setBlendConstant.
   @override
-  Never setBlendColor(Vector4 color) => throw UnsupportedCapability(
+  Never setBlendColor(LinearColor color) => throw UnsupportedCapability(
     DeviceFeature.blendConstant,
     backend: impellerBackendName,
     reason:
@@ -248,6 +253,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void bindPipeline(PipelineHandle pipeline) {
+    debugCheckLive(pipeline, 'bindPipeline');
     // Every binding this pass has been handed dies here, and it is not
     // housekeeping — it is the fix for a monster drawn as a splinter.
     //
@@ -330,13 +336,19 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     // `gfx-92n`: a block the compiled stage dropped is refused here, before
     // anything reaches the driver — binding one is a native crash on Metal.
     if (!shader.mayBindBlock(blockName)) return false;
-    final slot = (shader.backend as gpu.Shader).getUniformSlot(blockName);
-    final size = slot.sizeInBytes;
-    if (size == null || size == 0) return false;
+    final layout = _backend.uniformLayout(
+      shader.backend as gpu.Shader,
+      blockName,
+    );
+    if (layout == null) return false;
+    final size = layout.sizeInBytes;
 
-    final data = ByteData(size);
+    // The device's scratch for this size, zeroed: `emplace` copies it, so one
+    // buffer serves every block of the size, and it is already on the grid,
+    // so no rounded copy is made either.
+    final data = _backend.uniformScratchFor(layout);
     members.forEach((name, values) {
-      final offset = slot.getMemberOffsetInBytes(name);
+      final offset = layout.offsetOf(name);
       // Loud, because silence here is indistinguishable from working: the
       // member the caller wrote leaves zeros in its place, and zero is a
       // plausible value for most of them — a shadow strength of zero is a
@@ -369,16 +381,19 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
           'overruns exactly like this.',
         );
       }
-      // Whole arrays written from their reflected base offset. Impeller
-      // reflects the array, not its elements — `lights[0]` comes back null —
-      // but the std140 stride for a vec4 array is a flat 16 bytes, so a
-      // contiguous write lands each element correctly.
-      for (var i = 0; i < values.length; i++) {
-        data.setFloat32(offset + i * 4, values[i], Endian.host);
-      }
+      // Whole arrays written from their reflected base offset, in place and
+      // at once — the skin's sixty-four joint matrices are one copy, not a
+      // thousand `setFloat32`s. Impeller reflects the array, not its
+      // elements — `lights[0]` comes back null — but the std140 stride for a
+      // vec4 array is a flat 16 bytes, so a contiguous write lands each
+      // element correctly.
+      data.setRange(offset ~/ 4, offset ~/ 4 + values.length, values);
     });
 
-    _pass.bindUniform(slot, _emplace(data));
+    _pass.bindUniform(
+      layout.slot as gpu.UniformSlot,
+      _emplace(ByteData.sublistView(data)),
+    );
     return true;
   }
 
@@ -394,6 +409,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     TextureHandle texture, {
     SamplerDescriptor? sampler,
   }) {
+    debugCheckLive(texture, 'bindTexture');
     // Gated first, before the slot is looked at: a sampler flutter_gpu
     // cannot describe is refused whatever it was going to be bound to.
     // `depthAddressMode` needs no gate — it addresses a 3D texture's depth,
@@ -697,8 +713,11 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     // for — see `GpuFrame.encoding`.
     _frame.encoding--;
     _frame.outstanding++;
+    final label = _label;
+    final timed = label == null ? null : _frame.timePass(label);
     _buffer.submit(
       completionCallback: (bool ok) {
+        timed?.call();
         // **`ok` used to be bound and never read**, which meant a command
         // buffer the driver refused produced exactly the same accounting, the
         // same `FrameResult` and the same draw count as one that ran. In a
@@ -724,9 +743,15 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     );
   }
 
-  static gpu.BufferView _view(GeometryBuffer buffer) => gpu.BufferView(
-    buffer.backend as gpu.DeviceBuffer,
-    offsetInBytes: buffer.offsetInBytes,
-    lengthInBytes: buffer.lengthInBytes,
-  );
+  /// [buffer] as flutter_gpu's view of it. Its memory comes back through
+  /// the collector here, so a disposed buffer would still draw; the debug
+  /// check is what says it should not have been bound.
+  static gpu.BufferView _view(GeometryBuffer buffer) {
+    debugCheckLive(buffer, 'a geometry bind');
+    return gpu.BufferView(
+      buffer.backend as gpu.DeviceBuffer,
+      offsetInBytes: buffer.offsetInBytes,
+      lengthInBytes: buffer.lengthInBytes,
+    );
+  }
 }

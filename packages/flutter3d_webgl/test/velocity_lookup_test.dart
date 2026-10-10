@@ -29,7 +29,7 @@ const int _height = 96;
 
 void main() {
   test('a box sliding in the upper half shows in the velocity view', () async {
-    final device = WebGlDevice.open(
+    final device = await WebGlDevice.open(
       width: _width,
       height: _height,
       sources: webGlEngineShaders,

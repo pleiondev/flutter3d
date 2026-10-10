@@ -19,6 +19,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../formats.dart';
@@ -218,7 +220,7 @@ abstract base class TraceEvent {
     ),
     'setBlendColor' => TraceSetBlendColor(
       asInt(j['pass']),
-      vector4FromJson(j['color']),
+      linearColorFromJson(j['color']),
     ),
     'pushDebugGroup' => TracePushDebugGroup(
       asInt(j['pass']),
@@ -801,13 +803,13 @@ final class TraceSetBlend extends TracePassEvent {
 
 final class TraceSetBlendColor extends TracePassEvent {
   const TraceSetBlendColor(super.pass, this.color);
-  final Vector4 color;
+  final LinearColor color;
   @override
   String get kind => 'setBlendColor';
   @override
   Map<String, Object?> toJson(TraceBlobWriter blob) => <String, Object?>{
     'pass': pass,
-    'color': vector4ToJson(color),
+    'color': linearColorToJson(color),
   };
 }
 

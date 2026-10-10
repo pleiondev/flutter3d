@@ -31,7 +31,7 @@ void main() {
   test('fifty programs draw what the software rasteriser draws', () async {
     final WebGlDevice device;
     try {
-      device = WebGlDevice.open(
+      device = await WebGlDevice.open(
         width: 32,
         height: 32,
         sources: webGlEngineShaders,

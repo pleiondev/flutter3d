@@ -1174,7 +1174,7 @@ void webgpuWriteTexture(
 /// `MAP_READ` sit only beside `COPY_DST`, and `MAP_WRITE` only beside
 /// `COPY_SRC`. So a buffer asked to be [BufferUsage.hostReadable] and nothing
 /// but a copy destination is a real mappable buffer, and one that is also
-/// storage (what `createStorageBuffer(hostReadable: true)` always made) is a
+/// storage (a compute pass's output the host reads back) is a
 /// storage buffer with `COPY_SRC`, read back through a staging copy — the
 /// contract's `MappedBuffer` allows "a copy where it cannot". The same for
 /// writing, through `COPY_DST` and `queue.writeBuffer`.

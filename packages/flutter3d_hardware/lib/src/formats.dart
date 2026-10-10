@@ -514,7 +514,7 @@ extension TextureFormatCompression on TextureFormat {
 /// written to warn about and could not prevent.
 ///
 /// **A backend may still not have the constant, and one here does not.** Ask
-/// `GraphicsDevice.supportsBlendColor` before naming any of these four:
+/// `features.has(DeviceFeature.blendConstant)` before naming any of these four:
 /// flutter_gpu exposes no blend-constant setter at all, so the Impeller backend
 /// answers false and *refuses* a [BlendState] naming one rather than drawing
 /// the term as zero. That refusal is the promise the false answer carries, and

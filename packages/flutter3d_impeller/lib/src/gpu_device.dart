@@ -31,6 +31,7 @@ import 'gpu_readback.dart';
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'gpu_transfer_encoder.dart';
+import 'gpu_uniform_layout.dart';
 import 'host_buffer_grid.dart';
 
 export 'gpu_capabilities.dart' show impellerBackendName;
@@ -90,9 +91,19 @@ final class GpuRenderBackend extends GraphicsDevice {
   TextureFormatSupport textureFormatSupport(TextureFormat format) =>
       impellerFormatSupport(format, features);
 
-  /// Never called: [features] has no `gpuTimestamps`.
+  /// Each frame's labelled passes, timed from submission to the queue's
+  /// completion callback — see `GpuFrame.timePass` for what that span is and
+  /// is not. [features] does not list `gpuTimestamps`, because this is not a
+  /// timestamp query and the engine's own profiler should not read it as
+  /// one; a caller that wants the spans anyway asks here, and every labelled
+  /// pass is on the Dart timeline whether anybody asks or not.
   @override
-  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) {}
+  void onGpuTimings(void Function(GpuFrameTimings timings)? listener) =>
+      _timingListener = listener;
+
+  void Function(GpuFrameTimings timings)? _timingListener;
+
+  void _timings(GpuFrameTimings timings) => _timingListener?.call(timings);
 
   /// Refuses every compute member below with the same words.
   // TODO(impeller): flutter_gpu has no compute pipeline, compute pass or
@@ -105,13 +116,6 @@ final class GpuRenderBackend extends GraphicsDevice {
         'flutter_gpu has no compute pipeline yet (flutter/flutter#188480); '
         'splats sort on the CPU here',
   );
-
-  @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => _noCompute();
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
@@ -149,25 +153,41 @@ final class GpuRenderBackend extends GraphicsDevice {
 
   GpuRenderBackend._(this._library, this._transients, this._granule);
 
-  /// Loads [bundleAsset] and builds a backend around the running context.
+  /// Loads [bundleAsset] and builds a backend around the running context, for
+  /// a surface of [width] by [height] to start with.
   ///
   /// Throws when the bundle is missing, which is the right moment to fail: a
   /// renderer without its shaders cannot draw anything, and the alternative is
   /// a black screen with a null somewhere.
   ///
+  /// **The one shape every backend opens in, since 1.0**: asynchronous, and
+  /// given the size, as `WebGlDevice.open`, `WebGpuDevice.open` and a
+  /// registry's `BackendOpener` are. Impeller allocates its targets at
+  /// whatever size each frame is drawn at, so the size is not held here and
+  /// a frame of another size draws as well; it is required all the same, so
+  /// a caller writes the same call for every backend, and it is checked to
+  /// be a size at all.
+  ///
   /// **A static method rather than a factory constructor**, because loading the
   /// bundle became asynchronous in flutter_gpu 3.47 and a factory constructor
-  /// cannot be. The name is kept so every call site reads the same with an
-  /// `await` in front of it.
+  /// cannot be.
   /// [extraBundles] are the application's own compiled bundles, searched before
   /// the engine's — see [GpuShaderLibrary]. Each is loaded the same way and
   /// each has to exist: a bundle named and not found is a stage that will come
   /// back null at the first draw, which on this backend is a pipeline built
   /// from nothing.
   static Future<GpuRenderBackend> open({
+    required int width,
+    required int height,
     String bundleAsset = defaultBundleAsset,
     List<String> extraBundles = const <String>[],
   }) async {
+    if (width < 1 || height < 1) {
+      throw ArgumentError(
+        'GpuRenderBackend.open: ${width}x$height is not a surface; both sides '
+        'are at least one pixel',
+      );
+    }
     final library = await gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
       throw DeviceUnavailableException(
@@ -257,10 +277,37 @@ final class GpuRenderBackend extends GraphicsDevice {
     final cursor = _cursors[_frame < 0 ? 0 : _frame];
     final on = padded(bytes, _granule);
     final filler = cursor.fillerBefore(on.lengthInBytes);
-    if (filler > 0) host.emplace(ByteData(filler));
+    if (filler > 0) host.emplace(ByteData.sublistView(_fillerZeros, 0, filler));
     cursor.took(on.lengthInBytes);
     return host.emplace(on);
   }
+
+  /// What a filler writes: nothing anybody reads, so one block's worth of
+  /// zeros serves every filler, a view of it at a time.
+  late final Uint8List _fillerZeros = Uint8List(blockLengthFor(_granule));
+
+  /// The buffers a uniform block is filled in, one per granule-rounded size:
+  /// `HostBuffer.emplace` copies at the call, and a block already on the grid
+  /// is written as it is, with no rounded copy made of it.
+  final UniformScratch _uniformScratch = UniformScratch();
+
+  /// What each stage's uniform blocks look like, asked of flutter_gpu once
+  /// per block rather than once per member per draw.
+  final Expando<Map<String, GpuUniformLayout?>> _uniformLayouts =
+      Expando<Map<String, GpuUniformLayout?>>('uniform layouts');
+
+  /// The layout of [blockName] in [shader], or null when the compiled stage
+  /// has no such block (or it is empty), cached for the device's life.
+  GpuUniformLayout? _uniformLayout(gpu.Shader shader, String blockName) =>
+      (_uniformLayouts[shader] ??= <String, GpuUniformLayout?>{}).putIfAbsent(
+        blockName,
+        () => GpuUniformLayout.of(shader, blockName, granule: _granule),
+      );
+
+  /// A zeroed buffer [layout] is filled in, already the size it is emplaced
+  /// at.
+  Float32List _uniformScratchFor(GpuUniformLayout layout) =>
+      _uniformScratch.zeroed(layout.emplacedSize);
 
   final GpuShaderLibrary _library;
   final List<gpu.HostBuffer> _transients;
@@ -749,7 +796,7 @@ final class GpuRenderBackend extends GraphicsDevice {
     // pass nobody will ever submit and its callbacks never run.
     _openFrame.abandonUnsubmitted();
     _openFrame.settleIfDone();
-    _openFrame = GpuFrame();
+    _openFrame = GpuFrame(number: ++_frameNumber, report: _timings);
 
     _frame = (_frame + 1) % _kFramesInFlight;
     // **This allocator leaks a block per boundary crossing, so past a budget
@@ -834,6 +881,7 @@ final class GpuRenderBackend extends GraphicsDevice {
       frame,
       depthReadOnly: descriptor.depth?.depthReadOnly ?? false,
       stencilReadOnly: descriptor.depth?.stencilReadOnly ?? false,
+      label: descriptor.label,
     );
   }
 
@@ -846,6 +894,9 @@ final class GpuRenderBackend extends GraphicsDevice {
   /// editor holding a still camera showed, and what three, and eight, and
   /// sixteen buffers each made rarer without making impossible.
   GpuFrame _openFrame = GpuFrame();
+
+  /// Frames begun so far; the number [GpuFrameTimings.frame] carries.
+  int _frameNumber = 0;
 
   /// How many command buffers the driver has refused since this device opened.
   ///
@@ -1406,6 +1457,14 @@ final class GpuRenderBackend extends GraphicsDevice {
 extension GpuRenderBackendInternals on GpuRenderBackend {
   /// See [GpuRenderBackend._emplace].
   gpu.BufferView emplace(ByteData bytes) => _emplace(bytes);
+
+  /// See [GpuRenderBackend._uniformLayout].
+  GpuUniformLayout? uniformLayout(gpu.Shader shader, String blockName) =>
+      _uniformLayout(shader, blockName);
+
+  /// See [GpuRenderBackend._uniformScratchFor].
+  Float32List uniformScratchFor(GpuUniformLayout layout) =>
+      _uniformScratchFor(layout);
 
   /// See [GpuRenderBackend._noteRejectedSubmission].
   void noteRejectedSubmission() => _noteRejectedSubmission();

@@ -346,7 +346,8 @@ abstract base mixin class RenderServices {
   ///  * WebGL compiles GLSL at runtime — put the source in the `ShaderSources`
   ///    handed to `WebGlDevice.open`;
   ///  * Impeller compiles ahead of time, so an application ships its own bundle
-  ///    and names it in `GpuRenderBackend.open(extraBundles: [...])`. Those
+  ///    and names it in `GpuRenderBackend.open(width:, height:,
+  ///    extraBundles: [...])`. Those
   ///    are searched before the engine's, so a stage sharing a name with one of
   ///    the engine's replaces it.
   void drawFullscreen(FullscreenDraw draw);

@@ -57,9 +57,28 @@ it; nothing here changes. `flutter3d_conformance`'s `capabilityChecks` holds
 every backend to its own report in both directions.
 
 The pre-1.0 getters (`supportsCompute`, `supportsWireframe`, `maxAnisotropy`
-and the rest) read the feature set, so they cannot disagree with it. They
-are deprecated in 1.0.0 and go in 2.0.0; each deprecation names the
-`features.has(DeviceFeature.x)` or `limits` question that replaces it.
+and the rest) are gone in 1.0.0. `dart run flutter3d_build:migrate` rewrites
+each into the `features.has(DeviceFeature.x)` or `limits` question that
+replaced it.
+
+**A few capabilities are types rather than features**: `EncodedImageUpload`
+on a device, `RenderBundleEncoder` on an encoder, and
+`SynchronousBufferReadback`, which the main library does not export, since a
+stall belongs in a test and not in a frame: a caller imports it from
+`package:flutter3d_hardware/testing.dart`, and a backend mixes it in from
+`backend.dart`. Each is asked
+with `is`, and where a `DeviceFeature` names the same thing a device lists it
+exactly when it is the type.
+
+## Who owns a handle
+
+Every handle a device makes has one owner, the code that asked for it, and a
+`dispose` that gives it back once. Disposing twice and using a disposed handle
+are mistakes, and a debug build says so: the second `dispose` asserts, and a
+backend calls `debugCheckLive` before it binds, draws from, copies or reads a
+handle. On Impeller, whose `flutter_gpu` objects have no native dispose, the
+memory comes back through the collector once nothing holds the object.
+`FakeBackend.liveHandles` lists what a test made and did not give back.
 
 **Stable means the snapshot.** From 1.0 this package follows strict semver,
 and every backend depends on it through a caret range. `api/flutter3d_hardware.api`
@@ -74,10 +93,16 @@ the surface therefore needs a version decision before it can pass:
   class`es and `PassEncoder` an `abstract base mixin class`: a backend
   `extends` them, and a new member arrives with a body (a feature-gated one
   throws `UnsupportedCapability`) that a backend overrides once it has the
-  feature. A member without a default body would break every backend, so it
+  feature. Every feature-gated member of the three encoders has that body
+  already. A member without a default body would break every backend, so it
   waits for a major;
 - adding a `DeviceFeature`, a field with a default to a descriptor, or a new
   top-level type is a minor version.
+
+`package:flutter3d_hardware/backend.dart`, the handle constructors and the
+`debugCheckLive` check a backend author needs, is held to the same rule: it
+is in the snapshot, a constructor there gains only optional parameters within
+a major, and a backend written against 1.0.0 compiles against every 1.x.
 
 Regenerate with `dart run api_snapshot --update flutter3d_hardware` from the
 repository's `tool/api` once the decision is recorded in `CHANGELOG.md`. Capabilities that

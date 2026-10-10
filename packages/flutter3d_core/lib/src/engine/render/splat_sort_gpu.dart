@@ -128,8 +128,12 @@ final class SplatGpuSort {
 
     final previousKeys = _keys;
     if (previousKeys != null) device.releaseStorageBuffer(previousKeys);
-    final keysA = _keys = device.createStorageBuffer(
-      keys.buffer.asByteData(keys.offsetInBytes, count * 4),
+    final keysA = _keys = device.createBuffer(
+      BufferDescriptor(
+        lengthInBytes: count * 4,
+        usage: BufferUsage.standardStorage,
+      ),
+      contents: keys.buffer.asByteData(keys.offsetInBytes, count * 4),
     );
     final keysB = _keysB!, orderB = _orderB!, counts = _counts!;
     final [countStage, scanStage, scatterStage] = <ShaderHandle>[
@@ -232,10 +236,16 @@ final class SplatGpuSort {
     for (final buffer in <StorageBuffer?>[_keysB, _orderB, _counts]) {
       if (buffer != null) device.releaseStorageBuffer(buffer);
     }
-    _keysB = device.createStorageBuffer(ByteData(capacity * 4));
-    _orderB = device.createStorageBuffer(ByteData(capacity * 4));
+    StorageBuffer scratch() => device.createBuffer(
+      BufferDescriptor(
+        lengthInBytes: capacity * 4,
+        usage: BufferUsage.standardStorage,
+      ),
+    );
+    _keysB = scratch();
+    _orderB = scratch();
     // 256 digits a tile, and `capacity` is whole tiles.
-    _counts = device.createStorageBuffer(ByteData(capacity * 4));
+    _counts = scratch();
     _scratchCapacity = capacity;
   }
 
@@ -265,10 +275,15 @@ final class SplatGpuSort {
       capacity *= 2;
     }
     final made = _Output(
-      device.createStorageBuffer(
-        ByteData(capacity * 6 * 4),
-        hostReadable: readable,
-        bindableAsIndices: true,
+      device.createBuffer(
+        BufferDescriptor(
+          lengthInBytes: capacity * 6 * 4,
+          usage: readable
+              ? BufferUsage.standardStorage |
+                    BufferUsage.index |
+                    BufferUsage.hostReadable
+              : BufferUsage.standardStorage | BufferUsage.index,
+        ),
       ),
       capacity,
     );

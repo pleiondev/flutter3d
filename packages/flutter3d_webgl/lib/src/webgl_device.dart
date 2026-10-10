@@ -21,6 +21,8 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapability;
+import 'package:flutter3d_hardware/backend.dart'
+    show SynchronousBufferReadback, UniformScratch;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -70,13 +72,6 @@ final class WebGlDevice extends GraphicsDevice
         'WebGL2 has no compute stage — the WebGL 2.0 Compute draft was '
         'abandoned; compute on the web goes through the WebGPU backend',
   );
-
-  @override
-  StorageBuffer createStorageBuffer(
-    ByteData bytes, {
-    bool hostReadable = false,
-    bool bindableAsIndices = false,
-  }) => throw _noCompute();
 
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) =>
@@ -209,6 +204,10 @@ final class WebGlDevice extends GraphicsDevice
   /// encoder.
   final Set<int> _instancedAttributeLocations = <int>{};
 
+  /// The buffers a uniform block is filled in before `bufferData` copies
+  /// it, one per block size, for the device's life.
+  final UniformScratch _uniformScratch = UniformScratch();
+
   /// Builds a device over a _canvas of [width] by [height].
   ///
   /// The _canvas is the thing the browser composites; see [blitToCanvas]. It is
@@ -230,12 +229,19 @@ final class WebGlDevice extends GraphicsDevice
   /// here rather than in each game. This is the one way to open the backend
   /// since 1.0 — `openWebGl` was the same call with the sentence added — and
   /// what `registerWebGlBackend` adds to an engine's registry.
-  static WebGlDevice open({
+  ///
+  /// **Asynchronous since 1.0**, because opening a device is, on every
+  /// backend: WebGPU's adapter and device are promises, Impeller loads its
+  /// bundle, and one shape — `await X.open(width:, height:)` — is what an
+  /// application, a registry and a test write for all four. Nothing here
+  /// waits yet; the future completes in the same turn, and a browser without
+  /// WebGL2 is a future that completes with the exception.
+  static Future<WebGlDevice> open({
     required int width,
     required int height,
     ShaderSources? sources,
     bool highpMaterials = false,
-  }) {
+  }) async {
     final canvas = web.document.createElement('canvas') as web.HTMLCanvasElement
       ..width = width
       ..height = height;
@@ -1309,20 +1315,28 @@ final class WebGlDevice extends GraphicsDevice
   /// [maxDimension] is held to this context's own `MAX_TEXTURE_SIZE` as well,
   /// so a caller who asked for no cap still gets an image the context can
   /// allocate.
+  ///
+  /// An image the browser will not decode is refused with a
+  /// `DeviceResourceException`.
   @override
-  Future<TextureHandle?> decodeTexture(
+  Future<TextureHandle> decodeTexture(
     Uint8List encoded, {
     bool mipmaps = false,
     int? maxDimension,
   }) async {
     final limit = limits.maxTextureDimension2D;
-    final bitmap = await decodeImageBitmap(
-      encoded,
-      maxDimension: maxDimension == null || maxDimension > limit
-          ? limit
-          : maxDimension,
-    );
-    if (bitmap == null) return null;
+    final bitmap =
+        await decodeImageBitmap(
+          encoded,
+          maxDimension: maxDimension == null || maxDimension > limit
+              ? limit
+              : maxDimension,
+        ) ??
+        (throw refuseResource(
+          'decodeTexture',
+          'the browser would not decode these ${encoded.length} bytes as an '
+              'image',
+        ));
     return webglCreateTextureFromBitmap(
       _gl,
       _persistentTextures,
@@ -1944,6 +1958,7 @@ extension WebGlDeviceInternals on WebGlDevice {
       _baseVertexBaseInstanceExtension;
   Set<int> get enabledAttributeLocations => _enabledAttributeLocations;
   Set<int> get instancedAttributeLocations => _instancedAttributeLocations;
+  UniformScratch get uniformScratch => _uniformScratch;
 
   /// The GL error the last blit to the canvas left, for a debugger reading
   /// why the canvas stayed empty.

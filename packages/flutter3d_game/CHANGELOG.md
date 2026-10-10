@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `SynchronousBufferReadback` is not re-exported**, since
+  `flutter3d` no longer exports it: the stalling read is a test's or a
+  tool's, from `package:flutter3d_hardware/testing.dart`.
 - **A corpse is let go when its actor stands again.** `ActorVisuals` kept
   an actor its `corpses` had taken over for good, so after a rewind to
   before the death the actor stood frozen and a second death made no

@@ -43,8 +43,8 @@ const bool fixedResolution = false;
 /// the call; there is no registry for the whole process to add to, since
 /// 1.0 (`defaultDevices` was one). A test that wants a fake in front of the
 /// real backends adds it to a registry of its own and hands that over.
-DeviceRegistry platformDevices() {
-  final registry = DeviceRegistry();
+DeviceRegistry<FramePresenter> platformDevices() {
+  final registry = DeviceRegistry<FramePresenter>();
   registerGpuBackend(registry);
   // `P8`: a bundle built from a `.f3dmat` draws here with no Dart of its own.
   registerCpuBackend(registry, materialCompiler: materialLanguageCompiler);
@@ -76,15 +76,20 @@ final Expando<DeviceRegistry> _openedFrom = Expando<DeviceRegistry>(
 /// [openDevice] did not open and handed no registry. Nothing outside this
 /// file can add to it: a backend or presenter of one's own goes into a
 /// registry the caller owns, from [platformDevices], and is passed.
-DeviceRegistry get _platformPresenters => _presenters ??= platformDevices();
-DeviceRegistry? _presenters;
+DeviceRegistry<FramePresenter> get _platformPresenters =>
+    _presenters ??= platformDevices();
+DeviceRegistry<FramePresenter>? _presenters;
 
 /// Opens the backend, or throws with something worth putting on screen.
 ///
-/// [width] and [height] are ignored by Impeller, which sizes itself per frame.
-/// They are still in the signature because the other half of the conditional
-/// needs them — and because the software rasteriser, the one this backend
-/// falls back to, cannot size itself per frame and needs them for real.
+/// **Sugar, and nothing else**: `(registry ?? platformDevices()).open(width:,
+/// height:)`, printing each backend that refused before the next is tried,
+/// with the device remembering its registry. Every backend opens in that one
+/// shape since 1.0 — asynchronous, given the size — so this adds no way of
+/// opening of its own.
+///
+/// [width] and [height] are not held by Impeller, which sizes itself per
+/// frame; the software rasteriser it falls back to draws at them.
 ///
 /// With no [registry], this platform's backends ([platformDevices], made for
 /// the call); hand one over to try a backend of your own first — a test's
@@ -121,17 +126,24 @@ Widget presentFrame(
   FilterQuality quality = FilterQuality.none,
   DeviceRegistry? registry,
 }) {
-  final presenter =
-      (registry ?? _openedFrom[device] ?? _platformPresenters).presenterFor(
-            device,
-          )
-          as FramePresenter?;
-  if (presenter == null) {
-    throw ArgumentError(
+  final from = registry ?? _openedFrom[device] ?? _platformPresenters;
+  return switch (from.presenterFor(device)) {
+    final FramePresenter present => present(
+      device,
+      frame,
+      fit: fit,
+      quality: quality,
+    ),
+    null => throw ArgumentError(
       'presentFrame: no presenter added for ${device.runtimeType} — call '
       'registry.addPresenter<${device.runtimeType}>(...) on the registry the '
       'device came from, before presenting a frame from this backend',
-    );
-  }
-  return presenter(device, frame, fit: fit, quality: quality);
+    ),
+    final Object other => throw ArgumentError(
+      'presentFrame: the presenter added for ${device.runtimeType} is a '
+      '${other.runtimeType}, not a FramePresenter — make the registry a '
+      'DeviceRegistry<FramePresenter> (platformDevices() is one), so a '
+      'presenter of another type is refused where it is added',
+    ),
+  };
 }

@@ -17,7 +17,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show UnsupportedCapability;
+    show LinearColor, UnsupportedCapability;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -58,7 +58,7 @@ Future<void> checkBlendColorReachesTheBlend(GraphicsDevice device) async {
 
   // Two thirds and one third: values a byte carries exactly enough of to tell
   // them apart from each other, from zero and from one.
-  final constant = Vector4(0.6, 0.2, 0.8, 1.0);
+  const constant = LinearColor(0.6, 0.2, 0.8);
 
   // Only the source term survives, and only through the constant.
   const equation = BlendState(
@@ -115,7 +115,7 @@ Future<List<int>> _centerOf(
   required ShaderHandle vertex,
   required ShaderHandle fragment,
   required BlendState equation,
-  required Vector4? constant,
+  required LinearColor? constant,
 }) async {
   final target = device.createTexture(
     const RenderTargetDescriptor(
@@ -178,7 +178,7 @@ Future<List<int>> _centerOf(
 void _refusesTheConstant(
   GraphicsDevice device,
   BlendState equation,
-  Vector4 constant,
+  LinearColor constant,
 ) {
   final pass = device.beginRenderPass(
     RenderPassDescriptor(

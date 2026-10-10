@@ -1,5 +1,42 @@
 ## 1.0.0-rc.1
 
+- **A stage `impellerc` refused says where.** `ShaderBundleBuildException`
+  takes a `cause`, and a failed compile's is a `ShaderCompileException`
+  read from `impellerc`'s output: `target` `impeller`, the stage when every
+  error names one kind, and a `ShaderDiagnostic` per placed error.
+- **GPU timings on Impeller, through the Dart timeline.** flutter_gpu has
+  no timestamp query, so each labelled pass is timed from its submission to
+  the queue's completion callback: a span named `GPU <label>` with its frame
+  on the timeline DevTools and Perfetto read, and a `GpuFrameTimings` per
+  frame to an `onGpuTimings` listener, which used to be ignored. The span
+  includes any wait behind earlier passes, so `gpuTimestamps` stays out of
+  the features.
+- **A uniform block costs no allocation, and its layout is asked once.**
+  The block is filled in place in the device's `UniformScratch`, already
+  rounded to the host buffer's granule so no rounded copy is made either; a
+  joint palette is one copy rather than a `setFloat32` per float. Each
+  stage's slot and member offsets are kept beside it instead of asked of
+  flutter_gpu per member per draw, and a block filler is a view of one
+  zeroed block.
+- **The readback's staging pool is bounded.** At most
+  `GpuReadback.idleCapacity` (eight) idle staging textures are kept, across
+  every size, the one given back longest ago dropped for the collector;
+  before, one stayed for every size ever read back.
+- **A disposed handle is named at the bind**: pipelines, geometry and
+  textures pass `debugCheckLive` in a debug build. Their memory returns
+  through the collector here, so without the check a disposed buffer would
+  still draw.
+- **Breaking: `GpuRenderBackend.open` takes `width` and `height`**, required,
+  as every backend's `open` does since 1.0, so a caller writes one call for
+  all four. Impeller still sizes each target as it is drawn and does not
+  hold the size; a size that is not one (a side below one pixel) is an
+  `ArgumentError`. `registerGpuBackend` passes the registry's size through.
+- **Breaking: `GpuRenderBackend.createStorageBuffer` is gone**, folded into
+  `createBuffer` as in `flutter3d_hardware`. It refused every call here,
+  and `createBuffer` refuses a storage usage the same way.
+- **Breaking: `GpuCommandEncoder.setBlendColor` takes a `LinearColor`**,
+  as `PassEncoder.setBlendColor` does since 1.0. It is still refused, since
+  flutter_gpu has no blend-constant setter.
 - **`GpuRenderBackend.dispose` is reported as a device loss.** The first
   call sets `isLost` and sends one `DeviceLossReason.destroyed` on `lost`,
   then closes it; `lost` used to be empty. A context the platform takes

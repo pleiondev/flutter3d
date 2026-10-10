@@ -33,8 +33,8 @@ import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-WebGlDevice _makeDevice({int width = 8, int height = 8}) {
-  final device = WebGlDevice.open(
+Future<WebGlDevice> _makeDevice({int width = 8, int height = 8}) async {
+  final device = await WebGlDevice.open(
     width: width,
     height: height,
     sources: webGlEngineShaders,
@@ -156,7 +156,7 @@ void main() {
   final source = _twoBlockImage();
 
   Future<void> checkTwoBlocks(TextureFormat format, Uint8List encoded) async {
-    final device = _makeDevice();
+    final device = await _makeDevice();
     if (!device.textureFormatSupport(format).sampled) {
       markTestSkipped('${format.name} not reported as supported here');
       device.dispose();

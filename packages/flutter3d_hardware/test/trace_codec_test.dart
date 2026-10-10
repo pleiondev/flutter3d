@@ -8,6 +8,8 @@
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/trace.dart';
 import 'package:test/test.dart';
@@ -148,7 +150,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     ),
     1,
   ),
-  TraceSetBlendColor(0, Vector4(1.0, 0.5, 0.25, 0.125)),
+  const TraceSetBlendColor(0, LinearColor(1.0, 0.5, 0.25, 0.125)),
   const TracePushDebugGroup(0, 'opaque'),
   const TraceInsertDebugMarker(0, 'floor'),
   const TracePopDebugGroup(0),

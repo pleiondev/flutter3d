@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 024ff0157d0ed074
+# table-stamp: 816c6c8c67540caf
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -24,3 +24,22 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'readback'
+  - title: 'flutter3d 1.0.0-rc.1: 2a-impeller-GpuRenderBackend-create-size'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_impeller/flutter3d_impeller.dart']
+      method: 'create'
+      inClass: 'GpuRenderBackend'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'width'
+        style: required_named
+        argumentValue:
+          expression: '1280'
+      - kind: 'addParameter'
+        index: 0
+        name: 'height'
+        style: required_named
+        argumentValue:
+          expression: '720'
