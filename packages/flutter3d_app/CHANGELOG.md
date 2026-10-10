@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `platformDevices` returns a `DeviceRegistry<FramePresenter>`**,
+  so a presenter added to it is a `FramePresenter` or is refused where it is
+  added. `presentFrame` still takes any registry, and names the type of a
+  presenter that is not a `FramePresenter` rather than failing a cast.
 - **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
   `ext.flutter3d.assets.swap`, its name since it was added.
 

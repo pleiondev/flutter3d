@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebGpuDevice.decodeTexture` throws where it answered null.**
+  An image the browser will not decode is a `DeviceResourceException`, as
+  `EncodedImageUpload` says since 1.0; the engine's loader catches it and
+  decodes on the CPU.
 - **Breaking: `WebGpuDevice.createStorageBuffer` is gone**, folded into
   `createBuffer` as in `flutter3d_hardware`: a storage buffer is
   `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or

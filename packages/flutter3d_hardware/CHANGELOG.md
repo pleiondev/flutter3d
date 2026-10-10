@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **Breaking (for outside backends): `DeviceRegistry` is typed by its
+  presenter.** `DeviceRegistry<P>` holds presenters of type `P`:
+  `addPresenter` takes one and `presenterFor` answers one, where both used
+  `Object` and every caller cast. `flutter3d_app`'s `platformDevices` makes
+  a `DeviceRegistry<FramePresenter>`; a bare `DeviceRegistry()` is a
+  `DeviceRegistry<Object>` and behaves as before. A backend's
+  `register…Backend` still takes `DeviceRegistry`, and what it adds is
+  checked against the registry's own type when it is added.
+- **Breaking (for outside backends): `EncodedImageUpload.decodeTexture`
+  throws where it answered null.** An image the platform will not decode is
+  a `DeviceResourceException`, which a caller catches to decode on the CPU
+  instead; the future completes with a `TextureHandle`, never null.
 - **Breaking (for outside backends): `createStorageBuffer` is folded into
   `createBuffer`.** A storage buffer is `createBuffer(BufferDescriptor(
   lengthInBytes: n, usage: BufferUsage.standardStorage), contents: bytes)`,
@@ -61,10 +73,13 @@
   `readbackConverts` answers false for an sRGB format, so a backend sends
   it to `readbackRegionOf`, which refuses it with its own reason, as it
   already refused a region of one.
-- **`GraphicsDevice.lost` is every backend's.** Its contract now says each
-  backend reports there what its API lets it see, and at least its own
-  `dispose` as `DeviceLossReason.destroyed`, with `isLost` answering for a
-  caller that subscribed late.
+- **Breaking (for outside backends): `GraphicsDevice.lost` is every
+  backend's obligation.** Its contract now says each backend reports there
+  what its API lets it see, and at least its own `dispose` as
+  `DeviceLossReason.destroyed`, with `isLost` answering for a caller that
+  subscribed late. The signatures are unchanged, and the empty default
+  still compiles; a backend of your own that inherits it reads as never
+  lost, and owes the report.
 
 - **Breaking: `Registration` is not re-exported.** It is
   `flutter3d_foundation`'s, imported from there.

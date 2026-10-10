@@ -160,17 +160,16 @@ Future<TextureHandle?> uploadEncodedImage(
 
   if (platformDecode && device is EncodedImageUpload) {
     try {
-      final uploaded = await device.decodeTexture(
+      return await device.decodeTexture(
         encoded,
         mipmaps:
             sampling.useMipmaps &&
             device.features.has(DeviceFeature.manualMipmaps),
         maxDimension: cap,
       );
-      if (uploaded != null) return uploaded;
     } catch (_) {
-      // The browser's refusal is a fallback, like its null: the CPU decoder
-      // below may read what it would not.
+      // The browser's refusal is a fallback: the CPU decoder below may read
+      // what it would not.
     }
   }
 

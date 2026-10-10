@@ -21,8 +21,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapability;
-import 'package:flutter3d_hardware/backend.dart'
-    show SynchronousBufferReadback;
+import 'package:flutter3d_hardware/backend.dart' show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
@@ -1304,20 +1303,28 @@ final class WebGlDevice extends GraphicsDevice
   /// [maxDimension] is held to this context's own `MAX_TEXTURE_SIZE` as well,
   /// so a caller who asked for no cap still gets an image the context can
   /// allocate.
+  ///
+  /// An image the browser will not decode is refused with a
+  /// `DeviceResourceException`.
   @override
-  Future<TextureHandle?> decodeTexture(
+  Future<TextureHandle> decodeTexture(
     Uint8List encoded, {
     bool mipmaps = false,
     int? maxDimension,
   }) async {
     final limit = limits.maxTextureDimension2D;
-    final bitmap = await decodeImageBitmap(
-      encoded,
-      maxDimension: maxDimension == null || maxDimension > limit
-          ? limit
-          : maxDimension,
-    );
-    if (bitmap == null) return null;
+    final bitmap =
+        await decodeImageBitmap(
+          encoded,
+          maxDimension: maxDimension == null || maxDimension > limit
+              ? limit
+              : maxDimension,
+        ) ??
+        (throw refuseResource(
+          'decodeTexture',
+          'the browser would not decode these ${encoded.length} bytes as an '
+              'image',
+        ));
     return webglCreateTextureFromBitmap(
       _gl,
       _persistentTextures,

@@ -1074,26 +1074,33 @@ final class WebGpuDevice extends GraphicsDevice
   /// `webgpu_image_decode.dart`.
   ///
   /// [maxDimension] is held to the device's own `maxTextureDimension2D` as
-  /// well, so no cap still means an image the device can allocate.
+  /// well, so no cap still means an image the device can allocate. An image
+  /// the browser will not decode is refused with a
+  /// `DeviceResourceException`.
   @override
-  Future<TextureHandle?> decodeTexture(
+  Future<TextureHandle> decodeTexture(
     Uint8List encoded, {
     bool mipmaps = false,
     int? maxDimension,
-  }) {
+  }) async {
     final limit = limits.maxTextureDimension2D;
     final cap = maxDimension == null || maxDimension > limit
         ? limit
         : maxDimension;
-    return webgpuCreateTextureFromEncodedImage(
-      _gpuDevice,
-      _textures,
-      _mips,
-      encoded,
-      mipmaps: mipmaps,
-      guard: _guard,
-      maxDimension: cap,
-    );
+    return await webgpuCreateTextureFromEncodedImage(
+          _gpuDevice,
+          _textures,
+          _mips,
+          encoded,
+          mipmaps: mipmaps,
+          guard: _guard,
+          maxDimension: cap,
+        ) ??
+        (throw refuseResource(
+          'decodeTexture',
+          'the browser would not decode these ${encoded.length} bytes as an '
+              'image',
+        ));
   }
 
   @override
