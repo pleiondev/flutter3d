@@ -254,10 +254,41 @@ final class FixtureVisuals {
     );
   }
 
+  /// The last modelled fixture's turn to go into the scene, which the next
+  /// one waits for — see [_addModel].
+  Future<void> _previousModel = Future<void>.value();
+
   /// Puts a modelled fixture in the scene once its file has been read.
+  ///
+  /// **In the order the fixtures were added, not the order their files
+  /// arrive in.** Each model is decoded on an isolate of its own, so a level
+  /// naming two — a coin and a key — had them finish in either order, and
+  /// whichever finished first went into the scene first. The scene's order
+  /// is part of the picture: the renderer's cull tree is built over it, and
+  /// the order draws are claimed in decides which material sorts first and
+  /// which of two equal depths wins. So the same level, replayed on the same
+  /// code, drew one of two frames depending on which isolate came back
+  /// first. The loads still run side by side; only the step into the scene
+  /// waits for the fixture before it, and a model that fails still hands
+  /// its turn on.
   Future<void> _addModel(Fixture fixture, String path) async {
     final generation = _generation;
-    final asset = await _models.putIfAbsent(path, () => _load(path));
+    final loading = _models.putIfAbsent(path, () => _load(path));
+    final previous = _previousModel;
+    final turn = Completer<void>();
+    _previousModel = turn.future;
+    try {
+      final asset = await loading;
+      await previous;
+      _placeModel(fixture, asset, generation);
+    } finally {
+      turn.complete();
+    }
+  }
+
+  /// [asset] instantiated for [fixture], unless it did not load or the level
+  /// [generation] it was asked for is over.
+  void _placeModel(Fixture fixture, ModelAsset? asset, int generation) {
     // The level changed while the file was being read. The same race
     // `ActorVisuals._dress` guards against, met here later: a torch's model
     // arriving after `dispose` instantiated into a scene nobody draws and put
