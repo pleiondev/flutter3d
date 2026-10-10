@@ -286,6 +286,13 @@ step "analyze cloud/server" in_dir cloud/server dart analyze --fatal-infos
 step "migrations cloud/server" in_dir cloud/server dart run tool/embed_migrations.dart --check
 step "test cloud/server" in_dir cloud/server dart test -x db
 
+# **The share server, built here rather than inside the test that starts it.**
+# The platformer's `share_ghost_test.dart` races a ghost through it, and its
+# packages' native build hooks take minutes on a runner that has never run
+# them — minutes that used to sit inside one test's setUpAll. Built before the
+# applications' loop below, so that test only starts it.
+step "build share server" bash tool/build_share_server.sh
+
 # **The lessons service, same reason as the models one above.** `edu-02`'s own
 # public page and iframe embed for a lesson document — `flutter3d_lessons`,
 # serving `lessons.pleion.dev` — sat here with nobody running its `pub get`,
