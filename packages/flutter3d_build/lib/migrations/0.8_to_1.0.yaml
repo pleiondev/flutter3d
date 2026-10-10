@@ -2603,11 +2603,12 @@ entries:
     kind: none
     wave: 3
     reason: >-
-      `LtiLaunchException` is still sealed with the same subtypes and members;
-      it now extends `ResourceException` (and through it `Flutter3dException`)
-      instead of implementing `Exception` directly. Every `on
-      LtiLaunchException`, `on Exception` and `switch` over its subtypes still
-      matches, and nothing outside the package could extend it.
+      `LtiLaunchException` has the same subtypes and members; it now extends
+      `ResourceException` (and through it `Flutter3dException`) instead of
+      implementing `Exception` directly. Every `on LtiLaunchException` and
+      `on Exception` still matches, and nothing outside the package could
+      extend it. It is no longer sealed: `2s-lti-LtiLaunchException-open`
+      says what that asks of a `switch` over its subtypes.
 
   # 1 break(s), seen in flutter3d_lti:
   #   the declaration changed: XapiException implements Exception -> extends ResourceException
@@ -20062,3 +20063,44 @@ entries:
       `switch` over the kinds ends with a wildcard, or reads every kind
       through `accept` and a `TextureNodeVisitor`, whose `visitUnknown`
       answers for a kind it predates.
+
+  # The game's input names no type of a 0.x device package: its pad and
+  # pointer types are its own, with the device packages behind them.
+
+  - id: 2s-game-PadInput-device
+    package: flutter3d_game
+    symbol: PadInput
+    kind: manual
+    members: [pad, heldButtons]
+    wave: 2
+    guidance: >-
+      `pad:` takes a `PadDevice`, the game's own: leave out `pad:
+      Gamepad.instance`, which is the default, write `PadDevice.platform(slot:
+      n)` for `Gamepad(index: n)`, and make a test's fake pad extend
+      `PadDevice` and fill the `PadReading` it is handed. `heldButtons` holds
+      `GamePadButton`s, so compare with `GamePadButton.start` rather than
+      `PadButton.start`: a `contains` with the old type still compiles and is
+      always false.
+
+  - id: 2s-game-PadPresses-menuButton
+    package: flutter3d_game
+    symbol: PadPresses
+    kind: manual
+    members: [offer]
+    wave: 2
+    guidance: >-
+      `menuButton:` takes a `GamePadButton`, the game's own: write
+      `GamePadButton.start` for `PadButton.start`. The ids are the same, so a
+      saved binding is unchanged.
+
+  - id: 2s-game-DesktopInput-capture
+    package: flutter3d_game
+    symbol: DesktopInput
+    kind: manual
+    members: [capture]
+    wave: 2
+    guidance: >-
+      `capture:` takes a `MouseCapture`, the game's own: leave out `capture:
+      PointerLock.instance`, which is the default, and make a test's fake
+      capture extend `MouseCapture`, whose `changes` is a `Stream<bool>`, true
+      when the pointer is taken.
