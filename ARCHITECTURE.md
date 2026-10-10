@@ -3663,7 +3663,7 @@ storage.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **13688 tests** across 57 packages and 17 applications |
-| Structure rules | 74, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 75, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
