@@ -26,12 +26,12 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/geometry.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_mesh/flutter3d_mesh.dart'
     show WeightPair, normalizeWeights;
 import 'package:vector_math/vector_math.dart';
 
 import 'bone_map.dart';
-import 'portable_pow.dart';
 
 /// Simultaneous bone influences a vertex may keep — the plan's own decision
 /// log entry З1, "four influences as a hard limit"
@@ -187,7 +187,7 @@ Map<int, List<WeightPair>> bindWeights({
     ];
     final raw = <double>[
       for (final closest in closestPoints)
-        1.0 / powPositive((closest - vertex).length + epsilon, falloffPower),
+        1.0 / Portable.pow((closest - vertex).length + epsilon, falloffPower),
     ];
 
     var visible = List<bool>.filled(bones.length, true);

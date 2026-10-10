@@ -102,6 +102,20 @@ const EditorComponent _buoyancy = EditorComponent(
   types: <String>{'boat'},
 );
 
+/// Sections equal to [expected], title by title and key by key. A record
+/// that holds a `List` compares it by identity, so the records are taken
+/// apart before `equals` sees them.
+Matcher _sections(List<(String, List<String>)> expected) {
+  List<Object> flat(List<(String, List<String>)> sections) => <Object>[
+    for (final (title, keys) in sections) <Object>[title, keys],
+  ];
+  return isA<List<(String, List<String>)>>().having(
+    flat,
+    'sections',
+    flat(expected),
+  );
+}
+
 void main() {
   group('commands', () {
     test('a plugin command is read back by name and runs as a step', () {
@@ -156,11 +170,12 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
       // Mutation: drop the duplicate check. Two readers for one name, and
-      // whichever was added first answers for both.
+      // whichever was added first answers for both. Another plugin's `lift`
+      // is its own (`cranes.lift`), so the clash is a second plugin under
+      // the id `boats`.
       expect(
-        () => pieces
-            .forPlugin(_Scope('cranes', 1))
-            .addCommand('lift', _Lift.read),
+        () =>
+            pieces.forPlugin(_Scope('boats', 1)).addCommand('lift', _Lift.read),
         throwsA(
           isA<ArgumentError>().having(
             (ArgumentError e) => e.message,
@@ -204,12 +219,12 @@ void main() {
           type: 'boat',
           pieces: pieces,
         ),
-        <(String, List<String>)>[
+        _sections(<(String, List<String>)>[
           ('Entity', <String>['type']),
           ('Transform', <String>['at']),
           ('Buoyancy', <String>['buoyancy']),
           ('Properties', <String>['colour']),
-        ],
+        ]),
       );
     });
 
@@ -225,10 +240,10 @@ void main() {
           type: 'torch',
           pieces: pieces,
         ),
-        <(String, List<String>)>[
+        _sections(<(String, List<String>)>[
           ('Entity', <String>['type']),
           ('Properties', <String>['buoyancy']),
-        ],
+        ]),
       );
       expect(
         pieces.offersFor(Piece.entity, <String>['type'], 'torch'),
@@ -253,12 +268,12 @@ void main() {
           'material',
           'rain',
         ]),
-        <(String, List<String>)>[
+        _sections(<(String, List<String>)>[
           ('Transform', <String>['at']),
           ('Rendering', <String>['material']),
           ('Collision', <String>['solid']),
           ('Other', <String>['rain']),
-        ],
+        ]),
       );
     });
 
@@ -273,8 +288,10 @@ void main() {
         ),
         throwsA(isA<ArgumentError>()),
       );
+      // Mutation: drop the duplicate check, and two sections are
+      // `boats.buoyancy`. A plugin under another id has its own kind.
       expect(
-        () => pieces.forPlugin(_Scope('rafts', 1)).addComponent(_buoyancy),
+        () => pieces.forPlugin(_Scope('boats', 1)).addComponent(_buoyancy),
         throwsA(
           isA<ArgumentError>().having(
             (ArgumentError e) => e.message,
@@ -352,7 +369,8 @@ void main() {
       ).singleWhere((Placeable it) => it.what == 'raft');
       expect(raft.count, 0);
       expect(raft.label, 'Raft');
-      expect(raft.tint.z, closeTo(0.8, 1e-9));
+      // `Vector3` is float32, so 0.8 comes back to float32's precision.
+      expect(raft.tint.z, closeTo(0.8, 1e-7));
 
       // Mutation: drop `it.properties` from `Editing.place`. The raft lands
       // with no buoyancy, and the plugin's defaults reach nothing.

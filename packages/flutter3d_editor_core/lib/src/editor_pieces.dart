@@ -296,6 +296,13 @@ final class EditorPieces extends EditorRegistry {
   /// has, and for a kind another owner already added, naming it.
   Registration addComponent(EditorComponent written) {
     final kind = published(written.kind, what: 'component');
+    if (builtInComponentKind(kind)) {
+      throw ArgumentError.value(
+        kind,
+        'component',
+        'is one of the editor\'s own components',
+      );
+    }
     final component = kind == written.kind
         ? written
         : EditorComponent(

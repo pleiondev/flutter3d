@@ -79,7 +79,13 @@ void main() {
     history.run(const SetLightField(index: 0, field: 'intensity', value: 4.5));
     sync.sync(scene, history.project.lighting);
 
-    expect(scene.lights.single.intensity, 4.5);
+    // A project light is in the pre-1.0 unit and a `LightNode` in lux or
+    // candela, so the sync converts. Mutation: pass the project's number
+    // through as it is, and the light is 5 790 times too dim.
+    expect(
+      scene.lights.single.intensity,
+      closeTo(4.5 * Photometric.legacyUnit, 1e-9),
+    );
   });
 
   test("mat-24's own acceptance: a light away from the origin syncs to its "

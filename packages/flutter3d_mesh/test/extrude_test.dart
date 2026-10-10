@@ -163,6 +163,22 @@ void main() {
       mesh.validate();
     });
 
+    test('one at a time reports the corners of every face it lifted', () {
+      // Mutation: keep only the last region's vertices (what a shared
+      // "last moved" list gives when it is replaced rather than added to),
+      // and this is four: the first face's corners moved and nobody was
+      // told, so an undo or a GPU upload of the moved range misses them.
+      final mesh = EditMesh.cuboid();
+      final two = Selection.of(ElementLevel.face, <int>[0, 2]);
+
+      late OpResult result;
+      edit(mesh, () {
+        result = extrudeFaces(mesh, two, distance: 0.5, individual: true);
+      });
+
+      expect(result.movedVertices, hasLength(8));
+    });
+
     test(
       'a region leans the way its faces do, weighted by how big they are',
       () {

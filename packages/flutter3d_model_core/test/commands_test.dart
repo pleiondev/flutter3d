@@ -1462,10 +1462,12 @@ void main() {
         isNull,
       );
       final surface = history.project.materials.single.surface;
-      // `Vector4` is single-precision, so the tolerance is wider than a
-      // `double` field like `roughness` below needs.
-      expect(surface.baseColor.r, closeTo(0.2, 1e-6));
-      expect(surface.baseColor.a, closeTo(1.0, 1e-6));
+      // The value is sRGB, as `writeFmat` writes it, and the surface holds
+      // linear light, so it reads back through `toSrgb`. Mutation: build the
+      // colour with the plain constructor and the red reads 0.2 linear, which
+      // is 0.48 on the screen.
+      expect(surface.baseColor.toSrgb().r, closeTo(0.2, 1e-9));
+      expect(surface.baseColor.a, closeTo(1.0, 1e-9));
 
       expect(
         history.run(
@@ -1480,8 +1482,8 @@ void main() {
       // Mutation: forget `roughness` in the rebuild and the colour just set
       // would be thrown away by the very next field this command touches.
       expect(
-        history.project.materials.single.surface.baseColor.r,
-        closeTo(0.2, 1e-6),
+        history.project.materials.single.surface.baseColor.toSrgb().r,
+        closeTo(0.2, 1e-9),
       );
 
       expect(

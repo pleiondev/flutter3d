@@ -791,10 +791,16 @@ void main() {
 
       expect(reopened.materials, hasLength(2));
       expect(reopened.images, hasLength(1));
-      expect(
-        reopened.materials.first.surface.baseColor,
-        project.materials.first.surface.baseColor,
-      );
+      // `.f3d` keeps the tint as sRGB float32, so a linear colour comes back
+      // to float32's precision and no closer. Mutation: write the linear
+      // channels where the sRGB ones go, and the tint comes back darker by
+      // far more than that.
+      final written = project.materials.first.surface.baseColor.toSrgb();
+      final read = reopened.materials.first.surface.baseColor.toSrgb();
+      expect(read.r, closeTo(written.r, 1e-7));
+      expect(read.g, closeTo(written.g, 1e-7));
+      expect(read.b, closeTo(written.b, 1e-7));
+      expect(read.a, written.a);
       expect(reopened.materials.first.surface.metallic, 1.0);
       expect(
         reopened.objects.map((ModelObject o) => o.materialSlots),
@@ -877,7 +883,7 @@ void main() {
       expect(after.materials.length, before.materials.length);
       expect(
         after.materials.single.surface.baseColor,
-        Vector4(0.2, 0.3, 0.4, 1),
+        LinearColor.fromSrgb(0.2, 0.3, 0.4, 1),
       );
     });
   });

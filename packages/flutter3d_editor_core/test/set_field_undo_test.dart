@@ -56,17 +56,17 @@ void main() {
   });
 
   test('and a refused value leaves the document as it was', () {
+    // Against the document as opened, not a literal: opening gives each
+    // brush its `id`, and that is not what this test is about. Mutation:
+    // `_remember` before the `try` in `setField`, and the refusal leaves an
+    // undo step that undoes nothing.
     final editing = _open()..select(Piece.brush, 0);
+    final before = jsonEncode(editing.level.toJson()['brushes']);
 
     expect(editing.setField('size', 'wide'), isFalse);
 
-    expect(editing.level.toJson()['brushes'], <Object?>[
-      <String, Object?>{
-        'at': <double>[0.0, 0.0, 0.0],
-        'size': <double>[2.0, 2.0, 2.0],
-        'material': 'stone',
-      },
-    ]);
+    expect(jsonEncode(editing.level.toJson()['brushes']), before);
+    expect(before, contains('"size":[2.0,2.0,2.0]'));
     expect(editing.history.canUndo, isFalse);
   });
 }

@@ -61,14 +61,12 @@ OpResult extrudeFaces(
   final moved = <int>{};
   if (individual) {
     for (final face in faces.ids) {
-      final report = _extrudeRegion(mesh, <int>[face], distance);
+      final report = _extrudeRegion(mesh, <int>[face], distance, moved);
       if (report != null) return OpResult.refused(report, selection: selection);
-      moved.addAll(_lastMoved);
     }
   } else {
-    final report = _extrudeRegion(mesh, faces.ids, distance);
+    final report = _extrudeRegion(mesh, faces.ids, distance, moved);
     if (report != null) return OpResult.refused(report, selection: selection);
-    moved.addAll(_lastMoved);
   }
 
   return OpResult.done(
@@ -151,13 +149,16 @@ OpResult extrudeEdges(
   );
 }
 
-/// The vertices the last region left standing in a new place.
-List<int> _lastMoved = <int>[];
-
-/// Detaches [faces] from everything around them, walls the gap and lifts them.
+/// Detaches [faces] from everything around them, walls the gap and lifts them,
+/// adding the vertices it left standing in a new place to [moved].
 ///
 /// Returns null when it worked, or the sentence to show somebody.
-String? _extrudeRegion(EditMesh mesh, List<int> faces, double distance) {
+String? _extrudeRegion(
+  EditMesh mesh,
+  List<int> faces,
+  double distance,
+  Set<int> moved,
+) {
   final region = faces.toSet();
 
   // The half-edges of the region that have something other than the region on
@@ -253,12 +254,10 @@ String? _extrudeRegion(EditMesh mesh, List<int> faces, double distance) {
 
   final offset = normal..scale(distance);
   final at = Vector3.zero();
-  final moved = <int>[];
   for (final entry in lifted.entries) {
     mesh.moveVertex(entry.value, mesh.positionOf(entry.value, at)..add(offset));
     moved.add(entry.value);
   }
-  _lastMoved = moved;
   return null;
 }
 

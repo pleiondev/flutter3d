@@ -17,9 +17,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:vector_math/vector_math.dart';
-
-import 'portable_math.dart';
 
 /// The result of one [solveTwoBoneIk] call: the corrected *local* rotations
 /// for `root` and `mid` — `tip` never rotates, the same convention its own

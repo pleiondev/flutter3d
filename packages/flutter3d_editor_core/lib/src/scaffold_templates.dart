@@ -41,6 +41,10 @@ dependencies:
   flutter3d_game: ^1.0.0-rc.1
   flutter3d_sim: ^1.0.0-rc.1
 
+  # What the seed's own genre is written against: a plugin with a manifest,
+  # installed into the view's loop.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
   # The widgets over the game: the settings and rebinding screens, touch
   # controls, the HUD, and the words they say in the player's language.
   flutter3d_game_ui: ^1.0.0-rc.1

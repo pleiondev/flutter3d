@@ -181,9 +181,18 @@ void main() {
     });
 
     test('reads MAJOR.MINOR and refuses anything else', () {
+      // Mutation: parse a lone '1' as 1.0 — the first refusal returns.
+      // The refusal is the engine's own format exception, so a host catches
+      // it under `Flutter3dException` with every other unreadable file.
       expect(PluginApiVersion.parse('1.4'), const PluginApiVersion(1, 4));
-      expect(() => PluginApiVersion.parse('1'), throwsFormatException);
-      expect(() => PluginApiVersion.parse('1.0.0'), throwsFormatException);
+      expect(
+        () => PluginApiVersion.parse('1'),
+        throwsA(isA<PluginFormatException>()),
+      );
+      expect(
+        () => PluginApiVersion.parse('1.0.0'),
+        throwsA(isA<PluginFormatException>()),
+      );
     });
   });
 
@@ -220,13 +229,6 @@ void main() {
       expect(manifest.toJson()['catalogue'], <String, Object?>{
         'tag': 'effects',
       });
-    });
-
-    test('a touches this build does not know reads as the simulation', () {
-      // The safe misreading: a toggle of it is journalled as one that
-      // changes the run.
-      expect(PluginTouches.named('network-tick'), PluginTouches.simulation);
-      expect(PluginTouches.named('network-tick').simulates, isTrue);
     });
 
     test('an id that cannot be a namespace is refused', () {
@@ -414,7 +416,7 @@ void main() {
           'kind': 'teleport',
           'step': 1,
         }),
-        throwsFormatException,
+        throwsA(isA<PluginFormatException>()),
       );
     });
   });

@@ -1384,12 +1384,12 @@ void main() {
       // default is.
       expect(material.version, 7);
       expect(surface.name, 'brass');
-      expect(surface.baseColor, Vector4(0.1, 0.2, 0.3, 0.4));
+      expect(surface.baseColor, LinearColor.fromSrgb(0.1, 0.2, 0.3, 0.4));
       expect(surface.metallic, 0.75);
       expect(surface.roughness, 0.125);
       expect(surface.normalScale, 0.625);
       expect(surface.occlusionStrength, 0.375);
-      expect(surface.emissive, Vector3(0.05, 0.15, 0.25));
+      expect(surface.emissive, const LinearColor(0.05, 0.15, 0.25));
       expect(surface.emissiveStrength, 2.5);
       expect(surface.alphaMode, SurfaceAlphaMode.mask);
       expect(surface.alphaCutoff, 0.875);

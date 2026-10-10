@@ -200,12 +200,11 @@ Map<String, String> _write(_Circuit circuit) {
   };
   // The lap length is a sum over points that came out of libm, so it is
   // rounded to a centimetre before anything is written from it.
+  // No `format`/`requires`/`generator` envelope yet: it is additive at
+  // version 1 (`TrackDocument.format` reads a track without one), and the
+  // shipped tracks and game_racing's v1 fixture are written without it.
   final document = <String, Object?>{
-    // The envelope `TrackDocument.format` reads (`f3d.track`).
-    'format': 'f3d.track',
     'version': 1,
-    'requires': const <String>[],
-    'generator': _tool,
     'name': circuit.name,
     'generatedBy': _tool,
     'track': <String, Object?>{

@@ -29,6 +29,7 @@ import 'lighting_sync.dart';
 import 'panorama_sync.dart';
 import 'project.dart';
 import 'scene_from_project.dart';
+import 'selection_tint.dart';
 
 /// The six axis views plus a three-quarter angle.
 ///
@@ -446,16 +447,10 @@ RenderMaterial _restyle(
   // returns before touching it otherwise), so a highlight with no texture of
   // its own would be set and never drawn. A colour every lighting model
   // already samples has no such gate.
-  final highlight = Vector4(1.0, 0.55, 0.0, shaded.baseColor.a);
   return RenderMaterial(
     name: shaded.name,
     lighting: shaded.lighting,
-    baseColor: LinearColor.fromSrgb(
-      shaded.baseColor.r * 0.4 + highlight.r * 0.6,
-      shaded.baseColor.g * 0.4 + highlight.g * 0.6,
-      shaded.baseColor.b * 0.4 + highlight.b * 0.6,
-      shaded.baseColor.a,
-    ),
+    baseColor: selectionTint(shaded.baseColor),
     metallic: shaded.metallic,
     roughness: shaded.roughness,
     doubleSided: shaded.doubleSided,
