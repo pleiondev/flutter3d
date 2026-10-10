@@ -188,9 +188,13 @@ void main() {
       published = true;
       c.publish(_Jumped(Vector3(4.0, 0.0, 0.0)));
     });
-    loop.frame(1.0 / 60.0);
-    expect(backend.live, isEmpty);
-    loop.frame(1.0 / 60.0);
+    // The first frame that runs the step publishes, and the frame channel
+    // delivers in that same frame; whichever frame that is, the voice must
+    // already be on the bus when it is first live, never at full gain first.
+    for (var i = 0; i < 3 && backend.live.isEmpty; i++) {
+      loop.frame(1.0 / 60.0);
+    }
+    expect(backend.live, hasLength(1));
     expect(scene.emitters.single.bus, ui);
     expect(backend.live.single.gain, closeTo(0.5, 1e-12));
   });

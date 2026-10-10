@@ -42,7 +42,8 @@ void main() {
     game.update(10.0);
     // Linear, as the atmosphere's sky is: no encoding on the way.
     expect(game.clearColor.b, closeTo(0.1, 1e-6));
-    expect(sun.intensity, closeTo(0.1, 1e-6));
+    // The sun is lit in lux, as the atmosphere gave it.
+    expect(sun.intensity, closeTo(0.1 * Photometric.legacyUnit, 1e-6));
     expect(day.fog.density, closeTo(0.02, 1e-6));
     // The frame is drawn through the day's fog without the game reading it
     // across by hand.

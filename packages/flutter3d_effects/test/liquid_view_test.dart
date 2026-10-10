@@ -312,12 +312,17 @@ void main() {
       mistShare(10.0, g: moon) / mistShare(10.0),
       closeTo(math.pow(moon / standardGravity, -1.1), 1e-9),
     );
-    // Honey's viscosity, from its preset: ten thousand times water's, Ar
-    // 10⁸ times smaller, the share 10^(−4.4) of water's.
+    // Honey's viscosity, from its preset: near ten thousand times water's
+    // (the catalog's 10 Pa·s over 1.002 mPa·s), Ar goes as μ⁻², the share
+    // as μ^−1.1 of water's.
+    final thicker =
+        NativeLiquidProperties.honey.viscosity /
+        NativeLiquidProperties.water.viscosity;
+    expect(thicker, closeTo(1e4, 100.0));
     expect(
       mistShare(10.0, viscosity: NativeLiquidProperties.honey.viscosity) /
           mistShare(10.0),
-      closeTo(math.pow(1e4, -1.1), 1e-12),
+      closeTo(math.pow(thicker, -1.1), 1e-12),
     );
   });
 }

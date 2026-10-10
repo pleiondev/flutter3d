@@ -145,8 +145,10 @@ void main() {
         ..press(_down1)
         ..press(GameAction.sprint),
     );
-    // Mutation: drop the fast factor, and sprint is the same camera.
-    expect(fast, greaterThan(slow * 2.0));
+    // Mutation: drop the fast factor, and sprint is the same camera. Or
+    // scale the intent by it, which `PhotoCamera.fly` cuts back to a length
+    // of one, and sprint is the same camera again.
+    expect(fast, closeTo(slow * PhotoControls.fastFactor, 1e-4));
   });
 
   test('a look in pixels turns the camera by the sensitivity', () {
@@ -168,7 +170,10 @@ void main() {
       ..turn(80.0, 0.0, perPixel: 0.01);
     // Mutation: drop the `busy` check in `turn`, and the picture being drawn
     // in tiles is drawn from two places.
-    expect(mode.gaze!.dot(before), closeTo(1.0, 1e-9));
+    // Exactly the gaze it had: the dot of a float32 unit vector with itself
+    // is a few parts in a billion short of one, so a tolerance would hide
+    // nothing a mutation does and fail on rounding.
+    expect(mode.gaze, before);
     mode
       ..isBusy = false
       ..turn(80.0, 0.0, perPixel: 0.01);
@@ -241,7 +246,9 @@ void main() {
       ),
     );
     expect(
-      find.text('Photo mode · filter: ${PhotoFilter.none.name}'),
+      find.text(
+        'Photo mode · filter: ${PhotoFilter.none.name} · game exposure',
+      ),
       findsOneWidget,
     );
     // Mutation: the walking line written into the bar — the racing game

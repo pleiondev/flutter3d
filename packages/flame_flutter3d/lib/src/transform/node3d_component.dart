@@ -1,6 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'bridged3d.dart';
 import 'object3d_component.dart' show shownInFlame;
@@ -218,7 +219,11 @@ class Rotate3dEffect extends ComponentEffect<Node3dComponent> {
   @override
   void apply(double progress) {
     final dProgress = progress - previousProgress;
-    _step.setAxisAngle(axis, angle * dProgress);
+    // `setAxisAngle` would ask `dart:math` for the half angle's sine and
+    // cosine, and the turn it adds up is the component's own, which a game
+    // may step on; `axis` is already unit.
+    final (:sin, :cos) = Portable.sinCos(angle * dProgress * 0.5);
+    _step.setValues(axis.x * sin, axis.y * sin, axis.z * sin, cos);
     target.rotation3.setFrom(target.rotation3 * _step);
   }
 }

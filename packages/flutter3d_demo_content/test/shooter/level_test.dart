@@ -70,8 +70,12 @@ void main() {
       final entity =
           (round['entities']! as List<Object?>).first! as Map<String, Object?>;
 
-      expect(entity['flavour'], 'unheard of');
-      expect(entity['count'], 3);
+      // Kept, and written back under `props`: in a row of the older shape
+      // every key that is not reserved is a property, and this build writes
+      // properties there.
+      final props = entity['props']! as Map<String, Object?>;
+      expect(props['flavour'], 'unheard of');
+      expect(props['count'], 3);
     });
 
     test('defaults are not written out', () {

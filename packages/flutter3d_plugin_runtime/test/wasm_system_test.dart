@@ -183,7 +183,7 @@ void main() {
     expect(again.limits.fuelPerStep, const WasmLimits().fuelPerStep);
     expect(
       () => WasmSystemSpec.fromJson(const <String, Object?>{'module': 'a'}),
-      throwsFormatException,
+      throwsA(isA<WasmFormatException>()),
     );
   });
 

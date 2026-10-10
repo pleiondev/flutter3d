@@ -145,7 +145,7 @@ void main() {
           isA<DataPluginFormatException>().having(
             (e) => e.message,
             'message',
-            contains('newer engine'),
+            contains('newer than this build'),
           ),
         ),
       );
@@ -605,7 +605,7 @@ void main() {
         'type': 'vent',
         'collider': 'wobbly',
       }, owner: 'gusts'),
-      throwsFormatException,
+      throwsA(isA<DataPluginFormatException>()),
     );
   });
 }

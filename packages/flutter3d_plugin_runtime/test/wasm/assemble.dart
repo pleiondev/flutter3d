@@ -149,6 +149,14 @@ final class ModuleBuilder {
   void export(String name, int function) =>
       _exports.add(<int>[..._name(name), 0, ...u32(function)]);
 
+  /// Exports the memory as [name], as a module run in the browser must for
+  /// its state to be saved.
+  void exportMemory(String name) => _exports.add(<int>[..._name(name), 2, 0]);
+
+  /// Exports global [index] as [name].
+  void exportGlobal(String name, int index) =>
+      _exports.add(<int>[..._name(name), 3, ...u32(index)]);
+
   /// A mutable i32 global starting at [init]; returns its index.
   int global(int init, {bool mutable = true}) {
     _globals.add(<int>[0x7F, if (mutable) 1 else 0, ...konst(init), end]);

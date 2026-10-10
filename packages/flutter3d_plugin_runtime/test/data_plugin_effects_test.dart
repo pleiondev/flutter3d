@@ -141,7 +141,7 @@ void main() {
           isA<DataPluginFormatException>().having(
             (e) => e.message,
             'message',
-            allOf(contains('bad.f3dfx'), contains('newer engine')),
+            allOf(contains('bad.f3dfx'), contains('newer than this build')),
           ),
         ),
       );

@@ -42,7 +42,7 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart'
     show ShooterPlugin;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart'
     show StrategyPlugin;
-import 'package:flutter3d_mcp/kit.dart' show McpTools;
+import 'package:flutter3d_mcp/kit.dart' show McpTools, ProjectRoot;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_sim_mcp/src/sim_server.dart';
@@ -110,8 +110,11 @@ void main() {
     server.listen((socket) {
       SimMcpServer(
         stdioChannel(input: socket, output: socket),
-        // The host decides what is played; this suite plays the crypt.
-        session: SimSession(game: genre.game),
+        // The host decides what is played; this suite plays the crypt. Its
+        // root is the repository, which holds the crypt (in an app beside
+        // this package) and the runs the suite writes (in this package's
+        // `.dart_tool`).
+        session: SimSession(game: genre.game, root: ProjectRoot('../..')),
         projectTools: tools,
       );
     });

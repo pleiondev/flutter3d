@@ -142,16 +142,24 @@ void main() {
 
   group('at instantiation', () {
     test('a module written for another ABI is refused with both numbers', () {
-      // Mutation: skip the f3d_abi call in `_begin`.
-      final module = WasmModule.decode((ModuleBuilder()..abi(abi: 2)).build());
-      expect(
-        () => WasmRuntime.interpreter.instantiate(
-          module,
-          const _Quiet(),
-          const WasmLimits(),
-        ),
-        _refused('ABI 2 and this engine provides ABI 1'),
-      );
+      // Mutation: skip the f3d_abi call in `_begin`, or drop either end of
+      // the range check. The host runs ABI 1 to 2, so 0 and 3 are both out.
+      for (final abi in const <int>[0, wasmPluginAbiMax + 1]) {
+        final module = WasmModule.decode(
+          (ModuleBuilder()..abi(abi: abi)).build(),
+        );
+        expect(
+          () => WasmRuntime.interpreter.instantiate(
+            module,
+            const _Quiet(),
+            const WasmLimits(),
+          ),
+          _refused(
+            'ABI $abi and this engine runs ABI $wasmPluginAbiMin to '
+            '$wasmPluginAbiMax',
+          ),
+        );
+      }
     });
 
     test('a memory starting above the limit is refused', () {

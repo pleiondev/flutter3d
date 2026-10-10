@@ -66,9 +66,11 @@ void main() {
     final mixer = _mixer();
     await tester.pumpWidget(_panel());
 
+    // Each under its heading as a player reads it: `sfx` is "effects".
+    const words = Flutter3dGameLocalizations.english;
     for (final bus in mixer.configured) {
       expect(
-        find.text(bus.name),
+        find.text(words.volume(bus.name)),
         findsOneWidget,
         reason:
             'the mixer carries ${bus.name} and the panel does not offer '
@@ -93,7 +95,7 @@ void main() {
     );
 
     expect(find.text('master'), findsOneWidget);
-    expect(find.text('sfx'), findsOneWidget);
+    expect(find.text('effects'), findsOneWidget);
     expect(find.text('music'), findsNothing);
   });
 

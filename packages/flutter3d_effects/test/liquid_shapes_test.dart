@@ -100,7 +100,8 @@ void main() {
       ..step(1e-4, gravity: Vector3(0, -9.81, 0))
       ..surface.calm();
     final meshes = liquidMeshes(body);
-    expect(meshes.map((m) => m.layer.medium.name), ['water', 'oil']);
+    // The medium is the catalog's, by the catalog's name.
+    expect(meshes.map((m) => m.layer.medium.name), ['water', 'olive oil']);
     expect(_enclosed(meshes[0].mesh), closeTo(8e-6, 8e-6 * 0.02));
     expect(_enclosed(meshes[1].mesh), closeTo(4e-6, 4e-6 * 0.02));
   });

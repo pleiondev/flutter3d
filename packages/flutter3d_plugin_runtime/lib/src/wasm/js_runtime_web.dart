@@ -170,26 +170,47 @@ final class _BrowserInstance extends WasmInstance {
     };
   }
 
+  /// Puts back what [save] wrote.
+  ///
+  /// **Everything is checked before anything is replaced**, as the
+  /// interpreter does: pages out of the module's range, memory that is not
+  /// base64 or does not fit its pages, globals that are not this module's
+  /// exported ones are refused with a [WasmFormatException], and the module
+  /// is left as it was. A memory never shrinks here — the browser cannot —
+  /// so fewer pages than it has leaves the rest zeroed.
   @override
   void restore(Map<String, Object?> state) {
+    const refused = WasmFormatException('not the state of this Wasm module');
     final pages = state['pages'];
     final saved = state['memory'];
     final globals = state['globals'];
-    if (pages is! int || saved is! String || globals is! List<Object?>) {
-      throw const WasmFormatException('not the state of this Wasm module');
-    }
+    final names = _globals;
     final memory = _memory;
+    final most = memory == null ? 0 : _module.memoryMax ?? 0;
+    if (pages is! int ||
+        pages < 0 ||
+        pages > most ||
+        saved is! String ||
+        globals is! List<Object?> ||
+        globals.length != names.length ||
+        globals.any((Object? g) => g is! int)) {
+      throw refused;
+    }
+    final Uint8List restored;
+    try {
+      restored = base64Decode(saved);
+    } on FormatException {
+      throw refused;
+    }
+    if (restored.length > pages * 65536) throw refused;
     if (memory != null) {
       final now = memory.buffer.toDart.lengthInBytes ~/ 65536;
       if (pages > now) memory.grow(pages - now);
-      final bytes = memory.buffer.toDart.asUint8List();
-      final restored = base64Decode(saved);
-      bytes
-        ..fillRange(0, bytes.length, 0)
+      memory.buffer.toDart.asUint8List()
+        ..fillRange(0, memory.buffer.toDart.lengthInBytes, 0)
         ..setRange(0, restored.length, restored);
     }
-    final names = _globals;
-    for (var i = 0; i < names.length && i < globals.length; i++) {
+    for (var i = 0; i < names.length; i++) {
       (_exports[names[i]]! as JSObject)['value'] = (globals[i]! as int).toJS;
     }
   }

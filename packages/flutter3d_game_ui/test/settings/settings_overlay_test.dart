@@ -151,6 +151,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(it.settings.settings.volumeOf(AudioBus.master), 0.0);
 
+    // The panel scrolls, and its foot is below an 800×600 test screen.
+    await tester.ensureVisible(find.text('Back to the game'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Back to the game'));
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.settings), findsOneWidget);

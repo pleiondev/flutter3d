@@ -14,6 +14,7 @@ import 'dart:io';
 
 import 'package:flutter3d_app/flutter3d_app.dart' show WidgetSurfaceKind;
 import 'package:flutter3d_demo_content/shooter_staging.dart';
+import 'package:flutter3d_mcp/kit.dart' show ProjectRoot;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show NativePhysics, usePhysics;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -21,11 +22,20 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String _crypt =
-    '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json';
+/// The crypt, by its absolute path: a relative one is read from the
+/// session's root, not from this package.
+final String _crypt = File(
+  '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+).resolveSymbolicLinksSync();
+
+/// The repository: a session reads and writes only inside its root, and the
+/// crypt is in an app beside this package, while the runs a test writes go
+/// under this package's `.dart_tool`.
+final ProjectRoot _root = ProjectRoot('../..');
 
 SimSession _session() => SimSession(
   game: const ShooterHeadlessGame(extra: <EntityKind>[WidgetSurfaceKind()]),
+  root: _root,
 );
 
 Map<String, Object?> _reading(SimSession session) =>
@@ -47,7 +57,9 @@ void main() {
   late Directory workspace;
 
   setUp(() {
-    workspace = Directory.systemTemp.createTempSync('flutter3d_claims');
+    workspace = (Directory(
+      '.dart_tool',
+    )..createSync()).absolute.createTempSync('flutter3d_claims');
   });
 
   tearDown(() => workspace.deleteSync(recursive: true));
@@ -262,6 +274,7 @@ void main() {
           extra: <EntityKind>[WidgetSurfaceKind()],
         ),
         entities: entities,
+        root: _root,
       ).bisect(walked, fired);
       expect(found.did, isTrue, reason: found.says);
       expect(found.says, contains('part at step 21'));
@@ -280,7 +293,9 @@ void main() {
         contains('The first component that differs is 0.facing'),
       );
       final raw = _session().bisect(walked, fired).says;
-      expect(raw, contains('first at `entities.components.facing.0.yaw`'));
+      // The raw path is the one in the loop's capture, which holds the save
+      // as a part (`run.data.`), so it is matched from the save's own keys.
+      expect(raw, contains('entities.components.facing.0.yaw`'));
       expect(raw, isNot(contains('component that differs')));
 
       // Turning aside parts the runs in the player, which is not one of the

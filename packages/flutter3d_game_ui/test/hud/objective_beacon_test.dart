@@ -31,7 +31,8 @@ void main() {
     lightBeacon(<MeshNode>[frame]);
     // Mutation: raise every part — the frame becomes a rectangle of light,
     // or a division by nought.
-    expect(frame.material.emissive, Vector3.zero());
+    final glow = frame.material.emissive;
+    expect(<double>[glow.r, glow.g, glow.b], <double>[0.0, 0.0, 0.0]);
   });
 
   test('running it twice leaves the same brightness', () {

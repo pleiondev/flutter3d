@@ -249,7 +249,9 @@ final class VoxelWorld {
   /// every edit, in the order of their place in the world so two saves of
   /// one world are one document.
   ///
-  /// Plain numbers, lists and maps, so it goes into a `Snapshot` as it is.
+  /// Plain numbers, lists and maps, so it goes into a `Snapshot` under a key
+  /// of its own; not spread into the snapshot's data, whose envelope keys
+  /// this document's own envelope would collide with.
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(),
     'chunks': <int>[chunksX, chunksY, chunksZ],

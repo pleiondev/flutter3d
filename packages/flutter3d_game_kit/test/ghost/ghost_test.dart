@@ -11,6 +11,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart' show SharedMeshes, Storage;
@@ -124,10 +125,10 @@ void main() {
         ..showAt(0.5, _straight());
       final forward = ghost.node.worldMatrix.transformed3(Vector3(0, 0, 1))
         ..sub(_at(ghost));
-      final expected = Quaternion.axisAngle(
-        Vector3(0.0, 1.0, 0.0),
-        1.0,
-      ).rotated(Vector3(0, 0, 1));
+      // A turn of one radian about +Y carries +Z to (sin 1, 0, cos 1). Not
+      // `Quaternion.rotated`: vector_math's applies the inverse rotation
+      // (conjugate · v · q), and would expect the ghost to turn the other way.
+      final expected = Vector3(math.sin(1.0), 0.0, math.cos(1.0));
       expect(forward.x, closeTo(expected.x, 1e-6));
       expect(forward.z, closeTo(expected.z, 1e-6));
     });

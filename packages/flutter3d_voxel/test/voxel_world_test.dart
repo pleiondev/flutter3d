@@ -138,9 +138,16 @@ void main() {
 
     test('a save read back through JSON and a snapshot is the same world', () {
       final world = edited();
-      final text = jsonEncode(Snapshot(world.toJson()).toJson());
+      // The world is a document with its own envelope, so a save keeps it
+      // under a key rather than spread over the save's own envelope.
+      final text = jsonEncode(
+        Snapshot(<String, Object?>{'voxels': world.toJson()}).toJson(),
+      );
       final back = VoxelWorld.fromJson(
-        Snapshot.fromJson(jsonDecode(text) as Map<String, Object?>).data,
+        Snapshot.fromJson(
+              jsonDecode(text) as Map<String, Object?>,
+            ).data['voxels']!
+            as Map<String, Object?>,
       );
       // Mutation: reading the edits back in another order of x, y and z.
       expect(back.digest, world.digest);

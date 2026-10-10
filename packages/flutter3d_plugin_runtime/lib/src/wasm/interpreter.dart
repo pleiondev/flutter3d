@@ -386,24 +386,38 @@ final class _Instance extends WasmInstance {
     };
   }
 
+  /// Puts back what [save] wrote.
+  ///
+  /// **Everything is checked before anything is replaced**: a state that is
+  /// not this module's — pages out of range, memory that is not base64 or
+  /// does not fit its pages, a global that is not a number — is refused
+  /// with a [WasmFormatException] and the module is left as it was, rather
+  /// than wiped and then thrown out of with somebody else's error.
   @override
   void restore(Map<String, Object?> state) {
+    const refused = WasmFormatException('not the state of this Wasm module');
     final pages = state['pages'];
     final memory = state['memory'];
     final globals = state['globals'];
     if (pages is! int ||
+        pages < 0 ||
         pages > _maxPages ||
         memory is! String ||
         globals is! List<Object?> ||
-        globals.length != _globals.length) {
-      throw const WasmFormatException('not the state of this Wasm module');
+        globals.length != _globals.length ||
+        globals.any((Object? g) => g is! int)) {
+      throw refused;
     }
-    final bytes = base64Decode(memory);
+    final Uint8List bytes;
+    try {
+      bytes = base64Decode(memory);
+    } on FormatException {
+      throw refused;
+    }
+    if (bytes.length > pages * _pageBytes) throw refused;
     _memory = Uint8List(0);
     _setMemory(pages);
     _memory.setRange(0, bytes.length, bytes);
-    for (var i = 0; i < globals.length; i++) {
-      _globals[i] = globals[i]! as int;
-    }
+    _globals.setAll(0, globals.cast<int>());
   }
 }

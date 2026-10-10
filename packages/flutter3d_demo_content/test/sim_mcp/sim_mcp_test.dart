@@ -20,6 +20,12 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter3d_sim_mcp/flutter3d_sim_mcp.dart';
 import 'package:test/test.dart';
 
+/// The crypt, by its absolute path: a relative one is read from the
+/// server's root, the repository, not from this package.
+final String _crypt = File(
+  '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+).resolveSymbolicLinksSync();
+
 Future<({Process process, int port})> _startServer() async {
   final process = await Process.start('flutter', <String>[
     'test',
@@ -77,7 +83,11 @@ void main() {
     expect(ready.capabilities.tools, isNotNull);
     connection.notifyInitialized();
 
-    workspace = Directory.systemTemp.createTempSync('flutter3d_sim_mcp');
+    // Inside the server's root, the repository, as every path it is handed
+    // must be.
+    workspace = (Directory(
+      '.dart_tool',
+    )..createSync()).absolute.createTempSync('flutter3d_sim_mcp');
   });
 
   tearDown(() async {
@@ -109,7 +119,19 @@ void main() {
   test('the nine tools an agent is offered are the ones it can call', () async {
     final offered = await connection.listTools(ListToolsRequest());
     final names = offered.tools.map((t) => t.name).toSet();
+    // Each published as `area.verb`, its written name kept as an alias until
+    // 2.0, and the schema every server answers.
     expect(names, <String>{
+      'level.open',
+      'run.step',
+      'state.snapshot',
+      'run.digest',
+      'run.write',
+      'view.frame',
+      'run.expect',
+      'run.verify',
+      'run.bisect',
+      'flutter3d.schema',
       'open',
       'step',
       'snapshot',
@@ -130,9 +152,7 @@ void main() {
 
   test('an agent walks the crypt from words alone, and the run it hands over '
       'opens like any other', () async {
-    final opened = await call('open', <String, Object?>{
-      'path': '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
-    });
+    final opened = await call('open', <String, Object?>{'path': _crypt});
     expect(opened.did, isTrue, reason: opened.says);
     expect(opened.says, contains('player at'));
 
@@ -194,11 +214,9 @@ void main() {
   test(
     'an agent bisects two runs to the step and the field they part on',
     () async {
-      const crypt =
-          '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json';
       Future<String> run(String name, List<Map<String, Object?>> legs) async {
         expect(
-          (await call('open', <String, Object?>{'path': crypt})).did,
+          (await call('open', <String, Object?>{'path': _crypt})).did,
           isTrue,
         );
         for (final leg in legs) {
@@ -236,11 +254,9 @@ void main() {
       // P12's last line, over the wire from a cold session: two runs of the
       // crypt, one of which pulls the trigger on the monster ahead, bisected
       // to the step and the entity component where they first differ.
-      const crypt =
-          '../../apps/flutter3d_demo_dungeon/assets/levels/crypt.json';
       Future<String> run(String name, {required bool fire}) async {
         expect(
-          (await call('open', <String, Object?>{'path': crypt})).did,
+          (await call('open', <String, Object?>{'path': _crypt})).did,
           isTrue,
         );
         expect(

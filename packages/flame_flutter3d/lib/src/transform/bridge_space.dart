@@ -55,6 +55,11 @@ final class CurvilinearSpace implements BridgeSpace {
     // on top of it, clockwise on screen as on a ground plane.
     final heading = Portable.atan2(-_ahead.x, -_ahead.z);
     final phi = heading - angle;
-    out.setAxisAngle(path.up, phi);
+    // `setAxisAngle` would take the half angle's sine and cosine from
+    // `dart:math`; the heading above is already `Portable`'s.
+    final up = path.up;
+    final (:sin, :cos) = Portable.sinCos(phi * 0.5);
+    final s = sin / up.length;
+    out.setValues(up.x * s, up.y * s, up.z * s, cos);
   }
 }

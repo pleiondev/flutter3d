@@ -147,11 +147,9 @@ final class BridgePlane with BridgeSpace {
   /// about Z, to `(cos φ, sin φ, 0)`. Matching those to [to3d]'s direction
   /// gives `φ` below.
   Quaternion rotationFor(double angle) {
-    final double phi = switch (axis) {
-      PlaneAxis.y => flipY ? angle : -angle,
-      PlaneAxis.z => flipY ? -angle : angle,
-    };
-    return Quaternion.axisAngle(normal, phi);
+    final out = Quaternion.identity();
+    rotationInto(angle, out);
+    return out;
   }
 
   /// [rotationFor] into [out], without making a quaternion.

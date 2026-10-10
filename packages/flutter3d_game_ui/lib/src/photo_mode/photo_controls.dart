@@ -28,6 +28,19 @@ abstract base class PhotoControls {
   static const double fastFactor = 3.0;
 }
 
+/// Flies [camera] by [intent] for [dt], [PhotoControls.fastFactor] times as
+/// far when [fast].
+///
+/// **The time is scaled, not the intent**: [PhotoCamera.fly] cuts an intent
+/// longer than one to one, so a scaled intent would fly the camera no faster
+/// at all.
+void _flyBy(
+  PhotoCamera camera,
+  Vector3 intent,
+  double dt, {
+  required bool fast,
+}) => camera.fly(intent, fast ? dt * PhotoControls.fastFactor : dt);
+
 /// The game's own actions fly the camera, and the mouse turns it.
 ///
 /// The walking actions move it along its view and across it; [up] and
@@ -75,10 +88,7 @@ final class ActionPhotoControls extends PhotoControls {
       axis(up, down),
       axis(forward, back),
     );
-    camera.fly(
-      input.held(fast) ? intent * PhotoControls.fastFactor : intent,
-      dt,
-    );
+    _flyBy(camera, intent, dt, fast: input.held(fast));
   }
 }
 
@@ -126,6 +136,6 @@ final class KeyPhotoControls extends PhotoControls {
     final fast =
         held.contains(LogicalKeyboardKey.shiftLeft) ||
         held.contains(LogicalKeyboardKey.shiftRight);
-    camera.fly(fast ? intent * PhotoControls.fastFactor : intent, dt);
+    _flyBy(camera, intent, dt, fast: fast);
   }
 }

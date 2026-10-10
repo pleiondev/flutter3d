@@ -129,7 +129,10 @@ final class _World {
     world.update();
   }
 
-  final CollisionWorld world = CollisionWorld();
+  /// The shooter's world, as staging gives every level: a player falls by
+  /// the world's gravity, and at the standard 9.81 the jump on step zero is
+  /// still in the air at step sixty, where the extra press must land.
+  final CollisionWorld world = CollisionWorld(properties: shooterWorld);
 
   /// One entity world, handed to both systems. Two would mean a save that
   /// covered half the game, which `GameSimulation.entities` refuses out loud.
@@ -327,6 +330,7 @@ void main() {
       // change nothing — which is what the first version of this did, and it
       // passed for that reason rather than for a good one.
       final b = _World(seed: 11)..play(60);
+      expect(b.player.body.isGrounded, isTrue, reason: 'the press is a jump');
       b.input.press(GameAction.jump);
       b.play(140, from: 60);
 
