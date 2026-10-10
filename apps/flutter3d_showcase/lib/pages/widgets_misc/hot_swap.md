@@ -10,8 +10,7 @@ game already has. The world keeps running; nothing is instantiated again.
 
 `SceneSurface` calls `HotSwap.instance.swap()` from `reassemble`, which is
 what a hot reload runs, and a tool can run the same swap over the VM
-service as `ext.flutter3d.assets.swap` (`ext.flutter3d.hotSwap`, its name
-before 1.0, still answers). It works in debug builds only: in
+service as `ext.flutter3d.assets.swap`. It works in debug builds only: in
 profile and release every method returns at once and holds nothing.
 
 ## Step 1: Files the page can edit

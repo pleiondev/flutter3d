@@ -528,8 +528,6 @@ double impostorScreenFraction(List<ModelLod> lods)
 
 const String initUsage = …
 
-@Deprecated('Use pluginMarkerKey: declare plugins under `flutter3d_plugins:`. ' 'Deprecated in 1.0.0, removed in 2.0.0.') const String legacyPluginMarkerKey = 'flutter3d'
-
 double lodScreenFraction(double ratio)
 
 List<String> markerEntries(String package, Object? value)

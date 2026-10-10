@@ -61,10 +61,6 @@ final class LoopPhase {
   /// so. A loop still finds it by the old name ([formerNames]).
   static const LoopPhase fields = LoopPhase.step('fields');
 
-  /// [fields], by the name it had.
-  @Deprecated('Use LoopPhase.fields. Deprecated in 1.0.0, removed in 2.0.0.')
-  static const LoopPhase elements = fields;
-
   /// The game's rules: damage, scoring, win and lose.
   static const LoopPhase rules = LoopPhase.step('rules');
 

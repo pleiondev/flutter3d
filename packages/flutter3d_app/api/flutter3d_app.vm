@@ -8,7 +8,6 @@ extension ext.flutter3d.assets.put
   -> added environment instances path refused texture
 
 extension ext.flutter3d.assets.swap
-  alias ext.flutter3d.hotSwap
   -> environments models refreshed refused renderers textures
 
 extension ext.flutter3d.material.set

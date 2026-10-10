@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **The VM service extension `ext.flutter3d.hotSwap` is gone**; call
+  `ext.flutter3d.assets.swap`, its name since it was added.
+
 - **`Flutter3dView.originShift`: the view moves the origin to the camera.**
   When the camera is further than this many metres from the origin (a
   kilometre, `Flutter3dView.defaultOriginShift`, by default) the view calls

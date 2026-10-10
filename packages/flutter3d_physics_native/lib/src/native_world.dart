@@ -301,13 +301,6 @@ final class NativeLiquidProperties {
     Materials.oliveOil,
   );
 
-  /// [oliveOil], by the name it had.
-  @Deprecated(
-    'Use NativeLiquidProperties.oliveOil, the catalogue\'s f3d.oliveOil. '
-    'Deprecated in 1.0.0, removed in 2.0.0.',
-  )
-  static NativeLiquidProperties get oil => oliveOil;
-
   /// Honey ([Materials.honey]): ten thousand times as thick as water.
   static final NativeLiquidProperties honey = NativeLiquidProperties.of(
     Materials.honey,

@@ -64,8 +64,7 @@ typedef EnvironmentBuild = Future<BuiltEnvironment?> Function(Uint8List bytes);
 /// bridge's widget register their renderer and call [swap] from
 /// `reassemble`, which is what a hot reload runs; an application registers
 /// the bundles it loads itself with [registerLibrary]; and a tool reaches the
-/// same thing through the VM service as `ext.flutter3d.assets.swap` (its old
-/// name, `ext.flutter3d.hotSwap`, answers too until 2.0).
+/// same thing through the VM service as `ext.flutter3d.assets.swap`.
 ///
 /// A swap and not a reload in its names because `reload` is a weapon's here:
 /// CONTRIBUTING.md keeps that word out of the packages, and the structure
@@ -954,7 +953,6 @@ final class HotSwap {
         'textures',
         'environments',
       },
-      aliases: const <String>['ext.flutter3d.hotSwap'],
     );
     registerFlutter3dExtension('ext.flutter3d.material.set', (
       String method,

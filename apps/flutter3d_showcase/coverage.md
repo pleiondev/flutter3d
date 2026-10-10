@@ -86,7 +86,7 @@ audit has been written out. There is no test that reads this file itself.
 | id | title | main API | since |
 |---|---|---|---|
 | bloom | Bloom and halation | `BloomSettings` | F3D 0.1.0; halation F3D 0.7.0 |
-| tone-mapping | Tone-map curves | `TonemapCurve` neutral/aces/agx/reinhard/agxFull | F3D 0.7.0 |
+| tone-mapping | Tone-map curves | `TonemapCurve` neutral/aces/agx/reinhard/aces2 | F3D 0.7.0 |
 | color-grading | Colour grade | `LookSettings` contrast, saturation, temperature, lift/gamma/gain, vignette, grain, chromatic aberration | F3D 0.3.0; more F3D 0.7.0 |
 | lut-grading | Grade through a LUT | `LookSettings.lut/lutStrength` | F3D 0.7.0 |
 | auto-exposure | Auto exposure | `AutoExposureSettings` | F3D 0.4.3; `perView` F3D 0.7.0 |

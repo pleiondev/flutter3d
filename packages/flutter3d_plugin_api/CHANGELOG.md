@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`LoopPhase.elements` is gone**; use `LoopPhase.fields`. A loop still
+  finds the phase by the name `elements` (`LoopPhase.formerNames`).
+
 - **`DataSection`, `DataSectionContext` and `DataSectionRegistry`.** A
   subsystem registers a reader for a named section of a `.f3dplugin`
   document, and the runtime that reads the document hands it what was

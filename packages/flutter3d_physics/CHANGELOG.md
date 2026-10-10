@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`FluidMedium.oil` is gone**; it was `oliveOil` under the name it had
+  on the way to 1.0.
+
 - **A face too steep to stand on is a wall.** `CharacterController`
   strips a move into such a face along its horizontal normal when the body
   is not falling, so walking or jumping into a steep slope no longer

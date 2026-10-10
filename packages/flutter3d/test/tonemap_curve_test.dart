@@ -367,13 +367,16 @@ void main() {
     });
 
     test('code 5 is kept, and draws what agx draws', () {
-      // `agxFull` was the rotated variant while `agx` was the bare sigmoid.
-      // Now that `agx` is the whole transform the two are one curve, and a
-      // setting that stored code 5 keeps working.
-      // ignore: deprecated_member_use_from_same_package, deprecated_member_use
-      expect(TonemapCurve.agxFull.code, 5.0);
-      // Six since `L2` added the display transform ACES 2.0 is read through.
-      expect(TonemapCurve.values.length, 6);
+      // Code 5 was `agxFull`, the rotated variant while `agx` was the bare
+      // sigmoid. The name is gone since 1.0, but the shader still reads the
+      // code as `agx`, so a frame that carries it draws the same picture.
+      // Five: `L2` added the display transform ACES 2.0 is read through, and
+      // `agxFull` left.
+      expect(TonemapCurve.values.length, 5);
+      expect(
+        TonemapCurve.values.map((TonemapCurve c) => c.code),
+        isNot(contains(5.0)),
+      );
       for (final Vector3 sample in <Vector3>[
         Vector3(0.18, 0.18, 0.18),
         Vector3(4.0, 2.0, 1.0),

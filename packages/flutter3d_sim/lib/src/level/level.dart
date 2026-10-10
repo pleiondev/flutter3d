@@ -57,10 +57,6 @@ final class Level extends FormatDocument {
     this.heightfield,
     Vector3? fogColor,
     this.fogDensity = 0.0,
-    @Deprecated(
-      'Use world: {"gravity": g}. Deprecated in 1.0.0, removed in 2.0.0.',
-    )
-    double? gravity,
     Map<String, Object?>? world,
     this.music,
     this.next,
@@ -99,7 +95,7 @@ final class Level extends FormatDocument {
        ),
        materials = materials ?? <String, LevelMaterial>{},
        fogColor = fogColor?.clone() ?? _defaultFogColor,
-       world = _worldOf(world, gravity),
+       world = _worldOf(world),
        super(unknown: FormatDocument.unknownIn(source, known: _knownKeys));
 
   /// The level as a format: `f3d.level`.
@@ -278,28 +274,8 @@ final class Level extends FormatDocument {
     return properties;
   }
 
-  /// How hard this level's world pulls down, m/s², when its [world] names a
-  /// gravity straight down; null otherwise.
-  @Deprecated(
-    'Use worldOver(game).gravity. Deprecated in 1.0.0, removed in '
-    '2.0.0.',
-  )
-  double? get gravity => switch (world['gravity']) {
-    final num down => down.toDouble(),
-    [final num x, final num y, final num z] when x == 0 && z == 0 =>
-      -y.toDouble(),
-    _ => null,
-  };
-
-  static Map<String, Object?> _worldOf(
-    Map<String, Object?>? world,
-    double? gravity,
-  ) {
-    final merged = <String, Object?>{
-      ...?world,
-      if (gravity != null && !(world?.containsKey('gravity') ?? false))
-        'gravity': gravity,
-    };
+  static Map<String, Object?> _worldOf(Map<String, Object?>? world) {
+    final merged = <String, Object?>{...?world};
     try {
       WorldProperties.fromJson(merged);
     } on WorldPropertiesFormatException catch (error) {

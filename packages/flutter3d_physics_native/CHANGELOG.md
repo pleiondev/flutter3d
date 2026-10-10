@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`NativeLiquidProperties.oil` is gone**; it was `oliveOil` under the
+  name it had on the way to 1.0.
+
 - **A damaged snapshot is refused, not read past an array.** The core's
   reader checks every index a step follows before it replaces anything: a
   body's hull, mesh or compound and its lumps, a compound part's hull, each
