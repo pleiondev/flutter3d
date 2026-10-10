@@ -254,7 +254,7 @@ point of §3.3.
 | `flutter3d_physics_native` | The physics core in C11, compiled from source by a build hook: rigid bodies stepped through `dart:ffi` natively and as WebAssembly in the browser, the water and fire `flutter3d_elements` steps and `flutter3d_effects` draws. `flutter3d_physics` is its reference |
 | `flutter3d_foundation` | The values every package speaks, under all of them: `Flutter3dException` and its four families, `WorldPosition`, `LinearColor` and their crossings into `vector_math`, `Issue`, the file envelope (`FormatSpec`, `FormatDocument`), `Registration`, `Portable`, and `Unit` and `Quantity`, the units every number is measured in. Depends on `vector_math` alone. Out of `flutter3d_plugin_api` and `flutter3d_physics` in 1.0.0-rc.1. Plain Dart |
 | `flutter3d_plugin_api` | What a plugin is written against: `Flutter3dPlugin` and its manifest, the `PluginHost` and its registries, the loop's phases, the event bus's types, what a step publishes (`PublishedState`), and `PluginManager`, which checks versions, orders dependencies and switches plugins at step boundaries ([§12](#12-extension-points)). Its own API version; depends on `flutter3d_foundation` alone and re-exports the foundation types its signatures name. The registries a package fills are declared by that package (`DecoderRegistry` in the core, `EntityKindRegistry` and the simulation handle in the simulation, `EditorRegistry` in the editor's core, `McpToolRegistry` in `flutter3d_mcp`). Plain Dart |
-| `flutter3d_plugin_runtime` | Plugins loaded while a game runs: data plugins read from a `.f3dplugin` document, sandboxed Wasm modules stepped by a deterministic interpreter, and the interface an interpreted script runs behind ([§12.1](#121-plugins)) |
+| `flutter3d_plugin_runtime` | Plugins loaded while a game runs: data plugins read from a `.f3dplugin` document, sandboxed Wasm modules stepped by a deterministic interpreter, and expression systems, read but refused at install until the expression language evaluates them ([§12.1](#121-plugins)). Reads every other section through the plugin API's `DataSectionRegistry`, and depends on the plugin API alone |
 | `flutter3d_post` | Post-processing as plugins, one library per family (`light`, `shading`, `reflections`, `atmosphere`, `motion`, `style`), each effect a `RenderStepAddon` that is the switch of its render step, and `standard.dart`, all six in one list. One `flutter3d_plugins:` marker per library. The passes are still drawn by `flutter3d_core` ([§12](#12-extension-points)). Seven packages until 1.0.0-rc.1. Plain Dart |
 | `flutter3d_game_kit` | The gameplay parts of the demos another game would use, moved out of them, a library each: reactions and the soundtrack's cue sheet (each with a view plugin on the bus's frame channel), the ghost of a run, seeded levels, the world past the simulated part (daylight and the horizon). Five packages until 1.0.0-rc.1; none names a genre ([§12.1](#121-plugins)). No native code |
 | `flutter3d_game_physics` | The gameplay parts that need the native physics core, split from `flutter3d_game_kit` so a game without them compiles no C and fetches no wgpu-native: the ragdoll, wrecks, party sessions, and the elements heard and lit (`ElementSounds`, `DaylightOnWater`) |
@@ -265,14 +265,14 @@ point of §3.3.
 | `flutter3d_net_webrtc` | A `flutter3d_net` wire over a WebRTC data channel: rollback peer to peer, with the relay carrying only the handshake |
 | `flutter3d_voxel` | A world of blocks: chunks, a seeded terrain, edits kept as deltas, greedy meshes to draw and boxes to collide with, and the navigation mesh baked again where an edit landed. Plain Dart |
 | `flutter3d_education` | Virtual laboratory simulations built on `flutter3d_sim`'s stepping and recording primitives (`lab.dart`, `edu-04`'s pendulum the first), and LTI 1.3 launch, grade passback and xAPI reporting (`lti.dart`); the chemistry bench is its `example/`. `flutter3d_lab` and `flutter3d_lti` until 1.0.0-rc.1. Plain Dart |
-| `flutter3d_game` | What a game adds to an application that is not a widget: keyboard, gamepad and touch input, accessibility settings, the run and its timeline, the settings and their controller, rebinding, the saves, and actor and fixture visuals. Its widgets are `flutter3d_game_ui`'s. Stands on `flutter3d_app` and `flutter3d_sim`. The engine's one facade (`reexportsAllowed` in `tool/structure/boundaries.dart`): re-exports `flutter3d` whole and, by name, from `flutter3d_app` `Flutter3dView`, `Flutter3dEngine` and the level loading, from `flutter3d_sim` the level, `EngineLoop` and `InputState`, from `flutter3d_physics` the collision world, and from `flutter3d_audio_core` the listener, emitters and sound bank; nothing else of them |
+| `flutter3d_game` | What a game adds to an application that is not a widget: keyboard, gamepad and touch input, accessibility settings, the run and its timeline, the settings and their controller, rebinding, the saves, and actor and fixture visuals. Its widgets are `flutter3d_game_ui`'s. Stands on `flutter3d_app` and `flutter3d_sim`. The engine's one facade (`reexportsAllowed` in `tool/structure/boundaries.dart`): re-exports `flutter3d` through a list of every name it exports (a name added to `flutter3d` reaches the facade once somebody lists it) and, by name, from `flutter3d_app` `Flutter3dView`, `Flutter3dEngine` and the level loading, from `flutter3d_sim` the level, `EngineLoop` and `InputState`, from `flutter3d_physics` the collision world, and from `flutter3d_audio_core` the listener, emitters and sound bank; nothing else of them |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_game_strategy` | Strategy rules: ground made of samples, a crowd that takes orders, flow fields shared by destination, an economy, a policy that plays a side, fog each side has to walk into |
 | `flutter3d_audio_core` | 3D positioning, voice limits, mix buses, the backend seam; a Doppler shift reckoned against the world's air from `flutter3d_matter` |
 | `flutter3d_audio` | The core re-exported, plus loading and streaming through SoLoud |
-| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, widgets in the scene, a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
+| `flutter3d_app` | What any application on the engine is assembled from: which backend a build draws through, the surface a frame reaches Flutter through, `Flutter3dView` (its options in four final, const groups with a full `copyWith`, `DeviceSettings`, `ViewSettings`, `LoopSettings` and `PluginSettings`, so an option a minor adds lands in one group with a default; the simulation placed inline or in an isolate by `LoopSettings.simulation`; the scene's pipelines warmed a slice at a time once the device is open; a closable banner when the GPU backend would not start and the software rasteriser draws; an `EngineLog` per engine), widgets in the scene (`Scene3D`, sugar on `Flutter3dView`, over `SceneSurface`; every public widget `final`; identity by key, nothing reloaded on a rebuild, a widget gone released; `Mesh3D.onTap`, `Model3D.onTap` with the part hit, `OrbitCamera3D`, `Light3D.sun()` at 15 000 lux and `Light3D.lamp()` at 800 lm in candela), a level loaded into a scene, the scene published to the platform's accessibility layer, and storage. The modeller, the editor and the lessons use it and nothing above it |
 | `flutter3d_stereo` | Stereo rendering: a rig of two eyes under a head, the widget that draws the pair into one frame, and the settings a pair can have |
 | `flutter3d_level_scene` | `LevelScene`, which turns a level into brush meshes, materials, lights, probes, decals, mirrors and screens with no Flutter, and `meshDataOf`. Out of `flutter3d_editor_core` in 1.0.0-rc.1, so the application's level loader and the editor both stand on it and the application resolves no editor. Plain Dart |
 | `flutter3d_editor_core` | The headless half of a level editor: the document being changed and undone, the handles a pointer hits, the palette a level builds out of itself, the project a template becomes; the seeded level generators; and `LightOptimizer`, which finds fewer lights that light a level the way it was lit. Plain Dart |
@@ -281,7 +281,7 @@ point of §3.3.
 | `flutter3d_editor_play` | Play from a level editor: the game a level belongs to run with `flutter run --machine`, swapped, restarted and stopped, its devices listed, and a saved level sent to it. What the editor's Play button and the `play` tools of `flutter3d_mcp`'s editor server both run. Plain Dart with `dart:io`, which is why it is not in `flutter3d_editor_core`; `attach.dart` is the part without it, a game attached to by its VM service address, which is the web editor's Play |
 | `flutter3d_sim_mcp` | A level an agent plays blind, of whatever `HeadlessGame` a host hands it — step, read back, digest, hand over the run — and many seeded playtests in isolates; and a rendered frame of a level offered to an agent: drawn with no GPU in one of the renderer's debug views, one pixel read back unclamped, the passes the frame graph ran. Names no genre |
 | `flutter3d_build_hooks` | What a package's own build hook needs to compile its materials: `compileMaterial`, `MaterialCompilers`, `generateMaterialAccessors`. `flutter3d_effects`' hook depends on it rather than on `flutter3d_build`, so a game resolves no MCP server through the effects. Plain Dart |
-| `flutter3d_build` | The converter behind `dart run flutter3d_build:convert` and the build hook that runs it on every build — which also writes `lib/plugins.g.dart` from the dependencies marked `flutter3d_plugins:` — and the bakes that need a renderer or a mesh editor ahead of time: levels of detail, impostors, cluster tables, a file per device class, paged splat captures, six-way smoke sheets, and the light optimizer's command. That is why it depends on `flutter3d_cpu`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_editor_core` and `flutter3d_sim`. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
+| `flutter3d_build` | The `flutter3d` command (`runFlutter3d` in `cli.dart`; `convert`, `create`, `init`, `lights`, `migrate` and `plugins` in `bin/` are one-line aliases of its subcommands, so `dart run flutter3d_build:convert` is `flutter3d convert`), the one-model converter `runConvert` for build scripts, and the build hook that runs it on every build — which also writes `lib/plugins.g.dart` from the dependencies marked `flutter3d_plugins:` — and the bakes that need a renderer or a mesh editor ahead of time: levels of detail, impostors, cluster tables, a file per device class, paged splat captures, six-way smoke sheets, and the light optimizer's command. That is why it depends on `flutter3d_cpu`, `flutter3d_mesh`, `flutter3d_model_core`, `flutter3d_editor_core` and `flutter3d_sim`. Not a dependency of the engine: no game that draws a frame runs it. Plain Dart |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image, by differing pixels or by FLIP; measuring a `QualityTable`; and timing a recorded run frame by frame (`replayPacing`) |
 | `flutter3d_lints` | Analyzer rules for code that runs inside a fixed step (no wall clock, no unseeded `Random`, no `dart:math` transcendental where `Portable` answers the same everywhere) and the migration fixes `migrate` and `dart fix` share, as an analysis server plugin |
 | `flutter3d_mesh` | The editable half-edge mesh — `EditMesh`, its journal, its operations — that a model decodes into once somebody starts editing it |
@@ -1643,14 +1643,16 @@ decision gets made (see the package README, "Capabilities and stability"). The
 descriptor-made textures of every shape, general and mapped buffers, a
 `TransferEncoder`, storage textures, indirect and multi-draws, query sets and
 render bundles. Every call a feature gates throws `UnsupportedCapability` on a
-device without it; the pre-1.0 `supportsX` getters forward to the set, and
-are deprecated in 1.0.0 for removal in 2.0.0.
+device without it. The pre-1.0 `supportsX` getters are gone: each is a
+`DeviceFeature` asked of `features`.
 
 - **`GraphicsDevice` — every member.** What formats it prefers, what it can do,
   how a pass is opened, how geometry and textures arrive. Not how a finished
   frame reaches the screen — that is the engine's `DeviceRegistry`
   (`addBackend`/`open` for the backends, `addPresenter`/`presenterFor` for
-  what shows their frames), which each backend package adds itself to
+  what shows their frames, typed by the registry's presenter parameter, so
+  `flutter3d_app`'s is a `DeviceRegistry<FramePresenter>` and a presenter of
+  another type is refused where it is added), which each backend package adds itself to
   (`registerGpuBackend(registry)` and its siblings) rather than
   `presentFrame` in `flutter3d_app` checking the concrete type of a
   `GraphicsDevice` it cannot know statically (`GraphicsDevice` cannot be
@@ -1663,8 +1665,27 @@ are deprecated in 1.0.0 for removal in 2.0.0.
   `PassEncoder` is an `abstract base mixin class`. Each backend is its own
   package on a caret range of this one, and a member added in a 1.x minor
   arrives with its default body, so no backend published before it breaks;
-  the backend overrides it once it has the feature. The deprecated
-  `supportsX` getters are answered by the base class from `features`.
+  the backend overrides it once it has the feature. The encoders follow
+  the same rule: every member of `PassEncoder`, `ComputeEncoder` and
+  `TransferEncoder` a `DeviceFeature` gates has a body that throws
+  `UnsupportedCapability` naming it (`drawIndexed` with both bases zero is
+  `draw`, alpha to coverage is ignored). `backend.dart`, the library a
+  backend imports, is held to the same semver as the contract.
+- **One `open`.** Every backend opens as `await X.open(width:, height:)`:
+  `WebGlDevice.open` is asynchronous like the others, and
+  `GpuRenderBackend.open` takes the size (Impeller still sizes its targets
+  per frame and only checks the size is one). `openDevice` is sugar over a
+  registry's `open`.
+- **Who owns a handle.** Every handle a device makes has one owner, who ends
+  it with `dispose` once. A second `dispose` asserts in a debug build, and a
+  backend calls `debugCheckLive` (`backend.dart`) before it binds, draws
+  from, copies or reads a handle, so a debug build names the call that used
+  a disposed one; the three GPU backends and `FakePass` check at every bind.
+  The device's own `dispose` ends every handle it made. `FakeBackend`
+  counts the handles a test made and did not give back (`liveHandles`). A
+  `ShaderHandle` is the exception: the library hands one stage to every
+  caller, so its `dispose` gives back a reference. The contract is written
+  on `GraphicsDevice`.
 - **`CommandEncoder` and `PassEncoder`.** The split is deliberate: `PassEncoder`
   is the recording half without `submit`, so handing a contributor an
   already-submitted pass is a type error rather than a comment warning about one.
@@ -1687,9 +1708,11 @@ are deprecated in 1.0.0 for removal in 2.0.0.
   members that stage's layout has. `bindUniformBlock` and its map are unchanged.
 - **`StorageBuffer`, `ComputePipelineHandle` and `ComputeEncoder`**, the compute
   shape of [§7.6](#76-compute).
-- **`TraceEvent`**, in `package:flutter3d_hardware/trace.dart`, sealed, with a
-  variant for every call of the contract, compute included, so no 0.8.x has to
-  add one to a hierarchy callers switch over.
+- **`TraceEvent`**, in `package:flutter3d_hardware/trace.dart`, an
+  `abstract base class` with a variant for every call of the contract,
+  compute included; open, so a call a minor adds brings its event without
+  breaking a switch over the others. `Recorded`, what tests assert against,
+  is an `abstract base class` for the same reason.
 - **Handles** — `TextureHandle`, `GeometryBuffer`, `ShaderHandle`,
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
@@ -1951,15 +1974,16 @@ same package.
 Since 1.0 it also takes in `capabilityChecks`, which hold a device to its own
 report in both directions: every `DeviceFeature` it lists has to pass a minimal
 call, every one it does not list has to refuse that call with
-`UnsupportedCapability` naming it, and the pre-1.0 getters have to agree with
-the set. What needs a purpose-built stage to probe is named in
+`UnsupportedCapability` naming it. What needs a purpose-built stage to probe is named in
 `unprobedFeatures` with the reason rather than passed in silence.
 
 ### 7.6 Compute
 
 **Compute has a shape in the contract and two backends behind it.**
-`supportsCompute` says whether the rest works. `createStorageBuffer` (with
-`hostReadable` for `readBuffer`), `createComputePipeline` from a stage of the
+`DeviceFeature.compute` says whether the rest works. `createBuffer` with
+`BufferUsage.standardStorage` (plus `hostReadable` for `readBuffer`; since
+1.0 the one way to make a storage buffer, where `createStorageBuffer` was a
+second call for the same thing), `createComputePipeline` from a stage of the
 device's library, and `beginComputePass`, which opens a `ComputeEncoder`
 (`bindPipeline`, `bindStorageBuffer`, `bindUniformBlock`, `dispatch`,
 `submit`), follow the render pass's rules: a binding the stage does not declare
@@ -1969,7 +1993,7 @@ reads a buffer back through a mappable staging buffer. The software rasteriser
 runs a stage through `CpuStage.compute`, whose Dart mirror is handed a whole
 workgroup and runs the phases between barriers across all its invocations,
 which is what a barrier means; a dispatch finishes before it returns. Impeller
-and WebGL2 answer false and throw `UnsupportedError` from the creators:
+and WebGL2 do not list the feature and throw `UnsupportedCapability` from the creators:
 flutter_gpu has no compute pipeline yet, and WebGL2 has no compute stage.
 
 Compute stages have a manifest of their own, `flutter3d.compute.json`, which
@@ -2133,9 +2157,22 @@ version to update to. A change in what an existing field means bumps the
 version and adds a step to the reader's migration list, so an older file is
 lifted one version at a time before a field is read. The JSON formats keep a
 list of those steps; the binary ones branch on the file's version inside the
-record that changed, which keeps `.f3d`'s views over the bytes. Every list
-is empty today, because every format is still at the version it shipped
-with, apart from `.f3drun` ([§9.4](#94-replays)). Unknown fields survive
+record that changed, which keeps `.f3d`'s views over the bytes. Most lists
+are empty, because most formats are still at the version they shipped
+with. The ones that moved are `.f3drun` ([§9.4](#94-replays)), the data
+plugin document (version 3, `scripts` read as `expressions`) and the
+level, at version 5. Level format 5 writes a light's intensity in candela,
+or lux for the sun, where it was a pre-1.0 unitless multiple (the lift from
+4 multiplies by that unit, 5 790.58, and a light that never named its
+strength keeps meaning the same one); spells `behaviors`, `behavior` and
+`texelsPerMeter`; reads the fog's and a light's colour as a `LinearColor`
+at double precision; holds `world` as a `WorldPropertiesPatch` and
+`renderSettings` as a `RenderSettingsPatch`, each written back as it was
+read; and lets a document carry `geoOrigin` and `physicalMaterial`, kept as
+written until a reader fills them. None of that is an edit of a level, so
+the digest is taken over the body as format 4 spelled it, and every level
+in the repository, and every run recorded against one, keeps its hash.
+Unknown fields survive
 where a format has a place for them: a level's keys go back out through its
 write-through, a save's fields pass through `Snapshot` untouched, and an
 unknown `.f3d` or `.f3dproj` section is skipped by its directory.
@@ -2442,10 +2479,19 @@ the constraints leave a choice, registration order decides: the
 application's registrations first, then each plugin's in install order. A
 cycle is an error that names the systems in it.
 
-Time is handled in three ways.
+Time is handled in four ways.
 
 - **The step rate is the world's** (`WorldTiming`), as gravity is. `dt` is
   one step of it.
+- **The clock is a source the loop is given.** `EngineLoop.time` is a
+  `TimeSource`: `realTime`, `scaled` by a factor, a `log`'s timestamps one
+  gap a frame, or `manual`, moved by hand. It decides how many simulated
+  seconds a frame drawn by `frameAtVsync` brings, and `FrameCadence` asks it
+  for the seconds of a refresh it draws, so a laboratory at a tenth of real
+  speed draws every refresh and steps a tenth as often. The fixed step is
+  the world's whatever the clock is. Without a cadence, `frameAtVsync` hands
+  the frame its clock's time. The view does not pass a source of its own
+  yet; it runs on real time.
 - **The time scale** changes how many steps a real second runs, never `dt`.
   A slowed run therefore arrives where a fast one does.
 - **Lost time is announced.** A frame that owes more steps than the policy
@@ -2792,10 +2838,16 @@ the answer differs by kind ([§12.1](#121-plugins)):
 - **Wasm** is in. A module is stepped by a Dart interpreter of the 32-bit
   integer half of WebAssembly, small enough to own, metered by fuel and the
   same on every platform.
-- **Interpreted Dart** is an interface, `ScriptRuntime`, with no runtime
-  shipped: the one candidate, `dart_eval`, depends on an analyzer this
-  workspace cannot resolve beside its own, and would ship a compiler to every
-  player to run what a build could have compiled.
+- **Interpreted Dart** is out. It was an interface, `ScriptRuntime`, with no
+  runtime ever shipped: the one candidate, `dart_eval`, depends on an
+  analyzer this workspace cannot resolve beside its own, and would ship a
+  compiler to every player to run what a build could have compiled. The
+  seam was removed in 1.0.0-rc.1, and the **expression language** takes its
+  place: a data plugin's `expressions` are rules over declared world fields,
+  evaluated deterministically without a compiler in the game. This build
+  reads them and refuses, by name, to install a plugin that brings one: the
+  evaluator is not wired into the data plugin yet, and a simulation missing
+  one of its rules would replay as another simulation.
 
 What is still lost is hot reload of gameplay logic written in Dart without a
 rebuild, partly compensated by Flutter's own hot reload, and now by a Wasm
@@ -2866,8 +2918,13 @@ into a race.
 **Shapes:** box, sphere, capsule, wedge and heightfield. Raycast, shape cast and
 overlap queries, filtered by layers and masks. Triangle meshes are absent.
 
-**A shape of a caller's own is a `CustomShape`**: a convex solid described by
-its support function, the open case of the sealed `CollisionShape`. Overlaps go
+**A shape of a caller's own is a `CustomShape`**, or any class that extends
+`CollisionShape`, an `abstract base class` since 1.0.0-rc.1 rather than a
+sealed one: every pair method defaults to the GJK walk, ground to the
+field's prisms, a ray to the bounding box and inertia to the solid box, so a
+convex shape that says its bounds, planes and support meets everything, and
+the native core hulls any such shape from its support points. `CustomShape`
+is a convex solid described by its support function. Overlaps go
 through a GJK walk over the two shapes' supports, exact and deterministic; a
 sweep and a ray take its bounding box unless it overrides `expandedPlanes` and
 `raycast` with its real faces. A backend with the `ShapePhysics` capability
@@ -3123,21 +3180,40 @@ several libraries may mark each library instead, a map from the library to
 the classes it declares, which is how `flutter3d_post` names the plugins of
 its six families; all three forms read the same. The build hook
 (`flutter3d_build`) writes `lib/plugins.g.dart` from the application's own
-dependency graph, not from the whole workspace. A list passed in code
-overrides it.
+dependency graph, not from the whole workspace, as `installedPlugins`, a
+`PluginGroup`. A list passed in code overrides it.
 
-**The application picks.** Its own pubspec may narrow what its
-dependencies mark, under the same key: `include:` keeps only what it
-names, `exclude:` drops what it names, each entry a package, a library
-(`flutter3d_post/motion.dart`) or one class (`…/style.dart#OutlinesAddon`).
-So depending on `flutter3d_post` does not have to install all twenty-three
-effects. An entry that matches nothing is a warning, since a misspelt
-exclusion would otherwise leave the plugin in without a word.
+**The application picks, in a plugin group's words.** A `PluginGroup`
+(`flutter3d_plugin_api`) holds plugins in install order, one per id, and
+is adjusted without mutation: `set` replaces the member with a plugin's id
+or appends it, `add` appends and refuses a duplicate, `without<T>()` and
+`withoutId` remove. A member a later release drops is not an error to
+`set` or remove, so an application that adjusts a group survives the group
+changing. The pubspec speaks the same words under the same key: `without:`
+drops a package, a library (`flutter3d_post/motion.dart`) or one class
+(`…/style.dart#ToonLightingAddon`), `set:` constructs one class with the
+arguments written, and `with:` adds a class no dependency marks. So
+depending on `flutter3d_post` does not have to install all twenty-three
+effects. A `without:` entry that matches nothing, or a `with:` the group
+already holds, is a warning, since a misspelt exclusion would otherwise
+leave the plugin in without a word; any other key is warned about too.
+`flutter3d migrate` renames the pre-1.0 `exclude:` to `without:` and says
+what to write for `include:`, which a group has no word for. Code adjusts
+the generated group the same way (`installedPlugins.without<FogAddon>()`),
+and `PluginManager.installGroup` installs one in its order.
 
 **Built to grow.** The registries, the host and the loop context are `base`
 classes, so a member added later arrives with a default. Kinds that may grow
 are open value classes rather than enums ([§13.1](#131-the-published-enum-boundary)).
 A manifest read from a document keeps the keys it does not know.
+
+**A plugin is told what its simulation promises.** `PluginHost.profile` is
+a `SimulationProfile`, an open final class with wire names and
+capabilities: `deterministic` is bit-exact, `accurate` uses double
+precision and adaptive steps. A host is `deterministic` unless it says
+otherwise (`PluginManager(profile:)`). Code asks the capability
+(`isBitExact`) rather than comparing against `deterministic`, so a profile
+added later fits without touching the callers.
 
 #### Genres and elements as plugins
 
@@ -3388,15 +3464,25 @@ installed through the same host, switched at a step boundary and journalled
 like a compiled one.
 
 - **Data plugins.** A `.f3dplugin` document (`DataPluginDocument`, JSON,
-  `f3dplugin` 1 with a v1 fixture) declares loop phases, events
-  (`<id>.<name>`, published as `PluginDataEvent`), entity kinds
-  (`DataEntityKind`: required properties and an optional trigger or solid
-  box — a genre's rules in the one form they already are data), materials
-  in the material language, render steps, Wasm systems and scripts.
-  `DataPluginLoader` reads the document and every file it names before
-  anything is installed, so `install` stays synchronous. `effects` is kept
-  and not loaded: the particle system has no document form in 1.0, and a
-  plugin carrying one is told so in `DataPlugin.notes`.
+  `"format": "f3d.plugin"`, version 3, with a fixture at each version)
+  declares loop phases, events (`<id>.<name>`, published as
+  `PluginDataEvent`), Wasm systems and expression systems
+  (`ExpressionSystemSpec`), and carries sections the packages that own them
+  read through the plugin API's `DataSectionRegistry`: entity kinds
+  (`flutter3d_sim`'s `entityKindsSection` and `DataEntityKind`: required
+  properties and an optional trigger or solid box — a genre's rules in the
+  one form they already are data), materials in the material language and
+  render steps (`flutter3d_core`'s `renderDataSections`), effects
+  (`flutter3d_particles`) and physical materials (`flutter3d_matter`). The
+  runtime itself depends on the plugin API alone, so a server that replays
+  a run with a data plugin in it resolves without the render core, the
+  simulation, the shaders, the physics or the hardware. A section no
+  registered reader takes is kept as written and named in
+  `DataPlugin.notes`. Version 3 has `expressions` in place of version 2's
+  `scripts`; a version-2 `scripts` entry is read as an expression system
+  with its `source` kept. `DataPluginLoader` reads the document and every
+  file it names before anything is installed, so `install` stays
+  synchronous.
 - **Wasm modules.** Step systems under Wasm plugin ABI 1 (`wasmPluginAbi`),
   numbered apart from the plugin API. The exports are `f3d_abi` and
   `f3d_step(step, dt)`. The imports are four, all from `f3d`: `field_len`,
@@ -3409,9 +3495,14 @@ like a compiled one.
   instructions, so a module that runs out traps at the same instruction in
   every replay. A trap latches the system off and publishes `WasmTrapped`,
   and the latch is part of the saved state.
-- **Interpreted Dart.** `ScriptRuntime`, `ScriptProgram` and `ScriptContext`
-  are the seam, held to a Wasm module's rules: declared fields, declared
-  events, no network or files, `Portable` arithmetic. No runtime ships.
+- **Expression systems.** A step system written in the expression language
+  (`expressions` in the document, a source file or the text in place), held
+  to a Wasm module's rules: named `<plugin id>.<system>` in a step phase,
+  the world reached only through the fields it declares it reads and
+  writes, only its plugin's declared events published. This build reads
+  them and refuses to install a plugin that brings one until the evaluator
+  is wired in. Interpreted Dart (`ScriptRuntime`, `ScriptProgram`,
+  `ScriptContext`) was the seam before 1.0 and is removed.
 
 **Which Wasm runtime, and why an interpreter.** A pure Dart interpreter of
 the integer half of WebAssembly turned out small: about 1,500 lines with its
@@ -3429,9 +3520,9 @@ maintained) was the candidate. Its compiler depends on `analyzer ^8`, and
 this workspace resolves one lock file around analyzer 13, which `tool/api`
 reads the API with, so it cannot be added without splitting the workspace.
 It would also ship a compiler and the analyzer behind it to every player, to
-run what a build could have compiled. A later package or an application can
-provide a `ScriptRuntime`; an engine without one refuses a plugin that
-brings a script, by name.
+run what a build could have compiled. No runtime ever shipped, so the seam
+was removed rather than frozen into 1.0: what a script was for, a
+deterministic rule over declared world fields, is what an expression says.
 
 **Permissions are enforced where access is handed out** (decision 6).
 `PluginGrants` is what the application allows. A permission a run-time
@@ -3522,16 +3613,24 @@ inherit the sendable constraint.
 Both lists are consulted **before** the built-in readers, so an application can
 replace a format the engine ships as well as add one it does not.
 
-**`StepSystems` — behaviour.** A game adds a rule to the step that the genre
-package never heard of. A phase is a `StepPhase`, a wrapper over a string like
-`GameAction`, because "after the weapons fired" is a sentence about one genre and
-an enum would mean editing the shared package the day a genre wanted its own phase.
-The engine declares the two every genre has, `begin` and `end`; the rest belong to
-the genre.
+**`addSystem` — behaviour.** A game adds a rule to the step that the genre
+package never heard of, as a system of the engine's loop: each genre's
+simulation takes `addSystem(name, phase, system, {after, before})` with the
+loop's `LoopPhase`, `LoopSystem` and `Registration`, and hands the system a
+`LoopContext`, the loop's own with the genre's phase when the plugin steps the
+run, or one of the run's own when it is stepped by hand. One registry, one
+context and one ordering rule serve the engine's systems, a plugin's and a
+game's. A genre's moments are `LoopPhase.step` constants named for it
+(`ShooterPhases.afterWeapons` is `shooter.afterWeapons`), with a `begin` and an
+`end` of each genre's own, because "after the weapons fired" is a sentence
+about one genre and an enum would mean editing the shared package the day a
+genre wanted its own phase. Until 1.0.0-rc.1 this was a second registry,
+`StepSystems` with `StepPhase` and `StepContext`; it is gone.
 
-Phases are **announced by the game rather than imposed by the registry**, for the
+Phases are **announced by the genre rather than imposed by the registry**, for the
 reason `WorldStep` gives, and they are announced unconditionally — a phase that
-exists only on levels that happen to have doors is a phase nobody can rely on.
+exists only on levels that happen to have doors is a phase nobody can rely on. A
+phase the genre does not announce, or a system name used twice, is refused.
 
 Order within a phase is part of the contract: a system runs inside the step, so two
 runs of one tape must call the same systems in the same order, or determinism is
@@ -4276,8 +4375,15 @@ rather than seams, but a body resting a millimetre above the surface is outside
 every prism, so nothing stops it going over the side. Ground ends where its
 samples end, and a game that needs a fence puts one there.
 
-**No asset hot reload**, no levelled logging, no console or cvars, and no crash
-reporting. Shaders are the half of that which closed: the editor takes a
+**No asset hot reload**, and no console or cvars. Logging and crash reporting
+closed in 1.0.0-rc.1: `EngineLog` (`flutter3d_foundation`) gathers what an engine
+says about itself at a `LogLevel`, an open set with wire names, for whoever
+listens, and hands an error nothing caught to every reporter registered with
+`onCrash`. It is an instance per engine and reads no clock unless one is handed
+in, because the simulation stands on that package. `Flutter3dView(log:)` hands
+it one; it hears the device, the software fallback, losses and warm-up failures,
+and an error thrown by a frame callback or the loop reaches the crash reporters
+before Flutter sees it. Shaders are the half of hot reload which closed: the editor takes a
 `.f3dshaders` bundle on `--dart-define=shaders=`, polls its modification time and
 refreshes the loaded library in place — `LoadedShaderLibrary` keeps the identity
 of every handle already handed out, so the renderer relinks its pipelines on the
@@ -4308,14 +4414,18 @@ needed for open worlds, and there is no such scenario here. The one exception is
 a Gaussian splat capture, whose `.f3dsplat` pages arrive through a byte-range
 reader as the cut needs them ([§4.12](#412-gaussian-splats)).
 
-**A profiler by pass, with GPU times only on WebGPU.** Every pass carries its
+**A profiler by pass, with GPU timestamps only on WebGPU.** Every pass carries its
 frame graph node's name as its label and sits in a `Timeline` span of that name,
 so an external profiler now sees which part of a frame a Dart call belongs to,
-and `FramePass` reports each node's CPU time. `gpuMicros` is filled only where
-`supportsGpuTimestamps` is true: WebGPU, where the adapter grants
-`timestamp-query`, up to 64 labelled passes a frame, a frame or two late.
-flutter_gpu has no timer query, so on Impeller and on a phone the per-pass
-numbers are encode times, and several entries in
+and `FramePass` reports each node's CPU time. `gpuMicros` is filled from
+timestamps only where the device lists `DeviceFeature.gpuTimestamps`: WebGPU,
+where the adapter grants `timestamp-query`, up to 64 labelled passes a frame, a
+frame or two late. flutter_gpu has no timer query, so Impeller times each
+labelled pass from its submission to the queue's completion callback, puts the
+span on the Dart timeline as `GPU <label>` with its frame, where DevTools and
+Perfetto show it, and hands each finished frame's spans to an `onGpuTimings`
+listener. It does not list `gpuTimestamps`: such a span includes the wait
+behind earlier passes. Several entries in
 [§14](#14-performance-characteristics) are still per-subsystem; the per-frame
 number there comes from `tool/pacing.sh`.
 
@@ -4406,9 +4516,16 @@ finding rather than made it. The probe stays so the numbers can be taken again
 on a flutter_gpu whose surface counts references some other way; that is the
 first thing that would answer the ring's gap properly.
 
-**No multithreading of the simulation.** Dart isolates do not share memory, so
-moving the step to a thread is a message protocol and a copy of the frame's state
-rather than a flag.
+**One thread per simulation, which may be another isolate.** Dart isolates do
+not share memory, so moving the step to a thread is a message protocol and a copy
+of the frame's state rather than a flag. That protocol exists:
+`Flutter3dView(loop: LoopSettings(simulation: SimulationPlacement.isolate(factory)))`
+builds the loop in an isolate of its own from a top-level factory, steps it once a
+frame by the frame's time (`IsolateSimulation.advance`), so it pauses with the
+view, and draws what it publishes; the game reads the same
+`Flutter3dEngine.simulation` handle inline or not. On the web there is no isolate
+a package can spawn, so the same factory's loop runs in this isolate. Within one
+simulation the step is still single-threaded.
 
 **An agent editing a level sees it flat, and cannot join a session somebody
 else has open.** `flutter3d_mcp:editor_mcp` is a `dart run` process holding one
@@ -4690,14 +4807,13 @@ the unpublished one. The layers were tiers chosen by hand until 1.0.0-rc.1,
 and the hand had put `flutter3d_plugin_api` after packages that need it and
 left three tiers depending on themselves.
 
-**Eleven dev dependencies are published after the package that names
+**Ten dev dependencies are published after the package that names
 them**, each listed with its reason in `devDependencyPublishedLater`
 (`tool/structure/repository.dart`). They are tests that prove two packages
 work together, written in the lower one because the higher may not depend on
 it: the software backend renders a modeller's project and an ember
 (`flutter3d_model_core`, `flutter3d_mesh`, `flutter3d_particles`); the two
-browser backends drive the engine (`flutter3d`), and WebGPU a runtime
-material (`flutter3d_plugin_runtime`); and `flutter3d_app` draws terrain
+browser backends drive the engine (`flutter3d`); and `flutter3d_app` draws terrain
 through `flutter3d_testing`, which needs the app at run time. Four more
 came with `flutter3d_matter`: the simulation stands on the physics, which
 stands on the material catalogue, so the contract suite (which checks a
@@ -4705,7 +4821,9 @@ plugin through the simulation) and the audio core's loop test reach above
 the backends and the audio core. The three backend tests that read the
 core went off the list when the liquid meshes moved to the effects: the
 core needs no physics, stands in the backends' layer, and goes first in
-it. `pub publish` is not
+it. WebGPU's runtime-material test went off it in 1.0.0-rc.1, when the
+plugin runtime stopped compiling materials itself and the core's
+`materialsSection` took them. `pub publish` is not
 affected, since it resolves a dev dependency inside the workspace; pana is,
 until the later package is up, and scores again on its next analysis.
 `flutter3d_demo_content` is no package's dev dependency any more: the

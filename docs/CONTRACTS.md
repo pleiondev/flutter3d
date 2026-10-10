@@ -38,7 +38,8 @@ pretending otherwise.
   above, and they stay exact only as far as the origin follows the camera.
   **It does by default:** `Flutter3dView` moves the loop's origin to the
   camera, rounded to whole metres, whenever the camera is more than
-  `originShift` from it (1000 m unless set; `null` turns it off). Within
+  `LoopSettings.originShift` from it (1000 m unless set; `null` turns it
+  off). Within
   that kilometre float32 keeps about a tenth of a millimetre. The shift
   happens between steps, so a recording replays it only when the run
   makes the same move itself.
@@ -87,6 +88,9 @@ and do not take a `WorldPosition`.
   where the value comes in, and nothing a step runs reads one.
 - **A step is counted, not timed.** Code that has to be repeatable reads the
   step number and the fixed `dt`, never a clock.
+- **How many steps a frame brings is the loop's `TimeSource`'s answer**:
+  real time, real time scaled by a factor, a log's timestamps, or a manual
+  clock moved by hand. It changes how often the world steps, never `dt`.
 
 ## Mass and force
 
@@ -190,6 +194,14 @@ list holds the same body without the envelope.
   A parameter that takes sRGB values says `srgb` in its name.
 - **Flutter's `Color` appears only in widgets.** `flutter3d` converts it with
   `color.toLinear()` and back with `linearColor.toColor()`.
+- **A colour in a signature is a `LinearColor`, not a vector.** A level's
+  fog and light colours, an effect's colours, a gradient's keys, a black
+  body's colour, a sky preset's colours, a ring's outline and the blend
+  constant all take or answer one. A colour shown to a person is an
+  `SrgbColor` (`LinearColor.toSrgb`), with value equality and `toLinear`.
+  A live particle still writes its `Vector4` in place, and the software
+  backend's and the modeller core's colours are still vectors until they
+  move.
 
 ## Light
 
@@ -234,7 +246,12 @@ Before 1.0, light intensity was in an engine unit where 1.0 was
 draws 1843.2 cd/m² at 1.6, past white; its white is 1152 cd/m².) A pre-1.0 light, ambient or
 sun-disc number times `Photometric.legacyUnit` (about 5 790.6), and a pre-1.0
 emissive strength times `Photometric.legacyNits` (1 843.2), is the same light
-now, so a picture does not change when a project moves.
+now, so a picture does not change when a project moves. A level of format 5
+writes its lights in candela, and its sun in lux; the lift from format 4
+multiplies by that unit, and a light that never named its strength keeps
+meaning the same one. `Light3D`'s defaults are photometric too: the
+directional default and `Light3D.sun()` are 15 000 lux, and a point light
+and `Light3D.lamp()` an 800-lumen bulb, about 63.7 cd.
 
 ## Files
 
@@ -330,11 +347,17 @@ rules hold them over every published API snapshot (`tool/structure/naming.dart`)
 
 - **American spelling in identifiers**, as Flutter and Dart spell theirs:
   `color`, `center`, `meter`, `behavior`, `gray`, `normalize`, `isCanceled`.
-  The docs may stay British. A word written into a file keeps its spelling —
-  a level's `centre`, a material's `texelsPerMetre`, a tool's `boundsCentre` —
-  because a file is read by the reader's wire table, never by a Dart name.
+  The docs may stay British. A word written into a file keeps its spelling
+  until the format's version moves it — a tool's `boundsCentre` — because a
+  file is read by the reader's wire table, never by a Dart name. Level
+  format 5 moved its keys (`behaviors`, `behavior`, `texelsPerMeter`), and
+  its lift reads the British ones of format 4.
 - **One teardown verb per type.** `dispose()` ends an object's life, and
-  `close()` is for a connection or a stream. A `stop()` beside `dispose()`
+  `close()` is for a connection or a stream. A handle a graphics device
+  made has one owner, who disposes it once: a second `dispose` asserts in a
+  debug build, a disposed handle used again is named by `debugCheckLive` in
+  a debug build, and the device's own `dispose` ends every handle it made
+  (the whole contract is on `GraphicsDevice`). A `stop()` beside `dispose()`
   is a state transition (`start()` may follow it) and its doc says so, as
   `PointerLock.release()` is the other half of `capture()`.
 - **Creation verbs.** `create` is synchronous (the GPU's `create…Async` is the
