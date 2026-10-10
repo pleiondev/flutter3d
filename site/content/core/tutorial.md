@@ -115,7 +115,8 @@ class _SceneScreenState extends State<SceneScreen>
   Future<void> _openGraphics() async {
     final GpuRenderBackend device;
     try {
-      device = await GpuRenderBackend.open();
+      // The size is checked, not kept: Impeller sizes its targets per frame.
+      device = await GpuRenderBackend.open(width: 1280, height: 720);
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;

@@ -4,7 +4,9 @@
 draws through.
 
 ```dart
-final device = await GpuRenderBackend.open();
+// Every backend opens this way. Impeller sizes its targets per frame and
+// only checks that the size is one.
+final device = await GpuRenderBackend.open(width: 1280, height: 720);
 final renderer = Renderer.create(device: device);
 ```
 

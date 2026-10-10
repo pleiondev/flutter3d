@@ -2864,8 +2864,9 @@ entries:
       `open`, `pause`, `resume` and `dispose` have bodies that do nothing;
       an `open` or `dispose` your backend already had now overrides them
       (add `@override`). `MixingBackend` and `DirectionalBackend` no longer
-      extend it, so a backend that offers them writes `extends AudioBackend
-      implements MixingBackend`.
+      extend it; they are base mixin classes with bodies that do nothing,
+      so a backend that offers them writes `extends AudioBackend with
+      MixingBackend`.
 
   # 1 break(s), seen in flutter3d_game_platformer:
   #   gone
@@ -16235,7 +16236,8 @@ entries:
     kind: manual
     guidance: >-
       There is no process-wide device registry. An engine owns one
-      (`Flutter3dEngine.devices`, or `Flutter3dView(devices: ...)`), and an
+      (`Flutter3dEngine.devices`, or
+      `Flutter3dView(device: DeviceSettings(devices: ...))`), and an
       application that wants a backend or presenter of its own keeps a
       registry from `platformDevices()` and passes it:
       `openDevice(width: w, height: h, registry: mine)`. A device

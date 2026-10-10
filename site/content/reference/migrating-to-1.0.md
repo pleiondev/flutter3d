@@ -90,8 +90,8 @@ them in bulk, which is why step 5 above exists.
 
 ## GameLoop to EngineLoop
 
-<a id="gameloop-to-engineloop"></a>`GameLoop` still works in 1.0 and is
-deprecated until 2.0. `EngineLoop` replaces it: the fixed step runs as named
+<a id="gameloop-to-engineloop"></a>`GameLoop` is gone in 1.0, which
+deprecates nothing. `EngineLoop` replaces it: the fixed step runs as named
 systems in ordered phases, and plugins add theirs to the same loop. The
 change is a shape, not a rename, so no tool makes it for you:
 
@@ -109,9 +109,11 @@ loop.frame(dt);
 ```
 
 `paused`, `alpha`, `playback`, `recorders`, `drainLook` and `longestFrame`
-keep their names. `EngineLoop` adds `world:` (a `WorldTiming`, the step rate
-and time scale) and `catchUp:` (what to do when a frame falls behind).
-Their defaults are what `GameLoop` did. In a Flame game, `HasFixedStep` runs
+keep their names. `EngineLoop` adds `timing:` (a `WorldTiming`, the step
+rate and time scale) and `catchUp:` (what to do when a frame falls behind).
+Their defaults are what `GameLoop` did. Its clock is `loop.time`, a
+`TimeSource` (real time unless you set another: scaled, a log's
+timestamps, or a manual clock). In a Flame game, `HasFixedStep` runs
 an `EngineLoop` already: read `engineLoop`, and register your step work in
 `installStepSystems`.
 
@@ -133,7 +135,7 @@ JSON file below its format's version is written again in the shape 1.0
 writes, with the format envelope (`format`, `version`, `requires`,
 `generator`) first. Every key it had is kept, including the ones 1.0 does
 not know. The report has a line per file, `assets/levels/first.level.json:
-f3d.level v1 → v4`, and a list of what it did not carry over. That covers a
+f3d.level v1 → v5`, and a list of what it did not carry over. That covers a
 version newer than the tool, a document of another format under the suffix,
 and the formats it leaves as they are. `--backup` keeps each file as it was
 next to it, as `<file>.v<N>.bak`. `flutter3d doctor`, run in a project,
@@ -144,6 +146,30 @@ version 3 addressed a prefab override by name, and only the reader that has
 read the prefabs can turn that into an id path. The level's digest is
 computed from what the reader reads, so a run recorded against the old file
 still matches the new one.
+
+**Level format 5 is measured.** A light's intensity is written in candela,
+or lux for the sun, where it was a pre-1.0 unitless multiple; the lift
+multiplies by that unit (about 5 790.6), and a light that never named its
+strength keeps meaning the same one. `behaviours`, an entity's `behaviour`
+and a material's `texelsPerMetre` are written `behaviors`, `behavior` and
+`texelsPerMeter`, and the fog's and a light's colour are linear colours. A
+level's digest is taken over the body as format 4 spelled it, so lifting a
+level moves no stored hash. A lighting state handed to `flutter3d lights
+--state` is read the same way: one without `"version": 5` is in the pre-1.0
+unit.
+
+**A data plugin's `scripts` are `expressions`.** `.f3dplugin` version 3
+reads a version-2 `scripts` entry as an expression system with its `source`
+kept, for you to rewrite in the expression language; no script runtime ever
+shipped, so none ran before either. A plugin that brings expression systems
+is refused at install, by name, until this build evaluates them.
+
+**The project's plugin list is a plugin group.** Under `flutter3d_plugins:`
+in your pubspec, `exclude:` is `without:` (`migrate` renames it), and
+`set:` and `with:` construct or add a plugin; `include:` has no equivalent,
+and `migrate` says what to write instead. `lib/plugins.g.dart` defines
+`installedPlugins` as a `PluginGroup`: read `installedPlugins.plugins` where
+you want the list.
 
 **Runs are left at their version on purpose.** `.f3drun` is at version 5 in
 1.0. A run with change stamps on its starting world (the step each
@@ -440,7 +466,7 @@ carried out:
 - <a id="4a-app-TerrainTiles-TerrainTiles"></a>**`TerrainTiles.TerrainTiles`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-app-TerrainTiles-metresPerTexture"></a>**`TerrainTiles.metresPerTexture`** (`dart fix`). `TerrainTiles.metresPerTexture` is `metersPerTexture`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-app-WidgetSurface-WidgetSurface"></a>**`WidgetSurface.WidgetSurface`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
-- <a id="f2-app-defaultDevices"></a>**`defaultDevices`** (by hand). There is no process-wide device registry. An engine owns one (`Flutter3dEngine.devices`, or `Flutter3dView(devices: ...)`), and an application that wants a backend or presenter of its own keeps a registry from `platformDevices()` and passes it: `openDevice(width: w, height: h, registry: mine)`. A device `openDevice` opened remembers its registry, so `presentFrame` finds the presenter without being handed it again. A test that put a fake in front of the real backends adds it to that registry instead.
+- <a id="f2-app-defaultDevices"></a>**`defaultDevices`** (by hand). There is no process-wide device registry. An engine owns one (`Flutter3dEngine.devices`, or `Flutter3dView(device: DeviceSettings(devices: ...))`), and an application that wants a backend or presenter of its own keeps a registry from `platformDevices()` and passes it: `openDevice(width: w, height: h, registry: mine)`. A device `openDevice` opened remembers its registry, so `presentFrame` finds the presenter without being handed it again. A test that put a fake in front of the real backends adds it to that registry instead.
 - <a id="4a-app-kFixedResolution"></a>**`kFixedResolution`** (`dart fix`). `kFixedResolution` is `fixedResolution`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="app-package-flutter3d_editor_core-flutter3d_editor_core-dart"></a>**`package:flutter3d_editor_core/flutter3d_editor_core.dart`** (`dart fix`). Names re-exported from `package:flutter3d_editor_core/flutter3d_editor_core.dart` are imported from `package:flutter3d_level_scene/flutter3d_level_scene.dart`. `flutter3d_app` re-exported `LevelBatching` and `meshDataOf` from the editor's core; it depends on neither the editor nor a re-export now. Import `package:flutter3d_level_scene/flutter3d_level_scene.dart` for them; `dart fix` adds the import, and `migrate` the dependency.
 
@@ -455,7 +481,7 @@ carried out:
 
 ### `flutter3d_audio_core`
 
-- <a id="audio_core-AudioBackend"></a>**`AudioBackend`** (by hand). `AudioBackend` is an `abstract base class`: write `extends AudioBackend` where you wrote `implements AudioBackend`, and mark the class `final`, `base` or `sealed`. The five voice members are still yours to write. `open`, `pause`, `resume` and `dispose` have bodies that do nothing; an `open` or `dispose` your backend already had now overrides them (add `@override`). `MixingBackend` and `DirectionalBackend` no longer extend it, so a backend that offers them writes `extends AudioBackend implements MixingBackend`.
+- <a id="audio_core-AudioBackend"></a>**`AudioBackend`** (by hand). `AudioBackend` is an `abstract base class`: write `extends AudioBackend` where you wrote `implements AudioBackend`, and mark the class `final`, `base` or `sealed`. The five voice members are still yours to write. `open`, `pause`, `resume` and `dispose` have bodies that do nothing; an `open` or `dispose` your backend already had now overrides them (add `@override`). `MixingBackend` and `DirectionalBackend` no longer extend it; they are base mixin classes with bodies that do nothing, so a backend that offers them writes `extends AudioBackend with MixingBackend`.
 - <a id="audio_core-AudioScene"></a>**`AudioScene`** (nothing to do). `emitters` and `play` return `AudioEmitter`, the new name of `SoundEmitter`; the old name is a typedef of the new one, so code that holds the result as a `SoundEmitter` still compiles. `play` gained the optional `bus` and `follow`.
 - <a id="4a-audio_core-LoopBand-LoopBand"></a>**`LoopBand.LoopBand`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-audio_core-LoopBand-centre"></a>**`LoopBand.centre`** (`dart fix`). `LoopBand.centre` is `center`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.

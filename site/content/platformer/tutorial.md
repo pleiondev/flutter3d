@@ -92,9 +92,13 @@ final Scene _empty = Scene();   // drawn until the level arrives
 Widget build(BuildContext context) => Flutter3dView(
   scene: _empty,
   camera: _camera,
-  input: _input,
-  plugins: <Flutter3dPlugin>[_platformer, _placedSounds, _placedBursts],
-  registries: <PluginRegistry>[EntityKinds()],
+  // The view's options come in four groups: the device, the view, the loop
+  // and the plugins.
+  loop: LoopSettings(input: _input),
+  plugins: PluginSettings(
+    plugins: <Flutter3dPlugin>[_platformer, _placedSounds, _placedBursts],
+    registries: <PluginRegistry>[EntityKinds()],
+  ),
   onKeyEvent: _devices.handleKeyEvent,
   onCreated: (Flutter3dEngine engine) {
     // One pool, one draw call, added once. Everything this game throws into
@@ -514,7 +518,7 @@ final frame = renderer.render(
   views: <RenderView>[view],
   settings: RenderSettings(
     fog: FogSettings(
-      color: loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
+      color: loaded?.level.fogColor ?? const LinearColor(0.05, 0.07, 0.12),
       density: loaded?.level.fogDensity ?? 0.0,
     ),
     shadows: const ShadowSettings(cascades: 3, resolution: 1024),

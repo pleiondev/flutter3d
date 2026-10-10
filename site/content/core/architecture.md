@@ -32,7 +32,7 @@ flowchart TB
 An application names a backend in its pubspec and hands the device to `Renderer.create`. That is the one line that changes to move a game onto another API, and the reason the choice stays visible in the pubspec instead of being resolved by magic.
 
 ```dart
-final device = await GpuRenderBackend.open();   // flutter3d_impeller
+final device = await GpuRenderBackend.open(width: 1280, height: 720);   // flutter3d_impeller
 final renderer = Renderer.create(device: device);
 ```
 
@@ -40,10 +40,10 @@ final renderer = Renderer.create(device: device);
 
 | Backend | Runs on | Entry point | Status |
 |---|---|---|---|
-| **`flutter3d_impeller`** | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.open()` | The production one. Everything in these docs runs on it |
-| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs all three games. Slower, at a fixed resolution. What an ordinary web build opens |
-| **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of every game |
-| **`flutter3d_webgpu`** | WebGPU, in a browser that hands out an adapter | `openWebGpu()` | Draws, and passes the whole conformance suite against a live device. Declines four capabilities by name. Asked for rather than defaulted to |
+| **`flutter3d_impeller`** | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.open(width:, height:)` | The production one. Everything in these docs runs on it |
+| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice.open(width:, height:)` | Runs all three games. Slower, at a fixed resolution. What an ordinary web build opens |
+| **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice(width:, height:, shaders:)` | Complete for the golden set. A dev dependency of every game |
+| **`flutter3d_webgpu`** | WebGPU, in a browser that hands out an adapter | `WebGpuDevice.open(width:, height:)` | Draws, and passes the whole conformance suite against a live device. Declines four capabilities by name. Asked for rather than defaulted to |
 
 Each exists for a different reason, and none of them is a fallback for another.
 

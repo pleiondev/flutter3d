@@ -49,19 +49,15 @@ A conditional import instead of a runtime branch, because the two backends pull 
 
 ```dart
 // lib/src/backend_web.dart
-Future<GraphicsDevice> openDevice({required int width, required int height}) async {
-  final device = WebGlDevice.open(
-    width: width,
-    height: height,
-    // GLSL ES 3.00, translated from `flutter3d_shaders` by
-    // `flutter3d_webgl/tool/generate_shaders.dart`. There is no compiled
-    // bundle here: a browser compiles GLSL itself, so a "bundle" is a map
-    // from the engine's entry point names to source text.
-    sources: engineShaders,
-  );
-  if (device == null) throw StateError('WebGL2 is not available');
-  return device;
-}
+// A browser without WebGL2 completes the future with a
+// DeviceUnavailableException that says so.
+Future<GraphicsDevice> openDevice({required int width, required int height}) =>
+    // The shaders default to the engine's own: GLSL ES 3.00, translated from
+    // `flutter3d_shaders` by `flutter3d_webgl/tool/generate_shaders.dart`
+    // (`webGlEngineShaders`). There is no compiled bundle here: a browser
+    // compiles GLSL itself, so a "bundle" is a map from the engine's entry
+    // point names to source text.
+    WebGlDevice.open(width: width, height: height);
 ```
 
 Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `RenderView`, `Renderer.render`. The simulation does not know a browser is involved and neither does the renderer.

@@ -144,7 +144,7 @@ classes:
   desktop:
 ```
 
-The keys a class takes are `lods`, `impostor`, `impostorCell`, `maxTextureSide` and `lightDifference`, the last of which is for [a level's lights](#lights) and not for models. An image larger than `maxTextureSide` on either axis is box-filtered down before the texture encoder sees it. `convert --classes phone,desktop` does the same from the command line, with the presets, and applies `--lods` and `--impostor` where a class names no chain of its own.
+The keys a class takes are `lods`, `impostor`, `impostorCell`, `maxTextureSide` and `lightDifference`, the last of which is for [a level's lights](#lights) and not for models. An image larger than `maxTextureSide` on either axis is box-filtered down before the texture encoder sees it. `flutter3d convert` has no class option: per-class files are the build's, read from this manifest. A build script that wants them by hand calls `runConvert` (`package:flutter3d_build`), the one-model converter, with `--classes phone,desktop`; it uses the presets, and applies `--lods` and `--impostor` where a class names no chain of its own.
 
 **Which files a build carries depends on its target.** A native build writes the phone and desktop files, because a native application may be given either: a slow laptop reads the phone's, a tablet that samples BC reads the desktop's. A web build writes the web files alone, because a browser reads nothing else. The Flutter tool asks for a web build with no code configuration, and the hook takes that to mean the web. A project that builds some other way names its classes itself, in the same place as the texture family:
 
@@ -228,8 +228,10 @@ A path somebody else wrote, such as a level document naming a coin's model, goes
 `convert` also takes a splat capture, a `.ply` of fitted Gaussians or its compressed `.spz` form, and writes a `.f3dsplat`: an octree whose inner nodes are merged, coarser versions of their children, stored coarse levels first so a viewer reads only the pages its cut needs.
 
 ```bash
-dart run flutter3d_build:convert captures/garden.spz -o web/garden.f3dsplat
+dart run flutter3d_build:convert captures/garden.spz -o web
 ```
+
+That writes `web/garden.f3dsplat`. `-o` names a directory: `dart run flutter3d_build:convert` is an alias of `flutter3d convert`, and every output takes its name from its input. Before 1.0 the same name ran the one-model converter, whose `-o` named the file; that converter is `runConvert` in `package:flutter3d_build`, for a build script.
 
 The converter reads the tree back and counts its leaves against the source before it reports success. Walking a directory, a `.ply` counts as a capture only when its header names `f_dc_0`, the fitted colour, so a folder that also holds a mesh saved as PLY still converts; a `.ply` named on its own is always tried, and refused with the reason. `convertSplat` is the Dart entry.
 
@@ -246,13 +248,13 @@ Finds a smaller set of lights that lights the level the way it is lit now. Every
 | Option | |
 |---|---|
 | `--poses <file.json>` | Where players stood, as the list a game's `Recorder` writes while it plays a run back. Repeatable. Without it, the views are four headings from every player spawn |
-| `--state <file.json>` | A lighting state the level must still look right under, such as the noon sun, or a night with no lights at all. Repeatable; the level is judged under each, so a lamp the sun drowns out is kept for the night |
+| `--state <file.json>` | A lighting state the level must still look right under, such as the noon sun, or a night with no lights at all. Repeatable; the level is judged under each, so a lamp the sun drowns out is kept for the night. Its lights are read as a level's are, at the `version` the file says: a state without `"version": 5` is read in the pre-1.0 light unit and lifted to candela and lux, so write `"version": 5` in a state whose numbers are already candela |
 | `-o`, `--out <path>` | Where to write. By default the input is overwritten |
 | `--preview <dir>` | `before.png` and `after.png` of the first view |
 | `--dry-run` | Prints the moves and the numbers and writes nothing |
 | `--classes phone,web,desktop` | One level per class beside the output (`crypt.phone.json`, ...), each held to its class's `lightDifference` from the nearest `flutter3d_assets.yaml`, or the preset's. The level itself is left alone |
 
-It refuses to overwrite a level that says it was generated; `--out` writes a copy that takes ownership of itself. The command lives under `bin/` only, so the build hook never compiles the optimizer, and a level is optimised only when somebody runs it.
+It refuses to overwrite a level that says it was generated; `--out` writes a copy that takes ownership of itself. The command is `flutter3d lights` (`dart run flutter3d_build:lights` is its alias), in `package:flutter3d_build/cli.dart`, which the build hook's library does not import, so the hook never compiles the optimizer, and a level is optimised only when somebody runs it.
 
 ## When the hook fails
 

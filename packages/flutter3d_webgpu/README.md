@@ -12,7 +12,7 @@ wireframe. All thirty-nine of the engine's stages compile, a bundle handed over
 as bytes loads, a KTX2 texture in any family the adapter carries is sampled, and
 a float target reads back as a picture.
 
-    final device = await openWebGpu(width: 960, height: 540);
+    final device = await WebGpuDevice.open(width: 960, height: 540);
 
 A browser build does not open this backend unless it asks. `flutter3d_app`
 opens WebGL2 in a browser and tries WebGPU first only behind

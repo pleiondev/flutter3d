@@ -3,7 +3,7 @@
 `flutter3d_hardware` over WebGL2, for a build that runs in a browser.
 
 ```dart
-final device = await openWebGl(width: 1280, height: 720);
+final device = await WebGlDevice.open(width: 1280, height: 720);
 final renderer = Renderer.create(device: device);
 ```
 

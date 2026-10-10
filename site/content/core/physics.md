@@ -16,7 +16,7 @@ CollisionSphere(0.35);
 CollisionCapsule(radius: 0.35, halfHeight: 0.55);
 ```
 
-`CollisionShape` is sealed and every pair is implemented exactly: box/box, box/sphere, box/capsule, sphere/sphere, sphere/capsule, capsule/capsule, plus a raycast per shape. There is no GJK and no approximation. Three shapes make nine cases, and nine exact cases are cheaper to trust than one general algorithm nobody can debug.
+Every pair of the built-in shapes is implemented exactly: box/box, box/sphere, box/capsule, sphere/sphere, sphere/capsule, capsule/capsule, plus a raycast per shape. Exact cases are cheaper to trust than one general algorithm nobody can debug. `CollisionShape` is an `abstract base class`, not a sealed one, so a game's own shape extends it directly: every pair method defaults to a GJK walk over the two shapes' supports, ground to the field's prisms, a ray to the bounding box and inertia to the solid box, so a convex shape that says its bounds, planes and support meets everything, and the native core hulls it from its support points. `CustomShape` is the ready-made one for a convex solid given by its support function.
 
 ## The world
 

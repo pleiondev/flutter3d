@@ -164,7 +164,7 @@ void main() => runApp(
 );
 ```
 
-The view makes an empty scene with a light, and a camera at `(0, 1, 5)` looking at the origin, unless you hand it a `scene` and a `camera` of your own. `settings` is what every frame is drawn with, `plugins` go into its loop, and a `device` or `renderer` you hand it is borrowed and left alone when the view goes. The [core tutorial](/core/tutorial/) walks through the rest.
+The view makes an empty scene with a light, and a camera at `(0, 1, 5)` looking at the origin, unless you hand it a `scene` and a `camera` of your own. Its other options come in four groups: `view: ViewSettings(settings: ...)` is what every frame is drawn with, `plugins: PluginSettings(plugins: [...])` go into its loop, `loop: LoopSettings(...)` holds the step rate, the input and where the simulation runs, and a `device` or `renderer` you hand it in `device: DeviceSettings(...)` is borrowed and left alone when the view goes. The [core tutorial](/core/tutorial/) walks through the rest.
 
 ### Or write the scene as widgets
 
