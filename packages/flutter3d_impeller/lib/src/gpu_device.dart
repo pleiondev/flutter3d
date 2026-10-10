@@ -1013,6 +1013,38 @@ final class GpuRenderBackend extends GraphicsDevice {
   @override
   void releaseSampler(SamplerDescriptor sampler) => forgetGpuSampler(sampler);
 
+  // ------------------------------------------------- sharing (1.0)
+  //
+  // The zero-copy half of `SharedTexture`: the wgpu sidecar exports the
+  // `MTLTexture` it computed into, and this side would draw it in place.
+  // flutter_gpu has no way to make a texture over a native handle, so the
+  // import is refused with the reason, `SharedTexture` copies through host
+  // memory instead, and a demand for zero copy is a `SharingException` naming
+  // this half.
+
+  /// Refused: flutter_gpu cannot wrap a native texture.
+  @override
+  TextureHandle importTexture(
+    NativeHandle handle,
+    TextureDescriptor descriptor,
+  ) => throw UnsupportedCapabilityException(
+    DeviceFeature.sharedTextures,
+    backend: impellerBackendName,
+    reason:
+        'flutter_gpu cannot make a texture over a native handle yet, so a '
+        'texture another device wrote reaches Impeller by a copy through '
+        'host memory',
+  );
+
+  /// Refused: flutter_gpu cannot hand out its texture's native object.
+  @override
+  NativeHandle exportTexture(TextureHandle texture, {NativeHandleKind? kind}) =>
+      throw UnsupportedCapabilityException(
+        DeviceFeature.sharedTextures,
+        backend: impellerBackendName,
+        reason: 'flutter_gpu does not hand out the native texture behind one',
+      );
+
   // ------------------------------------------------- the 1.0 surface
 
   /// A 2D texture (a 1D one is a row of them, which is all a GLSL ES stage

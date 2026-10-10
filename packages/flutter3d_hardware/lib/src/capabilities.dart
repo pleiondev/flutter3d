@@ -542,6 +542,57 @@ final class DeviceFeature extends Capability {
     FeatureStability.stable,
   );
 
+  /// One render pass draws several views: `RenderPassDescriptor.viewMask`
+  /// names them, every attachment is an array texture with a layer per
+  /// view, and a stage reads which view it is drawing as its view index
+  /// (`gl_ViewIndex`, `@builtin(view_index)`). How many views one pass may
+  /// draw is `DeviceLimits.maxMultiviewViews`.
+  ///
+  /// **The shape for stereo and for XR, before any backend draws it.** No
+  /// backend lists it today: WebGPU has no multiview yet, Impeller and the
+  /// software rasteriser none at all, and WebGL2's `OVR_multiview2` is not
+  /// wired. A pass that names a view mask on such a device is refused with
+  /// this feature named, and `ViewPasses` draws the same views as one pass
+  /// per view instead, each into its own layer, which every device with
+  /// [renderToArrayLayer] can.
+  static const multiview = DeviceFeature._(
+    'multiview',
+    FeatureStability.stable,
+  );
+
+  /// A texture is handed to another device, or another API, without a copy:
+  /// `GraphicsDevice.exportTexture` answers a `NativeHandle` for it (an
+  /// `MTLTexture` or an IOSurface on Apple platforms, an `AHardwareBuffer`
+  /// on Android, Vulkan external memory elsewhere) and
+  /// `GraphicsDevice.importTexture` makes a texture over one.
+  ///
+  /// A device lists it when it can do both halves for at least one
+  /// `NativeHandleKind`, and says which in `GraphicsDevice.shareableKinds`.
+  /// Where two devices have no kind in common, `SharedTexture` copies
+  /// through host memory instead, which every device can.
+  static const sharedTextures = DeviceFeature._(
+    'shared-textures',
+    FeatureStability.stable,
+  );
+
+  /// [sharedTextures] for buffers: `GraphicsDevice.exportBuffer` and
+  /// `GraphicsDevice.importBuffer`, and `SharedBuffer` with the copy through
+  /// host memory where the two devices have no kind in common.
+  static const sharedBuffers = DeviceFeature._(
+    'shared-buffers',
+    FeatureStability.stable,
+  );
+
+  /// A `GpuFence` one device signals and another waits on, so work on two
+  /// queues is ordered without the CPU waiting for either: `MTLSharedEvent`
+  /// on Apple platforms, a Vulkan external semaphore elsewhere.
+  /// `GraphicsDevice.createFence`, `signalFence`, `waitFence`, `exportFence`
+  /// and `importFence`.
+  static const sharedFences = DeviceFeature._(
+    'shared-fences',
+    FeatureStability.stable,
+  );
+
   // --------------------------------------------------------------- reserved
   // Named, not built. No backend may report these and no call exists yet.
 
@@ -568,6 +619,59 @@ final class DeviceFeature extends Capability {
   /// what is portable today.
   static const immediateData = DeviceFeature._(
     'immediate-data',
+    FeatureStability.reserved,
+  );
+
+  // 1.0: the names the directions after it need, taken now so that a minor
+  // gives each its calls without anything else having used the name.
+
+  /// Shading at a coarser rate than one invocation per pixel over parts of
+  /// a target: Vulkan's fragment shading rate, Metal's rasterization rate
+  /// maps, Direct3D's variable rate shading. For foveated rendering.
+  static const variableRateShading = DeviceFeature._(
+    'variable-rate-shading',
+    FeatureStability.reserved,
+  );
+
+  /// Resolve modes for a multisampled depth attachment (the sample at zero,
+  /// the minimum, the maximum), where today only colour resolves.
+  static const depthResolve = DeviceFeature._(
+    'depth-resolve',
+    FeatureStability.reserved,
+  );
+
+  /// A second queue that runs compute beside the frame's drawing, ordered
+  /// against it by [sharedFences]' fences rather than by submission order.
+  static const asyncCompute = DeviceFeature._(
+    'async-compute',
+    FeatureStability.reserved,
+  );
+
+  /// 64-bit integers in a stage, with 64-bit atomics on storage buffers.
+  static const shaderInt64 = DeviceFeature._(
+    'shader-int64',
+    FeatureStability.reserved,
+  );
+
+  /// Rasterization that covers every pixel a triangle touches at all, not
+  /// only those whose centre it covers: for voxelization and occlusion.
+  static const conservativeRasterization = DeviceFeature._(
+    'conservative-rasterization',
+    FeatureStability.reserved,
+  );
+
+  /// A test that discards a fragment whose stored depth lies outside a
+  /// range, for light culling and stencil-shadow bounds.
+  static const depthBounds = DeviceFeature._(
+    'depth-bounds',
+    FeatureStability.reserved,
+  );
+
+  /// A presenter that shows the frame in a high dynamic range or wide gamut
+  /// colour space (extended sRGB, Display P3, BT.2100 PQ or HLG) instead of
+  /// sRGB.
+  static const presenterColorSpaces = DeviceFeature._(
+    'presenter-color-spaces',
     FeatureStability.reserved,
   );
 
@@ -638,6 +742,17 @@ final class DeviceFeature extends Capability {
     bindlessResources,
     immediateData,
     viewportBeyondTarget,
+    multiview,
+    sharedTextures,
+    sharedBuffers,
+    sharedFences,
+    variableRateShading,
+    depthResolve,
+    asyncCompute,
+    shaderInt64,
+    conservativeRasterization,
+    depthBounds,
+    presenterColorSpaces,
   ];
 
   /// The feature called [name], or null for a name this version does not
@@ -779,6 +894,7 @@ final class DeviceLimits {
     this.maxComputeWorkgroupSizeZ = 64,
     this.maxComputeWorkgroupsPerDimension = 65535,
     this.maxImmediateDataSize = 0,
+    this.maxMultiviewViews = 0,
   });
 
   /// WebGPU's guaranteed minimums, which the constructor's defaults are.
@@ -831,6 +947,12 @@ final class DeviceLimits {
   /// everywhere: [DeviceFeature.immediateData] is reserved.
   final int maxImmediateDataSize;
 
+  /// How many views one pass may draw through `RenderPassDescriptor.viewMask`
+  /// — the highest view index plus one. Zero on a device without
+  /// [DeviceFeature.multiview], which is every device today; WebGPU's
+  /// minimums say nothing about it, so nothing is assumed.
+  final int maxMultiviewViews;
+
   /// Every limit by its WebGPU name, in declaration order — what a capability
   /// report prints and what [==] compares.
   Map<String, int> toMap() => <String, int>{
@@ -864,6 +986,7 @@ final class DeviceLimits {
     'maxComputeWorkgroupSizeZ': maxComputeWorkgroupSizeZ,
     'maxComputeWorkgroupsPerDimension': maxComputeWorkgroupsPerDimension,
     'maxImmediateDataSize': maxImmediateDataSize,
+    'maxMultiviewViews': maxMultiviewViews,
   };
 
   @override

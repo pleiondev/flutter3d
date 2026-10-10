@@ -49,6 +49,7 @@ const Map<String, int> packageLayers = <String, int>{
   'flutter3d_impeller': 3,
   'flutter3d_webgl': 3,
   'flutter3d_webgpu': 3,
+  'flutter3d_wgpu': 3,
   // L4: the native core with no renderer under it, the simulation, and what
   // stands on the core alone.
   'flutter3d_physics_native': 4,

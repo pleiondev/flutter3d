@@ -11,6 +11,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'cpu_kernel_stage.dart';
 import 'cpu_shader.dart';
 
 /// A library of Dart stages, by the names the engine asks for.
@@ -70,6 +71,9 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   }) {
     final bundle = ShaderBundle.decode(bytes);
     final library = CpuLoadedShaderLibrary._(own, bundle, compiler);
+    library._kernels.addAll(
+      cpuKernelStages(bundle, const <String, CpuKernelStage>{}),
+    );
     library._materials.addAll(
       library._compile(bundle, const <String, _MaterialStage>{}),
     );
@@ -85,11 +89,13 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
     Map<String, _MaterialStage> kept,
   ) {
     final sources = _sources(bundle);
+    // 1.0: a kernel is answered from the kernel section, by `_kernels`.
+    final kernels = decodeKernelSection(bundle);
     final compiler = _compiler;
     final compiled = <String, _MaterialStage>{};
     final missing = <String>[];
     for (final name in bundle.names) {
-      if (_own[name] != null) continue;
+      if (_own[name] != null || kernels.containsKey(name)) continue;
       final source = sources[name];
       if (source == null || compiler == null) {
         missing.add(name);
@@ -140,6 +146,12 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   final Map<String, _MaterialStage> _materials = <String, _MaterialStage>{};
   final Map<String, ShaderHandle> _materialHandles = <String, ShaderHandle>{};
 
+  /// The compute kernels the bundle's kernel section carries — 1.0 — each
+  /// translated to Dart by `flutter3d_shaders`. A reload points a stage at
+  /// the new kernel, as it does a material.
+  final Map<String, CpuKernelStage> _kernels = <String, CpuKernelStage>{};
+  final Map<String, ShaderHandle> _kernelHandles = <String, ShaderHandle>{};
+
   /// Every name answered with a handle so far — what a reload may not drop.
   ///
   /// Kept here rather than read off `_own`, because the device's library
@@ -156,6 +168,21 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   @override
   ShaderHandle? operator [](String name) {
     if (!_bundle.names.contains(name)) return null;
+    final kernel = _kernels[name];
+    if (kernel != null) {
+      _handedOut.add(name);
+      return _kernelHandles.putIfAbsent(
+        name,
+        () => wrapShader(
+          backend: CpuStage.compute(kernel),
+          name: name,
+          release: (ShaderHandle h) {
+            forgetShader(_kernelHandles, h);
+            _handedOut.remove(h.name);
+          },
+        ),
+      );
+    }
     final material = _materials[name];
     final handle = material == null
         ? _own[name]
@@ -183,6 +210,7 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
     final bundle = ShaderBundle.decode(bytes);
     // Both checked before anything is replaced: a refused reload leaves the
     // library as it was, which is the contract.
+    final kernels = cpuKernelStages(bundle, _kernels);
     final compiled = _compile(bundle, _materials);
     final dropped = _handedOut
         .where((String n) => !bundle.names.contains(n))
@@ -197,6 +225,16 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
       );
     }
     _bundle = bundle;
+    for (final MapEntry(key: name, value: stage) in kernels.entries) {
+      final existing = _kernels[name];
+      if (existing == null) {
+        _kernels[name] = stage;
+      } else if (!identical(existing, stage)) {
+        existing
+          ..source = stage.source
+          ..kernel = stage.kernel;
+      }
+    }
     for (final MapEntry(key: name, value: stage) in compiled.entries) {
       final existing = _materials[name];
       if (existing == null) {

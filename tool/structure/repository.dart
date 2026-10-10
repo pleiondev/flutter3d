@@ -274,6 +274,9 @@ const Map<String, String> devDependencyPublishedLater = <String, String>{
       'the same contract suite, run against a real WebGL2 context',
   'flutter3d_webgpu -> flutter3d_conformance':
       'the same contract suite, run against the WebGPU backend',
+  'flutter3d_wgpu -> flutter3d_conformance':
+      'the contract suite\'s compute and sharing checks, run against the '
+      'wgpu sidecar',
   'flutter3d_audio_core -> flutter3d_sim':
       '`audio_model_test.dart` installs `AudioPlugin` into an `EngineLoop`; '
       'the mix itself needs only the world\'s air, from `flutter3d_matter`, '
@@ -1527,6 +1530,11 @@ const Map<String, String> notAVersionedFormat = <String, String>{
           'materialSectionVersion':
       'a section inside an F3SB bundle; the bundle\'s own fixture carries it '
       'at version 1, and the build stamp rebuilds a bundle when it moves',
+  'packages/flutter3d_hardware/lib/src/shader_bundle.dart#'
+          'kernelSectionVersion':
+      'a section inside an F3SB bundle, versioned inside it as the material '
+      'section is; a newer one is refused as stale, and a bundle is a build '
+      'artifact the build remakes',
 };
 
 // ------------------------------------------------------- 1.0: base classes

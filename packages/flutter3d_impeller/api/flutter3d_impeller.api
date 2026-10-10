@@ -25,6 +25,7 @@ final class GpuRenderBackend extends GraphicsDevice
   Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
   List<TextureFormat> get hdrOutputFormats
+  NativeHandle exportTexture(TextureHandle texture, {NativeHandleKind? kind})
   PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
   QuerySet createQuerySet(QueryType type, int count)
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
@@ -40,6 +41,7 @@ final class GpuRenderBackend extends GraphicsDevice
   TextureHandle createCubeTextureFromPixels({required int size, required TextureFormat format, required List<ByteData> faces, List<List<ByteData>>? mipLevels})
   TextureHandle createTexture(TextureDescriptor descriptor)
   TextureHandle createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
+  TextureHandle importTexture(NativeHandle handle, TextureDescriptor descriptor)
   TransferEncoder beginTransferPass({String? label})
   bool get isLost
   int get preferredSampleCount

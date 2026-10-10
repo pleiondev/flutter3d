@@ -7,6 +7,13 @@
   the next draw in that state builds it again; one it throws in the calling
   turn is reported the same way and its draw skipped. Once the record leaves
   the pipeline refused, every draw with it is skipped.
+- **The device's own placement of compute.** A bundle's kernel section
+  loads as compute stages, each `.f3dmat compute` kernel translated to WGSL
+  by `flutter3d_shaders` when it is first asked for, its buffers, texture
+  and image reflected in group zero; a bundle of kernels alone needs no
+  `webgpu` section, and a reload compiles a kernel in use from its new
+  source. A kernel's texture is read with `textureLoad` and binds without a
+  sampler (`WebGpuComputeStage.loadedTextures`).
 - **A WGSL refusal says where.** The `ShaderCompileException` thrown at
   the next `beginFrame` carries `target` (`webgpu`) and a `ShaderDiagnostic`
   for each error the browser's compiler gave, with its line, column and the

@@ -7,6 +7,13 @@
   are skipped, and it is linked again at its next bind until it is left
   refused. On an Adreno phone that fell back to OpenGL ES, one such pair
   failed every frame.
+- **Compute and sharing, refused with the reason.** A bundle of compute
+  kernels is refused as one: flutter_gpu has no compute pipelines yet, and a
+  frame on Impeller places its compute steps on the wgpu sidecar or the CPU.
+  `importTexture` and `exportTexture` refuse `DeviceFeature.sharedTextures`
+  saying flutter_gpu cannot wrap or hand out a native texture, so a texture
+  the sidecar computed reaches Impeller by `SharedTexture`'s copy through
+  host memory.
 - **A stage `impellerc` refused says where.** `ShaderBundleBuildException`
   takes a `cause`, and a failed compile's is a `ShaderCompileException`
   read from `impellerc`'s output: `target` `impeller`, the stage when every

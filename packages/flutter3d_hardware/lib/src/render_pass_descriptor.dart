@@ -464,7 +464,77 @@ final class RenderPassDescriptor {
     this.label,
     this.occlusionQuerySet,
     this.timestampWrites,
-  });
+    this.viewMask,
+  }) : assert(
+         viewMask == null || (viewMask > 0 && viewMask <= 0xFFFFFFFF),
+         'a view mask names at least one view, in 32 bits',
+       );
+
+  /// The views this pass draws at once, one bit per view: bit `i` set draws
+  /// view `i` into layer `i` of every attachment, and a stage reads which
+  /// view it is drawing as its view index. Null draws one view, the
+  /// attachments' own [ColorTarget.layer]s, as every pass did before 1.0.
+  ///
+  /// `DeviceFeature.multiview`, which no backend has yet; a device without
+  /// it refuses the pass from `beginRenderPass` with the feature named.
+  /// [views] and [forView] are how a caller draws the same views one pass
+  /// at a time instead, and `ViewPasses` decides between the two.
+  final int? viewMask;
+
+  /// The view indices [viewMask] names, lowest first; `[0]` without one.
+  List<int> get views {
+    final mask = viewMask;
+    if (mask == null) return const <int>[0];
+    return <int>[
+      for (var i = 0; i < 32; i++)
+        if (mask & (1 << i) != 0) i,
+    ];
+  }
+
+  /// This pass drawing only [view], into layer [view] of each attachment and
+  /// with no [viewMask]: the fallback for a device without multiview. Every
+  /// attachment keeps its texture, its actions and its clear value.
+  ///
+  /// A view above zero needs `DeviceFeature.renderToArrayLayer`, which
+  /// [checkFeatures] asks of the pass this returns, as of any other.
+  RenderPassDescriptor forView(int view) {
+    RangeError.checkValueInInterval(view, 0, 31, 'view');
+    final depth = this.depth;
+    return RenderPassDescriptor(
+      colors: <ColorTarget>[
+        for (final c in colors)
+          ColorTarget(
+            texture: c.texture,
+            resolveTexture: c.resolveTexture,
+            loadAction: c.loadAction,
+            storeAction: c.storeAction,
+            clearValue: c.clearValue,
+            face: c.face,
+            mipLevel: c.mipLevel,
+            layer: view,
+          ),
+      ],
+      depth: depth == null
+          ? null
+          : DepthTarget(
+              texture: depth.texture,
+              clearValue: depth.clearValue,
+              loadAction: depth.loadAction,
+              storeAction: depth.storeAction,
+              stencilLoadAction: depth.stencilLoadAction,
+              stencilStoreAction: depth.stencilStoreAction,
+              stencilClearValue: depth.stencilClearValue,
+              mipLevel: depth.mipLevel,
+              layer: view,
+              face: depth.face,
+              depthReadOnly: depth.depthReadOnly,
+              stencilReadOnly: depth.stencilReadOnly,
+            ),
+      label: label == null ? null : '$label (view $view)',
+      occlusionQuerySet: occlusionQuerySet,
+      timestampWrites: timestampWrites,
+    );
+  }
 
   /// The [QueryType.occlusion] set `PassEncoder.beginOcclusionQuery` writes
   /// into, or null for a pass that asks none. `DeviceFeature.occlusionQuery`.
@@ -537,6 +607,14 @@ final class RenderPassDescriptor {
       timestampWrites != null,
       DeviceFeature.timestampQuery,
       'this pass names timestamp writes',
+    );
+    // 1.0: a multiview pass on a device without it is refused here, in the
+    // same words on every backend; `ViewPasses` draws the views instead.
+    need(
+      viewMask != null,
+      DeviceFeature.multiview,
+      'this pass names a view mask; draw its views one pass each through '
+      'ViewPasses',
     );
   }
 

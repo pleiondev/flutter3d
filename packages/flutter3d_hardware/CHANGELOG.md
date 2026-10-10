@@ -19,6 +19,40 @@
   outside this repository compiles as before and reports nothing until it
   calls `report`. `FakeBackend` takes `refusingPipelines` and
   `refusedBuilds` to play such a driver.
+- **Compute has a placement (for outside backends).** `ComputePlacement`
+  (`device`, `sidecar`, `cpu`), `ComputeExecutor` and `ComputeExecutors`
+  name where a compute step runs and decide it: the drawing device's own
+  compute, then a compute-only sidecar, then the CPU; a step that demands a
+  placement runs there or is refused with `ComputePlacementException` and an
+  open `ComputeRefusalReason`. `DeviceRegistry.addComputeDevice` and
+  `computeExecutors` are how a backend offers a sidecar or a CPU device and
+  how an engine opens them. A kernel travels in a bundle's new
+  `ShaderBundle.kernelSection` (`encodeKernelSection`,
+  `decodeKernelSection`), its `.f3dmat compute` source by stage name, and
+  each device with compute translates it as it loads it.
+- **Multiview in the contract (for outside backends).**
+  `DeviceFeature.multiview`, `DeviceLimits.maxMultiviewViews` and
+  `RenderPassDescriptor.viewMask`: one pass draws several views into the
+  layers of an array target. No backend has it yet, so a masked pass is
+  refused by `checkFeatures` with the feature named, and `ViewPasses.draw`
+  draws the views one pass each through `RenderPassDescriptor.forView`.
+- **Sharing between devices (for outside backends).** `SharedTexture` and
+  `SharedBuffer` hand one device's writes to another: without a copy where
+  both export and import a common `NativeHandleKind` and share a
+  `GpuFence`, through host memory otherwise, which is what every backend
+  does today. `GraphicsDevice` gains `shareableKinds`, `exportTexture`,
+  `importTexture`, `exportBuffer`, `importBuffer`, `createFence`,
+  `signalFence`, `waitFence`, `exportFence`, `importFence` and
+  `releaseFence`, each refusing by default under
+  `DeviceFeature.sharedTextures`, `sharedBuffers` or `sharedFences`;
+  `wrapFence` is in `backend.dart`. Zero copy demanded where it is missing
+  is `SharingException`, saying which half.
+- **Seven names reserved for what comes after 1.0**:
+  `variableRateShading`, `depthResolve`, `asyncCompute`, `shaderInt64`
+  (with 64-bit atomics), `conservativeRasterization`, `depthBounds` and
+  `presenterColorSpaces`. No call exists for them and no device may report
+  one; a minor gives each its calls without anything else having taken the
+  name.
 - **Breaking (for outside backends): `BlendFactor`, `BlendOperation`,
   `CullMode`, `DepthRange`, `GeometryUsage`, `IndexType`, `LoadAction`,
   `MinMagFilter`, `MipFilter`, `PolygonMode`, `PrimitiveType`,

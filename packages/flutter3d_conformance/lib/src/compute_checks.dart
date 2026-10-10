@@ -4,6 +4,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show computeShaders;
 
 import '../flutter3d_conformance.dart';
 
@@ -22,6 +23,15 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
       'this device answers false to supportsCompute, which is a legitimate '
       'answer: compute is optional, and FieldPass is the path every backend '
       'has',
+    );
+  }
+  // 1.0: a device that ships none of the engine's compute stages computes
+  // kernels only — the wgpu sidecar — and is held to the kernel checks
+  // instead. A device that ships some of them and not this one is wrong.
+  if (computeShaders.every((String name) => device.shaders[name] == null)) {
+    throw const ConformanceDeclinedException(
+      'this device computes kernels only and ships none of the engine\'s '
+      'own compute stages; the kernel checks hold it to the same bytes',
     );
   }
   final stage = device.shaders['PrefixSum'];
@@ -64,6 +74,11 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
 }
 
 /// Run these where a device says it computes. Each declines otherwise.
+///
+/// Since 1.0 with the four `.f3dmat compute` kernels of `kernel_checks.dart`,
+/// which hold every placement — the device's own compute, the wgpu
+/// sidecar, the CPU — to the same bytes.
 List<ConformanceCheck> get computeChecks => <ConformanceCheck>[
   (name: 'a compute pass scans a buffer in place', run: checkPrefixSum),
+  ...kernelChecks,
 ];

@@ -10,14 +10,14 @@
 // sources with the same flags.
 //
 // Then the GPU passes, `csrc/gpu/`, as a library of their own, linked with
-// wgpu-native, which `wgpu_native.dart` fetches for the target; without it,
-// the core alone.
+// wgpu-native, which `flutter3d_wgpu`'s `wgpu_native_hook.dart` fetches for
+// the target — the one pinned release the compute sidecar links too; without
+// it, the core alone.
 import 'package:code_assets/code_assets.dart';
+import 'package:flutter3d_wgpu/wgpu_native_hook.dart';
 import 'package:hooks/hooks.dart';
 import 'package:logging/logging.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
-
-import 'wgpu_native.dart';
 
 /// The core's sources, as `tool/build_wasm.dart` and the C tests list them.
 const List<String> coreSources = <String>[

@@ -39,6 +39,10 @@ export 'src/capabilities.dart';
 export 'src/command_encoder.dart';
 export 'src/compute.dart' hide wrapComputePipeline, wrapStorageBuffer;
 
+/// Where a compute step runs — the device's own compute, a sidecar, the
+/// CPU — and the rule that picks one.
+export 'src/compute_placement.dart';
+
 /// How a build opens a `GraphicsDevice`, and how a caller finds what shows a
 /// frame from one — both as a backend registers into, not a list this
 /// package or an assembly layer has to already know every entry of.
@@ -67,6 +71,9 @@ export 'src/hardware_formats.dart';
 
 /// How a texture is sampled.
 export 'src/mip_chain.dart';
+
+/// Several views of one frame: one multiview pass, or one pass per view.
+export 'src/multiview.dart';
 // Pass state as one value. No backend implements anything for it — see the
 // file's header for why it is here rather than in the engine.
 export 'src/pass_state.dart';
@@ -89,6 +96,10 @@ export 'src/shader.dart' hide forgetShader, wrapPipeline, wrapShader;
 /// A bundle that arrives as bytes: the container every backend reads its own
 /// section of, and the refusal a device answers with when it cannot.
 export 'src/shader_bundle.dart';
+
+/// Textures, buffers and fences two devices see: without a copy where both
+/// can, through host memory where they cannot.
+export 'src/sharing.dart' hide wrapFence;
 export 'src/texture.dart' hide wrapTexture;
 
 /// Copies between buffers and textures.

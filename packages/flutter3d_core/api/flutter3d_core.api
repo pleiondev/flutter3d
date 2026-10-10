@@ -756,6 +756,28 @@ final class CompiledFrameGraph
   int? readVersionOf(int index, ResourceId id)
   int? writeVersionOf(int index, ResourceId id)
 
+final class ComputeContext
+  ComputeEncoder beginPass({String? label})
+  ComputePlacement get placement
+  GraphicsDevice get device
+  ShaderHandle stage(String kernel)
+  bool get isOnFrameDevice
+  final ComputeExecutor executor
+  final RenderFrame frame
+  final String step
+
+abstract base class ComputeStep extends RenderNode
+  ComputeExecutor? get executor
+  ComputePlacement? get demand
+  ComputePlacementException? get refusal
+  ComputeStep()
+  Future<ComputePlacementException?> prepare(ComputeExecutors executors)
+  RenderAnchor get defaultAnchor
+  abstract List<ComputeKernel> get kernels
+  abstract void record(ComputeContext context)
+  bool get isSupported
+  void execute(RenderFrame frame)
+
 final class ConeShape extends DerivedShape
   Shape get delegate
   String get name

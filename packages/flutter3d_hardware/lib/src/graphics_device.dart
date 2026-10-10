@@ -23,6 +23,7 @@ import 'render_target_pool.dart';
 import 'resources.dart';
 import 'sampler.dart';
 import 'shader.dart';
+import 'sharing.dart';
 import 'texture.dart';
 import 'transfer.dart';
 import 'vertex_layout_spec.dart';
@@ -807,6 +808,68 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// samples by value (WebGL2 sets the texture's parameters at each bind; the
   /// software rasteriser reads the description itself).
   void releaseSampler(SamplerDescriptor sampler) {}
+
+  // ------------------------------------------------------------------------
+  // 1.0: sharing with another device, or another API. Every member refuses
+  // by default; `SharedTexture` and `SharedBuffer` fall back to a copy
+  // through host memory where a device refuses, and that copy is what every
+  // backend runs today. See `sharing.dart`.
+  // ------------------------------------------------------------------------
+
+  /// The [NativeHandleKind]s this device can both export and import. Empty
+  /// on a device without `DeviceFeature.sharedTextures`, `sharedBuffers` or
+  /// `sharedFences`, which is every backend in this repository today.
+  Set<NativeHandleKind> get shareableKinds => const <NativeHandleKind>{};
+
+  /// [texture]'s memory as a [NativeHandle] of [kind] (the first of
+  /// [shareableKinds] by default), for another device or API to import —
+  /// `DeviceFeature.sharedTextures`. The handle is valid while [texture]
+  /// is.
+  NativeHandle exportTexture(TextureHandle texture, {NativeHandleKind? kind}) =>
+      throw refuse(DeviceFeature.sharedTextures);
+
+  /// A texture shaped like [descriptor] over the memory [handle] names, which
+  /// another device or API made and keeps — `DeviceFeature.sharedTextures`.
+  /// Released like any texture; the memory stays its maker's.
+  TextureHandle importTexture(
+    NativeHandle handle,
+    TextureDescriptor descriptor,
+  ) => throw refuse(DeviceFeature.sharedTextures);
+
+  /// [exportTexture] for a buffer — `DeviceFeature.sharedBuffers`.
+  NativeHandle exportBuffer(StorageBuffer buffer, {NativeHandleKind? kind}) =>
+      throw refuse(DeviceFeature.sharedBuffers);
+
+  /// [importTexture] for a buffer — `DeviceFeature.sharedBuffers`.
+  StorageBuffer importBuffer(
+    NativeHandle handle,
+    BufferDescriptor descriptor,
+  ) => throw refuse(DeviceFeature.sharedBuffers);
+
+  /// A timeline fence at value zero, which [signalFence] raises and
+  /// [waitFence] waits for — `DeviceFeature.sharedFences`.
+  GpuFence createFence() => throw refuse(DeviceFeature.sharedFences);
+
+  /// Raises [fence] to [value] on this device's queue once the work
+  /// submitted before this call is done. [value] only grows.
+  void signalFence(GpuFence fence, int value) =>
+      throw refuse(DeviceFeature.sharedFences);
+
+  /// Holds the work this device submits after this call until [fence]
+  /// reaches [value]. The CPU does not wait.
+  void waitFence(GpuFence fence, int value) =>
+      throw refuse(DeviceFeature.sharedFences);
+
+  /// [fence] as a [NativeHandle] of [kind], for another device to import.
+  NativeHandle exportFence(GpuFence fence, {NativeHandleKind? kind}) =>
+      throw refuse(DeviceFeature.sharedFences);
+
+  /// A fence over the one [handle] names, which another device made.
+  GpuFence importFence(NativeHandle handle) =>
+      throw refuse(DeviceFeature.sharedFences);
+
+  /// Releases a fence [createFence] or [importFence] made.
+  void releaseFence(GpuFence fence) {}
 
   /// Each time the device stops working: a WebGPU device lost, a WebGL
   /// context lost or restored. An external source, so a [Stream].

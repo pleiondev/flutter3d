@@ -735,6 +735,54 @@ final Map<DeviceFeature, _Probe> _probes = <DeviceFeature, _Probe>{
       );
     },
   ),
+  // 1.0. A pass naming two views, into the layers of an array target:
+  // refused by `checkFeatures` on a device without it, drawn on one with.
+  DeviceFeature.multiview: (
+    needs: const <DeviceFeature>[
+      DeviceFeature.textureArrays,
+      DeviceFeature.renderToArrayLayer,
+    ],
+    refusalOnly: false,
+    run: (GraphicsDevice d) async {
+      final views = d.createTexture(
+        const TextureDescriptor(
+          width: 4,
+          height: 4,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          dimension: TextureDimension.d2Array,
+          depthOrArrayLayers: 2,
+          usage: TextureUsage.renderTarget,
+        ),
+      );
+      d
+          .beginRenderPass(
+            RenderPassDescriptor(
+              colors: <ColorTarget>[ColorTarget(texture: views)],
+              viewMask: 0x3,
+            ),
+          )
+          .submit();
+    },
+  ),
+  // The sharing calls' positive halves need a second device or a native
+  // handle to share with, which this check has neither of; their refusals
+  // are what every backend here gives, and what is asked.
+  DeviceFeature.sharedTextures: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: true,
+    run: (GraphicsDevice d) async =>
+        d.exportTexture(_target(d), kind: NativeHandleKind.metalTexture),
+  ),
+  DeviceFeature.sharedBuffers: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: true,
+    run: (GraphicsDevice d) async => d.exportBuffer(_foreignBuffer()),
+  ),
+  DeviceFeature.sharedFences: (
+    needs: const <DeviceFeature>[],
+    refusalOnly: true,
+    run: (GraphicsDevice d) async => d.createFence(),
+  ),
 };
 
 /// Format-table features: the family answer has to match the per-format

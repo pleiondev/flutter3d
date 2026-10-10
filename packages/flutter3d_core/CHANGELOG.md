@@ -23,6 +23,15 @@
   that needed the pipeline are skipped by the backend, where a lazily
   linked pipeline used to throw from the draw and `Renderer.render` rethrew
   it on every frame.
+- **`ComputeStep`, a pass that computes.** A `RenderNode` whose kernels are
+  `.f3dmat compute`: `prepare` places it on the first executor that loads
+  them — the drawing device's own compute, then the wgpu sidecar, then the
+  CPU — or at the placement it `demand`s, and answers a
+  `ComputePlacementException` where nothing fits. An unplaced step is not
+  supported, so the frame reports it as `PassSkip.unsupported` and culls
+  what only read its output. `record` is handed a `ComputeContext`: the
+  chosen executor, its device, each kernel's stage there and the
+  executor's own encoder through `beginPass`.
 - **Breaking: `AnimationInterpolation`, `AnimationPath`,
   `AnimationPointerProperty`, `AnimationPointerTarget`, `AnimationWrap`,
   `MaterialMap`, `ModelWriteFormat`, `ObjNormals`, `ReactiveShape`,

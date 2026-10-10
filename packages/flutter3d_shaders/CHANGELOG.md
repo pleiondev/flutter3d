@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **Compute kernels in `.f3dmat compute`, in `package:flutter3d_shaders/kernel.dart`.**
+  `ComputeKernel.parse` reads a `compute Name { … }` block once into one
+  checked tree (a mistake is a `ComputeKernelException` with its line and
+  column) and translates it twice: `toWgsl` for WebGPU and the wgpu
+  sidecar, `toDartKernel` for the CPU. The WGSL rounds every f32 sum,
+  difference and product where the source does, through an opaque bit cast,
+  because Metal fuses a multiply into the add beside it and reorders sums;
+  with that, the four conformance kernels give the Dart kernel's bytes on
+  wgpu over Metal. `kernelBundle` packs kernels into a bundle's kernel
+  section and `kernelsOf` reads them back for a device's `loadShaders`;
+  `KernelTexture`, `KernelImage` and `KernelPixels` are what the Dart
+  kernel reads and writes texels through.
 - **Hashed alpha is anchored on the world.** `surface.glsl` and
   `depth_predraw.frag` share `HashedAlphaNoise`, which takes the scene's
   origin out of the cutoff, so a shift of the origin keeps every speck, and

@@ -9,6 +9,18 @@
   the same pass still lands, and the refusal is drained once. `a stage pair
   the engine links does link` asks the record as well as the call, since a
   refused link is reported rather than thrown.
+- **Every compute placement gives the same bytes.** `kernelChecks` runs
+  four `.f3dmat compute` kernels (`conformanceKernels`: a prefix sum, a
+  particle step, a skinning pass, a blur from a texture into a storage
+  texture) loaded from a kernel bundle, and holds each to an answer worked
+  out independently, byte for byte; they are part of `computeChecks`.
+- **Multiview and sharing, refused and fallen back from.**
+  `multiviewChecks` holds a device without `DeviceFeature.multiview` to
+  refusing a masked pass by name and drawing the views one pass each
+  through `ViewPasses`; `sharingChecks` carries a texture by copy through
+  `SharedTexture` and holds zero copy demanded where it is missing to a
+  `SharingException`. The honesty check probes `multiview` and the three
+  sharing features. The suite has 52 checks.
 - **Breaking: `FuzzTransform` is `abstract final` rather than sealed**, so a
   transform a later minor adds to the fuzzer breaks no `switch` over them.
 - **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,

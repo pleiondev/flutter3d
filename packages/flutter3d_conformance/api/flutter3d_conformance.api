@@ -94,6 +94,8 @@ List<ConformanceCheck> get conformanceChecks
 
 List<ConformanceCheck> conformanceChecksWith(Future<OwnShaderSection?> Function() ownShaders)
 
+const String conformanceKernels = …
+
 List<ConformanceCheck> get coreChecks
 
 Never decline(GraphicsDevice device, String why)
@@ -106,7 +108,11 @@ Future<List<FuzzFinding>> fuzzSeed(int seed, DeviceFactory makeDevice)
 
 FuzzProgram generateFuzzProgram(int seed)
 
+List<ConformanceCheck> get kernelChecks
+
 List<ConformanceCheck> loadedBundleChecks(Future<OwnShaderSection?> Function() ownShaders)
+
+List<ConformanceCheck> get multiviewChecks
 
 bool refusesResource(Object? Function() call)
 
@@ -115,6 +121,8 @@ void require(bool condition, String message)
 void runDeviceConformance({required String backend, required DeviceFactory makeDevice, Future<OwnShaderSection?> Function()? ownShaders})
 
 List<ConformanceCheck> get shaderChecks
+
+List<ConformanceCheck> get sharingChecks
 
 Future<FuzzFinding> shrinkFinding(FuzzFinding finding, DeviceFactory makeDevice)
 

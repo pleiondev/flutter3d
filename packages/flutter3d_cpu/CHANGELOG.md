@@ -16,6 +16,13 @@
   `GraphicsDevice.pipelineRefusals`, left refused at once, and the draws
   with it draw nothing. It threw an `UnsupportedError`, which failed every
   frame that drew the mesh.
+- **The CPU placement of compute.** A bundle's kernel section loads as
+  compute stages: each `.f3dmat compute` kernel translated to Dart by
+  `flutter3d_shaders`, its buffers and images declared so a bind of any
+  other name answers false, and a reload running the new kernel under the
+  handle already handed out. `registerCpuBackend` also adds a one-texel
+  device as `ComputePlacement.cpu` (one registration takes both out
+  again), and `cpuComputeDevice` makes one directly.
 - **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
   `createBuffer` as in `flutter3d_hardware`: a storage buffer is
   `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or

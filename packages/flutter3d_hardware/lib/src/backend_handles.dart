@@ -8,4 +8,5 @@ export 'compute.dart' show wrapComputePipeline, wrapStorageBuffer;
 export 'geometry_buffer.dart' show wrapGeometry;
 export 'resources.dart' show wrapQuerySet, wrapRenderBundle;
 export 'shader.dart' show forgetShader, wrapPipeline, wrapShader;
+export 'sharing.dart' show wrapFence;
 export 'texture.dart' show wrapTexture;
