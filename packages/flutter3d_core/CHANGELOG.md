@@ -8,6 +8,10 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **Breaking: `DeviceClass.parse` throws for a name that is not a class.**
+  It throws an `UnknownDeviceClassException` (a `Flutter3dFormatException`)
+  naming the classes there are; `DeviceClass.tryParse` is the lookup that
+  answers null, which is what `parse` did before.
 - **Breaking: the engine's upper limits are getters.**
   `FramePacing.maxFramesInFlight`, `InstancedMeshNode.maxMorphTargets`,
   `Skeleton.maxJoints`, `ShadowSettings.maxResolution` and

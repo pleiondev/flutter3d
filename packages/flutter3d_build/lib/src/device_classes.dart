@@ -159,7 +159,7 @@ List<DeviceClass>? parseDeviceClasses(Object? value) {
   if (words == null) return null;
   final classes = <DeviceClass>[];
   for (final word in words) {
-    final parsed = DeviceClass.parse(word.trim());
+    final parsed = DeviceClass.tryParse(word.trim());
     if (parsed == null) return null;
     if (!classes.contains(parsed)) classes.add(parsed);
   }

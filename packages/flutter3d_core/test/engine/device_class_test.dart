@@ -29,6 +29,30 @@ const DeviceTraits _browser = DeviceTraits(
 );
 
 void main() {
+  group('DeviceClass.parse', () {
+    test('reads every class by its name', () {
+      for (final c in DeviceClass.values) {
+        expect(DeviceClass.parse(c.name), same(c));
+        expect(DeviceClass.tryParse(c.name), same(c));
+      }
+    });
+
+    // A name that is not a class is a mistake in the text read, and says so
+    // with the names that would have done; `tryParse` is the lookup that
+    // answers null.
+    test('refuses a name that is not a class, naming the ones that are', () {
+      expect(
+        () => DeviceClass.parse('console'),
+        throwsA(
+          isA<UnknownDeviceClassException>()
+              .having((e) => e.text, 'text', 'console')
+              .having((e) => e.message, 'message', contains('phone, web')),
+        ),
+      );
+      expect(DeviceClass.tryParse('console'), isNull);
+    });
+  });
+
   group('deviceClassPath', () {
     test('puts the class before the extension', () {
       expect(
