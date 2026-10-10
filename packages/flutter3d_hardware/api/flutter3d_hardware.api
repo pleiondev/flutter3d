@@ -255,6 +255,7 @@ final class DepthTarget
   static const textureWrites = DeviceFeature._('texture-writes', FeatureStability.stable)
   static const timestampQuery = DeviceFeature._('timestamp-query', FeatureStability.stable)
   static const uniformBytes = DeviceFeature._('uniform-bytes', FeatureStability.stable)
+  static const viewportBeyondTarget = DeviceFeature._('viewport-beyond-target', FeatureStability.stable)
   static const wireframe = DeviceFeature._('wireframe', FeatureStability.stable)
 
 @immutable final class DeviceFeatures

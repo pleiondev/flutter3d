@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`viewport-beyond-target` is named among the features no call refuses**:
+  a device without it is never handed such a viewport.
 - **Depends on `flutter3d_foundation`**, where `UnsupportedCapabilityException`,
   the refusal the capability checks hold every backend to, lives now.
 

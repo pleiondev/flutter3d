@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`DeviceFeature.viewportBeyondTarget`**: `setViewport` takes a
+  rectangle that starts outside the target and reaches past it, and draws
+  what falls on the target. The software rasteriser and WebGL2 list it;
+  WebGPU, whose viewport must lie inside the attachment, and Impeller do
+  not. Appended to `DeviceFeature.values`.
 - **`UniformScratch`, in `backend.dart`**: one zeroed buffer per uniform
   block size, kept for the device's life, for a backend's
   `bindUniformBlock` to fill before its API copies it. Every backend here

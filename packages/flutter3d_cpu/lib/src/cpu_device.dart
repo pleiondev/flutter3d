@@ -101,6 +101,11 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     // rasteriser's comparisons are the eight the contract names, whichever
     // way round they are asked.
     DeviceFeature.reversedDepth,
+    // The rasteriser clips to the viewport, the scissor and the target
+    // together, and measures window positions from the viewport's corner,
+    // so a viewport past the target draws its window of the frame, the
+    // frame's own bits.
+    DeviceFeature.viewportBeyondTarget,
     // A field on the pass and four arms in the blend equation, which is the
     // whole of what a blend constant is when the blending is arithmetic this
     // backend does itself.

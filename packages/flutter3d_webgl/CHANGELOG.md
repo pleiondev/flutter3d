@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Lists `DeviceFeature.viewportBeyondTarget`**: `glViewport` takes a
+  negative corner and a size past the framebuffer's, and the scissor holds
+  the draw to it.
 - **A uniform block costs no allocation.** `bindUniformBlock` and
   `bindUniformBytes` fill the device's `UniformScratch` for the block's
   size, which `bufferData` copies, where each made a fresh list per draw.

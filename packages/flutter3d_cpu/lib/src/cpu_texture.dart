@@ -745,8 +745,19 @@ final class BoundTexture {
     final height = texture.height;
     final x = u * width - 0.5;
     final y = v * height - 0.5;
-    final x0 = x.floor();
-    final y0 = y.floor();
+    // **A weight too small for a GPU's filter to hold is none.** Hardware
+    // blends with eight fractional bits of sub-texel position, so a read
+    // within half a step of a texel's centre takes that texel alone. Here
+    // it took a few millionths of the neighbour as well: a full-screen pass
+    // reads each texel's centre through a coordinate interpolated in single
+    // precision, a few hundred-thousandths of a texel off, and which way off
+    // depends on the size of the target. A tile of a photo
+    // (`RenderViewSettings.window`) then composited the same light to a
+    // different last bit than the photo drawn whole, at edges where the
+    // neighbour is bright. Snapped as the hardware rounds, the centre is
+    // the centre at any size.
+    final x0 = (x + _subTexelSnap).floor();
+    final y0 = (y + _subTexelSnap).floor();
 
     if (sampler.magFilter == MinMagFilter.nearest) {
       // Nearest rounds to the containing texel, which is the floor of the
@@ -757,8 +768,8 @@ final class BoundTexture {
       );
     }
 
-    final fx = x - x0;
-    final fy = y - y0;
+    final fx = x - x0 < _subTexelSnap ? 0.0 : x - x0;
+    final fy = y - y0 < _subTexelSnap ? 0.0 : y - y0;
     final ax0 = _address(x0, width, sampler.widthAddressMode);
     final ax1 = _address(x0 + 1, width, sampler.widthAddressMode);
     final ay0 = _address(y0, height, sampler.heightAddressMode);
@@ -798,4 +809,9 @@ final class BoundTexture {
   /// Scratch `float`s for [_sampleLevel]'s intermediates: writing a double
   /// here and reading it back rounds it the way a `Vector4` lane does.
   static final Float32List _lane = Float32List(4);
+
+  /// Half a step of a GPU filter's eight fractional bits, in texels: a
+  /// bilinear weight smaller than this is rounded to nothing, as hardware
+  /// rounds it. See [_sampleLevel].
+  static const double _subTexelSnap = 1.0 / 512.0;
 }

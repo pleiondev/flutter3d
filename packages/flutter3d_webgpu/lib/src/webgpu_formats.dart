@@ -303,6 +303,9 @@ DeviceFeatures webgpuDeviceFeatures({
   // `WebGpuDevice.defaultDepthStencilFormat`. `depth24plus` may be either,
   // and the specification leaves it to the browser which.
   if (granted('depth32float-stencil8')) DeviceFeature.reversedDepth,
+  // Not `viewportBeyondTarget`: `setViewport` is a validation error unless
+  // the rectangle lies inside the attachment, so a window of a larger frame
+  // is drawn here through a crop of its projection.
 ]);
 
 /// The `GPUTextureDimension` a texture of [dimension] is allocated as: the

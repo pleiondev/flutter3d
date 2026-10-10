@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A viewport moved by whole pixels draws the same fragments, moved.**
+  Window positions are measured from the viewport's corner and the corner is
+  added to the pixel's index, where it was added to each position and
+  rounded a different way for each corner. A viewport past the target is
+  clipped as before; the device lists `DeviceFeature.viewportBeyondTarget`.
+- **A bilinear read within half a 1/256 step of a texel's centre takes that
+  texel alone**, as a GPU's eight-bit filter weights do. A full-screen pass
+  read each centre a few hundred-thousandths of a texel off, by an amount
+  that depended on the target's size, and the composite of a photo's tile
+  differed from the frame's by a step at bright edges.
 - **Breaking: `CpuDevice.createStorageBuffer` is gone**, folded into
   `createBuffer` as in `flutter3d_hardware`: a storage buffer is
   `createBuffer` with `BufferUsage.standardStorage`, plus `hostReadable` or
