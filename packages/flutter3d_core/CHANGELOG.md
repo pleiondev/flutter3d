@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **What loads in the background goes into a scene in the order it was
+  asked for.** `Scene.reserveTurn` hands out a `SceneTurn` when a load
+  starts; the loader awaits `ready`, attaches what it loaded and calls
+  `release` in a `finally`. The renderer's cull tree and draw order are
+  built from the order meshes were registered, and models decoded on
+  isolates of their own arrive in either order, so a replay drew one of
+  two frames depending on which came back first. `FixtureVisuals`,
+  `ActorVisuals`, `ModelVisuals` and `Model3D` share the one line a scene
+  keeps, whatever mix of them loads into it, and each releases the turns
+  its unfinished loads hold when it is disposed. A turn opens the moment
+  the one before it is released, by that call rather than through any
+  zone's queue (`isReady` says whether it has), so a load awaited from
+  `tester.runAsync` gets in.
+
 - **A data plugin's materials and render steps are read here.**
   `package:flutter3d_core/data_plugins.dart` has `materialsSection` and
   `renderStepsSection` (`renderDataSections`, both), which an engine

@@ -255,9 +255,35 @@ final class FixtureVisuals {
   }
 
   /// Puts a modelled fixture in the scene once its file has been read.
+  ///
+  /// **In the order the fixtures were added, not the order their files
+  /// arrive in** — see [Scene.reserveTurn]. A level naming two models, the
+  /// Ascent's coin and key, had whichever isolate finished first put its
+  /// model into the scene first, and the same replay drew one of two
+  /// frames.
   Future<void> _addModel(Fixture fixture, String path) async {
     final generation = _generation;
-    final asset = await _models.putIfAbsent(path, () => _load(path));
+    final loading = _models.putIfAbsent(path, () => _load(path));
+    final turn = scene.reserveTurn();
+    _turns.add(turn);
+    try {
+      final asset = await loading;
+      await turn.ready;
+      _placeModel(fixture, asset, generation);
+    } finally {
+      _turns.remove(turn);
+      turn.release();
+    }
+  }
+
+  /// The turns models still loading hold, released by [dispose]: a level
+  /// let go of while a file is still being read must not keep whatever is
+  /// asked of the scene next waiting on it.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
+
+  /// [asset] instantiated for [fixture], unless it did not load or the level
+  /// [generation] it was asked for is over.
+  void _placeModel(Fixture fixture, ModelAsset? asset, int generation) {
     // The level changed while the file was being read. The same race
     // `ActorVisuals._dress` guards against, met here later: a torch's model
     // arriving after `dispose` instantiated into a scene nobody draws and put
@@ -395,6 +421,10 @@ final class FixtureVisuals {
   /// moment it arrives; the generation bump keeps it out of the scene.
   void dispose() {
     _generation++;
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     for (final piece in _pieces) {
       piece.node.removeFromParent();
     }

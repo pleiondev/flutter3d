@@ -4017,6 +4017,7 @@ final class Scene
   List<RenderView> get textureViews
   Registration onOriginShift(void Function(OriginShifted shift) handler)
   Scene({String? name})
+  SceneTurn reserveTurn()
   String toString()
   T add<T extends SceneNode>(T node)
   TextureHandle? environment
@@ -4127,6 +4128,11 @@ final class SceneShadows
   final int casterIndex
   static SceneShadows from(RenderFrame frame, {int casterIndex = -1})
   static const SceneShadows none = SceneShadows()
+
+final class SceneTurn
+  Future<void> get ready
+  bool get isReady
+  void release()
 
 typedef ScreenBounds = ({double left, double top, double right, double bottom});
 

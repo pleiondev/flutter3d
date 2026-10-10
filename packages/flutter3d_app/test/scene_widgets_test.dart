@@ -233,6 +233,55 @@ void main() {
     expect(controller.scene.meshes, isNotEmpty);
   });
 
+  testWidgets('models go into the scene in the order they were built, '
+      'whichever arrives first', (tester) async {
+    // The scene registers meshes as they are attached, and that registry is
+    // what the cull tree is built over and draws are claimed in: two models
+    // arriving in either order were two pictures of one scene.
+    //
+    // Mutation: in `_Model3DState._loadInto`, drop `await previous` — the
+    // second model, arriving first, is registered first.
+    final device = _device();
+    final bytes = File(
+      '../flutter3d_samples/assets/BoxAnimated.glb',
+    ).readAsBytesSync();
+    final asset = await tester.runAsync(
+      () async => ModelAsset.fromDocument(
+        await GltfLoader().load(bytes),
+        device: device,
+      ),
+    );
+    final first = Completer<ModelAsset>();
+    final second = Completer<ModelAsset>();
+    ModelInstance? firstLoaded;
+    ModelInstance? secondLoaded;
+    final controller = await _pump(tester, device, <Widget>[
+      Model3D(
+        load: (GraphicsDevice device) => first.future,
+        onLoaded: (instance) => firstLoaded = instance,
+      ),
+      Model3D(
+        load: (GraphicsDevice device) => second.future,
+        onLoaded: (instance) => secondLoaded = instance,
+      ),
+    ]);
+
+    second.complete(asset);
+    await tester.pump();
+    await tester.pump();
+    first.complete(asset);
+    await tester.pump();
+    await tester.pump();
+
+    expect(firstLoaded, isNotNull);
+    expect(secondLoaded, isNotNull);
+    final meshes = controller.scene.meshes;
+    expect(
+      meshes.indexOf(firstLoaded!.meshes.first),
+      lessThan(meshes.indexOf(secondLoaded!.meshes.first)),
+    );
+  });
+
   testWidgets('a model\'s animation plays while playing, and holds when not', (
     tester,
   ) async {

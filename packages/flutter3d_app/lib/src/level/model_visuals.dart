@@ -69,6 +69,11 @@ final class ModelVisuals {
   /// position the moment the level opens, so the model has to already be in
   /// the scene by the time [LevelReady]/[LessonReady] is emitted, not two
   /// frames later.
+  ///
+  /// **Into the scene in the order [add] was called, not the order the files
+  /// arrive in** — see [Scene.reserveTurn]. A caller that started several
+  /// adds and waited for them together had them go in in whichever order
+  /// their isolates finished.
   Future<SceneNode?> add(EntityDef entity) async {
     if (entity.type != entityType) return null;
 
@@ -78,6 +83,26 @@ final class ModelVisuals {
       return null;
     }
 
+    final turn = scene.reserveTurn();
+    _turns.add(turn);
+    try {
+      return await _addInTurn(entity, path, turn.ready);
+    } finally {
+      _turns.remove(turn);
+      turn.release();
+    }
+  }
+
+  /// The turns [add]s still loading hold, released by [dispose]: a level let
+  /// go of while a file is still being read must not keep whatever is asked
+  /// of the scene next waiting on it.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
+
+  Future<SceneNode?> _addInTurn(
+    EntityDef entity,
+    String path,
+    Future<void> previous,
+  ) async {
     final generation = _generation;
     final ModelAsset asset;
     try {
@@ -98,6 +123,7 @@ final class ModelVisuals {
       );
       return null;
     }
+    await previous;
     // [dispose] ran while the file was being read: the upload is released
     // here, since no list [dispose] walks will ever hold it, and nothing goes
     // into a scene nobody draws any more.
@@ -152,6 +178,10 @@ final class ModelVisuals {
   /// shares.
   void dispose() {
     _generation++;
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     for (final instance in _instances) {
       instance.removeFromScene();
     }

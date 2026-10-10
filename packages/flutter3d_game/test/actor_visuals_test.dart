@@ -15,9 +15,12 @@
 ///   defaults to looping, so a death clip restarted the instant it ended.
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show StringCodec;
 import 'package:flutter3d/flutter3d.dart' as engine show AnimationPose;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
@@ -600,6 +603,85 @@ void main() {
       expect(order, <String>['answered', 'settled']);
     });
   });
+
+  test('actors are dressed in the order they were added, whichever file is '
+      'decoded first', () async {
+    // Each model is decoded on an isolate of its own, so two finish in
+    // either order, and the scene's order is part of the picture — see the
+    // same test in `fixture_visuals_test.dart`.
+    //
+    // Mutation: in `_dress`, drop `await previous` — the second file is
+    // served at once and the first held back, so the second actor's model
+    // goes into the scene first.
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final hero = File('../flutter3d/test/fixtures/hero.glb').readAsBytesSync();
+    final first = Completer<void>();
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMessageHandler('flutter/assets', (
+      ByteData? message,
+    ) async {
+      final key = Uri.decodeFull(
+        const StringCodec().decodeMessage(message) ?? '',
+      );
+      if (key == 'models/first.glb') await first.future;
+      return key.startsWith('models/') ? ByteData.sublistView(hero) : null;
+    });
+    addTearDown(() => messenger.setMockMessageHandler('flutter/assets', null));
+
+    final firstActor = _actor();
+    final secondActor = _actor();
+    final scene = Scene();
+    final visuals =
+        ActorVisuals(
+            scene,
+            appearance: _PathLook(<Actor, String>{
+              firstActor: 'models/first.glb',
+              secondActor: 'models/second.glb',
+            }),
+            device: FakeBackend(),
+            onIssue: (issue) => fail('$issue'),
+          )
+          ..add(firstActor)
+          ..add(secondActor);
+
+    // Long enough for the second to be read, decoded and worn when nothing
+    // holds it back; with the fix it waits for the first.
+    final waited = Stopwatch()..start();
+    while (visuals.modelOf(secondActor) == null &&
+        waited.elapsed < const Duration(seconds: 1)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    first.complete();
+    // Bounded, so a load that never lands fails here rather than hanging.
+    await visuals.settled.timeout(const Duration(seconds: 30));
+
+    final children = scene.root.childrenView;
+    final firstAt = children.indexOf(visuals.modelOf(firstActor)!.root);
+    final secondAt = children.indexOf(visuals.modelOf(secondActor)!.root);
+    expect(firstAt, greaterThanOrEqualTo(0));
+    expect(secondAt, greaterThan(firstAt));
+    visuals.dispose();
+  });
+}
+
+/// Each actor in the model this table names for it.
+final class _PathLook with ActorAppearance {
+  _PathLook(this.paths);
+
+  final Map<Actor, String> paths;
+
+  @override
+  String meshKeyFor(Actor actor) => 'hero';
+
+  @override
+  RenderMaterial materialFor(Actor actor) => RenderMaterial();
+
+  @override
+  String? modelFor(Actor actor) => paths[actor];
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
 }
 
 /// Asks for a model nobody packaged.
