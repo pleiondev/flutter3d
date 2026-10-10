@@ -87,7 +87,7 @@ final class FrameCaptureDemo extends ShowcaseDemo {
   void verify(Scene scene, FrameResult frame) {
     // #region check
     final CapturedPass? scenePass = _capture.passNamed('scene');
-    final CapturedImage? color = scenePass?.imageOf('hdr_colour');
+    final CapturedImage? color = scenePass?.imageOf('hdr_color');
     if (scenePass == null ||
         !scenePass.active ||
         color == null ||

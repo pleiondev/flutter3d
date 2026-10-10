@@ -717,7 +717,7 @@ final class _PlanarReflectionNode extends RenderNode {
 
 /// The world, as a graph node — the pass everything else is ordered around.
 ///
-/// It writes `hdr_colour` and `surface_buffer`, which is what took those two
+/// It writes `hdr_color` and `surface_buffer`, which is what took those two
 /// names off [FrameGraph.addExternal]: the frame no longer hands the graph a
 /// lit scene produced by code beside it. And it *optionally* reads the three
 /// shadow maps, which is what lets anything be ordered before it at all.
@@ -1059,7 +1059,7 @@ final class _SceneColourCopyNode extends RenderNode {
   final bool active;
 
   @override
-  String get name => 'scene colour copy';
+  String get name => 'scene color copy';
 
   @override
   bool get isActive => active;

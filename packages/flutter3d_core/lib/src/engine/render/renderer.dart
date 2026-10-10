@@ -5527,8 +5527,8 @@ final class Renderer with RenderServices {
   /// with [FrameGraph.addExternal] at version zero — the first real caller
   /// that primitive has had since the migration [_compileFrameGraph]'s own
   /// doc comment describes ("nothing is external any more"). Bloom is the
-  /// one reader: it consumes `hdr_colour@0` and writes `bloom@1`, and the
-  /// graph this method builds never asks for a version of `hdr_colour`
+  /// one reader: it consumes `hdr_color@0` and writes `bloom@1`, and the
+  /// graph this method builds never asks for a version of `hdr_color`
   /// past zero — nothing here registers a node that would produce one.
   /// `frame_graph_test.dart`'s own coverage is what happens when something
   /// does: a read the graph cannot trace to a producer is refused at

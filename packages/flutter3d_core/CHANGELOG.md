@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `FrameResourceIds.hdrColor` and `FrameResourceIds.sceneColor`
+  are `hdr_color` and `scene_color`.** The frame's resources, steps and
+  passes are named in American spelling like every identifier:
+  `RenderStep.colorGrade` is `color grade` and `RenderStep.sceneColorCopy`
+  and its pass are `scene color copy`. A plugin that names them through the
+  constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
+  hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
+  the new way.
 - **Breaking: `TonemapCurve.agxFull` is gone.** It drew the same picture
   as `TonemapCurve.agx` since 0.7.4; `dart fix` renames it. `values` lists
   five curves, and a frame that still carries code 5 draws as `agx`.

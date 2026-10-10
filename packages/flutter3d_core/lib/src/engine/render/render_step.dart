@@ -282,10 +282,10 @@ final class RenderStep {
   /// reads the environment. Needs [transparent], its only reader; switched,
   /// like it, by [RenderSettings.stepsOff].
   static const RenderStep sceneColorCopy = RenderStep._(
-    'scene colour copy',
+    'scene color copy',
     _copyOff,
     _copyOn,
-    passes: <String>{'scene colour copy'},
+    passes: <String>{'scene color copy'},
     needs: <RenderStep>{transparent},
   );
 
@@ -437,7 +437,7 @@ final class RenderStep {
   /// balance, tint and the colour table. Off sets each to its neutral value
   /// and leaves the lens, the film and the dither as they were.
   static const RenderStep colorGrade = RenderStep._(
-    'colour grade',
+    'color grade',
     _gradeOff,
     _gradeOn,
   );

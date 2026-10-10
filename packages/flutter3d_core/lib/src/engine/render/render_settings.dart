@@ -2342,7 +2342,7 @@ final class RenderSettings {
     'decals',
     // `M3`: on a frame with glass, the scene as the opaque half left it, and
     // the glass and the transparent half drawn over it. Culled on any other.
-    'scene colour copy',
+    'scene color copy',
     'transparent',
     'object ids',
     // `N9`: the colours the high-contrast look rings marked nodes in.

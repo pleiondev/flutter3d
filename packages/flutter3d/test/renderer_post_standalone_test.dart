@@ -70,7 +70,7 @@ void main() {
     // `renderPost` exercises — checked directly here, with no renderer or
     // device in the room, the same way `frame_graph_test.dart` checks every
     // other rule this file's own machinery relies on.
-    const color = ResourceId('hdr_colour');
+    const color = ResourceId('hdr_color');
     const bloom = ResourceId('bloom');
 
     test('a node that only reads the external resource binds version zero', () {

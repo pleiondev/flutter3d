@@ -326,7 +326,7 @@ void main() {
       // Mutation: dropping `ReflectionProbeNode` from the stage leaves
       // 'reflection probe 0' unregistered and this set one short.
       expect(_registered.difference(ran), <String>{
-        'scene colour copy',
+        'scene color copy',
         'object ids',
         'contact shadow resolve',
         'spatial upscale',

@@ -197,9 +197,9 @@ void main() {
     expect(
       ran(glass).where(
         (n) =>
-            <String>{'scene', 'scene colour copy', 'transparent'}.contains(n),
+            <String>{'scene', 'scene color copy', 'transparent'}.contains(n),
       ),
-      <String>['scene', 'scene colour copy', 'transparent'],
+      <String>['scene', 'scene color copy', 'transparent'],
     );
 
     // A layered pane with no transmission: the two nodes are registered,
@@ -207,11 +207,11 @@ void main() {
     final plain = _render(
       pane: (q) => _glass(q, transmission: 0.0, clearcoat: 1),
     );
-    expect(ran(plain.result), isNot(contains('scene colour copy')));
+    expect(ran(plain.result), isNot(contains('scene color copy')));
     expect(ran(plain.result), isNot(contains('transparent')));
     expect(
       plain.result.skipped.map((s) => s.name),
-      containsAll(<String>['scene colour copy', 'transparent']),
+      containsAll(<String>['scene color copy', 'transparent']),
     );
   });
 
@@ -257,9 +257,9 @@ void main() {
     );
     final ran = frame.result.passes.map((p) => p.name);
     expect(ran, contains('transparent'));
-    expect(ran, isNot(contains('scene colour copy')));
+    expect(ran, isNot(contains('scene color copy')));
     expect(
-      frame.result.skipReasonOf('scene colour copy'),
+      frame.result.skipReasonOf('scene color copy'),
       PassSkip.switchedOff,
     );
     final left = _at(frame.hdr, _left.x, _left.y);

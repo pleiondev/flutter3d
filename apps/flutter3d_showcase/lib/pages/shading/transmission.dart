@@ -173,7 +173,7 @@ final class TransmissionDemo extends ShowcaseDemo {
     final Set<String> ran = <String>{
       for (final FramePass pass in frame.passes) pass.name,
     };
-    if (!ran.contains('scene colour copy')) {
+    if (!ran.contains('scene color copy')) {
       throw StateError(
         'the glass is in the frame but the scene was not copied',
       );

@@ -179,7 +179,7 @@ final class FrameResources {
   /// between nodes.
   ///
   /// Versions are what a node sees rather than what the frame currently holds:
-  /// the pass that reads `hdr_colour` and writes it back has to be handed two
+  /// the pass that reads `hdr_color` and writes it back has to be handed two
   /// different textures under one name, and which two depends on where in the
   /// order it sits.
   int _node = -1;
