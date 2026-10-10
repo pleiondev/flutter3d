@@ -4785,7 +4785,7 @@ the same layer first:
 3. L2: `flutter3d_matter`, `flutter3d_shaders`
 4. L3: `flutter3d_core`, `flutter3d_audio_core`, `flutter3d_cpu`,
    `flutter3d_impeller`, `flutter3d_physics`, `flutter3d_webgl`,
-   `flutter3d_webgpu`
+   `flutter3d_webgpu`, `flutter3d_wgpu`
 5. L4: `flutter3d_audio`, `flutter3d_sim`
 6. L5: `flutter3d_build_hooks`, `flutter3d_camera`, `flutter3d_conformance`,
    `flutter3d_editor_play`, `flutter3d_editor_widgets`,

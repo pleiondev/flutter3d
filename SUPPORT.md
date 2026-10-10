@@ -140,6 +140,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flutter3d_voxel` | android, ios, linux, macos, web, windows |
 | `flutter3d_webgl` | web |
 | `flutter3d_webgpu` | web |
+| `flutter3d_wgpu` | android, ios, linux, macos, windows |
 | `flame_flutter3d` | android, ios, linux, macos, web, windows |
 | `flame_flutter3d_audio` | android, ios, linux, macos, web, windows |
 | `flame_multiplayer` | android, ios, linux, macos, web, windows |
