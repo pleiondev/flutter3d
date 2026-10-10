@@ -163,10 +163,19 @@ final class PipelineRefusals {
   /// counted and not told again. Answers whether the backend may build the
   /// pipeline once more at its next use — false from the [maxBuilds]th
   /// failure on, when the pipeline is left refused.
-  bool report(PipelineHandle pipeline, PipelineRefused refusal) {
+  ///
+  /// [retry] false is for a refusal no rebuild can change — a vertex format
+  /// the backend cannot read is the same format at the next frame — and
+  /// leaves the pipeline refused at once, without builds that are known to
+  /// fail.
+  bool report(
+    PipelineHandle pipeline,
+    PipelineRefused refusal, {
+    bool retry = true,
+  }) {
     final refusals = _byPipeline[pipeline] ??= _Refusals(refusal);
-    refusals.failures++;
-    if (refusals.failures == 1) _untold.add(refusal);
+    if (refusals.failures == 0) _untold.add(refusal);
+    refusals.failures = retry ? refusals.failures + 1 : maxBuilds;
     return refusals.failures < maxBuilds;
   }
 

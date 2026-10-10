@@ -97,6 +97,20 @@ void main() {
       expect(refusals.failuresOf(pipeline), PipelineRefusals.maxBuilds);
     });
 
+    test('a refusal no rebuild can change is left refused at once', () {
+      // Mutation: ignore `retry`, and a backend that knows the format will
+      // never be readable builds the pipeline twice more for nothing.
+      final device = FakeBackend();
+      final pipeline = device.createPipeline(
+        device.shaders['MeshVertex']!,
+        device.shaders['Bad']!,
+      );
+      final refusals = PipelineRefusals();
+      expect(refusals.report(pipeline, _refusal(), retry: false), isFalse);
+      expect(refusals.isRefused(pipeline), isTrue);
+      expect(refusals.take(), hasLength(1));
+    });
+
     test('tells each pipeline once, and take drains what it told', () {
       // Mutation: queue every report rather than the first, and a refused
       // pipeline is told on every frame that skips it.
