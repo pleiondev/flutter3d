@@ -80,6 +80,35 @@ Vector3 decodeOctahedral(double u, double v, [Vector3? out]) {
   return result;
 }
 
+/// An [IrradianceField] packed into one float texture, as
+/// [IrradianceField.toAtlas] lays it out: [width] × [height] texels of four
+/// floats in [texels], the irradiance tiles in a grid [columns] across and
+/// the depth tiles below them from row [momentsTop].
+final class IrradianceAtlas {
+  const IrradianceAtlas({
+    required this.width,
+    required this.height,
+    required this.columns,
+    required this.momentsTop,
+    required this.texels,
+  });
+
+  /// Texels across.
+  final int width;
+
+  /// Texels down.
+  final int height;
+
+  /// Probe tiles across, in both halves.
+  final int columns;
+
+  /// The first row of the depth tiles.
+  final int momentsTop;
+
+  /// Row-major from the top, four floats a texel.
+  final Float32List texels;
+}
+
 /// A grid of probes over a box.
 final class IrradianceField {
   IrradianceField({
@@ -167,8 +196,7 @@ final class IrradianceField {
   /// starting at row [momentsTop], every probe's depth tile in the same grid,
   /// mean and mean square in red and green. Row-major from the top, four
   /// floats a texel. `lib/irradiance.glsl` reads it.
-  ({int width, int height, int columns, int momentsTop, Float32List texels})
-  toAtlas() {
+  IrradianceAtlas toAtlas() {
     final probes = probeCount;
     final columns = math.sqrt(probes).ceil();
     final rows = (probes + columns - 1) ~/ columns;
@@ -214,7 +242,7 @@ final class IrradianceField {
         }
       }
     }
-    return (
+    return IrradianceAtlas(
       width: width,
       height: height,
       columns: columns,

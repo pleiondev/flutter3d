@@ -13,7 +13,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -200,7 +199,7 @@ void main() {
       device.uploads.clear();
     });
 
-    ({GeometryBuffer buffer, int count})? draw(
+    ClusterIndices? draw(
       ClusterDraws draws,
       CameraNode camera, {
       int view = 0,

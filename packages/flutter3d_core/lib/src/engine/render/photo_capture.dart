@@ -293,12 +293,32 @@ const String _noScale =
 const String _noExtended =
     'the extended-range output is written as standard range';
 
+/// What [photoSettings] works out for a photo: the settings each [tile] is
+/// drawn with, the [look] the whole picture is finished with, and a
+/// sentence for each thing it [setAside] that a tiled photo cannot do.
+final class PhotoSettings {
+  const PhotoSettings({
+    required this.tile,
+    required this.look,
+    required this.setAside,
+  });
+
+  /// What every tile is drawn with.
+  final RenderSettings tile;
+
+  /// The finish laid over the whole picture once it is assembled.
+  final LookSettings look;
+
+  /// What the photo leaves out, one sentence each, for a report.
+  final List<String> setAside;
+}
+
 /// The settings every tile of a photo is drawn with, and what had to change.
 ///
 /// [exposure] is the one the game last drew with — `Renderer.exposure` — so
 /// the picture is as bright as the screen was. A meter running per tile would
 /// expose a tile of sky darker than a tile of shadow and the seams would show.
-({RenderSettings tile, LookSettings look, List<String> setAside}) photoSettings(
+PhotoSettings photoSettings(
   RenderSettings settings,
   PhotoFilter filter,
   double exposure,
@@ -332,7 +352,7 @@ const String _noExtended =
     outputTransform: OutputTransform.sdr,
     look: look.copyWith(vignette: 0.0, grain: 0.0, chromaticAberration: 0.0),
   );
-  return (tile: tile, look: look, setAside: setAside);
+  return PhotoSettings(tile: tile, look: look, setAside: setAside);
 }
 
 /// Draws [scene] through [camera] at [width] × [height] and hands it to

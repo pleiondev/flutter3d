@@ -15,8 +15,8 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
   double strength = 1.0;
   double metallic = 1.0;
 
-  ({TextureHandle texture, int levels})? _fromSky;
-  ({TextureHandle texture, int levels})? _fromPanorama;
+  EnvironmentCube? _fromSky;
+  EnvironmentCube? _fromPanorama;
   late final List<RenderMaterial> _balls;
   late final Scene _scene;
 
@@ -81,7 +81,7 @@ final class ImageBasedLightingDemo extends ShowcaseDemo {
   @override
   void update(DemoContext context, double dt) {
     // #region use
-    final ({TextureHandle texture, int levels})? chosen = source == 0
+    final EnvironmentCube? chosen = source == 0
         ? _fromSky
         : _fromPanorama;
     _scene

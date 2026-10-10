@@ -111,7 +111,7 @@ export 'src/engine/render/pass_contribution.dart';
 export 'src/engine/render/pass_contributor.dart'
     hide ContributorRegistry, FramePassState, newReactiveFrame;
 export 'src/engine/render/photo_capture.dart';
-export 'src/engine/render/physical_sky.dart' show PhysicalSky;
+export 'src/engine/render/physical_sky.dart' show PhysicalSky, PhysicalSkyRay;
 export 'src/engine/render/probe_faces.dart';
 export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/quality_table.dart';

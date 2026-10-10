@@ -1386,7 +1386,7 @@ extension _MeshEncode on Renderer {
   ///
   /// The cone test only where the draw culls back faces, with the same
   /// expression the cull mode is set from below.
-  ({GeometryBuffer buffer, int count})? _clusterIndicesFor(
+  ClusterIndices? _clusterIndicesFor(
     MeshNode node,
     DrawableGeometry mesh,
     RenderMaterial material,

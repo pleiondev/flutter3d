@@ -221,6 +221,26 @@ final class AnimationLayer {
   Map<int, AnimationTrack> _cachedTracks = const <int, AnimationTrack>{};
 }
 
+/// Where a playhead landed after [advanceTime]'s step, and what the wrap
+/// did to it.
+final class PlayheadStep {
+  const PlayheadStep({
+    required this.time,
+    required this.reversing,
+    required this.stopped,
+  });
+
+  /// The playhead, in seconds into the clip.
+  final double time;
+
+  /// Whether it now runs backwards: a ping-pong turned it, or it already
+  /// did.
+  final bool reversing;
+
+  /// Whether a clip played once reached its end and stopped there.
+  final bool stopped;
+}
+
 /// Where a playhead lands after a step, and what the wrap did to it.
 ///
 /// **One copy of this arithmetic**, shared by the base player and every layer.
@@ -228,7 +248,7 @@ final class AnimationLayer {
 /// of a ping-pong are two chances to turn round on a different frame, and the
 /// bug that produces is a layer that drifts against the clip it is supposed to
 /// be in step with.
-({double time, bool reversing, bool stopped}) advanceTime({
+PlayheadStep advanceTime({
   required double time,
   required double deltaSeconds,
   required double length,
@@ -241,9 +261,11 @@ final class AnimationLayer {
   switch (wrap) {
     case AnimationWrap.once:
       if (next >= length) {
-        return (time: length, reversing: turned, stopped: true);
+        return PlayheadStep(time: length, reversing: turned, stopped: true);
       }
-      if (next <= 0.0) return (time: 0.0, reversing: turned, stopped: true);
+      if (next <= 0.0) {
+        return PlayheadStep(time: 0.0, reversing: turned, stopped: true);
+      }
 
     case AnimationWrap.loop:
       // Modulo rather than a subtraction, so a long pause or a huge speed does
@@ -263,7 +285,7 @@ final class AnimationLayer {
       }
   }
 
-  return (time: next, reversing: turned, stopped: false);
+  return PlayheadStep(time: next, reversing: turned, stopped: false);
 }
 
 /// Shortest-arc interpolation between two rotations, [t] of the way from

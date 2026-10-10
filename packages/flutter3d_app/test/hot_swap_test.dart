@@ -820,7 +820,7 @@ material Paint {
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: ByteData(bytes.first * bytes.first * 4),
       );
-      return (texture: texture, levels: bytes[1]);
+      return EnvironmentCube(texture, bytes[1]);
     }
 
     setUp(() {

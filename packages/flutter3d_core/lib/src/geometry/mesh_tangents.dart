@@ -45,6 +45,21 @@ final class TangentMethod {
   String toString() => 'TangentMethod.$name';
 }
 
+/// What [MeshTangents.generateTangents] gives back: the [mesh] with its
+/// tangents, and for each vertex it appended at a mirrored seam, the vertex
+/// it [copiedFrom].
+final class GeneratedTangents {
+  const GeneratedTangents({required this.mesh, required this.copiedFrom});
+
+  /// The mesh with a tangent per vertex, longer than the input where a seam
+  /// was split.
+  final MeshData mesh;
+
+  /// `copiedFrom[i]` is the source of vertex `vertexCount + i` of the input;
+  /// empty when nothing was split.
+  final Uint32List copiedFrom;
+}
+
 /// Tangent generation, split out of [MeshData] because it is a
 /// self-contained algorithm that only ever touches [MeshData]'s public
 /// surface — an extension keeps it that way rather than granting it access to
@@ -86,7 +101,7 @@ extension MeshTangents on MeshData {
   /// copied: `copiedFrom[i]` is the source of vertex `vertexCount + i` of the
   /// input. Empty when nothing was split, which is every mesh without a
   /// mirrored seam and every run of [TangentMethod.lengyel].
-  ({MeshData mesh, Uint32List copiedFrom}) generateTangents({
+  GeneratedTangents generateTangents({
     VertexLayout? target,
     TangentMethod method = TangentMethod.mikkTSpace,
     bool splitSeams = true,
@@ -127,7 +142,7 @@ extension MeshTangents on MeshData {
             indices: Uint32List.fromList(result.indices),
           )
         : result;
-    final unsplit = (mesh: out, copiedFrom: Uint32List(0));
+    final unsplit = GeneratedTangents(mesh: out, copiedFrom: Uint32List(0));
 
     if (normalOffset < 0 || uvOffset < 0) {
       for (var v = 0; v < out.vertexCount; v++) {
@@ -162,7 +177,7 @@ extension MeshTangents on MeshData {
 /// and a vertex takes the frame its corners agree on. They agree exactly,
 /// bit for bit, wherever MikkTSpace did not split them, because corners of
 /// one group are handed one computed frame.
-({MeshData mesh, Uint32List copiedFrom}) _mikkTSpace(
+GeneratedTangents _mikkTSpace(
   MeshData mesh, {
   required int stride,
   required int tangentOffset,
@@ -285,7 +300,7 @@ extension MeshTangents on MeshData {
     grown[to + 3] = referenced ? frame[at + 3] : 1.0;
   }
 
-  return (
+  return GeneratedTangents(
     mesh: MeshData(layout: mesh.layout, vertices: grown, indices: indices),
     copiedFrom: Uint32List.fromList(copiedFrom),
   );

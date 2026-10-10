@@ -47,7 +47,7 @@ final class VertexCacheDemo extends ShowcaseDemo {
       scrambled,
       sphere.vertexCount,
     );
-    final ({Uint32List indices, Uint32List oldToNew}) fetch =
+    final VertexFetchOrder fetch =
         optimizeVertexFetch(cacheOrdered, sphere.vertexCount);
     _afterRatio = averageCacheMissRatio(cacheOrdered);
     // #endregion reorder

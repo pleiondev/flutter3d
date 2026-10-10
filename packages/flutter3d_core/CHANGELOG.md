@@ -8,6 +8,22 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **Breaking: what the core answers as several values is a class, not a
+  record.** A record's shape cannot grow without breaking every caller, a
+  class's can. `ClusterDraws.indicesFor` answers a `ClusterIndices`,
+  `DepthOfFieldSettings.lensFor` a `ThinLens`, `EnvironmentMap.fromSky`,
+  `fromPanorama` and `fromEncoded` an `EnvironmentCube`,
+  `IrradianceField.toAtlas` an `IrradianceAtlas`,
+  `MeshData.generateTangents` a `GeneratedTangents`, `TriangleBvh.raycast`
+  a `TriangleHit`, `advanceTime` a `PlayheadStep`, `optimizeVertexFetch` a
+  `VertexFetchOrder`, `photoSettings` a `PhotoSettings`,
+  `universalBlockFormat` a `UniversalBlockFormat` and `PhysicalSky.look` a
+  `PhysicalSkyRay`. Each getter has the old field's name, so `.mesh` and
+  `.count` read as before; a destructuring pattern names the class,
+  `final GeneratedTangents(:mesh) = …`. Maths pairs stay records: a size
+  (`resolve`, `hdrSizeOf`), a depth range, a jitter, a projected point,
+  a pair of moments, a colour triple through a lookup table, an
+  eigen-decomposition and glTF's two filter codes.
 - **Breaking: an irradiance field takes and gives `LinearColor`s.**
   `IrradianceField.writeIrradiance` and `writeIrradianceTexel` take one,
   `readIrradiance` and `sample` answer one and no longer fill an `out`

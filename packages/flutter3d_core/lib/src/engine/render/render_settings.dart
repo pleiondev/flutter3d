@@ -719,6 +719,31 @@ final class VolumetricFogSettings {
   );
 }
 
+/// A thin lens as [DepthOfFieldSettings.lensFor] works it out: its focal
+/// length and the width of sensor the picture spans, both in metres.
+final class ThinLens {
+  const ThinLens({required this.focalLength, required this.sensorWidth});
+
+  /// The focal length, in metres.
+  final double focalLength;
+
+  /// The width of sensor the picture spans, in metres.
+  final double sensorWidth;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ThinLens &&
+      other.focalLength == focalLength &&
+      other.sensorWidth == sensorWidth;
+
+  @override
+  int get hashCode => Object.hash(focalLength, sensorWidth);
+
+  @override
+  String toString() =>
+      'ThinLens(focalLength: $focalLength, sensorWidth: $sensorWidth)';
+}
+
 /// Depth of field, from a lens rather than from a ramp — `gfx-34n`.
 ///
 /// **Every number here is one a photographer already knows.** A focus
@@ -822,19 +847,19 @@ final class DepthOfFieldSettings {
   /// across the picture, and `tan(hfov / 2)` is `aspect * tan(vfov / 2)`, so
   /// either number follows from the other. A null [verticalFieldOfView] is
   /// an orthographic camera and gets the numbers as given.
-  ({double focalLength, double sensorWidth}) lensFor({
+  ThinLens lensFor({
     required double? verticalFieldOfView,
     required double aspect,
   }) {
     final given = focalLength;
     final fovY = verticalFieldOfView;
     if (fovY == null || fovY <= 0.0 || aspect <= 0.0) {
-      return (focalLength: given ?? 0.05, sensorWidth: sensorWidth);
+      return ThinLens(focalLength: given ?? 0.05, sensorWidth: sensorWidth);
     }
     final across = 2.0 * aspect * math.tan(fovY / 2.0);
     return given == null
-        ? (focalLength: sensorWidth / across, sensorWidth: sensorWidth)
-        : (focalLength: given, sensorWidth: given * across);
+        ? ThinLens(focalLength: sensorWidth / across, sensorWidth: sensorWidth)
+        : ThinLens(focalLength: given, sensorWidth: given * across);
   }
 
   /// A copy with the given fields replaced. A `clear…` flag resets that

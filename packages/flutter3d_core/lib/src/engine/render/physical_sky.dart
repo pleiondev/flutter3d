@@ -22,6 +22,29 @@ import 'package:vector_math/vector_math.dart';
 import '../scene/light_node.dart' show Photometric;
 import 'engine_light_units.dart';
 
+/// What [PhysicalSky.look] sees along one ray: the light the air sends
+/// towards the eye, what it lets through along the same ray, and whether
+/// the ray ends at the ground.
+///
+/// [radiance] and [transmittance] are per-channel linear quantities, kept
+/// as vectors for the arithmetic they feed.
+final class PhysicalSkyRay {
+  const PhysicalSkyRay({
+    required this.radiance,
+    required this.transmittance,
+    required this.ground,
+  });
+
+  /// The scattered light, plus the ground where the ray meets it.
+  final Vector3 radiance;
+
+  /// What the air lets through along the ray, per channel.
+  final Vector3 transmittance;
+
+  /// Whether the ray ends at the ground.
+  final bool ground;
+}
+
 /// The air of a planet, for `SkySettings.physical`.
 ///
 /// **Single scattering by molecules and by haze, marched per pixel.** Light
@@ -197,7 +220,7 @@ final class PhysicalSky {
   /// [radiance], with what the air lets through along the same ray and
   /// whether the ray ends at the ground — what the disc and the stars are
   /// dimmed by, and what decides whether there is a disc at all.
-  ({Vector3 radiance, Vector3 transmittance, bool ground}) look(
+  PhysicalSkyRay look(
     Vector3 direction,
     Vector3 toSun,
   ) {
@@ -269,7 +292,11 @@ final class PhysicalSky {
       }
     }
 
-    return (radiance: color, transmittance: seen, ground: grounded);
+    return PhysicalSkyRay(
+      radiance: color,
+      transmittance: seen,
+      ground: grounded,
+    );
   }
 
   /// What the air leaves of white sunlight on its way down to the eye, from
