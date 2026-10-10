@@ -2404,7 +2404,7 @@ final class MaterialParameters
   MaterialParameters({this.schema})
   MaterialParameters.over(Map<String, Float32List> values, {this.schema})
   String toString()
-  T? get<T extends Object>(ParameterKey<T> key)
+  T? valueOf<T extends Object>(ParameterKey<T> key)
   bool get isEmpty
   final MaterialParameterSchema? schema
   int get version
@@ -3256,8 +3256,8 @@ final class PhotoFinish
   final int width
   void apply(Uint8List rgba, int top, int rows)
 
-final class PhotoSettings
-  const PhotoSettings({required this.tile, required this.look, required this.setAside})
+final class PhotoPlan
+  const PhotoPlan({required this.tile, required this.look, required this.setAside})
   final List<String> setAside
   final LookSettings look
   final RenderSettings tile
@@ -3883,10 +3883,10 @@ final class ResourceHandle<V>
 
 extension type const ResourceId(String name)
 
-final class ResourceLoadCancelled extends ResourceException
+final class ResourceLoadCanceledException extends ResourceException
   String get message
   String toString()
-  const ResourceLoadCancelled(this.key)
+  const ResourceLoadCanceledException(this.key)
   final Object? key
 
 enum ResourceOrigin
@@ -3907,7 +3907,7 @@ final class ResourcePriority implements Comparable<ResourcePriority>
 final class ResourceRequest<K, V>
   Future<ResourceHandle<V>> get handle
   ResourcePriority get priority
-  bool get isCancelled
+  bool get isCanceled
   final K key
   set priority(ResourcePriority value)
   void cancel()
@@ -5190,7 +5190,7 @@ const int payloadBits = 20
 
 const int payloadMask = (1 << payloadBits) - 1
 
-PhotoSettings photoSettings(RenderSettings settings, PhotoFilter filter, double exposure)
+PhotoPlan photoSettings(RenderSettings settings, PhotoFilter filter, double exposure)
 
 Vector4 planeInEyeSpace(Matrix4 view, Vector3 normal, Vector3 point, {double offset = 0.0})
 

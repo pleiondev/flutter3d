@@ -48,17 +48,17 @@ final class ResourcePriority implements Comparable<ResourcePriority> {
 /// A request for a cached resource that was called off before it was
 /// handed over — what [ResourceRequest.handle] completes with after
 /// [ResourceRequest.cancel].
-final class ResourceLoadCancelled extends ResourceException {
-  const ResourceLoadCancelled(this.key);
+final class ResourceLoadCanceledException extends ResourceException {
+  const ResourceLoadCanceledException(this.key);
 
   /// The key that was asked for.
   final Object? key;
 
   @override
-  String get message => 'the request for $key was cancelled';
+  String get message => 'the request for $key was canceled';
 
   @override
-  String toString() => 'ResourceLoadCancelled: $message';
+  String toString() => 'ResourceLoadCanceledException: $message';
 }
 
 /// A borrowed reference to a cached resource.
@@ -123,7 +123,7 @@ final class ResourceRequest<K, V> {
   final Completer<ResourceHandle<V>> _handed = Completer<ResourceHandle<V>>();
 
   /// The handle, once the load is done; an error if it failed, or a
-  /// [ResourceLoadCancelled] if [cancel] came first.
+  /// [ResourceLoadCanceledException] if [cancel] came first.
   Future<ResourceHandle<V>> get handle => _handed.future;
 
   /// How much this request wants the resource. While it waits for a slot
@@ -138,23 +138,23 @@ final class ResourceRequest<K, V> {
 
   /// Whether [cancel] called this request off before its handle was handed
   /// over.
-  bool get isCancelled => _cancelled;
-  bool _cancelled = false;
+  bool get isCanceled => _canceled;
+  bool _canceled = false;
 
   /// Calls the request off, if its handle has not been handed over yet:
-  /// [handle] completes with a [ResourceLoadCancelled], and the reference
+  /// [handle] completes with a [ResourceLoadCanceledException], and the reference
   /// it held is given back. A load nobody else is waiting for is taken off
   /// the queue before it starts; one already running finishes and is kept,
   /// held by nobody, for [ResourceCache.evictUnused] or the budget. Once
   /// the handle is handed over, this does nothing: release the handle.
   void cancel() {
-    if (_cancelled || _handed.isCompleted) return;
-    _cancelled = true;
+    if (_canceled || _handed.isCompleted) return;
+    _canceled = true;
     _entry
       ..refCount -= 1
       ..waiting.remove(this)
       ..rerank();
-    _handed.completeError(ResourceLoadCancelled(key));
+    _handed.completeError(ResourceLoadCanceledException(key));
     _cache._forgetIfAbandoned(key, _entry);
   }
 }
@@ -343,14 +343,14 @@ final class ResourceCache<K, V> {
     waitingEntry.done.future.then(
       (V value) {
         waitingEntry.waiting.remove(request);
-        if (request._cancelled) return;
+        if (request._canceled) return;
         request._handed.complete(
           ResourceHandle<V>._(waitingEntry, value, request._priority),
         );
       },
       onError: (Object error, StackTrace stack) {
         waitingEntry.waiting.remove(request);
-        if (request._cancelled) return;
+        if (request._canceled) return;
         // Undo the reference and forget the entry so the next attempt
         // retries rather than replaying a cached failure.
         waitingEntry.refCount--;

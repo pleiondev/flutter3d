@@ -296,8 +296,8 @@ const String _noExtended =
 /// What [photoSettings] works out for a photo: the settings each [tile] is
 /// drawn with, the [look] the whole picture is finished with, and a
 /// sentence for each thing it [setAside] that a tiled photo cannot do.
-final class PhotoSettings {
-  const PhotoSettings({
+final class PhotoPlan {
+  const PhotoPlan({
     required this.tile,
     required this.look,
     required this.setAside,
@@ -318,7 +318,7 @@ final class PhotoSettings {
 /// [exposure] is the one the game last drew with — `Renderer.exposure` — so
 /// the picture is as bright as the screen was. A meter running per tile would
 /// expose a tile of sky darker than a tile of shadow and the seams would show.
-PhotoSettings photoSettings(
+PhotoPlan photoSettings(
   RenderSettings settings,
   PhotoFilter filter,
   double exposure,
@@ -352,7 +352,7 @@ PhotoSettings photoSettings(
     outputTransform: OutputTransform.sdr,
     look: look.copyWith(vignette: 0.0, grain: 0.0, chromaticAberration: 0.0),
   );
-  return PhotoSettings(tile: tile, look: look, setAside: setAside);
+  return PhotoPlan(tile: tile, look: look, setAside: setAside);
 }
 
 /// Draws [scene] through [camera] at [width] × [height] and hands it to

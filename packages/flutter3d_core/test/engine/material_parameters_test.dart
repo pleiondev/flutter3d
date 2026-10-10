@@ -47,8 +47,8 @@ void main() {
 
     test('starts the values at the declared defaults', () {
       final values = MaterialParameters(schema: _schema());
-      expect(values.get(waveHeight), 0.25);
-      expect(values.get(tint), const LinearColor(1.0, 0.5, 0.25));
+      expect(values.valueOf(waveHeight), 0.25);
+      expect(values.valueOf(tint), const LinearColor(1.0, 0.5, 0.25));
       expect(values.uniforms.keys, <String>['waveHeight', 'tint']);
     });
   });
@@ -66,7 +66,7 @@ void main() {
         values.uniforms['tint'],
         Float32List.fromList(<double>[0.1, 0.2, 0.3]),
       );
-      expect(values.get(waveHeight), 0.75);
+      expect(values.valueOf(waveHeight), 0.75);
     });
 
     test('a key in another unit is converted into the declared one', () {
@@ -87,8 +87,8 @@ void main() {
       );
       final values = MaterialParameters(schema: schema)
         ..set(inCentimeters, 40.0);
-      expect(values.get(waveHeight), closeTo(0.4, 1e-6));
-      expect(values.get(inCentimeters), closeTo(40.0, 1e-4));
+      expect(values.valueOf(waveHeight), closeTo(0.4, 1e-6));
+      expect(values.valueOf(inCentimeters), closeTo(40.0, 1e-4));
     });
 
     test('a parameter the material does not declare is refused', () {
@@ -123,7 +123,7 @@ void main() {
 
     test('without a schema anything goes, as the raw map did', () {
       final values = MaterialParameters()..set(rim, 3.0);
-      expect(values.get(rim), 3.0);
+      expect(values.valueOf(rim), 3.0);
     });
   });
 
@@ -149,13 +149,13 @@ void main() {
       final values = MaterialParameters(schema: withUnits())
         ..setNamed('waveHeight', 1)
         ..setNamed('tint', <num>[0, 1, 0]);
-      expect(values.get(waveHeight), 1.0);
-      expect(values.get(tint), const LinearColor(0.0, 1.0, 0.0));
+      expect(values.valueOf(waveHeight), 1.0);
+      expect(values.valueOf(tint), const LinearColor(0.0, 1.0, 0.0));
       values
         ..setNamed('tint', Vector3(0.5, 0.5, 0.5))
         ..setNamed('waveHeight', const Quantity(50, Unit.centimeter));
-      expect(values.get(tint), const LinearColor(0.5, 0.5, 0.5));
-      expect(values.get(waveHeight), closeTo(0.5, 1e-6));
+      expect(values.valueOf(tint), const LinearColor(0.5, 0.5, 0.5));
+      expect(values.valueOf(waveHeight), closeTo(0.5, 1e-6));
     });
 
     test('refuses a quantity of another dimension', () {

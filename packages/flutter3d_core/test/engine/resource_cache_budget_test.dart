@@ -168,9 +168,9 @@ void main() {
       final first = cache.request('first');
       final doomed = cache.request('doomed');
       doomed.cancel();
-      await expectLater(doomed.handle, throwsA(isA<ResourceLoadCancelled>()));
+      await expectLater(doomed.handle, throwsA(isA<ResourceLoadCanceledException>()));
       expect(cache.contains('doomed'), isFalse);
-      expect(doomed.isCancelled, isTrue);
+      expect(doomed.isCanceled, isTrue);
 
       loads.finish('first', 1);
       await first.handle;
@@ -185,7 +185,7 @@ void main() {
       expect(cache.referenceCount('k'), 1);
       request.cancel();
       expect(cache.referenceCount('k'), 0);
-      await expectLater(request.handle, throwsA(isA<ResourceLoadCancelled>()));
+      await expectLater(request.handle, throwsA(isA<ResourceLoadCanceledException>()));
       loads.finish('k', 9);
       await Future<void>.delayed(Duration.zero);
       expect(cache.isLoaded('k'), isTrue);

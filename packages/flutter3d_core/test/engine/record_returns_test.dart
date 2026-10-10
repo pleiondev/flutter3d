@@ -61,9 +61,9 @@ void main() {
     expect(atlas.texels.length, atlas.width * atlas.height * 4);
   });
 
-  test('a photo works out PhotoSettings', () {
+  test('a photo works out PhotoPlan', () {
     final chosen = photoSettings(const RenderSettings(), PhotoFilter.none, 1.0);
-    expect(chosen, isA<PhotoSettings>());
+    expect(chosen, isA<PhotoPlan>());
     expect(chosen.tile.renderScale, 1.0);
   });
 }

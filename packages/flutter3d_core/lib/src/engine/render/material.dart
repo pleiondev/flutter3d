@@ -343,7 +343,7 @@ final class RenderMaterial {
   double emissiveStrength;
 
   /// The luminance an emissive of white shines at when nothing says
-  /// otherwise: 1 843.2 nits.
+  /// otherwise: 1 843.2 nits, candela per square meter.
   ///
   /// The luminance the old default of one stood for, so a glowing surface
   /// looks as it did; a material loaded from a file multiplies the file's

@@ -12,7 +12,7 @@
   `ParameterKey<T>` names a parameter as its `.f3dmat` does, with the
   `ParameterType` its value is laid out as (`float`, `vec2`–`vec4`,
   `color`, `colorWithAlpha`, or a plugin's own) and the `Unit` it is in.
-  `MaterialParameters` sets and reads them by key from code (`set`, `get`)
+  `MaterialParameters` sets and reads them by key from code (`set`, `valueOf`)
   and by name from data (`setNamed`, taking numbers, vectors, colors and
   `Quantity`s converted into the declared unit), checked against a
   `MaterialParameterSchema` — `fromProgram` for a parsed `.f3dmat`,
@@ -32,7 +32,7 @@
   `maxConcurrentLoads` the loads wait in a queue the most wanted leaves
   first. `request` hands back a `ResourceRequest` whose `priority` can
   change while it waits and which `cancel` calls off (its handle completes
-  with `ResourceLoadCancelled`); a `ResourceHandle`'s `priority` can change
+  with `ResourceLoadCanceledException`); a `ResourceHandle`'s `priority` can change
   while it is held. `acquire` takes a `priority` and works as before.
 - **`RenderSettings.telemetry` says how much of a frame is measured.**
   `TelemetryLevel.off` keeps the frame's totals and nothing per node;
@@ -88,7 +88,7 @@
   `IrradianceField.toAtlas` an `IrradianceAtlas`,
   `MeshData.generateTangents` a `GeneratedTangents`, `TriangleBvh.raycast`
   a `TriangleHit`, `advanceTime` a `PlayheadStep`, `optimizeVertexFetch` a
-  `VertexFetchOrder`, `photoSettings` a `PhotoSettings`,
+  `VertexFetchOrder`, `photoSettings` a `PhotoPlan`,
   `universalBlockFormat` a `UniversalBlockFormat` and `PhysicalSky.look` a
   `PhysicalSkyRay`. Each getter has the old field's name, so `.mesh` and
   `.count` read as before; a destructuring pattern names the class,

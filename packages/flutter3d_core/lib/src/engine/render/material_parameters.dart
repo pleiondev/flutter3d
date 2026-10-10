@@ -348,7 +348,7 @@ final class MaterialParameters {
   }
 
   /// [key]'s value in [key]'s unit, or null when nothing is set.
-  T? get<T extends Object>(ParameterKey<T> key) {
+  T? valueOf<T extends Object>(ParameterKey<T> key) {
     final held = _values[key.name];
     if (held == null || held.length < key.type.components) return null;
     final floats = Float32List.fromList(held);

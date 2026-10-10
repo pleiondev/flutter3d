@@ -1257,7 +1257,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   PhotoCaptureReport from flutter3d_core
   PhotoFilter from flutter3d_core
   PhotoFinish from flutter3d_core
-  PhotoSettings from flutter3d_core
+  PhotoPlan from flutter3d_core
   Photometric from flutter3d_core
   PhysicalCamera from flutter3d_core
   PhysicalSky from flutter3d_core
@@ -1313,7 +1313,7 @@ export package:flutter3d/flutter3d.dart (whole library)
   ResourceException from flutter3d_foundation
   ResourceHandle from flutter3d_core
   ResourceId from flutter3d_core
-  ResourceLoadCancelled from flutter3d_core
+  ResourceLoadCanceledException from flutter3d_core
   ResourceOrigin from flutter3d_core
   ResourcePriority from flutter3d_core
   ResourceRequest from flutter3d_core
