@@ -158,7 +158,7 @@ void main() {
 }
 
 /// A stepper half a step past its last step.
-final class _HalfwayClock implements StepClock {
+final class _HalfwayClock with StepClock {
   @override
   double get alpha => 0.5;
 

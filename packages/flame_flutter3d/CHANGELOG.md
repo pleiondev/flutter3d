@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **`StepClock` is an `abstract mixin class`**, mixed in beside the Flame
+  type a clock extends (`extends Component with FixedStepUpdate,
+  StepClock`), so a member a minor adds can arrive with a body. Code that
+  `implements StepClock` still compiles; `HasFixedStep`, a mixin, keeps
+  doing so.
+- **The Flame host lights in lux.** `Model3dComponent`'s ambient is 1 737.2
+  lux, the light it had, written as such.
+
 - **Flame components turn through the portable maths.** `Rotate3dEffect`,
   `CurvilinearSpace` and `BridgePlane.rotationFor` build their quaternions
   from `Portable.sinCos` rather than `setAxisAngle` and `Quaternion.axisAngle`,

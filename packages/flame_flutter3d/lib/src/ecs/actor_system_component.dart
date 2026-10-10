@@ -60,8 +60,7 @@ import 'actor_component.dart';
 /// and each actor then goes for the one it can reach first, as
 /// [ActorSystem.step] explains. Exactly one of the two.
 final class ActorSystemComponent extends Component
-    with FixedStepUpdate
-    implements StepClock {
+    with FixedStepUpdate, StepClock {
   ActorSystemComponent({
     required this.system,
     this.focus,

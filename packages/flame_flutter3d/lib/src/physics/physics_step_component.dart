@@ -51,8 +51,7 @@ import 'rigid_body_component.dart';
 /// **In a `HasFixedStep` game it steps with the game**, once in each of the
 /// game's steps, and its own `timing` is not used: see [HasFixedStep].
 final class PhysicsStepComponent extends Component
-    with FixedStepUpdate
-    implements StepClock {
+    with FixedStepUpdate, StepClock {
   PhysicsStepComponent({
     required this.dynamics,
     required this.world,

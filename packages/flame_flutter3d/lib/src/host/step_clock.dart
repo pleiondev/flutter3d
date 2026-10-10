@@ -16,7 +16,7 @@ abstract interface class StepFollower {
 /// Whatever steps a simulation: how far the frame is past its last step, and
 /// who to tell before each one.
 ///
-/// **An interface, because three things step and one of them is the game.**
+/// **One type, because three things step and one of them is the game.**
 /// `PhysicsStepComponent` steps rigid bodies and `ActorSystemComponent` steps
 /// actors; a game whose simulation steps itself in `HasFixedStep.fixedUpdate`
 /// — a genre's own `step`, with the actors and the bodies in it — is the third,
@@ -24,11 +24,14 @@ abstract interface class StepFollower {
 /// moved between its places. It remembered after the game's step had already
 /// moved it, and drew the body where it already was.
 ///
-/// **Implementable outside this package, and stays so through 1.x.** Games
-/// subclass the components that implement it, and closing it would make
-/// every one of those subclasses `base`. It does not grow within a major: a
-/// capability added later arrives beside it, as a second interface.
-abstract interface class StepClock {
+/// **A mixin class, mixed in beside the Flame type a clock already
+/// extends** (`extends Component with StepClock`): a member a minor adds
+/// arrives with a body, and a clock written against 1.0 keeps compiling.
+/// Not `base`: `HasFixedStep` is a clock, and a `base` clock would make
+/// every game that mixes it in a `base` or `final` class. A mixin, which
+/// cannot mix in a class, still writes `implements StepClock`, as
+/// `HasFixedStep` does.
+abstract mixin class StepClock {
   /// How far this frame is past the last step, from 0 up to 1.
   double get alpha;
 
