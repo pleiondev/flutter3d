@@ -147,11 +147,11 @@ Future<_Circuit?> _open(
 
 SkySettings _skyOf(SkyPreset sky) => SkySettings(
   enabled: true,
-  zenith: sky.zenith.toLinearColor(),
-  horizon: sky.horizon.toLinearColor(),
-  nadir: sky.belowHorizon.toLinearColor(),
+  zenith: sky.zenith,
+  horizon: sky.horizon,
+  nadir: sky.belowHorizon,
   directionToSun: sky.directionToSun,
-  sunColor: sky.sunColor.toLinearColor(),
+  sunColor: sky.sunColor,
   glowExponent: sky.glowWide,
   glowStrength: sky.glowStrength,
   sunIntensity: sky.sunDisc,
@@ -159,10 +159,7 @@ SkySettings _skyOf(SkyPreset sky) => SkySettings(
 
 /// What the game draws with, looking along [gaze].
 RenderSettings _settings(SkyPreset sky, Vector3 gaze) => RenderSettings(
-  fog: FogSettings(
-    color: sky.inScatterAlong(gaze).toLinearColor(),
-    density: sky.fogDensity,
-  ),
+  fog: FogSettings(color: sky.inScatterAlong(gaze), density: sky.fogDensity),
   exposure: sky.exposure,
   sky: _skyOf(sky),
   shadows: const ShadowSettings(
@@ -290,7 +287,7 @@ Future<int> _ford() async {
       scene: circuit.scene,
       camera: camera,
       settings: _settings(circuit.sky, gaze),
-      clearColorSrgb: Vector4(sky.x, sky.y, sky.z, 1.0),
+      clearColorSrgb: Vector4(sky.r, sky.g, sky.b, 1.0),
     );
   }
   return _frames;

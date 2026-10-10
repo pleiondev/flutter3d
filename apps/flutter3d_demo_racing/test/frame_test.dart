@@ -106,7 +106,7 @@ final class _Shown {
     // being asserted was lit from somewhere the game was not.
     scene.add(
       LightNode(
-        color: hour.sunColor.toLinearColor(),
+        color: hour.sunColor,
         intensity: hour.sunIntensity * Photometric.legacyUnit,
         name: 'sun',
       )..lookAt(hour.sunDirection),
@@ -166,11 +166,11 @@ final class _Shown {
   /// The preset as the renderer's own sky, exactly as `main.dart` builds it.
   SkySettings get skySettings => SkySettings(
     enabled: true,
-    zenith: sky.zenith.toLinearColor(),
-    horizon: sky.horizon.toLinearColor(),
-    nadir: sky.belowHorizon.toLinearColor(),
+    zenith: sky.zenith,
+    horizon: sky.horizon,
+    nadir: sky.belowHorizon,
     directionToSun: sky.directionToSun,
-    sunColor: sky.sunColor.toLinearColor(),
+    sunColor: sky.sunColor,
     glowExponent: sky.glowWide,
     glowStrength: sky.glowStrength,
     sunIntensity: sky.sunDisc,
@@ -266,9 +266,9 @@ final class _Shown {
         RenderView(
           camera: camera,
           clearColorSrgb: Vector4(
-            background.x,
-            background.y,
-            background.z,
+            background.r,
+            background.g,
+            background.b,
             1.0,
           ),
         ),
@@ -276,7 +276,7 @@ final class _Shown {
       settings: RenderSettings(
         sky: withSky ?? skySettings,
         fog: FogSettings(
-          color: sky.inScatterAlong(hazeAlong ?? gaze).toLinearColor(),
+          color: sky.inScatterAlong(hazeAlong ?? gaze),
           density: sky.fogDensity,
         ),
         exposure: sky.exposure,
@@ -609,9 +609,9 @@ void main() {
             written.ambientIntensity,
             closeTo(named.ambientIntensity, 1e-9),
           );
-          expect((written.horizon - named.horizon).length, lessThan(1e-6));
-          expect((written.zenith - named.zenith).length, lessThan(1e-6));
-          expect((written.sunColor - named.sunColor).length, lessThan(1e-6));
+          expect(_apart(written.horizon, named.horizon), lessThan(1e-6));
+          expect(_apart(written.zenith, named.zenith), lessThan(1e-6));
+          expect(_apart(written.sunColor, named.sunColor), lessThan(1e-6));
         });
 
         test('the sun in the level is the sun in the sky', () async {
@@ -708,3 +708,7 @@ double _skyWarmth(Uint8List rgba) {
   }
   return total / count;
 }
+
+/// How far apart two colours are, channel by channel, as a length.
+double _apart(LinearColor a, LinearColor b) =>
+    Vector3(a.r - b.r, a.g - b.g, a.b - b.b).length;
