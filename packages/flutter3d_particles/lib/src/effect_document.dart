@@ -47,7 +47,12 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show FormatDocument, FormatMigration, FormatSpec, Flutter3dFormatException;
+    show
+        FormatDocument,
+        FormatMigration,
+        FormatSpec,
+        Flutter3dFormatException,
+        LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'flipbook.dart';
@@ -952,9 +957,9 @@ final class _EffectReader {
   }
 
   /// Linear RGB with an alpha, or RGB alone for an alpha of 1.
-  Vector4 _color(Object? raw, String key) {
+  LinearColor _color(Object? raw, String key) {
     final v = _numbers(raw, key, const <int>{3, 4});
-    return Vector4(v[0], v[1], v[2], v.length == 4 ? v[3] : 1.0);
+    return LinearColor(v[0], v[1], v[2], v.length == 4 ? v[3] : 1.0);
   }
 
   String? _path(Object? raw, String key) => switch (raw) {

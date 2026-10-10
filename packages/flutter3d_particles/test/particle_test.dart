@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -18,7 +20,7 @@ ParticleEffect _effect({
   emitter: emitter ?? const SphereEmitter(speed: Range.exact(1.0)),
   lifetime: lifetime,
   size: size,
-  color: Vector4(1.0, 0.5, 0.2, 1.0),
+  color: LinearColor(1.0, 0.5, 0.2, 1.0),
   affectors: affectors,
 );
 
@@ -505,11 +507,11 @@ void main() {
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
           lifetime: const Range.exact(1.0),
           size: const Range.exact(1.0),
-          color: Vector4(1.0, 1.0, 1.0, 1.0),
+          color: LinearColor(1.0, 1.0, 1.0, 1.0),
           affectors: <ParticleAffector>[
             ParticleColorOverLife(
-              Vector4(1.0, 1.0, 1.0, 1.0),
-              Vector4(1.0, 0.0, 0.0, 1.0),
+              LinearColor(1.0, 1.0, 1.0, 1.0),
+              LinearColor(1.0, 0.0, 0.0, 1.0),
             ),
             const ParticleFade(),
           ],

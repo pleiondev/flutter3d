@@ -45,7 +45,7 @@ final class BurstLightDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(2.0, 5.0)),
       lifetime: const Range(0.2, 0.4),
       size: const Range(0.05, 0.09),
-      color: Vector4(1.0, 0.85, 0.5, 1.0),
+      color: LinearColor(1.0, 0.85, 0.5, 1.0),
     );
     _particles.burst(_flashEffect, Vector3.zero(), source: _flash);
     // #endregion source

@@ -57,13 +57,13 @@ final class SeabedLook {
   /// so one [update] moves the caustics on all of them.
   RenderMaterial under(
     String name,
-    Vector4 baseColor, {
+    LinearColor baseColor, {
     double roughness = 0.9,
   }) => RenderMaterial(
     name: name,
     lighting: material.lighting,
     parameters: material.parameters,
-    baseColor: _fromSrgb(baseColor),
+    baseColor: baseColor,
     roughness: roughness,
   );
 
@@ -102,6 +102,3 @@ final class SeabedLook {
       ..scatter = value.scatter;
   }
 }
-
-/// A `Vector4` holding a colour sRGB-encoded, as the linear colour it names.
-LinearColor _fromSrgb(Vector4 c) => LinearColor.fromSrgb(c.x, c.y, c.z, c.w);

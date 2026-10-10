@@ -48,7 +48,7 @@ enum _Stage { disc, sprite, sixWay, mesh }
     emitter: const SphereEmitter(speed: Range.exact(0.0)),
     lifetime: const Range.exact(5.0),
     size: const Range.exact(1.5),
-    color: Vector4(0.8, 0.5, 0.2, 1.0),
+    color: LinearColor(0.8, 0.5, 0.2, 1.0),
   );
   final particles = ParticleSystem(capacity: 2)
     ..burst(effect, Vector3(0.0, 0.0, -5.0))

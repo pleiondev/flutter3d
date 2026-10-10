@@ -239,7 +239,12 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] = Emission(effect, at.clone(), perSecond, direction, null);
+    _rates[key] = Emission(
+      effect: effect,
+      origin: at.clone(),
+      perSecond: perSecond,
+      direction: direction,
+    );
   }
 
   /// [emit] from a place in the world: [at] narrowed to [scene]'s space with
@@ -290,7 +295,13 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] = Emission(effect, at.clone(), perSecond, direction, seconds);
+    _rates[key] = Emission(
+      effect: effect,
+      origin: at.clone(),
+      perSecond: perSecond,
+      direction: direction,
+      remaining: seconds,
+    );
   }
 
   /// [emitTimed] from a place in the world: [at] narrowed to [scene]'s space
@@ -522,7 +533,8 @@ final class ParticleSystem {
       ..birthSize = effect.size.sample(_random)
       ..seed = _random.nextDouble();
     particle.size = particle.birthSize;
-    particle.color.setFrom(effect.color);
+    final color = effect.color;
+    particle.color.setValues(color.r, color.g, color.b, color.a);
     particle.affectors = effect.affectors;
   }
 

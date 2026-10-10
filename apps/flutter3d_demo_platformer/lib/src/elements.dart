@@ -154,7 +154,7 @@ final class LevelElements {
       elements.fireView.watch(
         bed.body,
         coals,
-        fresh: Vector4(0.07, 0.055, 0.045, 1.0),
+        fresh: LinearColor.fromSrgb(0.07, 0.055, 0.045),
       );
     }
   }

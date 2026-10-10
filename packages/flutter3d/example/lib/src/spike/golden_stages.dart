@@ -1110,7 +1110,7 @@ abstract final class GoldenStages {
       emitter: const SphereEmitter(speed: Range.exact(0.0)),
       lifetime: const Range.exact(10.0),
       size: const Range.exact(0.3),
-      color: Vector4(1.0, 0.6, 0.2, 1.0),
+      color: LinearColor(1.0, 0.6, 0.2, 1.0),
     );
     stage.renderer.renderSteps.addContributor(ParticleContributor(particles));
     return GoldenStaged(
@@ -1361,7 +1361,7 @@ abstract final class GoldenStages {
   static Future<GoldenStaged> orthographicParticles(GoldenStage stage) async {
     final device = stage.device;
     stage.sun.isVisible = false;
-    ParticleEffect still(double size, Vector4 color) => ParticleEffect(
+    ParticleEffect still(double size, LinearColor color) => ParticleEffect(
       count: 1,
       emitter: const SphereEmitter(speed: Range.exact(0.0)),
       lifetime: const Range.exact(10.0),
@@ -1373,11 +1373,11 @@ abstract final class GoldenStages {
     for (var i = 0; i < 5; i++) {
       final x = -3.0 + i * 1.5;
       billboards.burst(
-        still(0.9, Vector4(1.0, 0.6, 0.2, 1.0)),
+        still(0.9, LinearColor(1.0, 0.6, 0.2, 1.0)),
         Vector3(x, 1.4, -5.0),
       );
       shards.burst(
-        still(0.35, Vector4(0.3, 0.8, 1.0, 1.0)),
+        still(0.35, LinearColor(0.3, 0.8, 1.0, 1.0)),
         Vector3(x, -1.4, -5.0),
       );
     }
@@ -1542,7 +1542,7 @@ abstract final class GoldenStages {
             emitter: const SphereEmitter(speed: Range(0.3, 0.6)),
             lifetime: const Range.exact(1.2),
             size: const Range.exact(0.18),
-            color: Vector4(1.0, 0.7, 0.3, 1.0),
+            color: LinearColor(1.0, 0.7, 0.3, 1.0),
           ),
           perSecond: 40.0,
           seed: 7,
@@ -2009,7 +2009,7 @@ abstract final class GoldenStages {
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
           lifetime: const Range.exact(5.0),
           size: const Range.exact(1.6),
-          color: Vector4(1.0, 1.0, 1.0, 1.0),
+          color: LinearColor(1.0, 1.0, 1.0, 1.0),
         ),
         Vector3(x, 0.0, x * 0.5),
       );

@@ -955,7 +955,7 @@ final class TrackElements {
       ),
       lifetime: const Range(1.8, 3.0),
       size: const Range(1.1, 1.8),
-      color: Vector4(0.62, 0.53, 0.40, 0.45),
+      color: LinearColor(0.62, 0.53, 0.40, 0.45),
       affectors: <ParticleAffector>[
         const ParticleDrag(1.6),
         const ParticleGravity(0.25),
@@ -977,7 +977,7 @@ final class TrackElements {
       ),
       lifetime: const Range(0.5, 0.9),
       size: const Range(1.0, 1.7),
-      color: Vector4(0.92, 0.95, 1.0, 0.18),
+      color: LinearColor(0.92, 0.95, 1.0, 0.18),
       affectors: <ParticleAffector>[
         const ParticleDrag(2.5),
         const ParticleGravity(-2.0),
@@ -1000,7 +1000,7 @@ final class TrackElements {
     ),
     lifetime: const Range(1.4, 2.4),
     size: const Range(0.6, 1.0),
-    color: Vector4(0.88, 0.88, 0.9, 0.42),
+    color: LinearColor(0.88, 0.88, 0.9, 0.42),
     affectors: <ParticleAffector>[
       const ParticleDrag(1.8),
       const ParticleGravity(0.5),
@@ -1019,7 +1019,7 @@ final class TrackElements {
     ),
     lifetime: const Range(1.0, 1.8),
     size: const Range(0.35, 0.6),
-    color: Vector4(0.16, 0.15, 0.15, 0.55),
+    color: LinearColor(0.16, 0.15, 0.15, 0.55),
     affectors: <ParticleAffector>[
       const ParticleDrag(1.2),
       const ParticleTurbulence(strength: 0.4, scale: 1.0),
@@ -1038,7 +1038,7 @@ final class TrackElements {
     ),
     lifetime: const Range(0.4, 0.8),
     size: const Range(0.05, 0.11),
-    color: Vector4(0.9, 0.95, 1.0, 0.9),
+    color: LinearColor(0.9, 0.95, 1.0, 0.9),
     affectors: <ParticleAffector>[
       const ParticleGravity(),
       const ParticleDrag(0.6),
@@ -1056,7 +1056,7 @@ final class TrackElements {
     ),
     lifetime: const Range(0.35, 0.7),
     size: const Range(0.04, 0.09),
-    color: Vector4(0.88, 0.93, 1.0, 0.8),
+    color: LinearColor(0.88, 0.93, 1.0, 0.8),
     affectors: <ParticleAffector>[
       const ParticleGravity(),
       const ParticleDrag(1.2),

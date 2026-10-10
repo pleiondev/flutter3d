@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Breaking: an effect's colours are `LinearColor`s**, the engine's one
+  colour type: `ParticleEffect.color`, `GradientKey.color`,
+  `ParticleGradient.constant`/`.linear` and `ParticleColorOverLife`. The
+  numbers mean what they did (linear, alpha as brightness), so
+  `Vector4(1.0, 0.5, 0.2, 1.0)` becomes `LinearColor(1.0, 0.5, 0.2, 1.0)`
+  and an effect can be `const`. A live `Particle.color` stays the `Vector4`
+  the step writes in place.
+- **Breaking: `Emission` takes named arguments** (`effect:`, `origin:`,
+  `perSecond:`, `direction:`, `remaining:`).
+
 - **Particles say where they draw** (`boundsFor` on `ParticleContributor`
   and `MeshParticleContributor`), so a near plane fitted under reversed
   depth fits a scene with particles in it and stops in front of the

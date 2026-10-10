@@ -91,9 +91,10 @@ class Model3dComponent extends PositionComponent {
   final GraphicsDevice? _givenDevice;
 
   /// The scene the model stands in, lit by the renderer's default key light
-  /// and a softer ambient than the engine's own default.
+  /// and a softer ambient than the engine's own default: about 1 700 lux,
+  /// an overcast sky's.
   final Scene scene = Scene(name: 'Model3dComponent')
-    ..ambientIntensity = 0.3 * Photometric.legacyUnit;
+    ..ambientIntensity = 1737.2;
 
   /// The camera [render] draws through, placed by [frameModel].
   late final CameraNode camera3d = scene.add(CameraNode(name: 'model3d eye'));

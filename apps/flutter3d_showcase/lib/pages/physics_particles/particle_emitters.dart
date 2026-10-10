@@ -36,7 +36,7 @@ final class ParticleEmittersDemo extends ShowcaseDemo {
     emitter: emitter,
     lifetime: const Range(0.6, 1.2),
     size: const Range(0.05, 0.09),
-    color: Vector4(0.8, 0.85, 1.0, 1.0),
+    color: LinearColor(0.8, 0.85, 1.0, 1.0),
   );
 
   void _burstAll() {

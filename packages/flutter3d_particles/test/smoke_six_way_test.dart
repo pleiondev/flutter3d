@@ -50,7 +50,7 @@ Float32List _render(
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         lifetime: const Range.exact(5.0),
         size: const Range.exact(1.6),
-        color: Vector4(1.0, 1.0, 1.0, 1.0),
+        color: LinearColor(1.0, 1.0, 1.0, 1.0),
       ),
       Vector3(x, 0.0, x * 0.5),
     );
@@ -92,11 +92,10 @@ Float32List _render(
   return device.readHdrPixels(result.frame);
 }
 
-LightNode _point(Vector3 at, Vector3 color, {double intensity = 12.0}) =>
-    LightNode(
-        type: LightType.point,
-        intensity: intensity * Photometric.legacyUnit,
-      )
+/// A point lamp of [candela], about seventy thousand by default: as bright
+/// as the smoke was first lit and looked at.
+LightNode _point(Vector3 at, Vector3 color, {double candela = 69487.0}) =>
+    LightNode(type: LightType.point, intensity: candela)
       ..color = color.toLinearColor()
       ..setPosition(at.x, at.y, at.z);
 
@@ -158,7 +157,7 @@ void main() {
     // half times eight, and any light the tail drops or counts twice shows.
     List<LightNode> lamps(int count) => <LightNode>[
       for (var i = 0; i < count; i++)
-        _point(Vector3(0.0, 1.0, 3.0), Vector3.all(1.0), intensity: 0.3),
+        _point(Vector3(0.0, 1.0, 3.0), Vector3.all(1.0), candela: 1737.2),
     ];
 
     // The composite writes sRGB, so light is summed after undoing that; the

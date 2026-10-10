@@ -78,7 +78,11 @@ final class Finds {
         SceneNode(name: name)..add(
           MeshNode(
             DeviceMesh.upload(device, mesh),
-            floor.under(name, color, roughness: 0.6),
+            floor.under(
+              name,
+              LinearColor.fromSrgb(color.x, color.y, color.z, color.w),
+              roughness: 0.6,
+            ),
           ),
         );
 

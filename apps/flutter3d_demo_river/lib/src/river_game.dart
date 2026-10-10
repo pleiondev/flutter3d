@@ -623,16 +623,16 @@ final class RiverGame extends FlameGame
     at,
   );
 
-  static Vector4 get _flame => Vector4(4.0, 2.2, 0.6, 1.0);
-  static Vector4 get _ember => Vector4(1.2, 0.2, 0.05, 1.0);
-  static Vector4 get _spark => Vector4(4.0, 3.4, 1.6, 1.0);
-  static Vector4 get _muzzle => Vector4(4.0, 0.9, 0.4, 1.0);
-  static Vector4 get _spray => Vector4(0.7, 0.8, 0.9, 1.0);
+  static const LinearColor _flame = LinearColor(4.0, 2.2, 0.6, 1.0);
+  static const LinearColor _ember = LinearColor(1.2, 0.2, 0.05, 1.0);
+  static const LinearColor _spark = LinearColor(4.0, 3.4, 1.6, 1.0);
+  static const LinearColor _muzzle = LinearColor(4.0, 0.9, 0.4, 1.0);
+  static const LinearColor _spray = LinearColor(0.7, 0.8, 0.9, 1.0);
 
   /// How much of what is behind it a puff of smoke takes away, fresh and
   /// as it thins out.
-  static Vector4 get _sootThick => Vector4(0.3, 0.32, 0.38, 1.0);
-  static Vector4 get _sootThin => Vector4(0.08, 0.08, 0.1, 1.0);
+  static const LinearColor _sootThick = LinearColor(0.3, 0.32, 0.38, 1.0);
+  static const LinearColor _sootThin = LinearColor(0.08, 0.08, 0.1, 1.0);
 
   /// A puff of smoke, rising slowly, swelling and thinning out: drawn by
   /// [soot], which takes its colour out of what is behind it.

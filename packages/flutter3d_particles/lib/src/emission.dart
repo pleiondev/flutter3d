@@ -9,13 +9,13 @@ import 'particle_effect.dart';
 /// rather than a field read at the call site: it is a fact about one source's
 /// countdown, not part of what a particle effect is.
 final class Emission {
-  Emission(
-    this.effect,
-    this.origin,
-    this.perSecond,
+  Emission({
+    required this.effect,
+    required this.origin,
+    required this.perSecond,
     this.direction,
     this.remaining,
-  );
+  });
 
   final ParticleEffect effect;
 

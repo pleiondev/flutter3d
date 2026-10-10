@@ -10,7 +10,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_elements/flutter3d_elements.dart'
     show FireSteps, SmokePlume;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show LinearColor, Portable, Vector3Foundation;
+    show LinearColor, LinearColorVector, Portable, Vector3Foundation;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -214,34 +214,34 @@ final class _Glows extends ParticleAffector {
         Blackbody.efficacy(t) /
         math.pi;
     final color = Blackbody.color(t);
-    final y = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
-    final scale = y > 0
-        ? nits * _emissiveGain / Photometric.legacyNits / y
-        : 0.0;
+    final y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+    final scale = y > 0 ? nits * _emissiveGain / _particleNits / y : 0.0;
     final alpha = life < 0.12 ? life / 0.12 : (1.0 - life) / 0.88;
     particle.color.setValues(
-      color.x * scale,
-      color.y * scale,
-      color.z * scale,
+      color.r * scale,
+      color.g * scale,
+      color.b * scale,
       alpha,
     );
   }
 }
 
+/// The luminance a particle's colour of one is drawn at, in nits: what an
+/// emissive colour of one is drawn at by default
+/// (`RenderMaterial.emissiveStrength`), 1 843.2.
+const double _particleNits = 1843.2;
+
 /// How much brighter than a blackbody's luminance a flame's tongues and
-/// glowing char are drawn: `legacyNits / bulbAtOneMeter`, about 29. A ratio.
+/// glowing char are drawn: 1 843.2 nits over [Photometric.bulbAtOneMeter],
+/// about 29. A ratio.
 ///
-/// The glow was tuned before 1.0 as nits over [Photometric.bulbAtOneMeter]
-/// in the renderer's own unit, and an emissive colour is drawn at
-/// `RenderMaterial.emissiveStrength` nits, `legacyNits` by default; so
-/// a tongue's colour of `L·gain / legacyNits` is drawn at `L·gain` nits,
-/// the same picture. Like the firelight's ×91 (`FireView._firelightGain`), it
-/// is there
-/// because the scenes fires burn in are lit and exposed for daylight: at
-/// the true luminance a flame would look as dim against them as a candle
-/// in the sun.
-const double _emissiveGain =
-    Photometric.legacyNits / Photometric.bulbAtOneMeter;
+/// The glow was tuned as nits over [Photometric.bulbAtOneMeter], and an
+/// emissive colour is drawn at `RenderMaterial.emissiveStrength` nits; so a
+/// tongue's colour of `L·gain / strength` is drawn at `L·gain` nits. Like
+/// the firelight's ×91 (`FireView._firelightGain`), it is there because the
+/// scenes fires burn in are lit and exposed for daylight: at the true
+/// luminance a flame would look as dim against them as a candle in the sun.
+const double _emissiveGain = _particleNits / Photometric.bulbAtOneMeter;
 
 /// Tongues of flame standing on a fire's base: each from a point of a disc
 /// [radius] across the flame's axis, lifted [lift] along it so the root of
@@ -534,17 +534,21 @@ final class FireView {
   /// by the share of its surface the core says char covers, and glowing as
   /// a blackbody at the char's temperature over as much of it as is alight
   /// — over all its char once the fire is out, as that char cools.
+  ///
+  /// [fresh] is the look's own colour unless given, [charred] a near black;
+  /// the look goes between the two as a person sees it, through their sRGB
+  /// encoding.
   void watch(
     NativeBody body,
     MeshNode look, {
-    Vector4? fresh,
-    Vector4? charred,
+    LinearColor? fresh,
+    LinearColor? charred,
   }) => _watched.add(
     _Watched(
       body,
       look,
-      fresh ?? _srgbVector(look.material.baseColor),
-      charred ?? Vector4(0.06, 0.05, 0.045, 1.0),
+      _srgbVector(fresh ?? look.material.baseColor),
+      charred == null ? Vector4(0.06, 0.05, 0.045, 1.0) : _srgbVector(charred),
     ),
   );
 
@@ -664,24 +668,21 @@ final class FireView {
       final nits =
           stefanBoltzmann * t * t * t * t * Blackbody.efficacy(t) / math.pi;
       final color = Blackbody.color(t);
-      final y = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
+      final y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
       material.emissive = y > 0.0 && glowing > 0.0
-          ? (color *
-                    (glowing *
-                        nits *
-                        _emissiveGain /
-                        Photometric.legacyNits /
-                        y))
-                .toLinearColor()
+          ? color.scaled(
+              glowing * nits * _emissiveGain / material.emissiveStrength / y,
+            )
           : LinearColor.black;
     }
   }
 
-  /// What the pre-1.0 `fromCandela` multiplied physical candela by, relative
-  /// to what the renderer divides by now: `legacyUnit / bulbAtOneMeter`,
-  /// about 91. Its counterpart for the flame's own glow is [_emissiveGain].
+  /// How much more light a fire throws on what is around it than its
+  /// radiant lumens: π × 1 843.2 over [Photometric.bulbAtOneMeter], about
+  /// 91, as the firelight was tuned. Its counterpart for the flame's own
+  /// glow is [_emissiveGain].
   static const double _firelightGain =
-      Photometric.legacyUnit / Photometric.bulbAtOneMeter;
+      math.pi * _particleNits / Photometric.bulbAtOneMeter;
 
   /// The firelight: each fire's radiant power as lumens, gathered as
   /// [lights] says, from the middle of their light, in the colour of the
@@ -696,7 +697,7 @@ final class FireView {
         final lm = f.radiantShare * f.power * Blackbody.efficacy(t);
         if (lm <= 0) continue;
         final at = f.at + f.axis * (0.5 * f.reach);
-        final color = Blackbody.color(t)..scale(lm);
+        final color = Blackbody.color(t).toVector3()..scale(lm);
         final base = math.max(f.base, 0.01) * lm;
         final near = lights.cluster <= 0
             ? -1
@@ -748,7 +749,7 @@ final class FireView {
     while (_lights.length < placed.length) {
       final node = LightNode(
         type: LightType.point,
-        intensity: 0.0 * Photometric.legacyUnit,
+        intensity: 0.0,
         castsShadow: false,
         name: 'firelight',
       );
@@ -933,7 +934,7 @@ final class FireView {
     ),
     lifetime: Range(0.7 * life, 1.2 * life),
     size: Range(0.8 * side, 1.2 * side),
-    color: Vector4(0.0, 0.0, 0.0, 0.0),
+    color: LinearColor(0.0, 0.0, 0.0, 0.0),
     affectors: <ParticleAffector>[
       _flameAir,
       glow,
@@ -952,7 +953,7 @@ final class FireView {
         ),
         lifetime: Range(life, life),
         size: Range(width, width),
-        color: Vector4(smokeAlbedo, smokeAlbedo, smokeAlbedo, 0.0),
+        color: LinearColor(smokeAlbedo, smokeAlbedo, smokeAlbedo, 0.0),
         affectors: <ParticleAffector>[
           _smokeAir,
           const ParticleTurbulence(strength: 0.4, scale: 1.5),
@@ -970,13 +971,13 @@ final class FireView {
     ),
     lifetime: const Range(1.0, 2.5),
     size: const Range(0.02, 0.04),
-    color: Vector4(1.0, 0.6, 0.2, 1.0),
+    color: LinearColor(1.0, 0.6, 0.2, 1.0),
     affectors: <ParticleAffector>[
       _emberAir,
       const ParticleTurbulence(strength: 3.0, scale: 0.5),
       ParticleColorOverLife(
-        Vector4(1.0, 0.7, 0.25, 1.0),
-        Vector4(0.6, 0.1, 0.02, 0.0),
+        LinearColor(1.0, 0.7, 0.25, 1.0),
+        LinearColor(0.6, 0.1, 0.02, 0.0),
       ),
     ],
   );

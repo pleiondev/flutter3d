@@ -54,7 +54,7 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
       ),
       lifetime: const Range(1.5, 2.5),
       size: const Range(0.06, 0.1),
-      color: Vector4(0.9, 0.6, 0.3, 1.0),
+      color: LinearColor(0.9, 0.6, 0.3, 1.0),
       affectors: _affectors,
     );
     // #endregion effect

@@ -172,8 +172,11 @@ final class ReefRun {
     _sea
       ..setEdge(GridSide.west, const NativeEdgeFlow.inflow(discharge: _current))
       ..setEdge(GridSide.east, const NativeEdgeFlow.level(0.0));
-    RenderMaterial under(String name, Vector4 color) =>
-        floor.under(name, color, roughness: 0.85);
+    RenderMaterial under(String name, Vector4 color) => floor.under(
+      name,
+      LinearColor.fromSrgb(color.x, color.y, color.z, color.w),
+      roughness: 0.85,
+    );
     wreck = Wreck(world, device, scene, floor, looks.wreck);
     ReefLife(
       device,

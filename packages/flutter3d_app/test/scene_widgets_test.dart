@@ -455,7 +455,7 @@ void main() {
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         lifetime: const Range.exact(5.0),
         size: const Range.exact(0.2),
-        color: Vector4(1.0, 0.5, 0.2, 1.0),
+        color: LinearColor(1.0, 0.5, 0.2, 1.0),
       );
       final system = ParticleSystem(capacity: 64);
       Scene3DController? controller;

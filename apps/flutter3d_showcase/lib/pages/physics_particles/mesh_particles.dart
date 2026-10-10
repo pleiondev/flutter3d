@@ -46,7 +46,7 @@ final class MeshParticlesDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(1.0, 2.5)),
       lifetime: const Range(1.0, 1.8),
       size: const Range(0.6, 1.2),
-      color: Vector4(0.8, 0.75, 0.7, 1.0),
+      color: LinearColor(0.8, 0.75, 0.7, 1.0),
       affectors: <ParticleAffector>[const ParticleGravity(-3.0)],
     );
     _particles.burst(_debrisEffect, Vector3.zero());

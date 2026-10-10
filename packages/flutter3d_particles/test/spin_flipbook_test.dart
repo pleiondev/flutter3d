@@ -10,6 +10,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -36,7 +38,7 @@ ParticleSystem _one({double size = 2.0, double? rotation}) {
         count: 1,
         lifetime: const Range.exact(10.0),
         size: Range.exact(size),
-        color: Vector4(1.0, 1.0, 1.0, 1.0),
+        color: LinearColor(1.0, 1.0, 1.0, 1.0),
         emitter: const SphereEmitter(speed: Range.exact(0.0)),
         affectors: rotation == null
             ? const <ParticleAffector>[]

@@ -84,7 +84,7 @@ final class FlipbookDemo extends ShowcaseDemo {
       ),
       lifetime: const Range(0.8, 1.2),
       size: const Range(0.09, 0.13),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0, 1.0),
     );
     _particles.burst(
       _sparksEffect,

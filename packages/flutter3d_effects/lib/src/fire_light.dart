@@ -4,8 +4,9 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_matter/flutter3d_matter.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// How a [FireView] lights the scene with its fires.
 final class FireLights {
@@ -43,15 +44,15 @@ abstract final class Blackbody {
   /// just begun to glow.
   static double efficacy(double kelvin) => _of(kelvin).efficacy;
 
-  /// Its colour in linear sRGB, the brightest channel one.
-  static Vector3 color(double kelvin) => _of(kelvin).color.clone();
+  /// Its colour in linear sRGB, the brightest channel one, opaque.
+  static LinearColor color(double kelvin) => _of(kelvin).color;
 
-  static final Map<int, ({double efficacy, Vector3 color})> _seen =
-      <int, ({double efficacy, Vector3 color})>{};
+  static final Map<int, ({double efficacy, LinearColor color})> _seen =
+      <int, ({double efficacy, LinearColor color})>{};
 
   /// Planck's spectrum against the CIE 1931 colour matching functions,
   /// 360 to 830 nm a nanometre at a time, by kelvin.
-  static ({double efficacy, Vector3 color}) _of(double kelvin) =>
+  static ({double efficacy, LinearColor color}) _of(double kelvin) =>
       _seen.putIfAbsent(kelvin.round().clamp(1, 1000000), () {
         final t = kelvin.round().clamp(1, 1000000).toDouble();
         var x = 0.0, y = 0.0, z = 0.0;
@@ -70,12 +71,12 @@ abstract final class Blackbody {
         return (
           efficacy: radiance > 0 ? 683.0 * y / radiance : 0.0,
           color: most > 0
-              ? Vector3(
+              ? LinearColor(
                   math.max(r, 0.0) / most,
                   math.max(g, 0.0) / most,
                   math.max(bl, 0.0) / most,
                 )
-              : Vector3.zero(),
+              : LinearColor.black,
         );
       });
 

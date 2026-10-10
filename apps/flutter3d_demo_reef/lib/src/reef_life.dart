@@ -67,7 +67,7 @@ final class ReefLife {
           device,
           MeshData.merge(growReef(hull, random, light: light)),
         ),
-        floor.under('coral', Vector4(1.0, 1.0, 1.0, 1.0), roughness: 0.8),
+        floor.under('coral', LinearColor.white, roughness: 0.8),
         name: 'coral',
       ),
     );

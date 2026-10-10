@@ -80,8 +80,11 @@ final class Diver {
           roughness: 0.6,
         ),
       );
-    RenderMaterial under(String name, Vector4 color) =>
-        floor.under(name, color, roughness: 0.4);
+    RenderMaterial under(String name, Vector4 color) => floor.under(
+      name,
+      LinearColor.fromSrgb(color.x, color.y, color.z, color.w),
+      roughness: 0.4,
+    );
     MeshNode part(MeshData mesh, String name, Vector4 color) => MeshNode(
       DeviceMesh.upload(device, mesh),
       under(name, color),

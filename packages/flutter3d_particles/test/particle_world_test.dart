@@ -5,6 +5,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
     show WorldProperties, standardGravity;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -20,7 +22,7 @@ double _heightAfterASecond(WorldProperties world, ParticleAffector gravity) {
     emitter: const SphereEmitter(speed: Range.exact(0.0)),
     lifetime: const Range.exact(5.0),
     size: const Range.exact(0.1),
-    color: Vector4(1.0, 1.0, 1.0, 1.0),
+    color: LinearColor(1.0, 1.0, 1.0, 1.0),
     affectors: <ParticleAffector>[gravity],
   );
   system.burst(effect, Vector3(0.0, 10.0, 0.0));

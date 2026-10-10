@@ -283,14 +283,14 @@ final class HeatAndFireDemo extends ShowcaseDemo {
         t *
         Blackbody.efficacy(t) /
         math.pi;
-    final Vector3 color = Blackbody.color(t);
-    final double y = 0.2126 * color.x + 0.7152 * color.y + 0.0722 * color.z;
+    final LinearColor color = Blackbody.color(t);
+    final double y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
     // Over `bulbAtOneMeter` and drawn at `legacyNits`: about 29 times the
     // true luminance, the gain `FireView` draws its flames with, so the hot
     // block glows beside them as it would beside a fire.
-    look.emissive =
-        (color * (y > 0.0 ? nits / Photometric.bulbAtOneMeter / y : 0.0))
-            .toLinearColor();
+    look.emissive = color.scaled(
+      y > 0.0 ? nits / Photometric.bulbAtOneMeter / y : 0.0,
+    );
     look.emissiveStrength = 1.0 * Photometric.legacyNits;
   }
   // #endregion glow

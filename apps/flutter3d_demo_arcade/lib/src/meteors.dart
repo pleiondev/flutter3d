@@ -214,9 +214,9 @@ final class MeteorShower {
           t *
           Blackbody.efficacy(t) /
           math.pi;
-      r.node.material.emissive = (Blackbody.color(
+      r.node.material.emissive = Blackbody.color(
         t,
-      )..scale(nits / Photometric.bulbAtOneMeter)).toLinearColor();
+      ).scaled(nits / Photometric.bulbAtOneMeter);
     }
     // No water here for the eye to see ripples on.
     _elements?.update(dt, eye: Vector3.zero());

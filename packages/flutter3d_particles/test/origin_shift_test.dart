@@ -8,7 +8,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show Scene;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show WorldPosition;
+    show LinearColor, WorldPosition;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -23,7 +23,7 @@ void main() {
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
           lifetime: const Range.exact(5.0),
           size: const Range.exact(1.0),
-          color: Vector4(1.0, 1.0, 1.0, 1.0),
+          color: LinearColor(1.0, 1.0, 1.0, 1.0),
         ),
         Vector3(1.0, 0.0, 0.0),
       );

@@ -263,7 +263,8 @@ final class MapEffects {
         kelvin *
         Blackbody.efficacy(kelvin) /
         math.pi;
-    return Blackbody.color(kelvin)..scale(nits / Photometric.bulbAtOneMeter);
+    return Blackbody.color(kelvin).toVector3()
+      ..scale(nits / Photometric.bulbAtOneMeter);
   }
 
   /// Every tree with a body drawn as burnt as it is: blackening by the share

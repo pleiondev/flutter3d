@@ -288,7 +288,7 @@ void main() {
       emitter: const SphereEmitter(speed: Range.exact(0.0)),
       lifetime: const Range.exact(5.0),
       size: const Range.exact(1.0),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0, 1.0),
     );
     final particles = ParticleSystem(capacity: 2)
       ..burst(effect, Vector3(1.0, 0.0, 0.0));
@@ -323,7 +323,7 @@ void main() {
       emitter: const SphereEmitter(speed: Range.exact(0.0)),
       lifetime: const Range.exact(5.0),
       size: const Range.exact(1.0),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0, 1.0),
     );
     final particles = ParticleSystem(capacity: 2)
       ..burst(effect, Vector3(1.0, 0.0, 0.0));

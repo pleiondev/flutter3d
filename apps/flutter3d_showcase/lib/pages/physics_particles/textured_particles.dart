@@ -72,7 +72,7 @@ final class TexturedParticlesDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(1.0, 2.0)),
       lifetime: const Range(0.8, 1.4),
       size: const Range(0.1, 0.16),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
+      color: LinearColor(1.0, 1.0, 1.0, 1.0),
     );
     _particles.burst(_sparksEffect, Vector3.zero());
 

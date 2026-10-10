@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Audible _audible(int key, double x) =>
-    Audible(key, Vector3(x, 0.0, 0.0), 0.5, 1.0);
+    Audible(key: key, at: Vector3(x, 0.0, 0.0), loudness: 0.5, rate: 1.0);
 
 void main() {
   test('the elements are held by key, and a fire held elsewhere is not', () {

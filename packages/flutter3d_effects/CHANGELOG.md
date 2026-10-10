@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Breaking: colours in are `LinearColor`s.** `Blackbody.color` answers
+  one; `SeabedLook.under` takes the floor's neighbour's colour as one, and
+  `FireView.watch` its `fresh` and `charred` (still blended through their
+  sRGB encoding, as a person sees char spread).
+- **Breaking: `Audible` takes named arguments** (`key:`, `at:`,
+  `loudness:`, `rate:`).
+- **The fire's glow reads the material's `emissiveStrength`** instead of
+  assuming its default, and no longer names the pre-1.0 photometric
+  constants: the gains are written as what they were tuned to.
+
 - **Breaking: the elements' simulation moved to `flutter3d_elements`**,
   and this package keeps the views. `ElementsSimulation`, `Fires`,
   `WaterBody`, `TrackedBody`, `Follower`, `Igniter`, `Solid`, `Bed`,

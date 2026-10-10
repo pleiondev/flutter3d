@@ -1,5 +1,5 @@
+import 'package:flutter3d/flutter3d.dart' show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// What this game throws into the air, as recipes rather than code.
 ///
@@ -22,7 +22,7 @@ abstract final class Effects {
     count: 6,
     lifetime: const Range(0.5, 1.1),
     size: const Range(0.35, 0.8),
-    color: Vector4(0.62, 0.60, 0.58, 0.55),
+    color: LinearColor(0.62, 0.60, 0.58, 0.55),
     emitter: const SphereEmitter(
       radius: Range(0.05, 0.2),
       speed: Range(0.4, 1.2),
@@ -45,7 +45,7 @@ abstract final class Effects {
     count: 10,
     lifetime: const Range(0.25, 0.6),
     size: const Range(0.1, 0.26),
-    color: Vector4(0.42, 0.34, 0.22, 0.9),
+    color: LinearColor(0.42, 0.34, 0.22, 0.9),
     emitter: const SphereEmitter(
       radius: Range(0.05, 0.18),
       speed: Range(2.0, 5.0),
@@ -66,7 +66,7 @@ abstract final class Effects {
     lifetime: const Range(0.15, 0.4),
     size: const Range(0.04, 0.1),
     // Well above one: sparks are what the bloom is for.
-    color: Vector4(2.4, 1.5, 0.5, 1.0),
+    color: LinearColor(2.4, 1.5, 0.5, 1.0),
     emitter: const SphereEmitter(
       radius: Range(0.0, 0.1),
       speed: Range(3.0, 8.0),

@@ -44,7 +44,7 @@ final class ParticleLightsDemo extends ShowcaseDemo {
       ),
       lifetime: const Range(0.4, 0.7),
       size: const Range(0.08, 0.14),
-      color: Vector4(1.0, 0.6, 0.2, 1.0),
+      color: LinearColor(1.0, 0.6, 0.2, 1.0),
       affectors: <ParticleAffector>[const ParticleFade(startsAt: 0.3)],
     );
     _particles.emit(

@@ -142,7 +142,8 @@ class HybridGame extends TransparentFlameGame with KeyboardEvents {
         )..setPosition(2.0, 0.025, 0.0),
       )
       ..add(
-        LightNode(intensity: 2.5 * Photometric.legacyUnit)
+        // About 14 500 lux: a bright overcast noon.
+        LightNode(intensity: 14476.0)
           ..setLocalForward(Vector3(-0.4, -1.0, -0.3)),
       );
 

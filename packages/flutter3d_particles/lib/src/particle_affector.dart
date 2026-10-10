@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'particle.dart';
@@ -192,21 +194,19 @@ final class ParticleTurbulence extends ParticleAffector {
 
 /// Moves the colour from one to another across the particle's life.
 final class ParticleColorOverLife extends ParticleAffector {
-  ParticleColorOverLife(Vector4 from, Vector4 to)
-    : _from = from.clone(),
-      _to = to.clone();
+  const ParticleColorOverLife(this._from, this._to);
 
-  final Vector4 _from;
-  final Vector4 _to;
+  final LinearColor _from;
+  final LinearColor _to;
 
   @override
   void apply(Particle particle, double dt) {
     final t = particle.life;
     particle.color.setValues(
-      _from.x + (_to.x - _from.x) * t,
-      _from.y + (_to.y - _from.y) * t,
-      _from.z + (_to.z - _from.z) * t,
-      _from.w + (_to.w - _from.w) * t,
+      _from.r + (_to.r - _from.r) * t,
+      _from.g + (_to.g - _from.g) * t,
+      _from.b + (_to.b - _from.b) * t,
+      _from.a + (_to.a - _from.a) * t,
     );
   }
 }

@@ -15,6 +15,8 @@ import 'package:flutter3d_core/src/engine/render/pass_contributor.dart';
 // ignore: implementation_imports
 import 'package:flutter3d_core/src/engine/render/render_node.dart'
     show FrameContextInternals;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -53,7 +55,7 @@ void main() {
             emitter: const SphereEmitter(),
             lifetime: const Range.exact(5.0),
             size: const Range.exact(0.2),
-            color: vm.Vector4(1.0, 0.5, 0.2, 1.0),
+            color: LinearColor(1.0, 0.5, 0.2, 1.0),
           ),
           vm.Vector3.zero(),
         );
@@ -238,7 +240,7 @@ void _meshParticleTests() {
             emitter: const SphereEmitter(speed: Range.exact(1.0)),
             lifetime: const Range.exact(1.0),
             size: const Range.exact(0.5),
-            color: vm.Vector4(1.0, 0.5, 0.2, 1.0),
+            color: LinearColor(1.0, 0.5, 0.2, 1.0),
           ),
           vm.Vector3.zero(),
         );

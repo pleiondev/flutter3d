@@ -99,7 +99,7 @@ final class SixWaySmokeDemo extends ShowcaseDemo {
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
           lifetime: const Range.exact(8.0),
           size: const Range.exact(1.6),
-          color: Vector4(1.0, 1.0, 1.0, 1.0),
+          color: LinearColor(1.0, 1.0, 1.0, 1.0),
         ),
         Vector3(x, 0.0, x * 0.5),
       );

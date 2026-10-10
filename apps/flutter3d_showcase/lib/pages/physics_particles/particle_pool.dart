@@ -44,7 +44,7 @@ final class ParticlePoolDemo extends ShowcaseDemo {
       emitter: const SphereEmitter(speed: Range(1.5, 3.0)),
       lifetime: const Range(0.8, 1.6),
       size: const Range(0.05, 0.12),
-      color: Vector4(1.0, 0.7, 0.3, 1.0),
+      color: LinearColor(1.0, 0.7, 0.3, 1.0),
     );
     // #endregion effect
 

@@ -8,6 +8,8 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -22,7 +24,7 @@ ParticleEffect _steady() => ParticleEffect(
   emitter: const SphereEmitter(speed: Range.exact(0.0)),
   lifetime: const Range.exact(1000.0),
   size: const Range.exact(0.5),
-  color: Vector4(1.0, 1.0, 1.0, 1.0),
+  color: LinearColor(1.0, 1.0, 1.0, 1.0),
 );
 
 /// Advances [system] in 60 Hz frames, which is how a game calls it.
@@ -124,8 +126,8 @@ void main() {
   group('a gradient', () {
     test('interpolates every channel together', () {
       final gradient = ParticleGradient.linear(
-        Vector4(0.0, 1.0, 0.0, 1.0),
-        Vector4(1.0, 0.0, 1.0, 0.0),
+        LinearColor(0.0, 1.0, 0.0, 1.0),
+        LinearColor(1.0, 0.0, 1.0, 0.0),
       );
       final out = Vector4.zero();
       gradient.sampleInto(out, 0.5);
@@ -140,7 +142,9 @@ void main() {
       // fresh vector, the caller's colour stops changing and every particle
       // renders at its birth colour — which looks like the gradient being
       // ignored rather than like an aliasing mistake.
-      final gradient = ParticleGradient.constant(Vector4(1.0, 2.0, 3.0, 4.0));
+      final gradient = ParticleGradient.constant(
+        LinearColor(1.0, 2.0, 3.0, 4.0),
+      );
       final out = Vector4.zero();
       final same = out;
       gradient.sampleInto(out, 0.5);

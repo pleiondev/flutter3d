@@ -13,7 +13,12 @@ import 'package:vector_math/vector_math.dart';
 /// while the same thing goes on sounding — a fire, a fall — so a looping
 /// voice can be held to it.
 final class Audible {
-  const Audible(this.key, this.at, this.loudness, this.rate);
+  const Audible({
+    required this.key,
+    required this.at,
+    required this.loudness,
+    required this.rate,
+  });
 
   final int key;
   final Vector3 at;
@@ -142,10 +147,10 @@ final class PhysicsHearing {
       final part = seen[body.raw] = (seen[body.raw] ?? -1) + 1;
       fires.add(
         Audible(
-          body.raw * 64 + part,
-          Vector3(read.fires[o], read.fires[o + 1], read.fires[o + 2]),
-          loudness,
-          fireScale.rate(watts),
+          key: body.raw * 64 + part,
+          at: Vector3(read.fires[o], read.fires[o + 1], read.fires[o + 2]),
+          loudness: loudness,
+          rate: fireScale.rate(watts),
         ),
       );
     }
@@ -178,7 +183,14 @@ final class PhysicsHearing {
     for (final MapEntry(:key, value: (watts, at)) in cells.entries) {
       final loudness = fallScale.loudness(watts);
       if (loudness <= 0.0) continue;
-      falls.add(Audible(key, at / watts, loudness, fallScale.rate(watts)));
+      falls.add(
+        Audible(
+          key: key,
+          at: at / watts,
+          loudness: loudness,
+          rate: fallScale.rate(watts),
+        ),
+      );
     }
   }
 
@@ -197,10 +209,10 @@ final class PhysicsHearing {
       if (loudness <= 0.0) continue;
       splashes.add(
         Audible(
-          e.body.raw,
-          _world.localPositionOf(e.body),
-          loudness,
-          splashScale.rate(joules),
+          key: e.body.raw,
+          at: _world.localPositionOf(e.body),
+          loudness: loudness,
+          rate: splashScale.rate(joules),
         ),
       );
     }

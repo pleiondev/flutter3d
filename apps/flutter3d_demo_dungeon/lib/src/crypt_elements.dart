@@ -218,7 +218,7 @@ final class CryptElements {
     ),
     lifetime: const Range(0.25, 0.6),
     size: const Range(0.03, 0.07),
-    color: Vector4(0.42, 0.33, 0.22, 1.0),
+    color: LinearColor(0.42, 0.33, 0.22, 1.0),
     affectors: <ParticleAffector>[
       const ParticleGravity(),
       const ParticleFade(startsAt: 0.5),
@@ -234,7 +234,7 @@ final class CryptElements {
     ),
     lifetime: const Range(0.3, 0.6),
     size: const Range(0.025, 0.055),
-    color: Vector4(0.32, 0.34, 0.33, 1.0),
+    color: LinearColor(0.32, 0.34, 0.33, 1.0),
     affectors: <ParticleAffector>[
       const ParticleGravity(),
       const ParticleFade(startsAt: 0.4),
@@ -306,10 +306,10 @@ final class CryptElements {
     final loudness = (entering ? 0.9 : speed / 5.0).clamp(0.25, 0.9);
     wading.add(
       Audible(
-        key,
-        feet,
-        loudness * math.min(1.0, here.depth / 0.2),
-        0.88 + 0.24 * _pitch.nextDouble(),
+        key: key,
+        at: feet,
+        loudness: loudness * math.min(1.0, here.depth / 0.2),
+        rate: 0.88 + 0.24 * _pitch.nextDouble(),
       ),
     );
     particles.burst(splash, feet, direction: Vector3(0.0, 1.0, 0.0));

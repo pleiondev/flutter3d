@@ -118,14 +118,14 @@ abstract final class GoldenExtras {
     count: 220,
     lifetime: const Range(0.7, 1.4),
     size: const Range(0.06, 0.16),
-    color: Vector4(1.0, 0.72, 0.30, 1.0),
+    color: LinearColor(1.0, 0.72, 0.30, 1.0),
     emitter: const SphereEmitter(speed: Range(2.5, 6.0)),
     affectors: <ParticleAffector>[
       const ParticleGravity(-4.0),
       const ParticleDrag(1.2),
       ParticleColorOverLife(
-        Vector4(1.0, 0.75, 0.35, 1.0),
-        Vector4(0.9, 0.15, 0.05, 1.0),
+        LinearColor(1.0, 0.75, 0.35, 1.0),
+        LinearColor(0.9, 0.15, 0.05, 1.0),
       ),
       const ParticleFade(),
       const ParticleSizeOverLife(from: 1.0, to: 2.4),
@@ -166,7 +166,7 @@ abstract final class GoldenExtras {
       count: 40,
       lifetime: const Range(0.08, 0.12),
       size: const Range(0.06, 0.16),
-      color: Vector4(1.0, 0.72, 0.30, 1.0),
+      color: LinearColor(1.0, 0.72, 0.30, 1.0),
       emitter: const SphereEmitter(speed: Range(2.5, 6.0)),
       affectors: <ParticleAffector>[
         const ParticleGravity(-4.0),
@@ -208,7 +208,7 @@ abstract final class GoldenExtras {
         count: count,
         lifetime: const Range(10.0, 10.0),
         size: const Range(0.8, 0.8),
-        color: Vector4(1.0, 0.72, 0.30, 1.0),
+        color: LinearColor(1.0, 0.72, 0.30, 1.0),
         emitter: const SphereEmitter(speed: Range(0.0, 0.0)),
       ),
       Vector3(0.0, 0.6, 1.6),
@@ -230,7 +230,7 @@ abstract final class GoldenExtras {
           count: 1,
           lifetime: const Range.exact(10.0),
           size: const Range.exact(0.34),
-          color: Vector4(1.0, 0.9, 0.75, 1.0),
+          color: LinearColor(1.0, 0.9, 0.75, 1.0),
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
         ),
         // Receding: each is further away and therefore smaller on screen, so
@@ -323,7 +323,7 @@ abstract final class GoldenExtras {
           // place: a backend that drew instance zero five times over would
           // match on position and still be caught here.
           size: Range.exact(0.06 + i * 0.012),
-          color: Vector4(1.0, 0.45 + i * 0.12, 0.20, 1.0),
+          color: LinearColor(1.0, 0.45 + i * 0.12, 0.20, 1.0),
           emitter: const SphereEmitter(speed: Range.exact(0.0)),
         ),
         Vector3(-0.44 + i * 0.22, 0.0, 1.6),

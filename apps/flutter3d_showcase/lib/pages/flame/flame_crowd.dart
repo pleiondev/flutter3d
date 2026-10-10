@@ -177,7 +177,7 @@ final class _Brazier extends FlameGame with HasFlutter3d {
     ),
     lifetime: const Range(0.4, 0.7),
     size: const Range(0.8, 1.1),
-    color: Vector4(3.0, 1.6, 0.4, 1.0),
+    color: LinearColor(3.0, 1.6, 0.4, 1.0),
     affectors: const <ParticleAffector>[ParticleSizeOverLife()],
   );
 
@@ -189,7 +189,7 @@ final class _Brazier extends FlameGame with HasFlutter3d {
     ),
     lifetime: const Range(2.0, 2.6),
     size: const Range(0.9, 1.2),
-    color: Vector4(0.25, 0.27, 0.32, 1.0),
+    color: LinearColor(0.25, 0.27, 0.32, 1.0),
     affectors: const <ParticleAffector>[
       ParticleDrag(1.0),
       ParticleSizeOverLife(from: 0.5, to: 2.5),

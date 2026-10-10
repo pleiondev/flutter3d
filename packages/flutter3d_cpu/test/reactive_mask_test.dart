@@ -145,7 +145,7 @@ Float32List _embers(RenderSettings settings, {int frames = 12}) {
     // history to has wall in it as well as ember; a large one's core would
     // clip the wall away on its own.
     size: const Range.exact(0.3),
-    color: Vector4(1.0, 0.6, 0.2, 1.0),
+    color: LinearColor(1.0, 0.6, 0.2, 1.0),
   );
   final it = _staged();
   it.renderer.renderSteps.addContributor(ParticleContributor(particles));

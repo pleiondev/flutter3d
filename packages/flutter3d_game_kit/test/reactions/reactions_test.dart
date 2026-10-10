@@ -64,7 +64,7 @@ final ParticleEffect _dust = ParticleEffect(
   emitter: const SphereEmitter(speed: Range.exact(0.0)),
   lifetime: const Range.exact(0.5),
   size: const Range.exact(0.1),
-  color: Vector4(1.0, 1.0, 1.0, 1.0),
+  color: LinearColor(1.0, 1.0, 1.0, 1.0),
 );
 
 ReactionTable _table() => ReactionTable()

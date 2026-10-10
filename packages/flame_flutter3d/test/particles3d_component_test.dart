@@ -16,7 +16,7 @@ final ParticleEffect _spark = ParticleEffect(
   emitter: SphereEmitter(speed: Range.exact(0.0)),
   lifetime: Range.exact(0.5),
   size: Range.exact(0.2),
-  color: Vector4.all(1.0),
+  color: LinearColor.white,
 );
 
 void main() {

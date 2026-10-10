@@ -193,7 +193,7 @@ void main() {
 
       final debris = document['debris']!;
       expect(debris.effect.lifetime.min, debris.effect.lifetime.max);
-      expect(debris.effect.color.w, 1.0, reason: 'RGB alone is opaque');
+      expect(debris.effect.color.a, 1.0, reason: 'RGB alone is opaque');
       expect(debris.render.drawing, EffectDrawing.mesh);
       expect(debris.render.blend, EffectBlend.darkening);
       expect(debris.render.mesh, 'chip');
@@ -401,13 +401,13 @@ void main() {
           ),
           lifetime: const Range(0.25, 0.6),
           size: const Range(0.35, 0.9),
-          color: Vector4(3.2, 1.5, 0.45, 1.0),
+          color: LinearColor(3.2, 1.5, 0.45, 1.0),
           affectors: <ParticleAffector>[
             const ParticleDrag(6.0),
             const ParticleGravity(-3.0),
             ParticleColorOverLife(
-              Vector4(3.2, 1.5, 0.45, 1.0),
-              Vector4(0.6, 0.15, 0.05, 1.0),
+              LinearColor(3.2, 1.5, 0.45, 1.0),
+              LinearColor(0.6, 0.15, 0.05, 1.0),
             ),
             const ParticleSizeOverLife(from: 0.7, to: 1.6),
             const ParticleFade(startsAt: 0.35),

@@ -24,6 +24,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -62,13 +64,13 @@ ParticleEffect flame() => ParticleEffect(
   ),
   lifetime: const Range(0.20, 0.40),
   size: const Range(0.10, 0.19),
-  color: Vector4(2.4, 1.1, 0.35, 1.0),
+  color: LinearColor(2.4, 1.1, 0.35, 1.0),
   affectors: <ParticleAffector>[
     const ParticleGravity(1.1),
     const ParticleDrag(2.6),
     ParticleColorOverLife(
-      Vector4(2.4, 1.1, 0.35, 1.0),
-      Vector4(1.0, 0.25, 0.05, 1.0),
+      LinearColor(2.4, 1.1, 0.35, 1.0),
+      LinearColor(1.0, 0.25, 0.05, 1.0),
     ),
     const ParticleFade(startsAt: 0.35),
     const ParticleSizeOverLife(from: 1.0, to: 0.25),
@@ -91,7 +93,7 @@ ParticleSystem populated({required int capacity, required int alive}) {
       emitter: const SphereEmitter(speed: Range(0.5, 2.0)),
       lifetime: const Range.exact(1e6),
       size: const Range(0.10, 0.19),
-      color: Vector4(2.4, 1.1, 0.35, 1.0),
+      color: LinearColor(2.4, 1.1, 0.35, 1.0),
       affectors: flame().affectors,
     ),
     Vector3(0.0, 1.0, 0.0),
