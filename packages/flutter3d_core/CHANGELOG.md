@@ -8,6 +8,17 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **`RenderSettings.telemetry` says how much of a frame is measured.**
+  `TelemetryLevel.off` keeps the frame's totals and nothing per node;
+  `counters` keeps a `FramePass` per node and a `FrameResourceUse` per
+  resource (its id, versions, size, format and bytes) without reading a
+  clock; `timings`, the default and what every frame did before, adds each
+  node's CPU and GPU time and a timeline span per node. The renderer reads
+  one clock for the whole frame rather than one per node.
+- **Breaking: `FramePass` is a class, not a record.** Its getters are the
+  record's fields, so reading one is unchanged; a test that built one as a
+  record literal writes `FramePass(name: …)`. `FrameResult.resources` is
+  new beside `passes`.
 - **A frame graph is compiled once while nothing changes.**
   `FrameGraph.compile` gives the last compile back when the nodes (by
   name, declarations, `isActive` and `isSupported`), the externals, the

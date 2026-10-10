@@ -23,6 +23,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'frame_graph.dart';
+import 'frame_result.dart' show FrameResourceUse;
 import 'frame_texture_source.dart';
 import 'resource_desc.dart';
 
@@ -54,6 +55,7 @@ final class FrameResources {
     required this.frameHeight,
     this.alias = false,
     this.onRetire,
+    this.recordUses = false,
   });
 
   final FrameTextureSource source;
@@ -99,6 +101,42 @@ final class FrameResources {
   /// never wrote — into a changed picture instead of a picture that happens
   /// to be right because the pixels were still there.
   final void Function(TextureHandle texture)? onRetire;
+
+  /// Whether [uses] is kept: what each resource of the frame stood on, for
+  /// a frame whose `RenderSettings.telemetry` records nodes.
+  final bool recordUses;
+
+  /// Per resource, by name, in the order the frame first bound each: the
+  /// versions bound and the texture the last of them stood on. Empty unless
+  /// [recordUses].
+  final Map<String, ({ResourceId id, Set<int> versions, TextureHandle last})>
+  _uses = <String, ({ResourceId id, Set<int> versions, TextureHandle last})>{};
+
+  void _used(ResourceVersion key, TextureHandle texture) {
+    if (!recordUses) return;
+    final held = _uses[key.id.name];
+    _uses[key.id.name] = (
+      id: key.id,
+      versions: (held?.versions ?? <int>{})..add(key.version),
+      last: texture,
+    );
+  }
+
+  /// What each resource of the frame stood on, in the order the frame first
+  /// bound each — `FrameResult.resources`. Empty unless [recordUses].
+  List<FrameResourceUse> get uses => List<FrameResourceUse>.unmodifiable(
+    <FrameResourceUse>[
+      for (final use in _uses.values)
+        FrameResourceUse(
+          id: use.id,
+          versions: use.versions.length,
+          width: use.last.width,
+          height: use.last.height,
+          format: use.last.format,
+          bytes: textureBytes(use.last),
+        ),
+    ],
+  );
 
   /// Textures retired this frame and free to be lent again before it ends,
   /// by spec. Empty unless [alias] is on.
@@ -254,6 +292,7 @@ final class FrameResources {
         ? _external.remove(key)
         : !_external.add(key);
     _live[key] = texture;
+    _used(key, texture);
     if (replaced == null || wasExternal || identical(replaced, texture)) return;
     if (_live.values.any((other) => identical(other, replaced))) return;
     _retire(replaced);
@@ -282,6 +321,7 @@ final class FrameResources {
 
     final texture = _acquire(desc.resolve(frameWidth, frameHeight));
     _live[key] = texture;
+    _used(key, texture);
     return texture;
   }
 

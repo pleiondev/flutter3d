@@ -16,6 +16,7 @@ import 'physical_camera.dart';
 import 'render_step.dart';
 import 'shadow_settings.dart';
 import 'sky_settings.dart';
+import 'telemetry.dart';
 import 'tables/kdop_axes.dart';
 
 // Re-exported so that `render_settings.dart` stays the one import an
@@ -25,6 +26,7 @@ export 'debug_view.dart';
 export 'frame_result.dart';
 export 'render_step.dart';
 export 'shadow_settings.dart';
+export 'telemetry.dart';
 
 part 'settings_slots.dart';
 
@@ -1575,6 +1577,7 @@ final class RenderSettings {
     this.camera = const PhysicalCamera(),
     this.physicalCamera = true,
     this.extensions = const SettingsExtensions(),
+    this.telemetry = TelemetryLevel.timings,
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
        assert(lightFadeBand >= 0.0, 'a fade band is a width, not a direction');
 
@@ -2036,6 +2039,13 @@ final class RenderSettings {
   /// read by the render steps and nodes of whoever defined the slot.
   final SettingsExtensions extensions;
 
+  /// How much of the frame the renderer measures: [TelemetryLevel.off] keeps
+  /// the frame's totals only, [TelemetryLevel.counters] a record per node
+  /// and per resource, [TelemetryLevel.timings] those with each node's CPU
+  /// and GPU time and a timeline span per node. Timings by default; see
+  /// [TelemetryLevel] for what each costs.
+  final TelemetryLevel telemetry;
+
   /// The value of [slot]: its field for a built-in slot, what
   /// [withExtension] wrote for any other, and [SettingsSlot.defaults] when
   /// nothing was.
@@ -2236,6 +2246,7 @@ final class RenderSettings {
     PhysicalCamera? camera,
     bool? physicalCamera,
     SettingsExtensions? extensions,
+    TelemetryLevel? telemetry,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -2293,6 +2304,7 @@ final class RenderSettings {
     camera: camera ?? this.camera,
     physicalCamera: physicalCamera ?? this.physicalCamera,
     extensions: extensions ?? this.extensions,
+    telemetry: telemetry ?? this.telemetry,
   );
 
   /// These settings with the effects a stereo pair cannot have taken out.

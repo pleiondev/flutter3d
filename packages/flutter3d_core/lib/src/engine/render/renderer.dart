@@ -1125,6 +1125,10 @@ final class Renderer with RenderServices {
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
   final DecalInfoBlock _decalInfo = DecalInfoBlock();
 
+  /// The clock read around each node while the telemetry times them, one
+  /// for the renderer rather than one per node per frame.
+  final Stopwatch _passClock = Stopwatch();
+
   /// The decal pass's packed sort keys and the decals in the order they
   /// paint, kept across frames so a frame of decals allocates no list.
   final List<int> _decalKeys = <int>[];
@@ -5072,6 +5076,7 @@ final class Renderer with RenderServices {
               frameHeight: height,
               alias: settings.aliasTargets,
               onRetire: _debugOnTargetRetired,
+              recordUses: settings.telemetry.recordsNodes,
             )
             // Half the frame, in the same HDR format, which is what the bloom
             // chain's top level has always been.
@@ -5202,6 +5207,11 @@ final class Renderer with RenderServices {
     // resource layer raises when a node breaks its `keeps` promise is the first
     // thing likely to use it.
     final passTimings = <FramePass>[];
+    // `RenderSettings.telemetry`: what this frame keeps per node and per
+    // resource, and whether it reads a clock around each node. A capture
+    // times its passes whatever the telemetry says.
+    final telemetry = settings.telemetry;
+    final timing = telemetry.recordsTimes || _captureWanted != null;
     _frameCounters = passState;
     // Taken at the top of the frame and cleared here, so a request made while
     // this frame is encoding is the *next* frame's — `gfx-70n`.
@@ -5230,14 +5240,20 @@ final class Renderer with RenderServices {
         final drawsBefore = passState.drawCalls;
         final trianglesBefore = passState.triangles;
         final switchesBefore = passState.pipelineSwitches;
-        final passClock = Stopwatch()..start();
+        // The clock and the span only where somebody reads them: the
+        // telemetry's timings, or a capture, which records each pass's time.
+        final passClock = timing
+            ? (_passClock
+                ..reset()
+                ..start())
+            : null;
         // One span and one pass label per node, named by the node — `H2`.
         // The label reaches every pass the node opens through this renderer,
         // so a GPU debugger and `GraphicsDevice.onGpuTimings` see the graph's
         // own names rather than a pass nobody can place.
         _passLabel = node.name;
         passState.journal?.beginPass(i, node.name);
-        developer.Timeline.startSync(node.name);
+        if (timing) developer.Timeline.startSync(node.name);
         try {
           node.execute(
             RenderFrame(
@@ -5269,35 +5285,44 @@ final class Renderer with RenderServices {
             )..state = passState,
           );
         } finally {
-          developer.Timeline.finishSync();
+          if (timing) developer.Timeline.finishSync();
           _passLabel = null;
         }
-        passTimings.add((
-          name: node.name,
-          active: node.isActive,
-          micros: passClock.elapsedMicroseconds,
-          // The last timings a measuring device reported for this node,
-          // which are a frame or two old — see `_lastGpuMicros`. Null where
-          // the device does not measure, or has not reported this node yet.
-          gpuMicros: _lastGpuMicros[node.name],
-          drawCalls: passState.drawCalls - drawsBefore,
-          triangles: passState.triangles - trianglesBefore,
-          pipelineSwitches: passState.pipelineSwitches - switchesBefore,
-        ));
+        final micros = passClock?.elapsedMicroseconds ?? 0;
+        final drawCalls = passState.drawCalls - drawsBefore;
+        final triangles = passState.triangles - trianglesBefore;
+        if (telemetry.recordsNodes) {
+          passTimings.add(
+            FramePass(
+              name: node.name,
+              active: node.isActive,
+              micros: telemetry.recordsTimes ? micros : 0,
+              // The last timings a measuring device reported for this node,
+              // which are a frame or two old — see `_lastGpuMicros`. Null
+              // where the device does not measure, or has not reported this
+              // node yet, or the telemetry is not timing.
+              gpuMicros: telemetry.recordsTimes
+                  ? _lastGpuMicros[node.name]
+                  : null,
+              drawCalls: drawCalls,
+              triangles: triangles,
+              pipelineSwitches: passState.pipelineSwitches - switchesBefore,
+            ),
+          );
+        }
         // **Before `endNode`, which is the whole point** — `gfx-70n`. That call
         // is where a version whose last reader has passed goes back to the
         // pool, and the next pass draws over it. A capture taken after the
         // frame would hold whatever the last pass to borrow that shape left
         // there, attributed to whichever pass wrote it first.
-        passState.journal?.endPass(passState.drawCalls - drawsBefore);
-        final cost = passTimings.last;
+        passState.journal?.endPass(drawCalls);
         _capture?.record(
           node,
           device: device,
           lookup: resources.tryTexture,
-          micros: cost.micros,
-          drawCalls: cost.drawCalls,
-          triangles: cost.triangles,
+          micros: micros,
+          drawCalls: drawCalls,
+          triangles: triangles,
         );
         resources.endNode(i);
       }
@@ -5423,12 +5448,12 @@ final class Renderer with RenderServices {
       // here rather than reported by one of them.
       antiAliasing: EffectiveAntiAliasing(
         msaaSamples: scenePass.msaaSamples,
-        fxaa: passTimings.any((p) => p.name == 'antialias'),
+        fxaa: frameGraph.order.any((n) => n.name == 'antialias'),
         msaaDeclined: scenePass.msaaDeclined,
         // Whether the resolve ran, which asking the setting would not say: a
         // device with one colour attachment has no surface buffer, and the
         // node is refused there.
-        temporal: passTimings.any((p) => p.name == 'temporal resolve'),
+        temporal: frameGraph.order.any((n) => n.name == 'temporal resolve'),
       ),
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
@@ -5447,6 +5472,9 @@ final class Renderer with RenderServices {
       skinnedDraws: passState.skinnedDraws,
       exposure: _lastExposure,
       passes: passTimings,
+      resources: telemetry.recordsNodes
+          ? resources.uses
+          : const <FrameResourceUse>[],
       // Read off the compiled graph rather than recomputed here: the reasons
       // are the compile's own answers, and a second derivation is a second
       // thing to disagree with the frame. Each step switched off through
