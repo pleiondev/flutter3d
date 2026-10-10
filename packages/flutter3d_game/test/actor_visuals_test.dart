@@ -653,7 +653,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
     first.complete();
-    await visuals.settled;
+    // Bounded, so a load that never lands fails here rather than hanging.
+    await visuals.settled.timeout(const Duration(seconds: 30));
 
     final children = scene.root.childrenView;
     final firstAt = children.indexOf(visuals.modelOf(firstActor)!.root);

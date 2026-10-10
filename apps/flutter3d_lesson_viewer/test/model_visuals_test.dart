@@ -5,7 +5,7 @@
 /// procedural stand-in for "did the decoder and the upload actually run".
 library;
 
-import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
@@ -225,25 +225,32 @@ void main() {
     // Mutation: in `ModelVisuals._addInTurn`, drop `await previous` — the
     // second file is read at once and the first held back, so the second
     // model goes into the scene first.
-    _held = Completer<void>();
+    // The first file is held back by not existing yet: [_WaitedFile] reads
+    // it once it appears. A file rather than a completer, because the read
+    // may run on the decoding isolate, where a completer of this one's is a
+    // copy nobody completes; the disk is the same from every isolate.
+    final held = Directory.systemTemp.createTempSync('model_order_');
+    addTearDown(() => held.deleteSync(recursive: true));
+    final firstPath = '${held.path}/first.glb';
+
     final scene = Scene();
     final visuals = ModelVisuals(
       scene,
       device: _device(),
-      source: _HeldBox.new,
+      source: _WaitedFile.new,
       onIssue: (issue) => fail('$issue'),
     );
     addTearDown(visuals.dispose);
 
-    EntityDef model(String name, String file) => EntityDef(
+    EntityDef model(String name, String path) => EntityDef(
       type: 'model',
       name: name,
       position: Vector3.zero(),
-      properties: <String, Object?>{'asset': '$_samples/$file'},
+      properties: <String, Object?>{'asset': path},
     );
     final both = Future.wait(<Future<SceneNode?>>[
-      visuals.add(model('first', 'Box.glb')),
-      visuals.add(model('second', 'RiggedSimple.glb')),
+      visuals.add(model('first', firstPath)),
+      visuals.add(model('second', '$_samples/RiggedSimple.glb')),
     ]);
 
     // Long enough for the second to be read, decoded and placed when
@@ -253,8 +260,11 @@ void main() {
         waited.elapsed < const Duration(seconds: 1)) {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
-    _held.complete();
-    await both;
+    // Written beside it and renamed into place, so the reader never sees
+    // half a file.
+    File('$_samples/Box.glb').copySync('${held.path}/first.part');
+    File('${held.path}/first.part').renameSync(firstPath);
+    await both.timeout(const Duration(seconds: 30));
 
     final children = scene.root.childrenView;
     final first = children.indexOf(visuals.nodes['first']!);
@@ -264,23 +274,25 @@ void main() {
   });
 }
 
-/// What [_HeldBox] waits for before handing over `Box.glb`. Top level
-/// rather than a field: the source crosses to the decoding isolate, and a
-/// completer does not.
-Completer<void> _held = Completer<void>();
-
-/// A file read off disk, with `Box.glb` held back until [_held] completes.
-final class _HeldBox extends AssetSource {
-  const _HeldBox(this.path);
+/// A file read off disk once it exists — for at most thirty seconds, so a
+/// file that never comes fails the test rather than hanging it.
+final class _WaitedFile extends AssetSource {
+  const _WaitedFile(this.path);
 
   final String path;
 
   @override
-  String get key => 'held:$path';
+  String get key => 'waited:$path';
 
   @override
   Future<Uint8List> read() async {
-    if (path.endsWith('/Box.glb')) await _held.future;
+    final waited = Stopwatch()..start();
+    while (!File(path).existsSync()) {
+      if (waited.elapsed > const Duration(seconds: 30)) {
+        throw StateError('$path never appeared');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
     return FileAssetSource(path).read();
   }
 

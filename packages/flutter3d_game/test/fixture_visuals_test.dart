@@ -506,7 +506,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
     first.complete();
-    await it.settled;
+    // Bounded, so a load that never lands fails here rather than hanging.
+    await it.settled.timeout(const Duration(seconds: 30));
 
     final xs = standing();
     expect(xs, containsAll(<double>[-5.0, 5.0]));
@@ -578,8 +579,9 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
     first.complete();
-    await fixtures.settled;
-    final levelRoot = await level;
+    // Bounded, so a load that never lands fails here rather than hanging.
+    await fixtures.settled.timeout(const Duration(seconds: 30));
+    final levelRoot = await level.timeout(const Duration(seconds: 30));
 
     final children = scene.root.childrenView;
     final fixtureAt = children.indexWhere(
