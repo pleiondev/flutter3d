@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **`package:flutter3d_shaders/backend.dart`, the shader contract a
+  backend is written against.** `stageBindings` and `uniformBlocks` move
+  here from `internal.dart`, which keeps the typed blocks (**Breaking**
+  for outside backends that imported them from there). Beside them:
+  `MaterialCompiler`, `MaterialCompileRequest`, `MaterialCompileResult`,
+  `MaterialCompileRefused` and `MaterialCompilerRegistry` — how a backend
+  compiles the material language into its section of a bundle, found by
+  backend name by the build hook and by `RuntimeShaders`; `ShaderTarget`;
+  and `StageInterface`, `StageVariable`, `StageBlockMember`,
+  `StageMismatch`, `StageMismatchKind` and `checkStageAgreement`, the check
+  that a pipeline's stages agree on varyings, attributes and blocks before
+  they reach a device.
+- **Breaking: `compileStage` takes a `target` and hands back the SPIR-V.**
+  `CompiledStage` is a class rather than a record: `spirv`, `target`, the
+  `text` in the target's language (WGSL, MSL, HLSL or GLSL, none for
+  `ShaderTarget.spirv`) and `offsets`; `wgsl` still reads the WGSL.
 - **Hashed alpha is anchored on the world.** `surface.glsl` and
   `depth_predraw.frag` share `HashedAlphaNoise`, which takes the scene's
   origin out of the cutoff, so a shift of the origin keeps every speck, and

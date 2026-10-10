@@ -19,7 +19,7 @@ import 'package:flutter3d_hardware/testing.dart';
 // released together, and are nobody else's API since 1.0.
 // ignore: implementation_imports
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_shaders/internal.dart';
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 

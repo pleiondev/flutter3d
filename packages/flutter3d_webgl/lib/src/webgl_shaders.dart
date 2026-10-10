@@ -18,10 +18,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ShaderCompileException, ShaderDiagnostic;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-// The generated uniform tables are shared by the engine and its backends,
-// released together, and are nobody else's API since 1.0.
-// ignore: implementation_imports
-import 'package:flutter3d_shaders/internal.dart';
+import 'package:flutter3d_shaders/backend.dart';
 // The generated uniform tables are shared by the engine and its backends,
 // released together, and are nobody else's API since 1.0.
 // ignore: implementation_imports

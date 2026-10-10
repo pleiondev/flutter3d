@@ -11,6 +11,12 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart'
         ShaderLibrary,
         encodeMaterialSection;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:flutter3d_shaders/backend.dart'
+    show
+        MaterialCompileRefused,
+        MaterialCompileRequest,
+        MaterialCompilerRegistry,
+        MaterialStageSource;
 import 'package:flutter3d_shaders/translate.dart'
     show
         GlslTranslateException,
@@ -99,6 +105,13 @@ const String runtimeShaderSdk = 'flutter3d run time';
 ///   refused, with the reason, and is built from `assets_src/` instead.
 /// * **impeller**: refused, for good: its shaders are compiled ahead of time.
 ///
+/// **A backend's own compiler first** (D26): when [compilers] has one for
+/// [backend] that compiles while a game runs, the material is handed to it
+/// — the stages as GLSL, the engine's headers, and the WebGPU host and
+/// full-screen location among its options — and its section goes into the
+/// bundle beside the source. One that compiles only in the build refuses,
+/// naming the backend, as Impeller does. Without one, the three above.
+///
 /// Throws a [RuntimeShadersException] for a backend that cannot, for a WebGL2
 /// build with no [engineSources], a WebGPU build with no [webGpuHost], and
 /// for a source that does not parse — with its line and column. [from]
@@ -119,6 +132,7 @@ ShaderBundle runtimeMaterialBundle(
   Map<String, String>? engineSources,
   PackedStage? webGpuHost,
   int? webGpuFullscreenUvLocation,
+  MaterialCompilerRegistry? compilers,
 }) {
   final MaterialProgram program;
   try {
@@ -157,6 +171,54 @@ ShaderBundle runtimeMaterialBundle(
     ],
     sections: sections,
   );
+  final compiler = kind == null ? null : compilers?.forBackend(kind);
+  if (compiler != null) {
+    if (!compiler.compilesAtRunTime) {
+      throw RuntimeShadersException(
+        '$from: the $kind compiler runs in the build only, so no shader is '
+        'compiled on $kind while the game runs. Put the material in '
+        'assets_src/ and let flutter3d_build compile it into the bundle',
+      );
+    }
+    final specialised = specializeMaterial(program, MaterialVariant(name));
+    try {
+      final result = compiler.compile(
+        MaterialCompileRequest(
+          name: name,
+          from: from,
+          source: source,
+          atRunTime: true,
+          engineSources: engineSources ?? const <String, String>{},
+          stages: <MaterialStageSource>[
+            MaterialStageSource(
+              name: name,
+              fragment: true,
+              glsl: emitMaterialFragment(specialised),
+            ),
+            for (final stage in vertexNames)
+              MaterialStageSource(
+                name: stage,
+                fragment: false,
+                glsl: emitMaterialVertex(
+                  specialised,
+                  skinned: stage.endsWith('Skinned'),
+                ),
+              ),
+          ],
+          options: <String, Object?>{
+            'webGpuHost': ?webGpuHost,
+            'webGpuFullscreenUvLocation': ?webGpuFullscreenUvLocation,
+          },
+        ),
+      );
+      return bundle(<String, ByteData>{
+        compiler.bundleSection: result.section,
+        ShaderBundle.materialSection: material,
+      });
+    } on MaterialCompileRefused catch (refused) {
+      throw RuntimeShadersException('$from: ${refused.message}');
+    }
+  }
   switch (kind) {
     case RuntimeBackends.cpu:
       return bundle(<String, ByteData>{ShaderBundle.materialSection: material});
@@ -366,6 +428,7 @@ final class RuntimeShaders extends PluginRegistry {
     Map<String, String>? engineSources,
     PackedStage? webGpuHost,
     int? webGpuFullscreenUvLocation,
+    MaterialCompilerRegistry? compilers,
   }) : _store = _ShaderStore(
          RuntimeBackends.normalize(backend),
          loadShaders,
@@ -373,6 +436,7 @@ final class RuntimeShaders extends PluginRegistry {
          engineSources,
          webGpuHost,
          webGpuFullscreenUvLocation,
+         compilers,
        ),
        _scope = null;
 
@@ -431,6 +495,7 @@ final class RuntimeShaders extends PluginRegistry {
         engineSources: _store.engineSources,
         webGpuHost: _store.webGpuHost,
         webGpuFullscreenUvLocation: _store.webGpuFullscreenUvLocation,
+        compilers: _store.compilers,
       );
     } on RuntimeShadersException catch (refused) {
       _store.statuses[name] = refused.message;
@@ -564,6 +629,7 @@ final class RuntimeShaders extends PluginRegistry {
         engineSources: _store.engineSources,
         webGpuHost: _store.webGpuHost,
         webGpuFullscreenUvLocation: _store.webGpuFullscreenUvLocation,
+        compilers: _store.compilers,
       );
     } on RuntimeShadersException catch (refused) {
       _store.statuses[step.name] = refused.message;
@@ -632,6 +698,7 @@ final class _ShaderStore {
     this.engineSources,
     this.webGpuHost,
     this.webGpuFullscreenUvLocation,
+    this.compilers,
   );
 
   final String? backend;
@@ -640,6 +707,7 @@ final class _ShaderStore {
   final Map<String, String>? engineSources;
   final PackedStage? webGpuHost;
   final int? webGpuFullscreenUvLocation;
+  final MaterialCompilerRegistry? compilers;
 
   // Insertion order throughout: a list of statuses reads in the order the
   // plugins asked, never by hash.

@@ -27,6 +27,13 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **`RuntimeShaders` asks a backend's own material compiler first.** Given
+  a `MaterialCompilerRegistry` (`compilers:`), a data plugin's material is
+  handed to the compiler registered for the engine's backend — a fifth
+  backend's included — and its section goes into the bundle beside the
+  source; a compiler that runs in the build only is refused at run time
+  with the backend named. `runtimeMaterialBundle` takes the same
+  parameter.
 - **A plugin's registrations are in its namespace, and its lighting
   models are its engine's.** Through a plugin's view, `RendererSteps`
   refuses with a `PluginException` a step, a node, a resource the node

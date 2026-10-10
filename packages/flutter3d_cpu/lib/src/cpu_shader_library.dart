@@ -6,9 +6,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-// The generated uniform tables are shared by the engine and its backends,
-// released together, and are nobody else's API since 1.0.
-import 'package:flutter3d_shaders/internal.dart';
+// The generated tables are the backend author's contract.
+import 'package:flutter3d_shaders/backend.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';

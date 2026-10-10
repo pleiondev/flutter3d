@@ -1,7 +1,7 @@
 /// What the engine's renderer and its four backends read about the shaders:
-/// which blocks and samplers each stage binds ([stageBindings]), every
-/// uniform block's layout as the compiler laid it out ([uniformBlocks]), and
-/// a typed block per uniform struct (`FrameInfoBlock` and the rest).
+/// a typed block per uniform struct (`FrameInfoBlock` and the rest). Which
+/// blocks and samplers each stage binds, and every block's layout, are the
+/// backend author's contract in `package:flutter3d_shaders/backend.dart`.
 ///
 /// **For engine backends; not covered by semver for applications.** These
 /// tables follow the shaders: a stage that gains a sampler or a block that
@@ -12,8 +12,4 @@
 /// names is reaching into the engine, and a minor may move what it reads.
 library;
 
-export 'src/stage_bindings.dart';
 export 'src/typed_blocks.dart';
-// The layout record is `UniformMemberLayout` from flutter3d_hardware, the
-// same shape; this file's own typedef of it stays private to the table.
-export 'src/uniform_blocks.dart' show uniformBlocks;
