@@ -283,6 +283,7 @@ final class RenderViewSettings {
     this.refreshEveryFrame = true,
     this.exposure = 1.0,
     this.label,
+    this.depthNear,
   });
 
   /// This view's own settings, in place of the ones the frame was rendered
@@ -310,24 +311,38 @@ final class RenderViewSettings {
   /// A name for a GPU debugger, a capture and the frame's report.
   final String? label;
 
-  /// These options with the given fields replaced. [settings], [visible]
-  /// and [label] are reset to null by passing [clearSettings],
-  /// [clearVisible] or [clearLabel].
+  /// The near plane, in metres, this view's depth is drawn from where the
+  /// frame's depth is reversed, in place of the one fitted to what the view
+  /// holds; null fits it. Never nearer than the camera's own plane.
+  ///
+  /// For a picture drawn in parts, each part a view of a crop of one camera:
+  /// fitted per part, the plane would follow what each part sees, and one
+  /// surface would come out at a different depth in each. Ask
+  /// `Renderer.depthNearFor` with the whole picture's view and hand every
+  /// part the answer, as `capturePhoto` does.
+  final double? depthNear;
+
+  /// These options with the given fields replaced. [settings], [visible],
+  /// [label] and [depthNear] are reset to null by passing [clearSettings],
+  /// [clearVisible], [clearLabel] or [clearDepthNear].
   RenderViewSettings copyWith({
     RenderSettings? settings,
     bool Function()? visible,
     bool? refreshEveryFrame,
     double? exposure,
     String? label,
+    double? depthNear,
     bool clearSettings = false,
     bool clearVisible = false,
     bool clearLabel = false,
+    bool clearDepthNear = false,
   }) => RenderViewSettings(
     settings: clearSettings ? null : settings ?? this.settings,
     visible: clearVisible ? null : visible ?? this.visible,
     refreshEveryFrame: refreshEveryFrame ?? this.refreshEveryFrame,
     exposure: exposure ?? this.exposure,
     label: clearLabel ? null : label ?? this.label,
+    depthNear: clearDepthNear ? null : depthNear ?? this.depthNear,
   );
 }
 

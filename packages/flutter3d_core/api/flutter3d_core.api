@@ -3834,13 +3834,14 @@ final class RenderView
   void markDrawn()
 
 final class RenderViewSettings
-  RenderViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false})
-  const RenderViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label})
+  RenderViewSettings copyWith({RenderSettings? settings, bool Function()? visible, bool? refreshEveryFrame, double? exposure, String? label, double? depthNear, bool clearSettings = false, bool clearVisible = false, bool clearLabel = false, bool clearDepthNear = false})
+  const RenderViewSettings({this.settings, this.visible, this.refreshEveryFrame = true, this.exposure = 1.0, this.label, this.depthNear})
   final RenderSettings? settings
   final String? label
   final bool Function()? visible
   final bool refreshEveryFrame
   final double exposure
+  final double? depthNear
 
 final class Renderer with RenderServices
   CompiledFrameGraph planFrame({required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
@@ -3861,6 +3862,7 @@ final class Renderer with RenderServices
   TextureHandle get fallbackBlack
   TextureHandle get fallbackNormal
   TextureHandle? get irradianceAtlas
+  double depthNearFor({required Scene scene, required RenderView view, required int width, required int height, RenderSettings settings = const RenderSettings()})
   double get exposure
   factory Renderer.create({required GraphicsDevice device, TextureHandle? fallbackAlbedo, TextureHandle? fallbackNormal, ShaderLibrary? materials, Renderer? replacing})
   final DebugDraw debugDraw

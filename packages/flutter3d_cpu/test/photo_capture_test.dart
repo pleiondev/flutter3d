@@ -12,6 +12,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/renderer.dart'
+    show RendererInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -214,6 +217,65 @@ void main() {
         alpha: true,
       );
       expect(difference.differing, 0, reason: '$difference');
+    },
+  );
+
+  test(
+    'every tile draws its depth from the whole photo\'s near plane',
+    () async {
+      // A near cube on the left half of the picture and a far one on the
+      // right, so each half alone would fit its plane to a different box.
+      final device = CpuDevice(
+        width: _width,
+        height: _height,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      MeshNode cube(String name, Vector3 at) => MeshNode(
+        DeviceMesh.upload(device, CuboidShape(size: Vector3.all(0.5)).build()),
+        RenderMaterial(baseColor: LinearColor.fromSrgb(0.6, 0.6, 0.6, 1.0)),
+        name: name,
+      )..setPositionFrom(at);
+      final camera = CameraNode(
+        name: 'eye',
+        projection: const PerspectiveProjection(fovY: 0.9),
+      )..lookAt(Vector3(0.0, 0.0, -1.0));
+      final scene = Scene()
+        ..add(cube('near', Vector3(-1.0, 0.0, -4.0)))
+        ..add(cube('far', Vector3(2.0, 0.0, -8.0)))
+        ..add(camera);
+      final renderer = Renderer.create(device: device);
+
+      renderer.render(
+        width: _width,
+        height: _height,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: _noBloom,
+      );
+      final screen = renderer.debugFittedNears.single;
+
+      final tiles = <double>[];
+      await capturePhoto(
+        renderer: renderer,
+        scene: scene,
+        camera: camera,
+        width: _width,
+        height: _height,
+        settings: _noBloom,
+        tileWidth: _width ~/ 2,
+        tileHeight: _height,
+        margin: 16,
+        onRows: (rgba, top, rows) {},
+        onProgress: (_) => tiles.add(renderer.debugFittedNears.single),
+      );
+
+      // Fitted in front of the near cube, 3.75 m out along the axis.
+      expect(screen, closeTo(0.9 * 3.75, 1e-6));
+      // Mutation: draw each tile with a view that fits its own plane, as the
+      // capture did. The left tile fits to the near cube and the right one,
+      // which sees only the far cube, to 0.9 × 7.75 m, so a surface lands at a
+      // different depth on each side of the seam.
+      expect(tiles, <double>[screen, screen]);
     },
   );
 

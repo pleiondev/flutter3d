@@ -414,6 +414,18 @@ Future<PhotoCaptureReport> capturePhoto({
   final drawHeight = tileHeight + 2 * margin;
 
   final whole = camera.projection;
+  // One depth mapping for the whole photo, the one the screen draws it with.
+  // A tile fitting its own near plane to the little its crop sees would draw
+  // the same surface at another depth than its neighbour, and a tie between
+  // two coplanar faces would settle one way in one tile and the other way
+  // in the next.
+  final near = renderer.depthNearFor(
+    scene: scene,
+    view: RenderView(camera: camera, layerMask: layerMask),
+    width: width,
+    height: height,
+    settings: chosen.tile,
+  );
   try {
     for (var tileY = 0; tileY < tilesY; tileY++) {
       final top = tileY * tileHeight;
@@ -440,6 +452,7 @@ Future<PhotoCaptureReport> capturePhoto({
               clearColor: clearColor,
               layerMask: layerMask,
               cut: true,
+              options: RenderViewSettings(depthNear: near),
             ),
           ],
           settings: chosen.tile,
