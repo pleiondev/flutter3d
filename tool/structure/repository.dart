@@ -2071,6 +2071,14 @@ const Map<String, String> slowTestsAllowed = <String, String>{
       'against a skip',
 };
 
+/// The widget test that checks `test/flutter_test_config.dart` still does what
+/// it says: holds a widget test to a factor of one, through an order inside
+/// flutter_test that an upgrade could change, and leaves the binding's HTTP
+/// stub where it was. Every suite's configuration is held identical to the
+/// one beside it, so this one test speaks for all of them.
+const String minuteConfigGuard =
+    'packages/flutter3d_editor_widgets/test/minute_config_test.dart';
+
 /// Longer timeouts that were in the tree before the minute was the rule,
 /// with what each one is for as its own comment or test says it.
 ///

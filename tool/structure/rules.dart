@@ -1604,6 +1604,35 @@ List<Finding> _testsRunInAMinute() {
 
   final found = <Finding>[];
   final timed = <String>{};
+
+  // **One configuration, guarded once.** The configuration reaches the
+  // binding through an order inside flutter_test, and [minuteConfigGuard] is
+  // the widget test that fails if an upgrade changes it. One guard covers
+  // every suite only because every suite runs the same file, so the file is
+  // held identical to the guarded suite's own copy rather than to a marker.
+  final guard = File('${root.path}/$minuteConfigGuard');
+  final guarded = File('${guard.parent.path}/flutter_test_config.dart');
+  final String? canonical = guarded.existsSync()
+      ? guarded.readAsStringSync()
+      : null;
+  if (!guard.existsSync() || canonical == null) {
+    found.add(
+      Finding(
+        minuteConfigGuard,
+        'is missing, or its suite has no flutter_test_config.dart: nothing '
+        'checks that the configuration still reaches the binding, and a '
+        'Flutter upgrade could hand widget tests ten minutes unnoticed',
+      ),
+    );
+  } else if (!canonical.contains(_minuteMarker)) {
+    found.add(
+      Finding(
+        _inRepository(guarded),
+        'does not set `$_minuteMarker`, so a widget test has ten minutes',
+      ),
+    );
+  }
+
   for (final pubspec in (listed.stdout as String).split('\n')) {
     if (pubspec.isEmpty) continue;
     // A fixture project inside a suite is the suite's data, not a package
@@ -1657,12 +1686,13 @@ List<Finding> _testsRunInAMinute() {
     for (final MapEntry(key: file, value: source) in sources.entries) {
       final path = '${prefix}test/${relative(file, suite)}';
       if (file.path.endsWith('flutter_test_config.dart') &&
-          !source.contains(_minuteMarker)) {
+          canonical != null &&
+          source != canonical) {
         found.add(
           Finding(
             path,
-            'is the test configuration for every file below it and does not '
-            'set `$_minuteMarker`, so a widget test there has ten minutes',
+            'is the test configuration for every file below it and is not '
+            'the one $minuteConfigGuard checks; copy that suite\'s file here',
           ),
         );
       }
