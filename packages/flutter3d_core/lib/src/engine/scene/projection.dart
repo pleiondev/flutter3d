@@ -767,22 +767,34 @@ Matrix4 toFramebufferOrigin(Matrix4 projection, FramebufferOrigin origin) {
 /// Read out of the matrix rather than asked of a camera, because the places
 /// that need it do not all have one: a frame graph contributor is handed a
 /// matrix, and a probe face is a matrix that belongs to no node. The answer is
-/// the same either way — the line from the middle of the near plane to the
-/// middle of the far one is the view axis of a perspective camera and of an
-/// orthographic one alike.
+/// the same either way.
 ///
-/// Insensitive to what [toDepthRange] and [toFramebufferOrigin] did to the
-/// matrix: the two points are taken at x = y = 0, where a mirrored y changes
-/// nothing, and any two distinct depths along the axis give the same direction.
+/// **A perspective matrix is read from its bottom row**, which is the view's
+/// depth row negated: clip w is the distance in front of the eye, so the row
+/// that makes it is the axis. That row is the one [toDepthRange],
+/// [toFramebufferOrigin], [withDepthPlanes] and an oblique near plane leave
+/// alone, so a reversed matrix and an infinite one give the same answer as
+/// the camera's — and nothing is unprojected, so nothing divides by the
+/// w = 0 of a far plane at infinity.
+///
+/// An orthographic matrix has nought there, and is read as the line from the
+/// middle of the near plane to the middle of the far one, both of which are
+/// finite: its w is one everywhere.
 ///
 /// The surface buffer measures its depths along this — see `ViewDepth` in
 /// `lib/color.glsl` — so whatever writes that buffer and whatever reads it have
 /// to agree about it.
 Vector3 viewAxisOf(Matrix4 viewProjection, [Vector3? out]) {
+  final result = out ?? Vector3.zero();
+  final m = viewProjection.storage;
+  // Column-major: row 3 is `m[3], m[7], m[11]`.
+  result.setValues(m[3], m[7], m[11]);
+  if (!isOrthographic(viewProjection) && result.length2 > 0.0) {
+    return result..normalize();
+  }
   final inverse = Matrix4.copy(viewProjection)..invert();
   final near = inverse * Vector4(0.0, 0.0, 0.0, 1.0) as Vector4;
   final far = inverse * Vector4(0.0, 0.0, 1.0, 1.0) as Vector4;
-  final result = out ?? Vector3.zero();
   result.setValues(
     far.x / far.w - near.x / near.w,
     far.y / far.w - near.y / near.w,

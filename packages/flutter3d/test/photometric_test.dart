@@ -199,8 +199,13 @@ void main() {
         ),
       );
 
-      expect(await litBy(1600.0), greaterThan(await litBy(800.0)));
-      expect(await litBy(800.0), greaterThan(await litBy(200.0)));
+      // In fractions of the lamp the test above calls tuned: a household
+      // 200 to 1600 lm is candela since 1.0, and five metres from a wall at
+      // an exposure of one it lies below the first step of an 8-bit pixel,
+      // so the three walls were the ambient alone and the same.
+      const tuned = Photometric.legacyUnit * 4.0 * math.pi;
+      expect(await litBy(tuned * 0.4), greaterThan(await litBy(tuned * 0.2)));
+      expect(await litBy(tuned * 0.2), greaterThan(await litBy(tuned * 0.05)));
     });
   });
 }

@@ -71,9 +71,9 @@ void main() {
     expect(
       stage.skips(everything),
       containsAll(<String>[
-        'reflection probe 0: switchedOff',
-        'planar reflections: switchedOff',
-        'reflections: switchedOff',
+        'reflection probe 0: switched off',
+        'planar reflections: switched off',
+        'reflections: switched off',
       ]),
     );
 

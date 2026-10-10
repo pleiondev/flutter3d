@@ -4,6 +4,14 @@
 
 library package:flutter3d_foundation/flutter3d_foundation.dart
 
+final class AssetNotFoundException extends ResourceException
+  String get message
+  String toString()
+  const AssetNotFoundException(this.key, {this.detail, this.cause})
+  final Object? cause
+  final String key
+  final String? detail
+
 abstract base class CapabilityException extends Flutter3dException
   const CapabilityException()
 
@@ -115,6 +123,15 @@ final class Registration
 
 abstract base class ResourceException extends Flutter3dException
   const ResourceException()
+
+final class ShaderCompileException extends Flutter3dFormatException
+  String get message
+  String toString()
+  const ShaderCompileException({required this.shader, required this.backend, required this.log, this.cause})
+  final Object? cause
+  final String backend
+  final String log
+  final String shader
 
 extension Vector3Foundation on Vector3
   LinearColor toLinearColor([double alpha = 1])

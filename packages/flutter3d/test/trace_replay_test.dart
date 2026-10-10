@@ -66,10 +66,11 @@ void main() {
       expect(read.events.length, recording.events.length);
 
       final replay = await replayTrace(read, _cpu());
-      final again = replay.pixels.single;
-      expect(again, isNotNull);
+      // The frame's `readback`, which lands in `readbacks` since 1.0;
+      // `pixels` answers the `readPixels` of a trace written before it.
+      final again = replay.readbacks.single;
       expect(
-        again!.buffer.asUint8List(again.offsetInBytes, again.lengthInBytes),
+        again.buffer.asUint8List(again.offsetInBytes, again.lengthInBytes),
         original.buffer.asUint8List(
           original.offsetInBytes,
           original.lengthInBytes,

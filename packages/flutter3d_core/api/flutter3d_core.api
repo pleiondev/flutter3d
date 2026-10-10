@@ -664,6 +664,7 @@ final class ContactShadowSettings
 
 final class ContributorFrame extends FrameContext
   ContributorFrame({required this.encoder, required super.device, required super.services, required super.settings, required super.width, required super.height, super.view, this.viewProjection, super.frameIndex, super.time, super.origin, this.temporal = false, this.lights, this.sceneDepth, this.reversedDepth = false})
+  RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   final ContributorLights? lights
   final PassEncoder encoder
   final TextureHandle? sceneDepth
@@ -2528,6 +2529,7 @@ base class MeshNode extends SceneNode
   void onDetachedFromScene(Scene scene)
 
 final class MeshOverlay extends PassContributor
+  Aabb3 boundsFor(RenderView view)
   MeshOverlay({required this.vertexShader, required this.fragmentShader})
   bool get isActive
   bool get isOverlay
@@ -4163,6 +4165,7 @@ enum SplatComposite
   values: automatic, sorted, hashed
 
 final class SplatContributor extends PassContributor
+  Aabb3? boundsFor(RenderView view)
   SplatCloud get cloud
   SplatComposite composite
   SplatContributor(SplatCloud cloud, {this.node, this.composite = SplatComposite.automatic})

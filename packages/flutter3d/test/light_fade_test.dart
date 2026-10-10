@@ -390,9 +390,16 @@ void main() {
     test('two neighbouring frames differ by less than two per cent', () async {
       // Twelve steps of five centimetres across the point where the eighth
       // slot changes hands. Measured on this fixture: the hard edge's worst
-      // neighbouring pair moves 3.16% of the frame — over the row's own
+      // neighbouring pair moves 2.57% of the frame — over the row's own
       // threshold, which is what makes passing it mean something — and a band
-      // of one brings the same step down to 0.23%.
+      // of one brings the same step down to 0.15%.
+      //
+      // With clustered lights on, as they are by default, this view's cells
+      // outgrow the list texture and the frame falls back to the draws' own
+      // tails. Mutation: settle that fallback at the first bind of the list
+      // rather than where the cells are built — the draw has then chosen its
+      // lights with the fade off, and the faded walk moves 2.57% like the
+      // hard one.
       const double step = 0.05;
       var worstHard = 0.0;
       var worstFaded = 0.0;
@@ -418,7 +425,9 @@ void main() {
       expect(
         worstFaded,
         lessThan(0.02),
-        reason: 'the row asks for under two per cent between neighbours',
+        reason:
+            'the row asks for under two per cent between neighbours; '
+            'the hard edge moved $worstHard',
       );
       // An order of magnitude, not merely smaller. Without this a fade that
       // dimmed the whole scene towards nothing would pass the line above, and

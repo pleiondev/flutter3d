@@ -160,10 +160,12 @@ void main() {
     // means to cover is one it never exercised. Named by the fragment stage
     // each pass is the only user of, so the list does not have to know how
     // the vertex side is spelt.
+    // An opaque material draws through its lit model's opaque variant since
+    // `A1.2`, the stage that may not `discard`.
     for (final pair in <String>[
-      'MeshVertex+Pbr',
-      'MeshSkinnedVertex+Pbr',
-      'MeshInstancedVertex+Pbr',
+      'MeshVertex+PbrOpaque',
+      'MeshSkinnedVertex+PbrOpaque',
+      'MeshInstancedVertex+PbrOpaque',
       'MeshVertex+ShadowDepth',
       'MeshSkinnedVertex+ShadowDepth',
       'MeshInstancedVertex+ShadowDepth',

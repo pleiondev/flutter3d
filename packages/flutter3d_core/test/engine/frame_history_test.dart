@@ -27,10 +27,11 @@ void main() {
     return (renderer: renderer, scene: scene, moving: moving, still: still);
   }
 
-  // One view object across frames: the history is kept per view.
+  // One view object across frames: the history is kept per view. Through the
+  // camera `staged` made, the first, since a test may add a second one.
   final views = Expando<RenderView>('test view');
   RenderView viewOf(Scene scene) =>
-      views[scene] ??= RenderView(camera: scene.cameras.single);
+      views[scene] ??= RenderView(camera: scene.cameras.first);
 
   void draw(Renderer renderer, Scene scene) => renderer.render(
     width: 64,

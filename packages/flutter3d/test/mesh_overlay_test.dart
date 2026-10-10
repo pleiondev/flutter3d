@@ -381,6 +381,35 @@ void main() {
       expect(overlay.isActive, isFalse);
     });
   });
+
+  group('the box it answers the near fit with', () {
+    // `PassContributor.boundsFor`: an overlay drawn nearer than every mesh
+    // (a gizmo pulled towards the lens) would be cut away by the fitted near
+    // plane if it went uncounted, and the default null kept the camera's own
+    // plane for every view an overlay was active in.
+    final view = RenderView(camera: CameraNode());
+
+    test('holds every vertex of every batch, the through ones too', () {
+      // Mutation: return the base class's null — fails on the first line.
+      // Mutation: leave `handlesThrough` out — the box ends at z −2.
+      final overlay = looking()
+        ..edge(Vector3(-1, 0, -2), Vector3(1, 0, -2), LinearColor(1, 1, 1))
+        ..throughGeometry(() {});
+      overlay.throughGeometry(
+        () => overlay.point(Vector3(0, 3, 4), LinearColor(1, 0, 0)),
+      );
+      final bounds = overlay.boundsFor(view);
+      expect(bounds.min.x, closeTo(-1.0, 1e-5));
+      expect(bounds.min.z, closeTo(-2.0, 1e-5));
+      expect(bounds.max.z, closeTo(4.0, 1e-5));
+      expect(bounds.max.y, greaterThan(3.0));
+    });
+
+    test('is an empty box, drawing nothing, when every batch is empty', () {
+      final bounds = looking().boundsFor(view);
+      expect(bounds.min.x, greaterThan(bounds.max.x));
+    });
+  });
 }
 
 /// A contributor with no opinion about when it runs, for comparison.

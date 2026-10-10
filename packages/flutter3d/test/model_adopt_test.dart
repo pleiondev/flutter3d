@@ -181,7 +181,8 @@ void main() {
 
       final material = ship.meshes.single.material;
       expect(material, isNot(same(blue.parts.single.material)));
-      expect(material.baseColor.toSrgb().b, 1.0);
+      // Held linear; through the sRGB curve, one to the last bit of a double.
+      expect(material.baseColor.toSrgb().b, closeTo(1.0, 1e-9));
     },
   );
 }

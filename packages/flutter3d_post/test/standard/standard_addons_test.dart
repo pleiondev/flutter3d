@@ -24,6 +24,10 @@ const Set<RenderStep> _kernel = <RenderStep>{
   RenderStep.irradianceUpdate,
   RenderStep.renderTextures,
   RenderStep.decals,
+  // The split around the glass, which follows content rather than a
+  // setting, and the copy of the opaque half it reads: the scene's own.
+  RenderStep.transparent,
+  RenderStep.sceneColorCopy,
   RenderStep.hiZOcclusion,
   RenderStep.tonemap,
   RenderStep.spatialUpscale,

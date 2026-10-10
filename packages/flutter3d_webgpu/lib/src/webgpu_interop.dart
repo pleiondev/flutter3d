@@ -238,7 +238,18 @@ extension type GPUDevice._(JSObject _) implements JSObject {
   /// belong in one function and not at two ends of a method.
   external JSPromise<GPUError?> popErrorScope();
 
+  /// `GPUDevice` is an `EventTarget`; the one event it fires is
+  /// `uncapturederror`, a [GPUUncapturedErrorEvent] for every error no scope
+  /// caught — which, unheard, goes to the console and nowhere else.
+  external void addEventListener(String type, JSFunction listener);
+
   external void destroy();
+}
+
+/// An error no error scope caught, as `GPUDevice` fires it.
+extension type GPUUncapturedErrorEvent._(JSObject _) implements JSObject {
+  /// A `GPUValidationError`, `GPUOutOfMemoryError` or `GPUInternalError`.
+  external GPUError get error;
 }
 
 extension type GPUDeviceLostInfo._(JSObject _) implements JSObject {

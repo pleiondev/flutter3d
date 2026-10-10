@@ -41,6 +41,14 @@ extension _LightList on Renderer {
   /// Rows are candidates in scene order, so a draw's tail — which
   /// `LightBuffer.extraIndices` gives as candidate indices — is a list of row
   /// numbers with no mapping in between.
+  /// Whether [lights]' rows and the view's cells fit one list texture — the
+  /// cells reach the draws only when they do.
+  bool _clusterRowsFit(LightBuffer lights) =>
+      lights.candidates.length +
+          LightClusters.headerRows +
+          _lightClusters.entryRows <=
+      _kMaxListRows;
+
   TextureHandle? _buildLightList(LightBuffer lights) {
     final count = lights.candidates.length;
     if (count <= LightBuffer.maxLights) return null;
@@ -56,9 +64,12 @@ extension _LightList on Renderer {
     // the one texture a lit stage already samples. A view so crowded that
     // they would outgrow a texture every backend can make reads the draws'
     // own tails instead.
-    if (_clustersActive &&
-        count + LightClusters.headerRows + _lightClusters.entryRows >
-            _kMaxListRows) {
+    //
+    // Decided where the cells are built (`_clusterRowsFit`), not here: this
+    // runs at the first draw that binds the list, after that draw has chosen
+    // its lights, and a draw that chose believing the cells were on chose
+    // with no fade. Kept as a guard for a caller that reaches it first.
+    if (_clustersActive && !_clusterRowsFit(lights)) {
       _clustersActive = false;
     }
     final rowCount = _clustersActive

@@ -122,7 +122,11 @@ void main() {
       // model does with a frame that produced no shadows, and an external name
       // nobody provided is exactly that — `tryTexture` answers null, and the
       // node has to cope rather than reach for a renderer field.
+      //
+      // The scene colour it draws over is external too: a graph prunes a
+      // node whose read nothing provides, and this one has no scene pass.
       final graph = FrameGraph()
+        ..addExternal(FrameResourceIds.hdrColor)
         ..addExternal(FrameResourceIds.cubeShadow)
         ..addExternal(FrameResourceIds.cubeShadowStatic)
         ..addNode(node);

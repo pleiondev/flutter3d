@@ -475,6 +475,8 @@ double fogDistance(ShaderBindings b, double x, double y, double z)
 
 double fract(double x)
 
+double hashedAlphaNoise(double x, double y, double z, double cutoff)
+
 bool inSlots(ShaderBindings bindings, int row)
 
 bool irradianceEnabled(ShaderBindings b)
@@ -624,6 +626,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
+  Stream<DeviceLoss> get lost
   String get backendName
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat
@@ -634,6 +637,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   TextureHandle createTexture(TextureDescriptor descriptor)
   TextureHandle createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
   TransferEncoder beginTransferPass({String? label})
+  bool get isLost
   final CpuMaterialCompiler? materialCompiler
   final CpuShaderLibrary shaders
   final DeviceFeatures features

@@ -653,13 +653,15 @@ void main() {
       // check is the only thing that can reject it.
       ByteData.view(encoded.buffer).setUint32(4, f3dVersion + 1, Endian.little);
 
+      // Only the future is refused since 1.0 (every older version is read),
+      // so the advice is to update the engine, not to convert again.
       expect(
         () => F3dDocument.parse(encoded),
         throwsA(
           isA<F3dFormatException>().having(
             (e) => e.message,
             'message',
-            allOf(contains('version'), contains('flutter3d_build:convert')),
+            allOf(contains('version'), contains('Update flutter3d')),
           ),
         ),
       );

@@ -140,6 +140,7 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     return TextureBinding(
       imageIndex: imageIndex(path),
       sampling: _readSampling(value),
+      transform: _readTransform(value['transform'], warnings),
     );
   }
 
@@ -224,8 +225,13 @@ String writeFmat(MaterialDocument document) {
     final path = pathOf(binding);
     if (path == null) return null;
     final sampling = binding!.sampling;
+    final transform = switch (binding.transform) {
+      final TextureTransform moved when !moved.isIdentity => moved,
+      _ => null,
+    };
     const plain = TextureSampling();
-    if (sampling.magLinear == plain.magLinear &&
+    if (transform == null &&
+        sampling.magLinear == plain.magLinear &&
         sampling.minLinear == plain.minLinear &&
         sampling.useMipmaps == plain.useMipmaps &&
         sampling.mipLinear == plain.mipLinear &&
@@ -246,6 +252,7 @@ String writeFmat(MaterialDocument document) {
         'wrapS': _wrapWord(sampling.wrapS),
       if (sampling.wrapT != TextureWrap.repeat)
         'wrapT': _wrapWord(sampling.wrapT),
+      if (transform != null) 'transform': _writeTransform(transform),
     };
   }
 
@@ -431,6 +438,46 @@ SurfaceMaterial surfaceMaterialFromJson(
   ),
   extensions: extensions,
 );
+
+/// A slot's `transform`, `KHR_texture_transform`'s three fields under its
+/// own names (`offset` for its `offset`, `scale`, `rotation` in radians),
+/// each optional — an additive key, read by nothing older, so no version.
+/// Null when the slot has none or moves nothing.
+TextureTransform? _readTransform(Object? json, List<String> warnings) {
+  if (json == null) return null;
+  if (json is! Map<String, Object?>) {
+    warnings.add('a texture slot\'s "transform" is not an object; ignored');
+    return null;
+  }
+  Vector2? pair(String key) => switch (json[key]) {
+    [final num u, final num v] => Vector2(u.toDouble(), v.toDouble()),
+    null => null,
+    _ => () {
+      warnings.add('a texture transform\'s "$key" is not two numbers; ignored');
+      return null;
+    }(),
+  };
+  final rotation = switch (json['rotation']) {
+    final num turn => turn.toDouble(),
+    _ => 0.0,
+  };
+  final transform = TextureTransform(
+    offset: pair('offset'),
+    scale: pair('scale'),
+    rotation: rotation,
+  );
+  return transform.isIdentity ? null : transform;
+}
+
+/// [transform] as [_readTransform] reads it, with only the fields that move.
+Map<String, Object?> _writeTransform(TextureTransform transform) =>
+    <String, Object?>{
+      if (transform.offset.x != 0.0 || transform.offset.y != 0.0)
+        'offset': <double>[transform.offset.x, transform.offset.y],
+      if (transform.scale.x != 1.0 || transform.scale.y != 1.0)
+        'scale': <double>[transform.scale.x, transform.scale.y],
+      if (transform.rotation != 0.0) 'rotation': transform.rotation,
+    };
 
 TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
   magLinear: json['magLinear'] as bool? ?? true,

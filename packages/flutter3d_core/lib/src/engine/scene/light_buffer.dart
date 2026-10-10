@@ -571,6 +571,13 @@ final class LightBuffer {
   /// and rejecting an out-of-range lamp before the square root took that frame
   /// from 16.8 ms to 5.0 in the test VM, where an empty loop of the same two
   /// hundred thousand iterations already costs 2.4.
+  /// How much candidate [index] could light a sphere at `(x, y, z)` with
+  /// [radius]: the score this buffer's own selection ranks by, for
+  /// `LightClusters` to rank a crowded cell the same way rather than by a
+  /// second, drifting copy of the attenuation.
+  double relevanceTo(int index, double x, double y, double z, double radius) =>
+      _relevanceIn(_candidateData, index, x, y, z, radius);
+
   static double _relevanceIn(
     Float32List data,
     int index,

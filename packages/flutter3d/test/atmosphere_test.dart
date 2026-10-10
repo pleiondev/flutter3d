@@ -26,7 +26,7 @@ void main() {
     // Mutation: blend the sun by the amount and the sky by another.
     final dusk = Atmosphere.lerp(_noon(), _night(), 0.5);
     expect(dusk.sky.b, closeTo(0.5, 1e-6));
-    expect(dusk.sunIntensity, closeTo(1.6, 1e-6));
+    expect(dusk.sunIntensity, closeTo(1.6 * Photometric.legacyUnit, 1e-6));
     expect(dusk.fogDensity, closeTo(0.01, 1e-6));
     expect(dusk.fog.density, closeTo(0.01, 1e-6));
   });
@@ -54,11 +54,22 @@ void main() {
       (0.0, _noon()),
       (60.0, _night()),
     ], period: 120.0);
-    expect(day.at(0.0).sunIntensity, closeTo(3.0, 1e-6));
-    expect(day.at(30.0).sunIntensity, closeTo(1.6, 1e-6));
-    expect(day.at(60.0).sunIntensity, closeTo(0.2, 1e-6));
-    expect(day.at(90.0).sunIntensity, closeTo(1.6, 1e-6), reason: 'dawn');
-    expect(day.at(150.0).sunIntensity, closeTo(1.6, 1e-6), reason: 'wrapped');
+    // Lux since 1.0: the keys are pre-1.0 numbers carried over in
+    // `Photometric.legacyUnit`, and so are the blends of them.
+    const unit = Photometric.legacyUnit;
+    expect(day.at(0.0).sunIntensity, closeTo(3.0 * unit, 1e-6));
+    expect(day.at(30.0).sunIntensity, closeTo(1.6 * unit, 1e-6));
+    expect(day.at(60.0).sunIntensity, closeTo(0.2 * unit, 1e-6));
+    expect(
+      day.at(90.0).sunIntensity,
+      closeTo(1.6 * unit, 1e-6),
+      reason: 'dawn',
+    );
+    expect(
+      day.at(150.0).sunIntensity,
+      closeTo(1.6 * unit, 1e-6),
+      reason: 'wrapped',
+    );
   });
 
   test('the air goes onto a scene, its sun and its sky', () {
@@ -73,7 +84,7 @@ void main() {
       scene.ambientIntensity,
       closeTo(0.05 * Photometric.legacyUnit, 1e-6),
     );
-    expect(sun.intensity, closeTo(0.2, 1e-6));
+    expect(sun.intensity, closeTo(0.2 * Photometric.legacyUnit, 1e-6));
     // The sky is linear light; the clear colour is the same colour encoded.
     // Mutation: write the linear channel into the sRGB slot as it is.
     expect(clear.z, closeTo(LinearColor.linearToSrgb(0.1), 1e-6));
@@ -86,10 +97,10 @@ void main() {
     final lamps = LightGroup(<LightNode>[low, high])..level = 0.0;
     expect(low.intensity, 0.0);
     lamps.level = 0.5;
-    expect(low.intensity, 1.0);
-    expect(high.intensity, 4.0);
+    expect(low.intensity, closeTo(1.0 * Photometric.legacyUnit, 1e-6));
+    expect(high.intensity, closeTo(4.0 * Photometric.legacyUnit, 1e-6));
     lamps.level = 1.0;
-    expect(high.intensity, 8.0);
+    expect(high.intensity, closeTo(8.0 * Photometric.legacyUnit, 1e-6));
   });
 
   test('a material outside the fog stays its colour through it', () async {

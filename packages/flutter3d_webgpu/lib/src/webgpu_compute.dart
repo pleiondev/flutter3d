@@ -689,7 +689,9 @@ Future<({Uint8List bytes, void Function() release})> webgpuMapRead(
         .getMappedRange(start, end - start)
         .toDart
         .asUint8List(offset - start, size);
-    return (bytes: range, release: storage.buffer.unmap);
+    // A closure and not a tear-off: the web compilers refuse a tear-off of
+    // an external interop member.
+    return (bytes: range, release: () => storage.buffer.unmap());
   }
   final start = offset & ~3;
   final length = _roundUp4(offset + size) - start;
@@ -764,7 +766,7 @@ Future<MappedBuffer> webgpuMapWrite(
         .getMappedRange(start, end - start)
         .toDart
         .asUint8List(offset - start, size);
-    return WebGpuMappedBuffer(range, storage.buffer.unmap);
+    return WebGpuMappedBuffer(range, () => storage.buffer.unmap());
   }
   if (offset % 4 != 0) {
     throw ArgumentError.value(

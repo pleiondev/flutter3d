@@ -94,7 +94,7 @@ int _steepest(List<int> row) {
 
 void main() {
   test('zero is an exact identity, and is the default', () async {
-    // Ninety-six goldens go through this pass. The shader returns the centre
+    // 96 goldens go through this pass. The shader returns the centre
     // untouched at zero rather than running a kernel that rounds to nothing,
     // because "rounds to nothing" is a claim about the target's bit depth.
     expect(const AntiAliasSettings().sharpen, 0.0);

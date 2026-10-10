@@ -157,7 +157,7 @@ void main() {
   });
 
   test('an uncompressed file is untouched by any of this', () {
-    // The path ninety-six goldens and every existing asset take. A level with
+    // The path 96 goldens and every existing asset take. A level with
     // no supercompression is handed back as a view on the file's own bytes,
     // with nothing copied and nothing decoded.
     final file = buildKtx2(

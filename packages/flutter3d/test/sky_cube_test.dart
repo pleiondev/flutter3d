@@ -149,9 +149,10 @@ void main() {
   });
 
   test('a cube built from the wrong number of faces is refused', () {
-    // Null rather than five faces and whatever the allocation held. Mutation:
-    // drop the length check — the sixth face is uninitialised memory, which on
-    // this backend is black and on a GPU is anything at all.
+    // Refused rather than five faces and whatever the allocation held — a
+    // `DeviceResourceException` since 1.0, where it was a null. Mutation:
+    // drop the length check — the sixth face is uninitialised memory, which
+    // on this backend is black and on a GPU is anything at all.
     final device = CpuDevice(
       width: 4,
       height: 4,
@@ -161,12 +162,12 @@ void main() {
       for (var i = 0; i < 5; i++) ByteData.sublistView(Uint8List(4 * 4 * 4)),
     ];
     expect(
-      device.createCubeTextureFromPixels(
+      () => device.createCubeTextureFromPixels(
         size: 4,
         format: TextureFormat.r8g8b8a8UNormInt,
         faces: five,
       ),
-      isNull,
+      throwsA(isA<DeviceResourceException>()),
     );
   });
 

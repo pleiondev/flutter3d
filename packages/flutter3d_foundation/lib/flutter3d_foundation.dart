@@ -2,7 +2,8 @@
 /// below the simulation.
 ///
 /// * [Flutter3dException] and its four families, the root of everything the
-///   engine throws, and [DocumentFormatException];
+///   engine throws, [DocumentFormatException], and the two leaves every
+///   backend and loader share, [ShaderCompileException] and [AssetNotFoundException];
 /// * [WorldPosition], a place in the world in double precision, and
 ///   [LinearColor], the one colour type, with their crossings into
 ///   `vector_math`'s float32 vectors ([WorldPositionVector],

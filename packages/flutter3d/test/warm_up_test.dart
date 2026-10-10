@@ -100,7 +100,12 @@ void main() {
     );
     final linked = it.device.linkedPipelines.length;
     _play(it, 300);
-    expect(it.device.linkedPipelines.length, linked);
+    expect(
+      it.device.linkedPipelines.length,
+      linked,
+      reason:
+          'play linked ${it.device.linkedPipelines.skip(linked).join(', ')}',
+    );
   });
 
   test('cold, the frames that turn to a new material link it', () {

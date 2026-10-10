@@ -10,7 +10,7 @@ import '../flutter3d_conformance.dart';
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit thirty-two shader checks it had no way to act on yet. Clears,
+/// have hit 32 shader checks it had no way to act on yet. Clears,
 /// uploads and readback only: the answers here are the cheapest ones to get,
 /// and they are the ones worth having first.
 Future<void> checkCapabilities(GraphicsDevice device) async {
@@ -271,11 +271,12 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
   );
 
   // The engine's own HDR colour, which is the texture a caller is most likely
-  // to hand over by mistake. The contract promises eight-bit RGBA, and a
-  // backend that accepts a half-float target answers with whatever its
-  // conversion path does — on WebGL2 that is a `readPixels` the context
-  // rejects, a pack buffer still full of zeros and a future that completes
-  // successfully with a black picture.
+  // to hand over. The *whole* of it is read through each backend's converting
+  // path (`readbackConverts`), into the eight-bit RGBA the contract promises;
+  // a *region* of it is refused, because a region is copied as it is stored,
+  // and on WebGL2 a float region is a `readPixels` the context rejects, a
+  // pack buffer still full of zeros and a future that completes successfully
+  // with a black picture.
   final hdr = device.createTexture(
     RenderTargetDescriptor(
       width: size,
@@ -284,10 +285,38 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
     ),
   );
   require(
-    _refuses(() => device.readback(hdr)),
-    'a ${device.hdrColorFormat.name} texture was accepted for readback; the '
-    'contract hands back eight-bit RGBA and refuses any other format with an '
-    'ArgumentError, so that three backends do not convert three ways',
+    _refuses(
+      () => device.readback(hdr, region: const ScreenRect(width: 2, height: 2)),
+    ),
+    'a region of a ${device.hdrColorFormat.name} texture was accepted for '
+    'readback; a region is copied as stored and the contract hands back '
+    'eight-bit RGBA, so any other format is refused with an ArgumentError '
+    'rather than converted three ways',
+  );
+  device
+      .beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: hdr,
+              loadAction: LoadAction.clear,
+              clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+            ),
+          ],
+        ),
+      )
+      .submit();
+  final whole = (await device.readback(hdr)).buffer.asUint8List();
+  require(
+    whole.length == size * size * 4,
+    'the whole ${device.hdrColorFormat.name} texture came back as '
+    '${whole.length} bytes, not the ${size * size * 4} of eight-bit RGBA',
+  );
+  require(
+    whole[1] > 200 && whole[0] < 50 && whole[2] < 50,
+    'the whole ${device.hdrColorFormat.name} texture cleared to green came '
+    'back as (${whole[0]}, ${whole[1]}, ${whole[2]}); its conversion lost '
+    'the picture',
   );
 }
 

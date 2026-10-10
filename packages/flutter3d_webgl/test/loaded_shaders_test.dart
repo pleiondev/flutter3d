@@ -167,7 +167,7 @@ void main() {
       throwsA(
         isA<ShaderBundleException>()
             .having((r) => r.name, 'name', 'broken')
-            .having((r) => r.reason, 'reason', contains('did not compile')),
+            .having((r) => r.reason, 'reason', contains('could not compile')),
       ),
     );
     expect(loaded.name, 'v2');
@@ -192,6 +192,67 @@ void main() {
       ),
     );
     renderer.dispose();
+  });
+
+  test('a stage that does not compile is a ShaderCompileException', () async {
+    // Under the root since 1.0, where it was a StateError that `on
+    // Flutter3dException` let through: a caller reporting what the engine
+    // refused catches one type on every backend, and reads which stage from
+    // the field rather than out of the sentence.
+    //
+    // Mutation: throw the old `StateError` from `compileWebGlShader`, and
+    // this fails on the type.
+    final loaded = await device.loadShaders(
+      _bundle(<String, String>{'Broken': _flat('1.0', compiles: false)}),
+    );
+    expect(
+      () => loaded['Broken'],
+      throwsA(
+        isA<ShaderCompileException>()
+            .having((e) => e.shader, 'shader', 'Broken')
+            .having((e) => e.backend, 'backend', 'WebGL2')
+            .having((e) => e.log, 'log', isNotEmpty),
+      ),
+    );
+  });
+
+  test('a pair that does not link is a ShaderCompileException', () async {
+    // The fragment stage reads a varying the vertex stage never writes, which
+    // compiles on its own and fails only when the two are joined.
+    //
+    // Mutation: throw the old `StateError` from the linker, and this fails
+    // on the type.
+    final loaded = await device.loadShaders(
+      _bundle(
+        <String, String>{
+          'Reads': '''
+#version 300 es
+precision highp float;
+in vec3 v_never_written;
+layout(location = 0) out vec4 frag_color;
+void main() {
+  frag_color = vec4(v_never_written, 1.0);
+}
+''',
+        },
+        vertex: <String, String>{
+          'Writes': '''
+#version 300 es
+void main() {
+  gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+}
+''',
+        },
+      ),
+    );
+    expect(
+      () => device.createPipeline(loaded['Writes']!, loaded['Reads']!),
+      throwsA(
+        isA<ShaderCompileException>()
+            .having((e) => e.shader, 'shader', 'Writes with Reads')
+            .having((e) => e.backend, 'backend', 'WebGL2'),
+      ),
+    );
   });
 
   test('the engine\'s own sources load as a bundle and link', () async {

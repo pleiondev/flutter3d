@@ -341,8 +341,10 @@ void main() {
           .toList();
       expect(byIndex[0].roughness, closeTo(0.25, 1e-3));
       expect(byIndex[1].roughness, closeTo(0.75, 1e-3));
-      expect(byIndex[0].baseColor.r, closeTo(0.25, 1e-5));
-      expect(byIndex[1].baseColor.b, closeTo(0.75, 1e-5));
+      // `Kd` is the sRGB triple the material was authored with; it reads back
+      // linear, so the comparison is made where it was authored.
+      expect(byIndex[0].baseColor.toSrgb().r, closeTo(0.25, 1e-5));
+      expect(byIndex[1].baseColor.toSrgb().b, closeTo(0.75, 1e-5));
     });
 
     test('a surface with no material does not inherit the previous one', () async {

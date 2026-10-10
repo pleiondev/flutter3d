@@ -11,6 +11,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -137,6 +138,7 @@ void main() {
       );
     expect(targets.lights, hasLength(1));
     expect(light.intensity, closeTo(3.0, 1e-9));
-    expect(light.color, Vector3(1.0, 0.5, 0.25));
+    // glTF's KHR_lights_punctual colour is linear, so it lands untouched.
+    expect(light.color, LinearColor(1.0, 0.5, 0.25));
   });
 }

@@ -77,7 +77,7 @@ void main() {
       ..disable(const ViewportShadingAddon().id)
       ..applyPending(1);
     expect(stage.passes(everything), isNot(contains('viewport shading')));
-    expect(stage.skips(everything), contains('viewport shading: switchedOff'));
+    expect(stage.skips(everything), contains('viewport shading: switched off'));
 
     host
       ..enable(const ViewportShadingAddon().id)
@@ -92,6 +92,6 @@ void main() {
       ..applyPending(1);
     expect(stage.renderer.renderSteps.withdrawn, <RenderStep>{outlinesStep});
     expect(stage.passes(everything), contains('high contrast'));
-    expect(stage.drawnSkips(everything), contains('outlines: switchedOff'));
+    expect(stage.drawnSkips(everything), contains('outlines: switched off'));
   });
 }

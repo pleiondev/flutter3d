@@ -31,6 +31,7 @@ final class GpuRenderBackend extends GraphicsDevice
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   StorageBuffer createStorageBuffer(ByteData bytes, {bool hostReadable = false, bool bindableAsIndices = false})
+  Stream<DeviceLoss> get lost
   String get backendName
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat
@@ -41,6 +42,7 @@ final class GpuRenderBackend extends GraphicsDevice
   TextureHandle createTexture(TextureDescriptor descriptor)
   TextureHandle createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
   TransferEncoder beginTransferPass({String? label})
+  bool get isLost
   int get preferredSampleCount
   int get rejectedSubmissions
   late final DeviceFeatures features

@@ -107,6 +107,7 @@ extension _ScenePasses on Renderer {
     // loads it after this one reads back from the field.
     final reversed = _reversedFor(settings);
     _depthReversed = reversed;
+    _fittedNears.clear();
     final farDepth = _DepthConvention._farDepth(reversed: reversed);
 
     final colorAttachment = msaa == null
@@ -252,6 +253,12 @@ extension _ScenePasses on Renderer {
           near: camera.projection.near,
           far: _DepthConvention._finiteFar(camera.projection),
         );
+        // Settled now, before any draw chooses its lights: a view whose
+        // cells outgrow the list texture draws through each draw's own tail,
+        // and that tail has an edge the fade has to be on for. Settled later,
+        // at the first bind, the draws had already chosen with no fade and
+        // the eighth-slot hand-over popped (`light_fade_test.dart`).
+        if (!_clusterRowsFit(_frameLights)) _clustersActive = false;
       }
 
       // Before the render list is built, because choosing a level changes which
@@ -301,15 +308,38 @@ extension _ScenePasses on Renderer {
       // reversed where the frame is. [viewProjection] stays the camera's
       // own, for the culling above and the cells, which compare nothing
       // with the depth buffer.
+      //
+      // Fitted only where the frame really is reversed — the device's
+      // answer, not the setting's: on a device without reversed depth the
+      // fit buys nothing and still risks a stale box being clipped.
+      final near = reversed
+          ? _fittedNear(view, contributors)
+          : camera.projection.near;
+      _fittedNears.add(near);
       final drawMatrix = _rasterViewProjection(
         camera,
         viewRect,
         settings,
         reversed: reversed,
-        near: settings.reversedDepth
-            ? _fittedNear(view, contributors)
-            : camera.projection.near,
+        near: near,
       );
+      // A backdrop is passed over by the fit and drawn through the camera's
+      // own plane, or a fitted plane past its few metres would cut it away —
+      // see `_isBackdrop`. Made only when the planes differ and one is drawn.
+      vm.Matrix4? backdropMatrix;
+      vm.Matrix4 matrixFor(MeshNode node) {
+        if (near <= camera.projection.near ||
+            !_DepthConvention._isBackdrop(node)) {
+          return drawMatrix;
+        }
+        return backdropMatrix ??= _rasterViewProjection(
+          camera,
+          viewRect,
+          settings,
+          reversed: reversed,
+          near: camera.projection.near,
+        );
+      }
 
       // `C9`: a split mesh's clusters are culled against what its node was,
       // at the draw, with the matrix the draw uses.
@@ -348,7 +378,7 @@ extension _ScenePasses on Renderer {
         node: node,
         scene: scene,
         settings: settings,
-        viewProjection: drawMatrix,
+        viewProjection: matrixFor(node),
         shadows: shadows,
         probes: probes,
         lights: _frameLights,

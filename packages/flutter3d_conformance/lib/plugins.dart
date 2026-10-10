@@ -21,7 +21,7 @@
 /// );
 /// ```
 ///
-/// ## The six plugin checks
+/// ## The 6 plugin checks
 ///
 /// * **manifest** — the id is well formed, the plugin API version installs on
 ///   this engine, every permission is one the engine knows, a budget reads,

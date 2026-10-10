@@ -123,6 +123,36 @@ void main() {
     expect(viewAxisOf(adjusted).distanceTo(viewAxisOf(plain)), lessThan(1e-5));
   });
 
+  test('the axis is read from a matrix whose far plane is at infinity, '
+      'either way round', () {
+    // `PerspectiveProjection.infinite` puts the far plane where w is nought,
+    // so unprojecting depth one divides by it; reversed, the same holds of
+    // depth nought. A plugin hands `frame.viewProjection` to `encodeScene`
+    // as is, and `ViewDepth` in the surface buffer was NaN for it.
+    //
+    // Mutation: unproject the two depth planes and subtract, as `viewAxisOf`
+    // did — NaN for the infinite matrix and, reversed, the axis backwards.
+    final camera = _camera(
+      const PerspectiveProjection.infinite(near: 0.1),
+      eye,
+    );
+    final forward = camera.readForward();
+    final infinite = camera.viewProjection(aspect);
+    final projection = withDepthPlanes(
+      camera.projection.toMatrix(aspect),
+      near: 0.1,
+      far: double.infinity,
+      reversed: true,
+    )!;
+    final reversed = projection * camera.viewMatrix as Matrix4;
+
+    for (final matrix in <Matrix4>[infinite, reversed]) {
+      final axis = viewAxisOf(matrix);
+      expect(axis.x.isFinite && axis.y.isFinite && axis.z.isFinite, isTrue);
+      expect(axis.distanceTo(forward), lessThan(1e-5), reason: '$axis');
+    }
+  });
+
   test('a wall at twenty metres is told from one at twenty and a half', () {
     // The defect, as the numbers that caused it, held here so the claim in
     // `WriteSurfaceGeometry` is a measurement rather than an assertion.

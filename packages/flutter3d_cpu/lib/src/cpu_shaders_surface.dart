@@ -18,6 +18,34 @@ import 'cpu_shaders_color.dart';
 import 'cpu_shaders_irradiance.dart';
 import 'cpu_shaders_layout.dart';
 
+/// `HashedAlphaNoise` in `surface.glsl` and `depth_predraw.frag`, operation
+/// for operation: the noise a hashed alpha is compared with at the
+/// scene-space point ([x], [y], [z]), counted in sixteenths of a metre from
+/// where the world starts. [cutoff] is the hashed sentinel, -2 less the
+/// scene's origin in those cells, each below 128, which the renderer packs.
+///
+/// The cells are wrapped to [0, 128) before the hash sees them, so every
+/// number it takes is small; the hash is Hoskins' `hash13`, with no `sin`.
+double hashedAlphaNoise(double x, double y, double z, double cutoff) {
+  double fract(double v) => v - v.floorToDouble();
+  double wrap(double v) => v - 128.0 * (v / 128.0).floorToDouble();
+  final key = -2.0 - cutoff;
+  final cx = wrap((x * 16.0).floorToDouble() + (key / 16384.0).floorToDouble());
+  final cy = wrap(
+    (y * 16.0).floorToDouble() + wrap((key / 128.0).floorToDouble()),
+  );
+  final cz = wrap((z * 16.0).floorToDouble() + wrap(key));
+  var px = fract(cx * 0.1031);
+  var py = fract(cy * 0.1031);
+  var pz = fract(cz * 0.1031);
+  // `p3 += dot(p3, p3.zyx + 31.32)`.
+  final d = px * (pz + 31.32) + py * (py + 31.32) + pz * (px + 31.32);
+  px += d;
+  py += d;
+  pz += d;
+  return fract((px + py) * pz);
+}
+
 /// How far the texture coordinate moves per screen pixel, for mip selection.
 ///
 /// **Every map below sampled the base level until this existed**, whatever mip
@@ -254,21 +282,16 @@ Surface? readSurface(
   } else if (cutoff >= 0.0) {
     if (textured < cutoff) return null;
   } else if (cutoff < -1.5) {
-    // `gfx-16n`: hashed, the fourth mode. Anchored to world position rather
-    // than to the screen so the pattern travels with the surface — see
-    // `surface.glsl`, which this mirrors operation for operation.
-    final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
-    final anchored = Vector3(
-      (world.x * 16.0).floorToDouble(),
-      (world.y * 16.0).floorToDouble(),
-      (world.z * 16.0).floorToDouble(),
+    // `gfx-16n`: hashed, the fourth mode. Anchored to the world rather than
+    // to the screen so the pattern travels with the surface, and stays put
+    // through a shift of the origin — see [hashedAlphaNoise].
+    final noise = hashedAlphaNoise(
+      v[kVWorld],
+      v[kVWorld + 1],
+      v[kVWorld + 2],
+      cutoff,
     );
-    final t =
-        math.sin(
-          anchored.x * 12.9898 + anchored.y * 78.233 + anchored.z * 37.719,
-        ) *
-        43758.5453;
-    if (textured < t - t.floorToDouble()) return null;
+    if (textured < noise) return null;
   }
   // What survives a mask's cut is opaque, as `surface.glsl` writes it.
   final alpha = cutoff >= 0.0 && cutoff <= 1.0 ? 1.0 : textured;

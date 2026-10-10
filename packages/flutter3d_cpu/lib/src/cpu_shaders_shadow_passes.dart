@@ -10,7 +10,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
 import 'cpu_shaders_layout.dart';
-import 'cpu_shaders_surface.dart' show uvFootprint;
+import 'cpu_shaders_surface.dart' show hashedAlphaNoise, uvFootprint;
 
 /// `shadow_depth.frag`: window depth into a colour target.
 ///
@@ -213,14 +213,13 @@ final class DepthPredrawShader extends CpuFragmentShader {
     if (cutoff >= 0.0 && cutoff <= 1.0) {
       if (alpha() < cutoff) return null;
     } else if (cutoff < -1.5) {
-      final t =
-          math.sin(
-            (v[kVWorld] * 16.0).floorToDouble() * 12.9898 +
-                (v[kVWorld + 1] * 16.0).floorToDouble() * 78.233 +
-                (v[kVWorld + 2] * 16.0).floorToDouble() * 37.719,
-          ) *
-          43758.5453;
-      if (alpha() < t - t.floorToDouble()) return null;
+      final noise = hashedAlphaNoise(
+        v[kVWorld],
+        v[kVWorld + 1],
+        v[kVWorld + 2],
+        cutoff,
+      );
+      if (alpha() < noise) return null;
     }
 
     final share = mask.z;

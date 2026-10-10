@@ -174,7 +174,9 @@ void main() {
     //    `double.infinity`) with the depth fit kept: the first expectation;
     //  * the depth fitted to the sphere again (`sceneDepth` → `sceneRadius`)
     //    with the cap kept: 143 of 211, the first expectation;
-    //  * the stored-step floor dropped: the second expectation.
+    //  * the stored-step floor dropped: measured on the ordinary path, where
+    //    the software backend keeps full floats anyway, so what failed was
+    //    the edge's count below, not acne — see the last expectation.
     final lit = await _shot(shadows: false);
     final shaded = await _shot(shadows: true);
     final truth = _truth();
@@ -200,12 +202,55 @@ void main() {
           'drawn dark',
     );
     // What is drawn dark outside the true shadow is its edge in the last
-    // cascade's texels, a metre and a half wide here; the floor shadowing
-    // itself would be counted across the whole valley.
+    // cascade's texels; the floor shadowing itself would be dark across the
+    // whole valley. So the guard is *where* the spoilt pixels are, not how
+    // many: every one within [_edgeBand] pixels of the true shadow.
+    //
+    // **A count was the wrong measure, said with the numbers.** It was
+    // `spoilt < inShadow / 4`, and the ordinary path met it at 175 of 211
+    // drawn because its 0.42 m stored-step floor shrank the whole shadow,
+    // pulling its blurred edge in with it. Reversed into full floats
+    // (`RenderSettings.reversedDepth`, on by default) the floor is not needed
+    // and not taken: 197 of 211 are drawn, and 105 lit pixels are dark —
+    // every one within 5.4 pixels (1.3 m) of the true shadow, the kernel's
+    // reach over the last cascade's 0.86 m texels, and none further out.
+    //
+    // Mutation: write storage mode nought for the turned map
+    // (`_shadowParams[1]`), so it is read the ordinary way round — the
+    // whole valley goes dark, which the first expectation cannot see (every
+    // shadowed pixel is then drawn), and here 4829 lit pixels are, the
+    // farthest a hundred pixels out. Zeroing the bias or the normal offset
+    // does not show on this backend: it keeps exact 32-bit depths, and a
+    // flat floor never shadows itself on it.
+    final edge = <int>[
+      for (var i = 0; i < truth.length; i++)
+        if (truth[i] == true) i,
+    ];
+    var farthest = 0;
+    for (var i = 0; i < truth.length; i++) {
+      if (truth[i] != false || !(shaded[i * 4 + 1] < lit[i * 4 + 1] - 8)) {
+        continue;
+      }
+      final x = i % _width, y = i ~/ _width;
+      var nearest = 1 << 30;
+      for (final j in edge) {
+        final dx = j % _width - x, dy = j ~/ _width - y;
+        nearest = math.min(nearest, dx * dx + dy * dy);
+      }
+      farthest = math.max(farthest, nearest);
+    }
     expect(
-      spoilt,
-      lessThan(inShadow ~/ 4),
-      reason: '$spoilt lit floor pixels were drawn in shadow',
+      math.sqrt(farthest),
+      lessThanOrEqualTo(_edgeBand),
+      reason:
+          '$spoilt lit floor pixels were drawn in shadow, the farthest '
+          '${math.sqrt(farthest).toStringAsFixed(1)} pixels from it',
     );
   });
 }
+
+/// How far, in pixels, the last cascade's filtered edge may reach past the
+/// true shadow: two and a half of its texels — the 3×3 kernel's one and a
+/// half and the texel a rasterised edge can land in — of about 0.86 m, at
+/// 0.235 m a pixel where the box stands (31 m out, 0.85 rad over 120 rows).
+const double _edgeBand = 2.5 * 0.86 / 0.235;

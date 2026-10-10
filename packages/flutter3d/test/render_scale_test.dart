@@ -35,7 +35,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('one is the whole resolution, and is the default', () {
-    // Ninety-six goldens are recorded at the size they asked for. A default
+    // 96 goldens are recorded at the size they asked for. A default
     // that shrank anything would move every one of them.
     expect(const RenderSettings().renderScale, 1.0);
     expect(_drawn(1.0), (width: 64, height: 64));

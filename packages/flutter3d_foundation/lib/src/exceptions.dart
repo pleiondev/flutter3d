@@ -85,3 +85,76 @@ base class PluginException extends Flutter3dException {
 abstract base class ResourceException extends Flutter3dException {
   const ResourceException();
 }
+
+/// A shader stage a backend's compiler refused, or a pair of stages its
+/// linker would not join.
+///
+/// **Here, in the root's file, and not in a backend**, because every backend
+/// that compiles at run time (WebGL from GLSL, WebGPU from WGSL, Impeller from
+/// a bundle) meets the same failure, and a caller that reports it should not
+/// have to name the backend's package to catch it. The bytes are what the
+/// compiler disagreed with, so it is a [Flutter3dFormatException]: the source
+/// is not the program it claims to be, at least not for this driver.
+final class ShaderCompileException extends Flutter3dFormatException {
+  const ShaderCompileException({
+    required this.shader,
+    required this.backend,
+    required this.log,
+    this.cause,
+  });
+
+  /// The stage that did not compile, by the name the shader bundle gives it;
+  /// for a link, both stages (`'pbr.vert with pbr.frag'`).
+  final String shader;
+
+  /// Who refused, as a person would name the backend.
+  final String backend;
+
+  /// What the compiler or the linker said, as it said it; empty when the
+  /// driver said nothing.
+  final String log;
+
+  @override
+  final Object? cause;
+
+  @override
+  String get message => log.isEmpty
+      ? '$backend could not compile $shader'
+      : '$backend could not compile $shader:\n$log';
+
+  @override
+  String toString() => cause == null
+      ? 'ShaderCompileException: $message'
+      : 'ShaderCompileException: $message (caused by $cause)';
+}
+
+/// An asset the program named and the platform does not have: a key missing
+/// from the Flutter asset bundle, a file not on disk.
+///
+/// **Thrown in place of the platform's own failure** (a `FlutterError` from
+/// `rootBundle`, a `PathNotFoundException` from `dart:io`), which [cause]
+/// keeps, so a caller catches one type on every platform and reads which
+/// asset it was from [key] rather than from the text of somebody else's
+/// message.
+final class AssetNotFoundException extends ResourceException {
+  const AssetNotFoundException(this.key, {this.detail, this.cause});
+
+  /// The asset as the caller named it: a bundle key or a path.
+  final String key;
+
+  /// What else is worth saying, such as where the loader looked or how to
+  /// declare the asset; null when the key says it all.
+  final String? detail;
+
+  @override
+  final Object? cause;
+
+  @override
+  String get message =>
+      detail == null ? 'no asset "$key"' : 'no asset "$key": $detail';
+
+  @override
+  String toString() => cause == null
+      ? 'AssetNotFoundException: $message'
+      : 'AssetNotFoundException: $message (caused by $cause)';
+}

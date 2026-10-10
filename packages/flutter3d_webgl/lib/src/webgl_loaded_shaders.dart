@@ -11,6 +11,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ShaderCompileException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/translate.dart'
@@ -141,7 +143,7 @@ final class WebGlLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
           isVertex: stage.isVertex,
         );
       }
-    } on StateError catch (error) {
+    } on ShaderCompileException catch (error) {
       for (final shader in fresh.values) {
         _gl.deleteShader(shader);
       }

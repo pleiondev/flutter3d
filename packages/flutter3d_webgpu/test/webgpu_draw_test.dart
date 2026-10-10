@@ -835,12 +835,13 @@ void main() {
         ),
         throwsArgumentError,
       );
+      // Thrown rather than answered with null since 1.0.
       expect(
-        scene.device.createCubeRenderTarget(
+        () => scene.device.createCubeRenderTarget(
           size: 8,
           format: TextureFormat.bc1RGBAUNormInt,
         ),
-        isNull,
+        throwsA(isA<DeviceResourceException>()),
       );
       scene.device.dispose();
     });
@@ -939,14 +940,14 @@ void main() {
       // A level whose bytes are measured the wrong way is refused before a
       // texture exists, which is the other half of the same arithmetic.
       expect(
-        device.createTextureFromPixels(
+        () => device.createTextureFromPixels(
           width: 8,
           height: 8,
           format: TextureFormat.bc1RGBAUNormInt,
           pixels: ByteData.sublistView(base),
           mipLevels: <ByteData>[ByteData(32)],
         ),
-        isNull,
+        throwsA(isA<DeviceResourceException>()),
         reason: 'a 4x4 BC1 level is one block, and 32 bytes is four',
       );
 
@@ -1093,7 +1094,10 @@ void main() {
       scene.device.dispose();
     });
 
-    test('what stays null, and why each is not a gap', () async {
+    test('what is refused, and why each is not a gap', () async {
+      // Refused with a synchronous ArgumentError since 1.0, where these were
+      // a null: the handle carries every one of these facts, so the caller
+      // can ask before requesting (`GraphicsDevice.readback`).
       final scene = await _scene();
       if (scene == null) return;
       final device = scene.device;
@@ -1101,26 +1105,23 @@ void main() {
       // Tile memory holds nothing after the pass, which here is an attachment
       // allocated without TEXTURE_BINDING — so the conversion could not sample
       // it either.
-      expect(
-        await device.readback(
-          device.createTexture(
-            const RenderTargetDescriptor(
-              width: 4,
-              height: 4,
-              format: TextureFormat.r8g8b8a8UNormInt,
-              storageMode: StorageMode.deviceTransient,
-            ),
-          ),
+      final transient = device.createTexture(
+        const RenderTargetDescriptor(
+          width: 4,
+          height: 4,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          storageMode: StorageMode.deviceTransient,
         ),
-        isNull,
       );
+      expect(() => device.readback(transient), throwsArgumentError);
 
       // Multisampled, which is the refusal `readbackRegionOf` states above every
       // backend: there are no pixels to copy until a pass resolves it. Read the
       // resolve target.
+      final multisampled = scene.target(sampleCount: 4);
       expect(
-        await device.readback(scene.target(sampleCount: 4)),
-        isNull,
+        () => device.readback(multisampled),
+        throwsArgumentError,
         reason: 'a multisampled target is refused on every backend',
       );
 
@@ -1128,18 +1129,14 @@ void main() {
       // sampling decodes — so a picture from here would be a third answer beside
       // the two the other backends already give. Read the same texture through
       // its non-sRGB layout.
-      expect(
-        await device.readback(
-          device.createTexture(
-            const RenderTargetDescriptor(
-              width: 4,
-              height: 4,
-              format: TextureFormat.r8g8b8a8UNormIntSRGB,
-            ),
-          ),
+      final srgb = device.createTexture(
+        const RenderTargetDescriptor(
+          width: 4,
+          height: 4,
+          format: TextureFormat.r8g8b8a8UNormIntSRGB,
         ),
-        isNull,
       );
+      expect(() => device.readback(srgb), throwsArgumentError);
       device.dispose();
     });
   });

@@ -89,14 +89,16 @@ void main() {
     final short = ByteData(
       _levelBytes(TextureFormat.etc2RGB8UNormInt, 4, 4).lengthInBytes - 1,
     );
-    final handle = device.createTextureFromPixels(
-      width: 4,
-      height: 4,
-      format: TextureFormat.etc2RGB8UNormInt,
-      pixels: short,
+    // Thrown rather than answered with null since 1.0.
+    expect(
+      () => device.createTextureFromPixels(
+        width: 4,
+        height: 4,
+        format: TextureFormat.etc2RGB8UNormInt,
+        pixels: short,
+      ),
+      throwsA(isA<DeviceResourceException>()),
     );
-
-    expect(handle, isNull);
     // Refused in Dart, before `createTexture`/`compressedTexSubImage2D` ever
     // ran — a texture this device never made would otherwise leave nothing to
     // blame the missing byte on.

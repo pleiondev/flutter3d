@@ -98,4 +98,49 @@ void main() {
     expect(out[cell * 4 + 1], 1.0);
     expect(out[LightClusters.headerRows * 16 + offset], 1.0);
   });
+
+  test('a crowded cell lists its strongest lights first, where the shader '
+      'reads', () {
+    // The shader reads at most `maxExtraLights` entries of a cell. In scene
+    // order, a cell holding more kept whichever came first in the scene: a
+    // bright lamp added after thirty dim ones reached no fragment through
+    // the cell, and lit the floor only while a draw's eight slots held it —
+    // so it snapped on and off as the draw's ranking moved, with no fade,
+    // which `flutter3d/test/light_fade_test.dart` measured as 2.6 % a step.
+    //
+    // Mutation: drop the ranking of crowded cells in `LightClusters.build`
+    // (entries in scene order everywhere) — the bright lamp, index 30, is
+    // past the place the shader stops reading.
+    final lights = <LightNode>[
+      for (var i = 0; i < 30; i++)
+        LightNode(
+          type: LightType.point,
+          intensity: 0.08 * Photometric.legacyUnit,
+          range: 20.0,
+        )..setPosition((i - 15) * 0.1, 1.5, 0.0),
+      LightNode(
+        type: LightType.point,
+        intensity: 150.0 * Photometric.legacyUnit,
+        range: 40.0,
+      )..setPosition(3.0, 1.5, 0.0),
+    ];
+    final it = _build(lights);
+    final cell = it.clusters.clusterOf(Vector3(0.0, 1.0, 0.0));
+    final listed = it.clusters.lightsAt(cell).toList();
+    expect(listed.length, greaterThan(LightBuffer.maxExtraLights));
+    expect(listed.take(LightBuffer.maxExtraLights), contains(30));
+    // Every light is still listed: the order changed, not the membership.
+    expect(listed.toSet(), <int>{for (var i = 0; i <= 30; i++) i});
+  });
+
+  test('a cell the shader reads whole keeps scene order', () {
+    // Ranking costs a score per entry; a cell within the shader's reach
+    // reads every entry anyway, so it is left as it was built.
+    final it = _build(<LightNode>[
+      _point(Vector3(0.2, 1.0, 0.0), 3.0)..intensity = 1.0,
+      _point(Vector3(0.0, 1.0, 0.0), 3.0)..intensity = 1000.0,
+    ]);
+    final cell = it.clusters.clusterOf(Vector3(0.0, 1.0, 0.0));
+    expect(it.clusters.lightsAt(cell), <int>[0, 1]);
+  });
 }

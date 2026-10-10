@@ -48,6 +48,19 @@ uniform PredrawInfo {
 }
 predraw_info;
 
+/// `surface.glsl`'s noise for a hashed cut, to the operation — that stage's
+/// block is not declared here, and a pixel kept by one and thrown away by
+/// the other would be a speck or a hole. See `HashedAlphaNoise` there.
+float HashedAlphaNoise(vec3 scenePosition, float cutoff) {
+  float key = -2.0 - cutoff;
+  vec3 origin = vec3(floor(key / 16384.0), mod(floor(key / 128.0), 128.0),
+                     mod(key, 128.0));
+  vec3 cell = mod(floor(scenePosition * 16.0) + origin, 128.0);
+  vec3 p3 = fract(cell * 0.1031);
+  p3 += dot(p3, p3.zyx + 31.32);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
 /// Interleaved gradient noise at the pixel, in [0, 1): a pattern that spreads
 /// any share of the pixels evenly at every scale, which is what keeps a fade
 /// from reading as a screen door.
@@ -65,10 +78,7 @@ void main() {
   } else if (cutoff < -1.5) {
     float alpha = texture(base_color_texture, v_texcoord, predraw_info.mask.w).a *
                   predraw_info.mask.y * v_color.a;
-    vec3 anchored = floor(v_world_position * 16.0);
-    float noise = fract(
-        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-    if (alpha < noise) discard;
+    if (alpha < HashedAlphaNoise(v_world_position, cutoff)) discard;
   }
 
   float share = predraw_info.mask.z;

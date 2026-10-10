@@ -453,12 +453,16 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
         format: TextureFormat.r8g8b8a8UNormInt,
       ),
     );
+    // Ten floats a vertex: `sky_cube.vert` takes its depth with the corner
+    // (`vec3 position`, `A2.8`), here the far plane less a hair the ordinary
+    // way round — the pass has no depth to test it against — then the ray
+    // and the tint.
     final triangle = Float32List.fromList(<double>[
       for (final corner in const <List<double>>[
         <double>[-1, -1],
         <double>[3, -1],
         <double>[-1, 3],
-      ]) ...<double>[...corner, ...axes[face], 1, 1, 1, 1],
+      ]) ...<double>[...corner, 0.999999, ...axes[face], 1, 1, 1, 1],
     ]);
 
     final pass = device.beginRenderPass(

@@ -444,8 +444,16 @@ void main() {
         maxScreenFractions: <double>[1.0, 0.15],
       );
 
-      expect(group.levels[0].node.material.baseColor.toSrgb().r, 1.0);
-      expect(group.levels[1].node.material.baseColor.toSrgb().r, 0.25);
+      // Held linear and read back through the sRGB curve: equal to the
+      // last bit of a double, not exactly.
+      expect(
+        group.levels[0].node.material.baseColor.toSrgb().r,
+        closeTo(1.0, 1e-9),
+      );
+      expect(
+        group.levels[1].node.material.baseColor.toSrgb().r,
+        closeTo(0.25, 1e-9),
+      );
     });
 
     test('the coarse material takes over as the object shrinks', () {

@@ -59,7 +59,7 @@ void main() {
     // `planFrame`, and the plan still runs the occlusion.
     expect(stage.passes(everything), isNot(contains('ssao')));
     expect(stage.passes(everything), isNot(contains('ssao blur')));
-    expect(stage.skips(everything), contains('ssao: switchedOff'));
+    expect(stage.skips(everything), contains('ssao: switched off'));
     // The other effect of the family is untouched.
     expect(stage.passes(everything), contains('contact shadows'));
 

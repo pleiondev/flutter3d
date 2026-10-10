@@ -43,6 +43,7 @@ import 'cluster_draws.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
+import 'depth_turn.dart';
 import 'draw_journal.dart';
 import 'empty_frame.dart';
 import 'engine_light_units.dart';
@@ -517,6 +518,33 @@ final class Renderer with RenderServices {
   /// between frames: see [_followOrigin].
   WorldPosition? _lastOrigin;
 
+  /// The cutoff this frame's hashed materials are drawn with, carrying the
+  /// scene's origin for their noise — see [_hashedCutoffAt].
+  double _hashedCutoff = -2.0;
+
+  /// The cutoff a hashed material is drawn with while the scene's origin is
+  /// [origin] — readiness review §2.1.14.
+  ///
+  /// **Hashed noise is anchored on the world, so it has to know the
+  /// origin**, and the stages see only scene space: a `Scene.shiftOrigin`
+  /// moved every surface's scene position and re-rolled every leaf's
+  /// pattern in that frame. The noise is periodic over 128 of its cells
+  /// (eight metres) on each axis, so the origin only matters in those cells:
+  /// three numbers below 128, packed into one integer below 2^21 and carried
+  /// below the -2 that already says "hashed" — `FragInfo.material2.x` and
+  /// `PredrawInfo.mask.x` — rather than in a member added to blocks four
+  /// backends lay out alike. Every value involved is an integer a float32
+  /// holds exactly, and so is the unpacking in `HashedAlphaNoise`.
+  ///
+  /// An origin on a sixteenth of a metre (`Scene.rebaseAround` keeps whole
+  /// metres) keeps the pattern exactly; one between moves it by part of a
+  /// cell.
+  static double _hashedCutoffAt(WorldPosition origin) {
+    int cell(double metres) => (metres * 16.0).floor() % 128;
+    return -2.0 -
+        (cell(origin.x) * 16384 + cell(origin.y) * 128 + cell(origin.z));
+  }
+
   /// Carries what this renderer keeps from earlier frames across a
   /// `Scene.shiftOrigin` — item 18. The scene moved its nodes (and its
   /// irradiance field) by the shift; [frameHistory] moves what it recorded
@@ -528,6 +556,7 @@ final class Renderer with RenderServices {
   void _followOrigin(Scene scene) {
     final origin = scene.origin;
     frameHistory.origin = origin;
+    _hashedCutoff = _hashedCutoffAt(origin);
     final last = _lastOrigin;
     _lastOrigin = origin;
     if (last == null ||
@@ -1807,6 +1836,12 @@ final class Renderer with RenderServices {
   /// answer for the frame, because one buffer is cleared one way.
   bool _depthReversed = false;
 
+  /// The near plane each view of the last scene pass was drawn with, in
+  /// metres, in the order the views were drawn — `A2.9`. For tests: the fit
+  /// buys precision, which no single picture shows, so the plane is what a
+  /// test holds to a value.
+  final List<double> _fittedNears = <double>[];
+
   /// Advanced whenever the reading is thrown away, so a readback that was
   /// already in the air lands on nothing rather than restoring a reading of
   /// a scene the frame has since stopped trusting.
@@ -1969,7 +2004,7 @@ final class Renderer with RenderServices {
 
   /// `gfx-76n`'s strength, in x. Neutral is zero, which the composite reads as
   /// a multiplier of exactly one — the same arrangement the occlusion's
-  /// strength has, and for the same reason: ninety-six goldens go through this
+  /// strength has, and for the same reason: 96 goldens go through this
   /// block and "off" has to be a number the shader cancels, not one it nearly
   /// cancels.
   Float32List get _compositeContact => _compositeInfo.contact;
@@ -4472,11 +4507,22 @@ final class Renderer with RenderServices {
       () {
         final skinned = node.skeleton != null;
         final instanced = node is InstancedMeshNode;
+        final material = node.material;
+        // The variant the scene pass will draw it with: the lit model's
+        // opaque stage (`A1.2`) for anything but a blend or a faded node,
+        // where the model has one — a mask or a hash is cut by the pre-draw
+        // and then drawn through it too. Linking the plain stage alone left
+        // every model but the one the warm-up frames happened to see to link
+        // during play.
         _pipelineFor(
-          node.material.lighting,
+          material.lighting,
           skinned: skinned,
           instanced: instanced,
           lightmapped: node.lightmapped && !skinned && !instanced,
+          opaque:
+              material.alphaMode != MaterialAlphaMode.blend &&
+              node.tint.a >= 1.0 &&
+              _opaqueStageFor(material.lighting) != null,
         );
       },
     // And what only a later frame reaches: the tile reset a kept cascade
@@ -5943,6 +5989,10 @@ extension RendererInternals on Renderer {
 
   /// How many times the exposure meter's readback failed.
   int get debugMeterFailures => _debugMeterFailures;
+
+  /// The near plane each view of the last frame's scene pass was drawn
+  /// with: the camera's own, or the fitted one under reversed depth.
+  List<double> get debugFittedNears => List<double>.unmodifiable(_fittedNears);
 
   /// Told each texture the target pool retires.
   void Function(TextureHandle texture)? get debugOnTargetRetired =>

@@ -18,7 +18,7 @@ A browser build does not open this backend unless it asks. `flutter3d_app`
 opens WebGL2 in a browser and tries WebGPU first only behind
 `--dart-define=FLUTTER3D_WEBGPU=true`. The engine's own example takes
 `?backend=webgpu` in the URL instead, because a golden stand that serves
-forty-three scenes from one build should not spend that saving on a define.
+43 scenes from one build should not spend that saving on a define.
 The default is not a verdict on WebGPU. A probe able to call either
 opener keeps both backends reachable, and dart2js ships what it can reach:
 376,649 bytes of `main.dart.js`, 14.9%, measured on `apps/flutter3d_demo_strategy`.

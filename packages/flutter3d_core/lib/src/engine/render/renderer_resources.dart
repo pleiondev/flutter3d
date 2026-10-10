@@ -62,11 +62,24 @@ extension _RendererResources on Renderer {
   /// By name, `Pbr` and `PbrOpaque`, as a skinned material vertex stage is
   /// found: the engine's six lit models ship one, and a model from anywhere
   /// else that ships one too is drawn through it on the same terms.
-  ShaderHandle? _opaqueStageFor(LightingModel model) =>
-      _opaqueStages.putIfAbsent(
-        model.shaderName,
-        () => shaders['${model.shaderName}Opaque'],
-      );
+  ///
+  /// **Never the backend's variant of a stage somebody replaced.** An
+  /// application that hands the renderer its own `Unlit` and no
+  /// `UnlitOpaque` means its stage to draw: paired with the backend's opaque
+  /// variant, every opaque draw ran the engine's shader and the
+  /// application's never ran at all. A replaced stage with no variant of its
+  /// own draws through the plain stage, as a model without one does.
+  ShaderHandle? _opaqueStageFor(
+    LightingModel model,
+  ) => _opaqueStages.putIfAbsent(model.shaderName, () {
+    final name = model.shaderName;
+    final opaque = shaders['${name}Opaque'];
+    if (opaque == null) return null;
+    final ownPlain = device.shaders[name];
+    final replaced = ownPlain != null && !identical(shaders[name], ownPlain);
+    final backendsVariant = identical(opaque, device.shaders['${name}Opaque']);
+    return replaced && backendsVariant ? null : opaque;
+  });
 
   PipelineHandle _pipelineFor(
     LightingModel model, {

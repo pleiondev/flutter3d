@@ -737,13 +737,22 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// [DeviceLoss.isRecoverable] (a WebGL context that the browser restores)
   /// is followed by another event with [DeviceLoss.restored] true, after
   /// which the application rebuilds its renderer on the same device; any
-  /// other loss means opening a new device. Empty by default, which is the
-  /// truth on a backend that cannot lose its device (the software
-  /// rasteriser) and the most a backend whose API does not say can claim
-  /// (Impeller: `TODO(impeller)`, flutter_gpu reports no loss).
+  /// other loss means opening a new device.
+  ///
+  /// **Every backend's, not WebGL's alone.** This is the one place a caller
+  /// learns of a loss, whichever backend it opened, so each backend reports
+  /// here whatever its API lets it see: WebGPU its `device.lost` and the
+  /// errors it would otherwise only log, WebGL its context events, Impeller
+  /// and the software rasteriser at least their own [dispose] as
+  /// [DeviceLossReason.destroyed]. A caller listens once, on whatever it
+  /// opened, and never asks which backend it was. A backend from outside
+  /// this repository owes the same; the empty default is only what one
+  /// inherits before it says anything, and it reads as "never lost".
   Stream<DeviceLoss> get lost => const Stream<DeviceLoss>.empty();
 
-  /// Whether the device is lost now, and not restored.
+  /// Whether the device is lost now, and not restored — the state [lost]
+  /// reports the changes of, so a caller that subscribed late can ask. Every
+  /// backend that reports on [lost] answers here too.
   bool get isLost => false;
 
   /// Names [resource] — a [TextureHandle], [GeometryBuffer], [StorageBuffer],

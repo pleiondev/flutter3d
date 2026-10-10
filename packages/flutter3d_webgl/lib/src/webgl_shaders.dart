@@ -14,6 +14,8 @@ library;
 
 import 'dart:js_interop';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ShaderCompileException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 // The generated uniform tables are shared by the engine and its backends,
@@ -129,12 +131,15 @@ final RegExp _samplerDeclaration = RegExp(
 /// Every `mediump` a stage spells, for [WebGlShaderLibrary.highpMaterials].
 final RegExp _mediump = RegExp(r'\bmediump\b');
 
-/// Compiles one stage, or throws naming it and quoting the driver's log.
+/// Compiles one stage, or throws a [ShaderCompileException] naming it and
+/// quoting the driver's log.
 ///
 /// Shared by the engine's library and a loaded one, because a stage that
 /// failed to compile and came back null would look exactly like a stage the
 /// bundle never had, and the two need different fixes — so both refuse the
-/// same way, loudly.
+/// same way, loudly. A [ShaderCompileException] rather than the `StateError`
+/// it was before 1.0: the root's type, which every backend that compiles at
+/// run time throws, so `on Flutter3dException` catches it.
 ///
 /// The info log is read before the shader is deleted, and deleted it must be:
 /// nothing caches a failure, so every retry would otherwise leak one more GL
@@ -157,7 +162,11 @@ web.WebGLShader compileWebGlShader(
   if (!ok.toDart) {
     final log = gl.getShaderInfoLog(shader);
     gl.deleteShader(shader);
-    throw StateError('the "$name" shader did not compile:\n$log');
+    throw ShaderCompileException(
+      shader: name,
+      backend: webglBackendName,
+      log: log?.trim() ?? '',
+    );
   }
   return shader;
 }
@@ -337,8 +346,10 @@ final class WebGlShaderLibrary with ShaderLibrary {
       // if this path kept the object.
       final log = _gl.getProgramInfoLog(program);
       _gl.deleteProgram(program);
-      throw StateError(
-        'linking ${vertex.name} with ${fragment.name} failed:\n$log',
+      throw ShaderCompileException(
+        shader: '${vertex.name} with ${fragment.name}',
+        backend: webglBackendName,
+        log: log?.trim() ?? '',
       );
     }
 

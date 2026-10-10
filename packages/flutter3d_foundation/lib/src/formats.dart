@@ -150,6 +150,7 @@ final class FormatSpec {
 
   /// The version [document] was written at: `version`, else the legacy key,
   /// else 1 — a document from before the key existed is the first version.
+  /// A 0 or a negative is what it says, for [open] to refuse.
   int versionOf(Map<String, Object?> document) {
     final said =
         document['version'] ??
@@ -157,7 +158,7 @@ final class FormatSpec {
           final String key => document[key],
           null => null,
         };
-    return said is num && said >= 1 ? said.toInt() : 1;
+    return said is num ? said.toInt() : 1;
   }
 
   /// [document] checked against this format and lifted to [version].
@@ -192,6 +193,7 @@ final class FormatSpec {
       throw refuse('"version" must be a whole number, not $raw');
     }
     final at = versionOf(document);
+    if (at < 1) throw refuse('"version" counts from 1, not $at');
     if (at > version) {
       throw refuse(
         '$id version $at is newer than this build reads ($version): '

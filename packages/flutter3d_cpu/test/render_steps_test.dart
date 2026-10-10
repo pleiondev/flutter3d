@@ -181,8 +181,9 @@ final Set<String> _registered = <String>{
 ///
 /// Three passes are not any one step's and are written out: the velocity
 /// passes run while the temporal resolve or the motion blur reads them, the
-/// transparent half runs here because the decals paint before it, and the
-/// sharpening rides in the `antialias` pass. Two run only when another step
+/// transparent half (its own step since 1.0) runs here only because the
+/// decals paint before it, so it needs both steps on, and the sharpening
+/// rides in the `antialias` pass. Two run only when another step
 /// is *off*: the spatial upscale and the contact shadows' own resolve both
 /// stand aside while the temporal resolve runs.
 Set<String> _running(Set<RenderStep> off) {
@@ -201,7 +202,8 @@ Set<String> _running(Set<RenderStep> off) {
     if (on(RenderStep.renderTextures)) 'render textures',
     if (on(RenderStep.planarReflections)) 'planar reflections',
     'scene',
-    if (on(RenderStep.decals)) ...<String>['decals', 'transparent'],
+    if (on(RenderStep.decals)) 'decals',
+    if (on(RenderStep.decals) && on(RenderStep.transparent)) 'transparent',
     if (on(RenderStep.highContrast)) 'outline mask',
     if (on(RenderStep.reflections)) 'reflections',
     if (on(RenderStep.autoExposure)) 'luminance',

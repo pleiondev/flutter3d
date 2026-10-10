@@ -33,7 +33,9 @@ void main() {
             format: ModelFormat.gltf,
           ),
         ),
-        throwsA(isA<FormatException>()),
+        // The glTF reader's own, under the root since 1.0 — not
+        // `dart:core`'s `FormatException`, which it used to throw bare.
+        throwsA(isA<GltfFormatException>()),
       );
     });
 

@@ -40,7 +40,7 @@ state in `loop.world` or adds a `SnapshotPart` for it, and the checks
 capture, restore and digest it through `EngineLoop.snapshots`, the same path
 a rollback and a replay take.
 
-The six plugin checks:
+The 6 plugin checks:
 
 - **manifest**: the id is well formed, the API version installs, every
   permission is one the engine knows, a budget reads, the manifest survives

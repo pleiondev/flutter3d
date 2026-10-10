@@ -179,6 +179,36 @@ frag_info;
 /// The bias a material map is read with — see `target_origin.y`.
 float MaterialLodBias() { return frag_info.target_origin.y; }
 
+/// The noise a hashed material's alpha is compared with, in [0, 1), at
+/// [scenePosition] — `gfx-16n`, readiness review §2.1.14.
+///
+/// **On the world, not on scene space.** [cutoff] is the hashed sentinel,
+/// -2 less the scene's origin in the noise's own cells, each below 128 —
+/// `Renderer._hashedCutoffAt` packs them — so the cell a fragment falls in
+/// is counted from where the world starts, and `Scene.shiftOrigin` leaves
+/// every speck where it was. The noise repeats every 128 cells (eight
+/// metres), which is what lets the origin travel in so few numbers.
+///
+/// **And on numbers a float holds exactly.** The cells are wrapped to
+/// [0, 128) by a power of two, which divides without rounding, before the
+/// hash sees them. The old `fract(sin(x) · 43758)` met x near 1e5 and was a
+/// different number on each GPU's `sin`; this one multiplies, adds and takes
+/// `fract` of values under a few hundred (Hoskins' `hash13`).
+///
+/// Sixteen cells per metre is the whole tuning: finer than the texture's own
+/// detail and the noise disappears into aliasing, coarser and the leaf
+/// breaks into blotches — about a centimetre of grain at a metre away.
+/// `depth_predraw.frag` keeps a copy, to the operation.
+float HashedAlphaNoise(vec3 scenePosition, float cutoff) {
+  float key = -2.0 - cutoff;
+  vec3 origin = vec3(floor(key / 16384.0), mod(floor(key / 128.0), 128.0),
+                     mod(key, 128.0));
+  vec3 cell = mod(floor(scenePosition * 16.0) + origin, 128.0);
+  vec3 p3 = fract(cell * 0.1031);
+  p3 += dot(p3, p3.zyx + 31.32);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
 /// The maps a lit material reads, by the index [MapUv] takes — `C8`. The
 /// order `LayerInfo.uv_transform` keeps them in, and `MaterialMap`'s on the
 /// Dart side.
@@ -310,14 +340,9 @@ Surface ReadSurface() {
     // the surface *is* means a given speck of leaf keeps its verdict from
     // frame to frame, and the camera moving changes nothing.
     //
-    // The scale is a constant and it is the whole tuning: finer than the
-    // texture's own detail and the noise disappears into aliasing, coarser
-    // and the leaf breaks into blotches. Sixteen per metre is about a
-    // centimetre of grain at a metre away.
-    vec3 anchored = floor(v_world_position * 16.0);
-    float noise = fract(
-        sin(dot(anchored, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-    if (s.alpha < noise) discard;
+    // On the world, not on scene space: `HashedAlphaNoise` takes the origin
+    // out of the cutoff, so a shift of the origin keeps every speck.
+    if (s.alpha < HashedAlphaNoise(v_world_position, cutoff)) discard;
   }
 #endif
   // **Between -1 and nought is the blend mode**, which `WriteSurface` weights

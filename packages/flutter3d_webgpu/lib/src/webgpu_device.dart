@@ -47,6 +47,7 @@ import 'webgpu_bundle_section.dart';
 import 'webgpu_compute.dart';
 import 'webgpu_compute_stage.dart';
 import 'webgpu_encoder.dart';
+import 'webgpu_error_ledger.dart';
 import 'webgpu_formats.dart';
 import 'webgpu_image_decode.dart';
 import 'webgpu_interop.dart';
@@ -243,7 +244,7 @@ final class WebGpuDevice extends GraphicsDevice
   /// shows each on its own side.
   @override
   late final DeviceFeatures features = webgpuDeviceFeatures(
-    granted: _gpuDevice.features.has,
+    granted: (String feature) => _gpuDevice.features.has(feature),
   );
 
   /// The device's own limits, as granted — [open] asks for no raised ones,
@@ -317,7 +318,7 @@ final class WebGpuDevice extends GraphicsDevice
   TextureFormatSupport textureFormatSupport(TextureFormat format) =>
       _formatSupport[format] ??= webgpuTextureFormatSupport(
         format,
-        granted: _gpuDevice.features.has,
+        granted: (String feature) => _gpuDevice.features.has(feature),
       );
 
   final Map<TextureFormat, TextureFormatSupport> _formatSupport =
@@ -494,6 +495,7 @@ final class WebGpuDevice extends GraphicsDevice
         label: 'flutter3d unbound block',
       ),
     );
+    _watchBrowser();
   }
 
   /// Turns [wgsl] into a `GPUShaderModule`, and asks the browser what it
@@ -507,10 +509,11 @@ final class WebGpuDevice extends GraphicsDevice
   /// `[Invalid ShaderModule "X"] is invalid due to a previous error`, naming
   /// neither the line nor what was wrong with it. `getCompilationInfo` has the
   /// line and the column and is a promise, so the verdict cannot reach a caller
-  /// standing here. It reaches [debugDrainErrors] instead, which is where a
-  /// test — and `open_test.dart`, which is the only thing in this repository
-  /// that has ever asked a browser what it makes of the generated WGSL — goes
-  /// looking. The WGSL a translator produced is WGSL nobody typed.
+  /// standing here. It is thrown at the next [beginFrame] as a
+  /// [ShaderCompileException] instead (see `webgpu_error_ledger.dart`), and a
+  /// test — `open_test.dart` is the one that asks a browser what it makes of
+  /// the generated WGSL — reads it sooner from [debugDrainErrors]. The WGSL a
+  /// translator produced is WGSL nobody typed.
   ///
   /// Every module this backend ever compiles goes through here, the engine's
   /// stages and a loaded bundle's alike, so a stage that arrives broken at half
@@ -520,13 +523,14 @@ final class WebGpuDevice extends GraphicsDevice
     final module = _gpuDevice.createShaderModule(
       GPUShaderModuleDescriptor(code: wgsl, label: name),
     );
-    _pending.add(
+    _ledger.track(
       module.getCompilationInfo().toDart.then((GPUCompilationInfo info) {
         for (final message in info.messages.toDart) {
           if (message.type != 'error') continue;
-          _errors.add(
-            'the WGSL of "$name" at line ${message.lineNum}, '
-            'column ${message.linePos}: ${message.message}',
+          _ledger.complainOfShader(
+            name,
+            'line ${message.lineNum}, column ${message.linePos}: '
+            '${message.message}',
           );
         }
       }),
@@ -693,11 +697,12 @@ final class WebGpuDevice extends GraphicsDevice
 
   // -------------------------------------------------------- error scopes
 
-  final List<Future<void>> _pending = <Future<void>>[];
-  final List<String> _errors = <String>[];
+  /// Every verdict the browser still owes and every complaint it made, handed
+  /// over at [beginFrame] — see `webgpu_error_ledger.dart`.
+  final WebGpuErrorLedger _ledger = WebGpuErrorLedger(backend: _backend);
 
-  /// Runs [body] with a validation scope open, recording whatever the browser
-  /// says into [debugDrainErrors].
+  /// Runs [body] with a validation scope open, filing whatever the browser
+  /// says in the ledger [beginFrame] empties.
   ///
   /// **Without this pair nothing WebGPU rejects can ever be seen from Dart.**
   /// The API validates asynchronously: `createRenderPipeline` hands back a
@@ -719,12 +724,12 @@ final class WebGpuDevice extends GraphicsDevice
       // Popped either way: an unbalanced scope makes the *next* pop answer for
       // this call's errors, which reports the mistake against whatever ran
       // afterwards.
-      _pending.add(_gpuDevice.popErrorScope().toDart.then((GPUError? _) {}));
+      _ledger.track(_gpuDevice.popErrorScope().toDart.then((GPUError? _) {}));
       rethrow;
     }
-    _pending.add(
+    _ledger.track(
       _gpuDevice.popErrorScope().toDart.then((GPUError? error) {
-        if (error != null) _errors.add('$what: ${error.message}');
+        if (error != null) _ledger.complain(what, error.message);
       }),
     );
     return result;
@@ -735,17 +740,11 @@ final class WebGpuDevice extends GraphicsDevice
   ///
   /// Asynchronous because the verdicts are: every scope [_guard] opened is a
   /// promise, and this waits for the ones outstanding before answering. A test
-  /// that draws and then asks gets the truth; a caller that never asks pays for
-  /// the scopes and nothing else.
-  Future<String?> debugDrainErrors([String where = '']) async {
-    final outstanding = List<Future<void>>.of(_pending);
-    _pending.clear();
-    await Future.wait(outstanding);
-    if (_errors.isEmpty) return null;
-    final said = _errors.join('; ');
-    _errors.clear();
-    return where.isEmpty ? said : '$where: $said';
-  }
+  /// that draws and then asks gets the truth, and takes what it read: the next
+  /// [beginFrame] does not throw it again. Production does not need to ask;
+  /// [beginFrame] hands the same complaints over as a typed refusal.
+  Future<String?> debugDrainErrors([String where = '']) =>
+      _ledger.debugDrain(where);
 
   // -------------------------------------------------------- the caches
 
@@ -923,7 +922,7 @@ final class WebGpuDevice extends GraphicsDevice
   /// a mistake repeated every frame is one line and not a flood.
   void _unbound(String what) {
     if (_reportedUnbound.add(what)) {
-      _errors.add('$what is declared and nothing was bound to it');
+      _ledger.complain(what, 'declared, and nothing was bound to it');
     }
   }
 
@@ -1371,7 +1370,13 @@ final class WebGpuDevice extends GraphicsDevice
 
   /// The device's `lost` promise, as [GraphicsDevice.lost]: one event, never
   /// recoverable — a WebGPU device that is lost stays lost, and the
-  /// application opens another.
+  /// application opens another. [dispose] is reported here too, as
+  /// `DeviceLossReason.destroyed`, before the stream closes.
+  ///
+  /// **Watched from the moment the device exists**, where it used to start
+  /// with the first listener: [isLost] is for the caller that subscribed
+  /// late, and a device nobody listened to answered false after its GPU was
+  /// gone.
   @override
   Stream<DeviceLoss> get lost => _lost.stream;
 
@@ -1379,15 +1384,18 @@ final class WebGpuDevice extends GraphicsDevice
   bool get isLost => _isLost;
   bool _isLost = false;
 
-  late final StreamController<DeviceLoss> _lost =
-      StreamController<DeviceLoss>.broadcast(onListen: _watchLoss);
-  bool _watchingLoss = false;
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
 
-  void _watchLoss() {
-    if (_watchingLoss) return;
-    _watchingLoss = true;
+  /// Starts listening to the browser: the `lost` promise, and
+  /// `uncapturederror` for every error no [_guard] scope caught — a per-draw
+  /// call, an allocation that did not fit, the implementation's own failure.
+  /// Those go to the ledger like any other complaint and are thrown at the
+  /// next [beginFrame]; unheard, they reach the console and nothing else.
+  void _watchBrowser() {
     unawaited(
       _gpuDevice.lost.toDart.then((GPUDeviceLostInfo info) {
+        if (_isLost) return;
         _isLost = true;
         if (_lost.isClosed) return;
         _lost.add(
@@ -1399,6 +1407,12 @@ final class WebGpuDevice extends GraphicsDevice
           ),
         );
       }),
+    );
+    _gpuDevice.addEventListener(
+      'uncapturederror',
+      (GPUUncapturedErrorEvent event) {
+        _ledger.complain('a call outside any error scope', event.error.message);
+      }.toJS,
     );
   }
 
@@ -1463,18 +1477,28 @@ final class WebGpuDevice extends GraphicsDevice
 
   // ---------------------------------------------------------------- frame
 
-  /// Rewinds the three frame arenas.
+  /// Rewinds the three frame arenas, then hands over what the browser said
+  /// since the last frame.
   ///
   /// This is the member `GraphicsDevice.beginFrame` exists for, and the one
   /// backend of the four with something real to do in it. See
   /// `webgpu_resources.dart` for why rewinding under a frame the GPU has not
   /// finished with is safe, which is the only surprising thing about it.
+  ///
+  /// **Throws what the browser refused**, once, at the start of the frame
+  /// after the call: a [ShaderCompileException] for WGSL that did not
+  /// compile, a [DeviceResourceException] for any other refusal — the
+  /// earliest a synchronous caller can hear an answer that arrives as a
+  /// promise. Nothing is thrown once the device is lost; [lost] says that.
+  /// The arenas are rewound first, so the device is ready for the next frame
+  /// whether or not this one is refused.
   @override
   void beginFrame() {
     _timer.endFrame(_timingListener);
     _uniformArena.reset();
     _vertexArena.reset();
     _indexArena.reset();
+    _ledger.takeFrame(deviceLost: _isLost);
   }
 
   @override
@@ -2306,6 +2330,15 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
       throw StateError('WebGpuDevice.dispose() was already called');
     }
     _disposed = true;
+    if (!_isLost) {
+      _isLost = true;
+      _lost.add(
+        const DeviceLoss(
+          reason: DeviceLossReason.destroyed,
+          message: 'the WebGPU device was disposed',
+        ),
+      );
+    }
     unawaited(_lost.close());
     webgpuDisposePersistentResources(_textures, _buffers);
     _blanks.clear();

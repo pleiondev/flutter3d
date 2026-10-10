@@ -136,4 +136,28 @@ void main() {
       );
     }
   });
+
+  test('a whole sRGB texture is not converted, so it is refused too', () {
+    // A backend asks `readbackConverts` first and converts when it says yes,
+    // so a whole sRGB twin answered yes slipped past the refusal its region
+    // meets: WebGPU on Chrome converted it rather than saying why not.
+    //
+    // Mutation: drop the sRGB test from `readbackConverts` — a whole twin
+    // converts again, and the first expectation fails.
+    for (final format in <TextureFormat>[
+      TextureFormat.r8g8b8a8UNormIntSRGB,
+      TextureFormat.b8g8r8a8UNormIntSRGB,
+    ]) {
+      expect(readbackConverts(_texture(format: format)), isFalse);
+      expect(
+        () => readbackRegionOf(_texture(format: format), null),
+        _refusalNaming('sRGB'),
+      );
+    }
+    // A whole float texture still converts.
+    expect(
+      readbackConverts(_texture(format: TextureFormat.r16g16b16a16Float)),
+      isTrue,
+    );
+  });
 }

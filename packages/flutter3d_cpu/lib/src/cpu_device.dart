@@ -20,6 +20,7 @@
 /// this package is flat, and a Flutter-facing widget file could not stay.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/backend.dart';
@@ -1389,13 +1390,42 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
     return Future<ByteData>.value(ByteData.sublistView(out));
   }
 
-  /// A no-op, and honestly one: every texture and buffer this backend hands
-  /// out is a plain Dart object — a [CpuTexture] wrapping a `Float32List`, a
-  /// record wrapping a `ByteData` — with nothing external to release. The
-  /// garbage collector already does the whole of what this method would do on
-  /// a backend with a driver underneath it.
+  /// Releases nothing, and honestly so: every texture and buffer this backend
+  /// hands out is a plain Dart object — a [CpuTexture] wrapping a
+  /// `Float32List`, a record wrapping a `ByteData` — with nothing external to
+  /// release. The garbage collector already does the whole of what this
+  /// method would do on a backend with a driver underneath it.
+  ///
+  /// What it does do is report the loss: the first call marks the device
+  /// [isLost] and sends one `DeviceLossReason.destroyed` on [lost], then
+  /// closes it. A second call is a teardown run twice and says nothing.
   @override
-  void dispose() {}
+  void dispose() {
+    if (_isLost) return;
+    _isLost = true;
+    _lost
+      ..add(
+        const DeviceLoss(
+          reason: DeviceLossReason.destroyed,
+          message: 'the software device was disposed',
+        ),
+      )
+      ..close();
+  }
+
+  /// [GraphicsDevice.lost]: nothing outside this process can take a software
+  /// device away, so the one loss it has is its own [dispose]. Reported all
+  /// the same, so that a caller listening on whatever it opened learns of a
+  /// teardown here as it would on a hardware backend.
+  @override
+  Stream<DeviceLoss> get lost => _lost.stream;
+
+  @override
+  bool get isLost => _isLost;
+  bool _isLost = false;
+
+  final StreamController<DeviceLoss> _lost =
+      StreamController<DeviceLoss>.broadcast();
 
   /// Nothing to free, for the same reason [dispose] has nothing to free: a
   /// texture here is a Dart list, and dropping the handle is already the whole

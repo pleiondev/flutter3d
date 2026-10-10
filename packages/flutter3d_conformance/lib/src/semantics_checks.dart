@@ -1,7 +1,7 @@
 /// Two rules from the backend contract that a signature cannot state, and that
 /// nothing in this suite was asking about.
 ///
-/// Two of the fourteen rules ARCHITECTURE.md §7.2 states — "a backend that gets
+/// Two of the 14 rules ARCHITECTURE.md §7.2 states — "a backend that gets
 /// one of these wrong compiles and draws the wrong thing". They are the ones a
 /// *new* backend is most likely to get wrong, because both are decisions
 /// somebody has to make deliberately and neither produces an error when made

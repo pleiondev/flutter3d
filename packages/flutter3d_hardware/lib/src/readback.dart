@@ -65,7 +65,9 @@ const Set<TextureFormat> _srgbReadbackFormats = <TextureFormat>{
 /// Whether a readback of [texture] — the whole of it when [region] is null —
 /// goes through the backend's converting path rather than copying the bytes
 /// as they are: a whole texture in a format outside [readbackFormats], the
-/// engine's half-float colour among them.
+/// engine's half-float colour among them. Never an sRGB twin, whole or not:
+/// [readbackRegionOf] refuses those with their own reason, and a whole one
+/// answered true here was converted instead of refused.
 ///
 /// A backend asks this first, converts when it is true and calls
 /// [readbackRegionOf] when it is not, so which requests convert is the
@@ -73,6 +75,7 @@ const Set<TextureFormat> _srgbReadbackFormats = <TextureFormat>{
 bool readbackConverts(TextureHandle texture, {ScreenRect? region}) =>
     region == null &&
     !readbackFormats.contains(texture.format) &&
+    !_srgbReadbackFormats.contains(texture.format) &&
     texture.storageMode != StorageMode.deviceTransient &&
     texture.sampleCount == 1 &&
     texture.type == TextureType.texture2D;

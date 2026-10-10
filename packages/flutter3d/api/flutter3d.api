@@ -619,7 +619,8 @@ export package:flutter3d_core/flutter3d_core.dart show AdaptiveQuality, Adaptive
   writeKtx2
   writeKtx2WithMips
 
-export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, Flutter3dException, Flutter3dFormatException, LinearColor, LinearColorVector, PluginException, ResourceException, Vector3Foundation, Vector4Foundation, WorldPosition, WorldPositionVector
+export package:flutter3d_foundation/flutter3d_foundation.dart show AssetNotFoundException, CapabilityException, Flutter3dException, Flutter3dFormatException, LinearColor, LinearColorVector, PluginException, ResourceException, ShaderCompileException, Vector3Foundation, Vector4Foundation, WorldPosition, WorldPositionVector
+  AssetNotFoundException
   CapabilityException
   Flutter3dException
   Flutter3dFormatException
@@ -627,6 +628,7 @@ export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityExc
   LinearColorVector
   PluginException
   ResourceException
+  ShaderCompileException
   Vector3Foundation
   Vector4Foundation
   WorldPosition

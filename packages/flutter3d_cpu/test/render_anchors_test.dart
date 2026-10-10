@@ -432,7 +432,7 @@ void main() {
       );
     });
 
-    test('follows the phase nodes at the same anchor, then constraints', () {
+    test('keeps the order it was added in, then constraints', () {
       final it = _stage();
       it.renderer.renderSteps
         ..addNode(_frame('c'), at: RenderAnchor.beforePresent)
@@ -449,22 +449,22 @@ void main() {
           after: <String>['before bloom'],
         );
       it.renderer.renderSteps.addNode(
-        _frame('legacy'),
+        _frame('last'),
         at: RenderAnchor.beforePresent,
       );
 
+      // The phases are gone: a node with no constraint keeps the place it was
+      // added in, so the one added last runs last, after the three the
+      // constraints turned round.
+      //
+      // Mutation: drop `before` from the topological order in
+      // `RendererSteps`, and the three run as added, `c, b, a`.
       expect(
         it.renderer.renderSteps.nodesAt(RenderAnchor.beforePresent),
-        <String>['a', 'b', 'c'],
+        <String>['a', 'b', 'c', 'last'],
       );
       final ran = _ran(it);
-      // The phase's node first: it ran there before the anchors existed.
-      expect(ran.sublist(ran.indexOf('legacy')), <String>[
-        'legacy',
-        'a',
-        'b',
-        'c',
-      ]);
+      expect(ran.sublist(ran.indexOf('a')), <String>['a', 'b', 'c', 'last']);
     });
 
     test('a cycle at an anchor names its members', () {

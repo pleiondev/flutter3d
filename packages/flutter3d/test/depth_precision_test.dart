@@ -16,6 +16,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+// ignore: implementation_imports
+import 'package:flutter3d_core/src/engine/render/renderer.dart'
+    show RendererInternals;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +40,7 @@ double _float32(double value) => (Float32List(1)..[0] = value)[0];
 void main() {
   _projections();
   _frames();
+  _nearFit();
   _shadowFloor();
   _crossFade();
 }
@@ -102,8 +106,12 @@ void _projections() {
         far: double.infinity,
         reversed: true,
       )!;
+      // `Matrix4` keeps Float32, so the near plane itself is 0.1 to seven
+      // digits: the check is relative, which is also the precision reversed
+      // depth is for — as fine at 1e4 m as at the near plane.
       for (final distance in <double>[0.1, 1.0, 50.0, 1e4]) {
-        expect(_depthAt(m, distance), closeTo(0.1 / distance, 1e-9));
+        final expected = 0.1 / distance;
+        expect(_depthAt(m, distance), closeTo(expected, expected * 1e-6));
       }
     });
 
@@ -307,6 +315,157 @@ void _frames() {
           reason: 'the wall, reversed: $reversed — $wall',
         );
       }
+    });
+  });
+}
+
+void _nearFit() {
+  group('the fitted near plane', () {
+    // `A2.9`: under reversed depth the near plane moves out to just in front
+    // of the nearest thing drawn. What it buys is precision, which no single
+    // picture shows, so the plane itself is what these hold to a value.
+    const near = 0.3;
+
+    /// A green wall forty metres out, nothing nearer, and a camera with a
+    /// plane at [near] looking at it.
+    ({Scene scene, CameraNode camera}) wall(CpuDevice device) {
+      final scene = Scene()
+        ..add(
+          MeshNode(
+            DeviceMesh.upload(
+              device,
+              CuboidShape(size: Vector3(30.0, 30.0, 1.0)).build(),
+            ),
+            _unlit('wall', Vector4(0.0, 1.0, 0.0, 1.0)),
+            name: 'wall',
+          )..setPosition(0.0, 0.0, 40.0),
+        );
+      final camera = CameraNode(
+        projection: const PerspectiveProjection(
+          fovY: 1.2,
+          near: near,
+          far: 500.0,
+        ),
+      )..lookAt(Vector3(0.0, 0.0, 1.0));
+      scene.add(camera);
+      return (scene: scene, camera: camera);
+    }
+
+    Future<({Renderer renderer, Uint8List pixels})> draw(
+      CpuDevice device,
+      Scene scene,
+      CameraNode camera, {
+      bool reversed = true,
+      List<PassContributor> contributors = const <PassContributor>[],
+    }) async {
+      final renderer = Renderer.create(
+        device: device,
+        fallbackAlbedo: texelOn(device, <int>[255, 255, 255, 255]),
+        fallbackNormal: texelOn(device, <int>[128, 128, 255, 255]),
+      );
+      contributors.forEach(renderer.renderSteps.addContributor);
+      final result = renderer.render(
+        width: _width,
+        height: _height,
+        scene: scene,
+        views: <RenderView>[
+          RenderView(
+            camera: camera,
+            clearColorSrgb: Vector4(0.0, 0.0, 0.0, 1.0),
+          ),
+        ],
+        settings: RenderSettings(
+          tonemap: false,
+          bloom: const BloomSettings(enabled: false),
+          reversedDepth: reversed,
+        ),
+      );
+      final pixels = await device.readback(result.frame);
+      return (renderer: renderer, pixels: pixels.buffer.asUint8List());
+    }
+
+    test('passes over a sky dome, and still draws it', () async {
+      // A dome follows the eye, so its box holds the eye; told apart by
+      // `frustumCulled` it kept the camera's plane in every frame with a sky.
+      //
+      // Mutation: `if (!node.frustumCulled) return authored;` ahead of the
+      // backdrop check, as it was — the plane stays at 0.3.
+      // Mutation: draw the dome through the fitted matrix — the plane at
+      // 35 m cuts the ten-metre dome away whole and the corner is the clear.
+      final device = cpuTestDevice(width: _width, height: _height).device;
+      final (:scene, :camera) = wall(device);
+      final sky = skyNode(DeviceMesh.upload(device, const SkyDome().build()));
+      scene.add(sky);
+      followCamera(sky, camera);
+
+      final (:renderer, :pixels) = await draw(device, scene, camera);
+
+      expect(renderer.debugFittedNears.single, greaterThan(30.0));
+      // The top-left corner sees past the wall, onto the dome.
+      expect(
+        pixels.sublist(0, 3).any((c) => c > 100),
+        isTrue,
+        reason: 'the corner, ${pixels.sublist(0, 3)}',
+      );
+      expect(_middle(pixels)[1], greaterThan(200), reason: 'the wall');
+    });
+
+    test('keeps the camera\'s plane for a mesh moved on the GPU', () async {
+      final device = cpuTestDevice(width: _width, height: _height).device;
+      final (:scene, :camera) = wall(device);
+      scene.meshes.single.frustumCulled = false;
+      final (:renderer, pixels: _) = await draw(device, scene, camera);
+      expect(renderer.debugFittedNears.single, near);
+    });
+
+    test(
+      'is not fitted where the device draws the ordinary way round',
+      () async {
+        // `RenderSettings.reversedDepth` asks; the device's features answer.
+        // Without them the fit buys nothing and still risks a stale box.
+        //
+        // Mutation: key the fit on `settings.reversedDepth`, as it was — the
+        // plane goes to 35 m on a device whose depth runs the ordinary way.
+        final device = CpuDevice(
+          width: _width,
+          height: _height,
+          shaders: CpuShaderLibrary(builtinCpuShaders()),
+          withhold: const <DeviceFeature>[DeviceFeature.reversedDepth],
+        );
+        final (:scene, :camera) = wall(device);
+        final (:renderer, :pixels) = await draw(device, scene, camera);
+        expect(renderer.debugFittedNears.single, near);
+        expect(_middle(pixels)[1], greaterThan(200), reason: 'the wall');
+
+        final fitted = cpuTestDevice(width: _width, height: _height).device;
+        final other = wall(fitted);
+        final drawn = await draw(fitted, other.scene, other.camera);
+        expect(drawn.renderer.debugFittedNears.single, greaterThan(30.0));
+      },
+    );
+
+    test('counts a splat cloud drawn nearer than every mesh', () async {
+      // Mutation: `SplatContributor.boundsFor` returning null — the plane
+      // stays at 0.3, which is safe and buys nothing. Answering with the
+      // centres alone would put it in front of the cloud's middle and cut
+      // its near half.
+      final device = cpuTestDevice(width: _width, height: _height).device;
+      final (:scene, :camera) = wall(device);
+      final cloud = SplatCloud(
+        centers: Float32List.fromList(<double>[0.0, 0.0, 5.0]),
+        colors: Float32List.fromList(<double>[1.0, 0.0, 0.0, 1.0]),
+        scales: Float32List.fromList(<double>[0.1, 0.1, 0.1]),
+        rotations: Float32List.fromList(<double>[0.0, 0.0, 0.0, 1.0]),
+      );
+      final (:renderer, pixels: _) = await draw(
+        device,
+        scene,
+        camera,
+        contributors: <PassContributor>[SplatContributor(cloud)],
+      );
+      final fitted = renderer.debugFittedNears.single;
+      expect(fitted, greaterThan(near));
+      expect(fitted, lessThan(5.0 - 3.0 * 0.1));
     });
   });
 }

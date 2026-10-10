@@ -23,7 +23,14 @@
 uniform sampler2D normal_texture;
 
 /// glTF's ORM packing: g is roughness, b is metallic. Neutral is white.
+///
+/// Left out under `F3D_NO_METALLIC_ROUGHNESS_MAP`, for a model that never
+/// reads it: declared and unread, the compiler drops it from the Metal
+/// function while the reflection still lists it, and binding that slot is a
+/// crash in the driver.
+#ifndef F3D_NO_METALLIC_ROUGHNESS_MAP
 uniform sampler2D metallic_roughness_texture;
+#endif
 
 /// Ambient occlusion in r. Neutral is white.
 uniform sampler2D occlusion_texture;
@@ -71,11 +78,13 @@ precision mediump float;
 
 /// glTF's ORM packing: roughness in g, metallic in b, both multiplying the
 /// material factors.
+#ifndef F3D_NO_METALLIC_ROUGHNESS_MAP
 void ApplyMetallicRoughnessMap(inout Surface s) {
   vec3 orm = texture(metallic_roughness_texture, MapUv(kMapMetallicRoughness), MaterialLodBias()).rgb;
   s.metallic = clamp(s.metallic * orm.b, 0.0, 1.0);
   s.roughness = clamp(s.roughness * orm.g, 0.02, 1.0);
 }
+#endif
 
 void ApplyOcclusionMap(inout Surface s) {
   float occlusion = texture(occlusion_texture, MapUv(kMapOcclusion), MaterialLodBias()).r;

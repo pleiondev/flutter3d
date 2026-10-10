@@ -21,6 +21,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'gpu_buffer.dart';
 import 'gpu_capabilities.dart';
 import 'gpu_command_encoder.dart';
+import 'gpu_device_loss.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
 import 'gpu_loaded_shaders.dart';
@@ -48,12 +49,24 @@ final class GpuRenderBackend extends GraphicsDevice {
   /// widget that composites the engine's frame itself paints.
   ui.Image frameImage(TextureHandle frame) => frame.gpuTexture.asImage();
 
-  // TODO(impeller): debug groups, resource labels, device loss and
-  // asynchronous pipelines. flutter_gpu exposes no debug labels, no loss
+  // TODO(impeller): debug groups, resource labels, a platform's device loss
+  // and asynchronous pipelines. flutter_gpu exposes no debug labels, no loss
   // signal and no asynchronous pipeline creation, so the inherited defaults
   // stand: groups and markers do nothing, labels are kept for `labelOf`
-  // only, `lost` never fires, and `createPipelineAsync` links in the calling
-  // turn.
+  // only, and `createPipelineAsync` links in the calling turn. `lost`
+  // reports the one loss this backend can see, its own [dispose] — see
+  // `gpu_device_loss.dart`.
+
+  final GpuDeviceLoss _loss = GpuDeviceLoss();
+
+  /// [GraphicsDevice.lost]: this device's own [dispose], as
+  /// `DeviceLossReason.destroyed`. A context the platform takes away is not
+  /// reported, because flutter_gpu does not say.
+  @override
+  Stream<DeviceLoss> get lost => _loss.lost;
+
+  @override
+  bool get isLost => _loss.isLost;
 
   // ------------------------------------------------------- capabilities
 
@@ -900,15 +913,18 @@ final class GpuRenderBackend extends GraphicsDevice {
   /// frame that is not being read back should make none at all.
   int get _debugReadbackStagingCount => _readback.debugStagingCount;
 
-  /// A deliberate no-op. See the note at `supportsCubeTextures` on
+  /// Frees nothing, deliberately. See the note at `supportsCubeTextures` on
   /// `_probeCubes`: flutter_gpu's `Texture` has no native dispose, so every
   /// texture and buffer this backend has handed out is already relying on
   /// nothing but going out of scope and the garbage collector — there is no
-  /// call this method could make that would free anything sooner. Kept as a
-  /// real method rather than left unimplemented so a caller that tears down
-  /// every [GraphicsDevice] uniformly does not have to special-case this one.
+  /// call this method could make that would free anything sooner.
+  ///
+  /// It does report the loss: the first call marks the device [isLost] and
+  /// sends one `DeviceLossReason.destroyed` on [lost].
   @override
-  void dispose() {}
+  void dispose() {
+    _loss.dispose();
+  }
 
   /// A no-op, and the reason is flutter_gpu's rather than this backend's:
   /// `gpu.Texture` has no native dispose, so letting the last reference go is

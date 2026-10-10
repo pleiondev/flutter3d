@@ -435,16 +435,19 @@ void main() {
     });
 
     test('the depth the sky sits at matches sky.vert', () {
-      // Read out of the shader source: the physical stage is the gradient's
-      // depth by a second copy of a literal, and a second copy is a second
-      // chance for the sky to sit in front of the world.
-      String depthIn(String file) =>
-          RegExp(r'gl_Position = vec4\(position, ([0-9.]+), 1\.0\);')
+      // Read out of the shader source. Since `A2.8` the depth rides on the
+      // vertices with the corner (one at the far plane either way round), so
+      // both stages must take it from there and neither may keep a literal:
+      // a second copy of a number is a second chance for the sky to sit in
+      // front of the world.
+      String positionIn(String file) =>
+          RegExp(r'gl_Position = (vec4\([^;]*\));')
               .firstMatch(
                 File('../flutter3d_shaders/shaders/$file').readAsStringSync(),
               )!
               .group(1)!;
-      expect(depthIn('sky_physical.vert'), depthIn('sky.vert'));
+      expect(positionIn('sky.vert'), 'vec4(position, 1.0)');
+      expect(positionIn('sky_physical.vert'), positionIn('sky.vert'));
     });
   });
 

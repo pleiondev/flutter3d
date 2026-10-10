@@ -14,6 +14,7 @@ import '../scene/camera_node.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
 import 'render_node.dart' show FrameContextInternals;
+import 'render_view.dart';
 
 /// What a modeller draws on top of the surface: edges, vertices, the selection.
 ///
@@ -146,6 +147,25 @@ final class MeshOverlay extends PassContributor {
       !fill.isEmpty ||
       !linesThrough.isEmpty ||
       !handlesThrough.isEmpty;
+
+  /// Every vertex the five batches hold, which are in scene space already
+  /// and are what [encode] draws, the same in every view. An empty box,
+  /// minimum past maximum, when they hold none.
+  @override
+  Aabb3 boundsFor(RenderView view) {
+    final min = Vector3.all(double.infinity);
+    final max = Vector3.all(double.negativeInfinity);
+    for (final batch in <OverlayBatch>[
+      lines,
+      handles,
+      fill,
+      linesThrough,
+      handlesThrough,
+    ]) {
+      batch._include(min, max);
+    }
+    return Aabb3.minMax(min, max);
+  }
 
   Vector3 _eye = Vector3.zero();
   Vector3 _right = Vector3(1, 0, 0);
@@ -463,6 +483,17 @@ final class OverlayBatch {
       _data.buffer.asByteData(_data.offsetInBytes, _floats * 4);
 
   void clear() => _floats = 0;
+
+  /// Widens [min] and [max] to every position this batch holds.
+  void _include(Vector3 min, Vector3 max) {
+    for (var i = 0; i < _floats; i += MeshOverlay.floatsPerVertex) {
+      for (var axis = 0; axis < 3; axis++) {
+        final value = _data[i + axis];
+        if (value < min[axis]) min[axis] = value;
+        if (value > max[axis]) max[axis] = value;
+      }
+    }
+  }
 
   /// One vertex at [at], in scene space, in [color], written as it is.
   void vertex(Vector3 at, LinearColor color) {

@@ -9,6 +9,7 @@ import 'package:flutter3d_shaders/internal.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene.dart';
+import 'depth_turn.dart' show TurnedBundleEncoder;
 import 'draw_journal.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
@@ -437,7 +438,29 @@ final class ContributorFrame extends FrameContext {
   /// contributor written for the ordinary convention draws the same picture.
   /// What has to ask is a stage that writes a depth of its own rather than
   /// projecting one: the far plane is nought here, not one.
+  ///
+  /// **And a render bundle**, which keeps the depth tests it was recorded
+  /// with past the pass's turning: record one meant for this pass through
+  /// [createRenderBundleEncoder], and again when this changes.
   final bool reversedDepth;
+
+  /// An encoder whose draws are kept as a [RenderBundle] for [encoder]'s
+  /// pass — `GraphicsDevice.createRenderBundleEncoder`, with its depth tests
+  /// turned as they are recorded while [reversedDepth] is true.
+  ///
+  /// A bundle is replayed as it was recorded, so the turning [encoder] does
+  /// to every depth test it is given cannot reach the tests inside one: a
+  /// bundle recorded with `less` straight from the device and replayed into
+  /// a reversed pass draws only what lies behind everything. Recorded through
+  /// this, `less` stays "nearer wins" in either convention. A bundle made
+  /// here belongs to this convention; when [reversedDepth] changes, record it
+  /// again.
+  RenderBundleEncoder createRenderBundleEncoder(
+    RenderBundleDescriptor descriptor,
+  ) {
+    final inner = device.createRenderBundleEncoder(descriptor);
+    return reversedDepth ? TurnedBundleEncoder(inner) : inner;
+  }
 }
 
 /// How a reactive sprite's coverage is worked out — `R4`, and the shapes

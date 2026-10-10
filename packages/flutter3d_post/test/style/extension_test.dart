@@ -162,7 +162,10 @@ void main() {
         ),
         isTrue,
       );
-      host.disable(const FrostAddon().id);
+      // A switch asked for between frames lands at the next boundary.
+      host
+        ..disable(const FrostAddon().id)
+        ..applyPending(1);
       expect(stage.renderer.renderSteps.settingsNamed(frost.id), isNull);
     });
 
@@ -194,7 +197,9 @@ void main() {
         LightingModels.all.where((m) => m.shaderName == 'Toon'),
         hasLength(1),
       );
-      host.disable(const ToonLightingAddon().id);
+      host
+        ..disable(const ToonLightingAddon().id)
+        ..applyPending(1);
       // Built in for 1.x, so withdrawing the addon leaves the name.
       expect(LightingModels.named('toon'), same(toonLighting));
     });
@@ -205,7 +210,9 @@ void main() {
       final host = stage.install(const <LightingModelAddon>[InkAddon()]);
       expect(LightingModels.named('AcmeInk'), same(ink));
       expect(LightingModels.all.last, same(ink));
-      host.disable(const InkAddon().id);
+      host
+        ..disable(const InkAddon().id)
+        ..applyPending(1);
       expect(LightingModels.named('AcmeInk'), isNull);
     });
 

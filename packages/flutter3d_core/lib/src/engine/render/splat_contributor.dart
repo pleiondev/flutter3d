@@ -43,6 +43,7 @@ import 'engine_tables.dart';
 import 'identity_indices.dart';
 import 'pass_contributor.dart';
 import 'render_node.dart' show FrameContextInternals;
+import 'render_view.dart';
 import 'splat_lod.dart';
 import 'splat_sort.dart';
 import 'splat_sort_gpu.dart';
@@ -617,6 +618,52 @@ final class SplatContributor extends PassContributor {
       // encode; asking the cut would keep it from ever being made.
       (quads.lod != null || cloud.count > 0) &&
       (node?.isVisibleInHierarchy ?? true);
+
+  /// The cloud's box in its own space, and the cloud it was measured on.
+  Aabb3? _ownBounds;
+  SplatCloud? _boundsOf;
+
+  /// Every splat's centre widened by [splatReach] times its largest scale —
+  /// the furthest any corner of its quad lies from the centre, since the
+  /// quad's half-axes are the projected covariance's, at most the largest
+  /// of the three — and placed by [node]'s world matrix.
+  ///
+  /// Null for a tree: its cut is chosen in [encode], after the fit asks, and
+  /// a box from the last cut could miss what this frame draws.
+  @override
+  Aabb3? boundsFor(RenderView view) {
+    if (quads.lod != null) return null;
+    final cloud = this.cloud;
+    if (!identical(cloud, _boundsOf)) {
+      _ownBounds = _measure(cloud);
+      _boundsOf = cloud;
+    }
+    final own = _ownBounds!;
+    final node = this.node;
+    if (node == null) return Aabb3.copy(own);
+    return Aabb3.copy(own)..transform(node.worldMatrix);
+  }
+
+  static Aabb3 _measure(SplatCloud cloud) {
+    final centers = cloud.centers;
+    final scales = cloud.scales;
+    final min = Vector3.all(double.infinity);
+    final max = Vector3.all(double.negativeInfinity);
+    for (var i = 0; i < cloud.count; i++) {
+      final reach =
+          splatReach *
+          math.max(
+            scales[i * 3].abs(),
+            math.max(scales[i * 3 + 1].abs(), scales[i * 3 + 2].abs()),
+          );
+      for (var axis = 0; axis < 3; axis++) {
+        final c = centers[i * 3 + axis];
+        if (c - reach < min[axis]) min[axis] = c - reach;
+        if (c + reach > max[axis]) max[axis] = c + reach;
+      }
+    }
+    return Aabb3.minMax(min, max);
+  }
 
   @override
   void encode(ContributorFrame frame) {

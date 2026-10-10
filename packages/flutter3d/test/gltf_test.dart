@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_core/src/engine/assets/gltf_resolvers.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -691,12 +693,12 @@ void main() {
       );
 
       final material = asset.materials.single;
-      expect(material.baseColor, Vector4(1.0, 1.0, 1.0, 1.0));
+      expect(material.baseColor, LinearColor(1.0, 1.0, 1.0));
       expect(material.metallic, 1.0);
       expect(material.roughness, 1.0);
       expect(material.alphaMode, SurfaceAlphaMode.opaque);
       expect(material.doubleSided, isFalse);
-      expect(material.emissive, Vector3.zero());
+      expect(material.emissive, LinearColor(0.0, 0.0, 0.0));
     });
 
     test('reads factors, alpha mode and extensions', () async {
@@ -757,7 +759,11 @@ void main() {
             ],
           }),
         );
-        final tint = asset.materials.single.baseColor;
+        // Held linear since 1.0, as the factor is: the tint a paint program
+        // shows is what it reads back as through the sRGB curve.
+        final linear = asset.materials.single.baseColor;
+        expect(linear.r, closeTo(0.5, 1e-6));
+        final tint = linear.toSrgb();
         // 1.055 · 0.5^(1/2.4) − 0.055, the value a paint program shows for a
         // linear half.
         expect(tint.r, closeTo(0.7354, 1e-4));

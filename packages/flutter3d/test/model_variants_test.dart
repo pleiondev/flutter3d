@@ -161,7 +161,9 @@ void main() {
 
     a.selectVariant('blue');
     expect(a.meshes.single.material, isNot(same(asset.materials[1])));
-    expect(a.meshes.single.material.baseColor.toSrgb().b, 1.0);
+    // The colour is held linear; back through the sRGB curve it is one to
+    // the last bit of a double, not exactly.
+    expect(a.meshes.single.material.baseColor.toSrgb().b, closeTo(1.0, 1e-9));
     expect(b.meshes.single.material.baseColor.toSrgb().r, closeTo(0.1, 1e-6));
 
     a.player!

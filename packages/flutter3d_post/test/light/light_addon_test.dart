@@ -104,7 +104,7 @@ void main() {
       );
       expect(
         stage.skips(everything),
-        containsAll(<String>['bloom: switchedOff', 'lens flare: switchedOff']),
+        containsAll(<String>['bloom: switched off', 'lens flare: switched off']),
       );
 
       host
@@ -127,7 +127,7 @@ void main() {
         expect(stage.passes(everything), FrameStage().passes(everything));
         expect(
           stage.drawnSkips(everything),
-          contains('vignette and grain: switchedOff'),
+          contains('vignette and grain: switched off'),
         );
       },
     );

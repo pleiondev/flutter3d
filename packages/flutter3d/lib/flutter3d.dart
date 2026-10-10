@@ -536,6 +536,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
 // caller catches. Named, like the core's and the hardware's.
 export 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show
+        AssetNotFoundException,
         CapabilityException,
         Flutter3dException,
         Flutter3dFormatException,
@@ -543,6 +544,7 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
         LinearColorVector,
         PluginException,
         ResourceException,
+        ShaderCompileException,
         Vector3Foundation,
         Vector4Foundation,
         WorldPosition,

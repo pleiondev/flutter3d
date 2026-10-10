@@ -159,7 +159,7 @@ void main() {
       // **The strongest form of "this costs nothing where it is not wanted".**
       // One view is the whole frame, so its rectangle is the whole histogram
       // and its exposure is the frame's. The composite takes its single-draw
-      // path, and ninety-six goldens stay where they are.
+      // path, and 96 goldens stay where they are.
       final off = await frame(
         const RenderSettings(autoExposure: AutoExposureSettings(enabled: true)),
       );

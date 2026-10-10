@@ -7,8 +7,18 @@ library;
 import 'package:flutter/foundation.dart'
     show FlutterError, debugPrint, kDebugMode, kIsWeb;
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show AssetNotFoundException;
 
 import 'bundle_asset_source.dart';
+
+/// Whether [error] says the file is not there: [AssetNotFoundException] from the
+/// bundle, the `FlutterError` a source of somebody else's throws for the
+/// same, or `dart:io`'s for a file read from disk.
+bool _isMissing(Object error) =>
+    error is AssetNotFoundException ||
+    error is FlutterError ||
+    isMissingFile(error);
 
 /// `assets_src/`'s own name — the one `AssetLayout.sourcesDir` in
 /// `flutter3d_build` also uses — stripped from the front of a source path
@@ -112,25 +122,16 @@ Future<ModelDocument> loadModelAsset(
       return await decodeModelInIsolate(
         request(generatedSource(deviceClassPath(generatedPath, reading))),
       );
-    } on FlutterError {
-      // No file for this class: the single one below.
     } catch (error) {
-      // The same, read from disk; anything else is not a missing file.
-      if (!isMissingFile(error)) rethrow;
+      // No file for this class: the single one below. Anything else is not
+      // a missing file.
+      if (!_isMissing(error)) rethrow;
     }
   }
   try {
     return await decodeModelInIsolate(request(generatedSource(generatedPath)));
-  } on FlutterError {
-    return _fallback(
-      sourcePath,
-      generatedPath,
-      debugMode,
-      fallbackSource,
-      request,
-    );
   } catch (error) {
-    if (!isMissingFile(error)) rethrow;
+    if (!_isMissing(error)) rethrow;
     return _fallback(
       sourcePath,
       generatedPath,
@@ -199,10 +200,12 @@ Future<ModelDocument> _fallback(
   ModelLoadRequest Function(AssetSource source) request,
 ) async {
   if (!debugMode || kIsWeb) {
-    throw StateError(
-      '$generatedPath is missing. Run `dart run flutter3d_build:init` once '
-      'per project (ap-10), then build again — its hook converts '
-      '$sourcePath into $generatedPath on every build after that.',
+    throw AssetNotFoundException(
+      generatedPath,
+      detail:
+          'run `dart run flutter3d_build:init` once per project (ap-10), '
+          'then build again — its hook converts $sourcePath into '
+          '$generatedPath on every build after that',
     );
   }
   if (_warnedMissingGenerated.add(sourcePath)) {

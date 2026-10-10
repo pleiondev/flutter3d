@@ -110,10 +110,15 @@ const RenderSettings _on = RenderSettings(
   decals: DecalSettings(enabled: true),
 );
 
-/// A decal three metres square on the floor, painted [color].
-DecalNode _decal(Vector4 color, {int order = 0}) =>
-    DecalNode(color: color.toLinearColor(), order: order)
-      ..setScale(3.0, 1.0, 3.0);
+/// A decal three metres square on the floor, painted [color], which is sRGB
+/// as the floor's [_grey] is.
+///
+/// Mutation: `color.toLinearColor()`, which takes the sRGB channels as linear,
+/// and the unlit and emissive tests read 0.2 where `_linear(0.2)` is due.
+DecalNode _decal(Vector4 color, {int order = 0}) => DecalNode(
+  color: LinearColor.fromSrgb(color.x, color.y, color.z, color.w),
+  order: order,
+)..setScale(3.0, 1.0, 3.0);
 
 FrameResult _render(_Stage it, [RenderSettings settings = _on]) =>
     it.renderer.render(

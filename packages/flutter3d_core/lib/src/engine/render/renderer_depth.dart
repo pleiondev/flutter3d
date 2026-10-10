@@ -15,248 +15,35 @@
 /// which neither convention touches; that is why so little has to know.
 part of 'renderer.dart';
 
-/// A pass whose depth runs from one at the near plane to nought at the far
-/// one, spoken to as though it ran the ordinary way.
-///
-/// **Every caller keeps writing `less`.** The scene's state, a material's
-/// `depthCompare`, the x-ray's `greater` for "behind what is drawn", a
-/// contributor that never heard of any of this: each says which depth wins
-/// in the ordinary convention, and this turns the comparison round on its
-/// way to the device. `less` becomes `greater`, `lessEqual` becomes
-/// `greaterEqual`, and the two that do not order — `equal`, `notEqual` —
-/// and the two that do not compare — `always`, `never` — pass as they are.
-/// A depth bias pulls the other way for the same reason.
-///
-/// The alternative was a branch at each of the dozen places that name a
-/// test, and a plugin's own draws would have been the thirteenth, which
-/// nothing here can reach. The stencil test compares stencil values, not
-/// depths, and is passed through untouched.
-final class _ReversedDepthEncoder extends PassEncoder with CommandEncoder {
-  _ReversedDepthEncoder(this._inner);
+/// The renderer's reversed pass: [DepthTurningEncoder] over a pass it
+/// opened, and so one it can also end.
+final class _ReversedDepthEncoder extends DepthTurningEncoder
+    with CommandEncoder {
+  _ReversedDepthEncoder(CommandEncoder super.inner) : _pass = inner;
 
-  final CommandEncoder _inner;
-
-  /// [compare] as the reversed buffer has to be asked it.
-  static CompareFunction turned(CompareFunction compare) => switch (compare) {
-    CompareFunction.less => CompareFunction.greater,
-    CompareFunction.lessEqual => CompareFunction.greaterEqual,
-    CompareFunction.greater => CompareFunction.less,
-    CompareFunction.greaterEqual => CompareFunction.lessEqual,
-    CompareFunction.never ||
-    CompareFunction.always ||
-    CompareFunction.equal ||
-    CompareFunction.notEqual => compare,
-  };
+  final CommandEncoder _pass;
 
   @override
-  void setDepthCompare(CompareFunction compare) =>
-      _inner.setDepthCompare(turned(compare));
+  void submit() => _pass.submit();
 
+  /// A bundle that tests depth has to have been recorded turned — through
+  /// `ContributorFrame.createRenderBundleEncoder` — since nothing here can
+  /// turn it now; said in a debug build rather than drawn wrong.
   @override
-  void setDepthBias(DepthBias bias) => _inner.setDepthBias(
-    bias == DepthBias.none
-        ? bias
-        : DepthBias(
-            constant: -bias.constant,
-            slopeScale: -bias.slopeScale,
-            clamp: -bias.clamp,
-          ),
-  );
-
-  @override
-  void submit() => _inner.submit();
-
-  @override
-  void setViewport(ScreenRect rect) => _inner.setViewport(rect);
-
-  @override
-  void setScissor(ScreenRect rect) => _inner.setScissor(rect);
-
-  @override
-  void setPrimitiveType(PrimitiveType type) => _inner.setPrimitiveType(type);
-
-  @override
-  void setPolygonMode(PolygonMode mode) => _inner.setPolygonMode(mode);
-
-  @override
-  void setCullMode(CullMode mode) => _inner.setCullMode(mode);
-
-  @override
-  void setWindingOrder(WindingOrder order) => _inner.setWindingOrder(order);
-
-  @override
-  void setDepthWrite({required bool enabled}) =>
-      _inner.setDepthWrite(enabled: enabled);
-
-  @override
-  void setStencil(StencilState front, {StencilState? back}) =>
-      _inner.setStencil(front, back: back);
-
-  @override
-  void setStencilReference(int value) => _inner.setStencilReference(value);
-
-  @override
-  void setBlend(BlendState? state, {int attachment = 0}) =>
-      _inner.setBlend(state, attachment: attachment);
-
-  @override
-  void setAlphaToCoverage({required bool enabled}) =>
-      _inner.setAlphaToCoverage(enabled: enabled);
-
-  @override
-  void setBlendColor(vm.Vector4 color) => _inner.setBlendColor(color);
-
-  @override
-  void bindPipeline(PipelineHandle pipeline) => _inner.bindPipeline(pipeline);
-
-  @override
-  void bindVertexBuffer(
-    GeometryBuffer buffer,
-    int vertexCount, {
-    int slot = 0,
-  }) => _inner.bindVertexBuffer(buffer, vertexCount, slot: slot);
-
-  @override
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
-      _inner.bindVertexData(bytes, vertexCount, slot: slot);
-
-  @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
-      _inner.bindIndexBuffer(buffer, type, indexCount);
-
-  @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
-      _inner.bindIndexData(bytes, type, indexCount);
-
-  @override
-  bool bindUniformBlock(
-    ShaderHandle shader,
-    String blockName,
-    Map<String, Float32List> members,
-  ) => _inner.bindUniformBlock(shader, blockName, members);
-
-  @override
-  bool bindTexture(
-    ShaderHandle shader,
-    String slot,
-    TextureHandle texture, {
-    SamplerDescriptor? sampler,
-  }) => _inner.bindTexture(shader, slot, texture, sampler: sampler);
-
-  @override
-  void clearBindings() => _inner.clearBindings();
-
-  @override
-  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) =>
-      _inner.draw(
-        instanceCount: instanceCount,
-        firstIndex: firstIndex,
-        indexCount: indexCount,
-      );
-
-  @override
-  void drawIndexed(IndexedDraw draw) => _inner.drawIndexed(draw);
-
-  @override
-  void multiDraw(List<IndexedDraw> draws) => _inner.multiDraw(draws);
-
-  @override
-  void multiDrawIndirect(
-    StorageBuffer arguments,
-    int drawCount, {
-    int offsetInBytes = 0,
-    StorageBuffer? countBuffer,
-    int countOffsetInBytes = 0,
-  }) => _inner.multiDrawIndirect(
-    arguments,
-    drawCount,
-    offsetInBytes: offsetInBytes,
-    countBuffer: countBuffer,
-    countOffsetInBytes: countOffsetInBytes,
-  );
-
-  /// Passed through as recorded: a bundle's depth test was set when it was
-  /// recorded, by whoever recorded it, and a bundle meant for this pass was
-  /// recorded for this convention. Nothing in the engine records one here.
-  @override
-  void executeBundles(List<RenderBundle> bundles) =>
-      _inner.executeBundles(bundles);
-
-  @override
-  void beginPipelineStatisticsQuery(QuerySet querySet, int queryIndex) =>
-      _inner.beginPipelineStatisticsQuery(querySet, queryIndex);
-
-  @override
-  void endPipelineStatisticsQuery() => _inner.endPipelineStatisticsQuery();
-
-  @override
-  void setColorWriteMask(ColorWriteMask mask, {int attachment = 0}) =>
-      _inner.setColorWriteMask(mask, attachment: attachment);
-
-  @override
-  void setDepthClamp({required bool enabled}) =>
-      _inner.setDepthClamp(enabled: enabled);
-
-  @override
-  bool bindStorageBuffer(
-    ShaderHandle shader,
-    String name,
-    StorageBuffer buffer, {
-    int offsetInBytes = 0,
-    int? sizeInBytes,
-  }) => _inner.bindStorageBuffer(
-    shader,
-    name,
-    buffer,
-    offsetInBytes: offsetInBytes,
-    sizeInBytes: sizeInBytes,
-  );
-
-  @override
-  bool bindStorageTexture(
-    ShaderHandle shader,
-    String name,
-    TextureHandle texture, {
-    int mipLevel = 0,
-    StorageTextureAccess access = StorageTextureAccess.writeOnly,
-  }) => _inner.bindStorageTexture(
-    shader,
-    name,
-    texture,
-    mipLevel: mipLevel,
-    access: access,
-  );
-
-  @override
-  bool bindUniformBytes(
-    ShaderHandle shader,
-    String blockName,
-    ByteData bytes,
-  ) => _inner.bindUniformBytes(shader, blockName, bytes);
-
-  @override
-  void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) =>
-      _inner.drawIndirect(arguments, offsetInBytes: offsetInBytes);
-
-  @override
-  void drawNonIndexed({
-    required int vertexCount,
-    int firstVertex = 0,
-    int instanceCount = 1,
-    int firstInstance = 0,
-  }) => _inner.drawNonIndexed(
-    vertexCount: vertexCount,
-    firstVertex: firstVertex,
-    instanceCount: instanceCount,
-    firstInstance: firstInstance,
-  );
-
-  @override
-  void beginOcclusionQuery(int queryIndex) =>
-      _inner.beginOcclusionQuery(queryIndex);
-
-  @override
-  void endOcclusionQuery() => _inner.endOcclusionQuery();
+  void executeBundles(List<RenderBundle> bundles) {
+    assert(
+      bundles.every(
+        (bundle) =>
+            bundle.descriptor.depthStencilFormat == null ||
+            isRecordedTurned(bundle),
+      ),
+      'a render bundle with a depth attachment was replayed into a pass '
+      'whose depth runs reversed without being recorded for it; record it '
+      'through ContributorFrame.createRenderBundleEncoder, which turns its '
+      'depth tests while ContributorFrame.reversedDepth is true.',
+    );
+    super.executeBundles(bundles);
+  }
 }
 
 /// What stands in for an infinite far plane where a number is needed, in
@@ -449,9 +236,11 @@ extension _DepthConvention on Renderer {
 
     for (var i = 0; i < _renderList.length; i++) {
       final node = _renderList.itemAt(i).requireNode;
-      // A node that asked not to be culled by its bounds has bounds nobody
-      // checked — a sky dome, a mesh moved on the GPU — and cannot be fitted
-      // to either.
+      // A backdrop is not fitted to: it is drawn through the camera's own
+      // plane instead — see [_isBackdrop].
+      if (_DepthConvention._isBackdrop(node)) continue;
+      // Any other node that asked not to be culled by its bounds has bounds
+      // nobody checked — a mesh moved on the GPU — and cannot be fitted to.
       if (!node.frustumCulled) return authored;
       final bounds = node.worldBounds;
       include(bounds.min, bounds.max);
@@ -465,6 +254,23 @@ extension _DepthConvention on Renderer {
     }
     if (!nearest.isFinite) return authored;
     return math.max(authored, nearest * _kNearFitMargin);
+  }
+
+  /// Whether [node] is a backdrop: drawn before the scene (a negative
+  /// `drawBucket`) and gone after it (`depthWrite: false`) — what `skyNode`
+  /// makes, a dome a few metres round the eye.
+  ///
+  /// **Told by its kind, not by `frustumCulled`.** A dome follows the camera,
+  /// so its box holds the eye and would keep the authored plane for every
+  /// frame with a sky in it, which is every outdoor frame. Its depth is never
+  /// compared with anything drawn after it, so the fit can pass over it; but
+  /// a fitted plane tens of metres out would cut a ten-metre dome away
+  /// whole, so the scene pass draws it through the matrix with the
+  /// camera's own plane, in the same convention. Other nodes that opt out of
+  /// culling (a mesh moved on the GPU) still keep the authored plane.
+  static bool _isBackdrop(MeshNode node) {
+    final material = node.material;
+    return material.drawBucket < 0 && material.depthWrite == false;
   }
 
   /// Whether [camera] sees through an orthographic lens however its

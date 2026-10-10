@@ -65,7 +65,7 @@ void main() {
       ..disable(const VolumetricFogAddon().id)
       ..applyPending(1);
     expect(stage.passes(everything), isNot(contains('volumetric fog')));
-    expect(stage.skips(everything), contains('volumetric fog: switchedOff'));
+    expect(stage.skips(everything), contains('volumetric fog: switched off'));
 
     host
       ..enable(const VolumetricFogAddon().id)
@@ -88,7 +88,7 @@ void main() {
     });
     expect(
       stage.drawnSkips(everything),
-      containsAll(<String>['sky: switchedOff', 'fog: switchedOff']),
+      containsAll(<String>['sky: switched off', 'fog: switched off']),
     );
   });
 }

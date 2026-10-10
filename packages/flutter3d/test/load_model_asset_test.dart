@@ -18,6 +18,8 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d/flutter3d.dart'
+    show AssetNotFoundException, BundleAssetSource, Flutter3dException;
 import 'package:flutter3d/src/engine/assets/load_model_asset.dart';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_samples/flutter3d_samples.dart';
@@ -144,8 +146,57 @@ void main() {
               const FileAssetSource('/nonexistent/nowhere.f3d'),
           fallbackSource: (path) => fail('release must not fall back'),
         ),
+        // Readiness review §2.2.6: a missing asset is an `AssetNotFoundException`
+        // under the root, naming the file it looked for — not a
+        // `StateError`, which says the caller made a mistake.
+        //
+        // Mutation: throw the `StateError` `_fallback` threw before.
         throwsA(
-          isA<StateError>().having(
+          isA<AssetNotFoundException>()
+              .having((e) => e.key, 'key', endsWith('/chair.f3d'))
+              .having(
+                (e) => e.message,
+                'message',
+                contains('flutter3d_build:init'),
+              ),
+        ),
+      );
+    });
+
+    test(
+      'a bundle without the asset says which, as AssetNotFoundException',
+      () async {
+        // `rootBundle.load` throws a bare `FlutterError` for a key the bundle
+        // does not hold; a caller catching the engine's root saw nothing.
+        //
+        // Mutation: let `BundleAssetSource.read` pass the `FlutterError`
+        // through, as it did.
+        TestWidgetsFlutterBinding.ensureInitialized();
+        await expectLater(
+          const BundleAssetSource('assets/not_in_this_bundle.f3d').read(),
+          throwsA(
+            isA<AssetNotFoundException>()
+                .having((e) => e.key, 'key', 'assets/not_in_this_bundle.f3d')
+                .having((e) => e, 'root', isA<Flutter3dException>()),
+          ),
+        );
+      },
+    );
+
+    test('and a release build reading the bundle refuses with the same '
+        'type', () async {
+      // Mutation: catch only `FlutterError` in `loadModelAsset` — the
+      // `AssetNotFoundException` the bundle now throws escapes as the missing
+      // generated file rather than the advice to run the hook.
+      TestWidgetsFlutterBinding.ensureInitialized();
+      await expectLater(
+        loadModelAsset(
+          'assets_src/chair.obj',
+          debugMode: false,
+          fallbackSource: (path) => fail('release must not fall back'),
+        ),
+        throwsA(
+          isA<AssetNotFoundException>().having(
             (e) => e.message,
             'message',
             contains('flutter3d_build:init'),

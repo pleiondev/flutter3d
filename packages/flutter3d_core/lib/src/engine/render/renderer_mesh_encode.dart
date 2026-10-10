@@ -752,8 +752,9 @@ extension _MeshEncode on Renderer {
         // `gfx-16n`'s sentinel. Below -1.5 is "hashed", which the shader
         // reads out of the same component: -1 already meant "not masked" and
         // anything more negative was free, where a second number would have
-        // been a member added to a block six shaders share.
-        MaterialAlphaMode.hashed => -2.0,
+        // been a member added to a block six shaders share. How far below
+        // -2 is the scene's origin — see `_hashedCutoffAt`.
+        MaterialAlphaMode.hashed => _hashedCutoff,
         // Not masked either, and the one mode whose colour the shader weights
         // by its alpha: the blend takes its source premultiplied, and glTF's
         // blend is over on straight colour. Opaque keeps -1 and its colour
@@ -1357,7 +1358,7 @@ extension _MeshEncode on Renderer {
       // coverage, whose edge the lit draw spreads over the samples.
       ..[0] = switch (material.alphaMode) {
         MaterialAlphaMode.mask when !coverage => material.alphaCutoff,
-        MaterialAlphaMode.hashed => -2.0,
+        MaterialAlphaMode.hashed => _hashedCutoff,
         _ => -1.0,
       }
       ..[1] = material.baseColor.a * node.tint.a
