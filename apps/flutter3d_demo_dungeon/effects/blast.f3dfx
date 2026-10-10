@@ -27,7 +27,7 @@
       "color": [2.6, 1.1, 0.3, 1.0],
       "emitter": {"shape": "sphere", "speed": [6.0, 22.0]},
       "affectors": [
-        {"type": "gravity", "scale": 1.12},
+        {"type": "gravity"},
         {"type": "drag", "perSecond": 1.2},
         {"type": "fade", "startsAt": 0.5}
       ],
