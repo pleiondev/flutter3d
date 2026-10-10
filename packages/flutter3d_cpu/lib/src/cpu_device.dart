@@ -758,7 +758,8 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
         detail:
             'attribute "${attribute.name}" is ${attribute.format.name}. This '
             'backend hands a vertex stage a list of floats, so it reads only '
-            'the float formats.',
+            'the float formats: reinterpreting an integer as one turns a '
+            'joint index into 1.4e-45.',
       );
       final handle = wrapPipeline(owner: this, backend: refusal, name: name);
       pipelineRefusals.report(handle, refusal, retry: false);
