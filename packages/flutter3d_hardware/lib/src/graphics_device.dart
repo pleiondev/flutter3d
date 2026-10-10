@@ -768,8 +768,10 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// needed it is skipped. While the report answers true the backend drops
   /// what it built and builds again at the pipeline's next use; once
   /// [PipelineRefusals.isRefused], it skips every draw with the pipeline and
-  /// builds nothing. The renderer takes the reports after each frame, so
-  /// each refusal is told once and the rest of the frame draws.
+  /// builds nothing — whoever reported it, and whatever the backend linked
+  /// before, so the record is asked at every bind or draw. The renderer takes
+  /// the reports after each frame, so each refusal is told once and the rest
+  /// of the frame draws.
   ///
   /// Before 1.0 a refused link threw from `PassEncoder.draw` and the renderer
   /// rethrew it: one pair of stages one driver would not link failed every

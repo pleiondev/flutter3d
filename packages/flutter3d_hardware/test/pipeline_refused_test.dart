@@ -205,6 +205,21 @@ void main() {
       expect(device.pipelineBuilds['MeshVertex+Bad'], 2);
     });
 
+    test('a pipeline the record leaves refused is skipped whoever said so', () {
+      // What the conformance check leans on: it refuses through the record,
+      // and the encoder has to ask it for every pipeline, not only those its
+      // own driver refused.
+      //
+      // Mutation: ask `refusingPipelines` before the record, and the good
+      // pipeline refused here still draws.
+      final device = FakeBackend();
+      final vertex = device.shaders['MeshVertex']!;
+      final good = device.createPipeline(vertex, device.shaders['Good']!);
+      final bad = device.createPipeline(vertex, device.shaders['Bad']!);
+      device.pipelineRefusals.report(bad, _refusal(), retry: false);
+      expect(_frame(device, good, bad).drawCount, 2);
+    });
+
     test('a recorder answers with the device it records', () {
       // Mutation: drop the override in RecordingDevice, and a renderer
       // drawing through a recorder never hears of a refusal.

@@ -729,11 +729,12 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   final Set<PipelineHandle> _linkedAtDraw = Set<PipelineHandle>.identity();
 
   /// Whether a draw with [pipeline] goes ahead: builds it at its first draw
-  /// as a lazy driver does, and reports a refusal instead of throwing.
+  /// as a lazy driver does, and reports a refusal instead of throwing. A
+  /// pipeline [pipelineRefusals] leaves refused is skipped whatever linked.
   bool _linksAtDraw(PipelineHandle pipeline) {
+    if (pipelineRefusals.isRefused(pipeline)) return false;
     if (!refusingPipelines.contains(pipeline.name)) return true;
     if (_linkedAtDraw.contains(pipeline)) return true;
-    if (pipelineRefusals.isRefused(pipeline)) return false;
     final builds = pipelineBuilds.update(
       pipeline.name,
       (int n) => n + 1,

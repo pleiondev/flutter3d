@@ -814,6 +814,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       features: features,
       support: textureFormatSupport,
       clock: _clock,
+      refusals: pipelineRefusals,
     );
   }
 

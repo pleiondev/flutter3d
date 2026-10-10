@@ -37,16 +37,18 @@ final class GpuPipeline<T extends Object> {
   /// at the bind after a refusal dropped it.
   ///
   /// Null when the pipeline cannot be had now — left refused by [refusals],
-  /// or refused by this link, which is reported there — and the draws that
-  /// follow its bind are skipped.
+  /// even one linked before, or refused by this link, which is reported
+  /// there — and the draws that follow its bind are skipped.
   T? linked(
     PipelineHandle handle,
     PipelineRefusals refusals, {
     required bool deviceLost,
   }) {
+    // The record first, whatever was linked: a pipeline it leaves refused is
+    // skipped on every backend, built or not.
+    if (refusals.isRefused(handle)) return null;
     final linked = _linked;
     if (linked != null) return linked;
-    if (refusals.isRefused(handle)) return null;
     try {
       return _linked = _build();
     } on Exception catch (error) {

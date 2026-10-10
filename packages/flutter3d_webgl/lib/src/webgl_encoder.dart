@@ -593,8 +593,10 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     debugCheckLive(pipeline, 'bindPipeline');
     // A pair the linker refused is linked again here, and while it will not
     // link the draws until the next bind are skipped rather than drawn with
-    // whatever program the context had before.
+    // whatever program the context had before. One the device's record
+    // leaves refused is skipped whether it linked or not.
     final program = switch (pipeline.backend) {
+      _ when _device.pipelineRefusals.isRefused(pipeline) => null,
       final WebGlUnlinkedPipeline unlinked => _device.linkRefused(
         pipeline,
         unlinked,

@@ -89,6 +89,29 @@ void main() {
     expect(refusals.take(), hasLength(1));
   });
 
+  test('a linked pipeline the record leaves refused is not bound', () {
+    // The conformance check refuses through the record, as a backend does
+    // after the builds fail; a backend has to ask it whatever it linked.
+    //
+    // Mutation: return `_linked` before asking `isRefused`, and the check's
+    // refused pipeline draws red.
+    final device = FakeBackend();
+    final handle = _handle(device);
+    final refusals = PipelineRefusals();
+    final pipeline = GpuPipeline<String>('MeshVertex+Pbr', () => 'linked');
+    expect(pipeline.linked(handle, refusals, deviceLost: false), 'linked');
+    refusals.report(
+      handle,
+      const PipelineRefused(
+        pipeline: 'MeshVertex+Pbr',
+        backend: 'test',
+        reason: PipelineRefusalReason.other,
+      ),
+      retry: false,
+    );
+    expect(pipeline.linked(handle, refusals, deviceLost: false), isNull);
+  });
+
   test('a refusal on a lost device says so', () {
     final device = FakeBackend();
     final handle = _handle(device);
