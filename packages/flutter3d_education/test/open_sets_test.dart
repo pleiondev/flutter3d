@@ -29,7 +29,11 @@ void main() {
       expect(values.map(nameOf), names);
       for (final value in values) {
         expect(value, isNot(isA<Enum>()), reason: '$value');
-        expect('$value', '$type.${nameOf(value)}');
+        expect(
+          value.toString(),
+          '$type.${nameOf(value)}',
+          reason: 'toString prints what the enum printed',
+        );
         expect(byName(nameOf(value)), same(value));
       }
       expect(byName('not-a-$type'), isNull);

@@ -626,6 +626,8 @@ String _nameOf(Object? value) => switch (value) {
   Enum(:final name) => name,
   TextureFormat(:final name) => name,
   VertexFormat(:final name) => name,
+  BlendFactor(:final name) ||
+  BlendOperation(:final name) ||
   CullMode(:final name) ||
   IndexType(:final name) ||
   LoadAction(:final name) ||
