@@ -23,7 +23,8 @@ import 'tutorial_screenshots_support.dart';
 const ValueKey<String> _add = ValueKey<String>('lodAddLevel');
 
 Future<void> _openLodScreen(WidgetTester tester) async {
-  await launchModeller(tester, fonts: true);
+  // No picture is taken here, so no frame is drawn at full size.
+  await launchModeller(tester, fonts: true, pictures: false);
   await tester.tap(find.byType(ObjectRow).first);
   await settleFrames(tester);
   await openLodScreen(tester);

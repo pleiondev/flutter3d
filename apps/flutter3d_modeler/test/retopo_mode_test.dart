@@ -39,7 +39,8 @@ void main() {
   testWidgets('with nothing to draw between, the mode says what to select', (
     WidgetTester tester,
   ) async {
-    await launchModeller(tester, fonts: true);
+    // No picture is taken in this file, so no frame is drawn at full size.
+    await launchModeller(tester, fonts: true, pictures: false);
     await switchMode(tester, ModelerMode.retopo);
 
     // `retopo.quad` is the tool the mode arms, and a launch has one object.
@@ -52,7 +53,7 @@ void main() {
   testWidgets('four clicks are four corners, and then one quad', (
     WidgetTester tester,
   ) async {
-    await launchModeller(tester, fonts: true);
+    await launchModeller(tester, fonts: true, pictures: false);
 
     // A second mesh to draw onto: a plane, converted, which is how a
     // retopology is started — and the cube it is traced over, picked first
