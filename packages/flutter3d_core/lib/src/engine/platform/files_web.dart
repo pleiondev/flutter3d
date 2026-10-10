@@ -1,7 +1,15 @@
 import 'dart:typed_data';
 
-Never _noFiles(String path) =>
-    throw UnsupportedError('there is no file system in the browser: $path');
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show UnsupportedCapability;
+
+import 'platform_feature.dart';
+
+Never _noFiles(String path) => throw UnsupportedCapability(
+  PlatformFeature.fileSystem,
+  backend: 'the browser',
+  reason: 'there is no file system to read $path from',
+);
 
 /// The bytes of the file at [path]: never, in the browser.
 Future<Uint8List> readFileBytes(String path) => _noFiles(path);

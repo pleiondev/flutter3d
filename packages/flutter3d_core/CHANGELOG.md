@@ -8,6 +8,11 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **The browser refuses a file read with `UnsupportedCapability`.** A read
+  by path in a web build throws the foundation's refusal for
+  `PlatformFeature.fileSystem`, the capability a platform lacks the way a
+  device lacks a `DeviceFeature`, instead of a bare `UnsupportedError`; a
+  `CapabilityException` handler now catches it.
 - **Breaking: `DeviceClass.parse` throws for a name that is not a class.**
   It throws an `UnknownDeviceClassException` (a `Flutter3dFormatException`)
   naming the classes there are; `DeviceClass.tryParse` is the lookup that
