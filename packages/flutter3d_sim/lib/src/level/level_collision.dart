@@ -112,12 +112,27 @@ extension LevelCollision on Level {
   /// Null when there is no spawn, which [LevelValidator] reports as an error —
   /// this returns rather than throws so a tool can load a broken level in order
   /// to fix it.
-  ({Vector3 position, double yaw})? get playerStart {
+  PlayerStart? get playerStart {
     for (final entity in entities) {
       if (entity.type == EntityTypes.playerSpawn) {
-        return (position: entity.position.clone(), yaw: entity.yaw);
+        return PlayerStart(position: entity.position.clone(), yaw: entity.yaw);
       }
     }
     return null;
   }
+}
+
+/// Where a level's player starts, and which way they face: what
+/// `Level.playerStart` answers.
+///
+/// A class rather than a record, so a later field — the spawn's id, say —
+/// is not a break.
+final class PlayerStart {
+  const PlayerStart({required this.position, required this.yaw});
+
+  /// Where, in the level's frame. The caller's own copy.
+  final Vector3 position;
+
+  /// Which way, radians about y.
+  final double yaw;
 }
