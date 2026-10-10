@@ -1124,6 +1124,28 @@ final class Renderer with RenderServices {
   final ReflectionInfoBlock _reflectionInfo = ReflectionInfoBlock();
   final ShadeInfoBlock _shadeInfo = ShadeInfoBlock();
   final DecalInfoBlock _decalInfo = DecalInfoBlock();
+
+  /// The decal pass's packed sort keys and the decals in the order they
+  /// paint, kept across frames so a frame of decals allocates no list.
+  final List<int> _decalKeys = <int>[];
+  final List<DecalNode> _decalOrder = <DecalNode>[];
+
+  /// What a view whose transparent half is drawn later keeps of itself, one
+  /// slot per deferred view of the frame, reused frame after frame so the
+  /// deferral allocates no matrix and no vector.
+  final List<vm.Matrix4> _deferredViewProjections = <vm.Matrix4>[];
+  final List<vm.Vector3> _deferredEyes = <vm.Vector3>[];
+  final List<vm.Vector3> _deferredForwards = <vm.Vector3>[];
+
+  /// Slot [index] of [pool], made with [make] the first time it is asked
+  /// for.
+  static T _deferredSlot<T>(List<T> pool, int index, T Function() make) {
+    while (pool.length <= index) {
+      pool.add(make());
+    }
+    return pool[index];
+  }
+
   final ShadowLightBlock _shadowLight = ShadowLightBlock();
   final ShaftInfoBlock _shaftInfo = ShaftInfoBlock();
   final VolumeFogInfoBlock _volumeFogInfo = VolumeFogInfoBlock();
@@ -3323,7 +3345,10 @@ final class Renderer with RenderServices {
     // already made them inactive; this only names who asked, so the skip
     // reads "switched off" rather than "settings". A node added with a step
     // is that step's pass whether or not the step lists it.
-    final stepsOff = RenderStepInternals.switchedOffIn(s, also: renderSteps.added);
+    final stepsOff = RenderStepInternals.switchedOffIn(
+      s,
+      also: renderSteps.added,
+    );
     return graph.compile(
       switchedOff: stepsOff.isEmpty
           ? const <String>{}

@@ -8,6 +8,15 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **A held frame keeps its pipeline stalls.** `FrameResult.toHeld` copied
+  every field but `pipelineStalls`, so the frame handed back while the GPU
+  was behind reported none where the frame it repeats had some.
+- **Decals sort on packed keys, and glass defers without allocating.** The
+  decal pass orders its decals by one integer per decal (order and index)
+  in lists the renderer keeps, where it built and sorted a record per
+  decal through a comparator each frame; a view whose transparent half or
+  glass is drawn later keeps its matrix, eye and forward in slots the
+  renderer reuses, where it cloned three objects per view per frame.
 - **The pre-1.0 light unit is no longer named; the defaults are.**
   `Photometric.legacyUnit` and `legacyNits` are gone from the API: a light
   is lux or candela and an emissive is nits, and a number in the old unit

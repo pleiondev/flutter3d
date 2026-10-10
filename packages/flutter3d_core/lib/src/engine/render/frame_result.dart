@@ -184,6 +184,7 @@ final class FrameResult {
     passes: passes,
     skipped: skipped,
     antiAliasing: antiAliasing,
+    pipelineStalls: pipelineStalls,
     held: true,
   );
 

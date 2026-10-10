@@ -101,16 +101,7 @@ extension _DecalPass on Renderer {
     required List<RenderView> views,
     required FramePassState passState,
   }) {
-    // Higher order over lower, attachment order between equals: a stable
-    // sort, which `List.sort` does not promise, so the index breaks the tie.
-    final visible =
-        <(int, DecalNode)>[
-          for (var i = 0; i < decals.length; i++)
-            if (decals[i].isVisibleInHierarchy) (i, decals[i]),
-        ]..sort((a, b) {
-          final byOrder = a.$2.order.compareTo(b.$2.order);
-          return byOrder != 0 ? byOrder : a.$1.compareTo(b.$1);
-        });
+    final visible = _decalsInOrder(decals);
     if (visible.isEmpty) return;
 
     final width = target.width;
@@ -223,15 +214,45 @@ extension _DecalPass on Renderer {
     pass.submit();
   }
 
+  /// The visible decals of [decals], higher order over lower and attachment
+  /// order between equals, in [Renderer._decalOrder].
+  ///
+  /// **Sorted as packed integers**: each decal's order and its index in one
+  /// key, `(order + 2³¹) × 2²⁰ + index`, so the sort compares numbers rather
+  /// than calling back into a comparator over records it allocated, and the
+  /// index both breaks ties (a stable sort, which `List.sort` does not
+  /// promise) and names the decal afterwards. Multiplied and added rather
+  /// than shifted and or-ed, for the reason `RenderList`'s keys are: on the
+  /// web an integer is a double and bitwise operators are 32-bit. The key
+  /// fits 52 bits, inside what a double holds exactly. An order beyond ±2³¹
+  /// sorts as the bound, and a scene of more than 2²⁰ decals paints the rest
+  /// in no particular place.
+  List<DecalNode> _decalsInOrder(List<DecalNode> decals) {
+    const span = 1048576; // 2^20 decals
+    const bias = 2147483648; // 2^31
+    final keys = _decalKeys..clear();
+    for (var i = 0; i < decals.length && i < span; i++) {
+      if (!decals[i].isVisibleInHierarchy) continue;
+      final order = decals[i].order.clamp(-bias, bias - 1);
+      keys.add((order + bias) * span + i);
+    }
+    keys.sort();
+    final ordered = _decalOrder..clear();
+    for (final key in keys) {
+      ordered.add(decals[key % span]);
+    }
+    return ordered;
+  }
+
   /// [visible]'s decals cut into draws, leaving out every one whose box the
   /// view does not see.
   List<_DecalBatch> _decalBatches(
-    List<(int, DecalNode)> visible,
+    List<DecalNode> visible,
     vm.Matrix4 viewProjection,
     ScreenRect view,
   ) {
     final batches = <_DecalBatch>[];
-    for (final (_, decal) in visible) {
+    for (final decal in visible) {
       final covers = _decalCover(decal, viewProjection, view);
       if (covers == null) continue;
       if (batches.isEmpty || !batches.last.admits(decal)) {
