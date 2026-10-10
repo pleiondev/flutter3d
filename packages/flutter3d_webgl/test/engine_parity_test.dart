@@ -2908,7 +2908,7 @@ void main() {
     test(
       'WebGL draws ${which.name} the way Impeller does',
       () async {
-        final device = WebGlDevice.open(
+        final device = await WebGlDevice.open(
           width: kParityWidth,
           height: kParityHeight,
           sources: webGlEngineShaders,
@@ -3091,8 +3091,8 @@ void main() {
 /// it is 6144 by 4096 — wide enough to be worth asking about, and a texture
 /// that cannot be created is a shadow pass that cannot run.
 void _atlasTests() {
-  test('the cube shadow atlas is a texture this backend can make', () {
-    final device = WebGlDevice.open(
+  test('the cube shadow atlas is a texture this backend can make', () async {
+    final device = await WebGlDevice.open(
       width: 64,
       height: 64,
       sources: webGlEngineShaders,
@@ -3184,8 +3184,8 @@ void _linkTests() {
   ];
 
   for (final (vertex, fragment) in pairs) {
-    test('$vertex + $fragment links', () {
-      final device = WebGlDevice.open(
+    test('$vertex + $fragment links', () async {
+      final device = await WebGlDevice.open(
         width: 64,
         height: 64,
         sources: webGlEngineShaders,

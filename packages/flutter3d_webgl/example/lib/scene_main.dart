@@ -106,7 +106,7 @@ class _SceneAppState extends State<SceneApp>
     });
   }
 
-  void _draw() {
+  Future<void> _draw() async {
     final log = StringBuffer();
     void say(String line) {
       log.writeln(line);
@@ -115,7 +115,7 @@ class _SceneAppState extends State<SceneApp>
     }
 
     try {
-      final device = WebGlDevice.open(
+      final device = await WebGlDevice.open(
         width: _width,
         height: _height,
         sources: webGlEngineShaders,

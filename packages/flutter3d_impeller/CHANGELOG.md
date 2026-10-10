@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `GpuRenderBackend.open` takes `width` and `height`**, required,
+  as every backend's `open` does since 1.0, so a caller writes one call for
+  all four. Impeller still sizes each target as it is drawn and does not
+  hold the size; a size that is not one (a side below one pixel) is an
+  `ArgumentError`. `registerGpuBackend` passes the registry's size through.
 - **Breaking: `GpuRenderBackend.createStorageBuffer` is gone**, folded into
   `createBuffer` as in `flutter3d_hardware`. It refused every call here,
   and `createBuffer` refuses a storage usage the same way.

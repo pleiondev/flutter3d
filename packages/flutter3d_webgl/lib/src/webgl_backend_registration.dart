@@ -16,7 +16,7 @@ import 'webgl_frame_presenter.dart';
 Registration registerWebGlBackend(DeviceRegistry registry) {
   final opener = registry.addBackend(
     'WebGL2',
-    ({required int width, required int height}) async =>
+    ({required int width, required int height}) =>
         WebGlDevice.open(width: width, height: height),
     asFallback: true,
   );

@@ -36,8 +36,8 @@ final Float32List _triangle = Float32List.fromList(<double>[
 
 final Uint16List _indices = Uint16List.fromList(<int>[0, 1, 2]);
 
-WebGlDevice _device() {
-  final device = WebGlDevice.open(
+Future<WebGlDevice> _device() async {
+  final device = await WebGlDevice.open(
     width: 8,
     height: 8,
     sources: webGlEngineShaders,
@@ -115,7 +115,7 @@ Future<int> _drawThrough(WebGlDevice device, int taps) async {
 
 void main() {
   test('a request above the ceiling leaves no error behind', () async {
-    final device = _device();
+    final device = await _device();
     device.debugDrainErrors('setup');
 
     // Above whatever this browser answers, by construction. Unclamped, this is
@@ -136,7 +136,7 @@ void main() {
   test('and draws the same picture as a request the device can meet', () async {
     // The other half of the promise. An error-free clamp that clamped to
     // nothing — by skipping the bind, say — would pass the check above.
-    final device = _device();
+    final device = await _device();
 
     final atCeiling = await _drawThrough(
       device,
@@ -152,12 +152,12 @@ void main() {
     device.dispose();
   });
 
-  test('a context without the extension answers one tap, not zero', () {
+  test('a context without the extension answers one tap, not zero', () async {
     // `maxAnisotropy` is a count, and one means "no anisotropic filtering
     // here" rather than "unknown". The encoder skips the parameter entirely at
     // one, because the enum is unknown to a context without the extension and
     // setting it would be INVALID_ENUM on every single bind.
-    final device = _device();
+    final device = await _device();
 
     expect(device.limits.maxSamplerAnisotropy, greaterThanOrEqualTo(1));
     device.dispose();

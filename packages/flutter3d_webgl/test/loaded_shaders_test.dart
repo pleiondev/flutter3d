@@ -93,8 +93,8 @@ Future<List<int>> _center(
 void main() {
   late WebGlDevice device;
 
-  setUp(() {
-    final made = WebGlDevice.open(
+  setUp(() async {
+    final made = await WebGlDevice.open(
       width: _width,
       height: _height,
       sources: webGlEngineShaders,
@@ -334,7 +334,7 @@ void main() {
     expect(device.debugTrackedResourceCount, 0);
     // `tearDown` would dispose twice, which the device refuses; make a fresh
     // one for it to tear down.
-    device = WebGlDevice.open(
+    device = await WebGlDevice.open(
       width: _width,
       height: _height,
       sources: webGlEngineShaders,

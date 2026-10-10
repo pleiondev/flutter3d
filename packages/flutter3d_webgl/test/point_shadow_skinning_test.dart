@@ -172,8 +172,8 @@ Future<int> _recorded(
 void main() {
   late WebGlDevice device;
 
-  setUp(() {
-    final made = WebGlDevice.open(
+  setUp(() async {
+    final made = await WebGlDevice.open(
       width: _width,
       height: _height,
       sources: webGlEngineShaders,

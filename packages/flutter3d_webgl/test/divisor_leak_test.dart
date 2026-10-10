@@ -79,7 +79,7 @@ final VertexLayoutDescriptor _instanced = const VertexLayoutDescriptor(
 
 void main() {
   test('an ordinary draw after an instanced one draws the same picture', () async {
-    final device = WebGlDevice.open(
+    final device = await WebGlDevice.open(
       width: 32,
       height: 32,
       sources: webGlEngineShaders,

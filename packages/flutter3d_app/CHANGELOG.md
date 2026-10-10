@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`openDevice` is the sugar it looks like**: `(registry ??
+  platformDevices()).open(width:, height:)` with the refusals printed and
+  the registry remembered, now that every backend opens in that one shape.
 - **Breaking: `platformDevices` returns a `DeviceRegistry<FramePresenter>`**,
   so a presenter added to it is a `FramePresenter` or is refused where it is
   added. `presentFrame` still takes any registry, and names the type of a

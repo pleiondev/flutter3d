@@ -85,7 +85,7 @@ void main() {
     // Mutation: leave both draw buffers active whatever the program writes.
     // The draw is rejected with INVALID_OPERATION and the first attachment
     // keeps its clear colour.
-    final device = WebGlDevice.open(
+    final device = await WebGlDevice.open(
       width: _size,
       height: _size,
       sources: const ShaderSources(

@@ -142,25 +142,41 @@ final class GpuRenderBackend extends GraphicsDevice {
 
   GpuRenderBackend._(this._library, this._transients, this._granule);
 
-  /// Loads [bundleAsset] and builds a backend around the running context.
+  /// Loads [bundleAsset] and builds a backend around the running context, for
+  /// a surface of [width] by [height] to start with.
   ///
   /// Throws when the bundle is missing, which is the right moment to fail: a
   /// renderer without its shaders cannot draw anything, and the alternative is
   /// a black screen with a null somewhere.
   ///
+  /// **The one shape every backend opens in, since 1.0**: asynchronous, and
+  /// given the size, as `WebGlDevice.open`, `WebGpuDevice.open` and a
+  /// registry's `BackendOpener` are. Impeller allocates its targets at
+  /// whatever size each frame is drawn at, so the size is not held here and
+  /// a frame of another size draws as well; it is required all the same, so
+  /// a caller writes the same call for every backend, and it is checked to
+  /// be a size at all.
+  ///
   /// **A static method rather than a factory constructor**, because loading the
   /// bundle became asynchronous in flutter_gpu 3.47 and a factory constructor
-  /// cannot be. The name is kept so every call site reads the same with an
-  /// `await` in front of it.
+  /// cannot be.
   /// [extraBundles] are the application's own compiled bundles, searched before
   /// the engine's — see [GpuShaderLibrary]. Each is loaded the same way and
   /// each has to exist: a bundle named and not found is a stage that will come
   /// back null at the first draw, which on this backend is a pipeline built
   /// from nothing.
   static Future<GpuRenderBackend> open({
+    required int width,
+    required int height,
     String bundleAsset = defaultBundleAsset,
     List<String> extraBundles = const <String>[],
   }) async {
+    if (width < 1 || height < 1) {
+      throw ArgumentError(
+        'GpuRenderBackend.open: ${width}x$height is not a surface; both sides '
+        'are at least one pixel',
+      );
+    }
     final library = await gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
       throw DeviceUnavailableException(

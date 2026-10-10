@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `WebGlDevice.open` is asynchronous.** Every backend opens in
+  one shape since 1.0, `await X.open(width:, height:)`; WebGL2 was the one
+  that answered synchronously. The future completes in the same turn, and a
+  browser without WebGL2 completes it with the
+  `DeviceUnavailableException` it threw. Put `await` in front of the call.
 - **Breaking: `WebGlDevice.decodeTexture` throws where it answered null.**
   An image the browser will not decode is a `DeviceResourceException`, as
   `EncodedImageUpload` says since 1.0; the engine's loader catches it and

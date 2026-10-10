@@ -224,12 +224,19 @@ final class WebGlDevice extends GraphicsDevice
   /// here rather than in each game. This is the one way to open the backend
   /// since 1.0 — `openWebGl` was the same call with the sentence added — and
   /// what `registerWebGlBackend` adds to an engine's registry.
-  static WebGlDevice open({
+  ///
+  /// **Asynchronous since 1.0**, because opening a device is, on every
+  /// backend: WebGPU's adapter and device are promises, Impeller loads its
+  /// bundle, and one shape — `await X.open(width:, height:)` — is what an
+  /// application, a registry and a test write for all four. Nothing here
+  /// waits yet; the future completes in the same turn, and a browser without
+  /// WebGL2 is a future that completes with the exception.
+  static Future<WebGlDevice> open({
     required int width,
     required int height,
     ShaderSources? sources,
     bool highpMaterials = false,
-  }) {
+  }) async {
     final canvas = web.document.createElement('canvas') as web.HTMLCanvasElement
       ..width = width
       ..height = height;

@@ -19,8 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   runDeviceConformance(
     backend: 'webgl',
-    makeDevice: ({required int width, required int height}) {
-      final device = WebGlDevice.open(
+    makeDevice: ({required int width, required int height}) async {
+      final device = await WebGlDevice.open(
         width: width,
         height: height,
         sources: webGlEngineShaders,

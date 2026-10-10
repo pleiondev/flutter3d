@@ -131,6 +131,12 @@ DeviceRegistry<FramePresenter>? _presenters;
 
 /// Opens the backend, or throws with something worth putting on screen.
 ///
+/// **Sugar, and nothing else**: `(registry ?? platformDevices()).open(width:,
+/// height:)`, printing each backend that refused before the next is tried,
+/// with the device remembering its registry. Every backend opens in that one
+/// shape since 1.0 — asynchronous, given the size — so this adds no way of
+/// opening of its own.
+///
 /// With no [registry], this platform's backends ([platformDevices], made for
 /// the call); hand one over to try a backend of your own first — a test's
 /// fake, say. The device remembers the registry it came from, so
