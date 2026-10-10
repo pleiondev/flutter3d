@@ -25,7 +25,7 @@ import 'model_session.dart';
 /// void main(List<String> arguments) {
 ///   final tools = McpTools();
 ///   EngineLoop(input: InputState(), registries: [tools],
-///       plugins: installedPlugins);
+///       plugins: installedPlugins.plugins);
 ///   serveModelMcp(arguments, projectTools: tools);
 /// }
 /// ```

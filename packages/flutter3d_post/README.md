@@ -6,10 +6,10 @@ An application that wants only some of them leaves the rest out in its own pubsp
 
 ```yaml
 flutter3d_plugins:
-  exclude: [flutter3d_post/motion.dart, flutter3d_post/style.dart#ToonLightingAddon]
+  without: [flutter3d_post/motion.dart, flutter3d_post/style.dart#ToonLightingAddon]
 ```
 
-`flutter3d_plugin_api`'s README describes `include:` and `exclude:`.
+`flutter3d_plugin_api`'s README describes `without:`, `set:` and `with:`, the words of a `PluginGroup`.
 
 | Library | Was | What it is |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 /// A material as WGSL at run time: its body spliced into a host stage.
 ///
-///     dart test test/material_wgsl_test.dart
+///     dart test test/data_plugin/material_wgsl_test.dart
 ///
 /// The host here is a stand-in shaped as naga writes the engine's `Unlit`
 /// stage — the names, the private varyings, `main_1` — so this package's
@@ -10,11 +10,11 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_core/data_plugins.dart';
 import 'package:flutter3d_core/flutter3d_core.dart'
     show MaterialVariant, parseMaterial, specializeMaterial;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_shaders/translate.dart';
 import 'package:test/test.dart';
 

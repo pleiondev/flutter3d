@@ -25,7 +25,7 @@ final class ConvertCommandSettings
   final bool materials
   final bool overwrite
   final bool split
-  static ConvertCommandSettings? parse(List<String> arguments)
+  static ConvertCommandSettings parse(List<String> arguments)
 
 final class ConvertOutcome
   String toString()
@@ -79,7 +79,17 @@ final class ExternalTool
   final String name
   final String purpose
 
+final class MissingToolException extends ResourceException
+  String toString()
+  const MissingToolException(this.message)
+  final String message
+
 typedef ProcessProbe = String? Function(String executable, List<String> arguments);
+
+final class ToolFailedException extends ResourceException
+  String toString()
+  const ToolFailedException(this.message)
+  final String message
 
 const ExternalTool blender = …
 
@@ -146,6 +156,8 @@ Future<int> runConvertCommand(List<String> arguments, {IOSink? out, IOSink? err}
 int runDoctor(List<String> arguments, {IOSink? out})
 
 List<DoctorCheck> runDoctorChecks({ProcessProbe probe = _probe, String? Function(ExternalTool tool)? locate, String? dartVersion, Directory? project})
+
+Future<int> runFlutter3d(List<String> arguments)
 
 const ExternalTool usdcat = …
 
@@ -347,7 +359,9 @@ final class ConvertSettings
 final class ConvertUsageException extends Flutter3dFormatException
   String toString()
   const ConvertUsageException(this.message)
+  const ConvertUsageException.helpAsked()
   final String message
+  final bool isHelp
 
 final class DeviceClassBudget
   DeviceClassBudget copyWith({DeviceClass? deviceClass, List<double>? lods, bool? impostor, int? impostorCell, TextureBudget? textures, int? maxTextureSide, double? lightDifference})
@@ -365,8 +379,10 @@ final class DeviceClassBudget
   static const DeviceClassBudget web = DeviceClassBudget(deviceClass: DeviceClass.web, lods: <double>[0.5, 0.25], impostor: true, textures: TextureBudget.web, lightDifference: 0.02)
 
 final class DiscoveredPlugin
+  DiscoveredPlugin withArguments(String arguments)
   String toString()
-  const DiscoveredPlugin({required this.package, required this.import, required this.className})
+  const DiscoveredPlugin({required this.package, required this.import, required this.className, this.arguments = ''})
+  final String arguments
   final String className
   final String import
   final String package
@@ -444,6 +460,7 @@ typedef PluginProcessResult = ({int exitCode, String stdout, String stderr});
 typedef PluginProcessRunner = Future<PluginProcessResult> Function(String executable, List<String> arguments, String workingDirectory);
 
 final class PluginSelector
+  DiscoveredPlugin get plugin
   String toString()
   bool matches(DiscoveredPlugin plugin)
   const PluginSelector({required this.package, this.library, this.className})
@@ -536,6 +553,8 @@ List<String> markerEntries(String package, Object? value)
 
 const String materialExtension = '.f3dmat'
 
+const String modelConvertUsage = …
+
 int? parseChunkThreshold(String text)
 
 List<DeviceClass>? parseDeviceClasses(Object? value)
@@ -574,14 +593,12 @@ Future<int> runInit(List<String> arguments, {IOSink? out, IOSink? err, Directory
 
 MaterialBuildReport runMaterialBuild(Directory projectRoot, {IOSink? log, MaterialCompilers? compilers, ShaderSet? engine})
 
-({List<DiscoveredPlugin> kept, List<DiscoveredPlugin> excluded, List<String> warnings}) selectPlugins(List<DiscoveredPlugin> plugins, {List<PluginSelector>? include, List<PluginSelector> exclude = const <PluginSelector>[]})
+({List<DiscoveredPlugin> kept, List<DiscoveredPlugin> excluded, List<String> warnings}) selectPlugins(List<DiscoveredPlugin> plugins, {List<PluginSelector> without = const <PluginSelector>[], Map<PluginSelector, String> set = const <PluginSelector, String>{}, List<PluginSelector> add = const <PluginSelector>[]})
 
 const String shaderBundleExtension = '.f3dshaders'
 
 const Set<String> splatExtensions = <String>{'.ply', '.spz'}
 
 (ModelDocument, int) splitLargeMeshes(ModelDocument document, {int threshold = defaultChunkThreshold})
-
-const String usage = …
 
 PluginsFileReport writeDiscoveredPlugins(Directory appRoot, {bool always = false})

@@ -5,24 +5,28 @@ the application; these are read at run time, from the game's assets, a mod
 folder or a server, and installed through the same plugin host, with the same
 manifest, the same switch at a step boundary and the same journal.
 
-Three kinds, after decision 4 of
+Two kinds, after decision 4 of
 [`tasks/0.9-plugins.md`](https://github.com/pleiondev/flutter3d/blob/main/tasks/0.9-plugins.md):
 
 - **Data plugins.** A `.f3dplugin` document declares loop phases, events,
-  entity kinds, materials in the material language, render steps, Wasm
-  systems and scripts. `DataPluginLoader` reads it and every file it names,
-  and hands back a `DataPlugin`.
-- **Wasm modules.** Step systems under Wasm plugin ABI 1: sandboxed, 32-bit
-  integers only, the world reached through four imports. A plain Dart
-  interpreter steps them on every platform, metered by fuel.
-- **Interpreted Dart.** `ScriptRuntime` is the interface a script runtime
-  implements. None ships in 1.0; the plan says why.
+  step systems in Wasm and in the expression language, and sections each
+  subsystem of the engine reads for itself: entity kinds, materials in the
+  material language, render steps, particle effects, substances.
+  `DataPluginLoader` reads it and every file it names, and hands back a
+  `DataPlugin`.
+- **Wasm modules.** Step systems under the Wasm plugin ABI: sandboxed, 32-bit
+  integers only, the world reached through a handful of imports. A plain
+  Dart interpreter steps them on every platform, metered by fuel.
+
+**It depends on the plugin API alone.** A server that replays a run with a
+data plugin in it steps the plugin's modules with this package, so it
+resolves without the render core, the simulation or the physics.
 
 ## A data plugin
 
 ```json
 {
-  "f3dplugin": 1,
+  "format": "f3d.plugin", "version": 3,
   "manifest": {"id": "gusts", "apiVersion": "1.0", "touches": "simulation"},
   "phases": [{"name": "weather", "kind": "step",
               "after": ["physics"], "before": ["elements"]}],
@@ -35,7 +39,14 @@ Three kinds, after decision 4 of
 ```
 
 ```dart
-final plugin = await const DataPluginLoader().load(text, mySource);
+final loader = DataPluginLoader(
+  sections: DataSections([
+    entityKindsSection,      // package:flutter3d_sim/data_plugins.dart
+    ...renderDataSections,   // package:flutter3d_core/data_plugins.dart
+    effectsSection,          // flutter3d_particles
+  ]),
+);
+final plugin = await loader.load(text, mySource);
 final loop = EngineLoop(
   input: input,
   registries: [WorldFields([ListWorldField('wind', wind)]), entityKinds],
@@ -43,24 +54,33 @@ final loop = EngineLoop(
 );
 ```
 
-`test/fixtures/v1/glow.f3dplugin` holds every key version 1 has.
+`test/fixtures/v<N>/glow.f3dplugin` holds every key version N has.
 
-| Key | Becomes |
-|---|---|
-| `manifest` | the plugin's `PluginManifest`; keys it does not know are kept |
-| `phases` | step or frame phases, ordered by `after`/`before` |
-| `events` | events declared as `<id>.<name>`, published as `PluginDataEvent` |
-| `entityKinds` | `DataEntityKind`s in `EntityKinds`: required properties, an optional box |
-| `materials` | the material language, built at run time where the backend can |
-| `renderSteps` | a full-screen stage per backend at a `RenderAnchor` |
-| `wasm` | Wasm step systems, `WasmSystemSpec` |
-| `scripts` | interpreted Dart step systems, `ScriptSystemSpec` |
-| `effects` | kept and not loaded: the particle system has no document form in 1.0 |
+| Key | Read by | Becomes |
+|---|---|---|
+| `manifest` | the runtime | the plugin's `PluginManifest`; keys it does not know are kept |
+| `phases` | the runtime | step or frame phases, ordered by `after`/`before` |
+| `events` | the runtime | events declared as `<id>.<name>`, published as `PluginDataEvent` |
+| `wasm` | the runtime | Wasm step systems, `WasmSystemSpec` |
+| `expressions` | the runtime | step systems in the expression language, `ExpressionSystemSpec` |
+| `entityKinds` | `flutter3d_sim`'s `entityKindsSection` | `DataEntityKind`s in `EntityKinds`: required properties, an optional box |
+| `materials` | `flutter3d_core`'s `materialsSection` | the material language, built at run time where the backend can |
+| `renderSteps` | `flutter3d_core`'s `renderStepsSection` | a full-screen stage per backend at a `RenderAnchor` |
+| `effects` | `flutter3d_particles`' `effectsSection` | `.f3dfx` documents in `ParticleEffects` |
+| `physicalMaterials`, `materialPairs` | `flutter3d_matter`'s sections | substances in the `MaterialCatalog` |
 
-The document is versioned like every other engine file: `f3dplugin` carries
+A section no registered reader takes is kept as written, written back, and
+named in `DataPlugin.notes`.
+
+The document is versioned like every other engine file: the envelope carries
 the version, a 1.x engine reads every 1.x document through a migration list,
 a document from a newer engine is refused with the version that reads it,
 and top-level keys this build does not know are kept and written back.
+Version 3 has `expressions` where version 2 had `scripts`: a version-2
+script's declaration is read as an expression system, its `source` kept for
+its author to rewrite. This build reads expression systems and refuses, by
+name, to install a plugin that brings one: it evaluates no expression
+language yet.
 
 ## Permissions
 
@@ -81,37 +101,32 @@ final loader = DataPluginLoader(
   `files` and goes through `readFile`.
 
 A permission declared and not granted refuses the whole plugin before any
-file is read. A Wasm module has no import that reaches either door, and a
-script is handed none, so the loader is all the reach a data plugin has.
+file is read. A Wasm module has no import that reaches either door, and an
+expression has none to name, so the loader is all the reach a data plugin
+has.
 
 ## Materials and render steps compiled at run time
 
-`RuntimeShaders` is a registry the application hands the engine with the
-device's `loadShaders` and the renderer's `renderSteps.addMaterials`. A plugin brings
-source, and the registry builds it where the backend compiles at run time:
+`RuntimeShaders`, in `package:flutter3d_core/data_plugins.dart` beside the
+two sections that use it, is a registry the application hands the engine
+with the device's `loadShaders` and the renderer's `renderSteps.addMaterials`.
+A plugin brings source, and the registry builds it where the backend compiles
+at run time: the software device evaluates it, WebGL2 gets GLSL ES 3.00
+translated against the engine's headers, and WebGPU gets the material
+spliced into the engine's own compiled stage. Impeller runs what `impellerc`
+compiled ahead of time and turns each one off with the reason. Off is not an
+error: the reason is in `RuntimeShaders.statuses`, and the rest of the plugin
+installs.
 
-| Backend | A material | A raw render step |
-|---|---|---|
-| CPU | the source, evaluated by the software device | off: a raw stage is Dart there |
-| WebGL2 | GLSL ES 3.00, translated against the engine's headers | GLSL ES 3.00 |
-| WebGPU | off: no WGSL path inside the engine yet | off |
-| Impeller | off: shaders are compiled ahead of time by `impellerc` | off |
-
-Off is not an error. The material or the step is switched off, the reason is
-in `RuntimeShaders.statuses`, and the rest of the plugin installs. A step
-that is off is reported in `FrameResult.skipped` like any switched-off step.
-A render step written in the material language waits for its full-screen
-stages (decision 15).
-
-## Wasm plugin ABI 1
+## Wasm plugin ABI
 
 `lib/src/wasm/wasm.dart` is the specification. In short:
 
-- **Exports:** `f3d_abi() -> i32`, returning `1`, and `f3d_step(i32 step,
-  i32 dt)`, called once a fixed step with `dt` in Q16.16.
-- **Imports,** all from `f3d`: `field_len`, `field_get`, `field_set` and
-  `publish`. A field and an event are named by their index in the module's
-  declaration. There is no I/O at all.
+- **Exports:** `f3d_abi() -> i32`, returning the ABI, and `f3d_step(i32
+  step, i32 dt)`, called once a fixed step with `dt` in Q16.16.
+- **Imports,** all from `f3d`: `field_len`, `field_get`, `field_set`,
+  `publish` and, since ABI 2, `field_frac`. A field and an event are named by
+  their index in the module's declaration. There is no I/O at all.
 - **Values:** `i32` only. A float's last bit and a 64-bit integer's exactness
   both differ between the VM, a browser and a server; a module using either
   is refused when it is read. The world's numbers cross as Q16.16
@@ -127,17 +142,9 @@ browser's own WebAssembly on the web: it refuses the same modules, holds the
 memory limit through the maximum a module must declare, and cannot count fuel
 or calls.
 
-## Interpreted Dart
-
-`ScriptRuntime`, `ScriptProgram` and `ScriptContext` are the seam a script
-runtime fills. A script is a step system held to a Wasm module's rules: the
-fields it declared, the events its plugin declared, no network and no files,
-and `Portable` arithmetic. An engine without a runtime refuses a plugin that
-brings a script, by name.
-
 ## State
 
-`DataPlugin.save` and `restore` carry what its Wasm systems and scripts keep
-outside the world, and installed, the plugin adds them to the loop's snapshots
-as a part under its id. So a rewind, a rollback and the debug double-step check
+`DataPlugin.save` and `restore` carry what its Wasm systems keep outside the
+world, and installed, the plugin adds them to the loop's snapshots as a part
+under its id. So a rewind, a rollback and the debug double-step check
 (`DeterminismCheck` in `flutter3d_sim`) cover them with nothing more said.

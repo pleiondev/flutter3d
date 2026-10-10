@@ -1,5 +1,5 @@
 name: flutter3d_plugin_runtime
-description: "Plugins loaded while a game runs: data plugins read from a .f3dplugin document, sandboxed Wasm modules stepped by a deterministic interpreter, and the interface an interpreted script runs behind, each held to the permissions its manifest declares and the application grants."
+description: "Plugins loaded while a game runs: data plugins read from a .f3dplugin document, each section by the subsystem that owns it, and sandboxed Wasm modules stepped by a deterministic interpreter, each held to the permissions its manifest declares and the application grants."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
@@ -31,37 +31,26 @@ dependencies:
   # through the same host as a compiled one.
   flutter3d_plugin_api: ^1.0.0-rc.1
 
-  # `EntityKinds`, the slot a data plugin's entity kinds go into, and
-  # `EntityKind` itself. Plain Dart, as is everything below.
-  flutter3d_sim: ^1.0.0-rc.1
-
-  # The material language (`parseMaterial`, the GLSL emitter), the
-  # renderer's `RendererSteps` and the full-screen node a data render step
-  # becomes.
-  flutter3d_core: ^1.0.0-rc.1
-
-  # `ShaderBundle`, the container a material compiled at run time travels
-  # in to `GraphicsDevice.loadShaders`.
-  flutter3d_hardware: ^1.0.0-rc.1
-
-  # GLSL ES 3.00 for WebGL2, translated at run time from what the emitter
-  # wrote: `translate.dart` is text in, text out, with no `dart:io`.
-  flutter3d_shaders: ^1.0.0-rc.1
-
-  # The collision world and its bodies, named here directly.
-  flutter3d_physics: ^1.0.0-rc.1
-
-  # No subsystem's section is read here: `effects` and `physicalMaterials`
-  # are read by the packages that own them, through the plugin API's
-  # `DataSectionRegistry`, so this package depends on none of them.
+  # Nothing else of the engine's. No subsystem's section is read here:
+  # `entityKinds` (flutter3d_sim), `materials` and `renderSteps`
+  # (flutter3d_core), `effects` (flutter3d_particles) and
+  # `physicalMaterials` (flutter3d_matter) are read by the packages that own
+  # them, through the plugin API's `DataSectionRegistry`. A server that
+  # replays a run with a data plugin in it resolves this package without the
+  # render core, the simulation or the physics.
 
 dev_dependencies:
   test: ^1.25.0
-  # The sections the tests read a document with: `effects` from the
+  flutter_lints: ^6.0.0
+  # The engine the tests install plugins into (`EngineLoop`), and the
+  # sections they read a document with: `entityKinds` from the simulation,
+  # `materials` and `renderSteps` from the core, `effects` from the
   # particles, `physicalMaterials` and `materialPairs` from the matter.
+  flutter3d_sim: ^1.0.0-rc.1
+  flutter3d_core: ^1.0.0-rc.1
+  flutter3d_physics: ^1.0.0-rc.1
   flutter3d_particles: ^1.0.0-rc.1
   flutter3d_matter: ^1.0.0-rc.1
-  flutter_lints: ^6.0.0
 
   # The foundation's value types and their crossings into `vector_math`.
   flutter3d_foundation: ^1.0.0-rc.1

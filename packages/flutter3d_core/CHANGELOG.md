@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A data plugin's materials and render steps are read here.**
+  `package:flutter3d_core/data_plugins.dart` has `materialsSection` and
+  `renderStepsSection` (`renderDataSections`, both), which an engine
+  registers in its `DataSectionRegistry`, and `RuntimeShaders` with what it
+  builds on (`runtimeMaterialBundle`, `spliceMaterialWgsl`,
+  `fullscreenMaterialWgsl`, `RuntimeBackends`), moved from
+  `flutter3d_plugin_runtime`, which no longer depends on this package.
+
 - **Breaking: `TonemapCurve.agxFull` is gone.** It drew the same picture
   as `TonemapCurve.agx` since 0.7.4; `dart fix` renames it. `values` lists
   five curves, and a frame that still carries code 5 draws as `agx`.

@@ -18532,3 +18532,15 @@ entries:
       Every backend opens in one shape, `await X.open(width:, height:)`.
       Impeller sizes each target as it is drawn and does not hold the size, so
       any surface's size will do; pass the one you draw at.
+
+  - id: build-usage
+    package: flutter3d_build
+    symbol: usage
+    kind: rename
+    to: modelConvertUsage
+    wave: 2
+    guidance: >-
+      `usage` is the text `runConvert`, the one-model converter, prints for
+      arguments it cannot read; `dart run flutter3d_build:convert` is now
+      `flutter3d convert`, whose usage is `convertUsage` in
+      `package:flutter3d_build/cli.dart`.

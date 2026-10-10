@@ -69,7 +69,7 @@ f 2 4 3
       'source (.obj) bytes: $_sourceBytes\n'
       'converted (.f3d) bytes: $_convertedBytes\n\n'
       'The real command line tool:\n'
-      'dart run flutter3d_build:convert model.obj -o model.f3d\n\n'
+      'flutter3d convert model.obj -o .\n\n'
       'and, once per project, the build hook that runs it automatically:\n'
       'dart run flutter3d_build:init';
   // #endregion report

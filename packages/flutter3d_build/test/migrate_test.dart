@@ -138,11 +138,33 @@ name: app
 flutter3d:
   plugin: lib/a.dart#A
 flutter3d_plugins:
-  exclude: [flutter3d_post]
+  without: [flutter3d_post]
 ''';
       final notes = <String>[];
       expect(migratePubspec(pubspec, table, notes: notes), pubspec);
       expect(notes.single, contains('both'));
+    });
+
+    test('the plugin list takes the words of a plugin group', () {
+      // Mutation: leave `exclude:` as it was. Discovery reads `without:`
+      // only, warns, and installs what the project had left out.
+      const pubspec = '''
+name: app
+flutter3d_plugins:
+  exclude: [flutter3d_post/motion.dart]
+  include: [flutter3d_post]
+''';
+      final notes = <String>[];
+      final moved = migratePubspec(pubspec, table, notes: notes);
+      expect(moved, contains('  without: [flutter3d_post/motion.dart]\n'));
+      expect(moved, isNot(contains('exclude:')));
+      // An allow list has no word in a group: kept, and said.
+      expect(moved, contains('  include: [flutter3d_post]\n'));
+      expect(
+        notes.where((n) => n.contains('include:')).single,
+        contains('without:'),
+      );
+      expect(migratePubspec(moved, table, notes: <String>[]), moved);
     });
 
     test('moves version, map and bare constraints, and renames', () {

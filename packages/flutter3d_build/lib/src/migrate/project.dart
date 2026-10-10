@@ -140,7 +140,41 @@ String migratePubspec(
   if (migratePluginKey(doc, notes: notes) case final TextEdit edit) {
     edits.add(edit);
   }
+  edits.addAll(migratePluginList(doc, notes: notes));
   return _apply(pubspec, edits);
+}
+
+/// The edits that give [doc]'s own plugin list the words of a plugin group:
+/// `exclude:` under `flutter3d_plugins:` (or the key before 1.0) becomes
+/// `without:`. An `include:` has no word in a group and is left, with a
+/// sentence in [notes] saying what to write instead.
+List<TextEdit> migratePluginList(YamlMap doc, {required List<String> notes}) {
+  final list = doc.nodes[pluginMarkerKey] ?? doc.nodes[_legacyPluginKey];
+  if (list is! YamlMap) return const <TextEdit>[];
+  final keys = <String, YamlNode>{
+    for (final key in list.nodes.keys)
+      if (key case YamlNode(:final String value)) value: key,
+  };
+  if (keys.containsKey('include')) {
+    notes.add(
+      'the project\'s plugin list has `include:`, which a plugin group has no '
+      'word for; name what to leave out under `without:` (a whole package '
+      'goes with its name) and add single classes back with `with:`',
+    );
+  }
+  return switch ((keys['exclude'], keys.containsKey('without'))) {
+    (final YamlNode key, false) => <TextEdit>[
+      (offset: key.span.start.offset, length: key.span.length, text: 'without'),
+    ],
+    (final YamlNode _, true) => () {
+      notes.add(
+        'the project\'s plugin list has both `exclude:` and `without:`; move '
+        'what is under `exclude:` into `without:` and remove it',
+      );
+      return const <TextEdit>[];
+    }(),
+    _ => const <TextEdit>[],
+  };
 }
 
 /// The key plugins were declared under before 1.0, still read until 2.0.

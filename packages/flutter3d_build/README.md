@@ -124,9 +124,11 @@ final result = await convertFiles(uploadedFiles, to: ConversionTarget.everything
 The format table and everything that does not survive the trip are on
 [Bringing assets in](https://flutter3d.pleion.dev/reference/bringing-assets-in/).
 
-`dart run flutter3d_build:convert` is the model converter the build hook
-uses, unchanged: one model or a directory of them, written next to the
-source or to `-o`.
+`dart run flutter3d_build:convert` is `flutter3d convert` under its old
+name, as every file in `bin/` is a `flutter3d` command. The one-model
+converter the build hook uses (one model or a directory of them, written next
+to the source or to a file `-o` names, one per device class with `--classes`)
+is `runConvert`, for a build script that wants it.
 
 ## Materials
 
@@ -164,10 +166,10 @@ package whose pubspec names `vector_math`, and the file is written only when
 its text changes. The string map stays as it was. It is what the renderer
 binds, and what a data plugin writes, since it has no Dart to generate.
 
-The same converter can be run by hand:
+The command converts the same way by hand:
 
 ```sh
-dart run flutter3d_build:convert assets_src/chair.glb --textures universal
+flutter3d convert assets_src/chair.glb --textures universal
 ```
 
 ## Steps of your own
@@ -190,11 +192,11 @@ with its name.
 ## Writing a plugin
 
 ```bash
-dart run flutter3d_build:create plugin --kind render-step --name my_glow
-dart run flutter3d_build:create --list
+flutter3d create plugin --kind render-step --name my_glow
+flutter3d create --list
 ```
 
-is `flutter3d create plugin`: a new package with the plugin, its
+(or `dart run flutter3d_build:create …`, the same command) makes a new package with the plugin, its
 `flutter3d_plugins:` marker for discovery, a test that installs it, and
 `test/conformance_test.dart`, which runs `flutter3d_conformance`'s plugin
 suite. The five kinds are `render-step`, `effect`, `genre`, `element` and

@@ -266,7 +266,17 @@ final class PluginFormatException extends Flutter3dFormatException
   final Object? source
   final String message
 
+base class PluginGroup
+  PluginGroup add(Flutter3dPlugin plugin)
+  PluginGroup set(Flutter3dPlugin plugin)
+  PluginGroup without<T extends Flutter3dPlugin>()
+  PluginGroup withoutId(String id)
+  PluginGroup(Iterable<Flutter3dPlugin> plugins)
+  String toString()
+  final List<Flutter3dPlugin> plugins
+
 abstract base class PluginHost
+  SimulationProfile get profile
   abstract EventRegistry get events
   abstract LoopRegistry get loop
   abstract PluginApiVersion get apiVersion
@@ -282,17 +292,19 @@ final class PluginManager
   List<PluginStatus> get statuses
   List<String> get order
   Map<String, int> get simulationVersions
-  PluginManager({required this.loop, required this.events, Iterable<PluginRegistry> registries = const <PluginRegistry>[], this.backend, this.apiVersion = PluginApiVersion.current})
+  PluginManager({required this.loop, required this.events, Iterable<PluginRegistry> registries = const <PluginRegistry>[], this.backend, this.apiVersion = PluginApiVersion.current, this.profile = SimulationProfile.deterministic})
   PluginsSet stateAt(int step)
   bool get hasPending
   bool isEnabled(String id)
   final EventRegistry events
   final LoopRegistry loop
   final PluginApiVersion apiVersion
+  final SimulationProfile profile
   final String? backend
   void disable(String id)
   void enable(String id)
   void installAll(Iterable<Flutter3dPlugin> plugins)
+  void installGroup(PluginGroup group)
   void reorder(List<String> preferred)
   void schedule(Iterable<PluginChange> changes)
 
@@ -517,6 +529,21 @@ abstract base class SimWorld
   abstract void set<T extends Object>(Entity entity, T component)
   abstract void setResource<R extends Object>(R value)
   const SimWorld()
+
+final class SimulationProfile
+  String toJson()
+  String toString()
+  bool operator ==(Object other)
+  const SimulationProfile(this.name, {required this.isBitExact, required this.usesDoublePrecision, required this.allowsAdaptiveSteps})
+  final String name
+  final bool allowsAdaptiveSteps
+  final bool isBitExact
+  final bool usesDoublePrecision
+  int get hashCode
+  static SimulationProfile parse(String name, {Iterable<SimulationProfile> known = values})
+  static const List<SimulationProfile> values = <SimulationProfile>[deterministic, accurate]
+  static const SimulationProfile accurate = SimulationProfile('accurate', isBitExact: false, usesDoublePrecision: true, allowsAdaptiveSteps: true)
+  static const SimulationProfile deterministic = SimulationProfile('deterministic', isBitExact: true, usesDoublePrecision: false, allowsAdaptiveSteps: false)
 
 final class SimulationVersion
   Map<String, Object?> toJson()

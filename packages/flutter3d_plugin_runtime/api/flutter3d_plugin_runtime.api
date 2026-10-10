@@ -4,27 +4,11 @@
 
 library package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart
 
-final class DataEntityKind extends EntityKind
-  Map<String, Object?> toJson()
-  const DataEntityKind(super.type, {required this.owner, this.requires = const <String>[], this.collider})
-  factory DataEntityKind.fromJson(Map<String, Object?> json, {required String owner})
-  final ColliderKind? collider
-  final List<String> requires
-  final String owner
-  void spawn(EntityDef entity, SpawnContext context)
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out)
-
 final class DataEventDeclaration
   Map<String, Object?> toJson()
   const DataEventDeclaration({required this.name, this.description})
   final String name
   final String? description
-
-final class DataMaterial
-  Map<String, Object?> toJson()
-  const DataMaterial({this.source, this.text})
-  final String? source
-  final String? text
 
 final class DataPhase
   LoopPhase get phase
@@ -47,21 +31,18 @@ final class DataPlugin extends Flutter3dPlugin
 final class DataPluginDocument
   List<String> get resources
   Map<String, Object?> toJson()
-  const DataPluginDocument({required this.manifest, this.phases = const <DataPhase>[], this.events = const <DataEventDeclaration>[], this.entityKinds = const <DataEntityKind>[], this.materials = const <DataMaterial>[], this.renderSteps = const <DataRenderStep>[], this.wasm = const <WasmSystemSpec>[], this.scripts = const <ScriptSystemSpec>[], this.sections = const <String, ({DataSection reader, Object section})>{}, this.extra = const <String, Object?>{}})
+  const DataPluginDocument({required this.manifest, this.phases = const <DataPhase>[], this.events = const <DataEventDeclaration>[], this.wasm = const <WasmSystemSpec>[], this.expressions = const <ExpressionSystemSpec>[], this.sections = const <String, ({DataSection reader, Object section})>{}, this.extra = const <String, Object?>{}})
   factory DataPluginDocument.fromJson(Map<String, Object?> document, {DataSectionRegistry? sections})
   factory DataPluginDocument.parse(String text, {DataSectionRegistry? sections})
-  final List<DataEntityKind> entityKinds
   final List<DataEventDeclaration> events
-  final List<DataMaterial> materials
   final List<DataPhase> phases
-  final List<DataRenderStep> renderSteps
-  final List<ScriptSystemSpec> scripts
+  final List<ExpressionSystemSpec> expressions
   final List<WasmSystemSpec> wasm
   final Map<String, ({DataSection reader, Object section})> sections
   final Map<String, Object?> extra
   final PluginManifest manifest
   static const FormatSpec format = …
-  static const int formatVersion = 2
+  static const int formatVersion = 3
 
 final class DataPluginFormatException extends Flutter3dFormatException
   String toString()
@@ -77,24 +58,27 @@ final class DataPluginLoader
   final PluginGrants grants
   final WasmRuntime wasmRuntime
 
-final class DataRenderStep
-  Map<String, Object?> toJson()
-  const DataRenderStep({required this.name, required this.anchor, required this.shaders, this.present = false, this.needs = const <String>[], this.after = const <String>[], this.before = const <String>[]})
-  final List<String> after
-  final List<String> before
-  final List<String> needs
-  final Map<String, String> shaders
-  final String anchor
-  final String name
-  final bool present
-
 final class DataSections extends DataSectionRegistry
   DataSection? operator [](String name)
   DataSectionRegistry forPlugin(PluginScope scope)
   DataSections([Iterable<DataSection> sections = const <DataSection>[]])
   List<String> get names
   Registration register(DataSection section)
-  static const Set<String> runtimeKeys = <String>{'f3dplugin', 'manifest', 'phases', 'events', 'entityKinds', 'materials', 'renderSteps', 'wasm', 'scripts'}
+  static const Set<String> runtimeKeys = <String>{'f3dplugin', 'manifest', 'phases', 'events', 'wasm', 'expressions'}
+
+final class ExpressionSystemSpec
+  Map<String, Object?> toJson()
+  const ExpressionSystemSpec({required this.system, required this.phase, this.source, this.text, this.after = const <String>[], this.before = const <String>[], this.reads = const <String>[], this.writes = const <String>[], this.events = const <String>[]})
+  factory ExpressionSystemSpec.fromJson(Map<String, Object?> json)
+  final List<String> after
+  final List<String> before
+  final List<String> events
+  final List<String> reads
+  final List<String> writes
+  final String phase
+  final String system
+  final String? source
+  final String? text
 
 abstract final class Fixed16
   static const int one = 65536
@@ -139,87 +123,6 @@ final class PluginGrants
 abstract base class PluginSource
   abstract Future<Uint8List> read(String path)
   const PluginSource()
-
-abstract final class RuntimeBackends
-  static String? normalize(String? backend)
-  static const String cpu = 'cpu'
-  static const String impeller = 'impeller'
-  static const String webgl = 'webgl'
-  static const String webgpu = 'webgpu'
-
-final class RuntimeRenderStep
-  const RuntimeRenderStep({required this.name, required this.anchor, required this.shaders, this.present = false, this.needs = const <String>[], this.after = const <String>[], this.before = const <String>[]})
-  final List<String> after
-  final List<String> before
-  final List<String> needs
-  final Map<String, String> shaders
-  final RenderAnchor anchor
-  final String name
-  final bool present
-  static const String materialStage = 'material'
-
-final class RuntimeShaders extends PluginRegistry
-  Future<void> get settled
-  LightingModel? lighting(String material)
-  Map<String, String?> get statuses
-  Registration addMaterial(String source, {required String from})
-  Registration addRenderStep(RuntimeRenderStep step, RendererSteps into)
-  RuntimeShaders forPlugin(PluginScope scope)
-  RuntimeShaders({required String? backend, required Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders, required Registration Function(ShaderLibrary library) addMaterials, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation})
-  String? get backend
-
-final class RuntimeShadersException extends CapabilityException
-  String toString()
-  const RuntimeShadersException(this.message)
-  final String message
-
-abstract base class ScriptContext
-  abstract double get dt
-  abstract double read(String field, int index)
-  abstract int get step
-  abstract int length(String field)
-  abstract void publish(String event, List<int> values)
-  abstract void write(String field, int index, double value)
-  const ScriptContext()
-
-final class ScriptException extends PluginException
-  String toString()
-  const ScriptException(super.message)
-
-final class ScriptFormatException extends Flutter3dFormatException
-  String toString()
-  const ScriptFormatException(this.message)
-  final String message
-
-abstract base class ScriptProgram
-  abstract Object? save()
-  abstract void restore(Object? state)
-  abstract void step(ScriptContext context)
-  const ScriptProgram()
-
-abstract base class ScriptRuntime extends PluginRegistry
-  ScriptRuntime forPlugin(PluginScope scope)
-  abstract ScriptProgram compile(String source, {required String from})
-  abstract String get name
-  const ScriptRuntime()
-
-final class ScriptSystem
-  Object? save()
-  final String name
-  void restore(Object? state)
-
-final class ScriptSystemSpec
-  Map<String, Object?> toJson()
-  const ScriptSystemSpec({required this.source, required this.system, required this.phase, this.after = const <String>[], this.before = const <String>[], this.reads = const <String>[], this.writes = const <String>[], this.events = const <String>[]})
-  factory ScriptSystemSpec.fromJson(Map<String, Object?> json)
-  final List<String> after
-  final List<String> before
-  final List<String> events
-  final List<String> reads
-  final List<String> writes
-  final String phase
-  final String source
-  final String system
 
 final class WasmException extends PluginException
   String toString()
@@ -355,17 +258,7 @@ final class WorldFields extends PluginRegistry
 
 WasmRuntime? browserWasmRuntime()
 
-PackedStage fullscreenMaterialWgsl(MaterialProgram program, {required int uvLocation, required String from})
-
-ScriptSystem installScriptSystem(PluginHost host, ScriptSystemSpec spec, String source)
-
 WasmSystem installWasmSystem(PluginHost host, WasmSystemSpec spec, WasmModule module, {WasmRuntime runtime = WasmRuntime.interpreter})
-
-ShaderBundle runtimeMaterialBundle(String source, {required String? backend, required String from, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation})
-
-const String runtimeShaderSdk = 'flutter3d run time'
-
-PackedStage spliceMaterialWgsl(MaterialProgram program, PackedStage host, {required String from})
 
 String? wasmAbiRefusal(int abi, Iterable<String> imports)
 

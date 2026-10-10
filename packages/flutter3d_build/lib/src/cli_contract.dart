@@ -132,9 +132,11 @@ const String pluginsUsage = '''
 Usage: flutter3d plugins [--check] [--json]
 
 Writes lib/plugins.g.dart: the plugins this project's dependencies declare
-with a `flutter3d_plugins:` marker, less what this project's own pubspec
-leaves out with `flutter3d_plugins: include:` or `exclude:` (a package, a
-library such as flutter3d_post/motion.dart, or one class after a #).
+with a `flutter3d_plugins:` marker, as a plugin group, adjusted by this
+project's own `flutter3d_plugins:` the way the group's code would be:
+`without:` (a package, a library such as flutter3d_post/motion.dart, or one
+class after a #), `set:` (a class to construct with the arguments written)
+and `with:` (a class to add).
 
   --check   Write nothing; exit 3 when lib/plugins.g.dart is missing or is
             not what the dependencies declare, 0 when it is current.

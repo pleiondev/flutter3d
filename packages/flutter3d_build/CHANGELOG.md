@@ -1,5 +1,39 @@
 ## 1.0.0-rc.1
 
+- **The project's plugin list is a plugin group.** `lib/plugins.g.dart`
+  defines `installedPlugins` as a `PluginGroup` (its `plugins` is the list
+  an engine takes), and the application's own `flutter3d_plugins:` adjusts
+  it with the group's words: `without:` takes plugins out by package,
+  library or class, `set:` constructs one with the arguments written (in
+  place, or at the end), `with:` adds one no dependency marks.
+  `selectPlugins` takes `without`, `set` and `add`, and `DiscoveredPlugin`
+  carries its `arguments`. The `include:` and `exclude:` of the earlier
+  release candidate are gone: any other key is warned about, and
+  `flutter3d migrate` renames `exclude:` to `without:` and says what to write
+  for an `include:`.
+
+- **Breaking: `usage` is `modelConvertUsage`.** It is what `runConvert`, the
+  one-model converter, prints for arguments it cannot read, and it now says
+  so: its first line names the function, not `dart run
+  flutter3d_build:convert`, which is the command line's name for `flutter3d
+  convert` since this release. `dart fix` renames it.
+- **Every file in `bin/` is the `flutter3d` command.** `convert`, `create`,
+  `init`, `lights`, `migrate` and `plugins` are one line each over
+  `runFlutter3d`, new in `package:flutter3d_build/cli.dart`, so `dart run
+  flutter3d_build:<command>` and `flutter3d <command>` run the same code
+  with one usage text and one exit code table. `dart run
+  flutter3d_build:convert` therefore converts as `flutter3d convert` does:
+  `-o` names a directory, every format is read, and `--classes` and a
+  single output file are `runConvert`'s, for a build script.
+- **`ConvertCommandSettings.parse` throws instead of answering null.** No
+  input is a `ConvertUsageException` saying so, and `-h`/`--help` one whose
+  new `isHelp` is set (`ConvertUsageException.helpAsked()`), so a caller can
+  answer each without looking at the arguments again.
+- **`MissingToolException` and `ToolFailedException` are exported** from
+  `package:flutter3d_build/cli.dart`, beside the external tools that throw
+  them: a caller of the converter can catch an uninstalled usdcat or Blender
+  by name.
+
 - **`flutter3d migrate --data` moves data files to the current format on
   disk.** It walks a project by the suffixes of every format the engine's
   plain-Dart packages declare, lifts each JSON document below its version

@@ -1,7 +1,70 @@
+/// A data plugin's `entityKinds`, read through the plugin API's
+/// `DataSectionRegistry`: [entityKindsSection] and the [DataEntityKind]s it
+/// adds to the engine's `EntityKinds`.
+library;
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show
+        DataSection,
+        DataSectionContext,
+        DocumentFormatException,
+        PluginException,
+        PluginHost;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
-import 'data_plugin.dart' show DataPluginFormatException;
+/// A data plugin's `entityKinds`: the kinds a level may name, each a
+/// [DataEntityKind] declared as `{"type": "vent", "requires": ["size"],
+/// "collider": "trigger"}` and added to the engine's [EntityKinds] when the
+/// plugin is installed, under the plugin's own scope.
+///
+/// Registered by the application in the engine's `DataSectionRegistry`. A
+/// simulation that reads the plugin needs the section: a level that names
+/// one of its kinds is refused without it.
+const DataSection entityKindsSection = _EntityKindsSection();
+
+final class _EntityKindsSection extends DataSection {
+  const _EntityKindsSection();
+
+  @override
+  String get name => 'entityKinds';
+
+  @override
+  Object read(Object? written, DataSectionContext context) =>
+      List<DataEntityKind>.unmodifiable(<DataEntityKind>[
+        for (final entry in switch (written) {
+          null => const <Object?>[],
+          final List<Object?> list when list.every((e) => e is Map) => list,
+          _ => throw const DocumentFormatException(
+            '"entityKinds" is not a list of objects',
+          ),
+        })
+          DataEntityKind.fromJson(
+            (entry! as Map).cast<String, Object?>(),
+            owner: context.plugin,
+          ),
+      ]);
+
+  @override
+  Object? write(Object section) => <Object?>[
+    for (final kind in section as List<DataEntityKind>) kind.toJson(),
+  ];
+
+  @override
+  void install(PluginHost host, Object section, DataSectionContext context) {
+    final declared = section as List<DataEntityKind>;
+    if (declared.isEmpty) return;
+    final kinds = host.maybeRegistry<EntityKinds>();
+    if (kinds == null) {
+      throw PluginException(
+        'plugin "${context.plugin}" declares entity kinds '
+        '(${declared.map((k) => k.type).join(', ')}), and this engine has no '
+        'EntityKinds to add them to',
+      );
+    }
+    kinds.addAll(declared);
+  }
+}
 
 /// An entity kind a data plugin declares: the properties a level must give
 /// it, and optionally a box it occupies.
@@ -33,7 +96,7 @@ final class DataEntityKind extends EntityKind {
   final ColliderKind? collider;
 
   /// Reads one declaration: `{"type": "vent", "requires": ["size"],
-  /// "collider": "trigger"}`. Throws a [DataPluginFormatException] saying what is
+  /// "collider": "trigger"}`. Throws a [DocumentFormatException] saying what is
   /// wrong.
   factory DataEntityKind.fromJson(
     Map<String, Object?> json, {
@@ -41,11 +104,11 @@ final class DataEntityKind extends EntityKind {
   }) {
     final type = json['type'];
     if (type is! String || type.isEmpty) {
-      throw DataPluginFormatException('an entity kind names no type');
+      throw DocumentFormatException('an entity kind names no type');
     }
     final requires = json['requires'] ?? const <Object?>[];
     if (requires is! List<Object?> || requires.any((r) => r is! String)) {
-      throw DataPluginFormatException(
+      throw DocumentFormatException(
         'entity kind "$type": requires is not a list of '
         'property names',
       );
@@ -55,7 +118,7 @@ final class DataEntityKind extends EntityKind {
       'trigger' => ColliderKind.trigger,
       'static' => ColliderKind.static,
       'kinematic' => ColliderKind.kinematic,
-      final Object other => throw DataPluginFormatException(
+      final Object other => throw DocumentFormatException(
         'entity kind "$type": collider "$other" is not trigger, static or '
         'kinematic',
       ),

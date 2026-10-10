@@ -6,7 +6,9 @@ import 'host.dart';
 import 'loop.dart';
 import 'manifest.dart';
 import 'order.dart';
+import 'plugin_group.dart';
 import 'registration.dart';
+import 'simulation_profile.dart';
 import 'version.dart';
 
 /// Where one plugin stands.
@@ -71,7 +73,12 @@ final class PluginManager {
     Iterable<PluginRegistry> registries = const <PluginRegistry>[],
     this.backend,
     this.apiVersion = PluginApiVersion.current,
+    this.profile = SimulationProfile.deterministic,
   }) : _registries = List<PluginRegistry>.unmodifiable(registries);
+
+  /// What the engine's simulation promises about its numbers, handed to
+  /// every plugin as `PluginHost.profile`.
+  final SimulationProfile profile;
 
   final LoopRegistry loop;
   final EventRegistry events;
@@ -138,6 +145,9 @@ final class PluginManager {
       (e) => e.plugin.manifest.touches.simulates,
     ),
   );
+
+  /// Installs [group]'s plugins, in its order, as [installAll] does.
+  void installGroup(PluginGroup group) => installAll(group.plugins);
 
   /// Checks [plugins] and installs every one that can run, in dependency
   /// order. Once, before the first step.
@@ -477,6 +487,9 @@ final class _Host extends PluginHost {
 
   @override
   String? get backend => _manager.backend;
+
+  @override
+  SimulationProfile get profile => _manager.profile;
 
   @override
   late final LoopRegistry loop = _manager.loop.forPlugin(_entry);

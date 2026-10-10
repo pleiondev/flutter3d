@@ -32,7 +32,10 @@ const String projectMcpSchemaVersion = '1.0.0';
 ///
 /// ```dart
 /// final tools = McpTools();
-/// final loop = EngineLoop(registries: [tools], plugins: installedPlugins);
+/// final loop = EngineLoop(
+///   registries: [tools],
+///   plugins: installedPlugins.plugins,
+/// );
 /// ProjectMcpServer(stdioChannel(input: stdin, output: stdout), tools: tools);
 /// ```
 ///

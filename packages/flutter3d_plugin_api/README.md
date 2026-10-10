@@ -246,29 +246,47 @@ flutter3d_plugins:
 
 `flutter3d_build` writes the application's `lib/plugins.g.dart` from the
 dependencies that carry the marker. Its build hook does this on every build,
-and `dart run flutter3d_build:plugins` does it by hand. The file defines
-`installedPlugins`, which builds a fresh list on each read, and the
-application passes it to the engine. A list written in code takes its place.
+and `flutter3d plugins` does it by hand. The file defines
+`installedPlugins`, a `PluginGroup` built afresh on each read, and the
+application passes it to the engine. A group or a list written in code takes
+its place.
+
+**A `PluginGroup` is plugins taken whole and adjusted.** `set` puts a
+configured plugin in place of the member with its id (or adds it), `add`
+appends one, `without<T>()` and `withoutId` take members out, and each
+answers a new group:
+
+```dart
+installedPlugins
+    .set(BloomAddon(threshold: 1.2))
+    .without<FogAddon>()
+    .add(TrailsPlugin());
+```
 
 Depending on a package installs every plugin it marks; `flutter3d_post`
-marks twenty-three. An application that wants fewer says so in its own
-pubspec, under the same key:
+marks twenty-three. An application that wants them otherwise says so in its
+own pubspec, under the same key, with the group's three words:
 
 ```yaml
 flutter3d_plugins:
-  exclude:
+  without:
     - flutter3d_post/motion.dart                  # a whole library
     - flutter3d_post/style.dart#ToonLightingAddon # one class
+  set:
+    flutter3d_post/light.dart#BloomAddon: "threshold: 1.2"
+  with:
+    - package:my_game/trails.dart#TrailsPlugin
 ```
 
-`include:` is the other way round: only what it names is installed, and
-`exclude:` is applied after it. Each entry is a package (`flutter3d_post`),
-a library as the marker names it, relative to the package's `lib/`, or a
-library and a class after `#`. An entry that matches nothing a dependency
-declares is printed as a warning by the build and by
-`dart run flutter3d_build:plugins`, because a misspelt exclusion would
-otherwise leave the plugin installed and say nothing. `plugins --json`
-lists what was left out under `excluded`.
+A `without` entry is a package (`flutter3d_post`), a library as the marker
+names it, relative to the package's `lib/`, or a library and a class after
+`#`; a `set` key and a `with` entry name a class. `without` is applied
+first, then `set` (in place, or at the end), then `with`. A `without` entry
+that matches nothing a dependency declares, and a `with` entry the group
+already holds, are printed as warnings by the build and by
+`flutter3d plugins`, because a misspelt exclusion would otherwise leave the
+plugin installed and say nothing. `plugins --json` lists what was left out
+under `excluded`.
 
 ## Plugins loaded at run time
 
@@ -276,18 +294,19 @@ A plugin does not have to be compiled in. `flutter3d_plugin_runtime` reads
 three more kinds while the game runs, each one a `Flutter3dPlugin` with a
 manifest, installed through the same host:
 
-- **Data plugins**: a `.f3dplugin` document with loop phases, events, entity
-  kinds, materials in the material language, render steps, Wasm systems,
-  scripts, and physical materials: a `physicalMaterials` list of
-  `PhysicalMaterial` bodies (the same fields its JSON has) and a
-  `materialPairs` list, read and held to SI and to the plugin's namespace
-  when the document is read, and installed into the `MaterialCatalog`. A
-  document with either names `f3d.physicalMaterials` in its `requires`.
-- **Wasm modules**: step systems under Wasm plugin ABI 1, which is versioned
-  apart from this API. 32-bit integers only, four imports, no I/O, and a
-  plain Dart interpreter that steps them the same way on every platform.
-- **Interpreted Dart**: the `ScriptRuntime` interface. No runtime ships in
-  1.0.
+- **Data plugins**: a `.f3dplugin` document with loop phases, events, Wasm
+  systems, systems in the expression language, and the sections each
+  subsystem reads through a `DataSectionRegistry`: entity kinds, materials in
+  the material language, render steps, effects, and physical materials (a
+  `physicalMaterials` list of `PhysicalMaterial` bodies, the same fields its
+  JSON has, and a `materialPairs` list, read and held to SI and to the
+  plugin's namespace when the document is read, and installed into the
+  `MaterialCatalog`; a document with either names `f3d.physicalMaterials` in
+  its `requires`).
+- **Wasm modules**: step systems under the Wasm plugin ABI, which is
+  versioned apart from this API. 32-bit integers only, a handful of imports,
+  no I/O, and a plain Dart interpreter that steps them the same way on every
+  platform.
 
 This is where `permissions` stop being only a declaration. A run-time plugin
 gets a permission it declared only when the application grants it, and is
