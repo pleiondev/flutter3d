@@ -16,7 +16,7 @@
     "1/1G": "done",
     "1/1H": "done",
     "1/1I": "done",
-    "1/1Z": "active",
+    "1/1Z": "done",
     "M/M1": "done",
     "M/M2": "done",
     "M/M3": "done",
@@ -26,7 +26,7 @@
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
-    "1/1Z": "rules, snapshots, migrations, documents done; determinism triage and the test counts left"
+    "3.2/3R": "found in wave 1: spine and neck cones too stiff in flexion, arm struts; to do with the inelastic group"
   },
   "goals": {
     "P1": "todo",
