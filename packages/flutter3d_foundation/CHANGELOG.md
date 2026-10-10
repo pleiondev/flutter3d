@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`FormatSpecs`, the formats one program knows.** A registry the
+  packages that own formats add their `FormatSpec`s to, found by id, alias
+  or the longest suffix of a path; a second format under a taken id or
+  alias is refused. `flutter3d migrate --data` and `doctor` walk a project
+  with it.
 - **`ShaderCompileException` and `AssetNotFoundException`**, the two
   failures every backend and loader share. The first, a
   `Flutter3dFormatException`, names the `shader` (or the pair a linker

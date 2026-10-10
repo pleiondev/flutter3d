@@ -258,6 +258,74 @@ final class FormatSpec {
   String toString() => '$id@$version';
 }
 
+/// The formats one program knows, gathered from the packages that own them:
+/// each adds its [FormatSpec]s, and a tool that walks a project asks which
+/// format a file is.
+///
+/// **What `flutter3d migrate --data` and `doctor` read.** A tool that knows
+/// every format can lift every file in a project to the version this build
+/// writes, or say which ones are behind. The registry knows nothing of any
+/// one format: the program that builds it names the packages it can load,
+/// so foundation depends on none of them.
+///
+/// The plugin contract's `FormatRegistry` is the running engine's view, with
+/// the plugin that registered each format; this is the plain list a command
+/// line needs.
+final class FormatSpecs {
+  /// A registry holding [formats].
+  FormatSpecs([Iterable<FormatSpec> formats = const <FormatSpec>[]]) {
+    addAll(formats);
+  }
+
+  final Map<String, FormatSpec> _byId = <String, FormatSpec>{};
+
+  /// Every format added, in the order it was added.
+  Iterable<FormatSpec> get all => _byId.values;
+
+  /// Adds [spec]. The same spec added again is one registration; another
+  /// format under an id or alias already held is refused, naming it, since
+  /// a file would otherwise go to whichever reader came last.
+  void add(FormatSpec spec) {
+    if (identical(_byId[spec.id], spec)) return;
+    for (final name in <String>[spec.id, ...spec.aliases]) {
+      if (byId(name) case final FormatSpec held) {
+        throw ArgumentError(
+          'two formats claim "$name": $held and $spec',
+          'spec',
+        );
+      }
+    }
+    _byId[spec.id] = spec;
+  }
+
+  /// Adds each of [specs]: what a package that owns formats calls.
+  void addAll(Iterable<FormatSpec> specs) => specs.forEach(add);
+
+  /// The format named [id], under its own id or an alias; null when none
+  /// was added.
+  FormatSpec? byId(String id) =>
+      _byId[id] ??
+      _byId.values
+          .where((FormatSpec spec) => spec.aliases.contains(id))
+          .firstOrNull;
+
+  /// The format a file at [path] is saved as, by its longest matching
+  /// suffix, ignoring case; null when no format claims it.
+  FormatSpec? forPath(String path) {
+    final lower = path.toLowerCase();
+    final matches = <(int, FormatSpec)>[
+      for (final spec in _byId.values)
+        for (final suffix in spec.suffixes)
+          if (lower.endsWith(suffix.toLowerCase())) (suffix.length, spec),
+    ];
+    return matches.fold<(int, FormatSpec?)>(
+      (0, null),
+      ((int, FormatSpec?) best, (int, FormatSpec) next) =>
+          next.$1 > best.$1 ? next : best,
+    ).$2;
+  }
+}
+
 /// A document read through a [FormatSpec], which keeps every top-level key
 /// its reader did not take.
 ///
