@@ -84,12 +84,19 @@ final class ModelVisuals {
     }
 
     final turn = scene.reserveTurn();
+    _turns.add(turn);
     try {
       return await _addInTurn(entity, path, turn.ready);
     } finally {
+      _turns.remove(turn);
       turn.release();
     }
   }
+
+  /// The turns [add]s still loading hold, released by [dispose]: a level let
+  /// go of while a file is still being read must not keep whatever is asked
+  /// of the scene next waiting on it.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
 
   Future<SceneNode?> _addInTurn(
     EntityDef entity,
@@ -171,6 +178,10 @@ final class ModelVisuals {
   /// shares.
   void dispose() {
     _generation++;
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     for (final instance in _instances) {
       instance.removeFromScene();
     }

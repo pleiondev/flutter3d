@@ -957,6 +957,7 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
   /// from the start, but the scene registers meshes as they are attached,
   /// and that registry is what the renderer works from.
   Future<void> _loadInto(_Scene3DScope scope, SceneTurn turn) async {
+    _turns.add(turn);
     try {
       final asset = switch (widget.load) {
         final load? => await load(scope.device),
@@ -968,9 +969,16 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
       await turn.ready;
       _place(scope, asset);
     } finally {
+      _turns.remove(turn);
       turn.release();
     }
   }
+
+  /// The turns this widget's loads hold, released by [dispose]: a widget
+  /// gone while its file is still loading must not keep the models built
+  /// after it out of the scene until the file comes back, or for ever if it
+  /// never does.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
 
   void _place(_Scene3DScope scope, ModelAsset asset) {
     if (!mounted) {
@@ -1046,6 +1054,10 @@ class _Model3DState extends _SpatialState<Model3D, SceneNode>
         _answerTaps(host, meshes, null);
       }
     }
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     super.dispose();
     // The instance went out of the scene with the node it hangs from.
     _asset?.dispose();

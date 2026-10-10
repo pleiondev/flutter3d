@@ -379,14 +379,29 @@ final class Scene {
   /// `finally`: a load that fails must still hand the next one its turn,
   /// or everything asked for after it waits for ever. The loads themselves
   /// still run side by side; only the step into the scene waits.
+  ///
+  /// **No future is shared between turns, and none outlives its caller's
+  /// zone.** Each turn's [SceneTurn.ready] is made by the call that reserves
+  /// it and completed synchronously by the [SceneTurn.release] that frees
+  /// it. A line of futures did not survive a widget test: a scene made under
+  /// the test's fake clock kept a completed future of that zone as the head
+  /// of the line, a load awaited it from `tester.runAsync`, and its
+  /// continuation was queued in a zone nobody was pumping — the load never
+  /// went in and the test never ended.
   SceneTurn reserveTurn() {
-    final turn = SceneTurn._(_lastTurn);
-    _lastTurn = turn._done.future;
+    final previous = _lastTurn;
+    final turn = SceneTurn._();
+    _lastTurn = turn;
+    if (previous == null || previous._passed) {
+      turn._open();
+    } else {
+      previous._next = turn;
+    }
     return turn;
   }
 
-  /// When the last turn reserved is released.
-  Future<void> _lastTurn = Future<void>.value();
+  /// The last turn reserved, or null before the first.
+  SceneTurn? _lastTurn;
 
   /// First light of the given type, or null.
   ///
@@ -443,18 +458,61 @@ final class Scene {
 
 /// One turn at putting something loaded into a scene — [Scene.reserveTurn].
 final class SceneTurn {
-  SceneTurn._(this.ready);
+  SceneTurn._();
+
+  /// Made in the zone of whoever reserved the turn, and completed by a plain
+  /// call when the turn before is released — no timer and no future of
+  /// anybody else's in between. See [Scene.reserveTurn].
+  final Completer<void> _ready = Completer<void>();
+
+  /// The turn reserved after this one, once there is one.
+  SceneTurn? _next;
+
+  bool _released = false;
+
+  /// Whether this turn is open and released, so the next one has been, or
+  /// will be at once, let in.
+  bool get _passed => _ready.isCompleted && _released;
 
   /// Completes once every turn reserved before this one has been released:
   /// the moment this one may attach what it loaded.
-  final Future<void> ready;
+  Future<void> get ready => _ready.future;
 
-  final Completer<void> _done = Completer<void>();
+  /// Whether [ready] has completed — every turn before this one released.
+  bool get isReady => _ready.isCompleted;
 
-  /// Hands the next turn on. Called once whatever happened to the load —
-  /// in a `finally` — and a second call does nothing.
+  /// Hands the next turn on. Called once whatever happened to the load — in
+  /// a `finally`, and by a loader letting go of loads it no longer wants —
+  /// and a second call does nothing.
+  ///
+  /// A turn released before it is ready still keeps its place: the next one
+  /// is let in when this one's turn comes and passes, so releasing early
+  /// never lets a later load overtake an earlier one still loading.
   void release() {
-    if (!_done.isCompleted) _done.complete();
+    if (_released) return;
+    _released = true;
+    if (_ready.isCompleted) _passOn();
+  }
+
+  void _open() {
+    if (_ready.isCompleted) return;
+    _ready.complete();
+    if (_released) _passOn();
+  }
+
+  /// Opens the turns after this one, as far as they have already been
+  /// released: a loop rather than each opening the next, so a long run of
+  /// loads that gave up early — a level's worth — costs no stack.
+  void _passOn() {
+    var turn = _next;
+    _next = null;
+    while (turn != null && !turn._ready.isCompleted) {
+      turn._ready.complete();
+      if (!turn._released) return;
+      final next = turn._next;
+      turn._next = null;
+      turn = next;
+    }
   }
 }
 

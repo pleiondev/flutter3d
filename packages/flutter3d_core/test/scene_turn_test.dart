@@ -59,4 +59,28 @@ void main() {
       await expectLater(elsewhere.ready, completes);
     },
   );
+
+  test('a turn released before it is ready keeps its place, and a turn is '
+      'opened by the release itself, not by a later event', () {
+    // A loader let go of mid-load releases a turn that is still waiting:
+    // the turns after it must wait for the ones before it all the same.
+    // And opening is a plain call — no microtask, no timer — so a turn
+    // awaited from another zone (a widget test's real one, say) does not
+    // wait on a zone nobody pumps.
+    //
+    // Mutation: in `release`, pass on whether or not the turn is ready —
+    // the third is open while the first still holds its turn.
+    final scene = Scene();
+    final first = scene.reserveTurn();
+    final second = scene.reserveTurn();
+    final third = scene.reserveTurn();
+    expect(first.isReady, isTrue);
+
+    second.release();
+    expect(third.isReady, isFalse);
+
+    first.release();
+    expect(second.isReady, isTrue);
+    expect(third.isReady, isTrue);
+  });
 }

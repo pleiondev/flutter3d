@@ -5,6 +5,7 @@
 /// procedural stand-in for "did the decoder and the upload actually run".
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -272,6 +273,107 @@ void main() {
     expect(first, greaterThanOrEqualTo(0));
     expect(second, greaterThan(first));
   });
+
+  testWidgets('a model loaded through tester.runAsync, into a scene made '
+      'under the test\'s fake clock, gets into the scene', (tester) async {
+    // How `model_offsets_test.dart` loads one, and how a game's own widget
+    // test would. The scene's line of turns once began with a future made
+    // where the scene was — in the fake zone — and the load, awaiting it
+    // from the real one, waited on a zone nobody pumped: the test never
+    // ended.
+    //
+    // Mutation: start the line with `Future<void>.value()` made when the
+    // scene is, and await it for the first turn — the load times out here.
+    final scene = Scene();
+    final visuals = ModelVisuals(
+      scene,
+      device: _device(),
+      source: FileAssetSource.new,
+      onIssue: (issue) => fail('$issue'),
+    );
+    addTearDown(visuals.dispose);
+
+    final root = await tester.runAsync(
+      () => visuals
+          .add(
+            EntityDef(
+              type: 'model',
+              name: 'crate',
+              position: Vector3.zero(),
+              properties: const <String, Object?>{'asset': '$_samples/Box.glb'},
+            ),
+          )
+          .timeout(const Duration(seconds: 10)),
+    );
+
+    expect(root, isNotNull);
+    expect(scene.meshes, isNotEmpty);
+  });
+
+  test('a loader let go of mid-load does not keep the next load out of the '
+      'scene', () async {
+    // A level closed while one of its files is still being read: the turn
+    // that load holds is released with the loader, or whatever the scene is
+    // asked for next waits for a file that may never come.
+    //
+    // Mutation: drop the loop over `_turns` in `ModelVisuals.dispose` — the
+    // second load waits behind the first for ever and times out here.
+    final scene = Scene();
+    final device = _device();
+    final stuck = ModelVisuals(
+      scene,
+      device: device,
+      source: _NeverRead.new,
+      onIssue: (issue) {},
+    );
+    final next = ModelVisuals(
+      scene,
+      device: device,
+      source: FileAssetSource.new,
+      onIssue: (issue) => fail('$issue'),
+    );
+    addTearDown(next.dispose);
+
+    unawaited(
+      stuck.add(
+        EntityDef(
+          type: 'model',
+          name: 'stuck',
+          position: Vector3.zero(),
+          properties: const <String, Object?>{'asset': 'never.glb'},
+        ),
+      ),
+    );
+    final arriving = next.add(
+      EntityDef(
+        type: 'model',
+        name: 'crate',
+        position: Vector3.zero(),
+        properties: const <String, Object?>{'asset': '$_samples/Box.glb'},
+      ),
+    );
+    stuck.dispose();
+
+    expect(await arriving.timeout(const Duration(seconds: 10)), isNotNull);
+    expect(next.nodes, contains('crate'));
+  });
+}
+
+/// A file that never finishes being read, wherever the read runs.
+final class _NeverRead extends AssetSource {
+  const _NeverRead(this.path);
+
+  final String path;
+
+  @override
+  String get key => 'never:$path';
+
+  @override
+  Future<Uint8List> read() => Completer<Uint8List>().future;
+
+  @override
+  AssetUriResolver get resolveUri =>
+      (request) => Completer<Uint8List>().future;
 }
 
 /// A file read off disk once it exists — for at most thirty seconds, so a

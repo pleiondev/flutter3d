@@ -8,7 +8,11 @@
   isolates of their own arrive in either order, so a replay drew one of
   two frames depending on which came back first. `FixtureVisuals`,
   `ActorVisuals`, `ModelVisuals` and `Model3D` share the one line a scene
-  keeps, whatever mix of them loads into it.
+  keeps, whatever mix of them loads into it, and each releases the turns
+  its unfinished loads hold when it is disposed. A turn opens the moment
+  the one before it is released, by that call rather than through any
+  zone's queue (`isReady` says whether it has), so a load awaited from
+  `tester.runAsync` gets in.
 
 - **A data plugin's materials and render steps are read here.**
   `package:flutter3d_core/data_plugins.dart` has `materialsSection` and

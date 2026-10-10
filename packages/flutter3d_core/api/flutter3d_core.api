@@ -4128,7 +4128,8 @@ final class SceneShadows
   static const SceneShadows none = SceneShadows()
 
 final class SceneTurn
-  final Future<void> ready
+  Future<void> get ready
+  bool get isReady
   void release()
 
 typedef ScreenBounds = ({double left, double top, double right, double bottom});

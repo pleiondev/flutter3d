@@ -265,14 +265,21 @@ final class FixtureVisuals {
     final generation = _generation;
     final loading = _models.putIfAbsent(path, () => _load(path));
     final turn = scene.reserveTurn();
+    _turns.add(turn);
     try {
       final asset = await loading;
       await turn.ready;
       _placeModel(fixture, asset, generation);
     } finally {
+      _turns.remove(turn);
       turn.release();
     }
   }
+
+  /// The turns models still loading hold, released by [dispose]: a level
+  /// let go of while a file is still being read must not keep whatever is
+  /// asked of the scene next waiting on it.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
 
   /// [asset] instantiated for [fixture], unless it did not load or the level
   /// [generation] it was asked for is over.
@@ -414,6 +421,10 @@ final class FixtureVisuals {
   /// moment it arrives; the generation bump keeps it out of the scene.
   void dispose() {
     _generation++;
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     for (final piece in _pieces) {
       piece.node.removeFromParent();
     }

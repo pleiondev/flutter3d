@@ -279,6 +279,10 @@ final class ActorVisuals {
     // Anything still reading a file will find this and stop rather than
     // instantiate into a scene that has been torn down.
     _generation++;
+    for (final turn in _turns) {
+      turn.release();
+    }
+    _turns.clear();
     for (final node in _nodes.values) {
       node.removeFromParent();
     }
@@ -333,14 +337,21 @@ final class ActorVisuals {
     final generation = _generation;
     final loading = _models.putIfAbsent(path, () => _load(path));
     final turn = scene.reserveTurn();
+    _turns.add(turn);
     try {
       final asset = await loading;
       await turn.ready;
       _wear(actor, asset, generation);
     } finally {
+      _turns.remove(turn);
       turn.release();
     }
   }
+
+  /// The turns models still loading hold, released by [dispose]: a level
+  /// let go of while a file is still being read must not keep whatever is
+  /// asked of the scene next waiting on it.
+  final Set<SceneTurn> _turns = <SceneTurn>{};
 
   /// [actor]'s capsule swapped for an instance of [asset], unless it did not
   /// load, the actor is gone or the level [generation] it was asked for is
