@@ -25,6 +25,7 @@ final class SceneBindingContext {
     required this.fields,
     this.previous,
     this.alpha = 1.0,
+    this.node,
   });
 
   /// The binding being applied.
@@ -42,6 +43,11 @@ final class SceneBindingContext {
 
   /// How far the frame is between [previous] and [fields], nought to one.
   final double alpha;
+
+  /// The node that stands for the entity, once [SceneNodeKind.create] made
+  /// it: what [SceneNodeKind.update] brings up to date. Null while it is
+  /// being made.
+  final SceneNode? node;
 
   /// [name]'s value, blended between the two steps as the binding says: the
   /// numbers of [fields] and [previous] mixed by [alpha] under `linear`,
@@ -73,10 +79,10 @@ abstract base class SceneNodeKind {
   /// component.
   SceneNode create(SceneBindingContext context);
 
-  /// Brings [node] up to [context]'s fields, every frame the entity has
-  /// the component. By default it does nothing more than
-  /// [SceneBinding.applyParameters].
-  void update(SceneNode node, SceneBindingContext context) {}
+  /// Brings [SceneBindingContext.node] up to [context]'s fields, every
+  /// frame the entity has the component. By default it does nothing more
+  /// than [SceneBinding.applyParameters].
+  void update(SceneBindingContext context) {}
 }
 
 /// A binding as the renderer holds it: its spec, and the kind of node its

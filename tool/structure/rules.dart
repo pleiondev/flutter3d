@@ -218,6 +218,10 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'a public enum or sealed type is decided', run: _closedSetsDecided),
   (
+    name: 'a hook an outside author implements takes one context',
+    run: _hooksTakeOneContext,
+  ),
+  (
     name: 'every exception hangs from Flutter3dException',
     run: _exceptionsHaveTheRoot,
   ),
@@ -5231,6 +5235,85 @@ List<Finding> _noNewInterfaces() {
         'tool/structure/repository.dart',
         '`interfaceClassAllowed` names `$name`, which no snapshot declares as '
             'an interface. Take the entry out',
+      ),
+    );
+  }
+  return found;
+}
+
+/// Every method of a published `abstract base class` — the shape of every
+/// hook an outside author implements — takes at most one parameter, or is
+/// named in [hookParametersAllowed] with the reason it may take more.
+///
+/// **Amendment 2 of the field review.** A hook's method that takes a list
+/// of parameters can never gain one: a parameter added in a minor breaks
+/// every implementation written against the old signature. One context
+/// object can gain members instead (`ShadowProducerContext`,
+/// `LightPackContext`, `FrameGraphBuilder`), so the hooks of 1.0 take one,
+/// and the ones that cannot — the hardware interface, which mirrors the
+/// shape of the GPU APIs it wraps; a value's own `copyWith` — say why.
+///
+/// **It reads the snapshots**, as the interface rule does: a hook behind a
+/// `src/` path nobody exports is nobody's to implement. Getters, setters,
+/// operators, constructors, factories and static members are not hooks. An
+/// entry is `Class.member`, or `Class` for every member of a class; one
+/// that names nothing any snapshot declares fails too. The hooks that still
+/// take a list are [hookParametersPending], a list that only shrinks.
+///
+/// Mutation: give `ShadowTechnique.kernelFor` a second parameter, regenerate
+/// the snapshot, and this names it.
+List<Finding> _hooksTakeOneContext() {
+  final found = <Finding>[];
+  final seen = <String>{};
+  final offending = <String>{};
+  for (final entry in _publishedSnapshots.entries) {
+    for (final library in parseApi(entry.value).values) {
+      for (final MapEntry(key: name, value: block)
+          in library.declarations.entries) {
+        if (!block.header.startsWith('abstract base class ')) continue;
+        seen.add(name);
+        for (final member in block.members) {
+          final method = hookMethodIn(member);
+          if (method == null) continue;
+          seen.add('$name.${method.name}');
+          if (method.parameters <= 1) continue;
+          offending.add(name);
+          if (hookParametersAllowed.containsKey(name) ||
+              hookParametersAllowed.containsKey('$name.${method.name}') ||
+              hookParametersPending.containsKey(name)) {
+            continue;
+          }
+          found.add(
+            Finding(
+              '${entry.key}/api/${entry.key}.api',
+              '`$name.${method.name}` takes ${method.parameters} parameters. '
+                  'A hook an outside author implements takes one context '
+                  'object that can gain members, so a minor can hand it more '
+                  'without breaking an implementation; give it one, or say '
+                  'in `hookParametersAllowed` why it cannot',
+            ),
+          );
+        }
+      }
+    }
+  }
+  for (final name in hookParametersAllowed.keys) {
+    if (seen.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`hookParametersAllowed` names `$name`, which no snapshot declares as '
+            'an abstract base class or one of its methods. Take the entry out',
+      ),
+    );
+  }
+  for (final name in hookParametersPending.keys) {
+    if (offending.contains(name)) continue;
+    found.add(
+      Finding(
+        'tool/structure/repository.dart',
+        '`hookParametersPending` names `$name`, and no method of it takes more '
+            'than one parameter any more. Take the entry out',
       ),
     );
   }

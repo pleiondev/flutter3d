@@ -1788,6 +1788,159 @@ const Map<String, String> openedSets = <String, String>{
 /// not, so the list only shrinks. A new closed set is not added here.
 const Map<String, String> closedSetPending = <String, String>{};
 
+/// Hooks whose methods take more than one parameter, each with why
+/// (amendment 2 of the field review). Keyed `Class.member`, or `Class` for
+/// every member of a class.
+///
+/// **A list of reasons, not a list of debts.** A hook's method takes one
+/// context object that can gain members; an entry here is a class whose
+/// methods are a fixed shape no minor will grow, or that nobody outside the
+/// engine implements. [hookParametersPending] holds the debts.
+const Map<String, String> hookParametersAllowed = <String, String>{
+  'ComponentRegistry':
+      'flutter3d_plugin_api: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
+  'EventRegistry':
+      'flutter3d_plugin_api: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
+  'SimCommands':
+      'flutter3d_plugin_api: the simulation\'s own command buffer, which the engine implements and a system calls',
+  'SimWorld':
+      'flutter3d_plugin_api: the simulation\'s world, which the engine implements and a system calls',
+  'ComputeEncoder':
+      'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
+  'CpuComputeShader':
+      'flutter3d_cpu: the per-workgroup call, for CpuVertexShader\'s reason',
+  'CpuFragmentShader':
+      'flutter3d_cpu: the per-fragment call, for CpuVertexShader\'s reason',
+  'CpuVertexShader':
+      'flutter3d_cpu: the software rasteriser\'s per-vertex call, where a context object made per call would be an allocation in the hottest loop the backend has',
+  'CpuVertexShaderByIndex':
+      'flutter3d_cpu: the per-vertex call, for CpuVertexShader\'s reason',
+  'FormatDocument':
+      'flutter3d_foundation: `write` is the helper a document calls to put its body in the envelope, not a hook it overrides',
+  'FrameContext':
+      'flutter3d_core: a context the engine makes and hands to every node and contributor; nobody outside implements it',
+  'GraphicsDevice':
+      'flutter3d_hardware: the hardware interface mirrors the call shapes of the GPU APIs it wraps, and grows by a member with a default body (D25), never by a parameter',
+  'LoopRegistry':
+      'flutter3d_plugin_api: a registry the engine implements and a plugin calls; it grows by a member with a default, and its calls by named parameters a caller may leave out',
+  'SimulationQueryRegistry':
+      'flutter3d_sim: a registry the engine implements and a plugin calls, for LoopRegistry\'s reason',
+  'TransferEncoder':
+      'flutter3d_hardware: the hardware interface, for GraphicsDevice\'s reason',
+};
+
+/// Hooks whose methods still take a list of parameters, by class, with the
+/// package whose owner converts each to one context object.
+///
+/// **A to-do list, not an exemption**, like [closedSetPending]: the rule
+/// passes these while they take more than one parameter and fails on an
+/// entry once no method of its class does, so the list only shrinks. A new
+/// hook is not added here; it takes one context from the start.
+const Map<String, String> hookParametersPending = <String, String>{
+  'ActionBinding':
+      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
+  'ActorStrides':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'AudioBackend':
+      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
+  'BehaviorComposite':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'BinaryStorage':
+      'flutter3d_app: converted to one context object by its package\'s owner before 1.0.0',
+  'Brain':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'CameraFraming':
+      'flutter3d_camera: converted to one context object by its package\'s owner before 1.0.0',
+  'CharacterMover':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'ClothSimulation':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'CloudSaveStore':
+      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
+  'CollisionShape':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'ComponentCodec':
+      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
+  'CustomShape':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'DataSection':
+      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
+  'ElementFields':
+      'flutter3d_elements: converted to one context object by its package\'s owner before 1.0.0',
+  'EntityKind':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'EventCodec':
+      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
+  'GamepadPlatform':
+      'pad_input: converted to one context object by its package\'s owner before 1.0.0',
+  'GenrePlugin':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'Gift':
+      'flutter3d_game_shooter: converted to one context object by its package\'s owner before 1.0.0',
+  'HeadlessGame':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'InPlaceCodec':
+      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
+  'LevelRule':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'LightBehavior':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'MaterialDecoder':
+      'flutter3d: converted to one context object by its package\'s owner before 1.0.0',
+  'ModelDecoder':
+      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
+  'ModelWriter':
+      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
+  'PadDevice':
+      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
+  'ParameterType':
+      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
+  'ParticleAffector':
+      'flutter3d_particles: converted to one context object by its package\'s owner before 1.0.0',
+  'ParticleEmitter':
+      'flutter3d_particles: converted to one context object by its package\'s owner before 1.0.0',
+  'PeerWire':
+      'flutter3d_net: converted to one context object by its package\'s owner before 1.0.0',
+  'PhotoControls':
+      'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
+  'PhysicsBackend':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'PhysicsConstraint':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'Projection':
+      'flutter3d_core: converted to one context object by its package\'s owner before 1.0.0',
+  'RigidDynamics':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'RunSession':
+      'flutter3d_game: converted to one context object by its package\'s owner before 1.0.0',
+  'SettingsSection':
+      'flutter3d_game_ui: converted to one context object by its package\'s owner before 1.0.0',
+  'SimulationHandle':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'SnapshotPart':
+      'flutter3d_plugin_api: converted to one context object by its package\'s owner before 1.0.0',
+  'SpatialRenderer':
+      'flutter3d_audio_core: converted to one context object by its package\'s owner before 1.0.0',
+  'Storage':
+      'flutter3d_app: converted to one context object by its package\'s owner before 1.0.0',
+  'Takeable':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'TimeSource':
+      'flutter3d_sim: converted to one context object by its package\'s owner before 1.0.0',
+  'VesselShape':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'WasmImports':
+      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
+  'WasmInstance':
+      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
+  'WasmRuntime':
+      'flutter3d_plugin_runtime: converted to one context object by its package\'s owner before 1.0.0',
+  'WorldRays':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+  'WorldSweeps':
+      'flutter3d_physics: converted to one context object by its package\'s owner before 1.0.0',
+};
+
 // ------------------------------------------------------------ 1.0: naming
 
 /// Names the naming rules of item 28 let stand, each with the reason. Keyed

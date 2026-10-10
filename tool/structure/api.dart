@@ -1665,3 +1665,92 @@ List<(String, String)> proveApiDetectorsWork() {
   }
   return broken;
 }
+
+/// The name and the parameter count of [member], a member line of a
+/// snapshot, when it is an instance method a subclass could override —
+/// null for a getter, a setter, an operator, a constructor, a factory, a
+/// static member or a field.
+({String name, int parameters})? hookMethodIn(String member) {
+  var line = member.trim();
+  if (line.startsWith('static ') ||
+      line.startsWith('factory ') ||
+      line.startsWith('const ') ||
+      line.startsWith('final ') ||
+      line.startsWith('late ') ||
+      line.startsWith('external ') ||
+      line.startsWith('@')) {
+    return null;
+  }
+  if (line.startsWith('abstract ')) line = line.substring('abstract '.length);
+  final open = line.indexOf('(');
+  if (open < 0) return null;
+  var head = line.substring(0, open).trim();
+  // A generic method's type parameters, `register<T extends Object>`, are
+  // not part of its name.
+  if (head.endsWith('>')) {
+    var depth = 0;
+    for (var i = head.length - 1; i >= 0; i--) {
+      if (head[i] == '>') depth++;
+      if (head[i] == '<') depth--;
+      if (depth == 0) {
+        head = head.substring(0, i).trim();
+        break;
+      }
+    }
+  }
+  if (head.contains(' get ') ||
+      head.contains(' set ') ||
+      head.startsWith('set ') ||
+      head.contains('operator')) {
+    return null;
+  }
+  final words = head.split(RegExp(r'\s+'));
+  // A constructor has no return type: its head is its class's name alone.
+  if (words.length < 2) return null;
+  final name = words.last;
+  // The parameter list, to its matching close.
+  var depth = 0;
+  var close = -1;
+  for (var i = open; i < line.length; i++) {
+    final c = line[i];
+    if (c == '(' || c == '[' || c == '{' || c == '<') depth++;
+    if (c == ')' || c == ']' || c == '}' || c == '>') depth--;
+    if (depth == 0) {
+      close = i;
+      break;
+    }
+  }
+  if (close < 0) return null;
+  final inside = line.substring(open + 1, close);
+  // Parameters at the top level, the `{` and `[` that open the optional
+  // ones read as a group rather than as a nesting: a brace that starts a
+  // slot is the group's, one inside a default value is the value's.
+  var count = 0;
+  depth = 0;
+  var group = false;
+  final token = StringBuffer();
+  for (var i = 0; i < inside.length; i++) {
+    final c = inside[i];
+    if (depth == 0 &&
+        !group &&
+        (c == '{' || c == '[') &&
+        token.toString().trim().isEmpty) {
+      group = true;
+      continue;
+    }
+    if (depth == 0 && group && (c == '}' || c == ']')) {
+      group = false;
+      continue;
+    }
+    if ('(<{['.contains(c)) depth++;
+    if (')>}]'.contains(c)) depth--;
+    if (c == ',' && depth == 0) {
+      if (token.toString().trim().isNotEmpty) count++;
+      token.clear();
+      continue;
+    }
+    token.write(c);
+  }
+  if (token.toString().trim().isNotEmpty) count++;
+  return (name: name, parameters: count);
+}
