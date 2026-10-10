@@ -4052,7 +4052,7 @@ entries:
     guidance: >-
       Its colours are `LinearColor`s (`sky: const LinearColor(0.4, 0.6, 0.9)`,
       or `vector.toLinearColor()`), it is `const`, and `sunIntensity` is lux:
-      multiply a pre-1.0 value by `Photometric.legacyUnit`.
+      multiply a pre-1.0 value by `LightNode.defaultIntensity`.
 
   # 2 break(s), seen in flutter3d_core:
   #   ContributorFrame.ContributorFrame changed: ContributorFrame({required this.encoder, required this.device, required this.services, required this.state, required …
@@ -4198,7 +4198,7 @@ entries:
     guidance: >-
       `intensity` is in photometric units since 1.0: lux for a directional
       light, candela for a point, spot or area light. Multiply a pre-1.0
-      literal by `Photometric.legacyUnit` (about 5 790.6) and the picture is
+      literal by `LightNode.defaultIntensity` (about 5 790.6) and the picture is
       the picture it was; or write the light's real lux or candela, or make it
       with `LightNode.lumens`. `color` is a `LinearColor`: `color: const
       LinearColor(1, 0.8, 0.6)`, `light.color = vector.toLinearColor()` where
@@ -4329,7 +4329,7 @@ entries:
       `LightNode.intensity` is already lux or candela since 1.0, so `fromLux`,
       `fromCandela`, `toLux` and `toCandela` went: write the number. Before
       1.0 they converted at 800 lm per engine unit; to keep a scene that used
-      them as it looked, multiply by `Photometric.legacyUnit /
+      them as it looked, multiply by `LightNode.defaultIntensity /
       Photometric.bulbAtOneMeter` (about 91). `referenceIlluminance` is
       `Photometric.bulbAtOneMeter`.
 
@@ -9987,25 +9987,28 @@ entries:
   - id: core-RenderView-clearColor
     package: flutter3d_core
     symbol: RenderView.clearColor
-    kind: rename
-    to: clearColorSrgb
+    kind: manual
+    members: [clearColor]
     wave: 3
     guidance: >-
-      The clear colour is the one colour the engine takes sRGB-encoded, and
-      since 1.0 a colour that is not linear says so in its name. Same
-      `Vector4`, same values.
+      The clear colour is a `LinearColor`, linear like every other colour,
+      and assigned whole. It was an sRGB-encoded `Vector4`:
+      `clearColor: Vector4(r, g, b, a)` is
+      `clearColor: LinearColor.fromSrgb(r, g, b, a)` and draws the same
+      picture, and `view.clearColor.setValues(r, g, b, a)` is
+      `view.clearColor = LinearColor.fromSrgb(r, g, b, a)`.
 
   - id: core-RenderView-clearColor-parameter
     package: flutter3d_core
     symbol: RenderView.RenderView
-    kind: parameters
-    changes:
-      - rename: clearColor
-        to: clearColorSrgb
+    kind: none
     wave: 3
-    guidance: >-
-      `RenderView(clearColor: ...)` is `RenderView(clearColorSrgb: ...)`, the
-      same sRGB `Vector4`; `RenderView.texture` takes it under the same name.
+    reason: >-
+      `clearColor:` keeps its name and takes what the field holds, a
+      `LinearColor` (see `core-RenderView-clearColor`); the analyzer names
+      every call that still passes a `Vector4`, and
+      `LinearColor.fromSrgb(r, g, b, a)` is what it passes instead.
+      `RenderView.texture` takes it the same way.
 
   # 11 break(s), seen in flutter3d_core:
   #   SkySettings.copyWith changed: SkySettings copyWith({bool? enabled, Vector3? zenith, Vector3? horizon, Vector3? nadir, Vector3? directionToSun, Vector3? sunColor…
@@ -10051,17 +10054,15 @@ entries:
   - id: core-Atmosphere-applyTo-clearColor
     package: flutter3d_core
     symbol: Atmosphere.applyTo
-    kind: parameters
-    changes:
-      - rename: clearColor
-        to: clearColorSrgb
+    kind: none
     wave: 3
-    guidance: >-
-      `applyTo(scene, clearColor: v)` is `applyTo(scene, clearColorSrgb: v)`,
-      the view's `RenderView.clearColorSrgb`. The sky is linear and is now
-      encoded into that sRGB slot, where it was written as it was, so a
-      clear colour set from an atmosphere is lighter than before: the colour
-      the sky was meant to be.
+    reason: >-
+      `applyTo(scene, clearColor: view.clearColor)` is
+      `applyTo(scene, view: view)`: the atmosphere puts its sky on the view
+      itself, linear as both are, and `core-Atmosphere` marks each use. Where
+      it wrote the linear numbers into the sRGB vector as they were, a clear
+      colour set from an atmosphere is lighter than in 0.8: the colour the
+      sky was meant to be.
 
   # ---- Wave 4a: the naming audit (item 28). American spelling in identifiers.
 
@@ -16607,10 +16608,10 @@ entries:
     members: [emissiveStrength]
     guidance: >-
       `emissiveStrength` is nits (cd/m²) since 1.0, the luminance an emissive
-      of white shines at; the default is `Photometric.legacyNits` (1 843.2),
+      of white shines at; the default is `RenderMaterial.defaultEmissiveStrength` (1 843.2),
       which is what the old default of one drew. Multiply a pre-1.0 number by
-      `Photometric.legacyNits` to keep the glow: `emissiveStrength: 4.0` is
-      `4.0 * Photometric.legacyNits`. A `SurfaceMaterial`'s strength is a
+      `RenderMaterial.defaultEmissiveStrength` to keep the glow: `emissiveStrength: 4.0` is
+      `4.0 * RenderMaterial.defaultEmissiveStrength`. A `SurfaceMaterial`'s strength is a
       file's plain multiple and is unchanged; loading converts it.
 
   - id: f2-core-SurfaceMaterial-colours
@@ -16798,28 +16799,28 @@ entries:
     guidance: >-
       The renderer's own light scale is not API since 1.0: everything takes
       lux, candela or nits and the renderer converts. To carry a pre-1.0
-      number over, multiply it by `Photometric.legacyUnit` (lights, ambient,
-      the sky's sun) or `Photometric.legacyNits` (emissive strength).
+      number over, multiply it by `LightNode.defaultIntensity` (lights, ambient,
+      the sky's sun) or `RenderMaterial.defaultEmissiveStrength` (emissive strength).
 
   - id: f2-core-PhysicalCamera-nitsPerUnit
     package: flutter3d_core
     symbol: PhysicalCamera.nitsPerUnit
     kind: rewrite
-    template: 'Photometric.legacyNits'
+    template: 'RenderMaterial.defaultEmissiveStrength'
     imports: [package:flutter3d_core/flutter3d_core.dart]
     guidance: >-
       The renderer's scale is internal; the number it was, 1 843.2, is
-      `Photometric.legacyNits`, for carrying a pre-1.0 emissive over.
+      `RenderMaterial.defaultEmissiveStrength`, for carrying a pre-1.0 emissive over.
 
   - id: f2-core-PhysicalCamera-luxPerUnit
     package: flutter3d_core
     symbol: PhysicalCamera.luxPerUnit
     kind: rewrite
-    template: 'Photometric.legacyUnit'
+    template: 'LightNode.defaultIntensity'
     imports: [package:flutter3d_core/flutter3d_core.dart]
     guidance: >-
       The renderer's scale is internal; the number it was, about 5 790.6, is
-      `Photometric.legacyUnit`.
+      `LightNode.defaultIntensity`.
 
   - id: f2-core-Scene-ambientIntensity
     package: flutter3d_core
@@ -16828,9 +16829,9 @@ entries:
     members: [ambientIntensity]
     guidance: >-
       `Scene.ambientIntensity` is lux since 1.0, about 347 by default (the
-      0.06 it was). Multiply a pre-1.0 number by `Photometric.legacyUnit`:
+      0.06 it was). Multiply a pre-1.0 number by `LightNode.defaultIntensity`:
       `scene.ambientIntensity = 0.3` is
-      `scene.ambientIntensity = 0.3 * Photometric.legacyUnit`.
+      `scene.ambientIntensity = 0.3 * LightNode.defaultIntensity`.
 
   - id: f2-core-Atmosphere-ambientIntensity
     package: flutter3d_core
@@ -16839,7 +16840,7 @@ entries:
     members: [ambientIntensity]
     guidance: >-
       `Atmosphere.ambientIntensity` is lux, as `sunIntensity` already was:
-      multiply a pre-1.0 number by `Photometric.legacyUnit`.
+      multiply a pre-1.0 number by `LightNode.defaultIntensity`.
 
   - id: f2-core-SkySettings-sunIntensity
     package: flutter3d_core
@@ -16848,7 +16849,7 @@ entries:
     members: [sunIntensity]
     guidance: >-
       The disc's `sunIntensity` is lux since 1.0, as a directional light is:
-      multiply a pre-1.0 number by `Photometric.legacyUnit`. Zero is still no
+      multiply a pre-1.0 number by `LightNode.defaultIntensity`. Zero is still no
       disc.
 
   - id: f2-app-colour-widgets
@@ -16860,7 +16861,7 @@ entries:
       `Material3D.baseColor` and `emissive` are linear `LinearColor`s
       (`baseColor: LinearColor.fromSrgb(r, g, b)` for a colour picked by
       eye, which is what the old `Vector4` drew as), and `emissiveStrength`
-      is nits: multiply a pre-1.0 number by `Photometric.legacyNits`.
+      is nits: multiply a pre-1.0 number by `RenderMaterial.defaultEmissiveStrength`.
 
   - id: f2-app-Decal3D-colours
     package: flutter3d_app
@@ -17312,48 +17313,44 @@ entries:
   - id: rc-model_core-RenderPreset-clearColorSrgb
     package: flutter3d_model_core
     symbol: RenderPreset.clearColor
-    kind: rename
-    to: clearColorSrgb
+    kind: manual
+    members: [clearColor]
     wave: 5
     guidance: >-
-      The background is sRGB-encoded, as `RenderView.clearColorSrgb` is, and
-      its name says so now; the `Vector4` is the same.
+      The background is a linear `LinearColor`, as `RenderView.clearColor`
+      is, where it was an sRGB `Vector4`: `LinearColor.fromSrgb(r, g, b, a)`
+      of the old numbers draws the same picture.
 
   - id: rc-model_core-RenderPreset-parameter
     package: flutter3d_model_core
     symbol: RenderPreset.RenderPreset
-    kind: parameters
-    changes:
-      - rename: clearColor
-        to: clearColorSrgb
+    kind: none
     wave: 5
-    guidance: >-
-      `RenderPreset(clearColor: v)` is `RenderPreset(clearColorSrgb: v)`, the
-      same sRGB `Vector4`.
+    reason: >-
+      `clearColor:` keeps its name and takes what the field holds, a
+      `LinearColor` (see `rc-model_core-RenderPreset-clearColorSrgb`).
 
   - id: rc-model_core-bakeImpostor-clearColorSrgb
     package: flutter3d_model_core
     symbol: bakeImpostor
-    kind: parameters
-    changes:
-      - rename: clearColor
-        to: clearColorSrgb
+    kind: none
     wave: 5
-    guidance: >-
-      `bakeImpostor(clearColor: v)` is `bakeImpostor(clearColorSrgb: v)`, the
-      same sRGB `Vector4`.
+    reason: >-
+      `clearColor:` keeps its name and takes a linear `LinearColor`, as
+      `RenderView.clearColor` does, where it took an sRGB `Vector4`; the
+      analyzer names each call that passes one, and
+      `LinearColor.fromSrgb(r, g, b, a)` is what it passes instead.
 
   - id: rc-testing-renderFrame-clearColorSrgb
     package: flutter3d_testing
     symbol: renderFrame
-    kind: parameters
-    changes:
-      - rename: clearColor
-        to: clearColorSrgb
+    kind: none
     wave: 5
-    guidance: >-
-      `renderFrame(clearColor: v)` is `renderFrame(clearColorSrgb: v)`, the
-      same sRGB `Vector4` the view is cleared to.
+    reason: >-
+      `clearColor:` keeps its name and takes a linear `LinearColor`, as
+      `RenderView.clearColor` does, where it took an sRGB `Vector4`; the
+      analyzer names each call that passes one, and
+      `LinearColor.fromSrgb(r, g, b, a)` is what it passes instead.
 
   - id: rc-particles-ParticleSystem-at
     package: flutter3d_particles
@@ -18316,3 +18313,322 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  # ---- The core's API shape: open sets, classes for several values,
+  # ---- linear colours, errors that throw, limits that can grow.
+
+  - id: 2b-core-AnimationBlend
+    package: flutter3d_core
+    symbol: AnimationBlend
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so a blend a later minor adds does not break
+      your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values` and `name` are there; `index` is not.
+
+  - id: 2b-core-DiffuseModel
+    package: flutter3d_core
+    symbol: DiffuseModel
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so a diffuse lobe a later minor adds does not
+      break your code: a `switch` over it needs a `_ =>` case. The
+      constants, `values` and `name` are there; `index` is not.
+
+  - id: 2b-core-MaterialAlphaMode
+    package: flutter3d_core
+    symbol: MaterialAlphaMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so an alpha mode a later minor adds does not
+      break your code: a `switch` over it needs a `_ =>` case. The
+      constants, `values` and `name` are there; `index` is not.
+
+  - id: 2b-core-ModelLightType
+    package: flutter3d_core
+    symbol: ModelLightType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so a light type a later minor reads (an area
+      light) does not break your code: a `switch` over it needs a `_ =>`
+      case. The constants, `values` and `name` (the extension's own `type`)
+      are there; `index` is not.
+
+  - id: 2b-core-ShadowCastingMode
+    package: flutter3d_core
+    symbol: ShadowCastingMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so a mode a later minor adds does not break
+      your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values`, `name`, `casts`, `drawsColor` and `castsFromEveryFace` are
+      there; `index` is not.
+
+  - id: 2b-core-SortMode
+    package: flutter3d_core
+    symbol: SortMode
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so a sort a later minor adds does not break
+      your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values` and `name` are there; `index` is not.
+
+  - id: 2b-core-TangentMethod
+    package: flutter3d_core
+    symbol: TangentMethod
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      An open set since 1.0, so a method a later minor adds does not break
+      your code: a `switch` over it needs a `_ =>` case. The constants,
+      `values` and `name` are there; `index` is not.
+
+  - id: 2b-core-DeviceClass-parse
+    package: flutter3d_core
+    symbol: DeviceClass.parse
+    kind: nullToThrow
+    exception: UnknownDeviceClassException
+    wave: 2
+    guidance: >-
+      A name that is not a class throws `UnknownDeviceClassException`,
+      naming the classes there are, where it answered null.
+      `DeviceClass.tryParse` is the lookup that still answers null.
+
+  - id: 2b-core-FramePass
+    package: flutter3d_core
+    symbol: FramePass
+    kind: recordToClass
+    fields:
+      name: name
+      active: active
+      micros: micros
+      gpuMicros: gpuMicros
+      drawCalls: drawCalls
+      triangles: triangles
+      pipelineSwitches: pipelineSwitches
+    wave: 2
+    guidance: >-
+      `FramePass` is a class whose getters are the record's fields, so
+      reading one is unchanged; a record literal is `FramePass(name: …)`,
+      and a destructuring pattern names the class.
+
+  - id: 2b-core-DepthOfFieldSettings-lensFor
+    package: flutter3d_core
+    symbol: DepthOfFieldSettings.lensFor
+    kind: none
+    wave: 2
+    reason: >-
+      Answers a `ThinLens` whose getters are the record's fields,
+      `focalLength` and `sensorWidth`, so a read of one is unchanged; a
+      destructuring pattern names the class (`2b-core-ThinLens`).
+
+  - id: 2b-core-ThinLens
+    package: flutter3d_core
+    symbol: ThinLens
+    kind: recordToClass
+    fields:
+      focalLength: focalLength
+      sensorWidth: sensorWidth
+    wave: 2
+    guidance: >-
+      `DepthOfFieldSettings.lensFor` answers a `ThinLens`, a class, where it
+      answered a record: `final ThinLens(:focalLength) = …` where the
+      pattern was `final (:focalLength, :sensorWidth) = …`.
+
+  - id: 2b-core-ClusterIndices
+    package: flutter3d_core
+    symbol: ClusterIndices
+    kind: recordToClass
+    fields:
+      buffer: buffer
+      count: count
+    wave: 2
+    guidance: >-
+      `ClusterDraws.indicesFor` answers a `ClusterIndices`, a class with the
+      record's fields as getters; a destructuring pattern names the class.
+
+  - id: 2b-core-EnvironmentCube
+    package: flutter3d_core
+    symbol: EnvironmentCube
+    kind: recordToClass
+    fields:
+      texture: texture
+      levels: levels
+    wave: 2
+    guidance: >-
+      `EnvironmentMap.fromSky`, `fromPanorama` and `fromEncoded` answer an
+      `EnvironmentCube`, a class with the record's fields as getters; a
+      destructuring pattern names the class.
+
+  - id: 2b-core-IrradianceAtlas
+    package: flutter3d_core
+    symbol: IrradianceAtlas
+    kind: recordToClass
+    fields:
+      width: width
+      height: height
+      columns: columns
+      momentsTop: momentsTop
+      texels: texels
+    wave: 2
+    guidance: >-
+      `IrradianceField.toAtlas` answers an `IrradianceAtlas`, a class with
+      the record's fields as getters; a destructuring pattern names the
+      class.
+
+  - id: 2b-core-IrradianceField
+    package: flutter3d_core
+    symbol: IrradianceField
+    kind: manual
+    members: [readIrradiance, sample, writeIrradiance, writeIrradianceTexel]
+    wave: 2
+    guidance: >-
+      Irradiance is a `LinearColor`: `writeIrradiance` and
+      `writeIrradianceTexel` take one (`vector.toLinearColor()`, or
+      `LinearColor(r, g, b)`), and `readIrradiance` and `sample` answer one
+      and take no `out` vector; read `.r`, `.g`, `.b` where you read `.x`,
+      `.y`, `.z`. `toAtlas` answers an `IrradianceAtlas`
+      (`2b-core-IrradianceAtlas`).
+
+  - id: 2b-core-MeshTangents-generateTangents
+    package: flutter3d_core
+    symbol: MeshTangents
+    kind: none
+    wave: 2
+    reason: >-
+      `generateTangents` answers a `GeneratedTangents` whose getters are the
+      record's fields, `mesh` and `copiedFrom`, so a read of one is
+      unchanged; a destructuring pattern names the class
+      (`2b-core-GeneratedTangents`).
+
+  - id: 2b-core-GeneratedTangents
+    package: flutter3d_core
+    symbol: GeneratedTangents
+    kind: recordToClass
+    fields:
+      mesh: mesh
+      copiedFrom: copiedFrom
+    wave: 2
+    guidance: >-
+      `generateTangents` answers a `GeneratedTangents`, a class with the
+      record's fields as getters: `final GeneratedTangents(:mesh) = …`.
+
+  - id: 2b-core-TriangleHit
+    package: flutter3d_core
+    symbol: TriangleHit
+    kind: recordToClass
+    fields:
+      triangle: triangle
+      distance: distance
+      point: point
+    wave: 2
+    guidance: >-
+      `TriangleBvh.raycast` answers a `TriangleHit`, a class with the
+      record's fields as getters; a destructuring pattern names the class.
+
+  - id: 2b-core-advanceTime
+    package: flutter3d_core
+    symbol: advanceTime
+    kind: none
+    wave: 2
+    reason: >-
+      Answers a `PlayheadStep` whose getters are the record's fields, `time`,
+      `reversing` and `stopped`, so a read of one is unchanged; a
+      destructuring pattern names the class (`2b-core-PlayheadStep`).
+
+  - id: 2b-core-PlayheadStep
+    package: flutter3d_core
+    symbol: PlayheadStep
+    kind: recordToClass
+    fields:
+      time: time
+      reversing: reversing
+      stopped: stopped
+    wave: 2
+    guidance: >-
+      `advanceTime` answers a `PlayheadStep`, a class with the record's
+      fields as getters: `final PlayheadStep(:time) = …`.
+
+  - id: 2b-core-optimizeVertexFetch
+    package: flutter3d_core
+    symbol: optimizeVertexFetch
+    kind: none
+    wave: 2
+    reason: >-
+      Answers a `VertexFetchOrder` whose getters are the record's fields,
+      `indices` and `oldToNew`, so a read of one is unchanged; a
+      destructuring pattern names the class (`2b-core-VertexFetchOrder`).
+
+  - id: 2b-core-VertexFetchOrder
+    package: flutter3d_core
+    symbol: VertexFetchOrder
+    kind: recordToClass
+    fields:
+      indices: indices
+      oldToNew: oldToNew
+    wave: 2
+    guidance: >-
+      `optimizeVertexFetch` answers a `VertexFetchOrder`, a class with the
+      record's fields as getters; a destructuring pattern names the class.
+
+  - id: 2b-core-universalBlockFormat
+    package: flutter3d_core
+    symbol: universalBlockFormat
+    kind: none
+    wave: 2
+    reason: >-
+      Answers a `UniversalBlockFormat` whose `hasAlpha` is the record's one
+      field, so a read of it is unchanged; a destructuring pattern names
+      the class (`2b-core-UniversalBlockFormat`).
+
+  - id: 2b-core-UniversalBlockFormat
+    package: flutter3d_core
+    symbol: UniversalBlockFormat
+    kind: recordToClass
+    fields:
+      hasAlpha: hasAlpha
+    wave: 2
+    guidance: >-
+      `universalBlockFormat` answers a `UniversalBlockFormat`, a class with
+      the record's field as a getter.
+
+  - id: 2b-core-ShadowSettings-limits
+    package: flutter3d_core
+    symbol: ShadowSettings
+    kind: none
+    wave: 2
+    reason: >-
+      `maxResolution` and `maxCubeTile` are static getters with the values
+      they had (4096, 1024), so a later release can raise them. Every read
+      compiles; only a `const` expression that used one does not, and it
+      takes the number or a non-const value.
+
+  - id: 2b-core-Skeleton-maxJoints
+    package: flutter3d_core
+    symbol: Skeleton
+    kind: none
+    wave: 2
+    reason: >-
+      `maxJoints` is a static getter with the value it had (64), so a later
+      release can raise it. Every read compiles; only a `const` expression
+      that used it does not, and it takes the number or a non-const value.
+
+  - id: 2b-model_core-ProjectLight
+    package: flutter3d_model_core
+    symbol: ProjectLight
+    kind: manual
+    members: [intensity]
+    wave: 2
+    guidance: >-
+      A project light's `intensity` is lux for a directional light and
+      candela for the others, as `LightNode.intensity` is, and a new light
+      is `LightNode.defaultIntensity` (about 5 790.6), the light it always
+      drew as. A number written for the pre-1.0 unit is that number times
+      `LightNode.defaultIntensity`. A project file of version 1 is lifted
+      as it is read.
