@@ -33,14 +33,17 @@ final class SettingKey<T extends Object> {
     return dot < 0 ? id : id.substring(0, dot);
   }
 
-  /// [json] as a [T], or null when it is not one.
+  /// [json] as a [T], or null when it is not one. Never throws: a settings
+  /// file is edited by hand.
   ///
   /// A number where a `bool` is asked for reads as true from one half up,
-  /// which is how a settings file from before typed keys wrote a switch.
+  /// which is how a settings file from before typed keys wrote a switch. A
+  /// fraction where an `int` is asked for is rounded; infinity and NaN (a
+  /// hand-written `1e999` reads as infinity) are no `int`, and read as null.
   T? decode(Object? json) {
     final Object? value = switch (fallback) {
       double() => json is num ? json.toDouble() : null,
-      int() => json is num ? json.round() : null,
+      int() => json is num && json.isFinite ? json.round() : null,
       bool() => switch (json) {
         final bool on => on,
         final num n => n >= 0.5,
