@@ -32,7 +32,7 @@ description: Four independent golden sets, mutation-checking every new test, det
 | `flutter3d_model_core` | 1191 | | `flutter3d_editor_play` | 40 |
 | `flutter3d_net` | 28 | | `flutter3d_net_webrtc` | 2 |
 | `flutter3d_sim_mcp` | 13 | | `flutter3d_build` | 305 |
-| `apps/flutter3d_lesson_viewer` | 49 | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
+| `apps/flutter3d_lesson_viewer` | 50 | | `apps/flutter3d_stereo_lesson_viewer` | 6 |
 | `flame_flutter3d` | 140 | | `apps/flutter3d_showcase` | 90 |
 | `flame_multiplayer` | 23 | | `flame_multiplayer_dashwire` | 6 |
 | `flutter3d_plugin_runtime` | 71 | | `flutter3d_lints` | 13 |
