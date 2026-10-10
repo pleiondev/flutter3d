@@ -293,7 +293,7 @@ void main() {
     );
     String row(String id) =>
         rows.singleWhere((String r) => r.startsWith('| `$id` |'));
-    expect(row('f3d.level'), contains('lifted to v4 by its reader'));
+    expect(row('f3d.level'), contains('lifted to v5 by its reader'));
     expect(row('f3d.run'), contains('v1–v5'));
     expect(row('f3d.run'), contains('kept below v5'));
     expect(row('f3d.effect'), contains('lifted to v2 through its chain'));

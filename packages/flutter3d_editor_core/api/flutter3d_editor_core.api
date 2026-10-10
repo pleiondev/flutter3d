@@ -21,7 +21,7 @@ final class AddBrush extends EditorCommand
   final Vector3? size
 
 final class AddLevelLight extends EditorCommand
-  AddLevelLight(Vector3 at, {this.intensity = 4.0, this.range = 8.0})
+  AddLevelLight(Vector3 at, {this.intensity = defaultIntensity, this.range = 8.0})
   Map<String, Object?> get arguments
   String get name
   String get says
@@ -29,6 +29,7 @@ final class AddLevelLight extends EditorCommand
   final Vector3 at
   final double intensity
   final double range
+  static const double defaultIntensity = 4.0 * LevelLight.defaultIntensity
 
 final class ApplyOverrides extends EditorCommand
   Map<String, Object?> get arguments
@@ -136,7 +137,7 @@ final class Editing
   set selected(int? value)
   static const double minimumSize = 0.25
   void add(Vector3 at, {Vector3? size, String? material})
-  void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0})
+  void addLight(Vector3 at, {double intensity = 4.0 * LevelLight.defaultIntensity, double range = 8.0})
   void brighten(double by)
   void duplicate()
   void grow(Vector3 by)

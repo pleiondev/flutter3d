@@ -46,7 +46,7 @@ SkySettings levelSky(Level level) {
 /// end to end. But a level's fog is the air of that place, which its author
 /// chose: the Cisterns' damp teal, the Foundry's smoke. Those are kept.
 FogSettings levelFog(Level level) => FogSettings(
-  color: level.fogColor.toLinearColor(),
+  color: level.fogColor,
   density: level.fogDensity,
   heightFalloff: FogSettings.defaultHeightFalloff,
 );

@@ -249,7 +249,7 @@ physical gamepad, a locked pointer or a touchscreen to show anything, and
 |---|---|---|---|
 | fixed-step | Fixed step and interpolation | `FixedStep`, `GameLoop`, `Interpolated*`, `PauseGate` | unknown |
 | ecs-world | The ECS world | `EcsWorld`, `remapEntitySave` | remap 0.7.0 |
-| step-systems | Systems and events | `StepSystems`, `DirectBus` | 0.5.0 |
+| step-systems | Systems and events | `EngineLoop.addSystem`, `DirectBus` | 0.5.0 |
 | replay-digest | Replays and digests | `Demo`, `Recorder`, `Playback`, `StateDigest`, `Divergence` | 0.7.0 |
 | portable-math | Portable determinism | `Portable`, `GameRandom` | 0.5.1 |
 | rewind | Rewinding | `RewindBuffer`, `Snapshot`, `StepTimeTrace` | 0.7.0 |

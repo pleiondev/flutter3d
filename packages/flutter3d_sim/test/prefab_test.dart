@@ -110,13 +110,18 @@ void main() {
       // Mutation: drop `prefabs` from `toJson`, or write `depthLayer` always.
       final json = _fixture(Level.formatVersion);
       expect(jsonEncode(Level.fromJson(json).toJson()), jsonEncode(json));
-      // The v3 one, lifted, is the same level at the newest version: only
-      // the envelope's number moves, since it said nothing about the world.
+      // The v3 one, lifted, is the same level at the newest version: the
+      // envelope's number moves, and so does the lamp's strength, from the
+      // pre-1.0 unit to candela (format 5); nothing else.
       final lifted = Level.fromJson(_fixture(3)).toJson();
       expect(lifted['version'], Level.formatVersion);
+      final v3 = _fixture(3)..remove('version');
+      final lamp = (v3['lights']! as List<Object?>).single! as Map;
+      lamp['intensity'] =
+          (lamp['intensity']! as num) * LevelLight.defaultIntensity;
       expect(
         jsonEncode(<String, Object?>{...lifted}..remove('version')),
-        jsonEncode(_fixture(3)..remove('version')),
+        jsonEncode(v3),
       );
     });
 

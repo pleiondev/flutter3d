@@ -21,7 +21,11 @@ final class LevelLoaderDemo extends ShowcaseDemo {
       Brush(center: Vector3(0, -0.5, 0), size: Vector3(4, 1, 4)),
     ],
     lights: <LevelLight>[
-      LevelLight(position: Vector3(0, 3, 0), intensity: 5.0, range: 10.0),
+      LevelLight(
+        position: Vector3(0, 3, 0),
+        intensity: 5.0 * LevelLight.defaultIntensity,
+        range: 10.0,
+      ),
     ],
   );
   // #endregion document

@@ -218,6 +218,12 @@ List<Pose>? _posesIn(String path) {
 }
 
 /// The lighting state in the file at [path], or null when it is not one.
+///
+/// **Its lights are read as a level's are**, at the `version` the file says
+/// and version 1 when it says none, as a level document is: so a state
+/// written beside a pre-1.0 level, in that level's unit, is lifted to
+/// candela with it, and one in candela says `"version": 5`. Read raw, its
+/// lamps were five thousand times dimmer than the level's they stood beside.
 LightingState? _stateIn(String path) {
   final file = File(path);
   if (!file.existsSync()) return null;
@@ -227,13 +233,14 @@ LightingState? _stateIn(String path) {
     final name = decoded['name'];
     final lights = decoded['lights'] ?? const <Object?>[];
     if (lights is! List) return null;
-    return LightingState(
-      name is String ? name : path,
-      lights: <LevelLight>[
+    final read = Level.fromJson(<String, Object?>{
+      'version': decoded['version'] ?? 1,
+      'lights': <Object?>[
         for (final row in lights)
-          if (row is Map) LevelLight.fromJson(row.cast<String, Object?>()),
+          if (row is Map) row.cast<String, Object?>(),
       ],
-    );
+    });
+    return LightingState(name is String ? name : path, lights: read.lights);
   } on FormatException {
     return null;
   } on LevelFormatException {

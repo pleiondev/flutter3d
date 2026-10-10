@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: a new light's strength is candela.** `AddLevelLight` and
+  `Editing.addLight` put a light down at `AddLevelLight.defaultIntensity`,
+  four pre-1.0 units (about 23 000 cd), where the default was 4 in the old
+  unit, and `brighten` keeps a light between a twentieth and a thousand of
+  `LevelLight.defaultIntensity`, as a level's lights are photometric since
+  level format 5.
+
 - **`EditorPieces.addComponent` refuses one of the editor's own kinds**
   with an `ArgumentError`, so an entity can no longer gain a second copy of
   a built-in component.

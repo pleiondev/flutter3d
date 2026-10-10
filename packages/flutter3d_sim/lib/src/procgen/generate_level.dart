@@ -131,7 +131,24 @@ final class LevelRules {
 
 /// Why [generateLevel] could not, or the level it made and the seed that
 /// made it — which is not always the seed asked for: see [generateLevel].
-typedef Generated = ({Level? level, int seed, String says});
+///
+/// A class rather than a record, so a later field is not a break.
+final class Generated {
+  const Generated({
+    required this.level,
+    required this.seed,
+    required this.says,
+  });
+
+  /// The level, or null when no seed tried made one.
+  final Level? level;
+
+  /// The seed that made [level], or the last one tried.
+  final int seed;
+
+  /// What happened, in a sentence for a person.
+  final String says;
+}
 
 /// The tiles: a room with a doorway on any of its four sides, sixteen of
 /// them, and nothing at all. A doorway meets a doorway and a wall a wall, so
@@ -179,7 +196,7 @@ Generated generateLevel(
     final issues = <LevelIssue>[];
     const ExitReachable().check(level, issues);
     if (issues.any((LevelIssue issue) => issue.isError)) continue;
-    return (
+    return Generated(
       level: level,
       seed: tried,
       says: attempt == 0
@@ -187,7 +204,7 @@ Generated generateLevel(
           : 'generated from seed $tried; ${attempt == 1 ? 'seed $seed' : 'seeds $seed to ${tried - 1}'} made no level',
     );
   }
-  return (
+  return Generated(
     level: null,
     seed: seed,
     says:

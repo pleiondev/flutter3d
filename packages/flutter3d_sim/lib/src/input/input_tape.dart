@@ -115,6 +115,10 @@ final class InputFrame {
   /// [InputState.lookDelta]'s `y` this step, in the device's units, as
   /// [lookX].
   final double lookY;
+
+  /// Analogue readings this step, by action name — a trigger's squeeze, a
+  /// throttle. By name, as [tunes] and [axes] are, so an action a data plugin
+  /// declares reaches the tape with no Dart type behind it.
   final Map<String, double> values;
 
   /// The numbered slot asked for this step, if any.
@@ -128,10 +132,17 @@ final class InputFrame {
   final int? slot;
 
   /// Tunables set by this step, by name — `InputState.tune`.
+  ///
+  /// **A map of names to numbers, kept as one**: it is the tape's, an
+  /// inspector's and a data plugin's form, and none of them names a Dart
+  /// type. Code reads a tunable typed through `Tunable`.
   final Map<String, double> tunes;
 
   /// Each [AxisAction] with a value this step, by name; an axis absent here
   /// read nought. Written from [InputTape.version] 2.
+  ///
+  /// By name for the same reason [tunes] is: an action a data plugin
+  /// declares has no Dart type, and the tape must carry it all the same.
   final Map<String, double> axes;
 
   /// Each [DualAxisAction] with a value this step, by name, other than

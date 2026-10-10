@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'time_source.dart';
+
 /// Which display refreshes a frame is drawn on, so that a capped frame rate
 /// is an even one — `A1.5`.
 ///
@@ -24,10 +26,19 @@ import 'dart:math' as math;
 /// What a skipped refresh does is the caller's: the simulation's time goes
 /// on accumulating ([due] answers with the seconds since the last frame
 /// drawn), and the view presents the picture it already has.
+///
+/// **Which refreshes are drawn is counted in refreshes; how much time a drawn
+/// one brings is [time]'s** ([TimeSource]): the wall clock by default, or a
+/// scaled, logged or hand-moved one, so a laboratory at a tenth of real speed
+/// still draws every refresh and steps a tenth as often.
 final class FrameCadence {
-  FrameCadence({double? cap, double? refreshRate})
+  FrameCadence({double? cap, double? refreshRate, TimeSource? time})
     : _cap = _positive(cap),
-      _refreshRate = _positive(refreshRate);
+      _refreshRate = _positive(refreshRate),
+      time = time ?? const TimeSource.realTime();
+
+  /// Where the seconds [due] answers with come from.
+  TimeSource time;
 
   /// Frames a second the drawing is held to at most, or null for one frame
   /// every refresh.
@@ -74,11 +85,12 @@ final class FrameCadence {
   Duration? _lastDrawn;
 
   /// Whether the refresh at [vsync] is one to draw on, and the seconds since
-  /// the last one drawn when it is; null for a refresh to skip.
+  /// the last one drawn when it is — [time]'s, or [clock]'s when given —
+  /// null for a refresh to skip.
   ///
   /// Call once a refresh with the ticker's timestamp. The first call always
   /// draws, and answers nought.
-  double? due(Duration vsync) {
+  double? due(Duration vsync, {TimeSource? clock}) {
     final previous = _lastVsync;
     _lastVsync = vsync;
     if (previous != null) _measure(vsync - previous);
@@ -97,13 +109,15 @@ final class FrameCadence {
       return null;
     }
     _lastDrawn = vsync;
-    return (vsync - drawn).inMicroseconds / 1e6;
+    return (clock ?? time).elapsed(drawn, vsync);
   }
 
   /// Forgets the last frame, so the next [due] draws: a game that was away.
+  /// [time] forgets what it kept too.
   void reset() {
     _lastDrawn = null;
     _lastVsync = null;
+    time.reset();
   }
 
   /// The shortest gap seen is the refresh period: a late frame is a gap of

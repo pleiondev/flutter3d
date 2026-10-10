@@ -95,7 +95,17 @@ typedef ActorCue = ({
 
 /// What [Sequence.read] made of a document: the sequence, or every problem
 /// with it and where.
-typedef SequenceRead = ({Sequence? sequence, List<String> problems});
+///
+/// A class rather than a record, so a later field is not a break.
+final class SequenceRead {
+  const SequenceRead({required this.sequence, required this.problems});
+
+  /// The sequence, or null when the document has problems.
+  final Sequence? sequence;
+
+  /// Every problem with the document, each saying where; empty when it read.
+  final List<String> problems;
+}
 
 /// A cutscene, its moments in steps.
 final class Sequence {
@@ -157,7 +167,10 @@ final class Sequence {
   static SequenceRead read(Object? json, {required int stepsPerSecond}) {
     final problems = <String>[];
     if (json is! Map) {
-      return (sequence: null, problems: <String>['a sequence is an object']);
+      return const SequenceRead(
+        sequence: null,
+        problems: <String>['a sequence is an object'],
+      );
     }
     int stepOf(double seconds) => (seconds * stepsPerSecond).round();
 
@@ -358,8 +371,10 @@ final class Sequence {
         cue,
     ];
 
-    if (problems.isNotEmpty) return (sequence: null, problems: problems);
-    return (
+    if (problems.isNotEmpty) {
+      return SequenceRead(sequence: null, problems: problems);
+    }
+    return SequenceRead(
       sequence: Sequence._(
         steps: steps,
         stepsPerSecond: stepsPerSecond,

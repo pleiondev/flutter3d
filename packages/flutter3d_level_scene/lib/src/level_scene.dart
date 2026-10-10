@@ -383,9 +383,15 @@ final class LevelScene {
         LevelLightType.directional => LightType.directional,
         LevelLightType.point => LightType.point,
         LevelLightType.spot => LightType.spot,
+        final other => throw ArgumentError.value(
+          other,
+          'light.type',
+          'a level light of this type has no light node here',
+        ),
       },
-      color: light.color.toLinearColor(),
-      intensity: light.intensity * Photometric.legacyUnit,
+      color: light.color,
+      // Candela or lux in the level since format 5, as the node takes them.
+      intensity: light.intensity,
       range: light.range,
       // The second place this flag was dropped. It travels from the document
       // to LevelLight and stopped here, so a light marked as a caster in the

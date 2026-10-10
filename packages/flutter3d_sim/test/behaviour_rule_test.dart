@@ -39,7 +39,7 @@ void main() {
     expect(Level.fromJson(level.toJson()).behaviors['fight'], _fight);
     // Mutation: writing the key when there are none puts an empty
     // `behaviors` into every level saved.
-    expect(Level().toJson().containsKey('behaviours'), isFalse);
+    expect(Level().toJson().containsKey('behaviors'), isFalse);
   });
 
   test('a tree with the game\'s own leaf reads in that game only', () {
@@ -61,11 +61,11 @@ void main() {
       entities: <EntityDef>[
         EntityDef(
           type: 'monster',
-          properties: <String, Object?>{'behaviour': 'guard'},
+          properties: <String, Object?>{'behavior': 'guard'},
         ),
         EntityDef(
           type: 'monster',
-          properties: <String, Object?>{'behaviour': 'fight'},
+          properties: <String, Object?>{'behavior': 'fight'},
         ),
       ],
     );

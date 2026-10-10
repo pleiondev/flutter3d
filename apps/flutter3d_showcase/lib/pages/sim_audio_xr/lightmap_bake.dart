@@ -67,7 +67,10 @@ final class LightmapBakeDemo extends ShowcaseDemo {
         Brush(center: Vector3(2, 2, 0), size: Vector3(4, 4, 0.2)),
       ],
       lights: <LevelLight>[
-        LevelLight(position: Vector3(lightX, 3, 2), intensity: 6.0),
+        LevelLight(
+          position: Vector3(lightX, 3, 2),
+          intensity: 6.0 * LevelLight.defaultIntensity,
+        ),
       ],
     );
     final LightmapLayout layout = LightmapLayout.plan(
@@ -212,7 +215,10 @@ final class LightmapBakeDemo extends ShowcaseDemo {
         Brush(center: Vector3(2, 2, 0), size: Vector3(4, 4, 0.2)),
       ],
       lights: <LevelLight>[
-        LevelLight(position: Vector3(2, 3, 2), intensity: 6.0),
+        LevelLight(
+          position: Vector3(2, 3, 2),
+          intensity: 6.0 * LevelLight.defaultIntensity,
+        ),
       ],
     );
     // #endregion level

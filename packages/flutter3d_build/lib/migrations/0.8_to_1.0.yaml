@@ -18544,3 +18544,165 @@ entries:
       arguments it cannot read; `dart run flutter3d_build:convert` is now
       `flutter3d convert`, whose usage is `convertUsage` in
       `package:flutter3d_build/cli.dart`.
+
+  - id: sim-StepSystems
+    package: flutter3d_sim
+    symbol: StepSystems
+    kind: manual
+    wave: 2
+    guidance: >-
+      `StepSystems` is gone: a rule a game adds to a genre's step is a system
+      in the engine's loop. Where it was `sim.systems.add(StepPhase.end,
+      (step) => rule(step.dt), label: 'rule')`, it is
+      `loop.addSystem('rule', LoopPhase.physics, (context) =>
+      rule(context.dt), after: [PlatformerPlugin.stepSystem])`, with `before:`
+      for a rule that ran at `StepPhase.begin`; the genre's step is the system
+      `<genre>.step` in its `stepPhase`. `add` returned a handle that
+      `remove` took; `addSystem` returns a `Registration`, and `cancel()`
+      takes the system out. `forPhase` is `loop.systemsIn(phase)`.
+
+  - id: sim-StepPhase
+    package: flutter3d_sim
+    symbol: StepPhase
+    kind: manual
+    wave: 2
+    guidance: >-
+      `StepPhase` is gone with `StepSystems`: a moment in a step is a place
+      among the loop's systems. `StepPhase.begin` is `before:` the genre's
+      step system and `StepPhase.end` is `after:` it; a genre's own moment
+      ("after the weapons fired") is a system of the genre's, named
+      `<genre>.<moment>`, which a rule orders itself after. A phase of a
+      game's own is `loop.addPhase(LoopPhase.step('mygame.phase'), after:
+      [...])`.
+
+  - id: sim-StepContext
+    package: flutter3d_sim
+    symbol: StepContext
+    kind: rename
+    to: LoopContext
+    wave: 2
+    guidance: >-
+      Every system is handed a `LoopContext`: `dt` is the same, `phase` is the
+      loop's `LoopPhase`, and the context also carries the step, the world and
+      `publish`. Import it from `package:flutter3d_plugin_api`.
+
+  - id: sim-StepSystem
+    package: flutter3d_sim
+    symbol: StepSystem
+    kind: rename
+    to: LoopSystem
+    wave: 2
+    guidance: >-
+      A system is a `LoopSystem`, `void Function(LoopContext context)`, from
+      `package:flutter3d_plugin_api`.
+
+  - id: sim-SystemRegistration
+    package: flutter3d_sim
+    symbol: SystemRegistration
+    kind: rename
+    to: Registration
+    wave: 2
+    guidance: >-
+      `addSystem` returns a `Registration`; `cancel()` takes the system out,
+      where `StepSystems.remove(registration)` did. Its label is the name the
+      system was added under.
+
+  - id: sim-LevelLightType-open
+    package: flutter3d_sim
+    symbol: LevelLightType
+    kind: enumToClass
+    wave: 2
+    guidance: >-
+      `LevelLightType` is an open class with the format's words, so a later
+      kind of light does not break a `switch` over it: the constants and
+      `values` are the same, a `switch` ends with a wildcard, and `.name` is
+      `.wireName`.
+
+  - id: sim-LevelLight-color
+    package: flutter3d_sim
+    symbol: LevelLight.color
+    kind: rewrite
+    template: 'Vector3({target}.color.r, {target}.color.g, {target}.color.b)'
+    imports: [package:vector_math/vector_math.dart]
+    wave: 2
+    guidance: >-
+      A level light's colour is a `LinearColor` in linear light, as it always
+      meant; read `.r`, `.g`, `.b` where you read `.x`, `.y`, `.z`.
+
+  - id: sim-LevelLight-constructor
+    package: flutter3d_sim
+    symbol: LevelLight.LevelLight
+    kind: manual
+    wave: 2
+    guidance: >-
+      `color:` takes a `LinearColor` (`LinearColor(1, 0.9, 0.8)`, or
+      `vector.toLinearColor()`), and `intensity:` is candela, or lux for a
+      directional light: multiply a pre-1.0 number by
+      `LevelLight.defaultIntensity` (about 5 790.6, one pre-1.0 unit) and the
+      light is as bright as it was. A level file is lifted the same way when
+      it is read, so only lights made in code need this.
+
+  - id: sim-Level-fogColor
+    package: flutter3d_sim
+    symbol: Level.fogColor
+    kind: rewrite
+    template: 'Vector3({target}.fogColor.r, {target}.fogColor.g, {target}.fogColor.b)'
+    imports: [package:vector_math/vector_math.dart]
+    wave: 2
+    guidance: >-
+      A level's fog colour is a `LinearColor`; read `.r`, `.g`, `.b` where you
+      read `.x`, `.y`, `.z`, and pass `fogColor: LinearColor(r, g, b)` to
+      `Level`.
+
+  - id: sim-LevelCollision-playerStart
+    package: flutter3d_sim
+    symbol: LevelCollision.playerStart
+    kind: recordToClass
+    fields:
+      position: position
+      yaw: yaw
+    wave: 2
+    guidance: >-
+      `playerStart` answers a `PlayerStart` with the same `position` and
+      `yaw`; only a destructuring pattern names the class.
+
+  - id: sim-EntityRemap-class
+    package: flutter3d_sim
+    symbol: EntityRemap
+    kind: recordToClass
+    fields:
+      save: save
+      dropped: dropped
+    wave: 2
+    guidance: >-
+      `EntityRemap` is a class with the same `save` and `dropped`; only a
+      destructuring pattern names the class.
+
+  - id: sim-RoomDoor-named
+    package: flutter3d_sim
+    symbol: RoomDoor.RoomDoor
+    kind: manual
+    wave: 2
+    guidance: >-
+      `RoomDoor` takes named arguments: `RoomDoor('north', 1.0, 2.0, 3.0)` is
+      `RoomDoor(side: 'north', offset: 1.0, width: 2.0, height: 3.0)`.
+
+  - id: sim-FlowField-maxGoals
+    package: flutter3d_sim
+    symbol: FlowField.maxGoals
+    kind: none
+    wave: 2
+    reason: >-
+      A getter where it was a constant, with the same value: a read is
+      unchanged. Only a `const` expression that used it stops compiling;
+      write the number there, or drop the `const`.
+
+  - id: sim-LightmapLayout-maxSize
+    package: flutter3d_sim
+    symbol: LightmapLayout.maxSize
+    kind: none
+    wave: 2
+    reason: >-
+      A getter where it was a constant, with the same value: a read is
+      unchanged. Only a `const` expression that used it stops compiling;
+      write the number there, or drop the `const`.

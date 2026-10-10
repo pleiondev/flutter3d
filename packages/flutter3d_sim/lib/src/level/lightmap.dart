@@ -34,6 +34,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
 import 'package:vector_math/vector_math.dart';
 
+import 'legacy_light_unit.dart';
 import 'level.dart';
 
 /// Bytes that are not a lightmap this build can read: too short, the wrong
@@ -250,8 +251,14 @@ final class Lightmap {
       mix(light.type.wireName);
       mix(light.position.toString());
       mix(light.direction.toString());
-      mix(light.color.toString());
-      mix(light.intensity.toString());
+      // The colour and the strength as this hash has always read them — the
+      // colour in single precision, the strength in the pre-1.0 unit, to the
+      // twelve figures a file wrote it in — so a lightmap baked before
+      // either moved is still the level's.
+      final color = light.color;
+      mix(Vector3(color.r, color.g, color.b).toString());
+      final legacy = light.intensity / legacyLightUnit;
+      mix(double.parse(legacy.toStringAsPrecision(12)).toString());
       mix(light.range.toString());
     }
     for (final entry in level.materials.entries) {

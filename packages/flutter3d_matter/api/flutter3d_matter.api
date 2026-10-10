@@ -236,6 +236,24 @@ final class WorldPropertiesFormatException extends Flutter3dFormatException
   const WorldPropertiesFormatException(this.message)
   final String message
 
+final class WorldPropertiesPatch
+  Iterable<String> get keys
+  Map<String, Object?> toJson()
+  String toString()
+  String? get medium
+  Vector3? get gravity
+  Vector3? get wind
+  WorldProperties over(WorldProperties base)
+  bool get isEmpty
+  bool operator ==(Object other)
+  double? get airDensity
+  double? get airPressure
+  double? get airTemperature
+  factory WorldPropertiesPatch({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, Vector3? wind, String? medium})
+  factory WorldPropertiesPatch.fromJson(Map<String, Object?> json)
+  int get hashCode
+  static const WorldPropertiesPatch empty = WorldPropertiesPatch._(<String, Object?>{})
+
 double airDensityAt(double temperature, double pressure)
 
 const double airHeatCapacityRatio = 1.4

@@ -20,6 +20,19 @@ final class TelemetryUploadFormatException extends Flutter3dFormatException {
   String toString() => 'TelemetryUploadFormatException: $message';
 }
 
+/// What [TelemetryUpload.prepare] made: the upload, or none and why.
+///
+/// A class rather than a record, so a later field is not a break.
+final class PreparedUpload {
+  const PreparedUpload({required this.upload, required this.says});
+
+  /// The upload, or null when the player did not agree or there is no run.
+  final TelemetryUpload? upload;
+
+  /// What happened, in a sentence a settings screen can show.
+  final String says;
+}
+
 /// What goes over the wire: which game, the run as a [Demo], and the consent
 /// it was sent under.
 ///
@@ -66,14 +79,14 @@ final class TelemetryUpload extends FormatDocument {
   ///
   /// The only way to build one, and it asks [consent] first: an upload that
   /// exists is an upload somebody agreed to.
-  static ({TelemetryUpload? upload, String says}) prepare({
+  static PreparedUpload prepare({
     required String game,
     required Demo demo,
     required TelemetryConsent consent,
     required String policy,
   }) {
     if (!consent.allows(policy)) {
-      return (
+      return PreparedUpload(
         upload: null,
         says: switch ((consent.wasAsked, consent.isGranted)) {
           (false, _) =>
@@ -87,9 +100,12 @@ final class TelemetryUpload extends FormatDocument {
       );
     }
     if (demo.steps == 0) {
-      return (upload: null, says: 'not sent: the run has no steps');
+      return const PreparedUpload(
+        upload: null,
+        says: 'not sent: the run has no steps',
+      );
     }
-    return (
+    return PreparedUpload(
       upload: TelemetryUpload._(
         game: game,
         demo: Demo(

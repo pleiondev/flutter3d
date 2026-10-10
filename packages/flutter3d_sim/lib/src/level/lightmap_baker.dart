@@ -37,6 +37,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../save/game_random.dart';
 import 'brush_geometry.dart';
+import 'legacy_light_unit.dart';
 import 'level.dart';
 import 'level_collision.dart';
 import 'lightmap.dart';
@@ -173,6 +174,18 @@ final class LightmapBaker {
     final origin = Vector3.zero();
     final toLight = Vector3.zero();
     final hit = RayHit();
+    // **Each light as the bake has always read it**: its colour in single
+    // precision and its strength in the pre-1.0 unit, which is what a
+    // lightmap's texels are in and what the renderer's lightmap path
+    // multiplies back. So a level lifted to photometric units bakes the
+    // bytes it baked before.
+    final colors = <Vector3>[
+      for (final light in level.lights)
+        Vector3(light.color.r, light.color.g, light.color.b),
+    ];
+    final strengths = <double>[
+      for (final light in level.lights) light.intensity / legacyLightUnit,
+    ];
 
     for (final face in plan.faces) {
       final n = face.normal;
@@ -183,7 +196,8 @@ final class LightmapBaker {
             ..setFrom(point)
             ..addScaled(n, _lift);
           final at = ((face.y + j) * plan.width + face.x + i) * 3;
-          for (final light in level.lights) {
+          for (var l = 0; l < level.lights.length; l++) {
+            final light = level.lights[l];
             final double reach;
             final double attenuation;
             switch (light.type) {
@@ -207,14 +221,19 @@ final class LightmapBaker {
                 toLight.scale(1.0 / distance);
                 reach = distance - _lift;
                 attenuation = _punctualAttenuation(distance, light.range);
+              default:
+                // A kind of light this baker has no model of bakes nothing,
+                // and the renderer lights it at run time like any other.
+                continue;
             }
             final cosine = n.dot(toLight);
             if (cosine <= 0.0 || attenuation <= 0.0) continue;
             if (world.raycast(origin, toLight, reach, hit)) continue;
-            final scale = light.intensity * attenuation * cosine;
-            out[at] += light.color.x * scale;
-            out[at + 1] += light.color.y * scale;
-            out[at + 2] += light.color.z * scale;
+            final scale = strengths[l] * attenuation * cosine;
+            final color = colors[l];
+            out[at] += color.x * scale;
+            out[at + 1] += color.y * scale;
+            out[at + 2] += color.z * scale;
           }
         }
       }

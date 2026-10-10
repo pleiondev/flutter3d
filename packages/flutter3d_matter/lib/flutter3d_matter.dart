@@ -35,3 +35,4 @@ export 'src/materials/property_groups.dart';
 export 'src/physical_constants.dart';
 export 'src/standard_world.dart';
 export 'src/world_properties.dart';
+export 'src/world_properties_patch.dart';

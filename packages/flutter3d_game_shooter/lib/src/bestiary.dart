@@ -129,7 +129,7 @@ final class MonsterKind extends EntityKind {
     SpawnContext context,
     MonsterDef def,
   ) {
-    final named = entity.string('behaviour');
+    final named = entity.string('behavior');
     final document = named == null ? null : context.level?.behaviors[named];
     final chase = actor.brain;
     if (document == null || chase is! ChaseBrain) return;

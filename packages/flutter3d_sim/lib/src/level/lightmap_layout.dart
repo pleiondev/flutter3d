@@ -113,7 +113,11 @@ final class LightmapLayout {
 
   /// The largest atlas this will plan. Past it the level wants a lower
   /// density, and the planner says so rather than guessing one.
-  static const int maxSize = 4096;
+  ///
+  /// **A getter, not a constant**: it is what this build plans, not a limit
+  /// a caller should compile in, and a later release may raise it.
+  static int get maxSize => _maxSize;
+  static const int _maxSize = 4096;
 
   int get texelCount => width * height;
 

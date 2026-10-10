@@ -21,7 +21,7 @@ import 'crypt_kit.dart';
 const String _levels = 'apps/flutter3d_demo_dungeon/assets/levels';
 
 RoomDoor _door(String side, double offset, double width, double height) =>
-    RoomDoor(side, offset, width, height);
+    RoomDoor(side: side, offset: offset, width: width, height: height);
 
 const double _east = -1.5708;
 const double _west = 1.5708;
@@ -477,7 +477,13 @@ Map<String, String> cistern(GeneratorSource _) {
   const outflow = <num>[0.0, 0.0, -43.0];
   const wet = <num>[0.5, 0.85, 0.8];
   RoomDoor sill(String side, double offset, double width, double height) =>
-      RoomDoor(side, offset, width, height, sill: 0.0);
+      RoomDoor(
+        side: side,
+        offset: offset,
+        width: width,
+        height: height,
+        sill: 0.0,
+      );
 
   final k = CryptKit()
     ..room(

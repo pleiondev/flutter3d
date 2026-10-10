@@ -80,7 +80,7 @@ final Map<String, MaterialHint> levelMaterialHints = <String, MaterialHint>{
         'lit. Above one is a surface that blows out, which is what a lamp '
         'housing wants and a wall does not.',
   ),
-  'texelsPerMetre': const MaterialHint(
+  'texelsPerMeter': const MaterialHint(
     RangeHint(0.125, 8.0, step: 0.125),
     label: 'Texels per metre',
     help: 'How many times the maps repeat across a metre of wall.',

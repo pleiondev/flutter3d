@@ -19,15 +19,23 @@ void main() {
       'name': 'cold',
       'renderSettings': section,
     });
-    expect(level.renderSettings, section);
-    expect(Level.fromJson(level.toJson()).renderSettings, section);
+    expect(level.renderSettings.toJson(), section);
+    expect(level.renderSettings.ids, <String>['acme_frost.frost']);
+    expect(
+      level.renderSettings['acme_frost.frost'],
+      section['acme_frost.frost'],
+    );
+    expect(
+      Level.fromJson(level.toJson()).renderSettings,
+      RenderSettingsPatch(section),
+    );
 
     // Mutation: write the section whenever it is absent — the document
     // that never named one comes back with an empty object, and its digest
     // moves.
     final plain = <String, Object?>{'version': 1, 'name': 'yard'};
     final quiet = Level.fromJson(plain);
-    expect(quiet.renderSettings, isEmpty);
+    expect(quiet.renderSettings, same(RenderSettingsPatch.empty));
     expect(quiet.toJson().containsKey('renderSettings'), isFalse);
     expect(quiet.digestHex, Level.fromJson(plain).digestHex);
   });

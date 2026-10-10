@@ -640,11 +640,13 @@ void main() {
       expect(find.byKey(const ValueKey<String>('remove:type')), findsNothing);
       expect(find.byKey(const ValueKey<String>('remove:at')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey<String>('remove:behaviour')));
+      // The document's `behaviour`, from before format 5, is read as
+      // `behavior`.
+      await tester.tap(find.byKey(const ValueKey<String>('remove:behavior')));
       await tester.pump();
 
-      expect(editing.entity!.properties.containsKey('behaviour'), isFalse);
-      expect(editing.history.undoSays, 'clear behaviour');
+      expect(editing.entity!.properties.containsKey('behavior'), isFalse);
+      expect(editing.history.undoSays, 'clear behavior');
     });
 
     testWidgets('with more than one selected it says whose fields these are', (

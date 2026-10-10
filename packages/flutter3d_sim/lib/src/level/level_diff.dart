@@ -150,7 +150,7 @@ LevelDiff diffLevel(Level before, Level after) {
       // A template's edit is an edit of every instance's entities.
       if (differs(prefabs(before), prefabs(after))) 'prefabs',
       if (before.next != after.next) 'next',
-      if (differs(before.world, after.world)) 'world',
+      if (differs(before.world.toJson(), after.world.toJson())) 'world',
     ],
   );
 }

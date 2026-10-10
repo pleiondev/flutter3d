@@ -69,7 +69,13 @@ final class FlowField {
   }
 
   /// The most goals one sweep takes: [_source] is a byte per cell.
-  static const int maxGoals = 127;
+  ///
+  /// **A getter, not a constant**, because it is a limit of this build and
+  /// not a promise: a `const` is copied into the code that reads it, so a
+  /// wider source column in a later release would leave every caller
+  /// compiled against 127.
+  static int get maxGoals => _maxGoals;
+  static const int _maxGoals = 127;
 
   final NavGrid grid;
 

@@ -701,7 +701,9 @@ List<EditorTool> get _commandTools => <EditorTool>[
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'at': _vector('where it goes'),
-          'intensity': NumberSchema(description: 'how strong, default 4'),
+          'intensity': NumberSchema(
+            description: 'how strong, in candela; default about 23 000',
+          ),
           'range': NumberSchema(description: 'how far it reaches, default 8'),
         },
         required: <String>['at'],

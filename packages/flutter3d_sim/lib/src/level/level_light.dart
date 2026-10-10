@@ -1,3 +1,5 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:vector_math/vector_math.dart';
 
 import 'json_reader.dart';
@@ -6,36 +8,50 @@ import 'level_format_exception.dart';
 import 'level_ids.dart';
 
 final Vector3 _origin = Vector3.zero();
-final Vector3 _white = Vector3(1.0, 1.0, 1.0);
 
-enum LevelLightType {
-  directional,
-  point,
-  spot;
+/// What kind of light a level places.
+///
+/// **An open set, not an enum** (ARCHITECTURE.md §13.1): a later minor may
+/// add a kind — an area light, a sky portal — and a `switch` written against
+/// three values would stop compiling on it. A `switch` over these ends with
+/// a wildcard.
+///
+/// **Its word in a document is [wireName]**, a table of the format's and
+/// not a Dart identifier, so a rename here never changes what a saved level
+/// says.
+final class LevelLightType {
+  const LevelLightType._(this.wireName);
+
+  /// The sun: parallel rays from [LevelLight.direction], in lux.
+  static const LevelLightType directional = LevelLightType._('directional');
+
+  /// A bulb: light in every direction from [LevelLight.position], in
+  /// candela.
+  static const LevelLightType point = LevelLightType._('point');
+
+  /// A bulb with a cone along [LevelLight.direction], in candela.
+  static const LevelLightType spot = LevelLightType._('spot');
+
+  /// Every type this build knows, in the order the format lists them.
+  static const List<LevelLightType> values = <LevelLightType>[
+    directional,
+    point,
+    spot,
+  ];
 
   /// The word a level document writes for this type.
-  ///
-  /// **A table, not [name]**: the Dart identifier is free to be renamed, and
-  /// a rename must not change what every saved level says. The words are the
-  /// format's and stay as they are.
-  String get wireName => _wireNames[this]!;
+  final String wireName;
 
   /// The type a document's word names, or null for a word that is not one.
-  static LevelLightType? fromWireName(String word) => _byWireName[word];
+  static LevelLightType? fromWireName(String word) {
+    for (final type in values) {
+      if (type.wireName == word) return type;
+    }
+    return null;
+  }
 
-  static const Map<LevelLightType, String> _wireNames =
-      <LevelLightType, String>{
-        LevelLightType.directional: 'directional',
-        LevelLightType.point: 'point',
-        LevelLightType.spot: 'spot',
-      };
-
-  static const Map<String, LevelLightType> _byWireName =
-      <String, LevelLightType>{
-        'directional': LevelLightType.directional,
-        'point': LevelLightType.point,
-        'spot': LevelLightType.spot,
-      };
+  @override
+  String toString() => wireName;
 }
 
 /// A light placed by the level rather than by the renderer.
@@ -45,8 +61,8 @@ final class LevelLight {
     this.type = LevelLightType.point,
     Vector3? position,
     Vector3? direction,
-    Vector3? color,
-    this.intensity = 1.0,
+    this.color = LinearColor.white,
+    this.intensity = defaultIntensity,
     this.range = 0.0,
     bool? castsShadow,
     this.name,
@@ -56,7 +72,6 @@ final class LevelLight {
        direction = direction?.clone() ?? Vector3(0.0, -1.0, 0.0),
        // ignore: prefer_initializing_formals
        _source = source,
-       color = color?.clone() ?? Vector3(1.0, 1.0, 1.0),
        id =
            id ??
            LevelIds.derive(<Object?>[
@@ -81,12 +96,26 @@ final class LevelLight {
   final LevelLightType type;
   final Vector3 position;
   final Vector3 direction;
-  final Vector3 color;
 
-  /// The light's strength as the level file stores it: a pre-1.0 unitless
-  /// multiple that `Photometric.legacyUnit` turns into candela for a point
-  /// or spot light and lux for a directional one.
+  /// The light's colour, in linear light. Its brightness is [intensity]'s:
+  /// white is `LinearColor.white`, and a colour brighter than white is a
+  /// strength written in the wrong field.
+  final LinearColor color;
+
+  /// The light's strength: candela for a point or spot light, lux for a
+  /// directional one — what the renderer's `LightNode.intensity` takes, with
+  /// nothing in between.
+  ///
+  /// **Photometric since format 5.** A document of version 4 or older wrote
+  /// a pre-1.0 unitless multiple, and is lifted by multiplying it by that
+  /// unit (`π × 1843.2`, about 5 790.6), so every saved level draws as
+  /// bright as it did.
   final double intensity;
+
+  /// The strength of a light that does not say one, in candela or lux: one
+  /// pre-1.0 unit, so a light a document left at its default keeps the
+  /// brightness it had across the lift.
+  static const double defaultIntensity = 5790.583578; // π × 1843.2
 
   /// How far a point or spot light reaches, in metres; zero is unbounded.
   final double range;
@@ -124,8 +153,8 @@ final class LevelLight {
       type: type,
       position: json.vector3('at', fallback: Vector3.zero()),
       direction: json.vector3('direction', fallback: Vector3(0.0, -1.0, 0.0)),
-      color: json.vector3('color', fallback: Vector3(1.0, 1.0, 1.0)),
-      intensity: json.numberOr('intensity', 1.0),
+      color: json.linearColor('color', fallback: LinearColor.white),
+      intensity: json.numberOr('intensity', defaultIntensity),
       range: json.numberOr('range', 0.0),
       castsShadow: json.flagOr(
         'castsShadow',
@@ -149,8 +178,16 @@ final class LevelLight {
       direction.toJson(),
       whenAbsent: type != LevelLightType.point,
     ),
-    WriteThroughField('color', color.toJson(), whenAbsent: color != _white),
-    WriteThroughField('intensity', intensity, whenAbsent: intensity != 1.0),
+    WriteThroughField(
+      'color',
+      color.toJson(),
+      whenAbsent: color != LinearColor.white,
+    ),
+    WriteThroughField(
+      'intensity',
+      intensity,
+      whenAbsent: intensity != defaultIntensity,
+    ),
     WriteThroughField('range', range, whenAbsent: range != 0.0),
     WriteThroughField(
       'castsShadow',

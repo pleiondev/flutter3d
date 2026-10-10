@@ -59,7 +59,12 @@ Level _room({
     ),
   ],
   lights: <LevelLight>[
-    LevelLight(position: Vector3(0.0, 1.5, 0.0), intensity: intensity),
+    // [intensity] in the unit a lightmap's texels are in, one pre-1.0 unit
+    // each: the light itself is in candela.
+    LevelLight(
+      position: Vector3(0.0, 1.5, 0.0),
+      intensity: intensity * LevelLight.defaultIntensity,
+    ),
   ],
 );
 

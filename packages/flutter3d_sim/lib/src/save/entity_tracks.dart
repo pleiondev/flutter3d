@@ -157,6 +157,29 @@ final class TrackSample {
 /// entry, and the steps at which something did happen are exactly the marks
 /// a scrubber wants to draw. Observing every step costs a snapshot read per
 /// step and nothing per entity that stood still.
+/// The first and the last of a run of steps, both included.
+///
+/// A class rather than a record, so a later field is not a break.
+final class StepSpan {
+  const StepSpan({required this.first, required this.last});
+
+  /// The first step.
+  final int first;
+
+  /// The last step.
+  final int last;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StepSpan && other.first == first && other.last == last;
+
+  @override
+  int get hashCode => Object.hash(first, last);
+
+  @override
+  String toString() => 'StepSpan($first..$last)';
+}
+
 final class EntityTracks {
   EntityTracks(this.layout);
 
@@ -169,8 +192,8 @@ final class EntityTracks {
   int? _last;
 
   /// The first and last step observed, or null before the first.
-  ({int first, int last})? get span => switch ((_first, _last)) {
-    (final int first, final int last) => (first: first, last: last),
+  StepSpan? get span => switch ((_first, _last)) {
+    (final int first, final int last) => StepSpan(first: first, last: last),
     _ => null,
   };
 

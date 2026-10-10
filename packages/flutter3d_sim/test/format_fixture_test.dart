@@ -19,7 +19,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show LinearColor;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -91,7 +92,7 @@ void main() {
           ..._json('first.level.json', 3),
           'gravity': 1.62,
         });
-        expect(lifted.world, <String, Object?>{'gravity': 1.62});
+        expect(lifted.world.toJson(), <String, Object?>{'gravity': 1.62});
         expect(lifted.toJson().containsKey('gravity'), isFalse);
         expect(
           lifted.worldOver(WorldProperties.standard).gravity.y,
@@ -100,17 +101,76 @@ void main() {
       },
     );
 
+    test('the v5 level reads its photometric lights, its American keys and '
+        'keeps the fields it reserves', () {
+      final json = _json('first.level.json', 5);
+      final level = Level.fromJson(json);
+      final lamp = level.lights.single;
+      expect(lamp.intensity, closeTo(9.0 * LevelLight.defaultIntensity, 1e-6));
+      expect(lamp.color, const LinearColor(1.0, 0.92, 0.78));
+      expect(level.fogColor, const LinearColor(0.05, 0.04, 0.06));
+      expect(level.materials['floor']!.texelsPerMeter, 2.0);
+      expect(level.behaviors.keys, <String>['patrol']);
+      expect(level.entities.first.properties['behavior'], 'patrol');
+      expect(level.world.gravity!.y, closeTo(-1.62, 1e-6));
+      // `geoOrigin` and `physicalMaterial` are reserved: no reader yet, and
+      // a read and a write must not lose them. Mutation: list `geoOrigin`
+      // among the known keys without a field.
+      expect(level.toJson(), json);
+    });
+
+    test('a v4 level is lifted to v5: lights in candela, keys in American '
+        'spelling, nothing else moved', () {
+      final v4 = _json('first.level.json', 4)
+        ..['behaviours'] = <String, Object?>{
+          'guard': <String, Object?>{'kind': 'sequence'},
+        }
+        ..['materials'] = <String, Object?>{
+          'floor': <String, Object?>{'texelsPerMetre': 0.5},
+        };
+      final rows = (v4['entities']! as List<Object?>).cast<Map>();
+      rows.first['props'] = <String, Object?>{'behaviour': 'guard'};
+
+      final level = Level.fromJson(v4);
+      // Mutation: drop `_toVersion5` from the migrations — every one of
+      // these is read as a key nobody knows, and the lamp is 9 candela.
+      expect(level.lights.single.intensity, closeTo(52115.252202, 1e-6));
+      expect(level.behaviors.keys, <String>['guard']);
+      expect(level.entities.first.properties['behavior'], 'guard');
+      expect(level.materials['floor']!.texelsPerMeter, 0.5);
+      final written = level.toJson();
+      expect(written['version'], 5);
+      expect(written.containsKey('behaviours'), isFalse);
+      expect((written['materials']! as Map)['floor'], <String, Object?>{
+        'texelsPerMeter': 0.5,
+      });
+      // A light that never named its strength still does not.
+      final quiet = Level.fromJson(<String, Object?>{
+        'version': 4,
+        'lights': <Object?>[
+          <String, Object?>{'type': 'point'},
+        ],
+      });
+      expect(quiet.lights.single.intensity, LevelLight.defaultIntensity);
+      final row = (quiet.toJson()['lights']! as List<Object?>).single! as Map;
+      expect(row.containsKey('intensity'), isFalse);
+    });
+
     test("a level's digest is its content, whatever version wrote it", () {
       // The version is the format's, not the level's: holding it moved every
       // stored `levelHash` on every bump of the format (3 → 4 did), and every
       // recorded run of an unchanged level stopped verifying. Mutation: keep
       // `version` in the digest — it differs from the body's digest.
       final level = Level.fromJson(_json('first.level.json', 3));
-      final body = <String, Object?>{
-        for (final MapEntry(:key, :value) in level.toJson().entries)
-          if (!FormatSpec.envelopeKeys.contains(key)) key: value,
-      };
-      expect(level.digestHex, contentDigestHex(body));
+      // The digest this level had when the build read it at format 4, before
+      // format 5 changed a light's unit and three keys' spelling. Mutation:
+      // digest the body as format 5 writes it — the light's 9 becomes
+      // 52 115.25 candela and every run recorded against it is refused.
+      expect(level.digestHex, 'a4e2e16c');
+      expect(
+        Level.fromJson(_json('first.level.json', 4)).digestHex,
+        '989172bc',
+      );
       expect(
         Level.fromJson(_json('first.level.json', 3)..['version'] = 4).digestHex,
         level.digestHex,

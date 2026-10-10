@@ -12,14 +12,14 @@ Future<Generated> generateOffThread(
 }) async {
   final asked = rules.toJson();
   final made = await Isolate.run(() {
-    final (:level, seed: made, :says) = generateLevel(
+    final Generated(:level, seed: made, :says) = generateLevel(
       LevelRules.fromJson(asked),
       seed: seed,
       attempts: attempts,
     );
     return (level: level?.toJson(), seed: made, says: says);
   });
-  return (
+  return Generated(
     level: switch (made.level) {
       final Map<String, Object?> document => Level.fromJson(document),
       null => null,

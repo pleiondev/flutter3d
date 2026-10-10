@@ -19,7 +19,7 @@ void main() {
   test('a material naming a .fmat keeps the name through a save', () {
     final read = LevelMaterial.fromJson(<String, Object?>{
       'fmat': 'assets/materials/steel.fmat',
-      'texelsPerMetre': 2.0,
+      'texelsPerMeter': 2.0,
     });
 
     expect(read.fmat, 'assets/materials/steel.fmat');
