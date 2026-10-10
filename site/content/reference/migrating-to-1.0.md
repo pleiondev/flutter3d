@@ -60,7 +60,10 @@ migration has moved the constraints.
    Every item on the list also has a `// TODO(flutter3d-1.0):` above it in
    the code, with a link to its line below.
 
-`--from 0.8` is the default and the only source version for now.
+`migrate` reads the release your project is on from its `pubspec.lock` and
+applies every migration table after it, so a project on 0.8 goes through
+`0.8_to_1.0.yaml` and, once there is a later candidate, the tables after it
+in the same run. `--from <version>` says the release when there is no lock.
 `--dry-run` makes the same changes in a copy next to your project, prints
 the report and removes the copy.
 
@@ -111,6 +114,98 @@ and time scale) and `catchUp:` (what to do when a frame falls behind).
 Their defaults are what `GameLoop` did. In a Flame game, `HasFixedStep` runs
 an `EngineLoop` already: read `engineLoop`, and register your step work in
 `installStepSystems`.
+
+## Data files
+
+Your levels, effects, data plugins and recordings do not need a migration
+to keep working: 1.0 reads every version of each format, lifting an old
+file through its format's chain each time it opens it. What stays behind is
+the file on disk. A tool that does not carry the chain, a diff, or an
+older checkout of the editor still sees the 0.8 shape.
+
+```bash
+dart pub global run flutter3d_build:migrate --data --dry-run .   # list them
+dart pub global run flutter3d_build:migrate --data --backup .
+```
+
+`--data` walks the project by the suffixes of every format below. Each
+JSON file below its format's version is written again in the shape 1.0
+writes, with the format envelope (`format`, `version`, `requires`,
+`generator`) first. Every key it had is kept, including the ones 1.0 does
+not know. The report has a line per file, `assets/levels/first.level.json:
+f3d.level v1 → v4`, and a list of what it did not carry over. That covers a
+version newer than the tool, a document of another format under the suffix,
+and the formats it leaves as they are. `--backup` keeps each file as it was
+next to it, as `<file>.v<N>.bak`. `flutter3d doctor`, run in a project,
+lists the files that are behind.
+
+A level is lifted by the level reader itself, because a level from before
+version 3 addressed a prefab override by name, and only the reader that has
+read the prefabs can turn that into an id path. The level's digest is
+computed from what the reader reads, so a run recorded against the old file
+still matches the new one.
+
+**Runs are left at their version on purpose.** `.f3drun` is at version 5 in
+1.0. A run with change stamps on its starting world (the step each
+component was last set at, which `query().changed<T>()` replays from) is
+written at 5. So is a run that carries `externalInputs`, state fed in from
+outside the simulation at a given step, which may say `sourceTime`,
+`receivedTime`, `quality`, `tag` and `unit`. Version 5 also reserves
+`probes`, what probes read while the run was recorded, and `parent`, the run
+a branch starts from. A build from before 5 plays neither of the first two
+correctly, so it must refuse them. Every other run is still written at the
+lowest version that describes it, and an older build keeps playing it.
+Lifting a version-1 run to 5 would only make those builds refuse it, so
+`--data` does not. Input tapes follow the same rule. A version-1 tape with
+button pairs where the game now has an axis is upgraded by the game's
+`ActionSet.upgradeTape` when it is replayed, since only the game knows its
+axes.
+
+The formats owned by a package that needs the Flutter SDK (settings,
+action maps, saves, racing tracks and ghosts, strategy matches) cannot be
+loaded by a command-line tool. `--data` names those files and leaves them;
+the game reads every version of them as before.
+
+<!-- data-formats:start -->
+
+*Generated from the `FormatSpec`s `migrate --data` loads — 22 formats, and 10 it leaves to the package that reads them.*
+
+| Format | Files | Package | This build reads | `migrate --data` |
+|---|---|---|---|---|
+| `f3d.model` | `.f3d` | `flutter3d_core` | v1–v2 | read as it is: its version is in its own header |
+| `f3d.fmat` | `.fmat` | `flutter3d_core` | v1 | nothing to lift |
+| `f3d.materialLanguage` | `.f3dmat` | `flutter3d_core` | v1–v2 | read as it is: its version is in its own header |
+| `f3d.splat` | `.f3dsplat` | `flutter3d_core` | v1 | read as it is: its version is in its own header |
+| `f3d.frameCapture` | `.capture.json` | `flutter3d_core` | v1–v2 | lifted to v2 through its chain |
+| `f3d.shaderBundle` | `.f3dshaders` | `flutter3d_hardware` | v1 | read as it is: its version is in its own header |
+| `f3d.trace` | `.f3dtrace` | `flutter3d_hardware` | v1 | read as it is: its version is in its own header |
+| `f3d.project` | `.f3dproj` | `flutter3d_model_core` | v1 | read as it is: its version is in its own header |
+| `f3d.level` | `.level.json` | `flutter3d_sim` | v1–v4 | lifted to v4 by its reader |
+| `f3d.visibility` | `.visibility.json` | `flutter3d_sim` | v1 | nothing to lift |
+| `f3d.lightmap` | `.lightmap.bin` | `flutter3d_sim` | v1 | read as it is: its version is in its own header |
+| `f3d.run` | `.f3drun` | `flutter3d_sim` | v1–v5 | kept below v5, at the lowest version that holds it |
+| `f3d.save` | `.save.json` | `flutter3d_sim` | v1 | nothing to lift |
+| `f3d.share` | `.share.json` | `flutter3d_sim` | v1 | nothing to lift |
+| `f3d.inputTape` | `.tape.json` | `flutter3d_sim` | v1–v2 | kept below v2, at the lowest version that holds it |
+| `f3d.telemetry` | `.upload.json` | `flutter3d_sim` | v1 | nothing to lift |
+| `f3d.effect` | `.f3dfx` | `flutter3d_particles` | v1–v2 | lifted to v2 through its chain |
+| `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v2 | lifted to v2 through its chain |
+| `f3d.physicalMaterial` | `.material.json` | `flutter3d_matter` | v1 | nothing to lift |
+| `f3d.voxelWorld` | `.voxels.json` | `flutter3d_voxel` | v1 | nothing to lift |
+| `f3d.assets` | `flutter3d_assets.yaml` | `flutter3d_build` | v1 | nothing to lift |
+| `f3d.convertReport` | `.report.json` | `flutter3d_build` | v1 | nothing to lift |
+| `f3d.settings` | `.settings.json` | `flutter3d_game` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.actions` | `.actions.json` | `flutter3d_game` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.saveSlots` | — | `flutter3d_game` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.cloudSaves` | — | `flutter3d_game` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.telemetryConsent` | — | `flutter3d_game` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.track` | `.track.json` | `flutter3d_game_racing` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.ghost` | `.ghost.json` | `flutter3d_game_racing` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.ghostTape` | `.best.json` | `flutter3d_game_kit` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.match` | `.match.f3drun` | `flutter3d_game_strategy` | every version | left as it is: its package needs Flutter, and the game reads every version |
+| `f3d.conformance` | `.conformance.json` | `flutter3d_conformance` | every version | left as it is: a report of one conformance run, which nothing in a project reads back |
+
+<!-- data-formats:end -->
 
 ## Every change, by package
 

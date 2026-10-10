@@ -277,6 +277,30 @@ void main() {
     expect(fixture.readAsStringSync(), '{"version": 1, "name": "kept"}\n');
   });
 
+  test('the guide has a row for every format, saying what --data does', () {
+    // Mutation: describe a run as lifted, or leave the out-of-reach formats
+    // out of the table.
+    final guide = generateDataGuide();
+    expect(guide, startsWith(dataGuideStart));
+    expect(guide.trimRight(), endsWith(dataGuideEnd));
+    final rows = guide
+        .split('\n')
+        .where((String l) => l.startsWith('| `'))
+        .toList();
+    expect(
+      rows,
+      hasLength(engineFormats().all.length + formatsOutOfReach.length),
+    );
+    String row(String id) =>
+        rows.singleWhere((String r) => r.startsWith('| `$id` |'));
+    expect(row('f3d.level'), contains('lifted to v4 by its reader'));
+    expect(row('f3d.run'), contains('v1–v5'));
+    expect(row('f3d.run'), contains('kept below v5'));
+    expect(row('f3d.effect'), contains('lifted to v2 through its chain'));
+    expect(row('f3d.model'), contains('read as it is'));
+    expect(row('f3d.match'), contains('left as it is'));
+  });
+
   test('doctor names the files behind', () {
     File('${scratch.path}/assets/first.level.json')
       ..parent.createSync(recursive: true)

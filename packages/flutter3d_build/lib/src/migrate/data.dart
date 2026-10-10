@@ -494,6 +494,54 @@ DataMigration migrateData(
   return result;
 }
 
+/// The markers the generated table of data formats sits between in the
+/// migration guide.
+const String dataGuideStart = '<!-- data-formats:start -->';
+const String dataGuideEnd = '<!-- data-formats:end -->';
+
+/// The Markdown between [dataGuideStart] and [dataGuideEnd]: every format
+/// of the engine, the versions this build reads, and what `migrate --data`
+/// does with a file of it.
+String generateDataGuide() {
+  String suffixes(List<String> list) =>
+      list.isEmpty ? '—' : list.map((String s) => '`$s`').join(', ');
+  String how(FormatSpec spec) => switch (spec) {
+    _ when !spec.enveloped => 'read as it is: its version is in its own header',
+    _ when _keptBelow.containsKey(spec.id) =>
+      'kept below v${_keptBelow[spec.id]!.$1}, at the lowest version that '
+          'holds it',
+    _ when spec.version == spec.since => 'nothing to lift',
+    _ when _readerLifts.containsKey(spec.id) =>
+      'lifted to v${spec.version} by its reader',
+    _ => 'lifted to v${spec.version} through its chain',
+  };
+  final rows = <String>[
+    for (final MapEntry(key: package, value: specs) in formatsByPackage.entries)
+      for (final spec in specs)
+        '| `${spec.id}` | ${suffixes(spec.suffixes)} | `$package` | '
+            '${spec.since == spec.version ? 'v${spec.version}' : 'v${spec.since}–v${spec.version}'} | '
+            '${how(spec)} |',
+    for (final away in formatsOutOfReach)
+      '| `${away.id}` | ${suffixes(away.suffixes)} | `${away.package}` | '
+          'every version | left as it is: '
+          '${away.why == _flutterOwned ? 'its package needs Flutter, and the game reads every version' : away.why} |',
+  ];
+  return <String>[
+    dataGuideStart,
+    '',
+    '*Generated from the `FormatSpec`s `migrate --data` loads — '
+        '${formatsByPackage.values.fold(0, (int n, List<FormatSpec> l) => n + l.length)} '
+        'formats, and ${formatsOutOfReach.length} it leaves to the package '
+        'that reads them.*',
+    '',
+    '| Format | Files | Package | This build reads | `migrate --data` |',
+    '|---|---|---|---|---|',
+    ...rows,
+    '',
+    dataGuideEnd,
+  ].join('\n');
+}
+
 /// The data files of [project] below the version this build writes, as
 /// `doctor` reports them: `path (format vN, current vM)`.
 List<String> dataFilesBehind(

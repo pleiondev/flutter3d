@@ -26,6 +26,8 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_build/src/migrate/data.dart'
+    show dataGuideEnd, dataGuideStart, generateDataGuide;
 import 'package:flutter3d_build/src/migrate/fix_data.dart';
 import 'package:flutter3d_build/src/migrate/guide.dart';
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
@@ -133,10 +135,24 @@ void main(List<String> args) {
       guide.readAsStringSync(),
       generateGuideTable(chain),
     );
+    // The data formats, and what `migrate --data` does with each, in their
+    // own section of the same page.
+    final withData = spliced == null
+        ? null
+        : spliceGuide(
+            spliced,
+            generateDataGuide(),
+            startMarker: dataGuideStart,
+            endMarker: dataGuideEnd,
+          );
     if (spliced == null) {
       problems.add('${guide.path} has no $guideStart … $guideEnd markers');
+    } else if (withData == null) {
+      problems.add(
+        '${guide.path} has no $dataGuideStart … $dataGuideEnd markers',
+      );
     } else {
-      outputs[guide.path] = spliced;
+      outputs[guide.path] = withData;
     }
   }
 

@@ -130,13 +130,18 @@ String _internalRow(String package, List<MigrationEntry> entries, String to) {
       '${instead.map((String i) => ' $i').join()}';
 }
 
-/// [page] with its generated part replaced by [table]; null when the page
-/// has no markers.
-String? spliceGuide(String page, String table) {
-  final start = page.indexOf(guideStart);
-  final end = page.indexOf(guideEnd);
+/// [page] with its generated part, between [startMarker] and [endMarker],
+/// replaced by [table]; null when the page has no markers.
+String? spliceGuide(
+  String page,
+  String table, {
+  String startMarker = guideStart,
+  String endMarker = guideEnd,
+}) {
+  final start = page.indexOf(startMarker);
+  final end = page.indexOf(endMarker);
   if (start < 0 || end < start) return null;
   return page.substring(0, start) +
       table +
-      page.substring(end + guideEnd.length);
+      page.substring(end + endMarker.length);
 }
