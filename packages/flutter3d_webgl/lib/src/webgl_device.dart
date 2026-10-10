@@ -1310,8 +1310,9 @@ final class WebGlDevice extends GraphicsDevice
             'format',
       ));
 
-  /// Decoded by the browser and uploaded as it comes, with the chain built by
-  /// `generateMipmap` — `A4.16`. See `webgl_image_decode.dart`.
+  /// Decoded by the browser and uploaded as it comes, with the chain
+  /// `MipChain.build` makes from level zero read back — `A4.16`. See
+  /// `webgl_image_decode.dart`.
   ///
   /// [maxDimension] is held to this context's own `MAX_TEXTURE_SIZE` as well,
   /// so a caller who asked for no cap still gets an image the context can

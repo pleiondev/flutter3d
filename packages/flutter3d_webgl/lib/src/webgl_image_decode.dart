@@ -8,12 +8,18 @@
 /// uploaded every level — three passes over the image on the thread that also
 /// draws the frame.
 ///
-/// **The chain is built by the GPU here.** `generateMipmap` on an RGBA8
-/// texture is legal in WebGL2 for any size (color-renderable and filterable,
-/// which RGBA8 always is) and costs a few draw-sized operations instead of a
-/// pass in Dart. Its filter is the driver's box, which is what
-/// `MipChain.build` computes too, so the two answers differ by rounding, not
-/// by kind.
+/// **The chain is `MipChain.build`'s, to the byte.** Level zero is read back
+/// from the texture it was just written into, halved in Dart, and the levels
+/// written below it. That is the chain every other backend uploads, so a
+/// texture decoded here samples exactly as it does on Impeller.
+///
+/// It used to be `generateMipmap`, which is the driver's box: the same filter
+/// in kind and not in rounding, and on a normal map the difference between a
+/// level and its neighbour's was enough to move `normal-mapping` by
+/// thirty-six pixels against every backend that uploads the CPU chain. One
+/// read of level zero and one pass in Dart is what agreeing costs, paid once
+/// per mipmapped image at load, never per frame; the decode itself stays
+/// in the browser.
 library;
 
 import 'dart:js_interop';
@@ -23,6 +29,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
 import 'webgl_resources.dart';
+import 'webgl_types.dart';
 
 /// The MIME type [bytes] announce, for the blob the browser decodes; empty
 /// when they are none this recognises, which lets the browser sniff.
@@ -112,7 +119,7 @@ Future<web.ImageBitmap?> decodeImageBitmap(
   }
 }
 
-/// A texture holding [bitmap] at level zero, and a GPU-built chain below it
+/// A texture holding [bitmap] at level zero, and `MipChain.build`'s chain below it
 /// when [mipmaps] — `EncodedImageUpload.decodeTexture` on
 /// this backend. Closes [bitmap].
 TextureHandle webglCreateTextureFromBitmap(
@@ -152,7 +159,31 @@ TextureHandle webglCreateTextureFromBitmap(
       bitmap,
     );
     if (levels > 1) {
-      gl.generateMipmap(web.WebGLRenderingContext.TEXTURE_2D);
+      final texture = (handle.backend as WebGlTexture).texture;
+      final base = _readLevelZero(gl, texture, width, height);
+      final chain = MipChain.build(ByteData.sublistView(base), width, height);
+      // Still bound on the upload unit: the read above touched only the read
+      // framebuffer. Rows of RGBA8 are four-aligned at every width, so the
+      // default unpack alignment holds.
+      var w = width;
+      var h = height;
+      for (var level = 0; level < chain.length; level++) {
+        w = w > 1 ? w >> 1 : 1;
+        h = h > 1 ? h >> 1 : 1;
+        gl.texSubImage2D(
+          web.WebGLRenderingContext.TEXTURE_2D,
+          level + 1,
+          0,
+          0,
+          w.toJS,
+          h.toJS,
+          web.WebGLRenderingContext.RGBA.toJS,
+          web.WebGLRenderingContext.UNSIGNED_BYTE,
+          chain[level].buffer
+              .asUint8List(chain[level].offsetInBytes, w * h * 4)
+              .toJS,
+        );
+      }
       gl.texParameteri(
         web.WebGLRenderingContext.TEXTURE_2D,
         web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL,
@@ -163,4 +194,42 @@ TextureHandle webglCreateTextureFromBitmap(
     bitmap.close();
   }
   return handle;
+}
+
+/// Level zero of [texture], [width] by [height] RGBA8, read back through a
+/// framebuffer of its own: row zero first, as it was written, which is the
+/// order `MipChain.build` reads.
+Uint8List _readLevelZero(
+  web.WebGL2RenderingContext gl,
+  web.WebGLTexture? texture,
+  int width,
+  int height,
+) {
+  final pixels = Uint8List(width * height * 4);
+  final framebuffer = gl.createFramebuffer();
+  gl
+    ..bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, framebuffer)
+    ..framebufferTexture2D(
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+      web.WebGLRenderingContext.COLOR_ATTACHMENT0,
+      web.WebGLRenderingContext.TEXTURE_2D,
+      texture,
+      0,
+    );
+  try {
+    gl.readPixels(
+      0,
+      0,
+      width,
+      height,
+      web.WebGLRenderingContext.RGBA,
+      web.WebGLRenderingContext.UNSIGNED_BYTE,
+      pixels.toJS,
+    );
+  } finally {
+    gl
+      ..bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, null)
+      ..deleteFramebuffer(framebuffer);
+  }
+  return pixels;
 }
