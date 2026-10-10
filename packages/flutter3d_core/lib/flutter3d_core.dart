@@ -100,6 +100,7 @@ export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/frame_history.dart' hide FrameHistoryInternals;
 export 'src/engine/render/frame_plan.dart';
 export 'src/engine/render/frame_resources.dart';
+export 'src/engine/render/frame_view.dart';
 export 'src/engine/render/frame_work_budget.dart';
 export 'src/engine/render/fullscreen_effect.dart';
 export 'src/engine/render/key_sort.dart';

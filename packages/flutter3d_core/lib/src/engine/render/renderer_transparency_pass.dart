@@ -374,6 +374,8 @@ extension _TransparencyPasses on Renderer {
           width: width,
           height: height,
           view: deferred.view,
+          views: _frameViews,
+          viewIndex: _frameViewIndex(deferred.view),
           viewProjection: deferred.viewProjection,
           frameIndex: _frameIndex,
           time: _seconds,

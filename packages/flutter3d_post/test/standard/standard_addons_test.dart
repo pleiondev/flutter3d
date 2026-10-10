@@ -29,6 +29,9 @@ const Set<RenderStep> _kernel = <RenderStep>{
   RenderStep.transparent,
   RenderStep.sceneColorCopy,
   RenderStep.hiZOcclusion,
+  // The motion of every pixel, which the temporal resolve, the motion blur
+  // and any plugin's effect read alike.
+  RenderStep.velocity,
   RenderStep.tonemap,
   RenderStep.spatialUpscale,
   RenderStep.edgeSmoothing,

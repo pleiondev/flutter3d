@@ -57,6 +57,7 @@ import 'frame_history.dart';
 import 'frame_pacing.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
+import 'frame_view.dart';
 import 'frame_work_budget.dart';
 import 'identity_indices.dart';
 import 'light_clusters.dart';
@@ -3055,6 +3056,41 @@ final class Renderer with RenderServices {
   /// asks what the last one did gets the last compile back.
   final FrameGraph _frameGraph = FrameGraph();
 
+  /// The views of the frame being drawn, as `FrameContext.views` hands
+  /// them to every node and contributor.
+  List<FrameView> _frameViews = const <FrameView>[];
+
+  /// The unjittered view-projection each view drew through in its last
+  /// frame, for `FrameContext.previousViewProjection`.
+  final Expando<vm.Matrix4> _previousViewProjections = Expando<vm.Matrix4>();
+
+  /// Which of [_frameViews] stands for [view]: its place in the `render`
+  /// call's views, or nought for a view drawn outside one (a probe face, a
+  /// texture view).
+  int _frameViewIndex(RenderView? view) {
+    for (final frameView in _frameViews) {
+      if (identical(_frameViewSources[frameView.index], view)) {
+        return frameView.index;
+      }
+    }
+    return 0;
+  }
+
+  /// The `render` call's views, by index, beside [_frameViews].
+  List<RenderView> _frameViewSources = const <RenderView>[];
+
+  /// The width over the height of the pixels [view] lands on in a
+  /// [width] × [height] frame.
+  static double _aspectOfView(RenderView view, int width, int height) {
+    final rect = _viewportPixels(view.viewportFraction, width, height);
+    return rect.width / rect.height;
+  }
+
+  /// Whether a node placed through [renderSteps] declared a read of the
+  /// velocity in the last frame compiled: what keeps the velocity passes and
+  /// the frame history running for it.
+  bool _velocityAsked = false;
+
   /// The frame, ordered by what each pass declares.
   ///
   /// Built per frame because the set depends on settings and on what the
@@ -3236,11 +3272,27 @@ final class Renderer with RenderServices {
     ]);
     // `R1`: the motion of every pixel, for the temporal resolve. Before any
     // reader of it, which is all registration order has to promise here.
+    // A placed node that reads the velocity asks for it as the engine's two
+    // readers do (`RenderStep.velocity`), so a plugin's effect gets the
+    // motion of every pixel without switching either of them on.
+    _velocityAsked = renderSteps._store.nodes.any((entry) {
+      final declared = NodeDeclarations.of(entry.node);
+      return <ResourceId>[
+        ...declared.reads,
+        ...declared.optionalReads,
+      ].any((id) => id.name == FrameResourceIds.velocity.name);
+    });
     schedule.stage(RenderAnchor.beforeVelocity, <FrameGraphNode>[
-      _CameraVelocityNode(this, view, s),
+      _CameraVelocityNode(this, view, s, asked: _velocityAsked),
       // And the nodes that moved, over it: the next version of the same
       // resource, so registration order is what puts them on top.
-      _ObjectVelocityNode(this, view, s, composite._scene),
+      _ObjectVelocityNode(
+        this,
+        view,
+        s,
+        composite._scene,
+        asked: _velocityAsked,
+      ),
       // `R4`: what blends, marked over both for the resolve to trust less.
       _ReactiveNode(this, view, s, composite._scene),
       // `R3`: the two effects that march with noise, each carried into a
@@ -5257,6 +5309,18 @@ final class Renderer with RenderServices {
     _frameCounters = passState;
     // Taken at the top of the frame and cleared here, so a request made while
     // this frame is encoding is the *next* frame's — `gfx-70n`.
+    // Every view of the frame as a node reads it (D20), each with the
+    // view-projection it drew through the frame before.
+    _frameViewSources = List<RenderView>.of(views);
+    _frameViews = <FrameView>[
+      for (final (index, view) in views.indexed)
+        FrameView.ofRenderView(
+          view,
+          aspect: _aspectOfView(view, width, height),
+          index: index,
+          previousViewProjection: _previousViewProjections[view],
+        ),
+    ];
     final capturing = _captureWanted;
     _captureWanted = null;
     _capture = capturing == null
@@ -5304,6 +5368,7 @@ final class Renderer with RenderServices {
               services: this,
               settings: settings,
               view: views.first,
+              views: _frameViews,
               frameIndex: _frameIndex,
               time: _seconds,
               origin: scene.origin,
@@ -5430,7 +5495,16 @@ final class Renderer with RenderServices {
     // back as last frame's. The view-projections are the unjittered ones, the
     // same matrices the scene pass derived, because a reprojection has to
     // undo motion and not the jitter.
-    if (settings._wantsVelocity) frameHistory.tracking = true;
+    if (settings._wantsVelocity || _velocityAsked) {
+      frameHistory.tracking = true;
+    }
+    // What each view drew through, for the next frame's
+    // `FrameContext.previousViewProjection`: one matrix a view, kept
+    // whether or not the frame history tracks the meshes.
+    for (final frameView in _frameViews) {
+      _previousViewProjections[views[frameView.index]] =
+          frameView.viewProjection;
+    }
     if (frameHistory.tracking) {
       frameHistory.endFrame(
         frame: _frameIndex,

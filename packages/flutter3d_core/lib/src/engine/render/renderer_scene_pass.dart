@@ -541,6 +541,8 @@ extension _ScenePasses on Renderer {
             width: width,
             height: height,
             view: view,
+            views: _frameViews,
+            viewIndex: _frameViewIndex(view),
             viewProjection: drawMatrix,
             frameIndex: _frameIndex,
             time: _seconds,

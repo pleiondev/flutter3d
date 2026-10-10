@@ -375,6 +375,8 @@ final class ContributorFrame extends FrameContext {
     super.frameIndex,
     super.time,
     super.origin,
+    super.views,
+    super.viewIndex,
     this.temporal = false,
     this.lights,
     this.sceneDepth,

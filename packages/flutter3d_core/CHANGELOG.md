@@ -27,6 +27,20 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **Every view of a frame, and the velocity on its own.**
+  `FrameContext.views` lists the frame's views as `FrameView`s — the
+  matrices each draws through, its viewport, its index and
+  `previousViewProjection`, the view-projection the same view drew through
+  the frame before — and `viewIndex` says which one a node draws for.
+  `FrameView.posed` takes a pose and an asymmetric `Projection` as a
+  headset's runtime states them, so views can come from outside the
+  renderer. `FrameView.resourceFor` and `FrameContext.perView` name a
+  resource a node keeps once per view (`<name>#<index>`, the first view's
+  under the plain name). `RenderStep.velocity` is a step of its own: the
+  velocity passes run while the temporal resolve, the motion blur, or any
+  placed node that declares a read of `FrameResourceIds.velocity` wants
+  them, and `without({RenderStep.velocity})` takes the two readers that
+  need it with it.
 - **A node declares itself into a builder.** `FrameGraphNode.setup` hands a
   `FrameGraphBuilder` what the node reads, writes and keeps — by default
   the getters, so every node written before it is unchanged — and
