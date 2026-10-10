@@ -64,6 +64,11 @@ Future<void> checkPrefixSum(GraphicsDevice device) async {
 }
 
 /// Run these where a device says it computes. Each declines otherwise.
+///
+/// Since 1.0 with the four `.f3dmat compute` kernels of `kernel_checks.dart`,
+/// which hold every placement — the device's own compute, the wgpu
+/// sidecar, the CPU — to the same bytes.
 List<ConformanceCheck> get computeChecks => <ConformanceCheck>[
   (name: 'a compute pass scans a buffer in place', run: checkPrefixSum),
+  ...kernelChecks,
 ];

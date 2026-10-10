@@ -14,7 +14,7 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: 32 of the 44 link stages and draw. A new
+/// pipeline: 32 of the 52 link stages and draw. A new
 /// backend following the old promise would have met 32 shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
@@ -65,6 +65,7 @@ import 'src/field_checks.dart';
 import 'src/geometry_overwrite_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/multisample_checks.dart';
+import 'src/multiview_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/picking_checks.dart';
 import 'src/pipeline_checks.dart';
@@ -73,6 +74,7 @@ import 'src/render_target_checks.dart';
 import 'src/sampling_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
+import 'src/sharing_checks.dart';
 import 'src/stencil_checks.dart';
 import 'src/vertex_texture_checks.dart';
 
@@ -94,8 +96,11 @@ export 'src/fuzz/fuzz.dart'
         generateFuzzProgram,
         shrinkFinding,
         transformsFor;
+export 'src/kernel_checks.dart' show conformanceKernels, kernelChecks;
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
+export 'src/multiview_checks.dart' show multiviewChecks;
+export 'src/sharing_checks.dart' show sharingChecks;
 
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
@@ -446,6 +451,11 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   ...computeChecks,
   // Since 1.0: the capability report, held true in both directions.
   ...capabilityChecks,
+  // Since 1.0: several views of one frame, and textures shared between
+  // devices — the refusal where a device lacks the feature, and the
+  // fallback every device has.
+  ...multiviewChecks,
+  ...sharingChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders
