@@ -9,6 +9,8 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import '../hook/material_bundles.dart';
+
 GraphicsDevice softwareDevice() => CpuDevice(
   width: 32,
   height: 32,
@@ -28,6 +30,13 @@ GraphicsDevice elementsDevice() => CpuDevice(
   }),
 );
 
+/// The package's bundles, `assets/*.f3dshaders`, compiled from
+/// `assets_src/` now by what the build hook runs, for a test that loads one.
+/// Run in `setUpAll`: a bundle is built rather than committed, and a test
+/// must not depend on a build having come before it.
+void buildBundles() => buildMaterialBundles(Directory.current);
+
 /// `assets/liquid.f3dshaders`, as an application's bundle hands it over.
+/// Built by [buildBundles] first.
 ByteData waterBundle() =>
     ByteData.sublistView(File('assets/liquid.f3dshaders').readAsBytesSync());

@@ -62,6 +62,8 @@ Future<Elements> _open() {
 }
 
 void main() {
+  setUpAll(buildBundles);
+
   test('the renderer\'s listener publishes each frame onto the bus', () {
     final device = CpuDevice(
       width: 16,

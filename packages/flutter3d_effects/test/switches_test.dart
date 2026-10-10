@@ -41,6 +41,8 @@ Future<(Elements, TrackedBody)> _burning({double seconds = 3.0}) async {
 }
 
 void main() {
+  setUpAll(buildBundles);
+
   test('every combination of the fires\' steps draws what is left', () async {
     final (elements, _) = await _burning();
     addTearDown(elements.dispose);

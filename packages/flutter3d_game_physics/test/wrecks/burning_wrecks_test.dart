@@ -20,6 +20,10 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
+// What the effects package's build hook runs: its water bundle is built, not
+// committed, so this test builds it rather than hoping a build came first.
+import '../../../flutter3d_effects/hook/material_bundles.dart';
+
 /// A software device that takes the water's bundle, with an unlit stage in
 /// the water material's place: these tests are of what burns, not of how.
 GraphicsDevice _device() => CpuDevice(
@@ -52,6 +56,8 @@ void _run(Elements elements, double seconds) {
 }
 
 void main() {
+  setUpAll(() => buildMaterialBundles(Directory('../flutter3d_effects')));
+
   test('timbers lit by the fireball heat up and burn', () async {
     final (elements, device) = await _open();
     addTearDown(elements.dispose);
