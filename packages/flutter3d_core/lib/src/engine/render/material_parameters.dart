@@ -60,11 +60,11 @@ abstract base class ParameterType<T extends Object> {
   /// Four numbers, as a [Vector4]: `vec4`.
   static const ParameterType<Vector4> vec4 = _Vector4Type();
 
-  /// A linear colour's red, green and blue: a `vec3` the shader reads as a
-  /// colour. Alpha is not written, and reads back as one.
+  /// A linear color's red, green and blue: a `vec3` the shader reads as a
+  /// color. Alpha is not written, and reads back as one.
   static const ParameterType<LinearColor> color = _ColorType();
 
-  /// A linear colour with its alpha: a `vec4`.
+  /// A linear color with its alpha: a `vec4`.
   static const ParameterType<LinearColor> colorWithAlpha = _ColorAlphaType();
 
   @override
@@ -178,8 +178,8 @@ final class ParameterKey<T extends Object> {
 
   /// The unit a value set or read through this key is in, or null for the
   /// one the material declares. Where both are known and differ, the value
-  /// is converted on the way in and out: a key in centimetres sets a
-  /// parameter declared in metres.
+  /// is converted on the way in and out: a key in centimeters sets a
+  /// parameter declared in meters.
   final Unit? unit;
 
   @override

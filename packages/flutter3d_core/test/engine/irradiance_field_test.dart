@@ -148,8 +148,8 @@ void main() {
     });
   });
 
-  test('irradiance goes in and comes out as a linear colour', () {
-    // One colour type in the engine: the field takes and gives `LinearColor`,
+  test('irradiance goes in and comes out as a linear color', () {
+    // One color type in the engine: the field takes and gives `LinearColor`,
     // and keeps no alpha.
     final field = _field();
     final up = Vector3(0.0, 1.0, 0.0);
@@ -163,7 +163,7 @@ void main() {
   });
 
   group('sampling', () {
-    test('a point in a uniformly lit field reads that colour', () {
+    test('a point in a uniformly lit field reads that color', () {
       final field = _field();
       const color = LinearColor(0.2, 0.4, 0.6);
       for (var p = 0; p < field.probeCount; p++) {
@@ -226,7 +226,7 @@ void main() {
     test('a point every probe is walled off from reads them, not black', () {
       // Every probe sees a wall a tenth of a unit away, so none can see the
       // point: occluded weights are floored, never nought, and what comes
-      // back is still the field's colour. Mutation: drop the 0.05 floor on
+      // back is still the field's color. Mutation: drop the 0.05 floor on
       // the visibility. The weights fall under 1e-18 and the point reads
       // black.
       final field = _field();

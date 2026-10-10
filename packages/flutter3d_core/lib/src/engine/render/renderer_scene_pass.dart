@@ -98,7 +98,7 @@ extension _ScenePasses on Renderer {
     final keeps = orderIndependent || split;
     final msaa = surfaceIsRead || keeps ? null : _hdrMsaa;
     final deferred = <_DeferredTransparency>[];
-    // The clear colour is linear light, as the scene target holds, and the
+    // The clear color is linear light, as the scene target holds, and the
     // composite pass encodes it on the way out with everything else.
     final clear = ordered.first.clearColor.toVector4();
     // `A2.8`: one convention for the frame's depth, which every pass that

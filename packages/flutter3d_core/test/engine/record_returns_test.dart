@@ -1,6 +1,6 @@
 // What the core hands back as more than one value is a class with named
 // getters, not a record: a class can gain a field in a minor release, a
-// record's shape cannot change without breaking every caller. Maths pairs
+// record's shape cannot change without breaking every caller. Math pairs
 // (a size, a range, a jitter) stay records.
 import 'dart:typed_data';
 

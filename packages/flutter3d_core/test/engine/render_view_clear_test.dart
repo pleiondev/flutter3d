@@ -1,5 +1,5 @@
-// A view's clear colour is a `LinearColor`, linear like every other colour
-// the engine takes; a colour read off a picker goes in through `fromSrgb`.
+// A view's clear color is a `LinearColor`, linear like every other color
+// the engine takes; a color read off a picker goes in through `fromSrgb`.
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor;
@@ -12,7 +12,7 @@ void main() {
     expect(view.clearColor, RenderView.defaultClearColor);
   });
 
-  test('a clear colour given is kept as given, and assigned whole', () {
+  test('a clear color given is kept as given, and assigned whole', () {
     final view = RenderView(
       camera: CameraNode(),
       clearColor: const LinearColor(0.1, 0.2, 0.3),

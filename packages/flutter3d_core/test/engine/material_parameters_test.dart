@@ -70,8 +70,8 @@ void main() {
     });
 
     test('a key in another unit is converted into the declared one', () {
-      // Mutation: write the number as it is, and 40 centimetres is 40
-      // metres.
+      // Mutation: write the number as it is, and 40 centimeters is 40
+      // meters.
       final schema = MaterialParameterSchema(<ParameterDeclaration>[
         const ParameterDeclaration(
           'waveHeight',
@@ -128,7 +128,7 @@ void main() {
   });
 
   group('setNamed, for data', () {
-    // The wave in metres, as a schema that knows its units says; a source
+    // The wave in meters, as a schema that knows its units says; a source
     // says no unit yet.
     MaterialParameterSchema withUnits() =>
         MaterialParameterSchema(<ParameterDeclaration>[

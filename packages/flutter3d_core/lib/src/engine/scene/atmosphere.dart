@@ -101,7 +101,7 @@ final class Atmosphere {
 
   /// Puts this atmosphere on [scene]'s ambient light and on [sun], and its
   /// [sky] on [view]'s `RenderView.clearColor` if given (read every frame,
-  /// so setting it is enough). Both are linear, so the colour goes over as
+  /// so setting it is enough). Both are linear, so the color goes over as
   /// it is.
   void applyTo(Scene scene, {LightNode? sun, RenderView? view}) {
     scene

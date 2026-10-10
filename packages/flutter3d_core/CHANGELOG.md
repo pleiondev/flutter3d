@@ -92,9 +92,9 @@
   `universalBlockFormat` a `UniversalBlockFormat` and `PhysicalSky.look` a
   `PhysicalSkyRay`. Each getter has the old field's name, so `.mesh` and
   `.count` read as before; a destructuring pattern names the class,
-  `final GeneratedTangents(:mesh) = …`. Maths pairs stay records: a size
+  `final GeneratedTangents(:mesh) = …`. Math pairs stay records: a size
   (`resolve`, `hdrSizeOf`), a depth range, a jitter, a projected point,
-  a pair of moments, a colour triple through a lookup table, an
+  a pair of moments, a color triple through a lookup table, an
   eigen-decomposition and glTF's two filter codes.
 - **Breaking: an irradiance field takes and gives `LinearColor`s.**
   `IrradianceField.writeIrradiance` and `writeIrradianceTexel` take one,
@@ -607,8 +607,8 @@
   `LinearColor(0.1, 0.2, 0.5)`, or `vector.toLinearColor()`.
   `directionToSun` stays a `Vector3`, and `sample` still answers the
   radiance as one.
-- **Breaking: the clear colour is a `LinearColor`.** `RenderView.clearColor`
-  is linear light like every other colour the engine takes, in the
+- **Breaking: the clear color is a `LinearColor`.** `RenderView.clearColor`
+  is linear light like every other color the engine takes, in the
   constructor, in `RenderView.texture` and as the field, where it was an
   sRGB-encoded `Vector4` changed in place; so is `capturePhoto`'s
   `clearColor`. `clearColor: Vector4(r, g, b, a)` is
@@ -617,8 +617,8 @@
   `RenderView.defaultClearColor` is the slate a view clears to.
   `Atmosphere.applyTo` takes the `RenderView` itself (`view:`) and puts its
   sky on it as it is, where it wrote the linear numbers into the sRGB slot;
-  a clear colour set from an atmosphere is lighter than in 0.8, and the
-  colour the sky was meant to be.
+  a clear color set from an atmosphere is lighter than in 0.8, and the
+  color the sky was meant to be.
 - **A `.fmat` is written in the envelope.** `writeFmat` starts with
   `{"format": "f3d.fmat", "version": 1, …}` and keeps `"fmat": 1` after it,
   because a material travels inside a `.f3d` bundle that a 0.8 reader still

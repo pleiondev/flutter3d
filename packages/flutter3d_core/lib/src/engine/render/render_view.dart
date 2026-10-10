@@ -176,13 +176,13 @@ final class RenderView {
   /// Views are rendered in ascending priority: a lower number draws first.
   int priority;
 
-  /// What shows where nothing was drawn and the sky is off: a linear colour
-  /// like every other the engine takes. A colour a picker shows, in sRGB,
+  /// What shows where nothing was drawn and the sky is off: a linear color
+  /// like every other the engine takes. A color a picker shows, in sRGB,
   /// goes in through `LinearColor.fromSrgb`. Assigned whole, and read every
   /// frame.
   LinearColor clearColor;
 
-  /// The dark slate a view clears to when it is given no colour.
+  /// The dark slate a view clears to when it is given no color.
   static final LinearColor defaultClearColor = LinearColor.fromSrgb(
     0.055,
     0.062,

@@ -166,7 +166,7 @@ final class _CacheEntry<V> {
   final MemoryCategory category;
 
   /// When the entry was made, which breaks a tie between two waiting loads
-  /// of one priority in favour of the earlier.
+  /// of one priority in favor of the earlier.
   final int order;
 
   /// Completes with the value, or the error, when the load is done. Null

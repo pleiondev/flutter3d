@@ -58,7 +58,7 @@ void main() {
       expect(budget.isOver(), isTrue);
     });
 
-    test('a cancelled registration hears nothing more', () {
+    test('a canceled registration hears nothing more', () {
       final budget = MemoryBudget(total: 10);
       var heard = 0;
       budget.onCrossed((_) => heard++).cancel();

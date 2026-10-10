@@ -92,7 +92,7 @@ final class MemoryBudget {
   bool isOverFor(MemoryCategory category) => isOver(category) || isOver();
 
   /// Calls [handler] each time a category or the total crosses its limit,
-  /// either way, until the registration is cancelled.
+  /// either way, until the registration is canceled.
   Registration onCrossed(void Function(MemoryBudgetCrossing crossing) handler) {
     _listeners.add(handler);
     return Registration(() => _listeners.remove(handler));
