@@ -13,20 +13,15 @@ import 'package:flutter3d/flutter3d.dart';
 /// replaced — and only then, or a level of thirty monsters walks thirty trees
 /// a frame to write what is already there.
 final class OutlineMarks {
-  final Map<SceneNode, Vector3?> _applied = <SceneNode, Vector3?>{};
+  final Map<SceneNode, LinearColor?> _applied = <SceneNode, LinearColor?>{};
 
   /// Rings every mesh under [root] in [color], or takes the ring off for
   /// null, unless that is what [root] already wears.
-  void mark(SceneNode root, Vector3? color) {
+  void mark(SceneNode root, LinearColor? color) {
     if (_applied.containsKey(root) && _applied[root] == color) return;
-    _applied[root] = color?.clone();
+    _applied[root] = color;
     root.traverse((SceneNode node) {
-      // A display colour, as a `Color` gives it: sRGB.
-      if (node is MeshNode) {
-        node.outlineColor = color == null
-            ? null
-            : LinearColor.fromSrgb(color.x, color.y, color.z);
-      }
+      if (node is MeshNode) node.outlineColor = color;
     });
   }
 
@@ -37,7 +32,10 @@ final class OutlineMarks {
   void clear() => _applied.clear();
 }
 
-/// A display colour as `MeshNode.outlineColor` takes it: the channels a
-/// `Color` gives, unconverted, since the ring is drawn on the finished
-/// picture.
-Vector3 outlineColorOf(Color color) => Vector3(color.r, color.g, color.b);
+/// [color], a display colour a player picked from a swatch, as
+/// `MeshNode.outlineColor` takes it: linear, like every colour the engine
+/// takes. The ring is drawn on the finished picture and encoded back to the
+/// display there, so it comes out the colour of the swatch. The alpha is
+/// dropped: a ring is opaque.
+LinearColor outlineColorOf(Color color) =>
+    LinearColor.fromSrgb(color.r, color.g, color.b);

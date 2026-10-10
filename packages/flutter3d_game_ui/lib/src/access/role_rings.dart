@@ -1,8 +1,9 @@
 import 'dart:ui' show Color;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show LinearColor;
 import 'package:flutter3d_game/flutter3d_game.dart'
     show ColorRoles, GameSettings, outlineColorOf;
-import 'package:vector_math/vector_math.dart' show Vector3;
 
 /// The colour of the ring the high-contrast look draws round something that
 /// matters, by what it means: `'threat'`, `'pickup'`, `'key.brass'`.
@@ -32,7 +33,7 @@ final class RoleRings {
 
   /// The ring colour of the role called [role]: the player's choice, its own
   /// colour, or [fallback] when [roles] has no such role.
-  Vector3 of(String role, {required Color fallback}) =>
+  LinearColor of(String role, {required Color fallback}) =>
       outlineColorOf(roles.colorOf(role, settings(), fallback: fallback));
 
   /// Whether [roles] has a role called [role]: a key that has a colour of its
