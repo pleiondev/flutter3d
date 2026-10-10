@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:path/path.dart' as p;
@@ -228,25 +227,10 @@ final class GoldenRunner {
     }
   }
 
-  Future<Uint8List> _decode(Uint8List png) async {
-    final codec = await ui.instantiateImageCodec(png);
-    final frame = await codec.getNextFrame();
-    try {
-      final data = await frame.image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
-      if (data == null) {
-        throw StateError('the reference image decoded to nothing');
-      }
-      return data.buffer.asUint8List();
-    } finally {
-      // The image and its codec are native objects, disposed the way png.dart
-      // in this tree does it. A golden run only decodes one reference per
-      // scene, but there is no reason to leak even that.
-      frame.image.dispose();
-      codec.dispose();
-    }
-  }
+  /// The reference's bytes exactly as they were written, against the frame's
+  /// exactly as the target held them — `png.dart` says why neither goes
+  /// through `dart:ui` any more.
+  Future<Uint8List> _decode(Uint8List png) async => decodePngBytes(png);
 
   _Comparison _compare(Uint8List expected, Uint8List actual) {
     if (expected.length != actual.length) {
