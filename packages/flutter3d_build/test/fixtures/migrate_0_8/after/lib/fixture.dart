@@ -9,8 +9,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'models.dart';
 
 /// `rewrite`: deprecated capability getters on a device.
-bool canDrawLines(GraphicsDevice device) =>
-    device.features.has(DeviceFeature.wireframe);
+bool canDrawLines(GraphicsDevice device) => device.features.has(DeviceFeature.wireframe);
 
 int colourTargets(GraphicsDevice device) => device.limits.maxColorAttachments;
 
@@ -26,7 +25,7 @@ base class Passenger with Rider {
   Collider? get carriedBy => null;
 }
 
-// TODO(flutter3d-1.0): `GameLoop` is deprecated for `EngineLoop`, which runs the fixed step as phases of systems. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#sim-GameLoop
+// TODO(flutter3d-1.0): `GameLoop` is gone; `EngineLoop` runs the fixed step as phases of systems. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#sim-GameLoop
 /// `manual`: deprecated, and a shape rather than a rename.
 GameLoop loopFor(InputState input) =>
     GameLoop(input: input, onStep: (double dt) {});

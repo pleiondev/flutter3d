@@ -116,7 +116,9 @@ void main() {
       out: out,
       projectRoot: scratch,
     );
-    expect(code, 1);
+    // 3, "out of date under --check", as every command's exit codes say; 1
+    // is for a step that is blocked.
+    expect(code, 3);
     expect(out.text, contains('hook/build.dart'));
     expect(File('${scratch.path}/hook/build.dart').existsSync(), isFalse);
     expect(

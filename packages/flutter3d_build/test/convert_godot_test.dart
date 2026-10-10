@@ -18,13 +18,8 @@ void main() {
   });
   tearDownAll(() => scratch.deleteSync(recursive: true));
 
-  List<Map<String, Object?>> rows(String prefab) {
-    final level = run.readJson('room.level.json')! as Map<String, Object?>;
-    final prefabs = level['prefabs']! as Map<String, Object?>;
-    return ((prefabs[prefab]! as Map<String, Object?>)['entities']!
-            as List<Object?>)
-        .cast<Map<String, Object?>>();
-  }
+  List<Map<String, Object?>> rows(String prefab) =>
+      run.rows('room.level.json', prefab);
 
   test('the text reader: sections, attributes, constructors, resources', () {
     final sections = parseGodotText(

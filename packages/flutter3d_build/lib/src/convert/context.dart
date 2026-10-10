@@ -57,7 +57,14 @@ final class ConvertContext {
     this.models = const ModelSettings(),
     this.writeMaterials = true,
     this.externalTools = true,
+    this.root,
   });
+
+  /// The directory every file a document names has to lie inside, or null
+  /// for each document's own directory (see `confine.dart`). `convertFiles`
+  /// sets it to the upload, so a document reads nothing but what came with
+  /// it.
+  final String? root;
 
   /// Whether FBX, `.blend` and binary USD may be handed to the programs
   /// in `external.dart`. A server that runs no external binary turns it
@@ -195,12 +202,14 @@ final class ConvertContext {
               '${extension.substring(1)} -> glTF through '
               '${extension == '.fbx' && fbx2gltf.locate() != null ? 'FBX2glTF' : 'Blender'}',
             );
+            // The external program wrote it, with whatever it read; the
+            // files it names are its own, beside it.
             return await decodeModelFile(glb);
           } finally {
             work.deleteSync(recursive: true);
           }
         default:
-          return await decodeModelFile(source);
+          return await decodeModelFile(source, root: root);
       }
     } on MissingToolException catch (error) {
       report.fail(error.message, as: ConvertOutcome.missingTool);

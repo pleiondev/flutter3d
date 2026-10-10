@@ -67,37 +67,40 @@ void main() {
             )
             as Map<String, Object?>;
 
-    test('a turned instance stays an instance, at version 2, generated', () {
-      final report = ConvertReport('x', 'test');
-      final json = write(<ScenePrefab>[
-        ScenePrefab('yard', <SceneItem>[
-          SceneItem(
-            name: 'gate',
-            local: Matrix4.compose(
-              Vector3(4, 0, 0),
-              Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2),
-              Vector3.all(1),
+    test(
+      'a turned instance stays an instance, at the level\'s version, generated',
+      () {
+        final report = ConvertReport('x', 'test');
+        final json = write(<ScenePrefab>[
+          ScenePrefab('yard', <SceneItem>[
+            SceneItem(
+              name: 'gate',
+              local: Matrix4.compose(
+                Vector3(4, 0, 0),
+                Quaternion.axisAngle(Vector3(0, 1, 0), math.pi / 2),
+                Vector3.all(1),
+              ),
+              instance: const NestedInstance('post'),
             ),
-            instance: const NestedInstance('post'),
-          ),
-        ]),
-        inner(),
-      ], report);
-      expect(json['version'], 2);
-      expect(json['generatedBy'], 'flutter3d convert');
-      expect(
-        (json['materials']! as Map<String, Object?>)['steel'],
-        containsPair('fmat', 'assets/imported/materials/steel.fmat'),
-      );
-      final level = Level.fromJson(json);
-      final gate = level.prefabs['yard']!.entities.single;
-      expect(gate.type, EntityTypes.prefab);
-      expect(gate.yaw, closeTo(math.pi / 2, 1e-5));
-      final expanded = expandPrefabs(level).entities.single;
-      expect(expanded.string('asset'), 'assets/imported/models/pole.f3d');
-      expect(expanded.position.x, closeTo(4, 1e-5));
-      expect(report.warnings, isEmpty);
-    });
+          ]),
+          inner(),
+        ], report);
+        expect(json['version'], Level.formatVersion);
+        expect(json['generatedBy'], 'flutter3d convert');
+        expect(
+          (json['materials']! as Map<String, Object?>)['steel'],
+          containsPair('fmat', 'assets/imported/materials/steel.fmat'),
+        );
+        final level = Level.fromJson(json);
+        final gate = level.prefabs['yard']!.entities.single;
+        expect(gate.type, EntityTypes.prefab);
+        expect(gate.yaw, closeTo(math.pi / 2, 1e-5));
+        final expanded = expandPrefabs(level).entities.single;
+        expect(expanded.string('asset'), 'assets/imported/models/pole.f3d');
+        expect(expanded.position.x, closeTo(4, 1e-5));
+        expect(report.warnings, isEmpty);
+      },
+    );
 
     test('a scaled instance is written as its rows, with a warning', () {
       final report = ConvertReport('x', 'test');

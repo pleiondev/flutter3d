@@ -498,7 +498,7 @@ Future<bool> convertOne(String inputPath, String outputPath, IOSink out, IOSink 
 
 Future<bool> convertSplat(String inputPath, String outputPath, IOSink out, IOSink err, {int leafCapacity = 512, int grid = 8})
 
-Future<ModelDocument> decodeModelFile(String path, {List<ModelDecoder> decoders = const <ModelDecoder>[]})
+Future<ModelDocument> decodeModelFile(String path, {List<ModelDecoder> decoders = const <ModelDecoder>[], String? root})
 
 const int defaultChunkThreshold = 65536
 
@@ -512,7 +512,7 @@ Future<ModelDocument> encodeDocumentTextures(ModelDocument document, TextureFami
 
 TextureFamily familyForTargetOS(OS? targetOS)
 
-AssetUriResolver fileUriResolverFor(String modelPath)
+AssetUriResolver fileUriResolverFor(String modelPath, {String? root})
 
 ModelDocument fitDocumentTextures(ModelDocument document, int maxSide, {void Function(String message)? report})
 

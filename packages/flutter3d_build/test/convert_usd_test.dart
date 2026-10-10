@@ -82,10 +82,7 @@ def Xform "A" {
     final level = run.readJson('stage.level.json')! as Map<String, Object?>;
     final prefabs = level['prefabs']! as Map<String, Object?>;
     expect(prefabs.keys, containsAll(<String>['stage', 'prop']));
-    final rows =
-        ((prefabs['stage']! as Map<String, Object?>)['entities']!
-                as List<Object?>)
-            .cast<Map<String, Object?>>();
+    final rows = run.rows('stage.level.json', 'stage');
     final chair = rows.firstWhere(
       (Map<String, Object?> r) => r['name'] == 'Chair',
     );

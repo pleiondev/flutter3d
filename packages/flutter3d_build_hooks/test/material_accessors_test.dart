@@ -24,7 +24,7 @@ material Sea {
 
     // Mutation: emit a `param` as a member and a folded constant reads as
     // something a game could set.
-    expect(dart, contains('extension type SeaParams('));
+    expect(dart, contains('extension type SeaParameters('));
     expect(dart, contains('double get time'));
     expect(dart, contains('Vector3 get eye'));
     expect(dart, contains('Vector4 get tint'));

@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
+import 'confine.dart';
 import 'context.dart';
 import 'materials.dart';
 import 'output.dart';
@@ -36,7 +37,13 @@ Future<void> convertMaterialXInput(
     report.fail('the root element is <${root.name}>, not <materialx>');
     return;
   }
-  final document = _MtlxDocument(root, File(source).parent.path, report);
+  final directory = File(source).parent.path;
+  final document = _MtlxDocument(
+    root,
+    directory,
+    report,
+    bound: context.root ?? directory,
+  );
   final materials = document.materials();
   if (materials.isEmpty) {
     report.warn('no surface material in the document');
@@ -79,13 +86,28 @@ const List<String> _slots = <String>[
 ];
 
 final class _MtlxDocument {
-  _MtlxDocument(this.root, this.directory, this.report)
+  _MtlxDocument(this.root, this.directory, this.report, {required this.bound})
     : prefix = root['fileprefix'] ?? '';
 
   final XmlElement root;
   final String directory;
   final ConvertReport report;
   final String prefix;
+
+  /// The directory an image the document names has to lie inside (see
+  /// `confine.dart`).
+  final String bound;
+
+  /// The image file [path] names, or null, said in [report], when it is
+  /// outside [bound].
+  File? _image(String path) {
+    final resolved = resolveInside(path, directory: directory, root: bound);
+    if (resolved == null) {
+      report.drop(path, outsideMessage(path, bound));
+      return null;
+    }
+    return File(resolved);
+  }
 
   /// Each material's name and its surface shader node.
   List<(String, XmlElement)> materials() {
@@ -328,10 +350,10 @@ final class _MtlxDocument {
 
   TextureInput _texture(_Expr image, List<double>? scale, {String? channel}) {
     final path = image.file!;
-    final file = File(path.startsWith('/') ? path : '$directory/$path');
+    final file = _image(path);
     return TextureInput(
       path.substring(path.lastIndexOf('/') + 1),
-      file.existsSync() ? file.readAsBytesSync() : null,
+      file != null && file.existsSync() ? file.readAsBytesSync() : null,
       channel: channel ?? (image.type == 'float' ? 'r' : 'rgb'),
       scale: scale,
     );
@@ -438,10 +460,12 @@ final class _MtlxDocument {
       <MaterialImage>[
         for (final path in images)
           () {
-            final file = File(path.startsWith('/') ? path : '$directory/$path');
+            final file = _image(path);
             return MaterialImage(
               path.substring(path.lastIndexOf('/') + 1),
-              file.existsSync() ? file.readAsBytesSync() : Uint8List(0),
+              file != null && file.existsSync()
+                  ? file.readAsBytesSync()
+                  : Uint8List(0),
             );
           }(),
       ],

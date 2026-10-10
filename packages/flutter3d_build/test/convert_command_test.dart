@@ -66,6 +66,8 @@ void main() {
     });
 
     test('a glob expands sorted, a directory walks, a miss is a problem', () {
+      // Mutation: keep the `./` a relative glob lists with, and every `.ply`
+      // here reads `./test/...` against the pattern typed as `test/...`.
       final problems = <String>[];
       final found = expandInputs(<String>[
         '$fixtures/*.ply',
@@ -136,9 +138,10 @@ void main() {
         '--overwrite',
       ], output: scratch);
       expect(replaced.code, 0);
+      // The bytes, not a string: a written `.f3d` is binary and no UTF-8.
       expect(
-        File('${scratch.path}/wedge.f3d').readAsStringSync(),
-        isNot('mine'),
+        File('${scratch.path}/wedge.f3d').readAsBytesSync(),
+        isNot(utf8.encode('mine')),
       );
     });
 

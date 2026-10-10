@@ -58,7 +58,12 @@ Future<void> main(List<String> args) async {
               (args[i - 1] == '--from' || args[i - 1] == '--lints-from')))
         args[i],
   ];
-  if (positional.length != 1 || args.contains('--help')) {
+  // Asked for, the usage is an answer; given for a wrong call, an error.
+  if (args.contains('--help') || args.contains('-h')) {
+    stdout.write(migrateUsage);
+    return;
+  }
+  if (positional.length != 1) {
     stderr.write(migrateUsage);
     exitCode = 2;
     return;

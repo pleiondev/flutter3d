@@ -39,17 +39,61 @@ import 'api.dart';
 /// `rewrite`, `implementsToWith` and `manual` into the `flutter3d_lints`
 /// migration diagnostics and their fixes; `import` into the `migrate`
 /// command's own import rewrite — and `none` into nothing but a line in the
-/// guide, with the reason a caller has nothing to do.
+/// guide, with the reason a caller has nothing to do. `regroup`,
+/// `enumToClass`, `recordToClass` and `nullToThrow` are carried out by the
+/// lints with the resolved code; `internal` is one diagnostic per import
+/// and one line per package in the guide.
 const Map<String, String?> migrationKinds = <String, String?>{
   'rename': 'to',
   'moved': 'to',
   'parameters': 'changes',
   'rewrite': 'template',
   'implementsToWith': null,
+  'regroup': 'into',
+  'enumToClass': null,
+  'recordToClass': 'fields',
+  'nullToThrow': 'exception',
+  'internal': null,
   'manual': 'guidance',
   'none': 'reason',
   'import': 'to',
 };
+
+/// The keys a kind needs beside the one [migrationKinds] names.
+const Map<String, List<String>> migrationKindsAlsoNeed = <String, List<String>>{
+  'regroup': <String>['options', 'arguments'],
+};
+
+/// **The ceiling on `manual` entries.** What wave M left after it moved the
+/// backends' own names to `internal`. A `manual` entry is a TODO in
+/// somebody's code; a break the kinds above can carry out uses them, and
+/// one that cannot is named in [manualAllowlist] with the reason.
+const int manualCeiling = 341;
+
+/// `manual` entries past [manualCeiling], each with why no kind carries it
+/// out. Entry id to reason.
+const Map<String, String> manualAllowlist = <String, String>{
+  'build-convert-confined':
+      'where a model\'s files live is the user\'s layout, not a shape a '
+      'program can rewrite: the files move, or the call passes `root:`',
+  'flutter3d-BundleAssetSource-missing':
+      'a `catch` changes what it catches; whether the handler still fits is '
+      'the reader\'s call',
+  'flutter3d-loadModelAsset-missing':
+      'a `catch` changes what it catches; whether the handler still fits is '
+      'the reader\'s call',
+};
+
+/// Words in what a person reads that belong to the work behind the release,
+/// not to the user: a wave, a plan file, a review's decision number.
+final RegExp _planWords = RegExp(
+  r'\(wave \w+\)|\bwave \d\b|tasks/|\bdecision \d|\bAPI review\b|'
+  r'\brc1-plan\b|\breadiness review\b',
+  caseSensitive: false,
+);
+
+/// What a person reads of an entry.
+const List<String> _readKeys = <String>['guidance', 'reason', 'instead'];
 
 /// One entry of a migration table, as far as this reader sees it.
 final class MigrationEntry {
@@ -220,9 +264,34 @@ List<(int, String)> migrationTableProblems(MigrationTable table) {
       ));
       continue;
     }
-    final needs = migrationKinds[e.kind];
-    if (needs != null && (e.fields[needs] ?? '').isEmpty) {
-      problems.add((e.line, '`${e.id}` is a ${e.kind} with no `$needs`'));
+    for (final needs in <String>[
+      ?migrationKinds[e.kind],
+      ...?migrationKindsAlsoNeed[e.kind],
+    ]) {
+      if ((e.fields[needs] ?? '').isEmpty) {
+        problems.add((e.line, '`${e.id}` is a ${e.kind} with no `$needs`'));
+      }
+    }
+    // The import is what an internal entry's diagnostic stands on, so it
+    // names what an import brings: a top-level name or a library.
+    if (e.kind == 'internal' &&
+        !e.symbol.contains(':') &&
+        e.symbol.contains('.')) {
+      problems.add((
+        e.line,
+        '`${e.id}` is internal but names the member `${e.symbol}`: an '
+            'internal entry names a top-level name or a library',
+      ));
+    }
+    for (final key in _readKeys) {
+      final said = _planWords.firstMatch(e.fields[key] ?? '');
+      if (said != null) {
+        problems.add((
+          e.line,
+          '`${e.id}` says "${said.group(0)}" in `$key`: what a person reads '
+              'lands in their TODO, and names no wave, plan or review',
+        ));
+      }
     }
     // `migration_seed` writes TODO where a person has to decide; a TODO
     // left in is a break nobody has thought about yet.
@@ -236,6 +305,126 @@ List<(int, String)> migrationTableProblems(MigrationTable table) {
     }
     if (e.kind != 'import' && e.symbol.isEmpty) {
       problems.add((e.line, '`${e.id}` names no symbol'));
+    }
+  }
+  return problems;
+}
+
+/// What is wrong with the count of `manual` entries in [tables], as (entry
+/// id or table, what): past [ceiling] with no reason in [allowlist], or an
+/// allowlisted id that is not a `manual` entry any more.
+///
+/// The entries past the ceiling are the last ones appended, since the table
+/// only grows at its end; each is named with the kind its text suggests
+/// would carry it out, when one does.
+List<(String, String)> manualCeilingProblems(
+  List<MigrationTable> tables, {
+  int ceiling = manualCeiling,
+  Map<String, String> allowlist = manualAllowlist,
+}) {
+  final problems = <(String, String)>[];
+  final manual = <MigrationEntry>[
+    for (final t in tables)
+      for (final e in t.entries)
+        if (e.kind == 'manual') e,
+  ];
+  final counted = <MigrationEntry>[
+    for (final e in manual)
+      if (!allowlist.containsKey(e.id)) e,
+  ];
+  if (counted.length > ceiling) {
+    for (final e in counted.skip(ceiling)) {
+      final kind = automatableKind(e.fields['guidance'] ?? '');
+      problems.add((
+        e.id,
+        'is manual entry ${counted.indexOf(e) + 1}, past the ceiling of '
+            '$ceiling: '
+            '${kind == null ? 'carry it out with a kind the tools apply' : 'its text reads like a `$kind`'}, '
+            'or name it in `manualAllowlist` with the reason no kind can',
+      ));
+    }
+  }
+  final ids = <String>{for (final e in manual) e.id};
+  for (final MapEntry(key: id, value: reason) in allowlist.entries) {
+    if (!ids.contains(id)) {
+      problems.add((id, 'is on `manualAllowlist` but is no manual entry'));
+    } else if (reason.trim().isEmpty) {
+      problems.add((id, 'is on `manualAllowlist` with no reason'));
+    }
+  }
+  return problems;
+}
+
+/// The automatic kind a `manual` entry's [guidance] describes, or null.
+String? automatableKind(String guidance) {
+  final text = guidance.replaceAll(RegExp(r'\s+'), ' ');
+  if (RegExp(
+    r'has (?:a new case|new values|a new value)|An open set since|'
+    r'is a class with constants|no longer (?:an enum|sealed)',
+  ).hasMatch(text)) {
+    return 'enumToClass';
+  }
+  if (RegExp(
+    r'throws [^.]*(?:where|instead of|in place of) (?:it )?'
+    r'(?:returned|returning|answered|answering) null',
+  ).hasMatch(text)) {
+    return 'nullToThrow';
+  }
+  if (RegExp(r'\.\$\d|\ba record\b').hasMatch(text)) return 'recordToClass';
+  if (RegExp(r'moved into `\w+Options`|now in `\w+Options`').hasMatch(text)) {
+    return 'regroup';
+  }
+  return null;
+}
+
+/// The counts of [tables] a person is told: every entry, and the ones left
+/// by hand (`manual`).
+({int entries, int byHand, int internal}) migrationCounts(
+  List<MigrationTable> tables,
+) => (
+  entries: tables.fold(0, (int n, MigrationTable t) => n + t.entries.length),
+  byHand: tables.fold(
+    0,
+    (int n, MigrationTable t) =>
+        n + t.entries.where((MigrationEntry e) => e.kind == 'manual').length,
+  ),
+  internal: tables.fold(
+    0,
+    (int n, MigrationTable t) =>
+        n + t.entries.where((MigrationEntry e) => e.kind == 'internal').length,
+  ),
+);
+
+/// Where [text] — prose about the migration, such as the README's "Coming
+/// from 0.8" — states a count the table does not: a round guess ("about two
+/// hundred places"), or `N entries`, `N places`, `N changes`, `N by hand`
+/// with N not the table's. Each as what it said and what the table says.
+List<String> migrationNumberProblems(
+  String text, {
+  required ({int entries, int byHand, int internal}) counts,
+}) {
+  final flat = text.replaceAll(RegExp(r'\s+'), ' ');
+  final problems = <String>[];
+  for (final m in RegExp(
+    r'\babout (?:a |an |one |two |three |four |five |six |seven |eight |nine |'
+    r'several |a few )?(?:hundred|thousand|dozen)s? (?:places|changes|entries)',
+    caseSensitive: false,
+  ).allMatches(flat)) {
+    problems.add(
+      '"${m.group(0)}" is a guess: the table has ${counts.entries} entries, '
+      '${counts.byHand} of them by hand',
+    );
+  }
+  for (final m in RegExp(
+    r'\b(\d[\d ,]*\d|\d) (entries|places|changes|by hand)\b',
+  ).allMatches(flat)) {
+    final n = int.parse(m.group(1)!.replaceAll(RegExp('[ ,]'), ''));
+    final want = m.group(2) == 'by hand' ? counts.byHand : counts.entries;
+    if (n != want) {
+      problems.add(
+        '"${m.group(0)}" is not the table\'s: it has ${counts.entries} '
+        'entries, ${counts.byHand} of them by hand',
+      );
     }
   }
   return problems;
@@ -807,6 +996,108 @@ entries:
   }
   if (tableStamp('a') == tableStamp('b') || tableStamp('') != tableStamp('')) {
     broken.add(('table stamp', 'is not a function of the text alone'));
+  }
+
+  // The kinds wave M added, and what an entry may not say.
+  const kinds = '''
+from: 0.1.0
+to: 1.0.0
+entries:
+  - id: k-regroup
+    package: p
+    symbol: View
+    kind: regroup
+    into: view
+    options: ViewOptions
+    arguments: [fov]
+  - id: k-regroup-bare
+    package: p
+    symbol: View
+    kind: regroup
+    into: view
+  - id: k-internal
+    package: p
+    symbol: Stage
+    kind: internal
+    instead: >-
+      Use `Kit`.
+  - id: k-internal-member
+    package: p
+    symbol: Stage.run
+    kind: internal
+  - id: k-wave
+    package: p
+    symbol: Loop
+    kind: manual
+    guidance: >-
+      `Loop` is gone (wave 3); use `EngineLoop`.
+  - id: k-throw
+    package: p
+    symbol: load
+    kind: nullToThrow
+    exception: NotFound
+''';
+  final readKinds = readMigrationTable(kinds);
+  final kindProblems = migrationTableProblems(
+    readKinds,
+  ).map(((int, String) p) => p.$2).toList();
+  final wantKinds = <String>[
+    'k-regroup-bare` is a regroup with no `options`',
+    'k-regroup-bare` is a regroup with no `arguments`',
+    'names the member `Stage.run`',
+    'says "(wave 3)"',
+  ];
+  if (kindProblems.length != wantKinds.length ||
+      !wantKinds.every(
+        (String w) => kindProblems.any((String p) => p.contains(w)),
+      )) {
+    broken.add((
+      'migration kinds',
+      'found $kindProblems where only $wantKinds are wrong',
+    ));
+  }
+  final ceiling = manualCeilingProblems(
+    <MigrationTable>[readKinds, read],
+    ceiling: 1,
+    allowlist: const <String, String>{'p-gone': 'no entry'},
+  );
+  if (ceiling.length != 2 ||
+      ceiling.first.$1 != 'p-ef-g' ||
+      ceiling.last.$1 != 'p-gone') {
+    broken.add((
+      'manual ceiling',
+      'found $ceiling where the second manual entry is past a ceiling of 1 '
+          'and the allowlist names an entry that is not there',
+    ));
+  }
+  for (final (text, want) in const <(String, String?)>[
+    ('`Kind` has a new case, `Other`: a `switch` …', 'enumToClass'),
+    ('`load` throws `NotFound` where it returned null.', 'nullToThrow'),
+    ('`size` is a class now: `.\$1` is `.width`.', 'recordToClass'),
+    ('`fov` moved into `ViewOptions`.', 'regroup'),
+    ('Call `h` instead.', null),
+  ]) {
+    if (automatableKind(text) != want) {
+      broken.add((
+        'manual ceiling',
+        'read "$text" as ${automatableKind(text)}, not $want',
+      ));
+    }
+  }
+  const counts = (entries: 1538, byHand: 341, internal: 380);
+  for (final (text, problems) in const <(String, int)>[
+    ('1.0 changed the 0.8 API in about two\nhundred places.', 1),
+    ('The table has 1 538 entries, 341 by hand.', 0),
+    ('The table has 1538 entries, 720 by hand.', 1),
+    ('Version 1.0 runs on 3 platforms.', 0),
+  ]) {
+    final found = migrationNumberProblems(text, counts: counts);
+    if (found.length != problems) {
+      broken.add((
+        'migration numbers',
+        'found $found in "$text", where $problems are wrong',
+      ));
+    }
   }
   return broken;
 }

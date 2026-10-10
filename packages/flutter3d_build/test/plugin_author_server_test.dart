@@ -202,7 +202,7 @@ void main() {
       final report = workshop.report(dir.path).says;
       expect(report, contains('plugin: package:duel/duel.dart#DuelPlugin'));
       expect(report, contains('backends: passed'));
-      expect(report, contains('badge: earned'));
+      expect(report, contains('badge: conformant@1.0'));
     });
 
     test('a declined check is no badge, and says so', () async {

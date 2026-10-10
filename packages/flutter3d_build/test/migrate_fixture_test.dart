@@ -67,15 +67,34 @@ void main() {
         '--no-fatal-infos',
         '--no-fatal-warnings',
       ], workingDirectory: project.path);
+      // A `manual` entry leaves the code to its reader: the symbol is gone
+      // and the TODO above the use says what to write instead. Those errors
+      // are the migration's report; any other error is the migration's bug.
       final errors = '${analysis.stdout}'
           .split('\n')
           .where((String l) => l.trimLeft().startsWith('error '))
+          .where((String l) => !_underManualTodo(l, project))
           .toList();
       expect(errors, isEmpty, reason: '${analysis.stdout}');
     },
     skip: hasFlutter ? false : 'needs the Flutter SDK on PATH',
     timeout: const Timeout(Duration(minutes: 10)),
   );
+}
+
+/// Whether the analyzer's [line] points into a declaration the migration
+/// marked with a `TODO(flutter3d-1.0)`: the TODO sits at most three lines
+/// above, past the declaration's doc comment.
+bool _underManualTodo(String line, Directory project) {
+  final at = RegExp(r'• (\S+):(\d+):\d+ •').firstMatch(line);
+  if (at == null) return false;
+  final file = File('${project.path}/${at.group(1)}');
+  if (!file.existsSync()) return false;
+  final lines = file.readAsLinesSync();
+  final index = int.parse(at.group(2)!) - 1;
+  return lines
+      .sublist((index - 3).clamp(0, lines.length), index)
+      .any((String l) => l.contains('TODO(flutter3d-1.0)'));
 }
 
 void _copy(Directory from, Directory to) {

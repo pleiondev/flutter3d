@@ -331,7 +331,9 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
   while (queue.isNotEmpty) {
     final package = queue.removeAt(0);
     if (package == appName || !reached.add(package)) continue;
-    queue.addAll(dependenciesOf(package)..sort());
+    // A copy: the graph's own lists, or the empty const one, are not ours to
+    // reorder.
+    queue.addAll([...dependenciesOf(package)]..sort());
   }
 
   final plugins = <DiscoveredPlugin>[];

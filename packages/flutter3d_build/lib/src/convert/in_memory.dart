@@ -108,6 +108,11 @@ final class ConversionResult {
 /// `flutter3d convert --split`: `<name>.f3d`, `materials/*.fmat`,
 /// `*.f3dmat`, `textures/*`, `models/*.f3d` and `<name>.level.json`.
 ///
+/// **A document reads only the files that came with it.** A glTF buffer, an
+/// OBJ material library, a USD reference or texture that climbs out of the
+/// upload with `..` or names an absolute path is refused and reported, never
+/// read.
+///
 /// Throws [ArgumentError] for a key that is absolute or climbs out with
 /// `..`, and for an [entry] that is not a key.
 Future<ConversionResult> convertFiles(
@@ -152,6 +157,9 @@ Future<ConversionResult> convertFiles(
       models: models,
       writeMaterials: materials,
       externalTools: false,
+      // The keys are checked above; this holds the references inside the
+      // documents to the upload too.
+      root: input.path,
     );
     final reports = await convertInputs(inputs, context);
     if (bundle) bundleOutputs(plan, reports);

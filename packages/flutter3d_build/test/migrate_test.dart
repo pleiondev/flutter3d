@@ -188,6 +188,8 @@ dependencies:
     test('two packages merged into one leave one entry for it', () {
       // Mutation: rename every key. The pubspec would name
       // `flutter3d_game_ui` twice, which no YAML reader accepts.
+      // Mutation: end a removed entry where its value's span ends. A block
+      // value (`path: ../touch`) runs to the next key, and `flame` goes too.
       final merged = MigrationTable.parse(
         _table.replaceFirst(
           '    flutter3d_old: flutter3d_new\n',
@@ -300,6 +302,36 @@ import 'package:flutter3d_game_ui/hud.dart';
 import 'package:flutter3d_game_ui/src/hud/mini_map.dart';
 ''');
     });
+
+    test('every URI of a conditional import moves, not just the first', () {
+      // Mutation: match only the URI after `import`. The `if (dart.library…)`
+      // ones keep naming a package the pubspec no longer has, and
+      // `referencedPackages` never sees the one behind a relative stub.
+      const source = '''
+import 'package:flutter3d_old/stub.dart'
+    if (dart.library.io) 'package:flutter3d_old/io.dart'
+    if (dart.library.js_interop) "package:flutter3d_old/web.dart";
+export 'src/stub.dart' if (dart.library.io) 'package:flutter3d_build/src/old.dart';
+''';
+      final moved = migrateDirectives(
+        source,
+        uris: <String, String>{
+          'package:flutter3d_build/src/old.dart':
+              'package:flutter3d_particles/flutter3d_particles.dart',
+        },
+        packages: table.renamedPackages,
+      );
+      expect(moved, '''
+import 'package:flutter3d_new/stub.dart'
+    if (dart.library.io) 'package:flutter3d_new/io.dart'
+    if (dart.library.js_interop) "package:flutter3d_new/web.dart";
+export 'src/stub.dart' if (dart.library.io) 'package:flutter3d_particles/flutter3d_particles.dart';
+''');
+      expect(referencedPackages(moved), <String>{
+        'flutter3d_new',
+        'flutter3d_particles',
+      });
+    });
   });
 
   group('fix data', () {
@@ -396,6 +428,27 @@ int ef(int x)
       expect(spliced, contains('<a id="core-Ab"></a>'));
       expect(spliced, isNot(contains('old\n')));
       expect(spliceGuide('no markers', table0), isNull);
+    });
+  });
+
+  group('the command line', () {
+    Future<ProcessResult> migrate(List<String> args) => Process.run(
+      Platform.resolvedExecutable,
+      <String>['bin/migrate.dart', ...args],
+    );
+
+    test('--help is an answer, on stdout, exiting 0', () async {
+      // Mutation: answer --help as the usage error it shares a branch with
+      // (stderr, exit 2), which is what `flutter3d migrate --help` did.
+      for (final help in <String>['--help', '-h']) {
+        final run = await migrate(<String>[help]);
+        expect(run.exitCode, 0, reason: help);
+        expect('${run.stdout}', contains('--dry-run'), reason: help);
+        expect('${run.stderr}', isEmpty, reason: help);
+      }
+      final wrong = await migrate(const <String>[]);
+      expect(wrong.exitCode, 2);
+      expect('${wrong.stderr}', contains('--dry-run'));
     });
   });
 }

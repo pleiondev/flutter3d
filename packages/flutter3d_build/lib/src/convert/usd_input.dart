@@ -16,6 +16,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../build_exceptions.dart';
 import 'assembler.dart';
+import 'confine.dart';
 import 'context.dart';
 import 'external.dart';
 import 'materials.dart';
@@ -58,10 +59,24 @@ Future<void> convertUsdInput(
 
 /// A layer as read, with where its relative paths resolve.
 final class _Layer {
-  _Layer(this.layer, this.directory, this.archive, this.archiveBase);
+  _Layer(
+    this.layer,
+    this.directory,
+    this.archive,
+    this.archiveBase, {
+    required this.root,
+    required this.report,
+  });
 
   final UsdLayer layer;
   final String directory;
+
+  /// What a path the layer names has to stay inside: the input's directory,
+  /// or the upload's (see `confine.dart`).
+  final String root;
+
+  /// Hears a path refused for leaving [root].
+  final ConvertReport report;
 
   /// The package's entries, for a layer read out of a `.usdz`.
   final Map<String, Uint8List>? archive;
@@ -78,14 +93,18 @@ final class _Layer {
       final found = entries[inside] ?? entries[clean];
       if (found != null) return found;
     }
-    final file = File(clean.startsWith('/') ? clean : '$directory/$clean');
+    final resolved = resolveFile(path);
+    if (resolved == null) return null;
+    final file = File(resolved);
     return file.existsSync() ? file.readAsBytesSync() : null;
   }
 
-  /// The absolute file [path] names, for a reference to another layer.
-  String resolveFile(String path) {
-    final clean = path.startsWith('./') ? path.substring(2) : path;
-    return clean.startsWith('/') ? clean : '$directory/$clean';
+  /// The absolute file [path] names, for a reference to another layer; null,
+  /// and said in [report], when it is outside [root].
+  String? resolveFile(String path) {
+    final resolved = resolveInside(path, directory: directory, root: root);
+    if (resolved == null) report.drop(path, outsideMessage(path, root));
+    return resolved;
   }
 
   /// From the layer's own axes and units to the engine's: Y up, metres.
@@ -113,9 +132,16 @@ final class _UsdReader {
   final Map<String, (String, Matrix4)> _layers = <String, (String, Matrix4)>{};
   final Set<String> _reading = <String>{};
 
+  /// What every layer of this conversion reads inside: the context's root,
+  /// or the input layer's directory, set when the input is read. A layer it
+  /// references one directory down still reads `../wood.png` beside the
+  /// input; nothing reads above it.
+  late final String root;
+
   /// Converts the layer at [source] and returns its prefab's id, or null
   /// with the reason in [report].
   Future<String?> layerPrefab(String source, {required bool primary}) async {
+    if (primary) root = context.root ?? File(source).absolute.parent.path;
     final key = File(source).absolute.path;
     final known = _layers[key];
     if (known != null) return known.$1;
@@ -171,12 +197,19 @@ final class _UsdReader {
         final layer = isUsdCrate(rootBytes)
             ? _throughUsdcat(rootBytes)
             : parseUsda(utf8.decode(rootBytes, allowMalformed: true));
-        return _Layer(layer, directory, entries, base);
+        return _Layer(
+          layer,
+          directory,
+          entries,
+          base,
+          root: root,
+          report: report,
+        );
       }
       final layer = isUsdCrate(bytes)
           ? _throughUsdcat(bytes)
           : parseUsda(utf8.decode(bytes, allowMalformed: true));
-      return _Layer(layer, directory, null, '');
+      return _Layer(layer, directory, null, '', root: root, report: report);
     } on MissingToolException catch (error) {
       report.fail(error.message, as: ConvertOutcome.missingTool);
       return null;
@@ -275,7 +308,9 @@ final class _UsdReader {
           }
           return;
         }
+        // Refused and said by `resolveFile` when it leaves the root.
         final file = layer.resolveFile(reference.path);
+        if (file == null) return;
         final nested = await layerPrefab(file, primary: false);
         if (nested == null) {
           report.drop(

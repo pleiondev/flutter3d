@@ -47,6 +47,32 @@ final class MigrationEntry {
   String? get reason => fields['reason'] as String?;
   int? get wave => fields['wave'] as int?;
 
+  /// An `internal` entry's word on what stays public in its place.
+  String? get instead => fields['instead'] as String?;
+
+  /// A `regroup`'s parameter that takes the options object.
+  String? get into => fields['into'] as String?;
+
+  /// A `regroup`'s options class.
+  String? get options => fields['options'] as String?;
+
+  /// A `nullToThrow`'s exception type.
+  String? get exception => fields['exception'] as String?;
+
+  /// A `regroup`'s named arguments that move into [options].
+  List<String> get arguments => <String>[
+    for (final a
+        in (fields['arguments'] as List<Object?>?) ?? const <Object?>[])
+      '$a',
+  ];
+
+  /// A `recordToClass`'s map from each record field (`$1`, `name`) to the
+  /// class's getter.
+  Map<String, String> get fieldMap => <String, String>{
+    if (fields['fields'] case final Map<Object?, Object?> map)
+      for (final e in map.entries) '${e.key}': '${e.value}',
+  };
+
   /// The libraries a `rewrite`'s template needs in scope.
   List<String> get imports => <String>[
     for (final i in (fields['imports'] as List<Object?>?) ?? const <Object?>[])

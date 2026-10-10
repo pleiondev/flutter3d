@@ -30,6 +30,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
+import 'package:flutter3d_lints/src/migration/migration_rule.dart';
 import 'package:flutter3d_lints/src/migration/migration_scan.dart';
 import 'package:flutter3d_lints/src/migration/table.g.dart';
 
@@ -37,6 +38,10 @@ const String _usage = '''
 Applies the flutter3d 1.0 migrations that need the resolved code.
 
   dart run flutter3d_lints:migrate [--dry-run] [--json] <project dir>
+
+  --rules=<file>  check against the rules in this JSON file (a list of
+                  what flutter3d_build's lintsRules writes) instead of
+                  the shipped table: how a test runs a table of its own
 ''';
 
 Future<void> main(List<String> args) async {
@@ -48,6 +53,18 @@ Future<void> main(List<String> args) async {
   }
   final dryRun = args.contains('--dry-run');
   final json = args.contains('--json');
+  final rulesFile = args
+      .where((String a) => a.startsWith('--rules='))
+      .map((String a) => a.substring('--rules='.length))
+      .firstOrNull;
+  final rules = rulesFile == null
+      ? migrationRules
+      : <MigrationRule>[
+          for (final r
+              in jsonDecode(File(rulesFile).readAsStringSync())
+                  as List<Object?>)
+            MigrationRule.fromJson(r! as Map<String, Object?>),
+        ];
   final project = Directory(paths.single).absolute;
   // Absolute and normalised, with no trailing separator, as the analyzer
   // wants it; the reports are relative to it.
@@ -81,7 +98,7 @@ Future<void> main(List<String> args) async {
       final result = await context.currentSession.getResolvedUnit(path);
       if (result is! ResolvedUnitResult) continue;
       units[path] = result;
-      _scan(result, work);
+      _scan(result, work, rules);
     }
   }
   for (final MapEntry(key: path, value: names) in work.hide.entries) {
@@ -154,7 +171,7 @@ String _libraryPathOf(ResolvedUnitResult unit) =>
 
 /// The first pass over [unit]: its findings, and what its library has to
 /// import or hide for it.
-void _scan(ResolvedUnitResult unit, _Work work) {
+void _scan(ResolvedUnitResult unit, _Work work, List<MigrationRule> rules) {
   final path = unit.path;
   final source = unit.content;
   final isPart = unit.unit.directives.any(
@@ -162,7 +179,7 @@ void _scan(ResolvedUnitResult unit, _Work work) {
   );
   final library = _libraryPathOf(unit);
   final todos = <(int, String)>{};
-  for (final f in scanForMigrations(unit.unit, source, migrationRules)) {
+  for (final f in scanForMigrations(unit.unit, source, rules)) {
     if (f.automatic) {
       for (final e in f.edits) {
         final import = RegExp(r"import '([^']+)';").firstMatch(e.replacement);

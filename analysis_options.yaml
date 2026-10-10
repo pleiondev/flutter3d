@@ -38,6 +38,9 @@ analyzer:
     # names packages flutter3d_build does not depend on. The test copies both
     # out and analyses them as the project they are.
     - packages/flutter3d_build/test/fixtures/migrate_0_8/**
+    # The same for each automatic migration kind: a `before/` written against
+    # the old shape and an `after/` the kind's test compares byte for byte.
+    - packages/flutter3d_build/test/fixtures/migrate_kinds/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

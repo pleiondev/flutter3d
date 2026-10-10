@@ -81,9 +81,13 @@ String migratePubspec(
               (section == 'dev_dependencies' &&
                   names['dependencies']!.contains(renamed)))) {
         final start = pubspec.lastIndexOf('\n', key.span.start.offset) + 1;
-        final last = value.span.end.offset > key.span.end.offset
-            ? value.span.end.offset
-            : key.span.end.offset;
+        // A block value's span runs past its last line to where the next
+        // key starts; the entry ends at its last character.
+        final last = pubspec
+            .substring(0, value.span.end.offset)
+            .trimRight()
+            .length
+            .clamp(key.span.end.offset, pubspec.length);
         final newline = pubspec.indexOf('\n', last);
         final end = newline < 0 ? pubspec.length : newline + 1;
         edits.add((offset: start, length: end - start, text: ''));
@@ -230,18 +234,37 @@ String migrateDirectives(
   }
 
   return source.replaceAllMapped(
-    RegExp(r'''^(\s*(?:import|export)\s+)(['"])([^'"]+)\2''', multiLine: true),
-    (Match m) => '${m.group(1)}${m.group(2)}${moved(m.group(3)!)}${m.group(2)}',
+    _directive,
+    (Match d) => d[0]!.replaceAllMapped(
+      _directiveUri,
+      (Match m) => m[1] == null ? m[0]! : '${m[1]}${moved(m[2]!)}${m[1]}',
+    ),
   );
 }
 
-/// The packages [source] imports or exports through `package:` URIs.
+/// An import or export up to its last URI, with the `if (…) 'uri'` clauses
+/// of a conditional one: every one of those URIs names a library too.
+final RegExp _directive = RegExp(
+  r'''^\s*(?:import|export)\s+(['"])[^'"]+\1'''
+  r'''(?:\s*if\s*\([^)]*\)\s*(['"])[^'"]+\2)*''',
+  multiLine: true,
+);
+
+/// Inside a [_directive]: a condition, matched to be left alone (it may
+/// hold a quoted value), or a quoted URI.
+final RegExp _directiveUri = RegExp(r'''\([^)]*\)|(['"])([^'"]+)\1''');
+
+/// The URIs of every import and export in [source].
+Iterable<String> _directiveUris(String source) => <String>[
+  for (final d in _directive.allMatches(source))
+    for (final m in _directiveUri.allMatches(d[0]!)) ?m[2],
+];
+
+/// The packages [source] imports or exports through `package:` URIs,
+/// conditional ones included.
 Set<String> referencedPackages(String source) => <String>{
-  for (final m in RegExp(
-    r'''^\s*(?:import|export)\s+['"]package:(\w+)/''',
-    multiLine: true,
-  ).allMatches(source))
-    m.group(1)!,
+  for (final uri in _directiveUris(source))
+    if (RegExp(r'^package:(\w+)/').firstMatch(uri) case final m?) m[1]!,
 };
 
 /// The directories of a project whose Dart files a migration touches.

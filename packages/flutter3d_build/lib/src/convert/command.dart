@@ -251,9 +251,15 @@ List<String> expandInputs(List<String> inputs, List<String> problems) {
       }
       found.forEach(add);
     } else if (input.contains(RegExp(r'[*?[{]'))) {
+      // A relative glob lists from `.` and says so in every path; the report
+      // names a file the way its pattern was typed.
+      final typedDot = input.startsWith('./');
       final found = <String>[
         for (final entity in Glob(input).listSync())
-          if (entity is File) entity.path,
+          if (entity is File)
+            !typedDot && entity.path.startsWith('./')
+                ? entity.path.substring(2)
+                : entity.path,
       ]..sort();
       if (found.isEmpty) problems.add('$input: matches nothing');
       found.forEach(add);

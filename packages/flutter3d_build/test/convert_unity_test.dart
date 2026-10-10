@@ -22,13 +22,8 @@ void main() {
   });
   tearDownAll(() => scratch.deleteSync(recursive: true));
 
-  List<Map<String, Object?>> rows(String prefab) {
-    final level = run.readJson('Room.level.json')! as Map<String, Object?>;
-    final prefabs = level['prefabs']! as Map<String, Object?>;
-    return ((prefabs[prefab]! as Map<String, Object?>)['entities']!
-            as List<Object?>)
-        .cast<Map<String, Object?>>();
-  }
+  List<Map<String, Object?>> rows(String prefab) =>
+      run.rows('Room.level.json', prefab);
 
   group('the YAML reader', () {
     test('objects by file ID, stripped ones marked, built-in GUIDs kept as '

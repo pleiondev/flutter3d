@@ -17,6 +17,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 
 import 'build_exceptions.dart';
 import 'chunk_generate.dart';
+import 'convert/confine.dart' show outsideMessage, resolveInside;
 import 'device_classes.dart';
 import 'impostor_bake.dart';
 import 'lod_generate.dart';
@@ -709,14 +710,15 @@ Future<F3dConversion> convertDocument(
 
 /// The model file at [path] decoded as [convertOne] decodes it: [decoders]
 /// first, then the built-in reader for its suffix, sibling files read
-/// relative to it.
+/// relative to it and only inside [root] (see [fileUriResolverFor]).
 ///
-/// Throws [SourceFormatException] for a file no reader claims, and whatever the
-/// reader throws for one it cannot read.
+/// Throws [SourceFormatException] for a file no reader claims or a reference
+/// outside [root], and whatever the reader throws for one it cannot read.
 Future<ModelDocument> decodeModelFile(
   String path, {
   List<ModelDecoder> decoders = const <ModelDecoder>[],
-}) => _decode(File(path).readAsBytesSync(), path, decoders);
+  String? root,
+}) => _decode(File(path).readAsBytesSync(), path, decoders, root: root);
 
 /// [bytes] decoded the way `decodeModel` decodes them — [decoders] first,
 /// then the built-in reader for the suffix — rather than through a `switch`
@@ -724,8 +726,9 @@ Future<ModelDocument> decodeModelFile(
 Future<ModelDocument> _decode(
   Uint8List bytes,
   String path,
-  List<ModelDecoder> decoders,
-) {
+  List<ModelDecoder> decoders, {
+  String? root,
+}) {
   if (!_recognised(path, decoders)) {
     if (isF3dFile(bytes)) {
       throw const SourceFormatException('That is already a .f3d file.');
@@ -739,7 +742,7 @@ Future<ModelDocument> _decode(
       decoders: decoders,
     ),
     bytes,
-    fileUriResolverFor(path),
+    fileUriResolverFor(path, root: root),
   );
 }
 
@@ -762,12 +765,23 @@ final class _PathSource extends AssetSource {
 }
 
 /// Reads sibling files relative to the model, the way the decoders expect.
-AssetUriResolver fileUriResolverFor(String modelPath) {
+///
+/// **Only inside [root]**, the model's own directory when null: a URI that
+/// climbs out with `..` or names an absolute path throws
+/// [SourceFormatException] instead of being read, so a document cannot put
+/// a file from elsewhere on the disk into what it converts to.
+AssetUriResolver fileUriResolverFor(String modelPath, {String? root}) {
   final directory = File(modelPath).parent.path;
+  final inside = root ?? directory;
   return (request) async {
     final uri = request.uri;
     if (uri.startsWith('data:')) return decodeDataUri(uri);
-    final file = File('$directory/${Uri.decodeComponent(uri)}');
+    final reference = Uri.decodeComponent(uri);
+    final path = resolveInside(reference, directory: directory, root: inside);
+    if (path == null) {
+      throw SourceFormatException(outsideMessage(reference, inside));
+    }
+    final file = File(path);
     if (!file.existsSync()) {
       throw FileSystemException('Referenced file not found', file.path);
     }

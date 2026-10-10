@@ -58,7 +58,7 @@ def Xform "World"
             def Shader "Texture"
             {
                 uniform token info:id = "UsdUVTexture"
-                asset inputs:file = @../wood.png@
+                asset inputs:file = @textures/wood.png@
                 token inputs:wrapS = "repeat"
                 float3 outputs:rgb
             }

@@ -81,8 +81,9 @@ changed, from the migration table in `flutter3d_build`:
 
 | Diagnostic | Reports | Fix |
 |---|---|---|
-| `flutter3d_migrate` | a deprecated capability getter on a `GraphicsDevice`; `implements X` where 1.0 made `X` a `base mixin class` | the quick fix rewrites it |
+| `flutter3d_migrate` | a deprecated capability getter on a `GraphicsDevice`; `implements X` where 1.0 made `X` a `base mixin class`; named arguments that moved into an options object; a `switch` over a type that stopped being an enum; `.$1` of a record that became a class; a null check beside a call that throws now | the quick fix rewrites it, with a TODO where the rewrite needs a decision |
 | `flutter3d_migrate_by_hand` | a use a person has to change, such as `GameLoop` | the message links the guide's line for it |
+| `flutter3d_migrate_by_hand` | the import of a package whose names the file uses and 1.0 keeps to itself | one diagnostic per import, naming them all |
 
 `dart fix` does not apply a plugin's fixes in bulk. To apply them all
 across a project:

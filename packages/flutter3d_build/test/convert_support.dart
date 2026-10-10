@@ -34,6 +34,23 @@ final class ConvertRun {
   Object? readJson(String relative) => jsonDecode(read(relative));
 
   bool wrote(String relative) => File('${output.path}/$relative').existsSync();
+
+  /// The rows of [prefab] in the level document at [level], each with what
+  /// it holds under `props` beside its own keys: since level format 3 a
+  /// row's top level is the engine's (`type`, `at`, `yaw`, `scale`) and the
+  /// rest — `size`, `prefab`, `materials`, `asset` — is under `props`.
+  List<Map<String, Object?>> rows(String level, String prefab) {
+    final prefabs =
+        (readJson(level)! as Map<String, Object?>)['prefabs']!
+            as Map<String, Object?>;
+    return <Map<String, Object?>>[
+      for (final row
+          in ((prefabs[prefab]! as Map<String, Object?>)['entities']!
+                  as List<Object?>)
+              .cast<Map<String, Object?>>())
+        <String, Object?>{...row, ...?(row['props'] as Map<String, Object?>?)},
+    ];
+  }
 }
 
 /// Runs `flutter3d convert` with [arguments] into [output] (a fresh scratch

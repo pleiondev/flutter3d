@@ -13,6 +13,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'confine.dart';
 import 'context.dart';
 import 'godot_text.dart';
 import 'materials.dart';
@@ -31,7 +32,15 @@ Future<void> convertGodotInput(
   ConvertContext context,
   ConvertReport report,
 ) async {
-  final reader = _GodotReader(context, report, _projectRoot(source));
+  // The project's root, unless it lies above what the run may read (an
+  // upload holding a scene without its `project.godot`).
+  final project = _projectRoot(source);
+  final bound = context.root;
+  final reader = _GodotReader(
+    context,
+    report,
+    bound == null || isInside(project, bound) ? project : bound,
+  );
   if (extensionOf(source) == '.tres') {
     reader.resourceFile(source);
     return;
@@ -107,8 +116,17 @@ final class _GodotReader {
   final Set<String> _reading = <String>{};
   final Map<String, int> _skipped = <String, int>{};
 
-  String file(String resPath) =>
-      resPath.startsWith('res://') ? '$root/${resPath.substring(6)}' : resPath;
+  /// The file [resPath] names, inside [root]: `res://` is the root, and so
+  /// is the directory a bare relative path starts from. Null, and said in
+  /// [report], for one that climbs out or is absolute.
+  String? file(String resPath) {
+    final reference = resPath.startsWith('res://')
+        ? resPath.substring(6)
+        : resPath;
+    final path = resolveInside(reference, directory: root, root: root);
+    if (path == null) report.drop(resPath, outsideMessage(resPath, root));
+    return path;
+  }
 
   String _relative(String path) =>
       path.startsWith('$root/') ? path.substring(root.length + 1) : path;
@@ -320,6 +338,7 @@ final class _GodotReader {
     final instanced = resources.resolve(section.attributes['instance']);
     if (instanced != null) {
       final path = file(instanced.path ?? '');
+      if (path == null) return null;
       final extension = extensionOf(path);
       if (extension == '.tscn') {
         final nested = await scene(path);
@@ -444,6 +463,7 @@ final class _GodotReader {
     }
     if (mesh.path case final String path) {
       final source = file(path);
+      if (source == null) return null;
       if (!modelExtensions.contains(extensionOf(source))) {
         _skip('mesh resources');
         return SceneItem(name: rowName, local: local);
@@ -534,6 +554,7 @@ final class _GodotReader {
     if (resource == null) return null;
     if (resource.path case final String path) {
       final source = file(path);
+      if (source == null) return null;
       final key = File(source).absolute.path;
       if (materials[key] case final SceneMaterial known) return known.id;
       if (extensionOf(source) != '.tres') {

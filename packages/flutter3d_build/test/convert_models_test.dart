@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter3d_build/src/build_exceptions.dart';
 import 'package:flutter3d_build/src/convert/ply_mesh.dart';
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 import 'package:test/test.dart';
 
 import 'convert_support.dart';
@@ -30,12 +31,8 @@ void main() {
     );
 
     final level = run.readJson('triangle.level.json')! as Map<String, Object?>;
-    expect(level['version'], 2);
-    final prefab =
-        (level['prefabs']! as Map<String, Object?>)['triangle']!
-            as Map<String, Object?>;
-    final row =
-        (prefab['entities']! as List<Object?>).single! as Map<String, Object?>;
+    expect(level['version'], Level.formatVersion);
+    final row = run.rows('triangle.level.json', 'triangle').single;
     expect(row['type'], 'model');
     expect((row['asset']! as String).endsWith('triangle.f3d'), isTrue);
   });

@@ -6,8 +6,18 @@
     getter on a `GraphicsDevice` into `features.has(...)` or `limits.…`,
     and turns `implements X` into `with X` on a `base` class, for the types
     1.0 made `base mixin class`es.
+    It also moves named arguments that became an options object into it
+    (`View3d(fov: 1)` to `View3d(view: ViewOptions(fov: 1))`), gives a
+    `switch` over a type that stopped being an enum or sealed a wildcard
+    that throws, reads `.$1` of a record that became a class through its
+    getter, and turns a null check right beside a call that throws now into
+    `try … on` the exception. The last two of those leave a TODO beside
+    what they wrote, because a person decides what the new case or the
+    caught exception does.
   - `flutter3d_migrate_by_hand` links the guide's line for a change a person
-    has to make.
+    has to make. A name 1.0 keeps to its package is reported once per
+    import of that package, listing every such name the file uses, rather
+    than at each use.
 
   Both use the resolved code, so a class of your own with a
   `supportsWireframe` is left alone. `dart fix` does not apply a plugin's
