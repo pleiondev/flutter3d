@@ -716,7 +716,15 @@ final class WebGpuDevice extends GraphicsDevice
   /// all. It is used on the calls that are rare and expensive: making a
   /// texture, a buffer, a pipeline, a bind group, and submitting a pass.
   /// Wrapping a per-draw call would add a promise per draw.
-  T _guard<T>(String what, T Function() body) {
+  ///
+  /// [refused], when given, hears the browser's verdict instead of the
+  /// ledger: a pipeline the browser would not build is a refusal the frame
+  /// draws past, not a complaint the next [beginFrame] throws.
+  T _guard<T>(
+    String what,
+    T Function() body, {
+    void Function(String message)? refused,
+  }) {
     _gpuDevice.pushErrorScope(GpuErrorFilter.validation);
     final T result;
     try {
@@ -730,11 +738,50 @@ final class WebGpuDevice extends GraphicsDevice
     }
     _ledger.track(
       _gpuDevice.popErrorScope().toDart.then((GPUError? error) {
-        if (error != null) _ledger.complain(what, error.message);
+        if (error == null) return;
+        if (refused != null) {
+          refused(error.message);
+        } else {
+          _ledger.complain(what, error.message);
+        }
       }),
     );
     return result;
   }
+
+  /// [_guard] for the browser's pipeline in one draw state, built for
+  /// [handle]'s pair.
+  ///
+  /// **The browser answers later.** `createRenderPipeline` hands back an
+  /// object whether or not it could build it, and says so on the error
+  /// scope. A refusal then goes to [pipelineRefusals] against [handle] and
+  /// the object leaves the cache, so the next draw in [signature]'s state
+  /// builds it again — until the record leaves the pipeline refused and the
+  /// encoder skips its draws. The draws already encoded with the refused
+  /// object are the browser's to drop, which it does by invalidating their
+  /// pass: one frame, not every frame.
+  GPURenderPipeline _guardPipeline(
+    PipelineHandle handle,
+    WebGpuPipelineSignature signature,
+    GPURenderPipeline Function() body,
+  ) => _guard(
+    'the pipeline for $signature',
+    body,
+    refused: (String message) {
+      _pipelines.forget(signature);
+      pipelineRefusals.report(
+        handle,
+        PipelineRefused(
+          pipeline: handle.name,
+          backend: _backend,
+          reason: _isLost
+              ? PipelineRefusalReason.deviceLost
+              : PipelineRefusalReason.link,
+          detail: message,
+        ),
+      );
+    },
+  );
 
   /// Everything the browser complained about since the last drain, or null when
   /// it complained about nothing.
@@ -2404,4 +2451,9 @@ extension WebGpuDeviceInternals on WebGpuDevice {
       _bindingsFor(pipeline);
   void rememberDrawState(WebGpuDrawState state) => _rememberDrawState(state);
   T guard<T>(String what, T Function() body) => _guard(what, body);
+  GPURenderPipeline guardPipeline(
+    PipelineHandle handle,
+    WebGpuPipelineSignature signature,
+    GPURenderPipeline Function() body,
+  ) => _guardPipeline(handle, signature, body);
 }

@@ -129,6 +129,9 @@ abstract base class WebGpuRecorder extends PassEncoder {
   // The accumulated state. Mutable because it is state: every setter writes one
   // of these and the draw reads all of them.
   WebGpuPipeline? _pipeline;
+
+  /// The handle [_pipeline] came in, which a refusal is reported against.
+  PipelineHandle? _pipelineHandle;
   PrimitiveType _primitive = PrimitiveType.triangle;
   CullMode _cull = CullMode.none;
   WindingOrder _winding = WindingOrder.counterClockwise;
@@ -306,6 +309,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
   void bindPipeline(PipelineHandle pipeline) {
     debugCheckLive(pipeline, 'bindPipeline');
     _pipeline = pipeline.backend as WebGpuPipeline;
+    _pipelineHandle = pipeline;
     // Bindings do not survive a pipeline change — the contract states it, and
     // this honours it literally rather than by accident.
     _forgetBindings();
@@ -571,7 +575,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
     // count handed on would reach `drawIndexed` as an unsigned number in the
     // billions.
     if (draw.instanceCount <= 0) return;
-    _prepareIndexed();
+    if (!_prepareIndexed()) return;
     _commands.drawIndexed(
       window.count,
       draw.instanceCount,
@@ -599,7 +603,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
   void drawIndirect(StorageBuffer arguments, {int offsetInBytes = 0}) {
     _device.features.require(DeviceFeature.indirectDraw, backend: _backend);
     webgpuCheckIndirect(arguments, offsetInBytes, 20);
-    _prepareIndexed();
+    if (!_prepareIndexed()) return;
     _commands.drawIndexedIndirect(
       (arguments.backend as WebGpuStorage).buffer,
       offsetInBytes,
@@ -624,7 +628,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
     if (countBuffer != null) {
       webgpuCheckIndirect(countBuffer, countOffsetInBytes, 4);
     }
-    _prepareIndexed();
+    if (!_prepareIndexed()) return;
     _multiDrawIndirect(
       (arguments.backend as WebGpuStorage).buffer,
       offsetInBytes,
@@ -653,11 +657,12 @@ abstract base class WebGpuRecorder extends PassEncoder {
   }) {
     _device.features.require(DeviceFeature.nonIndexedDraw, backend: _backend);
     if (vertexCount <= 0 || instanceCount <= 0) return;
-    _prepare();
+    if (!_prepare()) return;
     _commands.draw(vertexCount, instanceCount, firstVertex, firstInstance);
   }
 
-  void _prepareIndexed() {
+  /// [_prepare], and the index buffer set; false as [_prepare] is.
+  bool _prepareIndexed() {
     final indices = _indexBuffer;
     if (indices == null) {
       throw StateError(
@@ -665,24 +670,54 @@ abstract base class WebGpuRecorder extends PassEncoder {
         'without one',
       );
     }
-    _prepare();
+    if (!_prepare()) return false;
     _commands.setIndexBuffer(
       indices.buffer,
       gpuIndexFormat(_indexType),
       indices.offset,
       indices.length,
     );
+    return true;
   }
 
   /// The pipeline, the groups and the vertex buffers this draw's state
   /// resolves to, set on [_commands].
-  void _prepare() {
+  ///
+  /// False, with nothing set, when the bound pipeline is refused — left
+  /// refused by `GraphicsDevice.pipelineRefusals`, or refused by the build
+  /// this draw asked for — and the draw is skipped.
+  bool _prepare() {
     final pipeline = _pipeline;
-    if (pipeline == null) {
+    final handle = _pipelineHandle;
+    if (pipeline == null || handle == null) {
       throw StateError('a draw with no pipeline bound');
     }
+    final refusals = _device.pipelineRefusals;
+    if (refusals.isRefused(handle)) return false;
     final layouts = _device.bindingsFor(pipeline);
-    _commands.setPipeline(_realPipeline(pipeline, layouts));
+    final GPURenderPipeline built;
+    try {
+      built = _realPipeline(pipeline, handle, layouts);
+    } on Object catch (error) {
+      // What the browser throws in the calling turn rather than reporting
+      // on the error scope: a descriptor its bindings cannot express, or a
+      // device already gone. Nothing was cached, so the next draw that
+      // wants this state builds it again.
+      refusals.report(
+        handle,
+        PipelineRefused(
+          pipeline: handle.name,
+          backend: _backend,
+          reason: _device.isLost
+              ? PipelineRefusalReason.deviceLost
+              : PipelineRefusalReason.other,
+          detail: '$error',
+          cause: error,
+        ),
+      );
+      return false;
+    }
+    _commands.setPipeline(built);
     for (var group = 0; group < layouts.groups.length; group++) {
       final shape = layouts.shapes[group];
       if (shape.isEmpty) continue;
@@ -709,6 +744,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
         entry.value.length,
       );
     }
+    return true;
   }
 
   /// The signature this draw's state makes, which is what the cache is
@@ -749,8 +785,14 @@ abstract base class WebGpuRecorder extends PassEncoder {
     );
   }
 
+  /// The browser's pipeline for [pipeline] in this draw's state, built the
+  /// first time the state is asked for. A build the browser refuses later,
+  /// on its error scope, is reported against [handle] and dropped from the
+  /// cache, so the next draw in that state builds it again — see
+  /// `WebGpuDevice.guardPipeline`.
   GPURenderPipeline _realPipeline(
     WebGpuPipeline pipeline,
+    PipelineHandle handle,
     WebGpuBindingLayouts layouts,
   ) {
     final signature = signatureFor(pipeline);
@@ -765,8 +807,9 @@ abstract base class WebGpuRecorder extends PassEncoder {
       // device has built in are what `createPipelineAsync` warms a new pair
       // with.
       _device.rememberDrawState(state);
-      return _device.guard(
-        'the pipeline for $signature',
+      return _device.guardPipeline(
+        handle,
+        signature,
         () => _device.gpuDevice.createRenderPipeline(
           webgpuRenderPipelineDescriptor(pipeline, layouts, state),
         ),
