@@ -17,6 +17,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show LevelLight;
 import 'package:flutter_test/flutter_test.dart';
 
 const int _width = 96;
@@ -174,7 +175,11 @@ void main() {
     final editing = Editing.parse(_document(), path: '/levels/test.json');
 
     final before = await shown.draw(editing);
-    editing.addLight(Vector3(0.0, 2.0, -4.0), intensity: 40.0, range: 20.0);
+    editing.addLight(
+      Vector3(0.0, 2.0, -4.0),
+      intensity: 40.0 * LevelLight.defaultIntensity,
+      range: 20.0,
+    );
     final after = await shown.draw(editing);
 
     final lit = _differences(before, after);

@@ -191,7 +191,7 @@ void main() {
 
     expect(run.toy.state, run.seen[140]);
     expect(tracks.entities, <String>['runner', 'target']);
-    expect(tracks.span, (first: 0, last: 300));
+    expect(tracks.span, const StepSpan(first: 0, last: 300));
     // Fire is pressed on every eleventh step from 0, so the target's health
     // changes on the step after each press, 28 times in 300 steps.
     final hits = tracks.samples('target', 'hp');
