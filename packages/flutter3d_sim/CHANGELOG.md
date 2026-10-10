@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A data plugin's entity kinds are read here.**
+  `package:flutter3d_sim/data_plugins.dart` has `entityKindsSection`, which
+  an engine registers in its `DataSectionRegistry`, and `DataEntityKind`,
+  moved from `flutter3d_plugin_runtime`, which no longer depends on this
+  package. A declaration that does not read throws a
+  `DocumentFormatException`.
+
 - **`Level` no longer takes `gravity:` or answers `gravity`.** Both were
   added on the way to 1.0 and deprecated at once in favor of the level's
   `world`: write `world: {'gravity': g}`, and read

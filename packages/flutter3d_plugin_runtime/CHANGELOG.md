@@ -1,5 +1,31 @@
 ## 1.0.0-rc.1
 
+- **The runtime depends on the plugin API alone.** `entityKinds`,
+  `materials` and `renderSteps` are sections like `effects`, read by the
+  package that owns what they install through the plugin API's
+  `DataSectionRegistry`: `entityKindsSection` and `DataEntityKind` are in
+  `package:flutter3d_sim/data_plugins.dart`; `materialsSection`,
+  `renderStepsSection`, `renderDataSections`, `DataMaterial`,
+  `DataRenderStep`, `RuntimeShaders`, `RuntimeRenderStep`,
+  `RuntimeShadersException`, `RuntimeBackends`, `runtimeMaterialBundle`,
+  `spliceMaterialWgsl`, `fullscreenMaterialWgsl` and `runtimeShaderSdk` are
+  in `package:flutter3d_core/data_plugins.dart`. `DataPluginDocument` loses
+  `entityKinds`, `materials` and `renderSteps` (they are in `sections` when
+  read, in `extra` when not), and `flutter3d_core`, `flutter3d_sim`,
+  `flutter3d_shaders`, `flutter3d_physics` and `flutter3d_hardware` leave the
+  pubspec: a server replaying a run with a data plugin no longer resolves
+  the render core.
+- **`ScriptRuntime` is gone, and `scripts` is `expressions`.** No script
+  runtime ever shipped; the expression language covers what a script was
+  for. `ScriptRuntime`, `ScriptProgram`, `ScriptContext`, `ScriptSystem`,
+  `ScriptSystemSpec`, `ScriptException`, `ScriptFormatException` and
+  `installScriptSystem` go; `ExpressionSystemSpec` and
+  `DataPluginDocument.expressions` take their place. The format is at
+  version 3, whose migration reads a version-2 `scripts` entry as an
+  expression system with its `source` kept, and the v3 fixture is minted.
+  This build reads expression systems and refuses, by name, to install a
+  plugin that brings one.
+
 - **A Wasm module's state is checked before it is restored.** The
   interpreter and the browser runtime refuse with a `WasmFormatException`
   a negative or out-of-range page count, memory that is not base64 or does

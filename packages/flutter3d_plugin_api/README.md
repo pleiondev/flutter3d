@@ -294,18 +294,19 @@ A plugin does not have to be compiled in. `flutter3d_plugin_runtime` reads
 three more kinds while the game runs, each one a `Flutter3dPlugin` with a
 manifest, installed through the same host:
 
-- **Data plugins**: a `.f3dplugin` document with loop phases, events, entity
-  kinds, materials in the material language, render steps, Wasm systems,
-  scripts, and physical materials: a `physicalMaterials` list of
-  `PhysicalMaterial` bodies (the same fields its JSON has) and a
-  `materialPairs` list, read and held to SI and to the plugin's namespace
-  when the document is read, and installed into the `MaterialCatalog`. A
-  document with either names `f3d.physicalMaterials` in its `requires`.
-- **Wasm modules**: step systems under Wasm plugin ABI 1, which is versioned
-  apart from this API. 32-bit integers only, four imports, no I/O, and a
-  plain Dart interpreter that steps them the same way on every platform.
-- **Interpreted Dart**: the `ScriptRuntime` interface. No runtime ships in
-  1.0.
+- **Data plugins**: a `.f3dplugin` document with loop phases, events, Wasm
+  systems, systems in the expression language, and the sections each
+  subsystem reads through a `DataSectionRegistry`: entity kinds, materials in
+  the material language, render steps, effects, and physical materials (a
+  `physicalMaterials` list of `PhysicalMaterial` bodies, the same fields its
+  JSON has, and a `materialPairs` list, read and held to SI and to the
+  plugin's namespace when the document is read, and installed into the
+  `MaterialCatalog`; a document with either names `f3d.physicalMaterials` in
+  its `requires`).
+- **Wasm modules**: step systems under the Wasm plugin ABI, which is
+  versioned apart from this API. 32-bit integers only, a handful of imports,
+  no I/O, and a plain Dart interpreter that steps them the same way on every
+  platform.
 
 This is where `permissions` stop being only a declaration. A run-time plugin
 gets a permission it declared only when the application grants it, and is

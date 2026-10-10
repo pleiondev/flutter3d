@@ -61,7 +61,10 @@ dev_dependencies:
   # The material language's emitter — `gfx-84n`. For
   # `material_language_generators_test.dart` alone: a material written as
   # source has to reach both generators, and this is the one package that has
-  # both. Not a real dependency — nothing in `lib/` reaches it.
+  # both. Not a real dependency — nothing in `lib/` reaches it. Also for
+  # `runtime_material_test.dart`: `RuntimeShaders` splices a material loaded
+  # at run time into this package's `Unlit` stage, and the test hands naga
+  # the result.
   flutter3d_core: ^1.0.0-rc.1
   # For `reflection_probe_test.dart` alone, which drives the real Renderer
   # through this backend so that a reflection probe is checked as a picture
@@ -71,10 +74,6 @@ dev_dependencies:
   # the promise held. A dev dependency, so nothing a consumer builds picks up
   # the engine because the backend was installed.
   flutter3d: ^1.0.0-rc.1
-  # For `runtime_material_test.dart` alone: `RuntimeShaders` splices a
-  # material loaded at run time into this package's `Unlit` stage, and the
-  # test hands naga the result. Nothing in `lib/` reaches it.
-  flutter3d_plugin_runtime: ^1.0.0-rc.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

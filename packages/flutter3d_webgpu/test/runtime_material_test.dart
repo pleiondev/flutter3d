@@ -4,7 +4,7 @@
 ///
 ///     flutter test test/runtime_material_test.dart
 ///
-/// `flutter3d_plugin_runtime`'s `material_wgsl_test.dart` holds the splice
+/// `flutter3d_core`'s `data_plugin/material_wgsl_test.dart` holds the splice
 /// to a stand-in; this holds it to the stage the engine really ships, which
 /// a regenerated `engine_shaders.dart` can reshape. On the VM because naga is
 /// a program; without naga on `PATH` the validation is skipped and says so.
@@ -13,8 +13,8 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_core/data_plugins.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_shaders/compile.dart' show nagaExecutable;
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/flutter3d_webgpu.dart';

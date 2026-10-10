@@ -2,7 +2,7 @@
 /// run time, refused with a sentence where it does not, and switched off
 /// rather than failing the plugin.
 ///
-///     dart test test/runtime_shaders_test.dart
+///     dart test test/data_plugin/runtime_shaders_test.dart
 ///
 /// The WebGL2 bundle is translated against the engine's real GLSL headers,
 /// read off disk the way the build reads them; the device is a stand-in that
@@ -12,12 +12,12 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/data_plugins.dart';
 import 'package:flutter3d_core/flutter3d_core.dart' show Renderer;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
-import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
 import 'package:flutter3d_shaders/compile.dart' show loadShaders;
 import 'package:test/test.dart';
 

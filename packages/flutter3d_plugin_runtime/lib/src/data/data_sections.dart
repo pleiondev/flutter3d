@@ -8,6 +8,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 ///
 /// ```dart
 /// final sections = DataSections(<DataSection>[
+///   entityKindsSection,        // flutter3d_sim
+///   ...renderDataSections,     // flutter3d_core: materials, renderSteps
 ///   effectsSection,            // flutter3d_particles
 ///   physicalMaterialsSection,  // flutter3d_matter
 ///   materialPairsSection,      // flutter3d_matter
@@ -25,17 +27,16 @@ final class DataSections extends DataSectionRegistry {
   }
 
   /// The keys of a `.f3dplugin` document the runtime reads itself, which no
-  /// section may take.
+  /// section may take: the envelope of version 1, the manifest, and what
+  /// every engine has, a replaying server included (the loop's phases, the
+  /// bus, and the step systems in Wasm and in the expression language).
   static const Set<String> runtimeKeys = <String>{
     'f3dplugin',
     'manifest',
     'phases',
     'events',
-    'entityKinds',
-    'materials',
-    'renderSteps',
     'wasm',
-    'scripts',
+    'expressions',
   };
 
   final List<DataSection> _sections = <DataSection>[];

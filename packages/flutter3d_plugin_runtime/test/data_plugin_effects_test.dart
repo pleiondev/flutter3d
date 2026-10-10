@@ -7,6 +7,7 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/data_plugins.dart' show RuntimeBackends;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'

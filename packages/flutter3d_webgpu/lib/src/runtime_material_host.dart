@@ -12,8 +12,8 @@ import 'webgpu_bundle_section.dart';
 
 /// The stage a material loaded while the game runs is spliced into on this
 /// backend: the engine's compiled `Unlit` fragment stage, with its WGSL and
-/// its reflection, in the shape `flutter3d_plugin_runtime`'s `RuntimeShaders`
-/// takes as `webGpuHost`.
+/// its reflection, in the shape `flutter3d_core`'s `RuntimeShaders`
+/// (`package:flutter3d_core/data_plugins.dart`) takes as `webGpuHost`.
 ///
 /// ```dart
 /// final shaders = RuntimeShaders(
@@ -94,7 +94,7 @@ PackedStage webGpuMaterialHost({WebGpuSectionStages? stages}) {
 }
 
 /// Where the engine's full-screen stages read `v_uv` on this backend — what
-/// `flutter3d_plugin_runtime`'s `RuntimeShaders` takes as
+/// `flutter3d_core`'s `RuntimeShaders` takes as
 /// `webGpuFullscreenUvLocation`, so a full-screen stage written in the
 /// material language while the game runs (version 2) meets the shared
 /// `FullscreenVertex` at the location the engine's own post stages do.

@@ -12,6 +12,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/data_plugins.dart'
+    show RuntimeBackends, renderDataSections;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart'
     show effectsSection;
@@ -27,6 +29,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         PluginRegistry,
         RenderAnchor;
 import 'package:flutter3d_plugin_runtime/flutter3d_plugin_runtime.dart';
+import 'package:flutter3d_sim/data_plugins.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
 
@@ -76,45 +79,112 @@ Uint8List _gusts() {
   return m.build();
 }
 
-/// The particles' `effects`, the one registered section the fixtures have.
-final DataSections _sections = DataSections(<DataSection>[effectsSection]);
+/// Every section the fixtures have, each from the package that reads it:
+/// the simulation's `entityKinds`, the core's `materials` and
+/// `renderSteps`, the particles' `effects`.
+final DataSections _sections = DataSections(<DataSection>[
+  entityKindsSection,
+  ...renderDataSections,
+  effectsSection,
+]);
+
+/// The section [name] of [document] as it writes it back.
+List<Map<String, Object?>> _written(DataPluginDocument document, String name) =>
+    <Map<String, Object?>>[
+      for (final entry in document.toJson()[name]! as List<Object?>)
+        entry! as Map<String, Object?>,
+    ];
 
 void main() {
   group('the document', () {
-    test('the v1 fixture reads, every key in its place', () {
-      // Mutation: drop a key from `_read`, or read `present` as false. The
-      // fixture holds every key version 1 has, so each is asked here.
+    for (final version in <int>[1, 2, 3]) {
+      test('the v$version fixture reads, every key in its place', () {
+        // Mutation: drop a key from `_read` or a section's `read`, or read
+        // `present` as false. The fixture holds every key its version has,
+        // so each is asked here.
+        final document = DataPluginDocument.parse(
+          File('test/fixtures/v$version/glow.f3dplugin').readAsStringSync(),
+          sections: _sections,
+        );
+        expect(document.manifest.id, 'glow');
+        expect(document.manifest.backends, <String>{'webgl', 'cpu'});
+        expect(document.phases.map((p) => '${p.kind.name} ${p.name}'), <String>[
+          'step weather',
+          'frame shimmer',
+        ]);
+        expect(document.events.single.name, 'gust');
+        final kinds =
+            document.sections['entityKinds']!.section as List<DataEntityKind>;
+        expect(kinds.map((k) => k.type), <String>['vent', 'wind_marker']);
+        expect(kinds.first.requires, <String>['size', 'strength']);
+        expect(kinds.first.collider, ColliderKind.trigger);
+        expect(
+          _written(document, 'materials').single['text'],
+          contains('material Glow'),
+        );
+        final haze = _written(document, 'renderSteps').single;
+        expect(haze['anchor'], RenderAnchor.afterTonemap.name);
+        expect(haze['present'], isTrue);
+        expect(haze['shaders'], <String, String>{'webgl': 'haze.frag'});
+        final blow = document.wasm.single;
+        expect(blow.phase, 'weather');
+        expect(
+          blow.fields.take(2).map((f) => '${f.name}:${f.writable}'),
+          <String>['wind:true', 'heat:false'],
+        );
+        expect(blow.limits.memoryPages, 1);
+        expect(document.sections.keys, <String>[
+          'entityKinds',
+          'materials',
+          'renderSteps',
+          'effects',
+        ]);
+        expect(document.resources, <String>['gusts.wasm', 'haze.frag']);
+      });
+    }
+
+    test('the runtime reads none of a subsystem\'s sections itself', () {
+      // Mutation: put `materials` back among the runtime's keys. The
+      // document would be read with the render core's types, and the
+      // package would need the render core on a replaying server again.
       final document = DataPluginDocument.parse(
-        File('test/fixtures/v1/glow.f3dplugin').readAsStringSync(),
-        sections: _sections,
+        File('test/fixtures/v3/glow.f3dplugin').readAsStringSync(),
       );
-      expect(document.manifest.id, 'glow');
-      expect(document.manifest.backends, <String>{'webgl', 'cpu'});
-      expect(document.phases.map((p) => '${p.kind.name} ${p.name}'), <String>[
-        'step weather',
-        'frame shimmer',
+      expect(document.sections, isEmpty);
+      expect(document.extra.keys, <String>[
+        'entityKinds',
+        'materials',
+        'renderSteps',
+        'effects',
+        'catalogue',
       ]);
-      expect(document.events.single.name, 'gust');
-      expect(document.entityKinds.map((k) => k.type), <String>[
-        'vent',
-        'wind_marker',
-      ]);
-      expect(document.entityKinds.first.requires, <String>['size', 'strength']);
-      expect(document.entityKinds.first.collider, ColliderKind.trigger);
-      expect(document.materials.single.text, contains('material Glow'));
-      final haze = document.renderSteps.single;
-      expect(haze.anchor, RenderAnchor.afterTonemap.name);
-      expect(haze.present, isTrue);
-      expect(haze.shaders, <String, String>{'webgl': 'haze.frag'});
-      final blow = document.wasm.single;
-      expect(blow.phase, 'weather');
-      expect(blow.fields.map((f) => '${f.name}:${f.writable}'), <String>[
-        'wind:true',
-        'heat:false',
-      ]);
-      expect(blow.limits.memoryPages, 1);
-      expect(document.sections.keys, <String>['effects']);
-      expect(document.resources, <String>['haze.frag', 'gusts.wasm']);
+      expect(DataSections.runtimeKeys, <String>{
+        'f3dplugin',
+        'manifest',
+        'phases',
+        'events',
+        'wasm',
+        'expressions',
+      });
+      // Written back as read, so a tool on a server loses nothing.
+      expect(document.toJson()['materials'], isA<List<Object?>>());
+    });
+
+    test('the package depends on the plugin API alone', () {
+      // Mutation: import the core or the simulation from `lib/` again. The
+      // pubspec would have to name it, and this says which one came back.
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      final dependencies = RegExp(
+        r'^dependencies:\n((?:  .*\n|\s*\n|  #.*\n)*)',
+        multiLine: true,
+      ).firstMatch(pubspec)![1]!;
+      expect(
+        RegExp(
+          r'^  (\w+):',
+          multiLine: true,
+        ).allMatches(dependencies).map((m) => m[1]),
+        <String>['flutter3d_plugin_api'],
+      );
     });
 
     test('what this build does not know is kept and written back', () {
@@ -196,16 +266,18 @@ void main() {
               },
             ],
           });
+      DataPluginDocument parse(String text) =>
+          DataPluginDocument.parse(text, sections: _sections);
       expect(
-        () => DataPluginDocument.parse(step('afterBloom', present: true)),
+        () => parse(step('afterBloom', present: true)),
         throwsA(isA<DataPluginFormatException>()),
       );
       expect(
-        () => DataPluginDocument.parse(step('beforePresent')),
+        () => parse(step('beforePresent')),
         throwsA(isA<DataPluginFormatException>()),
       );
       expect(
-        DataPluginDocument.parse(step('afterBloom')).renderSteps.single.anchor,
+        _written(parse(step('afterBloom')), 'renderSteps').single['anchor'],
         RenderAnchor.afterBloom.name,
         reason: 'an engine anchor is accepted as Dart spells it',
       );
@@ -213,11 +285,63 @@ void main() {
       // may add that anchor to the renderer (`RendererSteps.addAnchor`), so
       // the name is kept and resolved through the renderer at install.
       expect(
-        DataPluginDocument.parse(
-          step('after everything'),
-        ).renderSteps.single.anchor,
+        _written(
+          parse(step('after everything')),
+          'renderSteps',
+        ).single['anchor'],
         'after everything',
         reason: 'a plugin\'s anchor is resolved by the renderer, not here',
+      );
+    });
+
+    test('a version-2 script is read as an expression system', () {
+      // Mutation: drop the 2 → 3 step. The script's declaration is kept as
+      // an unknown key, and the system is lost without a word.
+      final document = DataPluginDocument.fromJson(<String, Object?>{
+        'format': 'f3d.plugin',
+        'version': 2,
+        'manifest': <String, Object?>{'id': 'gusts', 'apiVersion': '1.0'},
+        'events': <Object?>[
+          <String, Object?>{'name': 'gust'},
+        ],
+        'scripts': <Object?>[
+          <String, Object?>{
+            'source': 'blow.dart',
+            'system': 'blow',
+            'phase': 'rules',
+            'writes': <String>['wind'],
+            'events': <String>['gust'],
+          },
+        ],
+      });
+      final blow = document.expressions.single;
+      expect(blow.source, 'blow.dart');
+      expect(blow.system, 'blow');
+      expect(blow.writes, <String>['wind']);
+      expect(document.extra, isEmpty);
+      final written = document.toJson();
+      expect(written['version'], 3);
+      expect(written.containsKey('scripts'), isFalse);
+      expect(written['expressions'], hasLength(1));
+      expect(document.resources, <String>['blow.dart']);
+    });
+
+    test('an expression system is a file or its text', () {
+      expect(
+        () => DataPluginDocument.parse(
+          _document(<String, Object?>{
+            'expressions': <Object?>[
+              <String, Object?>{'system': 'blow', 'phase': 'rules'},
+            ],
+          }),
+        ),
+        throwsA(
+          isA<DataPluginFormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('"source" file or its "text"'),
+          ),
+        ),
       );
     });
 
@@ -231,6 +355,7 @@ void main() {
               <String, Object?>{'source': 'a.f3dmat', 'text': 'material A {}'},
             ],
           }),
+          sections: _sections,
         ),
         throwsA(isA<DataPluginFormatException>()),
       );
@@ -281,6 +406,7 @@ void main() {
       await expectLater(
         DataPluginLoader(
           grants: PluginGrants(<PluginPermission>[PluginPermission.network]),
+          sections: _sections,
         ).load(material, _Untouchable()),
         throwsA(
           isA<PermissionException>().having(
@@ -294,6 +420,7 @@ void main() {
       final plugin =
           await DataPluginLoader(
             grants: PluginGrants(<PluginPermission>[PluginPermission.network]),
+            sections: _sections,
             fetch: (url) async {
               fetched.add(url);
               return Uint8List.fromList(
@@ -336,13 +463,14 @@ void main() {
         },
       );
       await expectLater(
-        const DataPluginLoader().load(escaping, _Untouchable()),
+        DataPluginLoader(sections: _sections).load(escaping, _Untouchable()),
         throwsA(isA<PermissionException>()),
         reason: 'declared, and not granted',
       );
       final read = <String>[];
       await DataPluginLoader(
         grants: PluginGrants(<PluginPermission>[PluginPermission.files]),
+        sections: _sections,
         readFile: (path) async {
           read.add(path);
           return Uint8List.fromList(
@@ -361,7 +489,7 @@ void main() {
       () async {
         // Mutation: treat any scheme as a path. `ftp:` would reach the
         // plugin's source, which knows nothing about it.
-        final plugin = await const DataPluginLoader().load(
+        final plugin = await DataPluginLoader(sections: _sections).load(
           _document(<String, Object?>{
             'materials': <Object?>[
               <String, Object?>{'source': 'glow.f3dmat'},
@@ -372,9 +500,12 @@ void main() {
                 'material Glow { fragment { return vec4(albedo, alpha); } }',
           }),
         );
-        expect(plugin.document.materials.single.source, 'glow.f3dmat');
+        expect(
+          _written(plugin.document, 'materials').single['source'],
+          'glow.f3dmat',
+        );
         await expectLater(
-          const DataPluginLoader().load(
+          DataPluginLoader(sections: _sections).load(
             _document(<String, Object?>{
               'materials': <Object?>[
                 <String, Object?>{'source': 'ftp://example.com/glow.f3dmat'},
@@ -394,7 +525,7 @@ void main() {
       () async {
         // Mutation: register the kinds outside the host's scoped registry.
         // Switching the plugin off would leave a kind a level may still name.
-        final plugin = await const DataPluginLoader().load(
+        final plugin = await DataPluginLoader(sections: _sections).load(
           _document(<String, Object?>{
             'phases': <Object?>[
               <String, Object?>{
@@ -509,7 +640,7 @@ void main() {
         'refused by name', () async {
       // Mutation: skip a part the engine cannot take. The plugin would be
       // on, and a level naming its kind would fail as an unknown type.
-      final withKinds = await const DataPluginLoader().load(
+      final withKinds = await DataPluginLoader(sections: _sections).load(
         _document(<String, Object?>{
           'entityKinds': <Object?>[
             <String, Object?>{'type': 'vent'},
@@ -565,6 +696,38 @@ void main() {
       expect(withMaterial.notes.last, contains('effect description'));
     });
 
+    test('an expression system is refused at install, by name', () async {
+      // Mutation: install the rest and skip the system. The simulation would
+      // run without one of its rules and replay as another simulation.
+      final plugin = await const DataPluginLoader().load(
+        _document(<String, Object?>{
+          'phases': <Object?>[
+            <String, Object?>{'name': 'weather'},
+          ],
+          'expressions': <Object?>[
+            <String, Object?>{
+              'system': 'settle',
+              'phase': 'weather',
+              'text': 'heat = heat * 0.99',
+            },
+          ],
+        }),
+        _files(const <String, String>{}),
+      );
+      expect(plugin.document.expressions.single.text, 'heat = heat * 0.99');
+      expect(
+        () =>
+            EngineLoop(input: InputState(), plugins: <Flutter3dPlugin>[plugin]),
+        throwsA(
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"gusts"'), contains('settle')),
+          ),
+        ),
+      );
+    });
+
     test('a view plugin adding a step phase is refused by the loop', () async {
       // Mutation: install phases outside the host's scoped loop. A view
       // plugin would add to the step, which its switches promise not to.
@@ -605,7 +768,7 @@ void main() {
         'type': 'vent',
         'collider': 'wobbly',
       }, owner: 'gusts'),
-      throwsA(isA<DataPluginFormatException>()),
+      throwsA(isA<Flutter3dFormatException>()),
     );
   });
 }
