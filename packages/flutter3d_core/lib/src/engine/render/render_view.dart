@@ -10,23 +10,43 @@ import 'render_settings.dart';
 /// Modes rather than one hardcoded policy: the right order
 /// depends on what is being drawn, and the caller knows that better than the
 /// renderer does.
-enum SortMode {
+///
+/// A `final class` with const instances rather than an enum, so a mode added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class SortMode {
+  const SortMode._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// Group by pipeline, then material, then near-to-far. The default for opaque
   /// geometry: it minimises pipeline changes, which here are the most
   /// expensive state change there is.
-  stateThenDepth,
+  static const SortMode stateThenDepth = SortMode._('stateThenDepth');
 
   /// Far-to-near. Required for correct alpha blending.
-  backToFront,
+  static const SortMode backToFront = SortMode._('backToFront');
 
   /// Near-to-far, to let early-z reject more fragments.
-  frontToBack,
+  static const SortMode frontToBack = SortMode._('frontToBack');
 
   /// Respect only `RenderMaterial.drawBucket`, leaving the rest in submission order.
-  manual,
+  static const SortMode manual = SortMode._('manual');
 
   /// Submission order.
-  none,
+  static const SortMode none = SortMode._('none');
+
+  /// Every mode.
+  static const List<SortMode> values = <SortMode>[
+    stateThenDepth,
+    backToFront,
+    frontToBack,
+    manual,
+    none,
+  ];
+
+  @override
+  String toString() => 'SortMode.$name';
 }
 
 /// One camera drawing into one target, as an object that lives across frames

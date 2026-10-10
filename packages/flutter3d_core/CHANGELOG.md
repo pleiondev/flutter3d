@@ -8,6 +8,14 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **Breaking: seven sets that grow are open classes, not enums.**
+  `ModelLightType`, `ShadowCastingMode`, `MaterialAlphaMode`,
+  `AnimationBlend`, `DiffuseModel`, `SortMode` and `TangentMethod` are
+  `final class`es with the same constants, a `values` list and a `name`
+  that is the wire name a file or a tool writes. A constant reads as
+  before; a `switch` that named every value needs a wildcard case, which
+  `flutter3d migrate` adds with a TODO, and `.index` is gone. The `.f3d`
+  and glTF writers refuse a light type they have no word for.
 - **Breaking: `MaterialExpression` is an `abstract base class`, not
   `sealed`.** A `switch` over an expression needs a wildcard case now, which
   `flutter3d migrate` adds with a TODO, and a tool may extend it with its

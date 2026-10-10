@@ -409,7 +409,9 @@ final class RenderList {
       case SortMode.manual:
         return bucket * _b35;
 
+      // A mode this list does not know keeps submission order, as `none`.
       case SortMode.none:
+      default:
         return 0;
     }
   }

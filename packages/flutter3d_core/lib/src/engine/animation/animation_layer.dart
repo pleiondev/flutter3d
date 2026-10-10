@@ -22,13 +22,21 @@ int animationTrackKey(AnimationTrack track) => switch (track.pointer) {
 };
 
 /// How a layer's pose meets the base's — `gfx-10n`.
-enum AnimationBlend {
+///
+/// A `final class` with const instances rather than an enum, so a blend added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class AnimationBlend {
+  const AnimationBlend._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// The layer's value replaces the base's, faded by the layer's weight.
   ///
   /// What every layer did before there was a choice, and still the right one
   /// for a clip authored as a whole performance of the joints it covers: an
   /// upper-body reload is a reload, not a correction to one.
-  override,
+  static const AnimationBlend override = AnimationBlend._('override');
 
   /// The layer's distance from its own reference pose is laid on top of the
   /// base.
@@ -38,7 +46,16 @@ enum AnimationBlend {
   /// nobody wants, which is the sign that it is additive — and the reason it
   /// needs [AnimationClip.referenceTime] to say what it is a difference
   /// *from*.
-  additive,
+  static const AnimationBlend additive = AnimationBlend._('additive');
+
+  /// Every blend.
+  static const List<AnimationBlend> values = <AnimationBlend>[
+    override,
+    additive,
+  ];
+
+  @override
+  String toString() => 'AnimationBlend.$name';
 }
 
 /// A clip played over part of a skeleton, on top of whatever the base is doing.

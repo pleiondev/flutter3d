@@ -1438,10 +1438,18 @@ final class TransparencyMode {
 }
 
 /// The diffuse lobe of the metal-rough models, `pbr` and `pbrLayered` — `L8`.
-enum DiffuseModel {
+///
+/// A `final class` with const instances rather than an enum, so a lobe added
+/// later does not break a `switch` outside. [name] is its wire name.
+final class DiffuseModel {
+  const DiffuseModel._(this.name);
+
+  /// The stable name, as a file or a tool writes it.
+  final String name;
+
   /// A constant `albedo / π`, the same in every direction. The default, and
   /// every frame the metal-rough models drew before the other existed.
-  lambert,
+  static const DiffuseModel lambert = DiffuseModel._('lambert');
 
   /// The energy-preserving Oren-Nayar lobe of Portsmouth, Kutz and Hill
   /// (EON, JCGT 2025, preprint 2024), rough by the material's own roughness.
@@ -1458,7 +1466,13 @@ enum DiffuseModel {
   /// Arithmetic only: no table and no sampler. Direct light gets the whole
   /// lobe; the ambient, the environment's irradiance and a lightmap get its
   /// directional albedo at the view.
-  eon,
+  static const DiffuseModel eon = DiffuseModel._('eon');
+
+  /// Every lobe.
+  static const List<DiffuseModel> values = <DiffuseModel>[lambert, eon];
+
+  @override
+  String toString() => 'DiffuseModel.$name';
 }
 
 /// Scene-wide shading knobs that are not per-material.

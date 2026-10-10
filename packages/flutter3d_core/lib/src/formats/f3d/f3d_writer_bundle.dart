@@ -23,6 +23,11 @@ extension _F3dWriteBundle on F3dWriter {
           ModelLightType.directional => 0,
           ModelLightType.point => 1,
           ModelLightType.spot => 2,
+          _ => throw ArgumentError.value(
+            light.type,
+            'light.type',
+            'a light type the .f3d light record has no number for',
+          ),
         }, Endian.little)
         ..setFloat32(o + 4, light.color.r, Endian.little)
         ..setFloat32(o + 8, light.color.g, Endian.little)
