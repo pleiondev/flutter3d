@@ -383,7 +383,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 75 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 77 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -1742,13 +1742,18 @@ device without it. The pre-1.0 `supportsX` getters are gone: each is a
   already built a pipeline in, so a draw in one of those finds it ready; the
   rest stays the lazy per-state path. `createComputePipelineAsync` builds the
   whole pipeline asynchronously. The other backends link in the calling turn.
-- **The 19 enums in `formats.dart`, and `TextureFormat`**, an open set
-  of constants since 1.0 (a format a later minor adds must not break a
-  `switch`), plus `SamplerDescriptor`, `RenderTargetDescriptor`, `TextureAllocator` and
-  `RenderTargetPool`. Their value names are load-bearing beyond the package:
-  the Impeller translation asserts each maps to the flutter_gpu value of the
-  *same name*, which catches a mapping that swapped two entries. That argument
-  reaches the format and seventeen of the enums; `DepthRange` and
+- **The 4 enums in `formats.dart`, and the open sets beside them.**
+  `WindingOrder`, `CompareFunction`, `StencilFace` and `FramebufferOrigin`
+  are closed for good: their members are fixed by what they mean. The rest
+  of the vocabulary, `TextureFormat` among it, is open sets of constants
+  since 1.0, so a value a later minor adds (another blend factor, a cull
+  mode for both faces) breaks no backend's `switch`, which ends with a
+  wildcard that refuses the value by name. Plus `SamplerDescriptor`,
+  `RenderTargetDescriptor`, `TextureAllocator` and `RenderTargetPool`. Their
+  value names are load-bearing beyond the package: the Impeller translation
+  asserts each maps to the flutter_gpu value of the *same name*, which
+  catches a mapping that swapped two entries. That argument reaches the
+  format and every set that mirrors flutter_gpu; `DepthRange` and
   `FramebufferOrigin` describe the machine rather than a flutter_gpu type, so
   nothing maps them. They are promised for the other reason — §7.2 has the engine
   ask `depthRange` and `framebufferOrigin` before it projects or reads a frame
@@ -3662,8 +3667,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13688 tests** across 57 packages and 17 applications |
-| Structure rules | 75, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **13703 tests** across 57 packages and 17 applications |
+| Structure rules | 77, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
