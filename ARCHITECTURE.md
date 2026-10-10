@@ -209,7 +209,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Fifty-seven packages and seventeen applications in one pub workspace, with the
+57 packages and 17 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -383,7 +383,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces seventy rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 73 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -1719,7 +1719,7 @@ are deprecated in 1.0.0 for removal in 2.0.0.
   already built a pipeline in, so a draw in one of those finds it ready; the
   rest stays the lazy per-state path. `createComputePipelineAsync` builds the
   whole pipeline asynchronously. The other backends link in the calling turn.
-- **The nineteen enums in `formats.dart`, and `TextureFormat`**, an open set
+- **The 19 enums in `formats.dart`, and `TextureFormat`**, an open set
   of constants since 1.0 (a format a later minor adds must not break a
   `switch`), plus `SamplerDescriptor`, `RenderTargetDescriptor`, `TextureAllocator` and
   `RenderTargetPool`. Their value names are load-bearing beyond the package:
@@ -3563,8 +3563,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13267 tests** across 57 packages and 17 applications |
-| Structure rules | 70, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **13420 tests** across 57 packages and 17 applications |
+| Structure rules | 73, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
@@ -4016,7 +4016,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws all ninety-six golden scenes the way Impeller does**,
+**The web backend draws all 96 golden scenes the way Impeller does**,
 between 0.01% and 0.42% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Two of those
 numbers fell when the minification filter learned to read a sampler's
@@ -4132,7 +4132,7 @@ and charge each of them the bytes, and neither is a change to make on somebody
 else's behalf. A build that wants it says so in one flag, and the engine's own
 example takes the same answer from `?backend=webgpu` in the URL — a query
 parameter rather than a define, because the browser golden stand's whole saving
-is one dart2js run serving ninety-six scenes and both browser backends.
+is one dart2js run serving 96 scenes and both browser backends.
 
 **`flutter3d_shaders` is one text and no two backends take it the same way.**
 Impeller compiles the GLSL with `impellerc`; the WebGL2 generator translates it
@@ -4632,7 +4632,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  fifty-seven packages, the unpublished ones included — `pub publish
+  57 packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by

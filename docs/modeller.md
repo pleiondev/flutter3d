@@ -138,7 +138,7 @@ project"; a host wanting two projects starts two processes). `select(...)`
 
 `ModelHttpServer.start({session, port: 0, token, extraTools, onToolCall})`
 (`model_http_server.dart:53`) binds `127.0.0.1:$port`, loopback-only,
-token-gated, one JSON-RPC message per request. On launch it writes
+token-gated (the token travels as `Authorization: Bearer <token>` and in no URL), one JSON-RPC message per request. On launch it writes
 `mcp-session.json` (port + token) into the platform's application-support
 directory — the file any MCP client reads to find and authenticate to
 this exact running window. `extraTools` is the only door through which the

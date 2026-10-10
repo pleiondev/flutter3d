@@ -217,7 +217,7 @@ final document = await loadModelAsset('assets_src/models/chair.glb');
 Reads the converted `flutter3d_generated/models/chair.f3d`. Missing it means two different things on purpose:
 
 - **In debug**, decodes `assets_src/models/chair.glb` directly instead, and prints one warning the first time, not one per frame. A project with no build yet still draws something.
-- **Outside debug**, throws a `StateError` naming `flutter3d_build:init`. A release build that shipped without its own hook ever running is a real problem, and paying the decode cost on every load without a word would hide it.
+- **Outside debug**, throws an `AssetNotFoundException` whose `key` is the generated path, naming `flutter3d_build:init`. A release build that shipped without its own hook ever running is a real problem, and paying the decode cost on every load without a word would hide it.
 
 The debug fallback reads the source straight off disk, which only exists during `flutter run`/`flutter test` from a checkout: never in a shipped build, and never on the web, which has no `dart:io`. There, a missing generated file is the release error in every build mode.
 

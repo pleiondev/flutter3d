@@ -25,7 +25,7 @@ This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all fifty-seven packages and seventeen applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all 57 packages and 17 applications against a single lock file. Without it, packages that depend on each other by path drift apart at the first version bump, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -91,7 +91,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 13267 tests across 57 packages and seventeen applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so ninety-six scenes stay checkable in a headless run.
+There are 13420 tests across 57 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run.
 
 ## Your own application
 

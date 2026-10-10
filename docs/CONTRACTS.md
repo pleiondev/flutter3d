@@ -36,6 +36,12 @@ pretending otherwise.
   physics and gameplay calls still take a float32 `Vector3`, read in the
   frame of the current floating origin; those count as the local positions
   above, and they stay exact only as far as the origin follows the camera.
+  **It does by default:** `Flutter3dView` moves the loop's origin to the
+  camera, rounded to whole metres, whenever the camera is more than
+  `originShift` from it (1000 m unless set; `null` turns it off). Within
+  that kilometre float32 keeps about a tenth of a millimetre. The shift
+  happens between steps, so a recording replays it only when the run
+  makes the same move itself.
 
 ### Three spaces
 

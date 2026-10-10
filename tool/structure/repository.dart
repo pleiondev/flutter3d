@@ -1476,6 +1476,12 @@ portableStepExempt = <String, Map<String, String>>{
     'lib/src/embed/model3d_component.dart':
         'frames a camera on a model drawn into the canvas; the angle is '
         'where the picture is taken from and no run depends on it',
+    'lib/src/transform/billboard_atlas.dart':
+        'the quad a sprite card is drawn on, stood up once and shared; '
+        'nothing steps on a vertex of it',
+    'lib/src/transform/sprite_billboard_component.dart':
+        'turns a sprite card to face the camera it is seen through; the '
+        'component it draws is moved by Flame and never reads the turn',
   },
   'flutter3d_sim': <String, String>{
     'lib/src/world/light_fixture.dart':
@@ -1493,6 +1499,16 @@ portableStepExempt = <String, Map<String, String>>{
     'lib/src/world/horizon.dart':
         'the ground and the sea past the simulated square, built once as '
         'meshes to be drawn; nothing collides with or steps on them',
+    'lib/src/ghost/ghost.dart':
+        'places the drawn ghost where a recorded track already says it '
+        'was; a ghost is not in the collision world and nothing steps on '
+        'where it stands',
+  },
+  'flutter3d_level_scene': <String, String>{
+    'lib/src/level_scene.dart':
+        'turns a level document into the nodes it is drawn with — meshes, '
+        'lights, probes and decals; the simulation reads the document, '
+        'never these',
   },
   'flutter3d_camera': <String, String>{
     'lib/src/camera_rig.dart':
@@ -1546,6 +1562,14 @@ portableStepExempt = <String, Map<String, String>>{
         'of the picture around it is not, and two phones disagreeing in '
         'the last bit of a field of view change nothing a replay could '
         'notice',
+    'lib/src/head_pose.dart':
+        'turns a sensor reading into the frame the eye cameras look '
+        'through. The reading is already different on every phone, and a '
+        'game that steps on where the head looks steps on the pose it was '
+        'handed, not on how it was worked out',
+    'lib/src/stereo_rig.dart':
+        'turns the stage the eye cameras stand on to a yaw the game has '
+        'already stepped; a camera is where the picture is taken from',
   },
   'flutter3d_game_racing': <String, String>{
     'lib/src/sky.dart': 'the colour of the sky',
@@ -1577,9 +1601,21 @@ portableStepExempt = <String, Map<String, String>>{
     'lib/src/wooden_props.dart':
         'the lathe of a barrel\'s and its hoops\' meshes, built once and '
         'uploaded to be drawn; nothing in the step reads a vertex of them',
+    'lib/src/exit_door.dart':
+        'stands the drawn arch where the level says the exit is; the step '
+        'reads the exit from the level, never from the model',
+    'lib/src/fixture_looks.dart':
+        'what a torch, a lamp and a window look like; the fixture itself '
+        'and its brightness are the simulation\'s, already stepped',
   },
   'flutter3d_demo_hollow': <String, String>{'lib/main.dart': _drawn},
-  'flutter3d_demo_racing': <String, String>{'lib/reel_main.dart': _drawn},
+  'flutter3d_demo_racing': <String, String>{
+    'lib/reel_main.dart': _drawn,
+    'lib/src/elements.dart':
+        'water, fire and dust in a world of their own beside the race, '
+        'which reads the cars and never writes to them; the laps, the '
+        'ghosts and the demos are stepped without it',
+  },
   'flutter3d_demo_reef': <String, String>{
     'lib/reel_main.dart': _drawn,
     'lib/src/diver.dart': _drawn,
@@ -1591,11 +1627,18 @@ portableStepExempt = <String, Map<String, String>>{
         'the yaw a model is drawn at; Flame moves the piece and the '
         'bridge only draws it',
     'lib/src/river_water.dart': _drawn,
+    'lib/src/craft.dart':
+        'the yaw a craft\'s model is uploaded at, so it faces the way its '
+        'body moves; the body is stepped elsewhere and never reads it',
+    'lib/src/models.dart': _drawn,
   },
   'flutter3d_demo_sandbox': <String, String>{'lib/src/staging.dart': _drawn},
   'flutter3d_demo_strategy': <String, String>{
     'lib/reel_main.dart': _drawn,
     'lib/src/kit.dart': _drawn,
+    'lib/src/effects.dart':
+        'the map\'s water, fire and thrown stones drawn and heard from a '
+        'world the match has already stepped; it never writes to it',
   },
   'flutter3d_demo_water': <String, String>{
     'lib/main.dart': _drawn,
@@ -1834,9 +1877,30 @@ const List<String> formatCodePaths = <String>[
 /// at each version.
 const Map<String, String> formatWithoutFixture = <String, String>{};
 
+/// Libraries outside the simulation stack that still read a run's live
+/// world, by `package/path`, with the work that takes each off the list.
+const Map<String, String> readsSimulationWorld = <String, String>{
+  'flutter3d_effects/lib/src/elements.dart':
+      'the elements\' view and hearing take the native world itself; they '
+      'move to probes and published components when probes land',
+  'flutter3d_demo_platformer/lib/src/elements.dart':
+      'the demo copies the world for its own scene; it moves to published '
+      'state with the demos on the one view',
+  'flutter3d_demo_hollow/lib/reel_main.dart':
+      'the reel asks which roof burns; a probe answers it once the demos '
+      'move to the one view',
+  'flutter3d_demo_reef/lib/main.dart':
+      'the depth gauge computes pressure from the world; a probe reads it '
+      'once the demos move to the one view',
+};
+
 /// Version constants that number something other than a file a reader opens,
 /// by `path#constant`, with the reason.
 const Map<String, String> notAVersionedFormat = <String, String>{
+  'packages/flutter3d_sim/lib/src/ecs/snapshots.dart#changesVersion':
+      'a part version inside a run\'s snapshot, not a file: the run format '
+      '(`f3d.run`) is the file, and its v5 fixture carries a capture at this '
+      'part version while v1 to v4 carry the older one',
   'packages/flutter3d_editor_widgets/lib/src/dock_layout.dart#formatVersion':
       'the editor\'s panel arrangement, a per-person convenience file: one '
       'that does not read, or is newer, is the default layout, so there is '

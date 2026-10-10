@@ -133,6 +133,10 @@ List<Rule> get allRules => <Rule>[
     run: _surfaceDepthStays,
   ),
   (name: 'a step asks no machine for an answer', run: _portableStepArithmetic),
+  (
+    name: 'the view reads what the simulation publishes, not its world',
+    run: _noWorldOutsideSimulation,
+  ),
   (name: 'every skill is named for its package', run: _skillNames),
   (
     name: 'a package that says it runs on the web reaches no dart:io there',
@@ -190,6 +194,14 @@ List<Rule> get allRules => <Rule>[
   (
     name: 'every break since the last release has its migration',
     run: _breaksHaveMigrations,
+  ),
+  (
+    name: 'the migration leaves no more by hand than its ceiling',
+    run: _manualCeiling,
+  ),
+  (
+    name: 'the migration counts people read are the table\'s',
+    run: _migrationNumbers,
   ),
   (
     name: 'a type somebody implements is a base class, not an interface',
@@ -1066,89 +1078,15 @@ List<Finding> _listsAgree() {
 /// its own — but a reader who finds one number wrong has no way to tell which of
 /// the others are, and both documents are largely numbers like this one.
 ///
-/// The count is a word in the README and a digit in `ARCHITECTURE.md`, because
-/// that is what reads well in each. Both are checked.
+/// The count is written in digits wherever it is written, because a number in
+/// prose is one nobody recounts and a digit is what a reader and a rule both
+/// read the same way. A count spelled out as a word is a finding of its own, so
+/// nobody drifts back to it.
 List<Finding> _ruleCount() {
-  const List<String> words = <String>[
-    'zero',
-    'one',
-    'two',
-    'three',
-    'four',
-    'five',
-    'six',
-    'seven',
-    'eight',
-    'nine',
-    'ten',
-    'eleven',
-    'twelve',
-    'thirteen',
-    'fourteen',
-    'fifteen',
-    'sixteen',
-    'seventeen',
-    'eighteen',
-    'nineteen',
-    'twenty',
-    'twenty-one',
-    'twenty-two',
-    'twenty-three',
-    'twenty-four',
-    'twenty-five',
-    'twenty-six',
-    'twenty-seven',
-    'twenty-eight',
-    'twenty-nine',
-    'thirty',
-    // Written past the count for the reason the package words above are:
-    // running off the end reports the prose as wrong rather than the list as
-    // short, and the reader spends the afternoon on the wrong sentence.
-    'thirty-one',
-    'thirty-two',
-    'thirty-three',
-    'thirty-four',
-    'thirty-five',
-    'thirty-six',
-    'thirty-seven',
-    'thirty-eight',
-    'thirty-nine',
-    'forty',
-    'forty-one',
-    'forty-two',
-    'forty-three',
-    'forty-four',
-    'forty-five',
-    'forty-six',
-    'forty-seven',
-    'forty-eight',
-    'forty-nine',
-    'fifty',
-    'fifty-one',
-    'fifty-two',
-    'fifty-three',
-    'fifty-four',
-    'fifty-five',
-    'fifty-six',
-    'fifty-seven',
-    'fifty-eight',
-    'fifty-nine',
-    'sixty',
-    'sixty-one',
-    'sixty-two',
-    'sixty-three',
-    'sixty-four',
-    'sixty-five',
-    'sixty-six',
-    'sixty-seven',
-    'sixty-eight',
-    'sixty-nine',
-    'seventy',
-  ];
   final actual = allRules.length;
   final found = <Finding>[];
 
-  void check(String path, RegExp pattern, String Function(String) read) {
+  void check(String path, RegExp pattern) {
     final file = File('${repositoryRoot.path}/$path');
     if (!file.existsSync()) {
       found.add(Finding(path, 'is not there'));
@@ -1165,48 +1103,47 @@ List<Finding> _ruleCount() {
       );
       return;
     }
-    final said = read(match.group(1)!);
-    if (said != '$actual') {
+    final said = match.group(1)!;
+    if (int.tryParse(said) == null) {
+      found.add(_spelledOut(path, match.group(0)!, said));
+    } else if (said != '$actual') {
       found.add(Finding(path, 'says $said rules; there are $actual'));
     }
   }
 
-  check(
-    'README.md',
-    // `[\w-]`, because the twenty-first rule is the first count whose word
-    // carries a hyphen — and `\w+` matching "one" out of "twenty-one" would
-    // have been a wrong number reported as a missing sentence.
-    RegExp(r'its ([\w-]+) rules'),
-    (String word) => '${words.indexOf(word)}',
-  );
-  check(
-    'ARCHITECTURE.md',
-    RegExp(r'Structure rules \| (\d+),'),
-    (String digits) => digits,
-  );
+  check('README.md', _countPhrasing('its # rules'));
+  check('ARCHITECTURE.md', RegExp(r'Structure rules \| (\d+),'));
 
   // The site and CONTRIBUTING.md state the count too, each in the phrasing
-  // its own sentence needed — "eighteen rules, under a second", "one of
-  // nineteen scans" — and those were three different wrong answers at once.
-  // Matched by phrasing, the way the golden scenes are, so "two rules check
-  // it" about a pair of rules is not read as a claim about the total.
+  // its own sentence needed — "18 rules, under a second", "one of 19
+  // scans" — and those were three different wrong answers at once. Matched
+  // by phrasing, the way the golden scenes are, so "two rules check it"
+  // about a pair of rules is not read as a claim about the total.
+  // `ARCHITECTURE.md` is read for them too: its table is checked above, and
+  // its prose said the count again, in words, where nothing read it.
   final phrasings = <RegExp>[
-    RegExp('([\\w-]+) rules, under a second', caseSensitive: false),
-    RegExp('holds ([\\w-]+) rules'),
-    RegExp('one of ([\\w-]+) scans', caseSensitive: false),
-    RegExp('([\\w-]+) green scans'),
-    RegExp('([\\w-]+) checks that read source text'),
-    RegExp('one of the ([\\w-]+) checks it'),
+    _countPhrasing('# rules, under a second', caseSensitive: false),
+    _countPhrasing('holds # rules'),
+    _countPhrasing('one of # scans', caseSensitive: false),
+    _countPhrasing('# green scans'),
+    _countPhrasing('# checks that read source text'),
+    _countPhrasing('one of the # checks it'),
+    _countPhrasing('enforces # rules'),
+    _countPhrasing('# rules, no device'),
+    _countPhrasing(r'# rules\. All but two'),
   ];
-  for (final page in _prosePages()) {
+  for (final page in <File>[
+    File('${repositoryRoot.path}/ARCHITECTURE.md'),
+    ..._prosePages(),
+  ].where((File f) => f.existsSync())) {
     final text = page.readAsStringSync();
     for (final pattern in phrasings) {
       for (final match in pattern.allMatches(text)) {
         final claim = match.group(1)!;
-        final number =
-            int.tryParse(claim) ?? words.indexOf(claim.toLowerCase());
-        if (number < 0) continue;
-        if (number != actual) {
+        final number = int.tryParse(claim);
+        if (number == null) {
+          found.add(_spelledOut(_inRepository(page), match.group(0)!, claim));
+        } else if (number != actual) {
           found.add(
             Finding(
               _inRepository(page),
@@ -1218,17 +1155,7 @@ List<Finding> _ruleCount() {
     }
   }
 
-  found.addAll(_theTestingPageAddsUp(actual, words));
-
-  if (actual >= words.length) {
-    found.add(
-      Finding(
-        'tool/structure/rules.dart',
-        'there are $actual rules and this check can only spell '
-            '${words.length - 1}. Extend the list.',
-      ),
-    );
-  }
+  found.addAll(_theTestingPageAddsUp(actual));
   return found;
 }
 
@@ -1244,7 +1171,7 @@ List<Finding> _ruleCount() {
 /// where they are, and the number under it has to be the rest of them. The table
 /// is found by its header, because the same page carries a per-package test
 /// table whose rows look identical to a pattern.
-List<Finding> _theTestingPageAddsUp(int actual, List<String> words) {
+List<Finding> _theTestingPageAddsUp(int actual) {
   const page = 'site/content/reference/testing.md';
   final file = File('${repositoryRoot.path}/$page');
   if (!file.existsSync()) return const <Finding>[];
@@ -1258,7 +1185,10 @@ List<Finding> _theTestingPageAddsUp(int actual, List<String> words) {
     multiLine: true,
   ).allMatches(text.substring(header, ends < 0 ? text.length : ends)).length;
 
-  final rest = RegExp(r'([\w-]+) more check the lists').firstMatch(text);
+  final rest = _countPhrasing(
+    '# more check the lists',
+    caseSensitive: false,
+  ).firstMatch(text);
   if (rest == null) {
     return <Finding>[
       const Finding(
@@ -1268,15 +1198,16 @@ List<Finding> _theTestingPageAddsUp(int actual, List<String> words) {
       ),
     ];
   }
-  final said =
-      int.tryParse(rest.group(1)!) ??
-      words.indexOf(rest.group(1)!.toLowerCase());
+  final said = int.tryParse(rest.group(1)!);
+  if (said == null) {
+    return <Finding>[_spelledOut(page, rest.group(0)!, rest.group(1)!)];
+  }
   if (said == actual - rows) return const <Finding>[];
   return <Finding>[
     Finding(
       page,
-      'names $rows rules in its table and says ${rest.group(1)} more, which is '
-      '${said < 0 ? 'not a number' : said + rows} of $actual',
+      'names $rows rules in its table and says $said more, which is '
+      '${said + rows} of $actual',
     ),
   ];
 }
@@ -1880,123 +1811,12 @@ List<Finding> _testCount() {
     }
   }
 
-  // The README says it in words, because that is what reads well in prose —
-  // and a word is exactly the kind of number that is never recounted.
-  const List<String> words = <String>[
-    'zero',
-    'one',
-    'two',
-    'three',
-    'four',
-    'five',
-    'six',
-    'seven',
-    'eight',
-    'nine',
-    'ten',
-    'eleven',
-    'twelve',
-    'thirteen',
-    'fourteen',
-    'fifteen',
-    'sixteen',
-    'seventeen',
-    'eighteen',
-    'nineteen',
-    'twenty',
-    'twenty-one',
-    'twenty-two',
-    'twenty-three',
-    'twenty-four',
-    'twenty-five',
-    // Added the day `flutter3d_editor_core` became the twenty-sixth. Running
-    // off the end of this list does not report a package count that moved: it
-    // falls back to digits, and then the README's word never matches anything
-    // and the finding blames the prose for a list that is simply too short.
-    'twenty-six',
-    // And the day `flutter3d_editor_mcp` became the twenty-seventh, for the
-    // reason the line above gives: the list is extended before the package is
-    // counted, not after somebody has read a finding about the wrong thing.
-    'twenty-seven',
-    // And the day `flutter3d_webgpu` became the twenty-eighth, which is a
-    // package created before it can draw anything — the count moves when the
-    // directory appears, not when the backend works.
-    'twenty-eight',
-    // The rest were written in one go, ahead of the directories, which is what
-    // the two comments above ask for and what neither of them did. A modeller
-    // is six packages — geometry, formats, a mesh core, a document layer, the
-    // server an agent speaks to and the application — and each one arriving to
-    // a list one name too short reports a stale README rather than a short
-    // list. Nothing here claims the packages will exist; a word costs nothing
-    // and finding out late costs an afternoon.
-    'twenty-nine',
-    'thirty',
-    'thirty-one',
-    'thirty-two',
-    'thirty-three',
-    'thirty-four',
-    'thirty-five',
-    'thirty-six',
-    'thirty-seven',
-    'thirty-eight',
-    'thirty-nine',
-    'forty',
-    // And the day `flutter3d_rig` became the forty-first.
-    'forty-one',
-    // And the day `flutter3d_render_job` became the forty-second.
-    'forty-two',
-    // And the day `flutter3d_fbx` became the forty-third.
-    'forty-three',
-    // And the day `flutter3d_particles_core` became the forty-fourth.
-    'forty-four',
-    // And the day `flutter3d_lab` became the forty-fifth.
-    'forty-five',
-    // And the day `flutter3d_mcp_kit` became the forty-sixth.
-    'forty-six',
-    // And the day `flutter3d_plugin_api` became the forty-seventh.
-    'forty-seven',
-    // The post-processing addons arrived seven at once, the six families of
-    // `packages/addons/` and their `standard` preset, and the reel of game
-    // parts the addon plan names comes after them; so the list runs ahead
-    // again, as the comment at twenty-nine asks.
-    'forty-eight',
-    'forty-nine',
-    'fifty',
-    'fifty-one',
-    'fifty-two',
-    'fifty-three',
-    'fifty-four',
-    'fifty-five',
-    'fifty-six',
-    'fifty-seven',
-    'fifty-eight',
-    'fifty-nine',
-    'sixty',
-    // The game parts came fourteen at once, out of the demos and into
-    // `packages/addons/`, so the list runs to sixty-eight and a little past.
-    'sixty-one',
-    'sixty-two',
-    'sixty-three',
-    'sixty-four',
-    'sixty-five',
-    'sixty-six',
-    'sixty-seven',
-    'sixty-eight',
-    'sixty-nine',
-    'seventy',
-    // The day `flutter3d_addon_camera` became the seventy-first.
-    'seventy-one',
-    // And `flutter3d_demo_content`, the demos' content out of the genres.
-    'seventy-two',
-    // Then the count came down for the first time: 1.0.0-rc.1 merged
-    // twenty-seven packages into six (the addons into `flutter3d_game_kit`,
-    // `flutter3d_game_ui`, `flutter3d_camera` and `flutter3d_post`, the MCP
-    // servers into `flutter3d_mcp`, lab and LTI into `flutter3d_education`),
-    // and fifty-one is a word the list already had.
-  ];
+  // The README says it in digits too, which is what this rule reads: a number
+  // in prose is one nobody recounts, and a digit is what a reader and a rule
+  // both read the same way. Written as a word, it is a finding of its own.
   final readme = File('${root.path}/README.md').readAsStringSync();
-  final saidInProse = RegExp(
-    r'(\d+) tests across ([a-z-]+) packages',
+  final saidInProse = _countPhrasing(
+    r'(\d+) tests across # packages',
   ).firstMatch(readme);
   if (saidInProse == null) {
     found.add(
@@ -2016,18 +1836,17 @@ List<Finding> _testCount() {
       );
     }
     // The whole workspace, which is what the sentence names — the same fact
-    // ARCHITECTURE.md states in digits. It used to be held to the packages
-    // that carry a test, and the two counts sitting three apart across two
-    // documents read as one of them being wrong rather than as two facts.
-    final expected = packages.length < words.length
-        ? words[packages.length]
-        : '${packages.length}';
-    if (saidInProse.group(2) != expected) {
+    // ARCHITECTURE.md states. It used to be held to the packages that carry a
+    // test, and the two counts sitting three apart across two documents read
+    // as one of them being wrong rather than as two facts.
+    final said = saidInProse.group(2)!;
+    if (int.tryParse(said) == null) {
+      found.add(_spelledOut('README.md', saidInProse.group(0)!, said));
+    } else if (said != '${packages.length}') {
       found.add(
         Finding(
           'README.md',
-          'says ${saidInProse.group(2)} packages; '
-              'there are ${packages.length} ($expected)',
+          'says $said packages; there are ${packages.length}',
         ),
       );
     }
@@ -2041,22 +1860,26 @@ List<Finding> _testCount() {
   for (final page in _prosePages()) {
     final text = page.readAsStringSync();
     final where = _inRepository(page);
-    final claims = <String>[
-      for (final m in RegExp(r'([\w-]+) tests across').allMatches(text))
-        m.group(1)!,
-      for (final m in RegExp(r'of (\d+) tests').allMatches(text)) m.group(1)!,
-      for (final m in RegExp(r'Tests</dt><dd>(\d+)').allMatches(text))
-        m.group(1)!,
+    final claims = <RegExpMatch>[
+      ..._countPhrasing('# tests across').allMatches(text),
+      ...RegExp(r'of (\d+) tests').allMatches(text),
+      ...RegExp(r'Tests</dt><dd>(\d+)').allMatches(text),
     ];
-    for (final claim in claims) {
-      final number = int.tryParse(claim) ?? words.indexOf(claim.toLowerCase());
-      if (number < 0) continue;
-      if (number != counted) {
+    for (final m in claims) {
+      final claim = m.group(1)!;
+      final number = int.tryParse(claim);
+      if (number == null) {
+        found.add(_spelledOut(where, m.group(0)!, claim));
+      } else if (number != counted) {
         found.add(Finding(where, 'says $claim tests; there are $counted'));
       }
     }
-    for (final m in RegExp(r'tests across (\d+) packages').allMatches(text)) {
-      if (m.group(1) != '${packages.length}') {
+    for (final m in _countPhrasing(
+      'tests across # packages',
+    ).allMatches(text)) {
+      if (int.tryParse(m.group(1)!) == null) {
+        found.add(_spelledOut(where, m.group(0)!, m.group(1)!));
+      } else if (m.group(1) != '${packages.length}') {
         found.add(
           Finding(
             where,
@@ -2555,6 +2378,11 @@ List<Finding> _goldenFiguresExist() {
 /// is where this repository keeps its history, so the sentences that are right
 /// about a past afternoon live in [goldenCountExempt] with the reason; that
 /// table is the rule, as much as the regular expression is.
+///
+/// **The count is digits wherever it is held**, because a number in prose is
+/// one nobody recounts and a digit is what a reader and a rule both read the
+/// same way. A count of the scenes written as a word is refused by itself, even
+/// where the word happens to be right.
 List<Finding> _goldenSceneCount() {
   final where = _goldenSets[_countedGoldenSet]!;
   final goldens = Directory('${repositoryRoot.path}/$where');
@@ -2566,17 +2394,6 @@ List<Finding> _goldenSceneCount() {
     return <Finding>[Finding(where, 'holds no PNGs to count')];
   }
   final count = counted.length;
-  if (count >= _countedInWords.length) {
-    return <Finding>[
-      Finding(
-        'tool/structure/rules.dart',
-        'there are $count scenes and this check can only spell '
-            '${_countedInWords.length - 1}. Extend the list.',
-      ),
-    ];
-  }
-
-  final word = _countedInWords[count];
   final found = <Finding>[
     // **The number in the documents is one claim; that the sets still make it
     // true is another.** Counting one set and scanning prose against it says
@@ -2607,8 +2424,8 @@ List<Finding> _goldenSceneCount() {
   // Only the phrasings that are actually about the scenes, so a stray "32"
   // elsewhere in a long document is not a false positive. `goldens` is here
   // because that is the word the code uses for them; the documents say scenes.
-  final claim = RegExp(
-    r'([\w-]+) (?:golden )?(?:scenes|goldens)\b',
+  final claim = _countPhrasing(
+    r'# (?:golden )?(?:scenes|goldens)\b',
     caseSensitive: false,
   );
   for (final file in files) {
@@ -2620,15 +2437,13 @@ List<Finding> _goldenSceneCount() {
     final text = _claimsRead(file, where);
     final spared = goldenCountExempt[where] ?? const <String, String>{};
     for (final match in claim.allMatches(text)) {
-      final said = match.group(1)!.toLowerCase();
-      if (said == '$count' || said == word) continue;
-      // A word that is not a number at all — "the scenes", "particle goldens" —
-      // is not a claim about how many there are.
-      final number = int.tryParse(said) ?? _countedInWords.indexOf(said);
-      if (number < 0) continue;
+      final said = match.group(1)!;
+      if (said == '$count') continue;
       if (_sparedAt(text, match.start, spared.keys)) continue;
       found.add(
-        Finding(where, 'says "${match.group(0)}"; there are ${_spell(count)}'),
+        int.tryParse(said) == null
+            ? _spelledOut(where, match.group(0)!, said)
+            : Finding(where, 'says "${match.group(0)}"; there are $count'),
       );
     }
   }
@@ -2886,34 +2701,31 @@ List<Finding> _conformanceCheckCount() {
   // scenes are counted by, for the same reason.
   final claims = <(RegExp, int Function(RegExpMatch), String)>[
     (
-      RegExp(r'([\w-]+) of the ([\w-]+) link stages and draw'),
+      _countPhrasing('# of the # link stages and draw'),
       (RegExpMatch m) => shader,
       'checks that link stages and draw',
     ),
     (
-      RegExp(r'([\w-]+) shader checks'),
+      _countPhrasing('# shader checks'),
       (RegExpMatch m) => shader,
       'shader checks',
     ),
     (
-      RegExp(r'[Tt]he ([\w-]+) checks, against a backend'),
+      _countPhrasing('[Tt]he # checks, against a backend'),
       (RegExpMatch m) => total,
       'checks in all',
     ),
     (
-      RegExp(r'the ([\w-]+) rules ARCHITECTURE\.md §7\.2 states'),
+      _countPhrasing(r'the # rules ARCHITECTURE\.md §7\.2 states'),
       (RegExpMatch m) => semantics,
       'rules in ARCHITECTURE.md §7.2',
     ),
     (
-      RegExp(r'[Tt]he ([\w-]+) plugin checks'),
+      _countPhrasing('[Tt]he # plugin checks'),
       (RegExpMatch m) => plugin,
       'plugin checks',
     ),
   ];
-
-  const words = _countedInWords;
-  const spell = _spell;
 
   // The site restates all of it — the backends page is where a third party
   // reads how much of §7 the suite will hold them to, and it said fifteen when
@@ -2935,7 +2747,7 @@ List<Finding> _conformanceCheckCount() {
     for (final (pattern, expected, what) in claims) {
       for (final match in pattern.allMatches(source)) {
         final want = expected(match);
-        // Both halves of "eighteen of the twenty-six", when the phrasing has
+        // Both halves of "18 of the 26", when the phrasing has
         // two: the second is the total and drifts on its own.
         final said = <(String, int)>[
           (match.group(1)!, want),
@@ -2943,16 +2755,14 @@ List<Finding> _conformanceCheckCount() {
             (match.group(2)!, total),
         ];
         for (final (claim, against) in said) {
-          final number =
-              int.tryParse(claim) ?? words.indexOf(claim.toLowerCase());
-          // Not a number at all — "the checks, against a backend" — so not a
-          // claim about how many there are.
-          if (number < 0) continue;
-          if (number != against) {
+          final number = int.tryParse(claim);
+          if (number == null) {
+            found.add(_spelledOut(_inRepository(file), match.group(0)!, claim));
+          } else if (number != against) {
             found.add(
               Finding(
                 _inRepository(file),
-                'says $claim $what; there are ${spell(against)}',
+                'says $claim $what; there are $against',
               ),
             );
           }
@@ -2963,8 +2773,16 @@ List<Finding> _conformanceCheckCount() {
   return found;
 }
 
-/// Numbers as the documents spell them, because a doc comment says "eighteen"
-/// and not "18" — and a word is exactly the kind of number nobody recounts.
+/// Numbers as a sentence would spell them, kept only to catch a count written
+/// that way.
+///
+/// **The counts are digits now, everywhere a rule holds one.** A number in prose
+/// is one nobody recounts, and a word made it worse: every rule carried its own
+/// list of spellings, each one ran out a few numbers past the day it was written,
+/// and running out reported the prose as wrong rather than the list as short. A
+/// digit is what a reader and a rule both read the same way, so this list no
+/// longer reads a count — it only recognises one written as a word, so that
+/// nobody drifts back to it.
 const List<String> _countedInWords = <String>[
   'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', //
   'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
@@ -2987,9 +2805,35 @@ const List<String> _countedInWords = <String>[
   'ninety-six', 'ninety-seven', 'ninety-eight', 'ninety-nine', 'one hundred',
 ];
 
-/// A count said both ways, so a finding can be read and searched for.
-String _spell(int n) =>
-    n < _countedInWords.length ? '$n (${_countedInWords[n]})' : '$n';
+/// Where a count goes in a phrasing: digits, or a number written as a word.
+///
+/// Both, so that one pattern finds the claim and the claim written the wrong
+/// way. Longest spelling first, so "twenty-one" is not read as the "one" at its
+/// end, and neither side may touch a letter or a hyphen, so "one" is not read
+/// out of "someone" or "one-off".
+final String _countSlot = () {
+  final spellings = <String>{
+    for (final word in _countedInWords) ...<String>[
+      word,
+      '${word[0].toUpperCase()}${word.substring(1)}',
+    ],
+  }.toList()..sort((String a, String b) => b.length.compareTo(a.length));
+  return '(?<![\\w-])(\\d+|${spellings.join('|')})(?![\\w-])';
+}();
+
+/// A phrasing that states a count, with `#` where the number goes.
+///
+/// The group a `#` becomes holds digits for a claim to compare, or a word for a
+/// claim to refuse with [_spelledOut].
+RegExp _countPhrasing(String phrasing, {bool caseSensitive = true}) =>
+    RegExp(phrasing.replaceAll('#', _countSlot), caseSensitive: caseSensitive);
+
+/// The finding for a count spelled as a word where the rule wants digits.
+Finding _spelledOut(String where, String phrase, String word) => Finding(
+  where,
+  'says "$phrase", which writes the count as a word; write it as digits '
+  '(${_countedInWords.indexOf(word.toLowerCase())})',
+);
 
 /// How many enums `formats.dart` declares, against how many the promise says.
 ///
@@ -3027,20 +2871,20 @@ List<Finding> _hardwareEnumCount() {
       .map((RegExpMatch m) => m.group(1)!)
       .toList();
 
-  final claim = RegExp(r'[Tt]he ([\w-]+) enums in `formats\.dart`');
+  final claim = _countPhrasing(r'[Tt]he # enums in `formats\.dart`');
   return <Finding>[
     for (final at in <String>['ARCHITECTURE.md', 'README.md'])
       if (File('${repositoryRoot.path}/$at').existsSync())
         for (final match in claim.allMatches(
           File('${repositoryRoot.path}/$at').readAsStringSync(),
         ))
-          if ((int.tryParse(match.group(1)!) ??
-                  _countedInWords.indexOf(match.group(1)!.toLowerCase())) !=
-              declared.length)
+          if (int.tryParse(match.group(1)!) == null)
+            _spelledOut(at, match.group(0)!, match.group(1)!)
+          else if (int.parse(match.group(1)!) != declared.length)
             Finding(
               at,
               'says ${match.group(1)} enums in formats.dart; there are '
-              '${_spell(declared.length)} — ${declared.join(', ')}',
+              '${declared.length} — ${declared.join(', ')}',
             ),
   ];
 }
@@ -3138,19 +2982,18 @@ List<Finding> _shaderEntryPoints() {
     }
   }
 
-  final claim = RegExp(r'([\w-]+) shader entry points');
+  final claim = _countPhrasing('# shader entry points');
   for (final prose in _prosePages()) {
     for (final match in claim.allMatches(prose.readAsStringSync())) {
       final said = match.group(1)!;
-      final number =
-          int.tryParse(said) ?? _countedInWords.indexOf(said.toLowerCase());
-      if (number < 0) continue;
-      if (number != required.length) {
+      final number = int.tryParse(said);
+      if (number == null) {
+        found.add(_spelledOut(_inRepository(prose), match.group(0)!, said));
+      } else if (number != required.length) {
         found.add(
           Finding(
             _inRepository(prose),
-            'says $said shader entry points; there are '
-            '${_spell(required.length)}',
+            'says $said shader entry points; there are ${required.length}',
           ),
         );
       }
@@ -3267,6 +3110,77 @@ List<Finding> _portableStepArithmetic() {
           ),
         );
       }
+      for (final match in _machineGeometry.allMatches(source)) {
+        found.add(
+          Finding(
+            '${entry.key}/$path',
+            'calls `${match.group(0)!.replaceAll(RegExp(r'\s*\($'), '')}`, '
+                'which vector_math answers with `dart:math`\'s sin, cos or '
+                'acos, so the libm again. Build the turn from '
+                '`Portable.sinCos`/`Portable.acos`, or say in '
+                '`portableStepExempt` why this file is not part of a run',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+// -------------------------------------- the view reads the published state
+
+/// No library outside [simulationStack] reaches into a run's live world.
+///
+/// **A world behind an isolate is not there to read.** With the simulation
+/// in its own isolate the view holds a `PublishedState` and nothing else, so
+/// a library that reads `run.world` or `simulation.world` works inline and
+/// breaks the day an application moves its simulation off the UI isolate.
+/// The same read is also a back door past determinism: the view can take
+/// a value the step never published and never taped.
+///
+/// [readsSimulationWorld] lists the libraries still doing it, each with the
+/// work that takes it off the list.
+List<Finding> _noWorldOutsideSimulation() {
+  final world = RegExp(r'\b(?:run|simulation)\.world\b');
+  final found = <Finding>[];
+  final dirs = <String, Directory>{
+    for (final entry in packages.entries)
+      if (!simulationStack.contains(entry.key)) entry.key: entry.value,
+    ...apps,
+  };
+  for (final entry in dirs.entries) {
+    for (final file in dartFilesIn(Directory('${entry.value.path}/lib'))) {
+      final path = '${entry.key}/${relative(file, entry.value)}';
+      if (readsSimulationWorld.containsKey(path)) continue;
+      if (world.hasMatch(_withoutComments(file.readAsStringSync()))) {
+        found.add(
+          Finding(
+            path,
+            'reads a run\'s live world, which a simulation in its own '
+            'isolate does not have: read the published state (a probe, '
+            'a component in `PublishedState`), or say in '
+            '`readsSimulationWorld` what takes this file off the list',
+          ),
+        );
+      }
+    }
+  }
+  for (final path in readsSimulationWorld.keys) {
+    final slash = path.indexOf('/');
+    final dir = dirs[path.substring(0, slash)];
+    final file = dir == null
+        ? null
+        : File('${dir.path}/${path.substring(slash + 1)}');
+    if (file == null ||
+        !file.existsSync() ||
+        !world.hasMatch(_withoutComments(file.readAsStringSync()))) {
+      found.add(
+        Finding(
+          path,
+          'is listed in `readsSimulationWorld` and no longer reads the '
+          'world: take it off the list',
+        ),
+      );
     }
   }
   return found;
@@ -3304,6 +3218,17 @@ String _withoutComments(String source) => source
 /// cases.
 final RegExp _machineArithmetic = RegExp(
   r'\bmath\.(sin|cos|tan|asin|acos|atan2|atan|exp|log|pow)\s*\(',
+);
+
+/// The vector_math calls that reach the same functions without naming them.
+///
+/// A turn built as `Quaternion.axisAngle(axis, a)` is `math.sin(a / 2)` one
+/// call down, and a ragdoll's bone turned through `fromTwoVectors` was the
+/// `acos` this rule had been refusing by name for a year. The list is what
+/// the library's source calls `dart:math` from on a turn or an angle.
+final RegExp _machineGeometry = RegExp(
+  r'\b(?:Matrix[34]\.rotation[XYZ]|Quaternion\.(?:axisAngle|euler|fromTwoVectors)'
+  r'|\.(?:setRotation[XYZ]|setAxisAngle|setEuler|setFromTwoVectors|setRotationYawPitchRoll|angleTo|angleToSigned))\s*\(',
 );
 
 // ------------------------------------------------------------------- skills
@@ -4583,6 +4508,95 @@ List<Finding> _breaksHaveMigrations() {
           ),
         );
       }
+    }
+  }
+  return found;
+}
+
+/// The migration tables, read without a parser, and the file each came from.
+List<(File, MigrationTable)> _migrationTables() {
+  final dir = Directory(
+    '${repositoryRoot.path}/packages/flutter3d_build/lib/migrations',
+  );
+  if (!dir.existsSync()) return const <(File, MigrationTable)>[];
+  final files =
+      dir
+          .listSync()
+          .whereType<File>()
+          .where((File f) => f.path.endsWith('.yaml'))
+          .toList()
+        ..sort((File a, File b) => a.path.compareTo(b.path));
+  return <(File, MigrationTable)>[
+    for (final f in files) (f, readMigrationTable(f.readAsStringSync())),
+  ];
+}
+
+/// The `manual` entries of the migration tables stay at or under
+/// `manualCeiling` in `migration.dart`, unless `manualAllowlist` there names
+/// the entry with the reason no kind carries it out.
+///
+/// **A manual entry is a TODO in somebody's code.** The tools carry out
+/// renames, moves, parameters, rewrites, regrouped arguments, switches over
+/// a type that stopped being an enum, records that became classes and calls
+/// that throw where they answered null; what is left is what a person has
+/// to decide. The count only goes down without anyone saying why.
+///
+/// Mutation: append a `manual` entry to a table, and this names it with the
+/// kind its text reads like.
+List<Finding> _manualCeiling() {
+  final tables = _migrationTables();
+  final where = tables.isEmpty ? '' : _inRepository(tables.last.$1);
+  return <Finding>[
+    for (final (id, what) in manualCeilingProblems(<MigrationTable>[
+      for (final (_, t) in tables) t,
+    ]))
+      Finding('$where ($id)', '`$id` $what'),
+  ];
+}
+
+/// The README's "Coming from 0.8" and the hand-written half of the site's
+/// migration guide state no count the tables do not: no "about two hundred
+/// places", and an `N entries` or `N by hand` is the tables' N. The guide's
+/// generated half (`generate_migrations.dart`) writes its numbers from the
+/// table already.
+///
+/// Mutation: write "about three hundred places" in the README's migration
+/// section, or change the table without the sentence that counts it.
+List<Finding> _migrationNumbers() {
+  final tables = _migrationTables();
+  if (tables.isEmpty) return const <Finding>[];
+  final counts = migrationCounts(<MigrationTable>[
+    for (final (_, t) in tables) t,
+  ]);
+  final found = <Finding>[];
+  final readme = File('${repositoryRoot.path}/README.md');
+  if (readme.existsSync()) {
+    final text = readme.readAsStringSync();
+    final start = text.indexOf('\n## Coming from');
+    if (start >= 0) {
+      final end = text.indexOf('\n## ', start + 1);
+      for (final p in migrationNumberProblems(
+        text.substring(start, end < 0 ? text.length : end),
+        counts: counts,
+      )) {
+        found.add(Finding(_inRepository(readme), p));
+      }
+    }
+  }
+  final guide = File(
+    '${repositoryRoot.path}/site/content/reference/migrating-to-1.0.md',
+  );
+  if (guide.existsSync()) {
+    final text = guide.readAsStringSync();
+    const start = '<!-- migration-table:start -->';
+    const end = '<!-- migration-table:end -->';
+    final a = text.indexOf(start);
+    final b = text.indexOf(end);
+    final written = a < 0 || b < a
+        ? text
+        : text.substring(0, a) + text.substring(b + end.length);
+    for (final p in migrationNumberProblems(written, counts: counts)) {
+      found.add(Finding(_inRepository(guide), p));
     }
   }
   return found;

@@ -90,7 +90,7 @@ All six run in a browser on the WebGL2 backend and are embedded on their demo pa
 
 ## The package split
 
-Forty-five packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
+57 packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
 
 ```mermaid
 flowchart TB
@@ -143,7 +143,7 @@ flowchart TB
   simp --> physics
 ```
 
-Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: seventy checks that read source text and run before a build.
+Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 73 checks that read source text and run before a build.
 
 Three of those rules hold the picture up:
 

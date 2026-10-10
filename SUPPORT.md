@@ -159,7 +159,7 @@ breaks. A minor adds. A break comes only in a major, after a deprecation.
 Every public name is covered, with no experimental exceptions, and the
 snapshot in each package's `api/` is what a release is compared against.
 
-**The engine ships under one number.** The forty-nine packages of the shelf
+**The engine ships under one number.** The 49 packages of the shelf
 carry the same version, now the release candidate `1.0.0-rc.1`, and ask for
 `^1.0.0-rc.1` of each other. Among them are the packages the candidate
 brings: the game parts (`flutter3d_game_kit`, `flutter3d_game_physics`,

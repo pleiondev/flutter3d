@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Fifty-five packages and seventeen applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package but `flutter3d_demo_content`, the demos' own content, is on pub.dev. Fifty of them carry the release candidate 1.0.0-rc.1, and any `^1.0.0-rc.1` on one of them resolves against every other and admits 1.0.0 when it follows. From 1.0.0 they follow strict semver, and the candidate already does, and [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) says which platforms, backends and releases are supported. `pad_input` and `pointer_lock` keep a line of their own at 0.5.0, since neither names a sibling, and so do `flame_multiplayer` at 0.3.0 and `flame_multiplayer_dashwire` at 0.2.0, which stand on `flutter3d_net` and ask for `^1.0.0-rc.1` of it. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
+57 packages and 17 applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file. Every package but `flutter3d_demo_content`, the demos' own content, is on pub.dev. 50 of them carry the release candidate 1.0.0-rc.1, and any `^1.0.0-rc.1` on one of them resolves against every other and admits 1.0.0 when it follows. From 1.0.0 they follow strict semver, and the candidate already does, and [SUPPORT.md](https://github.com/pleiondev/flutter3d/blob/main/SUPPORT.md) says which platforms, backends and releases are supported. `pad_input` and `pointer_lock` keep a line of their own at 0.5.0, since neither names a sibling, and so do `flame_multiplayer` at 0.3.0 and `flame_multiplayer_dashwire` at 0.2.0, which stand on `flutter3d_net` and ask for `^1.0.0-rc.1` of it. Four names pub.dev still lists at 0.6.0 are no longer packages here: `flutter3d_backend`, `flutter3d_screens`, `flutter3d_session` and `flutter3d_bridge` were folded into `flutter3d_app` and `flutter3d_game`, and pub.dev marks each of them discontinued in favour of the package that took it in.
 
 ## Engine
 
@@ -60,12 +60,12 @@ A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG outp
 
 Not a fallback. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer.
 
-It is how ninety-six golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_app` started reaching for it as the runtime fallback when Impeller will not start, which makes it a real production path now, if a last-resort one.
+It is how 96 golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_app` started reaching for it as the runtime fallback when Impeller will not start, which makes it a real production path now, if a last-resort one.
 
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: thirty-two of the forty-four link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet. The phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: 32 of the 44 link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet. The phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
 
 A plugin has a suite here too: `package:flutter3d_conformance/plugins.dart` checks its manifest, its switch at a step boundary, its determinism, every backend it declares and the budget it declares, and says whether it earns the conformance badge.
 
@@ -133,9 +133,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Seventy rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+73 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting seventy green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 73 green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
