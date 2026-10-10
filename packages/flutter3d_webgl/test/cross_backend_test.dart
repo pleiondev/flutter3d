@@ -260,7 +260,7 @@ const Map<String, double> _budgets = <String, double>{
   // WebGL2 and Impeller, magnified by the barrel.
   'lens-distortion': 0.45,
   'smaa-teapot': 0.65,
-  'evsm-soft': 0.4,
+  'evsm-soft': 0.07,
   // 0.047% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of
   // the cube atlas, and the torch's own silhouette in it falls on different

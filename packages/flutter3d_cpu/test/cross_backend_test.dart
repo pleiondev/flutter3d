@@ -279,7 +279,7 @@ const Map<String, double> _budgets = <String, double>{
   // 0.778% measured: SMAA here smooths edges that Impeller has already
   // multisampled, so the two smooth different steps by different amounts.
   'smaa-teapot': 0.85,
-  'evsm-soft': 0.5,
+  'evsm-soft': 0.17,
   // 0.069% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of
   // the cube atlas, and the torch's own silhouette in it falls on different

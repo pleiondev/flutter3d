@@ -196,7 +196,7 @@ const Map<String, double> _budgets = <String, double>{
   'lens-flare': 0.01,
   'lens-distortion': 0.01,
   'smaa-teapot': 0.01,
-  'evsm-soft': 0.33,
+  'evsm-soft': 0.01,
   'fog-torches': 0.01,
   'glass-stack-oit': 0.01,
   // 0.000% measured. It was 1.607% while Impeller wrote the albedo buffer in the
