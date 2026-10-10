@@ -1256,7 +1256,7 @@ final class WebGlDevice extends GraphicsDevice
 
   /// Links the pair, and a pair the browser's linker refuses is reported to
   /// [pipelineRefusals] rather than thrown: the handle carries a
-  /// [WebGlUnlinkedPipeline], its draws are skipped, and [linkRefused] tries
+  /// [WebGlUnlinkedPipeline], its draws are skipped, and [_linkRefused] tries
   /// again at its next bind.
   @override
   PipelineHandle createPipeline(
@@ -1279,7 +1279,7 @@ final class WebGlDevice extends GraphicsDevice
   /// The program for [handle], whose pair would not link at
   /// [createPipeline], linking it again now — or null when it still will
   /// not (reported), or the record says it is left refused.
-  WebGlProgram? linkRefused(
+  WebGlProgram? _linkRefused(
     PipelineHandle handle,
     WebGlUnlinkedPipeline unlinked,
   ) {
@@ -2028,4 +2028,8 @@ extension WebGlDeviceInternals on WebGlDevice {
       _compressedTextureSupport;
   bool get supportsFloatLinearFiltering => _supportsFloatLinearFiltering;
   void reportUnbound(String what) => _reportUnbound(what);
+  WebGlProgram? linkRefused(
+    PipelineHandle handle,
+    WebGlUnlinkedPipeline unlinked,
+  ) => _linkRefused(handle, unlinked);
 }

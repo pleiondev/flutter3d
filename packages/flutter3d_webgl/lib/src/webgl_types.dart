@@ -110,7 +110,7 @@ final class WebGlQuerySet {
 /// A driver's linker is not obliged to agree with every other driver's, and
 /// a pair one browser refuses threw from `createPipeline` and failed every
 /// frame. It is reported to `GraphicsDevice.pipelineRefusals` instead, and
-/// [WebGlDevice.linkRefused] tries again until the record says it is left
+/// the encoder's bind links it again until the record says it is left
 /// refused.
 final class WebGlUnlinkedPipeline {
   WebGlUnlinkedPipeline(this.vertex, this.fragment, this.layout);
