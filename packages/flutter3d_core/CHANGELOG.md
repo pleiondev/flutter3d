@@ -16,8 +16,17 @@
   `abstract final` rather than sealed**, so a hint or a projection a later
   minor adds breaks no `switch`: one over them ends with a wildcard.
   `AnimationCondition` and `AnimationGoal`, new in this release, are the
-  same. The material AST and `ResourceSize` are opened with their visitor in
-  a later step.
+  same.
+- **Breaking: the material language's tree and `ResourceSize` are read
+  through a visitor.** `MaterialStatement` and `ResourceSize` are `abstract
+  base` classes rather than sealed ones, and `MaterialExpression`,
+  `MaterialStatement` and `ResourceSize` each take `accept` with a
+  `MaterialExpressionVisitor`, `MaterialStatementVisitor` or
+  `ResourceSizeVisitor`. A kind a later minor adds, or a plugin's own,
+  reaches the visitor's `visitUnknown`, so a translator written against 1.0
+  keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
+  splice, the variant folder and the software evaluator are visitors now; a
+  `switch` over the kinds outside the engine ends with a wildcard.
 - **What loads in the background goes into a scene in the order it was
   asked for.** `Scene.reserveTurn` hands out a `SceneTurn` when a load
   starts; the loader awaits `ready`, attaches what it loaded and calls
