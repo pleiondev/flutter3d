@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`WorldPropertiesPatch`** names the fields of a world something sets and
+  nothing it does not: a level's `world`, laid over the game's own world
+  with `over`. Its document is the world's JSON with keys left out, kept as
+  written, unknown keys included; a value a world would refuse is a
+  `WorldPropertiesFormatException` naming the key.
+
 - **`WorldProperties.gravityMagnitude` recognizes standard gravity.** It
   compared the float32 `y` of the gravity vector with the double -9.81,
   which never matched, and answered 9.8100004…; standard gravity now gives

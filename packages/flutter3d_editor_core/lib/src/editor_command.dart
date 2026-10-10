@@ -403,8 +403,8 @@ final class AddLevelLight extends EditorCommand {
     this.range = 8.0,
   }) : at = at.clone();
 
-  /// The strength a light is put down with when nothing says one: four of
-  /// [LevelLight.defaultIntensity], about 23 000 cd.
+  /// The strength a light is put down with when nothing says one, in
+  /// candela: four of [LevelLight.defaultIntensity], about 23 000.
   static const double defaultIntensity = 4.0 * LevelLight.defaultIntensity;
 
   final Vector3 at;

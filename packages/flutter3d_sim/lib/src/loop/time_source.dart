@@ -24,9 +24,9 @@ abstract base class TimeSource {
   /// The wall clock, as the display's vsync measures it.
   const factory TimeSource.realTime() = _RealTime;
 
-  /// The wall clock times [factor]: a half is half speed, two is double.
-  /// Throws an [ArgumentError] for a factor that is not finite or is below
-  /// nought; nought holds the world still.
+  /// The wall clock times [factor], a unitless ratio: a half is half speed,
+  /// two is double. Throws an [ArgumentError] for a factor that is not finite
+  /// or is below nought; nought holds the world still.
   factory TimeSource.scaled(double factor) = _Scaled;
 
   /// The gaps of a recorded log, one a frame: [timestamps] in seconds,
@@ -64,6 +64,7 @@ final class _Scaled extends TimeSource {
     }
   }
 
+  /// Simulated seconds per wall-clock second, a unitless ratio.
   final double factor;
 
   @override

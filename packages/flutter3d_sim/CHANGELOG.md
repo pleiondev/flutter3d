@@ -1,5 +1,49 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `StepSystems`, `StepContext`, `StepPhase`, `StepSystem` and
+  `SystemRegistration` are gone.** A rule a game adds to a genre's step is
+  a system in the engine's loop: `loop.addSystem('rule', LoopPhase.physics,
+  (context) => …, after: [PlatformerPlugin.stepSystem])`, handed the
+  `LoopContext` every system gets, and taken out by cancelling the
+  `Registration` it returns. One registry, one context and one ordering
+  rule for the engine's systems, a plugin's and a game's.
+- **Breaking: level format 5.** A light's `intensity` is candela, or lux
+  for a directional light (`LevelLight.intensity`), where it was a pre-1.0
+  multiple; reading an older level multiplies it by that unit
+  (`LevelLight.defaultIntensity`, about 5 790.6), and a light that never
+  named one keeps the same strength. The keys `behaviours`, an entity's
+  `behaviour` and a material's `texelsPerMetre` are spelled `behaviors`,
+  `behavior` and `texelsPerMeter`, and `BehaviorsRead` reads `behavior`.
+  A version-5 level may carry `geoOrigin` and `physicalMaterial`, kept as
+  written. A level's `digestHex` and its lightmap's staleness hash are the
+  ones it had at format 4, so every recorded run and baked lightmap still
+  names it. The fixture is `test/fixtures/v5/first.level.json`.
+- **Breaking: `Level.fogColor` and `LevelLight.color` are `LinearColor`s**,
+  read at double precision, and `LevelLight` takes `color:` as one.
+- **Breaking: `Level.world` is a `WorldPropertiesPatch` and
+  `Level.renderSettings` a `RenderSettingsPatch`**, each written back as it
+  was read; `worldOver` lays the world's patch over the game's world as
+  before, and a renderer reads the settings from
+  `renderSettings.toJson()`.
+- **Breaking: `LevelLightType` is an open class** with the format's words
+  (`wireName`), so a later kind of light does not break a `switch` over it;
+  the light baker skips a kind it has no model of.
+- **Breaking: results that may grow are classes.** `EntityRemap`,
+  `Generated`, `SequenceRead`, `PlayerStart` (`playerStart`), `StepSpan`
+  (`EntityTracks.span`) and `PreparedUpload` (`TelemetryUpload.prepare`)
+  were records; their fields keep their names.
+- **Breaking: `RoomDoor` takes named arguments**, and `FlowField.maxGoals`
+  and `LightmapLayout.maxSize` are getters rather than constants.
+- **`TimeSource` is the loop's clock**: `realTime`, `scaled`, a `LogTime`
+  walking a log's timestamps, or `ManualTime` moved by hand.
+  `EngineLoop.time` decides how much simulated time a frame drawn by
+  `frameAtVsync` brings, and `FrameCadence` reads it for the refreshes it
+  draws.
+- **`Tunable<T>`** reads one tunable by its type (`Tunable.number`,
+  `Tunable.whole`, `Tunable.flag`), over the `Tunables` table of numbers by
+  name that an inspector, a tape and a data plugin speak; `Tunables.of`
+  builds the table from them.
+
 - **`Level` no longer takes `gravity:` or answers `gravity`.** Both were
   added on the way to 1.0 and deprecated at once in favor of the level's
   `world`: write `world: {'gravity': g}`, and read

@@ -131,7 +131,8 @@ final class Tunable<T extends Object> {
   final double Function(T value) _encode;
   final T Function(double stored) _decode;
 
-  /// [initial] as the table holds it.
+  /// [initial] as the table holds it: a plain number, in whatever unit the
+  /// tunable means (a flag is nought or one).
   double get initialValue => _encode(initial);
 
   /// Its value in [tunables] now. Throws an [ArgumentError] when the table
