@@ -7,6 +7,7 @@ import 'blocks.dart';
 import 'checkpoint.dart';
 import 'collectible.dart';
 import 'events.dart';
+import 'genre_systems.dart';
 import 'runner.dart';
 import 'spring.dart';
 import 'water.dart';
@@ -63,14 +64,29 @@ final class RunState {
   String toString() => 'RunState.$name';
 }
 
-/// The moments inside a platformer's step that a game can hang its own rules
-/// off, beside the two every genre has ([StepPhase.begin], [StepPhase.end]).
+/// The moments inside a platformer's step that a game hangs its own rules
+/// off, through [PlatformerSimulation.addSystem], in the order the step
+/// reaches them.
+///
+/// **Phases of the loop's kind** (`LoopPhase.step`), named for the genre, so
+/// a system written for a loop phase is written the same way for one of
+/// these: it is handed a `LoopContext` either way.
 abstract final class PlatformerPhases {
+  /// The top of a step that moves the world, before the movers.
+  static const LoopPhase begin = LoopPhase.step('platformer.begin');
+
   /// The runner has read its input, moved, swept the world and been pushed:
   /// where a rule that changes how the runner moves — a wind, a current, a
   /// replacement controller writing the body itself — belongs. The overlaps
   /// it causes are dispatched after it.
-  static const StepPhase afterRunner = StepPhase('platformer.afterRunner');
+  static const LoopPhase afterRunner = LoopPhase.step('platformer.afterRunner');
+
+  /// The bottom, after the overlaps, the pickups and the exits are read and
+  /// the run's state is resolved.
+  static const LoopPhase end = LoopPhase.step('platformer.end');
+
+  /// Every phase, in the order the step reaches them.
+  static const List<LoopPhase> all = <LoopPhase>[begin, afterRunner, end];
 }
 
 /// A platformer's step, in the order it has to happen in.
@@ -232,15 +248,52 @@ final class PlatformerSimulation {
 
   void _publish(GameEvent event) => _bus?.publish(event);
 
-  /// Rules a game adds to the step, by phase: [StepPhase.begin], the runner's
-  /// moment [PlatformerPhases.afterRunner], and [StepPhase.end].
+  /// Adds [system] to [phase], one of [PlatformerPhases], under [name],
+  /// returning the registration that removes it again.
   ///
   /// **Where a game replaces or extends what the runner does without editing
   /// the genre's step.** The step's order is the genre's and a tape replays
   /// it, so a rule is hung at a named moment inside it rather than wrapped
   /// round it. Run only while the world moves: a finished, lost or fallen
   /// run's step runs none of them.
-  final StepSystems systems = StepSystems();
+  ///
+  /// Systems run in the order they were added, moved only by [after] and
+  /// [before], which name other systems of the same phase (a name nothing
+  /// registered is ignored) — the rule the engine's loop orders its own
+  /// systems by. The system is handed the loop's `LoopContext` when a loop
+  /// steps the run, with [LoopContext.phase] the genre's phase; stepped by
+  /// hand, a context of the run's own, which publishes onto the bus of
+  /// [publishTo] and has no `world`.
+  ///
+  /// Throws an [ArgumentError] for a [name] already added or a [phase] that
+  /// is not one of [PlatformerPhases.all].
+  Registration addSystem(
+    String name,
+    LoopPhase phase,
+    LoopSystem system, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _systems.add(name, phase, system, after: after, before: before);
+
+  /// The names of [phase]'s systems, in the order they run.
+  List<String> systemsIn(LoopPhase phase) => _systems.namesIn(phase);
+
+  late final GenreSystems _systems = GenreSystems(
+    PlatformerPhases.all,
+    publish: (BusEvent event) => _bus?.publish(event),
+  );
+
+  /// Steps run by [step], for a system's `LoopContext.step` when no loop
+  /// steps the run.
+  int _steps = 0;
+
+  /// The loop's context for the step being run, or null for one run by hand.
+  LoopContext? _context;
+
+  void _run(LoopPhase phase, double dt) {
+    if (_systems.isEmpty) return;
+    _systems.run(phase, dt, step: _steps, outer: _context);
+  }
 
   /// What is running on the runner, and for how much longer.
   ///
@@ -295,7 +348,11 @@ final class PlatformerSimulation {
   bool get didMoveThisStep => _moved;
   bool _moved = false;
 
-  void step(double dt) {
+  /// Steps the run by [dt] seconds; [context] is the loop's, when a loop
+  /// steps it, and what [addSystem]'s systems are handed.
+  void step(double dt, {LoopContext? context}) {
+    _context = context;
+    _steps++;
     _moved = false;
     // The dead and the hurt, forgotten here with everything else this step
     // reports — see [ActorSystem.beginStep] for why it is not `step`'s job.
@@ -315,7 +372,7 @@ final class PlatformerSimulation {
 
     elapsed += dt;
     _moved = true;
-    systems.run(StepPhase.begin, dt);
+    _run(PlatformerPhases.begin, dt);
 
     _world.movers(dt);
 
@@ -332,7 +389,7 @@ final class PlatformerSimulation {
 
     // Intent, not residual velocity — see [Runner.shove].
     dynamics?.push(runner.body.collider, runner.shove);
-    systems.run(PlatformerPhases.afterRunner, dt);
+    _run(PlatformerPhases.afterRunner, dt);
 
     _readFloor();
     _readActors(dt);
@@ -352,7 +409,7 @@ final class PlatformerSimulation {
         (runner.position.y < killPlane || runner.health.isDead)) {
       state = RunState.fallen;
     }
-    systems.run(StepPhase.end, dt);
+    _run(PlatformerPhases.end, dt);
   }
 
   void _revive() {

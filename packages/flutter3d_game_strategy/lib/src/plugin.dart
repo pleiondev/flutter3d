@@ -18,8 +18,8 @@ import 'step_phases.dart';
 ///   fight, shove, production, fog, then `StrategySimulation.afterStep` —
 ///   is the genre's and stays inside the one system, because a recorded
 ///   match is that order and nothing may run between its parts. A game's
-///   rule hangs at the genre's own moments, [StrategyPhases], on
-///   `StrategySimulation.systems`, as it does in every genre.
+///   rule hangs at the genre's own moments, [StrategyPhases], through
+///   `StrategySimulation.addSystem`, as it does in every genre.
 ///   `afterStep` stays where it is for the same reason: a map's world hangs
 ///   on it, and a replay that steps the simulation without a loop finds it
 ///   there.
@@ -94,7 +94,7 @@ final class StrategyPlugin extends GenrePlugin<Match> {
   /// ([publishEvents]).
   @override
   void stepSimulation(Match playing, LoopContext context) =>
-      playing.step(context.dt);
+      playing.step(context.dt, context: context);
 
   /// The match's events go onto the bus while it is this genre's run: see
   /// [Match.publishTo].

@@ -18316,3 +18316,36 @@ entries:
       The signature names `StrategyUnit`, the new name of `Unit`
       (`game_strategy-Unit`); `dart fix` renames the type where the caller
       spells it, and a call is unchanged.
+
+  # ---- The genres' systems on the loop's own types, and the racing sky's
+  # colours as linear colours.
+
+  # GameSimulation.systems is gone: rules are added through addSystem
+  - id: 2f-game_shooter-GameSimulation-systems
+    package: flutter3d_game_shooter
+    symbol: GameSimulation.systems
+    kind: manual
+    wave: 2
+    guidance: >-
+      A rule hangs on the step through `addSystem`, as a system of the
+      engine's loop does: `sim.systems.add(ShooterPhases.afterActors, (step)
+      => burn(step.dt), label: 'heat')` is `sim.addSystem('heat',
+      ShooterPhases.afterActors, (LoopContext step) => burn(step.dt))`, every
+      system needs a name unique in the run, and `after:`/`before:` name
+      other systems as before. `StepPhase.begin` and `StepPhase.end` are
+      `ShooterPhases.begin` and `ShooterPhases.end`. Cancel the
+      `Registration` `addSystem` returns where `systems.remove(registration)`
+      was called. The system is handed a `LoopContext`: `dt` and `phase` as
+      the old context had, and `step`, `publish` and, inside a loop, `world`.
+
+  # ShooterPhases' constants are LoopPhases
+  - id: 2f-game_shooter-ShooterPhases
+    package: flutter3d_game_shooter
+    symbol: ShooterPhases
+    kind: none
+    wave: 2
+    reason: >-
+      The constants keep their names and are passed to `addSystem` where they
+      were passed to `systems.add` (`2f-game_shooter-GameSimulation-systems`
+      says how); only their type, `LoopPhase`, and the name each carries
+      (`shooter.afterActors`) changed, which no call spells.
