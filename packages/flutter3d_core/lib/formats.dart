@@ -76,6 +76,7 @@ export 'src/formats/material_language/material_bundle.dart';
 export 'src/formats/material_language/material_eval.dart';
 export 'src/formats/material_language/material_glsl.dart';
 export 'src/formats/material_language/material_parser.dart';
+export 'src/formats/material_language/material_slots.dart';
 export 'src/formats/model_decoders.dart';
 export 'src/formats/model_document.dart';
 export 'src/formats/model_loader.dart';

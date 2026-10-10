@@ -77,9 +77,11 @@
 /// debugging the pair — and because a language that invented its own `mix`
 /// would have to explain how it differs from the one every author already
 /// knows. What is *not* GLSL is everything a material must not be allowed to
-/// do: declare a uniform block, sample a texture the engine does not bind,
-/// write to a global, or loop. Those are refusals with a sentence attached
-/// rather than omissions.
+/// do: write to a global, loop, or take a name the engine's stages use.
+/// Those are refusals with a sentence attached rather than omissions. A
+/// block or a texture of the material's own (version 2) is declared, not
+/// written as GLSL — `uniform(Hair) …`, `texture fur;` — so it lands in the
+/// slot table every backend binds by (D21).
 ///
 /// **Typed on the way in, not on the way out.** Every expression node carries
 /// its type because the parser worked it out; an emitter that had to infer
@@ -89,16 +91,19 @@ library;
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
+import 'package:flutter3d_shaders/backend.dart' show uniformBlocks;
 
 import 'material_ast.dart';
 
 /// What the engine binds, and therefore the only names a `texture` declaration
-/// may point at.
+/// with `=` may point at.
 ///
-/// A material cannot invent a slot: the renderer binds textures by these names
-/// and a name it does not know reaches the GPU as a missing sampler, which on
-/// Metal is a crash rather than a black texture. The list is short because the
-/// set really is that small — `surface.glsl` declares them.
+/// A material cannot invent a name for one of these: the renderer binds
+/// textures by these names and a name it does not know reaches the GPU as a
+/// missing sampler, which on Metal is a crash rather than a black texture.
+/// The list is short because the set really is that small — `surface.glsl`
+/// declares them. A texture of the material's own is declared without `=`
+/// (version 2) and is a slot in its `MaterialSlotTable` instead.
 const List<String> materialTextureBindings = <String>[
   'base_color_texture',
   'normal_texture',
@@ -936,6 +941,29 @@ final class _Parser {
   }
 
   void parseParameter({bool uniform = false}) {
+    // `uniform(Hair) vec3 tint = …;` — version 2 (D21): a member of a block
+    // of the material's own rather than of `MaterialParams`.
+    String? block;
+    if (uniform && takeIf('(')) {
+      final named = take('name', 'the uniform block\'s name');
+      if (version < 2) {
+        fail(
+          'a uniform block of a material\'s own is version 2; start the file '
+          'with "f3dmat 2"',
+          named,
+        );
+      }
+      if (uniformBlocks.containsKey(named.text) ||
+          !RegExp(r'^[A-Z][A-Za-z0-9]*$').hasMatch(named.text)) {
+        fail(
+          '"${named.text}" cannot name a material\'s block: a block is named '
+          'in PascalCase, and not as one of the engine\'s own',
+          named,
+        );
+      }
+      take(')', '")" after the block\'s name');
+      block = named.text;
+    }
     final type = parseType();
     if (!type.isNumeric) {
       fail(
@@ -965,13 +993,38 @@ final class _Parser {
     final value = parseConstant(type);
     take(';', '";" after the parameter');
     parameters.add(
-      MaterialParameter(nameToken.text, type, value, uniform: uniform),
+      MaterialParameter(
+        nameToken.text,
+        type,
+        value,
+        uniform: uniform,
+        block: block,
+      ),
     );
   }
 
   void parseTexture() {
     final nameToken = take('name', 'the slot\'s name');
     checkFreeName(nameToken);
+    // `texture fur;` — version 2 (D21): a texture of the material's own, in
+    // its slot table, bound as `material_fur`.
+    if (kind == MaterialStageKind.surface && takeIf(';')) {
+      if (version < 2) {
+        fail(
+          'a texture of a material\'s own is version 2; start the file with '
+          '"f3dmat 2", or bind one the engine binds: '
+          '${materialTextureBindings.join(', ')}',
+          nameToken,
+        );
+      }
+      textures.add(
+        MaterialTextureSlot(
+          nameToken.text,
+          '$materialOwnTexturePrefix${nameToken.text}',
+        ),
+      );
+      return;
+    }
     take('=', '"=" and the engine binding this slot reads');
     final binding = take('name', 'the engine binding\'s name');
     if (kind != MaterialStageKind.surface) {
@@ -994,9 +1047,9 @@ final class _Parser {
     } else if (!materialTextureBindings.contains(binding.text)) {
       fail(
         '"${binding.text}" is not a texture this engine binds. It binds '
-        '${materialTextureBindings.join(', ')} — a material cannot introduce '
-        'a slot, because the renderer binds by name and a name it does not '
-        'know reaches the GPU as a missing sampler.',
+        '${materialTextureBindings.join(', ')}; a texture of the material\'s '
+        'own is declared without one, "texture ${nameToken.text};", and '
+        'bound from RenderMaterial.extraTextures.',
         binding,
       );
     }

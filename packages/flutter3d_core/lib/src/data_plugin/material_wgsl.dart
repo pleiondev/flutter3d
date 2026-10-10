@@ -100,6 +100,7 @@ PackedStage spliceMaterialWgsl(
       'depth',
     );
   }
+  _refuseOwnSlots(program, refuse);
 
   final wgsl = host.wgsl;
   String found(RegExp pattern, String what) =>
@@ -307,6 +308,17 @@ PackedStage fullscreenMaterialWgsl(
       'one',
     );
   }
+  // A full-screen stage's textures are its own by nature and bound by name;
+  // a block of its own is what WebGPU cannot number at run time.
+  if (program.parameters.any(
+    (p) => p.uniform && p.block != materialParametersBlock,
+  )) {
+    throw RuntimeShadersException(
+      '$from: a full-screen stage with a uniform block of its own is compiled '
+      'for WebGPU by the build (assets_src/); at run time its uniforms are '
+      'one MaterialParams block',
+    );
+  }
   const group = 1;
   final uniforms = <MaterialParameter>[
     for (final parameter in program.parameters)
@@ -398,6 +410,24 @@ PackedStage fullscreenMaterialWgsl(
       blocks: <PreparedBlock>[?params],
       samplers: samplers,
     ),
+  );
+}
+
+/// Refuses, through [refuse], a block or a texture of the material's own
+/// (D21): WebGPU numbers bindings by group, and a slot the host stage was
+/// not built with has no number to be bound at while the game runs.
+void _refuseOwnSlots(MaterialProgram program, Never Function(String) refuse) {
+  final table = MaterialSlotTable.of(program);
+  final own = <String>[
+    for (final block in table.blocks)
+      if (block.name != materialParametersBlock) 'the block ${block.name}',
+    for (final texture in table.textures) 'the texture ${texture.name}',
+  ];
+  if (own.isEmpty) return;
+  refuse(
+    'a material with ${own.join(' and ')} of its own is compiled for WebGPU '
+    'by the build (assets_src/), which numbers its bindings; at run time the '
+    'stage it is spliced into has no binding for it',
   );
 }
 

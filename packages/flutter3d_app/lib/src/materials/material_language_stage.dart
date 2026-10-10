@@ -91,11 +91,12 @@ final class MaterialProgramStage extends CpuFragmentShader {
       ],
     };
     // `P8`: the draw's `MaterialParams`, which is `RenderMaterial.parameters`,
-    // member by member as the GLSL reads its block.
+    // member by member as the GLSL reads its block — or the block of the
+    // material's own a uniform names (D21).
     final uniforms = <String, List<double>>{
       for (final parameter in program.parameters)
         if (parameter.uniform)
-          parameter.name: ?bindings.read('MaterialParams', parameter.name),
+          parameter.name: ?bindings.read(parameter.block!, parameter.name),
     };
     List<double> sample(MaterialTextureSlot slot, double u, double w) {
       final texture = bindings.textures[slot.bindingName];
@@ -319,7 +320,7 @@ final class MaterialVertexStage extends CpuVertexShaderByIndex {
     final uniforms = <String, List<double>>{
       for (final parameter in program.parameters)
         if (parameter.uniform)
-          parameter.name: ?bindings.read('MaterialParams', parameter.name),
+          parameter.name: ?bindings.read(parameter.block!, parameter.name),
     };
     final written = evaluateMaterialVertex(
       program,
@@ -412,7 +413,7 @@ final class MaterialFullscreenStage extends CpuFragmentShader {
         uniforms: <String, List<double>>{
           for (final parameter in program.parameters)
             if (parameter.uniform)
-              parameter.name: ?bindings.read('MaterialParams', parameter.name),
+              parameter.name: ?bindings.read(parameter.block!, parameter.name),
         },
         sample: (slot, u, w) {
           final texture = bindings.textures[slot.bindingName];

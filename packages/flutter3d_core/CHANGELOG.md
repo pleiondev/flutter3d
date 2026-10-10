@@ -27,6 +27,16 @@
   keeps compiling and refuses the node by name. The GLSL emitter, the WGSL
   splice, the variant folder and the software evaluator are visitors now; a
   `switch` over the kinds outside the engine ends with a wildcard.
+- **A plugin's lit model binds blocks and textures of its own.** In a
+  `f3dmat 2` surface, `uniform(Hair) vec3 tint = …;` is a member of a block
+  of the material's own and `texture fur;` a texture of its own, bound as
+  `material_fur`. `MaterialSlotTable` lists them in the order a backend
+  numbers them (`MaterialBlockSlot` with its std140 members,
+  `MaterialTextureSlotEntry`); `MaterialBindings.slots` and
+  `LightingModel.slots` carry it, the GLSL emitter declares each block and
+  sampler, and the renderer binds each block from `RenderMaterial.parameters`
+  by its members and each texture from `extraTextures`. WebGPU builds such
+  a material in the build, not while the game runs.
 - **`RuntimeShaders` asks a backend's own material compiler first.** Given
   a `MaterialCompilerRegistry` (`compilers:`), a data plugin's material is
   handed to the compiler registered for the engine's backend — a fifth

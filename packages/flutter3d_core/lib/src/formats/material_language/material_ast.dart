@@ -11,10 +11,11 @@
 /// evaluates the same tree, so there is nothing for two people to disagree
 /// about.
 ///
-/// **Sealed, so adding a node breaks every reader at compile time.** An
-/// emitter that quietly skipped a node it did not know would produce a shader
-/// that is missing a term — visible as a slightly wrong colour, in one backend,
-/// with nothing red.
+/// **Read through a visitor, so a node no reader knows is refused by name.**
+/// An emitter that quietly skipped a node it did not know would produce a
+/// shader that is missing a term — visible as a slightly wrong colour, in
+/// one backend, with nothing red; each translator's `visitUnknown` refuses
+/// it instead (D24).
 library;
 
 import 'dart:math' as math;
@@ -85,6 +86,7 @@ final class MaterialParameter {
     this.type,
     this.defaultValue, {
     this.uniform = false,
+    this._block,
   });
 
   final String name;
@@ -99,7 +101,18 @@ final class MaterialParameter {
   /// variant cannot set one; [defaultValue] is what a material that names
   /// no value is given.
   final bool uniform;
+
+  /// The uniform block a [uniform] is a member of: [materialParametersBlock]
+  /// unless the source names one of the material's own — `uniform(Hair)
+  /// vec3 tint = …;`, version 2 (D21). Null for a `param`, which is in no
+  /// block.
+  String? get block => uniform ? _block ?? materialParametersBlock : null;
+  final String? _block;
 }
+
+/// The block every `uniform` is a member of unless it names another, and
+/// the one `RenderMaterial.parameterBlock` names by default.
+const String materialParametersBlock = 'MaterialParams';
 
 /// One texture slot the material samples, by the name the engine binds it
 /// under.
@@ -109,12 +122,21 @@ final class MaterialTextureSlot {
   /// What the source calls it.
   final String name;
 
-  /// What the engine binds — `base_color_texture` and the rest. A material
-  /// cannot invent a slot, for the same reason it cannot invent a uniform
-  /// block, so the parser holds the source name to one the engine already
-  /// binds and says which names those are when it does not.
+  /// What the engine binds — `base_color_texture` and the rest — or, for a
+  /// texture of the material's own ([isOwn], version 2), `material_<name>`,
+  /// the name `RenderMaterial.extraTextures` hands it under.
   final String bindingName;
+
+  /// Whether this is a texture of the material's own rather than one of the
+  /// engine's five — `texture fur;` in a surface, version 2 (D21): a slot in
+  /// the material's [MaterialSlotTable], which the emitted stage declares
+  /// and each backend's binding plan binds.
+  bool get isOwn => bindingName.startsWith(materialOwnTexturePrefix);
 }
+
+/// What the binding of a texture of a material's own starts with:
+/// `texture fur;` is bound as `material_fur`.
+const String materialOwnTexturePrefix = 'material_';
 
 /// One value the fragment body can read.
 ///

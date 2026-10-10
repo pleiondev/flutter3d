@@ -24,6 +24,7 @@ library;
 
 import '../lighting_model.dart';
 import 'material_ast.dart';
+import 'material_slots.dart';
 
 /// The `.frag` source for [program], which should already be specialised.
 ///
@@ -112,7 +113,7 @@ String emitMaterialFragment(MaterialProgram program) {
       ..writeln();
   }
 
-  _uniformBlock(out, program);
+  _uniformBlock(out, program, samplers: true);
 
   if (light == null) {
     // Both prototypes have to be satisfied whether or not anything calls
@@ -302,24 +303,42 @@ String emitMaterialFragment(MaterialProgram program) {
 /// nothing there, and well inside a half float.
 const String materialNothingBehind = '1000000.0';
 
-/// `P8`: the uniforms, as the block the engine binds `RenderMaterial.parameters`
-/// to. Declaration order, as std140 lays it out and every backend's
-/// reflection reports it. Nothing for a program without one.
-void _uniformBlock(StringBuffer out, MaterialProgram program) {
-  final uniforms = <MaterialParameter>[
-    for (final parameter in program.parameters)
-      if (parameter.uniform) parameter,
-  ];
-  if (uniforms.isEmpty) return;
-  out.writeln('uniform MaterialParams {');
-  for (final parameter in uniforms) {
-    out.writeln('  ${parameter.type.name} ${parameter.name};');
+/// `P8`: the uniforms, as the blocks the engine binds `RenderMaterial.parameters`
+/// to — `MaterialParams`, and each block of the material's own (D21) —
+/// and, with [samplers], the textures of the material's own. Declaration
+/// order, as std140 lays it out, every backend's reflection reports it and
+/// the material's `MaterialSlotTable` lists it. Nothing for a program with
+/// neither.
+void _uniformBlock(
+  StringBuffer out,
+  MaterialProgram program, {
+  bool samplers = false,
+}) {
+  final table = MaterialSlotTable.of(program);
+  for (final block in table.blocks) {
+    out.writeln('uniform ${block.name} {');
+    for (final member in block.members) {
+      out.writeln('  ${member.type.name} ${member.name};');
+    }
+    out
+      ..writeln('}')
+      ..writeln('${_blockInstance(block.name)};')
+      ..writeln();
   }
-  out
-    ..writeln('}')
-    ..writeln('material_params;')
-    ..writeln();
+  if (samplers && table.textures.isNotEmpty) {
+    for (final texture in table.textures) {
+      out.writeln('uniform sampler2D ${texture.binding};');
+    }
+    out.writeln();
+  }
 }
+
+/// The instance name a block is read through in the emitted stage:
+/// `material_params` for `MaterialParams`, as it always was, and
+/// `f3d_block_<Name>` for a block of the material's own.
+String _blockInstance(String block) => block == materialParametersBlock
+    ? 'material_params'
+    : 'f3d_block_$block';
 
 /// The vertex stage of [program]'s `vertex` block — version 2 — or, with
 /// [skinned], its skinned half: `mesh.vert` and `mesh_skinned.vert` with
@@ -650,6 +669,9 @@ MaterialBindings describeMaterial(MaterialProgram program) {
     },
     kind: program.kind,
     state: program.state,
+    slots: program.kind == MaterialStageKind.surface
+        ? MaterialSlotTable.of(program)
+        : MaterialSlotTable.none,
     usesSceneDepth:
         program.kind == MaterialStageKind.surface && program.readsSceneDepth,
     readsSurfaceBuffer:
@@ -679,9 +701,14 @@ final class MaterialBindings {
     this.usesSceneDepth = false,
     this.readsSurfaceBuffer = false,
     this.vertexShaderName,
+    this.slots = MaterialSlotTable.none,
   });
 
   final String name;
+
+  /// What the stage binds beyond the engine's own: its uniform blocks and
+  /// its own textures (D21). The [LightingModel] made here carries it.
+  final MaterialSlotTable slots;
 
   /// What the source was — version 2. Only a surface is a lighting model.
   final MaterialStageKind kind;
@@ -760,6 +787,7 @@ final class MaterialBindings {
       usesSceneDepth: usesSceneDepth,
       vertexStageInDepthPasses:
           vertex != null && vertex == this.vertexShaderName,
+      slots: slots,
     );
   }
 }
@@ -787,7 +815,9 @@ final class _GlslExpressions extends MaterialExpressionVisitor<String> {
   @override
   String visitParamRef(MaterialParamRef expression) {
     final parameter = expression.parameter;
-    if (parameter.uniform) return 'material_params.${parameter.name}';
+    if (parameter.uniform) {
+      return '${_blockInstance(parameter.block!)}.${parameter.name}';
+    }
     // Reachable only for a program nothing specialised, which is a caller
     // skipping a step rather than a shape this emitter supports: a
     // parameter has no GLSL, because it is not a uniform.

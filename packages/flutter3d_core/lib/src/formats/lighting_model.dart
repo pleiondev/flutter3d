@@ -2,6 +2,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginException, PluginRegistry, PluginScope, Registration;
 
 import 'material_extensions.dart';
+import 'material_language/material_slots.dart';
 
 /// A lighting model: one pre-built fragment shader and what the engine may
 /// bind to it.
@@ -60,6 +61,7 @@ final class LightingModel {
     this.vertexStageMorphs = true,
     this.usesSceneDepth = false,
     this.vertexStageInDepthPasses = false,
+    this.slots = MaterialSlotTable.none,
   }) : assert(
          !usesMetallicRoughnessMap || usesMaterialMaps,
          'the metallic-roughness map is one of the material maps, so a model '
@@ -383,6 +385,18 @@ final class LightingModel {
   /// polyline widened on screen, or a card turned to the eye, means nothing
   /// to a light. Ignored when [vertexShaderName] is null.
   final bool vertexStageInDepthPasses;
+
+  /// What the stage binds beyond the engine's own blocks and samplers: its
+  /// uniform blocks — `MaterialParams` and blocks of its own — and its own
+  /// textures, in the order a backend numbers them (D21).
+  ///
+  /// **What lets a plugin's lit model bring more than the engine's five
+  /// textures.** The renderer binds each block from
+  /// `RenderMaterial.parameters`, the members that belong to it, and each
+  /// texture from `RenderMaterial.extraTextures` under its binding. Empty for
+  /// every model the engine ships and for one described by hand, which
+  /// binds `RenderMaterial.parameterBlock` as it always did.
+  final MaterialSlotTable slots;
 
   /// Whether the shader samples `metallic_roughness_texture`.
   ///
