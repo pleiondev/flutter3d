@@ -1989,6 +1989,10 @@ const Map<String, String> settingsAllowed = <String, String>{
       'an expression system\'s declaration to the runtime, read from a '
       '`.f3dplugin`',
   'WasmFieldSpec': 'a field\'s declaration to the Wasm host',
+  'SceneBindingSpec':
+      'a declaration made to the `SceneBindingRegistry` (D37): how a '
+      'component is shown, as a `.f3dplugin`\'s `bindings:` writes it, not a '
+      'setting',
   'DebrisSettings':
       'its defaults come from the world it is given (`world.gravity`), which '
       'a `const` constructor cannot read',

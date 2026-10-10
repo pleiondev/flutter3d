@@ -4,6 +4,22 @@
 
 library package:flutter3d_plugin_api/flutter3d_plugin_api.dart
 
+final class BindingInterpolation
+  String toString()
+  final String name
+  static BindingInterpolation? byName(String name)
+  static const BindingInterpolation linear = BindingInterpolation._('linear')
+  static const BindingInterpolation step = BindingInterpolation._('step')
+  static const List<BindingInterpolation> values = <BindingInterpolation>[step, linear]
+
+final class BindingLifetime
+  String toString()
+  final String name
+  static BindingLifetime? byName(String name)
+  static const BindingLifetime component = BindingLifetime._('component')
+  static const BindingLifetime entity = BindingLifetime._('entity')
+  static const List<BindingLifetime> values = <BindingLifetime>[component, entity]
+
 final class BusChannel
   String toString()
   final String name
@@ -312,8 +328,11 @@ final class PluginManifest
   List<PluginDependency> get dependencies
   List<String> get dependencyIds
   Map<String, Object?> toJson()
+  String get namespace
   String toString()
   String? get idProblem
+  String? nameProblem(String name, {required String what})
+  bool get isEngine
   bool runsOn(String? backend)
   const PluginManifest({required this.id, required this.apiVersion, this.version = PluginVersion.none, this.simulationVersion = 1, this.dependsOn = const <String>[], this.backends = const <String>{}, this.touches = PluginTouches.simulation, this.permissions = const <PluginPermission>{}, this.description, this.extra = const <String, Object?>{}})
   factory PluginManifest.fromJson(Map<String, Object?> json)
@@ -327,6 +346,7 @@ final class PluginManifest
   final String id
   final String? description
   final int simulationVersion
+  static const String reservedNamespace = 'f3d'
 
 final class PluginPermission
   String toString()
@@ -339,6 +359,7 @@ final class PluginPermission
   static const PluginPermission tools = PluginPermission('tools')
 
 abstract base class PluginRegistry
+  Iterable<PluginRegistry> get companions
   abstract PluginRegistry forPlugin(PluginScope scope)
   const PluginRegistry()
 
@@ -494,6 +515,26 @@ final class RenderAnchor
 abstract base class RenderStepRegistry extends PluginRegistry
   List<RenderAnchor> get anchors
   const RenderStepRegistry()
+
+abstract base class SceneBindingRegistry extends PluginRegistry
+  SceneBindingSpec? bindingOf(String component)
+  abstract List<SceneBindingSpec> get bindings
+  abstract Registration add(SceneBindingSpec spec)
+  abstract SceneBindingRegistry forPlugin(PluginScope scope)
+  const SceneBindingRegistry()
+
+final class SceneBindingSpec
+  Map<String, Object?> toJson()
+  String toString()
+  const SceneBindingSpec({required this.component, required this.nodeKind, this.material, this.parameters = const <String, String>{}, this.interpolation = BindingInterpolation.linear, this.lifetime = BindingLifetime.component, this.extra = const <String, Object?>{}})
+  factory SceneBindingSpec.fromJson(Map<String, Object?> json)
+  final BindingInterpolation interpolation
+  final BindingLifetime lifetime
+  final Map<String, Object?> extra
+  final Map<String, String> parameters
+  final String component
+  final String nodeKind
+  final String? material
 
 abstract base class SimCommands
   abstract int get pending

@@ -160,6 +160,6 @@ const Map<String, List<String>> conformanceSuites = <String, List<String>>{'1.0'
 
 bool earnsBadge(List<PluginCheckOutcome> outcomes, {String suite = conformanceSuiteVersion})
 
-const List<String> pluginCheckNames = <String>['manifest', 'switch', 'determinism', 'backends', 'budget', 'materials']
+const List<String> pluginCheckNames = <String>['manifest', 'switch', 'names', 'determinism', 'backends', 'budget', 'materials']
 
 void runPluginConformance(Flutter3dPlugin Function() create, {PluginHarness harness = const PluginHarness()})
