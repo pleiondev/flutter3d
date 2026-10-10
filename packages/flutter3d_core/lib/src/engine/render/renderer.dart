@@ -890,7 +890,7 @@ final class Renderer with RenderServices {
 
   /// The depth of the deferred-release rings: the most frames that may be in
   /// flight, whatever [pacing] allows — see [FramePacing.maxFramesInFlight].
-  static const int _kFramesInFlight = FramePacing.maxFramesInFlight;
+  static int get _kFramesInFlight => FramePacing.maxFramesInFlight;
 
   /// How far this renderer lets the CPU run ahead of the GPU, and which
   /// pipeline builds it reports — `A1.4`, `A1.7`. Read at the top of each

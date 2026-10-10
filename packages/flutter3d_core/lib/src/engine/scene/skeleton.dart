@@ -45,7 +45,11 @@ final class Skeleton {
   /// into the per-frame host buffer on every skinned draw: at 64 bytes a matrix
   /// this is a 4 KB upload, and doubling it doubles that cost for every skinned
   /// mesh whether or not it has the joints to justify it.
-  static const int maxJoints = 64;
+  ///
+  /// A getter, not a constant, so the shader may hold more in a later release
+  /// without breaking code that reads it.
+  static int get maxJoints => _maxJoints;
+  static const int _maxJoints = 64;
 
   final String? name;
 

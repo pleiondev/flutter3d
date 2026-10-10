@@ -355,8 +355,8 @@ final class AnimationPose {
 
   /// Joint matrices for a skin, laid out the way [Skeleton.matrices] is:
   /// `joints.length * 16` used floats followed by identity padding out to
-  /// [maxJoints], so a caller comparing the two need not special-case the
-  /// tail.
+  /// [maxJoints] ([Skeleton.maxJoints] when not given), so a caller comparing
+  /// the two need not special-case the tail.
   ///
   /// [meshWorld] means what it means in [Skeleton.update]: the world
   /// transform of the node the skinned mesh hangs from. The formula —
@@ -366,24 +366,25 @@ final class AnimationPose {
     required List<int> joints,
     required List<Matrix4> inverseBindMatrices,
     required Matrix4 meshWorld,
-    int maxJoints = Skeleton.maxJoints,
+    int? maxJoints,
   }) {
+    final slots = maxJoints ?? Skeleton.maxJoints;
     if (joints.length != inverseBindMatrices.length) {
       throw ArgumentError(
         '${joints.length} joints but ${inverseBindMatrices.length} inverse '
         'bind matrices.',
       );
     }
-    if (joints.length > maxJoints) {
+    if (joints.length > slots) {
       throw ArgumentError(
-        '${joints.length} joints exceed the $maxJoints this pose was asked '
+        '${joints.length} joints exceed the $slots this pose was asked '
         'to fill.',
       );
     }
 
     final world = worldMatrices();
     final inverseMeshWorld = Matrix4.copy(meshWorld)..invert();
-    final out = Float32List(maxJoints * 16);
+    final out = Float32List(slots * 16);
 
     for (var i = 0; i < joints.length; i++) {
       final nodeIndex = joints[i];
@@ -403,7 +404,7 @@ final class AnimationPose {
     // Past the joint count, identity — the same padding `Skeleton.matrices`
     // carries, so a shader (or a test) reading a stale slot leaves the
     // vertex alone rather than sending it to the origin.
-    for (var i = joints.length; i < maxJoints; i++) {
+    for (var i = joints.length; i < slots; i++) {
       final base = i * 16;
       for (var e = 0; e < 16; e++) {
         out[base + e] = e % 5 == 0 ? 1.0 : 0.0;

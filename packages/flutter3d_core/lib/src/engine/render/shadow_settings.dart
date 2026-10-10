@@ -541,14 +541,17 @@ final class ShadowSettings {
   final int cubeResolution;
 
   /// What the cascade pass will accept as a tile size.
+  ///
+  /// The upper limits are getters, not constants, so a later release may
+  /// raise them without breaking code that reads them.
   static const int minResolution = 256;
-  static const int maxResolution = 4096;
+  static int get maxResolution => 4096;
 
   /// What the cube atlas will accept, which is lower for the reason in
   /// [cubeResolution]: the atlas holds thirty-six of these — six faces across,
   /// six lights down.
   static const int minCubeTile = 128;
-  static const int maxCubeTile = 1024;
+  static int get maxCubeTile => 1024;
 
   /// Depth bias, in the shadow camera's normalized depth. Fights the acne that
   /// comes from a surface being sampled at a slightly different depth than it

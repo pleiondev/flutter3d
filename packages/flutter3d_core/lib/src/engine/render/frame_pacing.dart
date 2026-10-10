@@ -31,11 +31,11 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show BusEvent;
 /// frame complete as it is submitted, and never holds.
 final class FramePacing {
   const FramePacing({
-    this.framesInFlight = maxFramesInFlight,
+    this.framesInFlight = _maxFramesInFlight,
     this.holdWhenBehind = true,
     this.stallThreshold = const Duration(milliseconds: 8),
   }) : assert(
-         framesInFlight >= 1 && framesInFlight <= maxFramesInFlight,
+         framesInFlight >= 1 && framesInFlight <= _maxFramesInFlight,
          'frames in flight are one to three',
        );
 
@@ -54,7 +54,11 @@ final class FramePacing {
 
   /// The depth of the renderer's deferred-release rings and of the backends'
   /// per-frame uniform rings, and so the most frames that may be in flight.
-  static const int maxFramesInFlight = 3;
+  ///
+  /// A getter, not a constant: a deeper ring in a later release is not a
+  /// break for code that reads it.
+  static int get maxFramesInFlight => _maxFramesInFlight;
+  static const int _maxFramesInFlight = 3;
 
   FramePacing copyWith({
     int? framesInFlight,

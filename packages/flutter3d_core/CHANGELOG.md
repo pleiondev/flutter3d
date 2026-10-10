@@ -8,6 +8,14 @@
   constants is unchanged; one that spelled `ResourceId('hdr_colour')` by
   hand, or looks for `'colour grade'` in `FrameResult.skipped`, spells it
   the new way.
+- **Breaking: the engine's upper limits are getters.**
+  `FramePacing.maxFramesInFlight`, `InstancedMeshNode.maxMorphTargets`,
+  `Skeleton.maxJoints`, `ShadowSettings.maxResolution` and
+  `ShadowSettings.maxCubeTile` read as before but are no longer constants,
+  so a later release can raise one without breaking the code that reads
+  it. Only a constant expression that named one (a default value, a
+  `const` list) has to change. `Pose.jointMatrices` takes `int? maxJoints`
+  and fills to `Skeleton.maxJoints` when it is not given.
 - **Breaking: `TonemapCurve.agxFull` is gone.** It drew the same picture
   as `TonemapCurve.agx` since 0.7.4; `dart fix` renames it. `values` lists
   five curves, and a frame that still carries code 5 draws as `agx`.
