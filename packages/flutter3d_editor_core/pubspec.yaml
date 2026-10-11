@@ -61,6 +61,11 @@ dependencies:
   # The collision world and its bodies, named here directly.
   flutter3d_physics: ^1.0.0-rc.1
 
+  # `ExperimentDocument`, the `f3d.experiment` document the experiment edits
+  # (`experiment_editing.dart`) change and read back through. Plain Dart, a
+  # layer below this one, so the boundary above holds.
+  flutter3d_education: ^1.0.0-rc.1
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0

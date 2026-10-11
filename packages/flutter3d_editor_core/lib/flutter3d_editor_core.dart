@@ -54,6 +54,7 @@ export 'src/editor_hints.dart';
 export 'src/editor_history.dart';
 export 'src/editor_pieces.dart';
 export 'src/editor_section.dart';
+export 'src/experiment_editing.dart';
 export 'src/generators/document_text.dart';
 export 'src/generators/generator.dart';
 export 'src/gizmos.dart';
