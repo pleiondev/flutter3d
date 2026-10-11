@@ -70,7 +70,7 @@ void main() {
     () async {
       final ready = await _opened();
       ready.player.next(); // step-2: "Снимаем крышку клапанов"
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
 
       expect(ready.nodes['valve-cover']!.isVisible, isFalse);
       expect(ready.nodes['engine-block']!.isVisible, isTrue);
@@ -82,13 +82,13 @@ void main() {
   test('by the last step, everything but the block has been removed', () async {
     final ready = await _opened();
     // Each step's own hidden list only names what changes *that* step —
-    // `applyLessonStepToCamera`'s own doc comment: a name a step does not
+    // `applyLessonStepTo`'s own doc comment: a name a step does not
     // mention is left exactly as the previous step left it. So a real
     // viewer applies every step it passes through, not just the last one it
     // lands on.
     for (var i = 0; i < 4; i++) {
       ready.player.next();
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
     }
 
     expect(ready.player.current?.name, 'step-5');

@@ -36,7 +36,7 @@ Future<LessonReady> _opened() async {
 void _advance(LessonReady ready, int count) {
   for (var i = 0; i < count; i++) {
     ready.player.next();
-    ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+    ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
   }
 }
 
@@ -91,18 +91,18 @@ void main() {
       _advance(ready, 3); // down to the bare case
 
       ready.player.next(); // step-5: the battery goes back in
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
       expect(ready.nodes['battery']!.isVisible, isTrue);
       expect(ready.nodes['circuit-board']!.isVisible, isFalse);
       expect(ready.nodes['housing-lid']!.isVisible, isFalse);
 
       ready.player.next(); // step-6: the board goes back in
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
       expect(ready.nodes['circuit-board']!.isVisible, isTrue);
       expect(ready.nodes['housing-lid']!.isVisible, isFalse);
 
       ready.player.next(); // step-7: the lid closes
-      ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+      ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
       expect(ready.nodes['housing-lid']!.isVisible, isTrue);
     },
   );

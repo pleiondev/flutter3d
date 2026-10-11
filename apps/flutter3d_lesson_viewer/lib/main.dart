@@ -10,12 +10,12 @@
 /// anything, so building one would be state nothing reads.
 ///
 /// `edu-02`'s own honest-scope line: this plays a step's `at`/`yaw` and its
-/// `visible`/`hidden` lists (through `applyLessonStepToCamera`) and renders
-/// `widget_surface` annotations through the same pipeline the dungeon's
-/// terminal (`wg-02`) already proved. It does not apply `offsets`, does not
-/// draw an `edu_clip_plane`, does not read `bindings`/`edu_data_source`, and
-/// does not ask a `check` question — see `src/lesson_player.dart`'s own doc
-/// comment for why each is a separate, later step.
+/// `visible`/`hidden` lists (through `flutter3d_stereo`'s
+/// `applyLessonStepTo`, the one lesson player for a flat screen and a
+/// holder) and renders `widget_surface` annotations through the same
+/// pipeline the dungeon's terminal (`wg-02`) already proved. It does not
+/// draw an `edu_clip_plane` and does not read `bindings`/`edu_data_source`:
+/// each is a separate, later step.
 library;
 
 import 'dart:async';
@@ -28,9 +28,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_education/lesson.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show LessonPlayer;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'src/lesson_player.dart';
 import 'src/lesson_view.dart';
 
 /// The lesson this build opens, as a bundled asset path.
@@ -158,7 +158,7 @@ final class LessonReady extends LessonState {
 
   /// Every fixture the level placed, by the name its own entity carries —
   /// what a step's `visible`/`hidden` list reaches through
-  /// `applyLessonStepToCamera`.
+  /// `applyLessonStepTo`.
   final Map<String, SceneNode> nodes;
 }
 
@@ -218,7 +218,7 @@ class LessonCubit extends Cubit<LessonState> {
       }
 
       // `ls-e-00`'s own nodes map: every fixture the level placed, by the
-      // name its own entity carries — `applyLessonStepToCamera`'s own doc
+      // name its own entity carries — `applyLessonStepTo`'s own doc
       // comment names this split (the engine says what a step means, an
       // application says which node that name resolves to). Built *after*
       // `widgetSurfaces` rather than before: a `widget_surface`'s own

@@ -32,10 +32,11 @@ import 'package:flutter/material.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart'
+    show LessonPlayer;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'check_prompt.dart';
-import 'lesson_player.dart';
 import 'orbit_cubit.dart';
 
 /// Wraps [SceneSurface] around a [LessonPlayer], with a "Previous"/"Next"

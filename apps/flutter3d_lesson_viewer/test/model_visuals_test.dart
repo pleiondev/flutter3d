@@ -13,8 +13,9 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
-import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart'
+    show applyLessonStepTo;
 import 'package:flutter_test/flutter_test.dart';
 
 /// Spelled out rather than `samplesPath`, which is relative to a package
@@ -119,7 +120,7 @@ void main() {
         },
       );
 
-      applyLessonStepToCamera(
+      applyLessonStepTo(
         camera,
         step,
         nodes: visuals.nodes,

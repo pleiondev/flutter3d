@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **New: one lesson player for a flat screen and a holder.**
+  `applyLessonStepTo(viewer, step)` and `LessonPlayer.applyCurrentTo(viewer)`
+  take any `SceneNode`, a flat viewer's camera or a rig's stage;
+  `applyLessonStep` and `applyCurrent` keep taking a `StereoRig` and call
+  them. The flat lesson viewer's own copy of the player is gone.
 - **Stereo stands on the XR session.** `HolderXrSession` is a phone in a
   holder, or held up, as an inline `XrSession`: the head from a
   `HeadTracker`, the eyes turned with it, each frustum the holder's lenses'

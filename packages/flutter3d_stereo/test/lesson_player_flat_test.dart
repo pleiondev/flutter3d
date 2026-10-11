@@ -1,11 +1,12 @@
-/// `edu-02`: the same `edu-00` lesson `edu-06`'s stereo test proves against a
-/// [StereoRig], proven here against a plain [SceneNode] camera — read world
-/// positions off the node rather than rendering a frame.
+/// The flat lesson viewer's half of the one player: the same `edu-00`
+/// lesson `lesson_player_test.dart` proves against a [StereoRig], proven
+/// here against a plain [SceneNode] camera — read world positions off the
+/// node rather than rendering a frame.
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 List<EntityDef> _teardownSteps() => <EntityDef>[
@@ -40,14 +41,14 @@ List<EntityDef> _teardownSteps() => <EntityDef>[
 ];
 
 void main() {
-  group('applyLessonStepToCamera', () {
+  group('applyLessonStepTo', () {
     test('moves the camera to the step\'s own position and yaw', () {
       final scene = Scene();
       final camera = SceneNode(name: 'camera');
       scene.add(camera);
       final steps = _teardownSteps();
 
-      applyLessonStepToCamera(camera, steps[1]);
+      applyLessonStepTo(camera, steps[1]);
 
       final world = camera.readWorldPosition();
       expect(world.x, closeTo(1.0, 1e-9));
@@ -69,10 +70,10 @@ void main() {
       };
       final steps = _teardownSteps();
 
-      applyLessonStepToCamera(camera, steps[0], nodes: nodes);
+      applyLessonStepTo(camera, steps[0], nodes: nodes);
       expect(cover.isVisible, isTrue);
 
-      applyLessonStepToCamera(camera, steps[1], nodes: nodes);
+      applyLessonStepTo(camera, steps[1], nodes: nodes);
       expect(cover.isVisible, isFalse, reason: 'step-2 hides it');
       expect(block.isVisible, isTrue, reason: 'step-2 shows it');
       expect(untouched.isVisible, isFalse, reason: 'step-2 never names it');
@@ -107,7 +108,7 @@ void main() {
       final scene = Scene();
       final camera = SceneNode(name: 'camera');
       scene.add(camera);
-      player.applyCurrent(camera); // must not throw
+      player.applyCurrentTo(camera); // must not throw
     });
 
     test('applyCurrent moves the camera to each step in turn', () {
@@ -116,15 +117,15 @@ void main() {
       scene.add(camera);
       final player = LessonPlayer(_teardownSteps());
 
-      player.applyCurrent(camera);
+      player.applyCurrentTo(camera);
       expect(camera.readWorldPosition().x, closeTo(0.0, 1e-9));
 
       player.next();
-      player.applyCurrent(camera);
+      player.applyCurrentTo(camera);
       expect(camera.readWorldPosition().x, closeTo(1.0, 1e-9));
 
       player.next();
-      player.applyCurrent(camera);
+      player.applyCurrentTo(camera);
       expect(camera.readWorldPosition().x, closeTo(2.0, 1e-9));
     });
   });

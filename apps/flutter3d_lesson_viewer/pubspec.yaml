@@ -26,7 +26,10 @@ dependencies:
   flutter3d_education:
     path: ../../packages/flutter3d_education
 
-  vector_math: ^2.2.0
+  # `LessonPlayer` and `applyLessonStepTo`: the one player of a lesson, for
+  # a flat camera here as for a rig's stage in a holder.
+  flutter3d_stereo:
+    path: ../../packages/flutter3d_stereo
 
   flutter_bloc: ^9.1.1
 
