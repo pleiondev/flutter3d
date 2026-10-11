@@ -1074,6 +1074,45 @@ static void test_thatch_creeps_at_rothermels_rate(void) {
   CHECK_NEAR(m.flame_spread / (m.ignition_inertia * ahead * ahead), 2.68e-3, 0.02);
 }
 
+/* A brand of thatch lofted out of its fire: a ball of straw of 2 cm radius,
+ * packed at the 43 kg/m³ of a bale (UL FSRI, Straw), as hot as the flame
+ * it leaves all through. Its stalks burn from the flame over them, the gas
+ * each gives off paid for in its heat of gasification, at about the
+ * 10.8 g/(m² s) Rossa's beds burnt at (the preset's burn_rate): half a
+ * minute of flaming, not a flash. Mutation: the wood's in-depth gas over a
+ * bed, as though its stalks were a solid under a char — at its flame's
+ * temperature that gas is 170 kg/(m² s), and all of the brand is gone in
+ * its first step. */
+static void test_a_thatch_brand_burns_at_its_beds_rate(void) {
+  F3dWorld *w = f3d_world_create();
+  const double r = 0.02;
+  const double area = 4 * 3.14159265358979 * r * r;
+  const F3dBody brand =
+      f3d_body_create(w, F3D_BODY_FIXED, 0, 2, 0, (f3d_real)(43 * area * r / 3));
+  f3d_body_set_shape(w, brand, F3D_SHAPE_SPHERE, (f3d_real)r, 0, 0);
+  F3dMaterial thatch;
+  f3d_material_preset(F3D_MATERIAL_THATCH, &thatch);
+  CHECK(f3d_body_set_material(w, brand, &thatch) == 1);
+  f3d_body_set_temperature(w, brand, thatch.flame_temperature);
+  f3d_real fuel = 0, held = 0;
+  f3d_body_get_fuel(w, brand, &held);
+  /* A second on, alight and nearly all of it still there. */
+  for (int i = 0; i < 60; i++) f3d_world_step(w, F3D_R(1.0) / 60);
+  CHECK(burning(w, brand));
+  f3d_body_get_fuel(w, brand, &fuel);
+  CHECK(fuel > F3D_R(0.9) * held);
+  int steps = 60;
+  while (fuel > 0 && burning(w, brand) && steps < 3600) {
+    f3d_world_step(w, F3D_R(1.0) / 60);
+    f3d_body_get_fuel(w, brand, &fuel);
+    steps++;
+  }
+  CHECK(!(fuel > 0));
+  const double rate = (double)held / area / (steps / 60.0);
+  CHECK(rate > 0.7 * thatch.burn_rate && rate < 1.3 * thatch.burn_rate);
+  f3d_world_destroy(w);
+}
+
 /* A lump of charcoal glows on while it is heated as hard as glowing
  * coals heat one among them, and goes out short of it: a torch's
  * 106 kW/m² keeps it burning, a newspaper fire's 60 does not hold it
@@ -1144,6 +1183,7 @@ int main(void) {
   test_a_fire_says_its_soot();
   test_cardboard_catches_as_the_cone_measured();
   test_thatch_creeps_at_rothermels_rate();
+  test_a_thatch_brand_burns_at_its_beds_rate();
   test_charcoal_glows_only_as_hot_as_a_heap();
   test_an_explosion_pushes_by_solid_angle();
   test_materials();

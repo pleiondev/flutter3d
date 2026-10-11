@@ -2312,9 +2312,11 @@ static int holds_flame(const F3dWorld *world, const Heat *h, f3d_real area,
   const f3d_real density = h->volume > F3D_R(0.0) ? h->l.mass / h->volume : F3D_R(0.0);
   /* The wood under the front no cooler than its layer says: a surface
    * driven past its ignition temperature faster than it could catch holds
-   * that much more gas in reach. */
+   * that much more gas in reach. A porous bed has none in depth: its
+   * stalks give off theirs at the front (step_entry). */
   const f3d_real top = f3d_max(ignition, skin_of(h));
-  const f3d_real depth_gas = in_depth_flux(m, density, top, under, patch);
+  const f3d_real depth_gas =
+      bed_depth(world, h) > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, patch);
   f3d_real cap = flame_flux(m, across_of(area), ignition, m->emissivity), flux = F3D_R(0.0);
   for (int k = 0; k < 4; k++) {
     f3d_real surface_t;
@@ -2489,9 +2491,13 @@ static uint32_t step_entry(F3dWorld *world, const F3dSlot *s, Heat *h,
     /* Under the front, the wood at its ignition temperature or at what its
      * layer holds, if that is hotter: heated faster than it burns, the
      * wood beneath gives off its gas in depth, and pays for it from that
-     * heat. */
+     * heat. Not a porous bed's: its stalks' gas is the front's, the
+     * warming of each already in L, and there is no solid under a char for
+     * a parabola to lie in. Counted again in depth, a bed as hot as a flame
+     * — a brand lofted from one — gave off its whole self in a step. */
     const f3d_real top = f3d_max(ignition, skin_of(h));
-    const f3d_real in_depth = in_depth_flux(m, density, top, under, l->patch);
+    const f3d_real in_depth =
+        bed > F3D_R(0.0) ? F3D_R(0.0) : in_depth_flux(m, density, top, under, l->patch);
     /* The flame gives back no more than it makes, ṁ''·ΔH_c a square metre:
      * what it makes depends on what it is given, so the two are settled
      * together, a few rounds from the flame's own flux down. */
