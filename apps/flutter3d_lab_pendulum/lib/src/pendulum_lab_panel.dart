@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+// Flutter's `FittedBox`, under a prefix: `flutter3d_mesh` declares a type
+// of the same name (a collision box fitted to a mesh), and the repository's
+// scan of the type names a file uses would read the bare name as that one.
+import 'package:flutter/widgets.dart' as widgets;
 
 /// `edu-04`'s panel of parameters: the one number a student's own tap
 /// changes — the pendulum's length. Buttons rather than a slider or a text
@@ -38,7 +42,7 @@ final class PendulumLabPanel extends StatelessWidget {
       color: const Color(0xFF15181C),
       child: Padding(
         padding: const EdgeInsets.all(14.0),
-        child: FittedBox(
+        child: widgets.FittedBox(
           fit: BoxFit.scaleDown,
           child: Column(
             mainAxisSize: MainAxisSize.min,
