@@ -259,6 +259,43 @@ final class RendererSteps extends RenderStepRegistry {
     return addNode(step, at: at, step: owner, after: after, before: before);
   }
 
+  /// Places [upload] on [executors] (`FieldUpload.place`) and adds it as a
+  /// node, as [addComputeStep] does for a compute step: the one call that
+  /// puts a simulation's field in the frame.
+  ///
+  /// Placed synchronously, since holding a field needs no kernel. An upload
+  /// nothing can hold is added all the same: the frame reports it as
+  /// `PassSkip.unsupported`, with `FieldUpload.refusal` saying why, and
+  /// culls whatever only read the field. Cancelling the registration takes
+  /// the node out and lets go of the storage it held
+  /// (`FieldUpload.release`).
+  ///
+  /// Throws what [addNode] throws, before anything is placed.
+  Registration addFieldUpload(
+    FieldUpload upload,
+    ComputeExecutors executors, {
+    RenderAnchor? at,
+    RenderStep? owner,
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) {
+    addNode(upload, at: at, step: owner, after: after, before: before).cancel();
+    upload.place(executors);
+    final added = addNode(
+      upload,
+      at: at,
+      step: owner,
+      after: after,
+      before: before,
+    );
+    final registration = Registration(() {
+      added.cancel();
+      upload.release();
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+
   /// Places [hook] on [executors] and puts it in the frame: the one call
   /// that makes a [SkinningHook] skin (D22b).
   ///

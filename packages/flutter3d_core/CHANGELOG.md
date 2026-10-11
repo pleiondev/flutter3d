@@ -20,6 +20,9 @@
   the device cannot hold with a `FieldResidenceException` naming the
   feature (`DeviceFeature.texture3D` on Impeller today), and the frame
   reports it as unsupported rather than throwing.
+  `RendererSteps.addFieldUpload` places one and adds it in one call, as
+  `addComputeStep` does a compute step; its registration takes it out and
+  releases what it held.
 - **An asset source says which version of a file it is, and its hash.**
   `AssetSource.contentHash` (the SHA-256 of what `read` returns, when the
   source knows it ahead) and `AssetSource.version` (the version in the

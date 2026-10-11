@@ -58,6 +58,7 @@ import 'empty_frame.dart';
 import 'engine_light_units.dart';
 import 'engine_tables.dart';
 import 'field_pass.dart';
+import 'field_upload.dart';
 import 'frame_capture.dart';
 import 'frame_graph.dart';
 import 'frame_history.dart';

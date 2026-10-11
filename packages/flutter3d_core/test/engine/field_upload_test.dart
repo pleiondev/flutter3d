@@ -8,6 +8,8 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_hardware/backend.dart' show wrapTexture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show RenderAnchor;
 import 'package:test/test.dart';
 
 const _frame = ResourceId('frame');
@@ -218,5 +220,53 @@ void main() {
       () => FieldUpload(HostField(_heat()), residence: FieldResidence.host),
       throwsArgumentError,
     );
+  });
+
+  group('through the renderer', () {
+    test('one call places the upload and puts it in the frame, and its '
+        'registration takes it out and lets the storage go', () {
+      // Mutation: add the node without placing it. The frame reports the
+      // field unsupported on a device that holds 3D textures, and every
+      // volume that reads it is culled.
+      final device = FakeBackend(
+        extraFeatures: const <DeviceFeature>[
+          DeviceFeature.texture3D,
+          DeviceFeature.textureWrites,
+        ],
+      );
+      final renderer = Renderer.create(device: device);
+      final upload = FieldUpload(HostField(_heat()));
+      final added = renderer.renderSteps.addFieldUpload(
+        upload,
+        ComputeExecutors(device: device),
+      );
+      expect(upload.isSupported, isTrue);
+      expect(
+        renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),
+        contains('acme.heat upload'),
+      );
+      added.cancel();
+      expect(
+        renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),
+        isNot(contains('acme.heat upload')),
+      );
+      expect(upload.isSupported, isFalse);
+    });
+
+    test('an upload nothing can hold is added all the same, with its '
+        'refusal', () {
+      final device = FakeBackend();
+      final renderer = Renderer.create(device: device);
+      final upload = FieldUpload(HostField(_heat()));
+      renderer.renderSteps.addFieldUpload(
+        upload,
+        ComputeExecutors(device: device),
+      );
+      expect(upload.refusal!.capability, DeviceFeature.texture3D);
+      expect(
+        renderer.renderSteps.nodesAt(RenderAnchor.beforeOpaque),
+        contains('acme.heat upload'),
+      );
+    });
   });
 }
