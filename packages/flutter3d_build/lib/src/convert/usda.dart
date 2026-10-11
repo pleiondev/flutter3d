@@ -53,6 +53,8 @@ final class UsdProperty {
     this.value,
     this.isRelationship = false,
     this.uniform = false,
+    this.custom = false,
+    this.timeSampled = false,
     Map<String, Object?>? metadata,
   }) : metadata = metadata ?? <String, Object?>{};
 
@@ -69,6 +71,13 @@ final class UsdProperty {
 
   final bool isRelationship;
   final bool uniform;
+
+  /// Declared `custom`: not one of the prim's schema, but something its
+  /// author added, as a twin's element id.
+  final bool custom;
+
+  /// Written as `.timeSamples`, of which [value] is the first.
+  final bool timeSampled;
 
   /// What the parentheses after it said: `interpolation`, `elementSize`.
   final Map<String, Object?> metadata;
@@ -419,6 +428,7 @@ final class _UsdaParser {
 
   void property(UsdPrim prim) {
     var uniform = false;
+    var custom = false;
     var relationship = false;
     while (peek.kind == 'word' &&
         const <String>{
@@ -428,7 +438,12 @@ final class _UsdaParser {
           'config',
           ..._listOps,
         }.contains(peek.text)) {
-      if (take().text == 'uniform') uniform = true;
+      switch (take().text) {
+        case 'uniform':
+          uniform = true;
+        case 'custom':
+          custom = true;
+      }
     }
     if (peek.kind != 'word') fail('expected a property');
     var typeName = take().text;
@@ -458,6 +473,8 @@ final class _UsdaParser {
       value: value ?? existing?.value,
       isRelationship: relationship,
       uniform: uniform,
+      custom: custom || (existing?.custom ?? false),
+      timeSampled: timeSampled || (existing?.timeSampled ?? false),
       metadata: <String, Object?>{...?existing?.metadata, ...metadata},
     );
   }

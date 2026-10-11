@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A twin's USD arrives with the ids it binds its elements by.** Custom
+  attributes (declared `custom`, under `userProperties:`, or in a prim's
+  `customData`) ride the level: an instance's on its row under
+  `attributes`, a layer's prims' on the model row under `nodeAttributes`
+  by node path, integers as integers and numbers unrounded. A relationship,
+  a connection or an attribute without a value is listed in the report; a
+  time-sampled one carries its first sample. Prims defined under a
+  referencing prim are drawn in the layer's model instead of dropped, an
+  instance written out row by row gives those rows its attributes, and
+  MaterialX's `ND_UsdPreviewSurface` node reads as UsdPreviewSurface.
 - **A conversion's report carries the model's author, licence and
   copyright.** `ConvertReport.author`, `license` and `copyright`, read from
   the document, and the same three keys, when present, in `--json` and

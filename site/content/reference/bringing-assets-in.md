@@ -43,7 +43,7 @@ go into the one `<name>.f3d` (see [what a bundle carries](#bundle)).
 | STL | `<name>.f3d` | Geometry only. |
 | PLY mesh | `<name>.f3d` | ASCII and binary; positions, normals, colours, UVs and faces. A file without faces is a point cloud and is refused. |
 | PLY / SPZ splat capture | `<name>.f3dsplat` | A PLY whose header names `f_dc_0`. |
-| USDA, USDZ | `<name>.f3d`, `materials/*.fmat`, `<name>.level.json` | One model per layer. A reference to another file is an instance of that file's prefab. UsdPreviewSurface becomes metal-rough. `upAxis` Z is turned to Y and `metersPerUnit` to metres. |
+| USDA, USDZ | `<name>.f3d`, `materials/*.fmat`, `<name>.level.json` | One model per layer. A reference to another file is an instance of that file's prefab. UsdPreviewSurface and MaterialX `standard_surface` become metal-rough. Custom attributes ride the rows (see [USD for twins](#usd)). `upAxis` Z is turned to Y and `metersPerUnit` to metres. |
 | USDC (binary) | as USDA | Through `usdcat`, when installed. |
 | MaterialX `.mtlx` | `materials/*.fmat`, or `*.f3dmat` beside an `.fmat` | See [materials](#materials). |
 | Unity `.prefab`, `.unity` | `<name>.level.json`, `models/*.f3d`, `materials/*.fmat` | Needs the project's `.meta` files to find meshes, materials and textures. |
@@ -125,6 +125,59 @@ Unity's metallic/smoothness map, HDRP's mask map and Godot's separate
 metallic and roughness maps are repacked into one image with occlusion in
 red, roughness in green and metal in blue. Godot's ORM image already is one.
 
+## USD for twins {#usd}
+
+A digital twin usually arrives as a USD stage exported from a plant or
+building model: a root layer that places equipment, each piece referencing
+its own file, and on every element the ids and ratings the twin's database
+knows it by, written as custom attributes. The converter keeps that shape.
+
+- **Primitives.** `Cube`, `Sphere`, `Cylinder`, `Cone` and `Capsule` are
+  built at their size and `axis`; `Mesh` prims keep their normals, UVs and
+  display colours, and a subdivision surface is drawn as its cage.
+- **Materials.** `UsdPreviewSurface`, and MaterialX in the stage: a
+  `standard_surface` network, or MaterialX's own `ND_UsdPreviewSurface`
+  node. Image nodes (`UsdUVTexture`, `ND_image`, `ND_tiledimage`) become
+  textures; any other node is folded to the nearest image, with a warning.
+- **The hierarchy.** Every prim of a layer is a node of that layer's model,
+  named as in the stage, so `Plant/Pumps/Pump01/Gauge` is the same path in
+  both. A reference to another file is an instance of that file's prefab,
+  and prims *defined* under the referencing prim (a gauge added to a pump)
+  are drawn in the layer's model where the instance stands. Prims written
+  `over` it are opinions about the referenced layer and are dropped.
+- **Custom attributes.** Every attribute declared `custom`, every one under
+  `userProperties:`, and each entry of a prim's `customData` (as
+  `customData:<key>`) is carried with its value as JSON holds it: strings,
+  tokens and asset paths as strings, integers as integers, other numbers
+  unrounded, tuples and arrays as lists. An instance's attributes go on its
+  row under `attributes`; the prims of a layer's model put theirs on the
+  model row under `nodeAttributes`, by node path:
+
+```json
+[
+  { "type": "prefab", "name": "Pump01",
+    "props": { "prefab": "pump",
+               "attributes": { "twin:id": "P-101", "twin:ratedFlow": 12.5 } } },
+  { "type": "model", "name": "plant",
+    "props": { "asset": "plant.f3d",
+               "nodeAttributes": { "Plant/Tank": { "twin:id": "T-1" } } } }
+]
+```
+
+From Dart, `PrefabAttributes.of(entity)` reads both, and `findByAttribute`
+finds an element in a level after `expandPrefabs`, on an entity or on a
+node of its model. Expanding an instance gives its attributes to every row
+it becomes, so each part of a pump placed as `P-101` is `P-101` in the
+played level, and an instance overrides one of a template row's with the
+key `attributes.twin:id`. The engine itself reads none of them.
+
+What the report says was not carried, one line each: a relationship
+(`rel twin:feeds`) or a connection, which name prims rather than values;
+an attribute with no value; lights, cameras, skeletons, instancers, curves
+and volumes; `over` and `class` prims. A time-sampled attribute carries its
+first sample, with a warning. The report's mapped lines count the
+attributes and say where they went.
+
 ## What does not survive
 
 | Lost | Why |
@@ -133,7 +186,8 @@ red, roughness in green and metal in blue. Godot's ORM image already is one.
 | Scripts, colliders, rigidbodies, particles | Behaviour, not content. |
 | Animation in USD | The first time sample is the rest pose. glTF and FBX keep their animation inside the model. |
 | USD skeletons, instancers, curves, points, volumes | Not read. Export glTF for skinned models. |
-| USD composition beyond references | `over` and `class` prims, variants and inherits are not evaluated. A reference to a sub-prim places the whole layer. |
+| USD composition beyond references | `over` and `class` prims, variants and inherits are not evaluated. A reference to a sub-prim places the whole layer. Prims defined under a referencing prim are kept; prims written over it are not. |
+| USD relationships as attributes | A `rel` names prims, which a row cannot hold. The report lists each one. |
 | Units between USD layers | Each layer is converted in its own units, as its author meant. USD itself would compose the referenced numbers unscaled. The report says when layers disagree. |
 | Unity overrides other than placement and materials | A level overrides a row's own keys, and `m_CastShadows` has no counterpart. Added and removed components and objects are dropped. |
 | Unity detail, parallax and coat maps; HDRP's other inputs | No slot in the engine's surface. |
