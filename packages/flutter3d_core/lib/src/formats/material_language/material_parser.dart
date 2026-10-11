@@ -87,13 +87,39 @@
 /// its type because the parser worked it out; an emitter that had to infer
 /// types would be a second type checker, and the two would disagree about
 /// something like `vec3 * float` on one backend only.
+///
+/// **The expressions are the engine's expression language.** This parser
+/// extends `flutter3d_foundation`'s [ExpressionParser]: it reads the
+/// declarations and the blocks, and every expression in them is read and
+/// typed by the base class, under [materialSyntax] (the tokens versions 1
+/// and 2 know, no units, no comparisons) and with [materialBuiltins], so a
+/// file of either version reads exactly as it did before the language was
+/// lifted out.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show
+        ExpressionParser,
+        ExpressionScope,
+        ExpressionSyntax,
+        ExpressionSyntaxException,
+        ExpressionToken,
+        tokenizeExpression;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
 import 'package:flutter3d_shaders/backend.dart' show uniformBlocks;
 
 import 'material_ast.dart';
+
+/// The tokens the material language reads: the expression language's
+/// arithmetic, its own `{ } = ;`, and no units, exponents or comparisons,
+/// which no version of it has had.
+const ExpressionSyntax materialSyntax = ExpressionSyntax(
+  units: false,
+  exponents: false,
+  logic: false,
+  punctuation: '{}=;',
+);
 
 /// What the engine binds, and therefore the only names a `texture` declaration
 /// with `=` may point at.
@@ -161,112 +187,14 @@ final class MaterialSyntaxException extends Flutter3dFormatException {
 }
 
 /// Reads [source] as one material.
-MaterialProgram parseMaterial(String source) =>
-    _Parser(_lex(source)).parseMaterial();
-
-// ---------------------------------------------------------------------------
-// Lexing
-// ---------------------------------------------------------------------------
-
-/// A token's kind, as the character or word that opens it.
-///
-/// Strings rather than a type of their own: the parser compares against
-/// literals it writes out anyway (`'{'`, `'return'`), and a kind enum would be
-/// a second spelling of the same set with a conversion between them.
-final class _Token {
-  const _Token(this.kind, this.text, this.line, this.column, [this.number]);
-
-  /// One of `name`, `number`, `end`, or the punctuation itself.
-  final String kind;
-  final String text;
-  final int line;
-  final int column;
-
-  /// A number token's value as written; a token carries no unit.
-  final double? number;
-}
-
-const String _punctuation = '{}()=;,.+-*/';
-
-List<_Token> _lex(String source) {
-  final tokens = <_Token>[];
-  var line = 1;
-  var column = 1;
-  var at = 0;
-
-  void advance(int count) {
-    for (var i = 0; i < count; i++) {
-      if (source[at + i] == '\n') {
-        line++;
-        column = 1;
-      } else {
-        column++;
-      }
-    }
-    at += count;
+MaterialProgram parseMaterial(String source) {
+  final List<ExpressionToken> tokens;
+  try {
+    tokens = tokenizeExpression(source, syntax: materialSyntax);
+  } on ExpressionSyntaxException catch (error) {
+    throw MaterialSyntaxException(error.message, error.line, error.column);
   }
-
-  while (at < source.length) {
-    final ch = source[at];
-    if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
-      advance(1);
-      continue;
-    }
-    // `//` to the end of the line. A material is a thing an author comments,
-    // and a language with no comments is one whose files grow a README beside
-    // them.
-    if (ch == '/' && at + 1 < source.length && source[at + 1] == '/') {
-      while (at < source.length && source[at] != '\n') {
-        advance(1);
-      }
-      continue;
-    }
-
-    final startLine = line;
-    final startColumn = column;
-    if (_isDigit(ch) ||
-        (ch == '.' && at + 1 < source.length && _isDigit(source[at + 1]))) {
-      var end = at;
-      while (end < source.length &&
-          (_isDigit(source[end]) || source[end] == '.')) {
-        end++;
-      }
-      final text = source.substring(at, end);
-      final value = double.tryParse(text);
-      if (value == null) {
-        throw MaterialSyntaxException(
-          '"$text" is not a number.',
-          startLine,
-          startColumn,
-        );
-      }
-      advance(end - at);
-      tokens.add(_Token('number', text, startLine, startColumn, value));
-      continue;
-    }
-    if (_isNameStart(ch)) {
-      var end = at;
-      while (end < source.length && _isNamePart(source[end])) {
-        end++;
-      }
-      final text = source.substring(at, end);
-      advance(end - at);
-      tokens.add(_Token('name', text, startLine, startColumn));
-      continue;
-    }
-    if (_punctuation.contains(ch)) {
-      advance(1);
-      tokens.add(_Token(ch, ch, startLine, startColumn));
-      continue;
-    }
-    throw MaterialSyntaxException(
-      '"$ch" is not part of this language.',
-      startLine,
-      startColumn,
-    );
-  }
-  tokens.add(_Token('end', '', line, column));
-  return tokens;
+  return _Parser(tokens).parseMaterial();
 }
 
 /// Names a `let` would collide with once `emitMaterialFragment` writes it into
@@ -387,24 +315,20 @@ const List<MaterialInput> _surfaceVersion2Inputs = <MaterialInput>[
   ...materialCompositeInputs,
 ];
 
-bool _isDigit(String ch) => ch.compareTo('0') >= 0 && ch.compareTo('9') <= 0;
-
-bool _isNameStart(String ch) =>
-    (ch.compareTo('a') >= 0 && ch.compareTo('z') <= 0) ||
-    (ch.compareTo('A') >= 0 && ch.compareTo('Z') <= 0) ||
-    ch == '_';
-
-bool _isNamePart(String ch) => _isNameStart(ch) || _isDigit(ch);
-
 // ---------------------------------------------------------------------------
 // Parsing
 // ---------------------------------------------------------------------------
 
-final class _Parser {
-  _Parser(this.tokens);
-
-  final List<_Token> tokens;
-  int at = 0;
+/// The material language over the expression language's parser: the
+/// declarations and blocks are read here, every expression by the base
+/// class, with a material's names resolved by [resolveName] and `sample`
+/// read by [parseSpecialCall].
+final class _Parser extends ExpressionParser {
+  _Parser(super.tokens)
+    : super(
+        scope: const ExpressionScope(builtins: materialBuiltins),
+        syntax: materialSyntax,
+      );
 
   final List<MaterialParameter> parameters = <MaterialParameter>[];
   final List<MaterialTextureSlot> textures = <MaterialTextureSlot>[];
@@ -424,11 +348,11 @@ final class _Parser {
 
   /// Where the fragment body first read `lit`, to point at when the material
   /// turns out to have no `light` block to gather it.
-  _Token? litAt;
+  ExpressionToken? litAt;
 
   /// Where a body first read the scene behind it, to point at when the
   /// material turns out not to be translucent.
-  _Token? sceneAt;
+  ExpressionToken? sceneAt;
   final Set<String> inputsUsed = <String>{};
 
   /// The slots `sample` read, for the rule that a full-screen stage and a
@@ -486,35 +410,10 @@ final class _Parser {
     returns: MaterialType.vec4,
   );
 
-  _Token get current => tokens[at];
-
-  Never fail(String message, [_Token? where]) {
+  @override
+  Never fail(String message, [ExpressionToken? where]) {
     final token = where ?? current;
     throw MaterialSyntaxException(message, token.line, token.column);
-  }
-
-  _Token take(String kind, String what) {
-    if (current.kind != kind) {
-      fail(
-        'expected $what, found "${current.text.isEmpty ? 'the end of the '
-                  'file' : current.text}".',
-      );
-    }
-    final token = current;
-    at++;
-    return token;
-  }
-
-  bool takeIf(String kind) {
-    if (current.kind != kind) return false;
-    at++;
-    return true;
-  }
-
-  bool takeWordIf(String word) {
-    if (current.kind != 'name' || current.text != word) return false;
-    at++;
-    return true;
   }
 
   MaterialProgram parseMaterial() {
@@ -536,20 +435,20 @@ final class _Parser {
     List<MaterialStatement>? composite;
     var state = MaterialFileState.none;
     var workgroup = (8, 8);
-    _Token? lightAt;
-    _Token? ambientAt;
-    _Token? compositeAt;
-    _Token? stateAt;
-    _Token? workgroupAt;
+    ExpressionToken? lightAt;
+    ExpressionToken? ambientAt;
+    ExpressionToken? compositeAt;
+    ExpressionToken? stateAt;
+    ExpressionToken? workgroupAt;
 
     /// The body a word opens, read once.
     List<MaterialStatement> once(
       List<MaterialStatement>? already,
-      _Token where,
+      ExpressionToken where,
       String what,
       _Block block,
     ) {
-      at++;
+      position++;
       if (already != null) fail('a material has one $what.', where);
       return parseBody(block);
     }
@@ -565,14 +464,14 @@ final class _Parser {
       } else if (takeWordIf('texture')) {
         parseTexture();
       } else if (word == 'fragment' && kind != MaterialStageKind.compute) {
-        at++;
+        position++;
         if (body != null) fail('a material has one fragment body.');
         body = parseBody(surface ? fragmentBlock : fullscreenBlock);
       } else if (word == 'kernel' && kind == MaterialStageKind.compute) {
         body = once(body, where, 'kernel', kernelBlock);
       } else if (word == 'light' && surface) {
         lightAt = where;
-        at++;
+        position++;
         if (light != null) fail('a material has one light block.', lightAt);
         light = parseBody(lightBlock);
       } else if (surface &&
@@ -588,7 +487,7 @@ final class _Parser {
           '"f3dmat 2".',
         );
       } else if (word == 'state' && surface) {
-        at++;
+        position++;
         if (stateAt != null) fail('a material has one state block.', where);
         stateAt = where;
         state = parseState();
@@ -601,7 +500,7 @@ final class _Parser {
         compositeAt = where;
         composite = once(composite, where, 'composite block', compositeBlock);
       } else if (word == 'workgroup' && kind == MaterialStageKind.compute) {
-        at++;
+        position++;
         if (workgroupAt != null) fail('a kernel has one workgroup.', where);
         workgroupAt = where;
         workgroup = parseWorkgroup();
@@ -652,7 +551,7 @@ final class _Parser {
     }
     // The two hooks shape the light a `light` block gathers; without one
     // there is no `lit` for them to shape.
-    for (final (hook, where) in <(String, _Token?)>[
+    for (final (hook, where) in <(String, ExpressionToken?)>[
       ('ambient', ambientAt),
       ('composite', compositeAt),
     ]) {
@@ -756,12 +655,12 @@ final class _Parser {
     bool? effectsDepth;
     var environment = true;
     var directional = true;
-    _Token? cutoffAt;
-    _Token? coverageAt;
-    _Token? compareAt;
-    _Token? effectsAt;
+    ExpressionToken? cutoffAt;
+    ExpressionToken? coverageAt;
+    ExpressionToken? compareAt;
+    ExpressionToken? effectsAt;
 
-    bool onOff(_Token key) {
+    bool onOff(ExpressionToken key) {
       final value = take('name', '"on" or "off" after "${key.text}"');
       return switch (value.text) {
         'on' => true,
@@ -1089,7 +988,7 @@ final class _Parser {
   /// GLSL would allow some of this and the result is a material whose author
   /// thinks they are reading the surface normal and is reading their own
   /// variable — a bug that looks like the lighting being wrong.
-  void checkFreeName(_Token token) {
+  void checkFreeName(ExpressionToken token) {
     final name = token.text;
     for (final input in takenInputs()) {
       if (input.name == name) {
@@ -1104,7 +1003,7 @@ final class _Parser {
     if (kind == MaterialStageKind.fullscreen && name == 'scene') {
       fail('"scene" is the picture a full-screen stage draws over.', token);
     }
-    if (MaterialBuiltin.byName(name) != null || name == 'sample') {
+    if (builtinNamed(name) != null || name == 'sample') {
       fail('"$name" is a builtin function.', token);
     }
     if (MaterialType.numeric.values.any((t) => t.name == name)) {
@@ -1274,79 +1173,18 @@ final class _Parser {
     return MaterialOutput(output, value);
   }
 
-  // Expressions, by precedence: sum over product over unary over postfix.
+  /// `sample(slot, uv)`, the one call that reads something outside the
+  /// material.
+  @override
+  MaterialExpression? parseSpecialCall(ExpressionToken name) =>
+      name.text == 'sample' ? sampleCall(name) : null;
 
-  MaterialExpression parseExpression() {
-    var left = parseProduct();
-    while (current.kind == '+' || current.kind == '-') {
-      final op = take(current.kind, 'an operator');
-      final right = parseProduct();
-      left = binary(op, left, right);
-    }
-    return left;
-  }
-
-  MaterialExpression parseProduct() {
-    var left = parseUnary();
-    while (current.kind == '*' || current.kind == '/') {
-      final op = take(current.kind, 'an operator');
-      final right = parseUnary();
-      left = binary(op, left, right);
-    }
-    return left;
-  }
-
-  MaterialExpression parseUnary() {
-    if (current.kind == '-') {
-      final token = take('-', '"-"');
-      final operand = parseUnary();
-      if (!operand.type.isNumeric) {
-        fail('a ${operand.type} cannot be negated.', token);
-      }
-      if (operand is MaterialConstant) {
-        return MaterialConstant(<double>[
-          for (final component in operand.value) -component,
-        ], operand.type);
-      }
-      return MaterialNegate(operand);
-    }
-    return parsePostfix();
-  }
-
-  MaterialExpression parsePostfix() {
-    var value = parsePrimary();
-    while (takeIf('.')) {
-      final field = take('name', 'a component after "."');
-      value = swizzle(value, field);
-    }
-    return value;
-  }
-
-  MaterialExpression parsePrimary() {
-    if (takeIf('(')) {
-      final inner = parseExpression();
-      take(')', '")"');
-      return inner;
-    }
-    if (current.kind == 'number') {
-      final token = take('number', 'a number');
-      return MaterialConstant(<double>[token.number!], MaterialType.float);
-    }
-    if (current.kind != 'name') {
-      fail('expected a value, found "${current.text}".');
-    }
-
-    final token = take('name', 'a value');
+  /// A material's names, in the order a body sees them: its `let`s, its
+  /// parameters, then the inputs of the body being read; and a sentence
+  /// naming where a name it cannot read here is read instead.
+  @override
+  MaterialExpression resolveName(ExpressionToken token) {
     final name = token.text;
-
-    // A constructor.
-    for (final type in MaterialType.numeric.values) {
-      if (type.name == name) return construct(type, token);
-    }
-    if (name == 'sample') return sampleCall(token);
-    final builtin = MaterialBuiltin.byName(name);
-    if (builtin != null) return call(builtin, token);
-
     final local = locals[name];
     if (local != null) return MaterialLocalRef(name, local);
     final parameter = parameterNamed(name);
@@ -1437,58 +1275,7 @@ final class _Parser {
     return null;
   }
 
-  List<MaterialExpression> arguments() {
-    take('(', '"(" and the arguments');
-    final arguments = <MaterialExpression>[];
-    if (!takeIf(')')) {
-      do {
-        arguments.add(parseExpression());
-      } while (takeIf(','));
-      take(')', '")" after the arguments');
-    }
-    return arguments;
-  }
-
-  MaterialExpression construct(MaterialType type, _Token token) {
-    final parts = arguments();
-    var components = 0;
-    for (final part in parts) {
-      if (!part.type.isNumeric) {
-        fail('a ${part.type} is not a number and cannot go in a $type.', token);
-      }
-      components += part.type.components;
-    }
-    // GLSL's own rule for the one-argument case: `vec3(1.0)` is every
-    // component. Anything else has to add up exactly.
-    if (parts.length == 1 && parts.single.type == MaterialType.float) {
-      final only = parts.single;
-      if (only is MaterialConstant) {
-        return MaterialConstant(
-          List<double>.filled(type.components, only.value.single),
-          type,
-        );
-      }
-      return MaterialConstruct(
-        List<MaterialExpression>.filled(type.components, only),
-        type,
-      );
-    }
-    if (components != type.components) {
-      fail(
-        'a $type takes ${type.components} components and these add up to '
-        '$components.',
-        token,
-      );
-    }
-    if (parts.every((p) => p is MaterialConstant)) {
-      return MaterialConstant(<double>[
-        for (final part in parts) ...(part as MaterialConstant).value,
-      ], type);
-    }
-    return MaterialConstruct(parts, type);
-  }
-
-  MaterialExpression sampleCall(_Token token) {
+  MaterialExpression sampleCall(ExpressionToken token) {
     final body = block;
     if (body != null && !body.samples) {
       fail(
@@ -1515,101 +1302,5 @@ final class _Parser {
     }
     take(')', '")" after sample');
     return MaterialSample(slot, uv);
-  }
-
-  MaterialExpression call(MaterialBuiltin builtin, _Token token) {
-    final parts = arguments();
-    if (parts.length != builtin.arity) {
-      fail(
-        '${builtin.name} takes ${builtin.arity} arguments and was given '
-        '${parts.length}.',
-        token,
-      );
-    }
-    var width = 1;
-    for (final part in parts) {
-      if (!part.type.isNumeric) {
-        fail('${builtin.name} takes numbers, not a ${part.type}.', token);
-      }
-      if (part.type.components > width) width = part.type.components;
-    }
-    for (final part in parts) {
-      final components = part.type.components;
-      if (components != width && !(builtin.componentWise && components == 1)) {
-        fail(
-          '${builtin.name} was given a ${part.type} beside a '
-          '${MaterialType.numeric[width]}.',
-          token,
-        );
-      }
-    }
-    final resultWidth = builtin.resultComponents ?? width;
-    return MaterialCall(builtin, parts, MaterialType.numeric[resultWidth]!);
-  }
-
-  MaterialExpression binary(
-    _Token op,
-    MaterialExpression left,
-    MaterialExpression right,
-  ) {
-    if (!left.type.isNumeric || !right.type.isNumeric) {
-      fail('"${op.text}" works on numbers, not on a texture.', op);
-    }
-    final a = left.type.components;
-    final b = right.type.components;
-    if (a != b && a != 1 && b != 1) {
-      fail(
-        'a ${left.type} and a ${right.type} cannot be combined with '
-        '"${op.text}".',
-        op,
-      );
-    }
-    return MaterialBinary(
-      op.text,
-      left,
-      right,
-      MaterialType.numeric[a > b ? a : b]!,
-    );
-  }
-
-  MaterialExpression swizzle(MaterialExpression target, _Token field) {
-    if (!target.type.isNumeric) {
-      fail('a ${target.type} has no components.', field);
-    }
-    const sets = <String>['xyzw', 'rgba'];
-    final indices = <int>[];
-    String? chosen;
-    for (final letter in field.text.split('')) {
-      final set = sets.firstWhere((s) => s.contains(letter), orElse: () => '');
-      if (set.isEmpty) {
-        fail(
-          '"$letter" is not a component: xyzw and rgba are, and one '
-          'swizzle does not mix the two.',
-          field,
-        );
-      }
-      // GLSL refuses `.xg` too, and for the reason it reads badly rather than
-      // for one about the hardware: two names for the same component in one
-      // expression is somebody having lost track of which vector they are in.
-      chosen ??= set;
-      if (set != chosen) {
-        fail('"${field.text}" mixes xyzw with rgba.', field);
-      }
-      final index = set.indexOf(letter);
-      if (index >= target.type.components) {
-        fail('a ${target.type} has no "$letter".', field);
-      }
-      indices.add(index);
-    }
-    if (indices.isEmpty || indices.length > 4) {
-      fail('"${field.text}" is not one to four components.', field);
-    }
-    final type = MaterialType.numeric[indices.length]!;
-    if (target is MaterialConstant) {
-      return MaterialConstant(<double>[
-        for (final index in indices) target.value[index],
-      ], type);
-    }
-    return MaterialSwizzle(target, indices, type);
   }
 }

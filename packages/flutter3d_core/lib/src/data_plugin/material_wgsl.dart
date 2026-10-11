@@ -594,7 +594,7 @@ final class _WgslWriter extends MaterialExpressionVisitor<String> {
     }
 
     // The sixteen builtins are named in WGSL as they are in GLSL.
-    return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
+    return '${builtin.name}(${arguments.map(spread).join(', ')})';
   }
 
   @override

@@ -871,7 +871,7 @@ final class _GlslExpressions extends MaterialExpressionVisitor<String> {
           : text;
     }
 
-    return '${builtin.glsl}(${arguments.map(spread).join(', ')})';
+    return '${builtin.name}(${arguments.map(spread).join(', ')})';
   }
 
   @override

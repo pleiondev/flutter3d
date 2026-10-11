@@ -394,9 +394,11 @@ base class ExpressionParser {
     fail('"${name.text}" is not bound here.', name);
   }
 
-  /// A call the host reads itself, given the name before its `(`, or null
-  /// to read it as a builtin. Asked after the constructors and before the
-  /// builtins; the material language reads `sample(slot, uv)` here.
+  /// A form the host reads itself, given the name it starts with (already
+  /// taken; its `(`, if it has one, is [current]), or null to read the
+  /// name as a builtin or a variable. Asked after the constructors and
+  /// before the builtins; the material language reads `sample(slot, uv)`
+  /// here.
   Expression? parseSpecialCall(ExpressionToken name) => null;
 
   /// The builtin called [name], from the scope's.
@@ -548,9 +550,7 @@ base class ExpressionParser {
     for (final type in ExpressionType.numeric.values) {
       if (type.name == name) return construct(type, token);
     }
-    if (current.kind == '(') {
-      if (parseSpecialCall(token) case final special?) return special;
-    }
+    if (parseSpecialCall(token) case final special?) return special;
     final builtin = builtinNamed(name);
     if (builtin != null) return call(builtin, token);
     return resolveName(token);

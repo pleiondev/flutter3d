@@ -17,6 +17,8 @@ library;
 import 'package:flutter3d_core/flutter3d_core.dart'
     show AbsolutePixels, FrameFraction, ResourceSize, ResourceSizeVisitor;
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show CompiledExpression, ExpressionCodec;
 import 'package:test/test.dart';
 
 const String _source = '''
@@ -203,6 +205,35 @@ void main() {
       ),
     );
     expect(() => emitMaterialFragment(foreign), throwsA(isA<ArgumentError>()));
+  });
+
+  test('a material expression is an expression of the expression language', () {
+    final program = parseMaterial(_source);
+    final let = program.body.first as MaterialLet;
+    // A reader that knows only the expression language: an input and a
+    // parameter are variables to it, and it runs the tree.
+    final compiled = CompiledExpression(let.value);
+    expect(compiled.variables, <String>['nDotV', 'strength']);
+    expect(
+      compiled.evaluateNamed(<String, Object>{'nDotV': 0.25, 'strength': 2.0}),
+      <double>[0.5],
+    );
+    expect(
+      const ExpressionCodec().encode(let.value),
+      '(clamp(nDotV, 0.0, 1.0) * strength)',
+    );
+    // And `sample`, which only a material has, is unknown to it.
+    final sampled = parseMaterial('''
+material Sampled {
+  texture base = base_color_texture;
+  fragment { return sample(base, uv); }
+}
+''');
+    final returned = sampled.body.single as MaterialReturn;
+    expect(
+      () => CompiledExpression(returned.value),
+      throwsA(isA<ArgumentError>()),
+    );
   });
 
   test('a resource size is read by its kind, and an unknown one says so', () {

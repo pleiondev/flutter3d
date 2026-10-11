@@ -18,52 +18,33 @@
 /// it instead (D24).
 library;
 
-import 'dart:math' as math;
-
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show
+        ExpressionBuiltin,
+        ExpressionCall,
+        ExpressionConditional,
+        ExpressionConstant,
+        ExpressionConstruct,
+        ExpressionBinary,
+        ExpressionNegate,
+        ExpressionNot,
+        ExpressionSwizzle,
+        ExpressionType,
+        ExpressionVariable,
+        ExpressionVisitor,
+        Expression,
+        applyExpressionOperator,
+        broadcastExpressionArguments;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show CompareFunction;
 
-/// A type in the material language.
+/// A type in the material language: the expression language's
+/// [ExpressionType], every one of a material's dimensionless.
 ///
-/// A `final class` with const instances rather than an `enum`, which is the
-/// rule for anything a published package exports: a later row adds `mat3` and
-/// `int`, and adding a value to an exported enum breaks every `switch` written
-/// against it. Nothing switches on these anyway — [components] is what every
-/// reader actually asks.
-final class MaterialType {
-  const MaterialType._(this.name, this.components);
-
-  /// One number.
-  static const MaterialType float = MaterialType._('float', 1);
-  static const MaterialType vec2 = MaterialType._('vec2', 2);
-  static const MaterialType vec3 = MaterialType._('vec3', 3);
-  static const MaterialType vec4 = MaterialType._('vec4', 4);
-
-  /// A texture slot. Not a value: it can be sampled and nothing else, which is
-  /// why its [components] is zero rather than some number of channels.
-  static const MaterialType texture = MaterialType._('texture', 0);
-
-  /// The numeric types, by how many components they have — `numeric[3]` is
-  /// [vec3]. Index zero is absent on purpose: there is no zero-component
-  /// number, and [texture] taking that slot would make an arithmetic mistake
-  /// resolve to a texture instead of failing.
-  static const Map<int, MaterialType> numeric = <int, MaterialType>{
-    1: float,
-    2: vec2,
-    3: vec3,
-    4: vec4,
-  };
-
-  final String name;
-
-  /// Zero for [texture].
-  final int components;
-
-  bool get isNumeric => components > 0;
-
-  @override
-  String toString() => name;
-}
+/// `MaterialType.float`, `vec2`, `vec3`, `vec4`, `texture` and `numeric`
+/// read as they always did; nothing switches on them, and [components] is
+/// what every reader actually asks.
+typedef MaterialType = ExpressionType;
 
 /// One declared parameter: a name, a type and the value a variant that says
 /// nothing about it gets.
@@ -478,254 +459,129 @@ const MaterialInput materialLitInput = MaterialInput(
   'lit',
 );
 
-/// A function the language knows, its type rule and how to compute it.
+/// A function the language knows: the expression language's
+/// [ExpressionBuiltin], its type rule and how to compute it.
 ///
 /// **One table, read by the emitter and by the evaluator.** A builtin that
 /// existed on one side and not the other is the exact failure this whole row
-/// is against, so neither side has its own list: the emitter takes [glsl] and
-/// the software backend takes [apply], from the same const instance.
-final class MaterialBuiltin {
-  const MaterialBuiltin._(
-    this.name, {
-    required this.arity,
-    required this.glsl,
-    required this.apply,
-    this.componentWise = true,
-    this.resultComponents,
-  });
+/// is against, so neither side has its own list: the emitter writes the
+/// builtin's [ExpressionBuiltin.name], which is GLSL's word for it, and the
+/// software backend calls [ExpressionBuiltin.apply], from the same const
+/// instance. A material calls the ones in [materialBuiltins].
+typedef MaterialBuiltin = ExpressionBuiltin;
 
-  final String name;
-  final int arity;
+/// The builtins a material may call, the sixteen versions 1 and 2 have:
+/// `dot`, `length`, `normalize`, `mix`, `clamp`, `smoothstep`, `step`,
+/// `pow`, `min`, `max`, `abs`, `sqrt`, `floor`, `fract`, `sin` and `cos`.
+///
+/// **Fewer than the expression language has**, because each one is also a
+/// word every backend's shading language must have under the same name;
+/// `exp` and `atan2` join when a version of the material language says so.
+/// A name outside this list stays free for a `let`, as it always was.
+const List<MaterialBuiltin> materialBuiltins = <MaterialBuiltin>[
+  ExpressionBuiltin.dot,
+  ExpressionBuiltin.length,
+  ExpressionBuiltin.normalize,
+  ExpressionBuiltin.mix,
+  ExpressionBuiltin.clamp,
+  ExpressionBuiltin.smoothstep,
+  ExpressionBuiltin.step,
+  ExpressionBuiltin.pow,
+  ExpressionBuiltin.min,
+  ExpressionBuiltin.max,
+  ExpressionBuiltin.abs,
+  ExpressionBuiltin.sqrt,
+  ExpressionBuiltin.floor,
+  ExpressionBuiltin.fract,
+  ExpressionBuiltin.sin,
+  ExpressionBuiltin.cos,
+];
 
-  /// The GLSL name, which is the same word for all of these — the language's
-  /// vocabulary is GLSL's on purpose, so that an author who knows one knows the
-  /// other and the emitted shader reads like the source.
-  final String glsl;
-
-  /// The value, given each argument's components. Arguments are already
-  /// broadcast to a common width when [componentWise] is set, so an
-  /// implementation here never has to think about `mix(vec3, vec3, float)`.
-  final List<double> Function(List<List<double>> arguments) apply;
-
-  /// Whether a float argument beside a vector one is spread across it —
-  /// `clamp(v, 0.0, 1.0)` and `mix(a, b, t)`. False for the ones that collapse
-  /// a vector to a number, where a float argument means something else.
-  final bool componentWise;
-
-  /// Fixed for the collapsing ones, and null when the result is as wide as the
-  /// widest argument.
-  final int? resultComponents;
-
-  // `dot` and `length` collapse a vector to a number, so — as [componentWise]
-  // says of them — a float beside a vector is not spread: GLSL has no
-  // `dot(vec3, float)`, and accepting one here parsed a material whose shader
-  // then failed to compile.
-  static const MaterialBuiltin dot = MaterialBuiltin._(
-    'dot',
-    arity: 2,
-    glsl: 'dot',
-    apply: _dot,
-    componentWise: false,
-    resultComponents: 1,
-  );
-  static const MaterialBuiltin length = MaterialBuiltin._(
-    'length',
-    arity: 1,
-    glsl: 'length',
-    apply: _length,
-    componentWise: false,
-    resultComponents: 1,
-  );
-  static const MaterialBuiltin normalize = MaterialBuiltin._(
-    'normalize',
-    arity: 1,
-    glsl: 'normalize',
-    apply: _normalize,
-    componentWise: false,
-  );
-  static const MaterialBuiltin mix = MaterialBuiltin._(
-    'mix',
-    arity: 3,
-    glsl: 'mix',
-    apply: _mix,
-  );
-  static const MaterialBuiltin clamp = MaterialBuiltin._(
-    'clamp',
-    arity: 3,
-    glsl: 'clamp',
-    apply: _clamp,
-  );
-  static const MaterialBuiltin smoothstep = MaterialBuiltin._(
-    'smoothstep',
-    arity: 3,
-    glsl: 'smoothstep',
-    apply: _smoothstep,
-  );
-  static const MaterialBuiltin step = MaterialBuiltin._(
-    'step',
-    arity: 2,
-    glsl: 'step',
-    apply: _step,
-  );
-  static const MaterialBuiltin pow = MaterialBuiltin._(
-    'pow',
-    arity: 2,
-    glsl: 'pow',
-    apply: _pow,
-  );
-  static const MaterialBuiltin min = MaterialBuiltin._(
-    'min',
-    arity: 2,
-    glsl: 'min',
-    apply: _min,
-  );
-  static const MaterialBuiltin max = MaterialBuiltin._(
-    'max',
-    arity: 2,
-    glsl: 'max',
-    apply: _max,
-  );
-  static const MaterialBuiltin abs = MaterialBuiltin._(
-    'abs',
-    arity: 1,
-    glsl: 'abs',
-    apply: _abs,
-  );
-  static const MaterialBuiltin sqrt = MaterialBuiltin._(
-    'sqrt',
-    arity: 1,
-    glsl: 'sqrt',
-    apply: _sqrt,
-  );
-  static const MaterialBuiltin floor = MaterialBuiltin._(
-    'floor',
-    arity: 1,
-    glsl: 'floor',
-    apply: _floor,
-  );
-  static const MaterialBuiltin fract = MaterialBuiltin._(
-    'fract',
-    arity: 1,
-    glsl: 'fract',
-    apply: _fract,
-  );
-  static const MaterialBuiltin sin = MaterialBuiltin._(
-    'sin',
-    arity: 1,
-    glsl: 'sin',
-    apply: _sin,
-  );
-  static const MaterialBuiltin cos = MaterialBuiltin._(
-    'cos',
-    arity: 1,
-    glsl: 'cos',
-    apply: _cos,
-  );
-
-  static const List<MaterialBuiltin> all = <MaterialBuiltin>[
-    dot,
-    length,
-    normalize,
-    mix,
-    clamp,
-    smoothstep,
-    step,
-    pow,
-    min,
-    max,
-    abs,
-    sqrt,
-    floor,
-    fract,
-    sin,
-    cos,
-  ];
-
-  static MaterialBuiltin? byName(String name) {
-    for (final builtin in all) {
-      if (builtin.name == name) return builtin;
-    }
-    return null;
-  }
-}
-
-/// An expression, typed by the parser rather than by whoever reads it later.
+/// An expression of a material: the expression language's [Expression].
+///
+/// **One tree, two languages.** A material's expressions are read by the
+/// expression language's parser, so the arithmetic nodes are that
+/// language's own ([MaterialConstant] is [ExpressionConstant], and so on),
+/// and only what a material adds is a kind of its own: [MaterialInputRef],
+/// [MaterialParamRef] and [MaterialLocalRef], which are variables to a
+/// reader that knows only the expression language, and [MaterialSample].
 ///
 /// **An open set, read through a visitor** (1.0). A translator — to GLSL, to
 /// WGSL, to the software backend's evaluator, or one a backend from outside
-/// brings — walks the tree with [accept] and a [MaterialExpressionVisitor],
-/// rather than with a `switch` over the kinds. A kind a later minor adds (or
-/// a plugin's own) arrives at [MaterialExpressionVisitor.visitUnknown], so
-/// a translator written against 1.0 keeps compiling and refuses the node by
-/// name instead of breaking. `materialLanguageVersion` still says which
-/// kinds a translator promises to know.
-abstract base class MaterialExpression {
-  const MaterialExpression(this.type);
-
-  final MaterialType type;
-
-  /// Hands this expression to the [visitor]'s method for its kind.
-  ///
-  /// [MaterialExpressionVisitor.visitUnknown] by default: what a kind the
-  /// visitor predates answers, including a plugin's own kind that does not
-  /// override this.
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitUnknown(this);
-}
-
-/// Something that reads every kind of [MaterialExpression]: a translator,
-/// an evaluator, a check.
-///
-/// **One method per kind 1.0 knows, and [visitUnknown] for the rest.** Each
-/// `visit…` here is abstract, so a translator written against 1.0 says what
-/// it does with every kind there is; a kind a later minor adds gains a
-/// method whose default body hands the node to [visitUnknown], so the same
-/// translator keeps compiling and answers the new kind as it answers any
-/// it does not know — usually by refusing it with its name.
-///
-/// Extendable outside this package, and stays so through 1.x.
-abstract base class MaterialExpressionVisitor<R> {
-  const MaterialExpressionVisitor();
-
-  R visitConstant(MaterialConstant expression);
-  R visitInputRef(MaterialInputRef expression);
-  R visitParamRef(MaterialParamRef expression);
-  R visitLocalRef(MaterialLocalRef expression);
-  R visitConstruct(MaterialConstruct expression);
-  R visitSwizzle(MaterialSwizzle expression);
-  R visitNegate(MaterialNegate expression);
-  R visitBinary(MaterialBinary expression);
-  R visitCall(MaterialCall expression);
-  R visitSample(MaterialSample expression);
-
-  /// What a kind this visitor has no method for answers: one a later minor
-  /// added, or a plugin's own.
-  R visitUnknown(MaterialExpression expression);
-}
+/// brings — walks the tree with [Expression.accept] and a
+/// [MaterialExpressionVisitor], rather than with a `switch` over the kinds.
+/// A kind a later minor adds (or a plugin's own) arrives at
+/// [ExpressionVisitor.visitUnknown], so a translator written against 1.0
+/// keeps compiling and refuses the node by name instead of breaking.
+/// `materialLanguageVersion` still says which kinds a translator promises
+/// to know.
+typedef MaterialExpression = Expression;
 
 /// A literal, and the one place a `vec3(1.0, 0.0, 0.0)` that is entirely
 /// constant ends up: the parser folds a constructor whose arguments are all
 /// literals, because a parameter is a constant too and folding is what makes a
 /// variant's value reach the shader as a number.
-final class MaterialConstant extends MaterialExpression {
-  const MaterialConstant(this.value, MaterialType type) : super(type);
+typedef MaterialConstant = ExpressionConstant;
 
-  final List<double> value;
+/// `vec3(...)`, `vec4(...)` and the rest, with arguments that are not all
+/// constant.
+typedef MaterialConstruct = ExpressionConstruct;
 
+/// `.x`, `.rgb`, `.xy` — component indices into the target.
+typedef MaterialSwizzle = ExpressionSwizzle;
+
+/// Unary minus. The only unary operator, because `!` needs a bool type the
+/// material language has not got.
+typedef MaterialNegate = ExpressionNegate;
+
+/// `+ - * /`, with GLSL's broadcasting: a float beside a vector spreads.
+typedef MaterialBinary = ExpressionBinary;
+
+/// A call to one of [materialBuiltins].
+typedef MaterialCall = ExpressionCall;
+
+/// The expression language's [ExpressionVisitor], with a method for each
+/// kind a material adds: its inputs, parameters and `let`s, and `sample`.
+///
+/// **This is the visitor of the expression language**, so a translator of
+/// materials is a translator of that language with four methods more; the
+/// three kinds a material never contains (a bare variable, `!` and `? :`)
+/// answer [visitUnknown] unless a translator says otherwise.
+///
+/// Extendable outside this package, and stays so through 1.x.
+abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R> {
+  const MaterialExpressionVisitor();
+
+  R visitInputRef(MaterialInputRef expression);
+  R visitParamRef(MaterialParamRef expression);
+  R visitLocalRef(MaterialLocalRef expression);
+  R visitSample(MaterialSample expression);
+
+  /// A variable a material did not bind: none the parser makes.
   @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitConstant(this);
+  R visitVariable(ExpressionVariable expression) => visitUnknown(expression);
+
+  /// `!`, which a material does not have.
+  @override
+  R visitNot(ExpressionNot expression) => visitUnknown(expression);
+
+  /// `? :`, which a material does not have.
+  @override
+  R visitConditional(ExpressionConditional expression) =>
+      visitUnknown(expression);
 }
 
 /// One of [materialInputs].
-final class MaterialInputRef extends MaterialExpression {
-  MaterialInputRef(this.input) : super(input.type);
+final class MaterialInputRef extends ExpressionVariable {
+  MaterialInputRef(this.input) : super(input.name, input.type);
 
   final MaterialInput input;
 
   @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitInputRef(this);
+  R accept<R>(ExpressionVisitor<R> visitor) =>
+      visitor is MaterialExpressionVisitor<R>
+      ? visitor.visitInputRef(this)
+      : visitor.visitVariable(this);
 }
 
 /// A declared parameter, before a variant has said what it is.
@@ -734,111 +590,47 @@ final class MaterialInputRef extends MaterialExpression {
 /// [specializeMaterial] — the source is parsed once and every variant is a
 /// fold of the same tree, rather than a parse per variant that could differ in
 /// some other way than the numbers.
-final class MaterialParamRef extends MaterialExpression {
-  MaterialParamRef(this.parameter) : super(parameter.type);
+final class MaterialParamRef extends ExpressionVariable {
+  MaterialParamRef(this.parameter) : super(parameter.name, parameter.type);
 
   final MaterialParameter parameter;
 
   @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitParamRef(this);
+  R accept<R>(ExpressionVisitor<R> visitor) =>
+      visitor is MaterialExpressionVisitor<R>
+      ? visitor.visitParamRef(this)
+      : visitor.visitVariable(this);
 }
 
 /// A `let` bound earlier in the body.
-final class MaterialLocalRef extends MaterialExpression {
-  const MaterialLocalRef(this.name, MaterialType type) : super(type);
-
-  final String name;
+final class MaterialLocalRef extends ExpressionVariable {
+  const MaterialLocalRef(super.name, super.type);
 
   @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitLocalRef(this);
-}
-
-/// `vec3(...)`, `vec4(...)` and the rest, with arguments that are not all
-/// constant.
-///
-/// GLSL's own rule, kept: the arguments' components are laid end to end and
-/// must add up to the result's width, so `vec4(rgb, a)` works and `vec4(rgb)`
-/// does not.
-final class MaterialConstruct extends MaterialExpression {
-  const MaterialConstruct(this.arguments, MaterialType type) : super(type);
-
-  final List<MaterialExpression> arguments;
-
-  @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitConstruct(this);
-}
-
-/// `.x`, `.rgb`, `.xy` — component indices into the target.
-final class MaterialSwizzle extends MaterialExpression {
-  const MaterialSwizzle(this.target, this.components, MaterialType type)
-    : super(type);
-
-  final MaterialExpression target;
-
-  /// Zero-based, in the order written.
-  final List<int> components;
-
-  @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitSwizzle(this);
-}
-
-/// Unary minus. The only unary operator, because `!` needs a bool type the
-/// language has not got.
-final class MaterialNegate extends MaterialExpression {
-  MaterialNegate(this.operand) : super(operand.type);
-
-  final MaterialExpression operand;
-
-  @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitNegate(this);
-}
-
-/// `+ - * /`, with GLSL's broadcasting: a float beside a vector spreads.
-final class MaterialBinary extends MaterialExpression {
-  const MaterialBinary(this.op, this.left, this.right, MaterialType type)
-    : super(type);
-
-  final String op;
-  final MaterialExpression left;
-  final MaterialExpression right;
-
-  @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitBinary(this);
-}
-
-/// A call to one of [MaterialBuiltin.all].
-final class MaterialCall extends MaterialExpression {
-  const MaterialCall(this.builtin, this.arguments, MaterialType type)
-    : super(type);
-
-  final MaterialBuiltin builtin;
-  final List<MaterialExpression> arguments;
-
-  @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) => visitor.visitCall(this);
+  R accept<R>(ExpressionVisitor<R> visitor) =>
+      visitor is MaterialExpressionVisitor<R>
+      ? visitor.visitLocalRef(this)
+      : visitor.visitVariable(this);
 }
 
 /// `sample(slot, uv)`.
 ///
 /// Its own node rather than a [MaterialBuiltin] because it is the one
-/// expression that reads something outside the material: a builtin's [
-/// MaterialBuiltin.apply] takes numbers and returns numbers, and this one
-/// needs whatever the backend binds textures with.
-final class MaterialSample extends MaterialExpression {
+/// expression that reads something outside the material: a builtin's
+/// [ExpressionBuiltin.apply] takes numbers and returns numbers, and this one
+/// needs whatever the backend binds textures with. A reader that knows only
+/// the expression language meets it at [ExpressionVisitor.visitUnknown].
+final class MaterialSample extends Expression {
   const MaterialSample(this.slot, this.uv) : super(MaterialType.vec4);
 
   final MaterialTextureSlot slot;
   final MaterialExpression uv;
 
   @override
-  R accept<R>(MaterialExpressionVisitor<R> visitor) =>
-      visitor.visitSample(this);
+  R accept<R>(ExpressionVisitor<R> visitor) =>
+      visitor is MaterialExpressionVisitor<R>
+      ? visitor.visitSample(this)
+      : visitor.visitUnknown(this);
 }
 
 /// One statement of a block: a `let`, a `return`, an `out`.
@@ -1223,135 +1015,19 @@ final class _Folder extends MaterialExpressionVisitor<MaterialExpression> {
       );
 }
 
-/// `+ - * /` on two values, with GLSL's broadcasting.
+/// `+ - * /` on two values, with GLSL's broadcasting: the expression
+/// language's [applyExpressionOperator].
 ///
 /// Exported because the software backend evaluates the same operators and a
 /// second implementation of "what does vec3 * float mean" is exactly the drift
 /// this language exists to remove.
-List<double> applyBinary(String op, List<double> a, List<double> b) {
-  final width = a.length > b.length ? a.length : b.length;
-  double at(List<double> value, int i) =>
-      value.length == 1 ? value[0] : value[i];
-  return <double>[
-    for (var i = 0; i < width; i++)
-      switch (op) {
-        '+' => at(a, i) + at(b, i),
-        '-' => at(a, i) - at(b, i),
-        '*' => at(a, i) * at(b, i),
-        '/' => at(a, i) / at(b, i),
-        _ => throw ArgumentError('"$op" is not an operator.'),
-      },
-  ];
-}
+List<double> applyBinary(String op, List<double> a, List<double> b) =>
+    applyExpressionOperator(op, a, b);
 
 /// Spreads a one-component argument across the widest one, for the builtins
-/// that take a float beside a vector.
-///
-/// Shared by the folder and the software backend, for the reason
-/// [applyBinary] is.
+/// that take a float beside a vector: the expression language's
+/// [broadcastExpressionArguments].
 List<List<double>> broadcastArguments(
   List<List<double>> arguments,
   MaterialBuiltin builtin,
-) {
-  if (!builtin.componentWise) return arguments;
-  var width = 1;
-  for (final argument in arguments) {
-    if (argument.length > width) width = argument.length;
-  }
-  return <List<double>>[
-    for (final argument in arguments)
-      argument.length == width
-          ? argument
-          : List<double>.filled(width, argument.single),
-  ];
-}
-
-List<double> _dot(List<List<double>> a) {
-  var sum = 0.0;
-  for (var i = 0; i < a[0].length; i++) {
-    sum += a[0][i] * a[1][i];
-  }
-  return <double>[sum];
-}
-
-List<double> _length(List<List<double>> a) {
-  var sum = 0.0;
-  for (final component in a[0]) {
-    sum += component * component;
-  }
-  return <double>[math.sqrt(sum)];
-}
-
-List<double> _normalize(List<List<double>> a) {
-  final length = _length(a)[0];
-  // GLSL's own behaviour is undefined at zero length; zero is the answer that
-  // does not put a NaN through the rest of the shader, and it is what
-  // `vector_math`'s `normalize` does too, so the two backends agree.
-  if (length == 0) return List<double>.filled(a[0].length, 0);
-  return <double>[for (final component in a[0]) component / length];
-}
-
-List<double> _mix(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++) a[0][i] + (a[1][i] - a[0][i]) * a[2][i],
-];
-
-List<double> _clamp(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++)
-    a[0][i] < a[1][i]
-        ? a[1][i]
-        : a[0][i] > a[2][i]
-        ? a[2][i]
-        : a[0][i],
-];
-
-List<double> _smoothstep(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++)
-    _smoothstepAt(a[0][i], a[1][i], a[2][i]),
-];
-
-double _smoothstepAt(double edge0, double edge1, double x) {
-  if (edge0 == edge1) return x < edge0 ? 0 : 1;
-  var t = (x - edge0) / (edge1 - edge0);
-  t = t < 0 ? 0 : (t > 1 ? 1 : t);
-  return t * t * (3 - 2 * t);
-}
-
-List<double> _step(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++) a[1][i] < a[0][i] ? 0.0 : 1.0,
-];
-
-List<double> _pow(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++) math.pow(a[0][i], a[1][i]).toDouble(),
-];
-
-List<double> _min(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++) a[0][i] < a[1][i] ? a[0][i] : a[1][i],
-];
-
-List<double> _max(List<List<double>> a) => <double>[
-  for (var i = 0; i < a[0].length; i++) a[0][i] > a[1][i] ? a[0][i] : a[1][i],
-];
-
-List<double> _abs(List<List<double>> a) => <double>[
-  for (final component in a[0]) component < 0 ? -component : component,
-];
-
-List<double> _sqrt(List<List<double>> a) => <double>[
-  for (final component in a[0]) math.sqrt(component),
-];
-
-List<double> _floor(List<List<double>> a) => <double>[
-  for (final component in a[0]) component.floorToDouble(),
-];
-
-List<double> _fract(List<List<double>> a) => <double>[
-  for (final component in a[0]) component - component.floorToDouble(),
-];
-
-List<double> _sin(List<List<double>> a) => <double>[
-  for (final component in a[0]) math.sin(component),
-];
-
-List<double> _cos(List<List<double>> a) => <double>[
-  for (final component in a[0]) math.cos(component),
-];
+) => broadcastExpressionArguments(arguments, builtin);

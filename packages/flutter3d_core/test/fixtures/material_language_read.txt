@@ -1,0 +1,863 @@
+== test/fixtures/v1/rim_glow.f3dmat
+name RimGlow v1 material inputs [albedo, nDotV]
+params [rimPower:float=[3.0], rimColor:vec3=[0.2, 0.5, 1.0] uniform MaterialParams]
+textures []
+fragment:
+  let facing = call:clamp:float(input:nDotV:float, const:float[0.0], const:float[1.0])
+  let rim = call:pow:float(binary:-:float(const:float[1.0], local:facing:float), param:rimPower:float)
+  return construct:vec4(binary:+:vec3(binary:*:vec3(input:albedo:vec3, binary:+:float(const:float[0.25], binary:*:float(const:float[0.75], local:facing:float))), binary:*:vec3(param:rimColor:vec3, local:rim:float)), const:float[1.0])
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#define F3D_NO_POINT_SHADOW
+#define F3D_NO_LIGHT_LIST
+#include <lib/surface.glsl>
+
+uniform MaterialParams {
+  vec3 rimColor;
+}
+material_params;
+
+// Never called: this material returns the light its surface
+// emits rather than gathering any. The prototypes in
+// surface.glsl still have to be satisfied.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return 1.0;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  float facing = clamp(s.n_dot_v, 0.0, 1.0);
+  float rim = pow((1.0 - facing), 3.0);
+  vec4 result = vec4(((s.albedo * (0.25 + (0.75 * facing))) + (material_params.rimColor * rim)), 1.0);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 0.401475000000, 0.543687500000, 0.914875000000, 1.00000000000
+  at 0.5: 0.525000000000, 0.312500000000, 0.250000000000, 1.00000000000
+  at 0.95: 0.770025000000, 0.385062500000, 0.192625000000, 1.00000000000
+== test/fixtures/v2/rim_glow.f3dmat
+name RimGlow v2 material inputs [albedo, ambient, direct, emissive, indirect, lightmap, lit, nDotV, normal, occlusion, sceneDepth, viewDepth, world]
+params [rimPower:float=[3.0], rimColor:vec3=[0.2, 0.5, 1.0] uniform MaterialParams, breath:float=[0.0] uniform MaterialParams]
+textures []
+fragment:
+  let facing = call:clamp:float(input:nDotV:float, const:float[0.0], const:float[1.0])
+  let rim = call:pow:float(binary:-:float(const:float[1.0], local:facing:float), param:rimPower:float)
+  let soft = call:clamp:float(binary:*:float(binary:-:float(input:sceneDepth:float, input:viewDepth:float), const:float[4.0]), const:float[0.0], const:float[1.0])
+  return construct:vec4(binary:+:vec3(binary:*:vec3(input:lit:vec3, binary:+:float(const:float[0.25], binary:*:float(const:float[0.75], local:facing:float))), binary:*:vec3(param:rimColor:vec3, local:rim:float)), local:soft:float)
+light:
+  return input:albedo:vec3
+vertex:
+  out world = binary:+:vec3(input:world:vec3, binary:*:vec3(input:normal:vec3, binary:*:float(const:float[0.02], param:breath:float)))
+ambient:
+  return binary:*:vec3(binary:*:vec3(input:albedo:vec3, binary:+:vec3(input:ambient:vec3, input:lightmap:vec3)), const:float[0.5])
+composite:
+  return binary:+:vec3(binary:*:vec3(binary:+:vec3(input:direct:vec3, input:indirect:vec3), input:occlusion:float), input:emissive:vec3)
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+// The opaque scene's surface buffer: in a, its depth along
+// the view axis in metres, nought where nothing was drawn.
+uniform sampler2D scene_depth_texture;
+
+uniform SceneDepthInfo {
+  // xy: one over the target's size. z: its rows when row
+  // zero is the bottom, nought when it is the top.
+  vec4 target;
+}
+scene_depth_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+// The material's light block, run once per light.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return ShadowFactor(s, light, i);
+}
+
+// The material's ambient block: the light the surface takes
+// from its surroundings, in place of the engine's own.
+vec3 ShadeAmbient(Surface s, vec3 f3d_lightmap) {
+  return ((s.albedo * (s.ambient + f3d_lightmap)) * 0.5);
+}
+
+// The material's composite block: how `lit` is added up.
+vec3 ShadeComposite(Surface s, vec3 f3d_direct, vec3 f3d_indirect) {
+  return (((f3d_direct + f3d_indirect) * s.occlusion) + s.emissive);
+}
+
+// `directional off`: every light the draw has but the
+// directional ones, which always sit in its eight slots.
+vec3 MaterialLights(Surface s) {
+  vec3 total = vec3(0.0);
+  int count = LightCount();
+  for (int i = 0; i < kTotalLights; i++) {
+    if (i >= count) break;
+    if (i < kMaxLights && frag_info.light_position[i].w < 0.5) continue;
+    LightSample light = SampleLight(i, s);
+    if (light.n_dot_l <= 0.0) continue;
+    light_transmittance = vec3(1.0);
+    float visibility = LightHasShadow(i)
+        ? LightVisibility(s, light, i) *
+              PointShadowFactor(v_world_position, s.n, i)
+        : 1.0;
+    if (visibility <= 0.0) continue;
+    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility * light_transmittance;
+  }
+  return total;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  vec3 f3d_direct = MaterialLights(s);
+  vec3 f3d_lightmap = SampleLightmap();
+  vec3 f3d_indirect = ShadeAmbient(s, f3d_lightmap);
+  vec3 lit = ShadeComposite(s, f3d_direct, f3d_indirect);
+  // Keeps what the engine binds to every lit stage; no frame
+  // takes this branch.
+  if (frag_info.frame_params.w < 0.0) {
+    lit += f3d_direct + f3d_lightmap + s.ambient + s.emissive + vec3(s.occlusion);
+  }
+  float f3d_view_depth = ViewDepth();
+  vec2 f3d_scene_uv = FragCoordFromTop(scene_depth_info.target.z) * scene_depth_info.target.xy;
+  float f3d_stored = textureLod(scene_depth_texture, f3d_scene_uv, 0.0).a;
+  float f3d_scene_depth = f3d_stored > 0.0 ? f3d_stored : 1000000.0;
+  vec3 f3d_scene_position = Orthographic()
+      ? v_world_position + fog_info.forward.xyz * (f3d_scene_depth - f3d_view_depth)
+      : fog_info.eye.xyz + (v_world_position - fog_info.eye.xyz) * (f3d_scene_depth / max(f3d_view_depth, 1e-6));
+  float facing = clamp(s.n_dot_v, 0.0, 1.0);
+  float rim = pow((1.0 - facing), 3.0);
+  float soft = clamp(((f3d_scene_depth - f3d_view_depth) * 4.0), 0.0, 1.0);
+  vec4 result = vec4(((lit * (0.25 + (0.75 * facing))) + (material_params.rimColor * rim)), soft);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- vertex glsl
+#version 460 core
+
+// Generated from the vertex block of a material written in
+// the material language, version 2. The source is the thing
+// to edit. `mesh.vert` with the
+// block between the engine's answer and the varyings.
+
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+#include <lib/morph.glsl>
+
+uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+// The view-projection alone, for a block that says where in
+// the world the vertex is rather than where in the mesh.
+uniform MaterialVertexInfo {
+  mat4 view_projection;
+}
+material_vertex_info;
+
+uniform MaterialParams {
+  vec3 rimColor;
+  float breath;
+}
+material_params;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+out vec4 v_instance;
+
+void main() {
+  vec3 morphed_position = position;
+  vec3 morphed_normal = normal;
+  vec4 morphed_tangent = tangent;
+  ApplyMorph(morphed_position, morphed_normal, morphed_tangent);
+  vec3 f3d_position = morphed_position;
+  vec3 f3d_object_normal = morphed_normal;
+  vec3 f3d_tangent = morphed_tangent.xyz;
+  bool f3d_mirrored = determinant(mat3(frame_info.model)) < 0.0;
+  vec3 f3d_world = (frame_info.model * vec4(f3d_position, 1.0)).xyz;
+  vec3 f3d_normal = mat3(frame_info.normal_matrix) * f3d_object_normal;
+  vec3 f3d_out_position = f3d_position;
+  vec3 f3d_out_world = f3d_world;
+  vec3 f3d_out_normal = f3d_normal;
+
+  // The material's vertex block.
+  f3d_out_world = (f3d_world + (f3d_normal * (0.02 * material_params.breath)));
+
+  v_world_position = f3d_out_world;
+  v_normal = f3d_out_normal;
+  v_texcoord = texcoord;
+  v_tangent = vec4(mat3(frame_info.model) * f3d_tangent,
+                   f3d_mirrored ? -morphed_tangent.w : morphed_tangent.w);
+  v_color = color;
+  v_lightmap_uv = vec2(0.0);
+  v_instance = vec4(0.0);
+  gl_Position = material_vertex_info.view_projection * vec4(f3d_out_world, 1.0);
+}
+
+--- evaluated
+  at 0.05: 0.372725000000, 0.601187500000, 1.00112500000, 1.00000000000
+  light: 0.800000000000, 0.400000000000, 0.200000000000
+  at 0.5: 0.462500000000, 0.437500000000, 0.437500000000, 1.00000000000
+  light: 0.800000000000, 0.400000000000, 0.200000000000
+  at 0.95: 0.673775000000, 0.577562500000, 0.481375000000, 1.00000000000
+  light: 0.800000000000, 0.400000000000, 0.200000000000
+== ../flutter3d/example/shaders/instance_tint.f3dmat
+name InstanceTint v1 material inputs [instance, nDotV]
+params []
+textures []
+fragment:
+  let facing = call:clamp:float(input:nDotV:float, const:float[0.0], const:float[1.0])
+  let rim = binary:*:float(call:pow:float(binary:-:float(const:float[1.0], local:facing:float), const:float[3.0]), swizzle:float[3](input:instance:vec4))
+  return construct:vec4(binary:+:vec3(binary:*:vec3(swizzle:vec3[0, 1, 2](input:instance:vec4), binary:+:float(const:float[0.25], binary:*:float(const:float[0.75], local:facing:float))), construct:vec3(local:rim:float, local:rim:float, local:rim:float)), const:float[1.0])
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#define F3D_NO_POINT_SHADOW
+#define F3D_NO_LIGHT_LIST
+#include <lib/surface.glsl>
+
+in vec4 v_instance;
+
+// Never called: this material returns the light its surface
+// emits rather than gathering any. The prototypes in
+// surface.glsl still have to be satisfied.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return 1.0;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  float facing = clamp(s.n_dot_v, 0.0, 1.0);
+  float rim = (pow((1.0 - facing), 3.0) * v_instance.w);
+  vec4 result = vec4(((v_instance.xyz * (0.25 + (0.75 * facing))) + vec3(rim, rim, rim)), 1.0);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 0.943625000000, 1.02987500000, 1.11612500000, 1.00000000000
+  at 0.5: 0.312500000000, 0.500000000000, 0.687500000000, 1.00000000000
+  at 0.95: 0.288875000000, 0.577625000000, 0.866375000000, 1.00000000000
+== ../flutter3d/example/shaders/rim_glow.f3dmat
+name RimGlow v1 material inputs [albedo, nDotV]
+params [rimPower:float=[3.0], rimColor:vec3=[0.2, 0.5, 1.0] uniform MaterialParams]
+textures []
+fragment:
+  let facing = call:clamp:float(input:nDotV:float, const:float[0.0], const:float[1.0])
+  let rim = call:pow:float(binary:-:float(const:float[1.0], local:facing:float), param:rimPower:float)
+  return construct:vec4(binary:+:vec3(binary:*:vec3(input:albedo:vec3, binary:+:float(const:float[0.25], binary:*:float(const:float[0.75], local:facing:float))), binary:*:vec3(param:rimColor:vec3, local:rim:float)), const:float[1.0])
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#define F3D_NO_POINT_SHADOW
+#define F3D_NO_LIGHT_LIST
+#include <lib/surface.glsl>
+
+uniform MaterialParams {
+  vec3 rimColor;
+}
+material_params;
+
+// Never called: this material returns the light its surface
+// emits rather than gathering any. The prototypes in
+// surface.glsl still have to be satisfied.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return s.albedo;
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return 1.0;
+}
+
+void main() {
+  Surface s = ReadSurface();
+  float facing = clamp(s.n_dot_v, 0.0, 1.0);
+  float rim = pow((1.0 - facing), 3.0);
+  vec4 result = vec4(((s.albedo * (0.25 + (0.75 * facing))) + (material_params.rimColor * rim)), 1.0);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 0.401475000000, 0.543687500000, 0.914875000000, 1.00000000000
+  at 0.5: 0.525000000000, 0.312500000000, 0.250000000000, 1.00000000000
+  at 0.95: 0.770025000000, 0.385062500000, 0.192625000000, 1.00000000000
+== ../flutter3d/example/shaders/toon_hook.f3dmat
+name ToonHook v1 material inputs [albedo, lit, nDotL, nDotV]
+params [bands:float=[3.0], paint:vec3=[0.25, 0.45, 0.85] uniform MaterialParams, rimColor:vec3=[1.0, 0.85, 0.6] uniform MaterialParams]
+textures []
+fragment:
+  let rim = call:pow:float(binary:-:float(const:float[1.0], call:clamp:float(input:nDotV:float, const:float[0.0], const:float[1.0])), const:float[4.0])
+  return construct:vec4(binary:+:vec3(input:lit:vec3, binary:*:vec3(binary:*:vec3(param:rimColor:vec3, local:rim:float), const:float[0.5])), const:float[1.0])
+light:
+  let banded = binary:/:float(call:floor:float(binary:+:float(binary:*:float(input:nDotL:float, param:bands:float), const:float[0.5])), param:bands:float)
+  return binary:/:vec3(binary:*:vec3(binary:*:vec3(input:albedo:vec3, param:paint:vec3), local:banded:float), call:max:float(input:nDotL:float, const:float[0.001]))
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+uniform MaterialParams {
+  vec3 paint;
+  vec3 rimColor;
+}
+material_params;
+
+// The material's light block, run once per light.
+vec3 ShadeLight(Surface s, LightSample light) {
+  float banded = (floor(((light.n_dot_l * 3.0) + 0.5)) / 3.0);
+  return (((s.albedo * material_params.paint) * banded) / max(light.n_dot_l, 0.001));
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return ShadowFactor(s, light, i);
+}
+
+void main() {
+  Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  vec3 lit = AccumulateLights(s) * s.occlusion + s.albedo * (s.ambient + SampleLightmap()) * s.occlusion + s.emissive;
+  float rim = pow((1.0 - clamp(s.n_dot_v, 0.0, 1.0)), 4.0);
+  vec4 result = vec4((lit + ((material_params.rimColor * rim) * 0.5)), 1.0);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 1.10725312500, 0.946165156250, 0.744351875000, 1.00000000000
+  light: 0.256410256410, 0.230769230769, 0.217948717949
+  at 0.5: 0.731250000000, 0.626562500000, 0.518750000000, 1.00000000000
+  light: 0.256410256410, 0.230769230769, 0.217948717949
+  at 0.95: 0.700003125000, 0.600002656250, 0.500001875000, 1.00000000000
+  light: 0.256410256410, 0.230769230769, 0.217948717949
+== ../flutter3d_effects/assets_src/liquid.f3dmat
+name Liquid v1 material inputs [albedo, alpha, ambient, instance, lit, normal, uv, view, world]
+params [time:float=[0.0] uniform MaterialParams, chop:float=[1.0] uniform MaterialParams, eye:vec3=[0.0, 10.0, 0.0] uniform MaterialParams, pixel:float=[0.001] uniform MaterialParams, toSun:vec3=[-0.35, 0.7, 0.6] uniform MaterialParams, sunColor:vec3=[2.0, 1.95, 1.85] uniform MaterialParams, zenith:vec3=[0.22, 0.42, 0.78] uniform MaterialParams, horizon:vec3=[0.68, 0.79, 0.92] uniform MaterialParams, absorb:vec3=[0.264, 0.0565, 0.0106] uniform MaterialParams, scatter:vec3=[0.0023, 0.0166, 0.151] uniform MaterialParams, glow:vec3=[0.0, 0.0, 0.0] uniform MaterialParams, headOn:float=[0.02]]
+textures []
+fragment:
+  let depth = call:max:float(swizzle:float[0](input:uv:vec2), const:float[0.0])
+  let flow = binary:*:vec2(binary:-:vec2(swizzle:vec2[0, 1](input:albedo:vec3), const:vec2[0.5, 0.5]), const:float[8.0])
+  let here = swizzle:vec2[0, 2](input:world:vec3)
+  let cycle = const:float[2.5]
+  let a = call:fract:float(binary:/:float(param:time:float, local:cycle:float))
+  let b = call:fract:float(binary:+:float(binary:/:float(param:time:float, local:cycle:float), const:float[0.5]))
+  let onB = call:abs:float(binary:-:float(binary:*:float(const:float[2.0], local:a:float), const:float[1.0]))
+  let qa = binary:-:vec2(local:here:vec2, binary:*:vec2(local:flow:vec2, binary:*:float(local:a:float, local:cycle:float)))
+  let qb = binary:-:vec2(local:here:vec2, binary:*:vec2(local:flow:vec2, binary:*:float(local:b:float, local:cycle:float)))
+  let far = call:max:float(call:length:float(binary:-:vec3(input:world:vec3, param:eye:vec3)), const:float[0.001])
+  let px = binary:/:float(const:float[1.0], binary:*:float(local:far:float, param:pixel:float))
+  let reach = binary:*:float(param:chop:float, binary:+:float(const:float[0.3], binary:*:float(const:float[0.7], call:smoothstep:float(const:float[0.0], const:float[0.2], local:depth:float))))
+  let gust = binary:+:float(const:float[0.7], binary:*:float(binary:*:float(const:float[0.3], call:sin:float(binary:+:float(binary:+:float(binary:*:float(const:float[0.31], swizzle:float[0](local:here:vec2)), binary:*:float(const:float[0.17], swizzle:float[1](local:here:vec2))), binary:*:float(const:float[0.23], param:time:float)))), call:sin:float(binary:-:float(binary:-:float(binary:*:float(const:float[0.19], swizzle:float[1](local:here:vec2)), binary:*:float(const:float[0.27], swizzle:float[0](local:here:vec2))), binary:*:float(const:float[0.11], param:time:float)))))
+  let d1 = const:vec2[0.94, 0.342]
+  let d2 = const:vec2[0.857, -0.515]
+  let d3 = const:vec2[0.438, 0.899]
+  let d4 = const:vec2[0.999, 0.035]
+  let d5 = const:vec2[-0.358, 0.934]
+  let d6 = const:vec2[0.53, -0.848]
+  let d7 = const:vec2[-0.883, 0.469]
+  let d8 = const:vec2[0.799, 0.602]
+  let d9 = const:vec2[-0.515, -0.857]
+  let s1 = binary:*:float(binary:*:float(const:float[0.032], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[3.0952], local:px:float)))
+  let s2 = binary:*:float(binary:*:float(const:float[0.032], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[2.1666], local:px:float)))
+  let s3 = binary:*:float(binary:*:float(const:float[0.03], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[1.5288], local:px:float)))
+  let s4 = binary:*:float(binary:*:float(const:float[0.029], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[1.1301], local:px:float)))
+  let s5 = binary:*:float(binary:*:float(binary:*:float(const:float[0.028], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[0.83], local:px:float))), local:gust:float)
+  let s6 = binary:*:float(binary:*:float(binary:*:float(const:float[0.027], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[0.5973], local:px:float))), local:gust:float)
+  let s7 = binary:*:float(binary:*:float(binary:*:float(const:float[0.026], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[0.4369], local:px:float))), local:gust:float)
+  let s8 = binary:*:float(binary:*:float(binary:*:float(const:float[0.026], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[0.318], local:px:float))), local:gust:float)
+  let s9 = binary:*:float(binary:*:float(binary:*:float(const:float[0.024], local:reach:float), call:smoothstep:float(const:float[2.0], const:float[4.0], binary:*:float(const:float[0.231], local:px:float))), local:gust:float)
+  let ba = binary:+:vec2(local:qa:vec2, construct:vec2(binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:+:float(binary:*:float(const:float[0.73], swizzle:float[1](local:qa:vec2)), binary:*:float(const:float[0.4], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[2.11], swizzle:float[1](local:qa:vec2)), binary:*:float(const:float[0.9], swizzle:float[0](local:qa:vec2))), binary:*:float(const:float[0.7], param:time:float))))), binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:-:float(binary:*:float(const:float[0.61], swizzle:float[0](local:qa:vec2)), binary:*:float(const:float[0.3], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:-:float(binary:+:float(binary:*:float(const:float[1.87], swizzle:float[0](local:qa:vec2)), binary:*:float(const:float[0.8], swizzle:float[1](local:qa:vec2))), binary:*:float(const:float[0.6], param:time:float)))))))
+  let bb = binary:+:vec2(local:qb:vec2, construct:vec2(binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:+:float(binary:*:float(const:float[0.73], swizzle:float[1](local:qb:vec2)), binary:*:float(const:float[0.4], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[2.11], swizzle:float[1](local:qb:vec2)), binary:*:float(const:float[0.9], swizzle:float[0](local:qb:vec2))), binary:*:float(const:float[0.7], param:time:float))))), binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:-:float(binary:*:float(const:float[0.61], swizzle:float[0](local:qb:vec2)), binary:*:float(const:float[0.3], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:-:float(binary:+:float(binary:*:float(const:float[1.87], swizzle:float[0](local:qb:vec2)), binary:*:float(const:float[0.8], swizzle:float[1](local:qb:vec2))), binary:*:float(const:float[0.6], param:time:float)))))))
+  let ga = binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:*:vec2(local:d1:vec2, binary:*:float(local:s1:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.03], call:dot:float(local:d1:vec2, local:ba:vec2)), binary:*:float(const:float[4.46], param:time:float))))), binary:*:vec2(local:d2:vec2, binary:*:float(local:s2:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.9], call:dot:float(local:d2:vec2, local:ba:vec2)), binary:*:float(const:float[5.33], param:time:float)))))), binary:*:vec2(local:d3:vec2, binary:*:float(local:s3:float, call:cos:float(binary:-:float(binary:*:float(const:float[4.11], call:dot:float(local:d3:vec2, local:ba:vec2)), binary:*:float(const:float[6.35], param:time:float)))))), binary:*:vec2(local:d4:vec2, binary:*:float(local:s4:float, call:cos:float(binary:-:float(binary:*:float(const:float[5.56], call:dot:float(local:d4:vec2, local:ba:vec2)), binary:*:float(const:float[7.39], param:time:float)))))), binary:*:vec2(local:d5:vec2, binary:*:float(local:s5:float, call:cos:float(binary:-:float(binary:*:float(const:float[7.57], call:dot:float(local:d5:vec2, local:ba:vec2)), binary:*:float(const:float[8.62], param:time:float)))))), binary:*:vec2(local:d6:vec2, binary:*:float(local:s6:float, call:cos:float(binary:-:float(binary:*:float(const:float[10.52], call:dot:float(local:d6:vec2, local:ba:vec2)), binary:*:float(const:float[10.16], param:time:float)))))), binary:*:vec2(local:d7:vec2, binary:*:float(local:s7:float, call:cos:float(binary:-:float(binary:*:float(const:float[14.38], call:dot:float(local:d7:vec2, local:ba:vec2)), binary:*:float(const:float[11.88], param:time:float)))))), binary:*:vec2(local:d8:vec2, binary:*:float(local:s8:float, call:cos:float(binary:-:float(binary:*:float(const:float[19.76], call:dot:float(local:d8:vec2, local:ba:vec2)), binary:*:float(const:float[13.92], param:time:float)))))), binary:*:vec2(local:d9:vec2, binary:*:float(local:s9:float, call:cos:float(binary:-:float(binary:*:float(const:float[27.2], call:dot:float(local:d9:vec2, local:ba:vec2)), binary:*:float(const:float[16.33], param:time:float))))))
+  let gb = binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:*:vec2(local:d1:vec2, binary:*:float(local:s1:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.03], call:dot:float(local:d1:vec2, local:bb:vec2)), binary:*:float(const:float[4.46], param:time:float))))), binary:*:vec2(local:d2:vec2, binary:*:float(local:s2:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.9], call:dot:float(local:d2:vec2, local:bb:vec2)), binary:*:float(const:float[5.33], param:time:float)))))), binary:*:vec2(local:d3:vec2, binary:*:float(local:s3:float, call:cos:float(binary:-:float(binary:*:float(const:float[4.11], call:dot:float(local:d3:vec2, local:bb:vec2)), binary:*:float(const:float[6.35], param:time:float)))))), binary:*:vec2(local:d4:vec2, binary:*:float(local:s4:float, call:cos:float(binary:-:float(binary:*:float(const:float[5.56], call:dot:float(local:d4:vec2, local:bb:vec2)), binary:*:float(const:float[7.39], param:time:float)))))), binary:*:vec2(local:d5:vec2, binary:*:float(local:s5:float, call:cos:float(binary:-:float(binary:*:float(const:float[7.57], call:dot:float(local:d5:vec2, local:bb:vec2)), binary:*:float(const:float[8.62], param:time:float)))))), binary:*:vec2(local:d6:vec2, binary:*:float(local:s6:float, call:cos:float(binary:-:float(binary:*:float(const:float[10.52], call:dot:float(local:d6:vec2, local:bb:vec2)), binary:*:float(const:float[10.16], param:time:float)))))), binary:*:vec2(local:d7:vec2, binary:*:float(local:s7:float, call:cos:float(binary:-:float(binary:*:float(const:float[14.38], call:dot:float(local:d7:vec2, local:bb:vec2)), binary:*:float(const:float[11.88], param:time:float)))))), binary:*:vec2(local:d8:vec2, binary:*:float(local:s8:float, call:cos:float(binary:-:float(binary:*:float(const:float[19.76], call:dot:float(local:d8:vec2, local:bb:vec2)), binary:*:float(const:float[13.92], param:time:float)))))), binary:*:vec2(local:d9:vec2, binary:*:float(local:s9:float, call:cos:float(binary:-:float(binary:*:float(const:float[27.2], call:dot:float(local:d9:vec2, local:bb:vec2)), binary:*:float(const:float[16.33], param:time:float))))))
+  let slope = call:mix:vec2(local:ga:vec2, local:gb:vec2, local:onB:float)
+  let n = call:normalize:vec3(binary:+:vec3(input:normal:vec3, construct:vec3(binary:-:float(const:float[0.0], swizzle:float[0](local:slope:vec2)), const:float[0.0], binary:-:float(const:float[0.0], swizzle:float[1](local:slope:vec2)))))
+  let facing = call:clamp:float(call:dot:float(local:n:vec3, input:view:vec3), const:float[0.0], const:float[1.0])
+  let fresnel = binary:+:float(param:headOn:float, binary:*:float(binary:-:float(const:float[1.0], param:headOn:float), call:pow:float(binary:-:float(const:float[1.0], local:facing:float), const:float[5.0])))
+  let mirrored = binary:-:vec3(binary:*:vec3(local:n:vec3, binary:*:float(const:float[2.0], call:dot:float(local:n:vec3, input:view:vec3))), input:view:vec3)
+  let rise = call:clamp:float(swizzle:float[1](local:mirrored:vec3), const:float[0.0], const:float[1.0])
+  let sky = call:mix:vec3(param:horizon:vec3, param:zenith:vec3, binary:*:float(local:rise:float, binary:-:float(const:float[2.0], local:rise:float)))
+  let toward = call:clamp:float(call:dot:float(local:mirrored:vec3, param:toSun:vec3), const:float[0.0], const:float[1.0])
+  let sunOn = call:clamp:float(call:dot:float(local:n:vec3, param:toSun:vec3), const:float[0.0], const:float[1.0])
+  let sunlit = call:clamp:float(binary:/:float(call:dot:float(input:lit:vec3, const:vec3[0.3333, 0.3333, 0.3333]), call:max:float(binary:*:float(call:dot:float(param:sunColor:vec3, const:vec3[0.3333, 0.3333, 0.3333]), local:sunOn:float), const:float[0.0001])), const:float[0.0], const:float[1.0])
+  let glint = binary:*:vec3(binary:*:vec3(param:sunColor:vec3, local:sunlit:float), binary:+:float(binary:*:float(binary:*:float(local:fresnel:float, const:float[30.0]), call:pow:float(local:toward:float, const:float[1200.0])), binary:*:float(const:float[0.03], call:pow:float(local:toward:float, const:float[60.0]))))
+  let cosDown = call:sqrt:float(call:max:float(binary:-:float(const:float[1.0], binary:*:float(binary:-:float(const:float[1.0], binary:*:float(local:facing:float, local:facing:float)), const:float[0.5652])), const:float[0.0]))
+  let path = binary:/:float(local:depth:float, call:max:float(local:cosDown:float, const:float[0.3]))
+  let throughRgb = call:pow:vec3(const:vec3[0.3679, 0.3679, 0.3679], binary:*:vec3(param:absorb:vec3, local:path:float))
+  let through = call:dot:float(local:throughRgb:vec3, const:vec3[0.3333, 0.3333, 0.3333])
+  let inscatter = binary:*:vec3(binary:*:vec3(binary:*:vec3(param:scatter:vec3, binary:-:vec3(const:vec3[1.0, 1.0, 1.0], local:throughRgb:vec3)), binary:+:vec3(input:ambient:vec3, input:lit:vec3)), binary:/:float(const:float[1.0], call:max:float(binary:-:float(const:float[1.0], local:through:float), const:float[0.001])))
+  let crust = binary:+:float(const:float[0.25], binary:*:float(const:float[0.75], call:clamp:float(binary:*:float(const:float[3.0], call:length:float(local:flow:vec2)), const:float[0.0], const:float[1.0])))
+  let veil = call:max:float(binary:-:float(const:float[1.0], binary:*:float(binary:-:float(const:float[1.0], local:fresnel:float), local:through:float)), const:float[0.001])
+  let water = binary:*:vec3(binary:+:vec3(binary:+:vec3(binary:+:vec3(binary:*:vec3(local:sky:vec3, local:fresnel:float), binary:*:vec3(local:inscatter:vec3, binary:*:float(binary:-:float(const:float[1.0], local:fresnel:float), binary:-:float(const:float[1.0], local:through:float)))), local:glint:vec3), binary:*:vec3(param:glow:vec3, local:crust:float)), binary:/:float(const:float[1.0], local:veil:float))
+  let foamFlow = binary:*:vec2(local:flow:vec2, binary:/:float(const:float[1.0], call:max:float(call:length:float(local:flow:vec2), const:float[1.0])))
+  let fa = binary:-:vec2(local:here:vec2, binary:*:vec2(local:foamFlow:vec2, binary:*:float(local:a:float, local:cycle:float)))
+  let fb = binary:-:vec2(local:here:vec2, binary:*:vec2(local:foamFlow:vec2, binary:*:float(local:b:float, local:cycle:float)))
+  let laceA = binary:+:float(binary:*:float(binary:*:float(const:float[0.55], call:sin:float(binary:+:float(binary:*:float(const:float[9.7], swizzle:float[0](local:fa:vec2)), binary:*:float(const:float[1.9], call:sin:float(binary:+:float(binary:*:float(const:float[6.1], swizzle:float[1](local:fa:vec2)), binary:*:float(const:float[1.3], swizzle:float[0](local:fa:vec2)))))))), call:sin:float(binary:+:float(binary:*:float(const:float[8.3], swizzle:float[1](local:fa:vec2)), binary:*:float(const:float[1.6], call:sin:float(binary:-:float(binary:*:float(const:float[5.9], swizzle:float[0](local:fa:vec2)), binary:*:float(const:float[1.1], swizzle:float[1](local:fa:vec2)))))))), binary:*:float(const:float[0.45], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[3.1], swizzle:float[0](local:fa:vec2)), binary:*:float(const:float[2.6], swizzle:float[1](local:fa:vec2))), binary:*:float(const:float[1.4], call:sin:float(binary:*:float(const:float[2.3], swizzle:float[1](local:fa:vec2))))))))
+  let laceB = binary:+:float(binary:*:float(binary:*:float(const:float[0.55], call:sin:float(binary:+:float(binary:*:float(const:float[9.7], swizzle:float[0](local:fb:vec2)), binary:*:float(const:float[1.9], call:sin:float(binary:+:float(binary:*:float(const:float[6.1], swizzle:float[1](local:fb:vec2)), binary:*:float(const:float[1.3], swizzle:float[0](local:fb:vec2)))))))), call:sin:float(binary:+:float(binary:*:float(const:float[8.3], swizzle:float[1](local:fb:vec2)), binary:*:float(const:float[1.6], call:sin:float(binary:-:float(binary:*:float(const:float[5.9], swizzle:float[0](local:fb:vec2)), binary:*:float(const:float[1.1], swizzle:float[1](local:fb:vec2)))))))), binary:*:float(const:float[0.45], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[3.1], swizzle:float[0](local:fb:vec2)), binary:*:float(const:float[2.6], swizzle:float[1](local:fb:vec2))), binary:*:float(const:float[1.4], call:sin:float(binary:*:float(const:float[2.3], swizzle:float[1](local:fb:vec2))))))))
+  let lace = binary:+:float(const:float[0.5], binary:*:float(const:float[0.5], call:mix:float(local:laceA:float, local:laceB:float, local:onB:float)))
+  let speed = call:length:float(local:flow:vec2)
+  let breaking = binary:*:float(binary:*:float(const:float[0.5], call:smoothstep:float(const:float[2.2], const:float[3.9], local:speed:float)), call:smoothstep:float(const:float[0.03], const:float[0.1], local:depth:float))
+  let churn = call:clamp:float(binary:+:float(swizzle:float[2](input:albedo:vec3), local:breaking:float), const:float[0.0], const:float[1.0])
+  let froth = call:smoothstep:float(const:float[0.4], const:float[1.0], binary:*:float(local:churn:float, binary:+:float(const:float[0.3], binary:*:float(const:float[0.9], local:lace:float))))
+  let white = binary:*:vec3(const:vec3[0.92, 0.95, 0.97], binary:+:vec3(input:ambient:vec3, binary:*:vec3(const:float[0.45], input:lit:vec3)))
+  let above = call:mix:vec3(local:water:vec3, local:white:vec3, local:froth:float)
+  let aboveSeen = call:mix:float(local:veil:float, const:float[1.0], local:froth:float)
+  let waver = binary:*:float(call:sin:float(binary:+:float(binary:*:float(const:float[3.1], swizzle:float[0](local:here:vec2)), binary:*:float(const:float[1.7], call:sin:float(binary:*:float(const:float[2.3], swizzle:float[1](local:here:vec2)))))), call:sin:float(binary:+:float(binary:*:float(const:float[2.7], swizzle:float[1](local:here:vec2)), binary:*:float(const:float[1.9], call:sin:float(binary:*:float(const:float[1.3], swizzle:float[0](local:here:vec2)))))))
+  let edge = call:smoothstep:float(const:float[0.0], const:float[0.06], binary:+:float(swizzle:float[0](input:uv:vec2), binary:*:float(const:float[0.01], local:waver:float)))
+  let under = binary:-:float(const:float[1.0], call:step:float(const:float[0.0], call:dot:float(input:normal:vec3, input:view:vec3)))
+  let up = binary:*:vec3(local:n:vec3, binary:-:float(binary:*:float(const:float[2.0], call:step:float(const:float[0.0], swizzle:float[1](local:n:vec3))), const:float[1.0]))
+  let rayUp = binary:-:vec3(const:vec3[0.0, 0.0, 0.0], input:view:vec3)
+  let cosIn = call:clamp:float(call:dot:float(local:rayUp:vec3, local:up:vec3), const:float[0.0], const:float[1.0])
+  let ior = const:float[1.33]
+  let sinOut2 = binary:*:float(binary:*:float(local:ior:float, local:ior:float), binary:-:float(const:float[1.0], binary:*:float(local:cosIn:float, local:cosIn:float)))
+  let window = binary:-:float(const:float[1.0], call:step:float(const:float[1.0], local:sinOut2:float))
+  let cosOut = call:sqrt:float(call:max:float(binary:-:float(const:float[1.0], local:sinOut2:float), const:float[0.0]))
+  let outward = call:normalize:vec3(binary:+:vec3(binary:*:vec3(local:rayUp:vec3, local:ior:float), binary:*:vec3(local:up:vec3, binary:-:float(local:cosOut:float, binary:*:float(local:ior:float, local:cosIn:float)))))
+  let skyThrough = call:mix:vec3(param:horizon:vec3, param:zenith:vec3, call:sqrt:float(call:clamp:float(swizzle:float[1](local:outward:vec3), const:float[0.0], const:float[1.0])))
+  let sunThrough = binary:*:vec3(param:sunColor:vec3, binary:*:float(const:float[6.0], call:pow:float(call:clamp:float(call:dot:float(local:outward:vec3, param:toSun:vec3), const:float[0.0], const:float[1.0]), const:float[400.0])))
+  let leaving = binary:+:float(param:headOn:float, binary:*:float(binary:-:float(const:float[1.0], param:headOn:float), call:pow:float(binary:-:float(const:float[1.0], local:cosOut:float), const:float[5.0])))
+  let mirrorBelow = binary:*:vec3(param:scatter:vec3, input:ambient:vec3)
+  let below = call:mix:vec3(local:mirrorBelow:vec3, binary:+:vec3(binary:*:vec3(binary:+:vec3(local:skyThrough:vec3, local:sunThrough:vec3), binary:-:float(const:float[1.0], local:leaving:float)), binary:*:vec3(local:mirrorBelow:vec3, local:leaving:float)), local:window:float)
+  let surfaceColour = call:mix:vec3(local:above:vec3, local:below:vec3, local:under:float)
+  let surfaceSeen = binary:*:float(call:mix:float(local:aboveSeen:float, const:float[1.0], local:under:float), local:edge:float)
+  let down = call:max:float(binary:-:float(swizzle:float[1](input:uv:vec2), const:float[1.0]), const:float[0.0])
+  let fallen = call:clamp:float(swizzle:float[0](input:albedo:vec3), const:float[0.0], const:float[1.0])
+  let thick = swizzle:float[1](input:albedo:vec3)
+  let along = swizzle:float[0](input:uv:vec2)
+  let left = binary:-:float(param:time:float, call:sqrt:float(binary:*:float(const:float[0.204], local:down:float)))
+  let lanes = binary:+:float(const:float[0.5], binary:*:float(const:float[0.5], call:sin:float(binary:+:float(binary:+:float(binary:*:float(const:float[13.3], local:along:float), binary:*:float(const:float[1.7], call:sin:float(binary:+:float(binary:*:float(const:float[4.9], local:along:float), binary:*:float(const:float[0.8], local:left:float))))), binary:*:float(const:float[0.9], call:sin:float(binary:*:float(const:float[1.1], local:left:float)))))))
+  let strands = binary:+:float(const:float[0.5], binary:*:float(const:float[0.5], call:sin:float(binary:+:float(binary:*:float(const:float[37.1], local:along:float), binary:*:float(const:float[2.3], call:sin:float(binary:-:float(binary:*:float(const:float[9.7], local:along:float), binary:*:float(const:float[1.4], local:left:float))))))))
+  let pulse = binary:+:float(const:float[0.5], binary:*:float(const:float[0.5], call:sin:float(binary:+:float(binary:*:float(const:float[13.0], local:left:float), binary:*:float(const:float[2.1], call:sin:float(binary:*:float(const:float[3.7], local:along:float)))))))
+  let fibre = binary:+:float(binary:+:float(binary:*:float(const:float[0.5], local:lanes:float), binary:*:float(const:float[0.3], local:strands:float)), binary:*:float(const:float[0.2], local:pulse:float))
+  let aerated = call:clamp:float(binary:*:float(call:smoothstep:float(const:float[0.1], const:float[1.8], binary:+:float(local:down:float, binary:*:float(binary:*:float(const:float[0.6], local:thick:float), local:down:float))), call:smoothstep:float(const:float[0.2], const:float[0.7], binary:+:float(local:fibre:float, binary:*:float(const:float[0.25], call:smoothstep:float(const:float[1.0], const:float[3.0], local:down:float))))), const:float[0.0], const:float[1.0])
+  let facesEye = binary:-:float(binary:*:float(const:float[2.0], call:step:float(const:float[0.0], call:dot:float(input:normal:vec3, input:view:vec3))), const:float[1.0])
+  let sn = binary:*:vec3(input:normal:vec3, local:facesEye:float)
+  let sheetFacing = call:clamp:float(call:dot:float(local:sn:vec3, input:view:vec3), const:float[0.0], const:float[1.0])
+  let sheetFresnel = binary:+:float(param:headOn:float, binary:*:float(binary:-:float(const:float[1.0], param:headOn:float), call:pow:float(binary:-:float(const:float[1.0], local:sheetFacing:float), const:float[5.0])))
+  let sheetMirrored = binary:-:vec3(binary:*:vec3(local:sn:vec3, binary:*:float(const:float[2.0], call:dot:float(local:sn:vec3, input:view:vec3))), input:view:vec3)
+  let sheetRise = call:clamp:float(swizzle:float[1](local:sheetMirrored:vec3), const:float[0.0], const:float[1.0])
+  let sheetSky = call:mix:vec3(param:horizon:vec3, param:zenith:vec3, binary:*:float(local:sheetRise:float, binary:-:float(const:float[2.0], local:sheetRise:float)))
+  let sheetLit = binary:+:vec3(input:ambient:vec3, binary:*:vec3(param:sunColor:vec3, binary:+:float(const:float[0.3], binary:*:float(const:float[0.3], call:abs:float(call:dot:float(local:sn:vec3, param:toSun:vec3))))))
+  let glassy = binary:+:vec3(binary:*:vec3(local:sheetSky:vec3, local:sheetFresnel:float), binary:*:vec3(binary:*:vec3(param:scatter:vec3, local:sheetLit:vec3), binary:-:float(const:float[1.0], local:sheetFresnel:float)))
+  let clear = call:smoothstep:float(const:float[0.0], const:float[0.5], call:dot:float(call:pow:vec3(const:vec3[0.3679, 0.3679, 0.3679], binary:*:vec3(param:absorb:vec3, const:float[0.05])), const:vec3[0.3333, 0.3333, 0.3333]))
+  let spume = call:mix:vec3(binary:*:vec3(param:scatter:vec3, local:sheetLit:vec3), binary:*:vec3(const:vec3[0.93, 0.96, 0.98], binary:+:vec3(local:sheetLit:vec3, binary:*:vec3(param:sunColor:vec3, const:float[0.2]))), local:clear:float)
+  let sheetColour = binary:+:vec3(call:mix:vec3(local:glassy:vec3, local:spume:vec3, local:aerated:float), binary:*:vec3(param:glow:vec3, binary:+:float(const:float[0.5], binary:*:float(const:float[0.5], local:fibre:float))))
+  let shreds = binary:+:float(const:float[0.5], binary:*:float(const:float[0.5], call:sin:float(binary:+:float(binary:+:float(binary:*:float(const:float[31.0], local:along:float), binary:*:float(const:float[3.0], call:sin:float(binary:+:float(binary:*:float(const:float[7.1], local:along:float), binary:*:float(const:float[2.0], local:left:float))))), binary:*:float(const:float[9.0], local:left:float)))))
+  let fray = local:fallen:float
+  let torn = call:mix:float(const:float[1.0], call:smoothstep:float(binary:-:float(binary:*:float(const:float[1.1], local:fray:float), const:float[0.15]), binary:+:float(binary:*:float(const:float[1.1], local:fray:float), const:float[0.1]), binary:+:float(binary:*:float(const:float[0.6], local:fibre:float), binary:*:float(const:float[0.4], local:shreds:float))), local:fray:float)
+  let sheetBody = call:mix:float(call:mix:float(binary:+:float(const:float[0.12], binary:*:float(const:float[0.45], local:sheetFresnel:float)), const:float[0.9], local:aerated:float), const:float[0.97], binary:-:float(const:float[1.0], local:clear:float))
+  let sheetSeen = binary:*:float(binary:*:float(input:alpha:float, local:sheetBody:float), local:torn:float)
+  let facingCloud = call:clamp:float(call:abs:float(call:dot:float(input:normal:vec3, input:view:vec3)), const:float[0.0], const:float[1.0])
+  let off2 = binary:-:float(const:float[1.0], binary:*:float(local:facingCloud:float, local:facingCloud:float))
+  let mistSeen = binary:-:float(const:float[1.0], call:pow:float(const:float[0.3679], binary:*:float(call:max:float(swizzle:float[0](input:instance:vec4), const:float[0.0]), call:pow:float(const:float[0.3679], binary:*:float(binary:*:float(binary:*:float(const:float[0.5], swizzle:float[1](input:instance:vec4)), swizzle:float[1](input:instance:vec4)), local:off2:float)))))
+  let mistColour = binary:*:vec3(const:vec3[0.92, 0.95, 0.98], binary:+:vec3(input:ambient:vec3, binary:*:vec3(param:sunColor:vec3, const:float[0.45])))
+  let isSheet = call:step:float(const:float[0.5], swizzle:float[1](input:uv:vec2))
+  let isMist = call:step:float(const:float[0.5], swizzle:float[3](input:instance:vec4))
+  return construct:vec4(call:mix:vec3(call:mix:vec3(local:surfaceColour:vec3, local:sheetColour:vec3, local:isSheet:float), local:mistColour:vec3, local:isMist:float), call:mix:float(call:mix:float(local:surfaceSeen:float, local:sheetSeen:float, local:isSheet:float), local:mistSeen:float, local:isMist:float))
+light:
+  return const:vec3[1.0, 1.0, 1.0]
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+in vec4 v_instance;
+
+uniform MaterialParams {
+  float time;
+  float chop;
+  vec3 eye;
+  float pixel;
+  vec3 toSun;
+  vec3 sunColor;
+  vec3 zenith;
+  vec3 horizon;
+  vec3 absorb;
+  vec3 scatter;
+  vec3 glow;
+}
+material_params;
+
+// The material's light block, run once per light.
+vec3 ShadeLight(Surface s, LightSample light) {
+  return vec3(1.0, 1.0, 1.0);
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return ShadowFactor(s, light, i);
+}
+
+void main() {
+  Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  vec3 lit = AccumulateLights(s) * s.occlusion + s.albedo * (s.ambient + SampleLightmap()) * s.occlusion + s.emissive;
+  float depth = max(v_texcoord.x, 0.0);
+  vec2 flow = ((s.albedo.xy - vec2(0.5, 0.5)) * 8.0);
+  vec2 here = v_world_position.xz;
+  float cycle = 2.5;
+  float a = fract((material_params.time / cycle));
+  float b = fract(((material_params.time / cycle) + 0.5));
+  float onB = abs(((2.0 * a) - 1.0));
+  vec2 qa = (here - (flow * (a * cycle)));
+  vec2 qb = (here - (flow * (b * cycle)));
+  float far = max(length((v_world_position - material_params.eye)), 0.001);
+  float px = (1.0 / (far * material_params.pixel));
+  float reach = (material_params.chop * (0.3 + (0.7 * smoothstep(0.0, 0.2, depth))));
+  float gust = (0.7 + ((0.3 * sin((((0.31 * here.x) + (0.17 * here.y)) + (0.23 * material_params.time)))) * sin((((0.19 * here.y) - (0.27 * here.x)) - (0.11 * material_params.time)))));
+  vec2 d1 = vec2(0.94, 0.342);
+  vec2 d2 = vec2(0.857, -0.515);
+  vec2 d3 = vec2(0.438, 0.899);
+  vec2 d4 = vec2(0.999, 0.035);
+  vec2 d5 = vec2(-0.358, 0.934);
+  vec2 d6 = vec2(0.53, -0.848);
+  vec2 d7 = vec2(-0.883, 0.469);
+  vec2 d8 = vec2(0.799, 0.602);
+  vec2 d9 = vec2(-0.515, -0.857);
+  float s1 = ((0.032 * reach) * smoothstep(2.0, 4.0, (3.0952 * px)));
+  float s2 = ((0.032 * reach) * smoothstep(2.0, 4.0, (2.1666 * px)));
+  float s3 = ((0.03 * reach) * smoothstep(2.0, 4.0, (1.5288 * px)));
+  float s4 = ((0.029 * reach) * smoothstep(2.0, 4.0, (1.1301 * px)));
+  float s5 = (((0.028 * reach) * smoothstep(2.0, 4.0, (0.83 * px))) * gust);
+  float s6 = (((0.027 * reach) * smoothstep(2.0, 4.0, (0.5973 * px))) * gust);
+  float s7 = (((0.026 * reach) * smoothstep(2.0, 4.0, (0.4369 * px))) * gust);
+  float s8 = (((0.026 * reach) * smoothstep(2.0, 4.0, (0.318 * px))) * gust);
+  float s9 = (((0.024 * reach) * smoothstep(2.0, 4.0, (0.231 * px))) * gust);
+  vec2 ba = (qa + vec2(((0.25 * sin(((0.73 * qa.y) + (0.4 * material_params.time)))) + (0.08 * sin((((2.11 * qa.y) - (0.9 * qa.x)) + (0.7 * material_params.time))))), ((0.25 * sin(((0.61 * qa.x) - (0.3 * material_params.time)))) + (0.08 * sin((((1.87 * qa.x) + (0.8 * qa.y)) - (0.6 * material_params.time)))))));
+  vec2 bb = (qb + vec2(((0.25 * sin(((0.73 * qb.y) + (0.4 * material_params.time)))) + (0.08 * sin((((2.11 * qb.y) - (0.9 * qb.x)) + (0.7 * material_params.time))))), ((0.25 * sin(((0.61 * qb.x) - (0.3 * material_params.time)))) + (0.08 * sin((((1.87 * qb.x) + (0.8 * qb.y)) - (0.6 * material_params.time)))))));
+  vec2 ga = (((((((((d1 * (s1 * cos(((2.03 * dot(d1, ba)) - (4.46 * material_params.time))))) + (d2 * (s2 * cos(((2.9 * dot(d2, ba)) - (5.33 * material_params.time)))))) + (d3 * (s3 * cos(((4.11 * dot(d3, ba)) - (6.35 * material_params.time)))))) + (d4 * (s4 * cos(((5.56 * dot(d4, ba)) - (7.39 * material_params.time)))))) + (d5 * (s5 * cos(((7.57 * dot(d5, ba)) - (8.62 * material_params.time)))))) + (d6 * (s6 * cos(((10.52 * dot(d6, ba)) - (10.16 * material_params.time)))))) + (d7 * (s7 * cos(((14.38 * dot(d7, ba)) - (11.88 * material_params.time)))))) + (d8 * (s8 * cos(((19.76 * dot(d8, ba)) - (13.92 * material_params.time)))))) + (d9 * (s9 * cos(((27.2 * dot(d9, ba)) - (16.33 * material_params.time))))));
+  vec2 gb = (((((((((d1 * (s1 * cos(((2.03 * dot(d1, bb)) - (4.46 * material_params.time))))) + (d2 * (s2 * cos(((2.9 * dot(d2, bb)) - (5.33 * material_params.time)))))) + (d3 * (s3 * cos(((4.11 * dot(d3, bb)) - (6.35 * material_params.time)))))) + (d4 * (s4 * cos(((5.56 * dot(d4, bb)) - (7.39 * material_params.time)))))) + (d5 * (s5 * cos(((7.57 * dot(d5, bb)) - (8.62 * material_params.time)))))) + (d6 * (s6 * cos(((10.52 * dot(d6, bb)) - (10.16 * material_params.time)))))) + (d7 * (s7 * cos(((14.38 * dot(d7, bb)) - (11.88 * material_params.time)))))) + (d8 * (s8 * cos(((19.76 * dot(d8, bb)) - (13.92 * material_params.time)))))) + (d9 * (s9 * cos(((27.2 * dot(d9, bb)) - (16.33 * material_params.time))))));
+  vec2 slope = mix(ga, gb, vec2(onB));
+  vec3 n = normalize((s.n + vec3((0.0 - slope.x), 0.0, (0.0 - slope.y))));
+  float facing = clamp(dot(n, s.v), 0.0, 1.0);
+  float fresnel = (0.02 + (0.98 * pow((1.0 - facing), 5.0)));
+  vec3 mirrored = ((n * (2.0 * dot(n, s.v))) - s.v);
+  float rise = clamp(mirrored.y, 0.0, 1.0);
+  vec3 sky = mix(material_params.horizon, material_params.zenith, vec3((rise * (2.0 - rise))));
+  float toward = clamp(dot(mirrored, material_params.toSun), 0.0, 1.0);
+  float sunOn = clamp(dot(n, material_params.toSun), 0.0, 1.0);
+  float sunlit = clamp((dot(lit, vec3(0.3333, 0.3333, 0.3333)) / max((dot(material_params.sunColor, vec3(0.3333, 0.3333, 0.3333)) * sunOn), 0.0001)), 0.0, 1.0);
+  vec3 glint = ((material_params.sunColor * sunlit) * (((fresnel * 30.0) * pow(toward, 1200.0)) + (0.03 * pow(toward, 60.0))));
+  float cosDown = sqrt(max((1.0 - ((1.0 - (facing * facing)) * 0.5652)), 0.0));
+  float path = (depth / max(cosDown, 0.3));
+  vec3 throughRgb = pow(vec3(0.3679, 0.3679, 0.3679), (material_params.absorb * path));
+  float through = dot(throughRgb, vec3(0.3333, 0.3333, 0.3333));
+  vec3 inscatter = (((material_params.scatter * (vec3(1.0, 1.0, 1.0) - throughRgb)) * (s.ambient + lit)) * (1.0 / max((1.0 - through), 0.001)));
+  float crust = (0.25 + (0.75 * clamp((3.0 * length(flow)), 0.0, 1.0)));
+  float veil = max((1.0 - ((1.0 - fresnel) * through)), 0.001);
+  vec3 water = (((((sky * fresnel) + (inscatter * ((1.0 - fresnel) * (1.0 - through)))) + glint) + (material_params.glow * crust)) * (1.0 / veil));
+  vec2 foamFlow = (flow * (1.0 / max(length(flow), 1.0)));
+  vec2 fa = (here - (foamFlow * (a * cycle)));
+  vec2 fb = (here - (foamFlow * (b * cycle)));
+  float laceA = (((0.55 * sin(((9.7 * fa.x) + (1.9 * sin(((6.1 * fa.y) + (1.3 * fa.x))))))) * sin(((8.3 * fa.y) + (1.6 * sin(((5.9 * fa.x) - (1.1 * fa.y))))))) + (0.45 * sin((((3.1 * fa.x) - (2.6 * fa.y)) + (1.4 * sin((2.3 * fa.y)))))));
+  float laceB = (((0.55 * sin(((9.7 * fb.x) + (1.9 * sin(((6.1 * fb.y) + (1.3 * fb.x))))))) * sin(((8.3 * fb.y) + (1.6 * sin(((5.9 * fb.x) - (1.1 * fb.y))))))) + (0.45 * sin((((3.1 * fb.x) - (2.6 * fb.y)) + (1.4 * sin((2.3 * fb.y)))))));
+  float lace = (0.5 + (0.5 * mix(laceA, laceB, onB)));
+  float speed = length(flow);
+  float breaking = ((0.5 * smoothstep(2.2, 3.9, speed)) * smoothstep(0.03, 0.1, depth));
+  float churn = clamp((s.albedo.z + breaking), 0.0, 1.0);
+  float froth = smoothstep(0.4, 1.0, (churn * (0.3 + (0.9 * lace))));
+  vec3 white = (vec3(0.92, 0.95, 0.97) * (s.ambient + (0.45 * lit)));
+  vec3 above = mix(water, white, vec3(froth));
+  float aboveSeen = mix(veil, 1.0, froth);
+  float waver = (sin(((3.1 * here.x) + (1.7 * sin((2.3 * here.y))))) * sin(((2.7 * here.y) + (1.9 * sin((1.3 * here.x))))));
+  float edge = smoothstep(0.0, 0.06, (v_texcoord.x + (0.01 * waver)));
+  float under = (1.0 - step(0.0, dot(s.n, s.v)));
+  vec3 up = (n * ((2.0 * step(0.0, n.y)) - 1.0));
+  vec3 rayUp = (vec3(0.0, 0.0, 0.0) - s.v);
+  float cosIn = clamp(dot(rayUp, up), 0.0, 1.0);
+  float ior = 1.33;
+  float sinOut2 = ((ior * ior) * (1.0 - (cosIn * cosIn)));
+  float window = (1.0 - step(1.0, sinOut2));
+  float cosOut = sqrt(max((1.0 - sinOut2), 0.0));
+  vec3 outward = normalize(((rayUp * ior) + (up * (cosOut - (ior * cosIn)))));
+  vec3 skyThrough = mix(material_params.horizon, material_params.zenith, vec3(sqrt(clamp(outward.y, 0.0, 1.0))));
+  vec3 sunThrough = (material_params.sunColor * (6.0 * pow(clamp(dot(outward, material_params.toSun), 0.0, 1.0), 400.0)));
+  float leaving = (0.02 + (0.98 * pow((1.0 - cosOut), 5.0)));
+  vec3 mirrorBelow = (material_params.scatter * s.ambient);
+  vec3 below = mix(mirrorBelow, (((skyThrough + sunThrough) * (1.0 - leaving)) + (mirrorBelow * leaving)), vec3(window));
+  vec3 surfaceColour = mix(above, below, vec3(under));
+  float surfaceSeen = (mix(aboveSeen, 1.0, under) * edge);
+  float down = max((v_texcoord.y - 1.0), 0.0);
+  float fallen = clamp(s.albedo.x, 0.0, 1.0);
+  float thick = s.albedo.y;
+  float along = v_texcoord.x;
+  float left = (material_params.time - sqrt((0.204 * down)));
+  float lanes = (0.5 + (0.5 * sin((((13.3 * along) + (1.7 * sin(((4.9 * along) + (0.8 * left))))) + (0.9 * sin((1.1 * left)))))));
+  float strands = (0.5 + (0.5 * sin(((37.1 * along) + (2.3 * sin(((9.7 * along) - (1.4 * left))))))));
+  float pulse = (0.5 + (0.5 * sin(((13.0 * left) + (2.1 * sin((3.7 * along)))))));
+  float fibre = (((0.5 * lanes) + (0.3 * strands)) + (0.2 * pulse));
+  float aerated = clamp((smoothstep(0.1, 1.8, (down + ((0.6 * thick) * down))) * smoothstep(0.2, 0.7, (fibre + (0.25 * smoothstep(1.0, 3.0, down))))), 0.0, 1.0);
+  float facesEye = ((2.0 * step(0.0, dot(s.n, s.v))) - 1.0);
+  vec3 sn = (s.n * facesEye);
+  float sheetFacing = clamp(dot(sn, s.v), 0.0, 1.0);
+  float sheetFresnel = (0.02 + (0.98 * pow((1.0 - sheetFacing), 5.0)));
+  vec3 sheetMirrored = ((sn * (2.0 * dot(sn, s.v))) - s.v);
+  float sheetRise = clamp(sheetMirrored.y, 0.0, 1.0);
+  vec3 sheetSky = mix(material_params.horizon, material_params.zenith, vec3((sheetRise * (2.0 - sheetRise))));
+  vec3 sheetLit = (s.ambient + (material_params.sunColor * (0.3 + (0.3 * abs(dot(sn, material_params.toSun))))));
+  vec3 glassy = ((sheetSky * sheetFresnel) + ((material_params.scatter * sheetLit) * (1.0 - sheetFresnel)));
+  float clear = smoothstep(0.0, 0.5, dot(pow(vec3(0.3679, 0.3679, 0.3679), (material_params.absorb * 0.05)), vec3(0.3333, 0.3333, 0.3333)));
+  vec3 spume = mix((material_params.scatter * sheetLit), (vec3(0.93, 0.96, 0.98) * (sheetLit + (material_params.sunColor * 0.2))), vec3(clear));
+  vec3 sheetColour = (mix(glassy, spume, vec3(aerated)) + (material_params.glow * (0.5 + (0.5 * fibre))));
+  float shreds = (0.5 + (0.5 * sin((((31.0 * along) + (3.0 * sin(((7.1 * along) + (2.0 * left))))) + (9.0 * left)))));
+  float fray = fallen;
+  float torn = mix(1.0, smoothstep(((1.1 * fray) - 0.15), ((1.1 * fray) + 0.1), ((0.6 * fibre) + (0.4 * shreds))), fray);
+  float sheetBody = mix(mix((0.12 + (0.45 * sheetFresnel)), 0.9, aerated), 0.97, (1.0 - clear));
+  float sheetSeen = ((s.alpha * sheetBody) * torn);
+  float facingCloud = clamp(abs(dot(s.n, s.v)), 0.0, 1.0);
+  float off2 = (1.0 - (facingCloud * facingCloud));
+  float mistSeen = (1.0 - pow(0.3679, (max(v_instance.x, 0.0) * pow(0.3679, (((0.5 * v_instance.y) * v_instance.y) * off2)))));
+  vec3 mistColour = (vec3(0.92, 0.95, 0.98) * (s.ambient + (material_params.sunColor * 0.45)));
+  float isSheet = step(0.5, v_texcoord.y);
+  float isMist = step(0.5, v_instance.w);
+  vec4 result = vec4(mix(mix(surfaceColour, sheetColour, vec3(isSheet)), mistColour, vec3(isMist)), mix(mix(surfaceSeen, sheetSeen, isSheet), mistSeen, isMist));
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 1.01200000000, 1.07112500000, 1.10985000000, 0.255293238710
+  light: 1.00000000000, 1.00000000000, 1.00000000000
+  at 0.5: 1.01200000000, 1.07112500000, 1.10985000000, 0.255293238710
+  light: 1.00000000000, 1.00000000000, 1.00000000000
+  at 0.95: 1.01200000000, 1.07112500000, 1.10985000000, 0.255293238710
+  light: 1.00000000000, 1.00000000000, 1.00000000000
+== ../flutter3d_effects/assets_src/seabed.f3dmat
+name Seabed v1 material inputs [albedo, ambient, emissive, lit, occlusion, world]
+params [time:float=[0.0] uniform MaterialParams, chop:float=[1.0] uniform MaterialParams, eye:vec3=[0.0, 10.0, 0.0] uniform MaterialParams, level:float=[0.0] uniform MaterialParams, toSun:vec3=[-0.35, 0.7, 0.6] uniform MaterialParams, sunColor:vec3=[2.0, 1.95, 1.85] uniform MaterialParams, absorb:vec3=[0.264, 0.0565, 0.0106] uniform MaterialParams, scatter:vec3=[0.0023, 0.0166, 0.151] uniform MaterialParams]
+textures []
+fragment:
+  let depth = call:max:float(binary:-:float(param:level:float, swizzle:float[1](input:world:vec3)), const:float[0.0])
+  let ior = const:float[1.33]
+  let cosDown = call:sqrt:float(binary:-:float(const:float[1.0], binary:/:float(binary:-:float(const:float[1.0], binary:*:float(swizzle:float[1](param:toSun:vec3), swizzle:float[1](param:toSun:vec3))), binary:*:float(local:ior:float, local:ior:float))))
+  let throughDown = call:pow:vec3(const:vec3[0.3679, 0.3679, 0.3679], binary:*:vec3(param:absorb:vec3, binary:/:float(local:depth:float, local:cosDown:float)))
+  let toEye = call:length:float(binary:-:vec3(param:eye:vec3, input:world:vec3))
+  let eyeDepth = call:max:float(binary:-:float(param:level:float, swizzle:float[1](param:eye:vec3)), const:float[0.0])
+  let path = call:mix:float(binary:/:float(binary:*:float(local:depth:float, local:toEye:float), call:max:float(binary:+:float(local:depth:float, call:max:float(binary:-:float(swizzle:float[1](param:eye:vec3), param:level:float), const:float[0.0])), const:float[0.001])), local:toEye:float, call:step:float(const:float[0.0], binary:-:float(local:eyeDepth:float, const:float[0.001])))
+  let throughUp = call:pow:vec3(const:vec3[0.3679, 0.3679, 0.3679], binary:*:vec3(param:absorb:vec3, local:path:float))
+  let sunLit = call:max:vec3(binary:-:vec3(binary:-:vec3(input:lit:vec3, input:emissive:vec3), binary:*:vec3(binary:*:vec3(input:albedo:vec3, input:ambient:vec3), input:occlusion:float)), const:vec3[0.0, 0.0, 0.0])
+  let floorLit = binary:+:vec3(local:sunLit:vec3, binary:*:vec3(binary:*:vec3(binary:*:vec3(input:albedo:vec3, input:ambient:vec3), input:occlusion:float), local:throughDown:vec3))
+  let back = binary:*:vec3(param:scatter:vec3, binary:+:vec3(binary:*:vec3(param:sunColor:vec3, local:throughDown:vec3), input:ambient:vec3))
+  return construct:vec4(binary:+:vec3(binary:*:vec3(local:floorLit:vec3, local:throughUp:vec3), binary:*:vec3(local:back:vec3, binary:-:vec3(const:vec3[1.0, 1.0, 1.0], local:throughUp:vec3))), const:float[1.0])
+light:
+  let here = swizzle:vec2[0, 2](input:world:vec3)
+  let depth = call:max:float(binary:-:float(param:level:float, swizzle:float[1](input:world:vec3)), const:float[0.0])
+  let ior = const:float[1.33]
+  let bend = binary:*:float(local:depth:float, binary:-:float(const:float[1.0], binary:/:float(const:float[1.0], local:ior:float)))
+  let cosDown = call:sqrt:float(binary:-:float(const:float[1.0], binary:/:float(binary:-:float(const:float[1.0], binary:*:float(swizzle:float[1](param:toSun:vec3), swizzle:float[1](param:toSun:vec3))), binary:*:float(local:ior:float, local:ior:float))))
+  let sunDown = binary:*:vec2(construct:vec2(swizzle:float[0](param:toSun:vec3), swizzle:float[2](param:toSun:vec3)), binary:/:float(binary:/:float(const:float[1.0], local:ior:float), local:cosDown:float))
+  let start = binary:+:vec2(local:here:vec2, binary:*:vec2(local:sunDown:vec2, local:depth:float))
+  let blurWidth = binary:*:float(binary:*:float(const:float[0.25], const:float[0.007]), local:depth:float)
+  let gust = binary:+:float(const:float[0.7], binary:*:float(binary:*:float(const:float[0.3], call:sin:float(binary:+:float(binary:+:float(binary:*:float(const:float[0.31], swizzle:float[0](local:start:vec2)), binary:*:float(const:float[0.17], swizzle:float[1](local:start:vec2))), binary:*:float(const:float[0.23], param:time:float)))), call:sin:float(binary:-:float(binary:-:float(binary:*:float(const:float[0.19], swizzle:float[1](local:start:vec2)), binary:*:float(const:float[0.27], swizzle:float[0](local:start:vec2))), binary:*:float(const:float[0.11], param:time:float)))))
+  let d1 = const:vec2[0.94, 0.342]
+  let s1 = binary:*:float(binary:*:float(const:float[0.032], param:chop:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[2.03], local:blurWidth:float), binary:*:float(const:float[2.03], local:blurWidth:float))))
+  let d2 = const:vec2[0.857, -0.515]
+  let s2 = binary:*:float(binary:*:float(const:float[0.032], param:chop:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[2.9], local:blurWidth:float), binary:*:float(const:float[2.9], local:blurWidth:float))))
+  let d3 = const:vec2[0.438, 0.899]
+  let s3 = binary:*:float(binary:*:float(const:float[0.03], param:chop:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[4.11], local:blurWidth:float), binary:*:float(const:float[4.11], local:blurWidth:float))))
+  let d4 = const:vec2[0.999, 0.035]
+  let s4 = binary:*:float(binary:*:float(const:float[0.029], param:chop:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[5.56], local:blurWidth:float), binary:*:float(const:float[5.56], local:blurWidth:float))))
+  let d5 = const:vec2[-0.358, 0.934]
+  let s5 = binary:*:float(binary:*:float(binary:*:float(const:float[0.028], param:chop:float), local:gust:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[7.57], local:blurWidth:float), binary:*:float(const:float[7.57], local:blurWidth:float))))
+  let d6 = const:vec2[0.53, -0.848]
+  let s6 = binary:*:float(binary:*:float(binary:*:float(const:float[0.027], param:chop:float), local:gust:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[10.52], local:blurWidth:float), binary:*:float(const:float[10.52], local:blurWidth:float))))
+  let d7 = const:vec2[-0.883, 0.469]
+  let s7 = binary:*:float(binary:*:float(binary:*:float(const:float[0.026], param:chop:float), local:gust:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[14.38], local:blurWidth:float), binary:*:float(const:float[14.38], local:blurWidth:float))))
+  let d8 = const:vec2[0.799, 0.602]
+  let s8 = binary:*:float(binary:*:float(binary:*:float(const:float[0.026], param:chop:float), local:gust:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[19.76], local:blurWidth:float), binary:*:float(const:float[19.76], local:blurWidth:float))))
+  let d9 = const:vec2[-0.515, -0.857]
+  let s9 = binary:*:float(binary:*:float(binary:*:float(const:float[0.024], param:chop:float), local:gust:float), call:pow:float(const:float[0.60653], binary:*:float(binary:*:float(const:float[27.2], local:blurWidth:float), binary:*:float(const:float[27.2], local:blurWidth:float))))
+  let b0 = binary:+:vec2(local:start:vec2, construct:vec2(binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:+:float(binary:*:float(const:float[0.73], swizzle:float[1](local:start:vec2)), binary:*:float(const:float[0.4], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[2.11], swizzle:float[1](local:start:vec2)), binary:*:float(const:float[0.9], swizzle:float[0](local:start:vec2))), binary:*:float(const:float[0.7], param:time:float))))), binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:-:float(binary:*:float(const:float[0.61], swizzle:float[0](local:start:vec2)), binary:*:float(const:float[0.3], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:-:float(binary:+:float(binary:*:float(const:float[1.87], swizzle:float[0](local:start:vec2)), binary:*:float(const:float[0.8], swizzle:float[1](local:start:vec2))), binary:*:float(const:float[0.6], param:time:float)))))))
+  let g0 = binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:*:vec2(local:d1:vec2, binary:*:float(local:s1:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.03], call:dot:float(local:d1:vec2, local:b0:vec2)), binary:*:float(const:float[4.46], param:time:float))))), binary:*:vec2(local:d2:vec2, binary:*:float(local:s2:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.9], call:dot:float(local:d2:vec2, local:b0:vec2)), binary:*:float(const:float[5.33], param:time:float)))))), binary:*:vec2(local:d3:vec2, binary:*:float(local:s3:float, call:cos:float(binary:-:float(binary:*:float(const:float[4.11], call:dot:float(local:d3:vec2, local:b0:vec2)), binary:*:float(const:float[6.35], param:time:float)))))), binary:*:vec2(local:d4:vec2, binary:*:float(local:s4:float, call:cos:float(binary:-:float(binary:*:float(const:float[5.56], call:dot:float(local:d4:vec2, local:b0:vec2)), binary:*:float(const:float[7.39], param:time:float)))))), binary:*:vec2(local:d5:vec2, binary:*:float(local:s5:float, call:cos:float(binary:-:float(binary:*:float(const:float[7.57], call:dot:float(local:d5:vec2, local:b0:vec2)), binary:*:float(const:float[8.62], param:time:float)))))), binary:*:vec2(local:d6:vec2, binary:*:float(local:s6:float, call:cos:float(binary:-:float(binary:*:float(const:float[10.52], call:dot:float(local:d6:vec2, local:b0:vec2)), binary:*:float(const:float[10.16], param:time:float)))))), binary:*:vec2(local:d7:vec2, binary:*:float(local:s7:float, call:cos:float(binary:-:float(binary:*:float(const:float[14.38], call:dot:float(local:d7:vec2, local:b0:vec2)), binary:*:float(const:float[11.88], param:time:float)))))), binary:*:vec2(local:d8:vec2, binary:*:float(local:s8:float, call:cos:float(binary:-:float(binary:*:float(const:float[19.76], call:dot:float(local:d8:vec2, local:b0:vec2)), binary:*:float(const:float[13.92], param:time:float)))))), binary:*:vec2(local:d9:vec2, binary:*:float(local:s9:float, call:cos:float(binary:-:float(binary:*:float(const:float[27.2], call:dot:float(local:d9:vec2, local:b0:vec2)), binary:*:float(const:float[16.33], param:time:float))))))
+  let x1 = binary:-:vec2(local:start:vec2, binary:*:vec2(local:g0:vec2, local:bend:float))
+  let b1 = binary:+:vec2(local:x1:vec2, construct:vec2(binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:+:float(binary:*:float(const:float[0.73], swizzle:float[1](local:x1:vec2)), binary:*:float(const:float[0.4], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[2.11], swizzle:float[1](local:x1:vec2)), binary:*:float(const:float[0.9], swizzle:float[0](local:x1:vec2))), binary:*:float(const:float[0.7], param:time:float))))), binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:-:float(binary:*:float(const:float[0.61], swizzle:float[0](local:x1:vec2)), binary:*:float(const:float[0.3], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:-:float(binary:+:float(binary:*:float(const:float[1.87], swizzle:float[0](local:x1:vec2)), binary:*:float(const:float[0.8], swizzle:float[1](local:x1:vec2))), binary:*:float(const:float[0.6], param:time:float)))))))
+  let g1 = binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:*:vec2(local:d1:vec2, binary:*:float(local:s1:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.03], call:dot:float(local:d1:vec2, local:b1:vec2)), binary:*:float(const:float[4.46], param:time:float))))), binary:*:vec2(local:d2:vec2, binary:*:float(local:s2:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.9], call:dot:float(local:d2:vec2, local:b1:vec2)), binary:*:float(const:float[5.33], param:time:float)))))), binary:*:vec2(local:d3:vec2, binary:*:float(local:s3:float, call:cos:float(binary:-:float(binary:*:float(const:float[4.11], call:dot:float(local:d3:vec2, local:b1:vec2)), binary:*:float(const:float[6.35], param:time:float)))))), binary:*:vec2(local:d4:vec2, binary:*:float(local:s4:float, call:cos:float(binary:-:float(binary:*:float(const:float[5.56], call:dot:float(local:d4:vec2, local:b1:vec2)), binary:*:float(const:float[7.39], param:time:float)))))), binary:*:vec2(local:d5:vec2, binary:*:float(local:s5:float, call:cos:float(binary:-:float(binary:*:float(const:float[7.57], call:dot:float(local:d5:vec2, local:b1:vec2)), binary:*:float(const:float[8.62], param:time:float)))))), binary:*:vec2(local:d6:vec2, binary:*:float(local:s6:float, call:cos:float(binary:-:float(binary:*:float(const:float[10.52], call:dot:float(local:d6:vec2, local:b1:vec2)), binary:*:float(const:float[10.16], param:time:float)))))), binary:*:vec2(local:d7:vec2, binary:*:float(local:s7:float, call:cos:float(binary:-:float(binary:*:float(const:float[14.38], call:dot:float(local:d7:vec2, local:b1:vec2)), binary:*:float(const:float[11.88], param:time:float)))))), binary:*:vec2(local:d8:vec2, binary:*:float(local:s8:float, call:cos:float(binary:-:float(binary:*:float(const:float[19.76], call:dot:float(local:d8:vec2, local:b1:vec2)), binary:*:float(const:float[13.92], param:time:float)))))), binary:*:vec2(local:d9:vec2, binary:*:float(local:s9:float, call:cos:float(binary:-:float(binary:*:float(const:float[27.2], call:dot:float(local:d9:vec2, local:b1:vec2)), binary:*:float(const:float[16.33], param:time:float))))))
+  let x2 = binary:-:vec2(local:start:vec2, binary:*:vec2(local:g1:vec2, local:bend:float))
+  let b2 = binary:+:vec2(local:x2:vec2, construct:vec2(binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:+:float(binary:*:float(const:float[0.73], swizzle:float[1](local:x2:vec2)), binary:*:float(const:float[0.4], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[2.11], swizzle:float[1](local:x2:vec2)), binary:*:float(const:float[0.9], swizzle:float[0](local:x2:vec2))), binary:*:float(const:float[0.7], param:time:float))))), binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:-:float(binary:*:float(const:float[0.61], swizzle:float[0](local:x2:vec2)), binary:*:float(const:float[0.3], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:-:float(binary:+:float(binary:*:float(const:float[1.87], swizzle:float[0](local:x2:vec2)), binary:*:float(const:float[0.8], swizzle:float[1](local:x2:vec2))), binary:*:float(const:float[0.6], param:time:float)))))))
+  let g2 = binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:+:vec2(binary:*:vec2(local:d1:vec2, binary:*:float(local:s1:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.03], call:dot:float(local:d1:vec2, local:b2:vec2)), binary:*:float(const:float[4.46], param:time:float))))), binary:*:vec2(local:d2:vec2, binary:*:float(local:s2:float, call:cos:float(binary:-:float(binary:*:float(const:float[2.9], call:dot:float(local:d2:vec2, local:b2:vec2)), binary:*:float(const:float[5.33], param:time:float)))))), binary:*:vec2(local:d3:vec2, binary:*:float(local:s3:float, call:cos:float(binary:-:float(binary:*:float(const:float[4.11], call:dot:float(local:d3:vec2, local:b2:vec2)), binary:*:float(const:float[6.35], param:time:float)))))), binary:*:vec2(local:d4:vec2, binary:*:float(local:s4:float, call:cos:float(binary:-:float(binary:*:float(const:float[5.56], call:dot:float(local:d4:vec2, local:b2:vec2)), binary:*:float(const:float[7.39], param:time:float)))))), binary:*:vec2(local:d5:vec2, binary:*:float(local:s5:float, call:cos:float(binary:-:float(binary:*:float(const:float[7.57], call:dot:float(local:d5:vec2, local:b2:vec2)), binary:*:float(const:float[8.62], param:time:float)))))), binary:*:vec2(local:d6:vec2, binary:*:float(local:s6:float, call:cos:float(binary:-:float(binary:*:float(const:float[10.52], call:dot:float(local:d6:vec2, local:b2:vec2)), binary:*:float(const:float[10.16], param:time:float)))))), binary:*:vec2(local:d7:vec2, binary:*:float(local:s7:float, call:cos:float(binary:-:float(binary:*:float(const:float[14.38], call:dot:float(local:d7:vec2, local:b2:vec2)), binary:*:float(const:float[11.88], param:time:float)))))), binary:*:vec2(local:d8:vec2, binary:*:float(local:s8:float, call:cos:float(binary:-:float(binary:*:float(const:float[19.76], call:dot:float(local:d8:vec2, local:b2:vec2)), binary:*:float(const:float[13.92], param:time:float)))))), binary:*:vec2(local:d9:vec2, binary:*:float(local:s9:float, call:cos:float(binary:-:float(binary:*:float(const:float[27.2], call:dot:float(local:d9:vec2, local:b2:vec2)), binary:*:float(const:float[16.33], param:time:float))))))
+  let at = binary:-:vec2(local:start:vec2, binary:*:vec2(local:g2:vec2, local:bend:float))
+  let bat = binary:+:vec2(local:at:vec2, construct:vec2(binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:+:float(binary:*:float(const:float[0.73], swizzle:float[1](local:at:vec2)), binary:*:float(const:float[0.4], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:+:float(binary:-:float(binary:*:float(const:float[2.11], swizzle:float[1](local:at:vec2)), binary:*:float(const:float[0.9], swizzle:float[0](local:at:vec2))), binary:*:float(const:float[0.7], param:time:float))))), binary:+:float(binary:*:float(const:float[0.25], call:sin:float(binary:-:float(binary:*:float(const:float[0.61], swizzle:float[0](local:at:vec2)), binary:*:float(const:float[0.3], param:time:float)))), binary:*:float(const:float[0.08], call:sin:float(binary:-:float(binary:+:float(binary:*:float(const:float[1.87], swizzle:float[0](local:at:vec2)), binary:*:float(const:float[0.8], swizzle:float[1](local:at:vec2))), binary:*:float(const:float[0.6], param:time:float)))))))
+  let c1 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s1:float, const:float[2.03]), call:sin:float(binary:-:float(binary:*:float(const:float[2.03], call:dot:float(local:d1:vec2, local:bat:vec2)), binary:*:float(const:float[4.46], param:time:float)))))
+  let c2 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s2:float, const:float[2.9]), call:sin:float(binary:-:float(binary:*:float(const:float[2.9], call:dot:float(local:d2:vec2, local:bat:vec2)), binary:*:float(const:float[5.33], param:time:float)))))
+  let c3 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s3:float, const:float[4.11]), call:sin:float(binary:-:float(binary:*:float(const:float[4.11], call:dot:float(local:d3:vec2, local:bat:vec2)), binary:*:float(const:float[6.35], param:time:float)))))
+  let c4 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s4:float, const:float[5.56]), call:sin:float(binary:-:float(binary:*:float(const:float[5.56], call:dot:float(local:d4:vec2, local:bat:vec2)), binary:*:float(const:float[7.39], param:time:float)))))
+  let c5 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s5:float, const:float[7.57]), call:sin:float(binary:-:float(binary:*:float(const:float[7.57], call:dot:float(local:d5:vec2, local:bat:vec2)), binary:*:float(const:float[8.62], param:time:float)))))
+  let c6 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s6:float, const:float[10.52]), call:sin:float(binary:-:float(binary:*:float(const:float[10.52], call:dot:float(local:d6:vec2, local:bat:vec2)), binary:*:float(const:float[10.16], param:time:float)))))
+  let c7 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s7:float, const:float[14.38]), call:sin:float(binary:-:float(binary:*:float(const:float[14.38], call:dot:float(local:d7:vec2, local:bat:vec2)), binary:*:float(const:float[11.88], param:time:float)))))
+  let c8 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s8:float, const:float[19.76]), call:sin:float(binary:-:float(binary:*:float(const:float[19.76], call:dot:float(local:d8:vec2, local:bat:vec2)), binary:*:float(const:float[13.92], param:time:float)))))
+  let c9 = binary:-:float(const:float[0.0], binary:*:float(binary:*:float(local:s9:float, const:float[27.2]), call:sin:float(binary:-:float(binary:*:float(const:float[27.2], call:dot:float(local:d9:vec2, local:bat:vec2)), binary:*:float(const:float[16.33], param:time:float)))))
+  let hxx = binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:*:float(binary:*:float(local:c1:float, swizzle:float[0](local:d1:vec2)), swizzle:float[0](local:d1:vec2)), binary:*:float(binary:*:float(local:c2:float, swizzle:float[0](local:d2:vec2)), swizzle:float[0](local:d2:vec2))), binary:*:float(binary:*:float(local:c3:float, swizzle:float[0](local:d3:vec2)), swizzle:float[0](local:d3:vec2))), binary:*:float(binary:*:float(local:c4:float, swizzle:float[0](local:d4:vec2)), swizzle:float[0](local:d4:vec2))), binary:*:float(binary:*:float(local:c5:float, swizzle:float[0](local:d5:vec2)), swizzle:float[0](local:d5:vec2))), binary:*:float(binary:*:float(local:c6:float, swizzle:float[0](local:d6:vec2)), swizzle:float[0](local:d6:vec2))), binary:*:float(binary:*:float(local:c7:float, swizzle:float[0](local:d7:vec2)), swizzle:float[0](local:d7:vec2))), binary:*:float(binary:*:float(local:c8:float, swizzle:float[0](local:d8:vec2)), swizzle:float[0](local:d8:vec2))), binary:*:float(binary:*:float(local:c9:float, swizzle:float[0](local:d9:vec2)), swizzle:float[0](local:d9:vec2)))
+  let hzz = binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:*:float(binary:*:float(local:c1:float, swizzle:float[1](local:d1:vec2)), swizzle:float[1](local:d1:vec2)), binary:*:float(binary:*:float(local:c2:float, swizzle:float[1](local:d2:vec2)), swizzle:float[1](local:d2:vec2))), binary:*:float(binary:*:float(local:c3:float, swizzle:float[1](local:d3:vec2)), swizzle:float[1](local:d3:vec2))), binary:*:float(binary:*:float(local:c4:float, swizzle:float[1](local:d4:vec2)), swizzle:float[1](local:d4:vec2))), binary:*:float(binary:*:float(local:c5:float, swizzle:float[1](local:d5:vec2)), swizzle:float[1](local:d5:vec2))), binary:*:float(binary:*:float(local:c6:float, swizzle:float[1](local:d6:vec2)), swizzle:float[1](local:d6:vec2))), binary:*:float(binary:*:float(local:c7:float, swizzle:float[1](local:d7:vec2)), swizzle:float[1](local:d7:vec2))), binary:*:float(binary:*:float(local:c8:float, swizzle:float[1](local:d8:vec2)), swizzle:float[1](local:d8:vec2))), binary:*:float(binary:*:float(local:c9:float, swizzle:float[1](local:d9:vec2)), swizzle:float[1](local:d9:vec2)))
+  let hxz = binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:+:float(binary:*:float(binary:*:float(local:c1:float, swizzle:float[0](local:d1:vec2)), swizzle:float[1](local:d1:vec2)), binary:*:float(binary:*:float(local:c2:float, swizzle:float[0](local:d2:vec2)), swizzle:float[1](local:d2:vec2))), binary:*:float(binary:*:float(local:c3:float, swizzle:float[0](local:d3:vec2)), swizzle:float[1](local:d3:vec2))), binary:*:float(binary:*:float(local:c4:float, swizzle:float[0](local:d4:vec2)), swizzle:float[1](local:d4:vec2))), binary:*:float(binary:*:float(local:c5:float, swizzle:float[0](local:d5:vec2)), swizzle:float[1](local:d5:vec2))), binary:*:float(binary:*:float(local:c6:float, swizzle:float[0](local:d6:vec2)), swizzle:float[1](local:d6:vec2))), binary:*:float(binary:*:float(local:c7:float, swizzle:float[0](local:d7:vec2)), swizzle:float[1](local:d7:vec2))), binary:*:float(binary:*:float(local:c8:float, swizzle:float[0](local:d8:vec2)), swizzle:float[1](local:d8:vec2))), binary:*:float(binary:*:float(local:c9:float, swizzle:float[0](local:d9:vec2)), swizzle:float[1](local:d9:vec2)))
+  let det = binary:-:float(binary:*:float(binary:+:float(const:float[1.0], binary:*:float(local:bend:float, local:hxx:float)), binary:+:float(const:float[1.0], binary:*:float(local:bend:float, local:hzz:float))), binary:*:float(binary:*:float(binary:*:float(local:bend:float, local:bend:float), local:hxz:float), local:hxz:float))
+  let focus = call:min:float(binary:/:float(const:float[1.0], call:max:float(call:abs:float(local:det:float), const:float[0.12])), const:float[6.0])
+  let throughDown = call:pow:vec3(const:vec3[0.3679, 0.3679, 0.3679], binary:*:vec3(param:absorb:vec3, binary:/:float(local:depth:float, local:cosDown:float)))
+  return binary:*:vec3(binary:*:vec3(input:albedo:vec3, local:focus:float), local:throughDown:vec3)
+--- glsl
+#version 460 core
+
+// Generated from a material written in the material language
+// — gfx-84n. The source is the thing to edit; this file is
+// what the shader build compiles and what the three GPU
+// backends translate. The software backend evaluates the same
+// tree instead of reading this.
+#include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+uniform MaterialParams {
+  float time;
+  float chop;
+  vec3 eye;
+  float level;
+  vec3 toSun;
+  vec3 sunColor;
+  vec3 absorb;
+  vec3 scatter;
+}
+material_params;
+
+// The material's light block, run once per light.
+vec3 ShadeLight(Surface s, LightSample light) {
+  vec2 here = v_world_position.xz;
+  float depth = max((material_params.level - v_world_position.y), 0.0);
+  float ior = 1.33;
+  float bend = (depth * (1.0 - (1.0 / ior)));
+  float cosDown = sqrt((1.0 - ((1.0 - (material_params.toSun.y * material_params.toSun.y)) / (ior * ior))));
+  vec2 sunDown = (vec2(material_params.toSun.x, material_params.toSun.z) * ((1.0 / ior) / cosDown));
+  vec2 start = (here + (sunDown * depth));
+  float blurWidth = (0.00175 * depth);
+  float gust = (0.7 + ((0.3 * sin((((0.31 * start.x) + (0.17 * start.y)) + (0.23 * material_params.time)))) * sin((((0.19 * start.y) - (0.27 * start.x)) - (0.11 * material_params.time)))));
+  vec2 d1 = vec2(0.94, 0.342);
+  float s1 = ((0.032 * material_params.chop) * pow(0.60653, ((2.03 * blurWidth) * (2.03 * blurWidth))));
+  vec2 d2 = vec2(0.857, -0.515);
+  float s2 = ((0.032 * material_params.chop) * pow(0.60653, ((2.9 * blurWidth) * (2.9 * blurWidth))));
+  vec2 d3 = vec2(0.438, 0.899);
+  float s3 = ((0.03 * material_params.chop) * pow(0.60653, ((4.11 * blurWidth) * (4.11 * blurWidth))));
+  vec2 d4 = vec2(0.999, 0.035);
+  float s4 = ((0.029 * material_params.chop) * pow(0.60653, ((5.56 * blurWidth) * (5.56 * blurWidth))));
+  vec2 d5 = vec2(-0.358, 0.934);
+  float s5 = (((0.028 * material_params.chop) * gust) * pow(0.60653, ((7.57 * blurWidth) * (7.57 * blurWidth))));
+  vec2 d6 = vec2(0.53, -0.848);
+  float s6 = (((0.027 * material_params.chop) * gust) * pow(0.60653, ((10.52 * blurWidth) * (10.52 * blurWidth))));
+  vec2 d7 = vec2(-0.883, 0.469);
+  float s7 = (((0.026 * material_params.chop) * gust) * pow(0.60653, ((14.38 * blurWidth) * (14.38 * blurWidth))));
+  vec2 d8 = vec2(0.799, 0.602);
+  float s8 = (((0.026 * material_params.chop) * gust) * pow(0.60653, ((19.76 * blurWidth) * (19.76 * blurWidth))));
+  vec2 d9 = vec2(-0.515, -0.857);
+  float s9 = (((0.024 * material_params.chop) * gust) * pow(0.60653, ((27.2 * blurWidth) * (27.2 * blurWidth))));
+  vec2 b0 = (start + vec2(((0.25 * sin(((0.73 * start.y) + (0.4 * material_params.time)))) + (0.08 * sin((((2.11 * start.y) - (0.9 * start.x)) + (0.7 * material_params.time))))), ((0.25 * sin(((0.61 * start.x) - (0.3 * material_params.time)))) + (0.08 * sin((((1.87 * start.x) + (0.8 * start.y)) - (0.6 * material_params.time)))))));
+  vec2 g0 = (((((((((d1 * (s1 * cos(((2.03 * dot(d1, b0)) - (4.46 * material_params.time))))) + (d2 * (s2 * cos(((2.9 * dot(d2, b0)) - (5.33 * material_params.time)))))) + (d3 * (s3 * cos(((4.11 * dot(d3, b0)) - (6.35 * material_params.time)))))) + (d4 * (s4 * cos(((5.56 * dot(d4, b0)) - (7.39 * material_params.time)))))) + (d5 * (s5 * cos(((7.57 * dot(d5, b0)) - (8.62 * material_params.time)))))) + (d6 * (s6 * cos(((10.52 * dot(d6, b0)) - (10.16 * material_params.time)))))) + (d7 * (s7 * cos(((14.38 * dot(d7, b0)) - (11.88 * material_params.time)))))) + (d8 * (s8 * cos(((19.76 * dot(d8, b0)) - (13.92 * material_params.time)))))) + (d9 * (s9 * cos(((27.2 * dot(d9, b0)) - (16.33 * material_params.time))))));
+  vec2 x1 = (start - (g0 * bend));
+  vec2 b1 = (x1 + vec2(((0.25 * sin(((0.73 * x1.y) + (0.4 * material_params.time)))) + (0.08 * sin((((2.11 * x1.y) - (0.9 * x1.x)) + (0.7 * material_params.time))))), ((0.25 * sin(((0.61 * x1.x) - (0.3 * material_params.time)))) + (0.08 * sin((((1.87 * x1.x) + (0.8 * x1.y)) - (0.6 * material_params.time)))))));
+  vec2 g1 = (((((((((d1 * (s1 * cos(((2.03 * dot(d1, b1)) - (4.46 * material_params.time))))) + (d2 * (s2 * cos(((2.9 * dot(d2, b1)) - (5.33 * material_params.time)))))) + (d3 * (s3 * cos(((4.11 * dot(d3, b1)) - (6.35 * material_params.time)))))) + (d4 * (s4 * cos(((5.56 * dot(d4, b1)) - (7.39 * material_params.time)))))) + (d5 * (s5 * cos(((7.57 * dot(d5, b1)) - (8.62 * material_params.time)))))) + (d6 * (s6 * cos(((10.52 * dot(d6, b1)) - (10.16 * material_params.time)))))) + (d7 * (s7 * cos(((14.38 * dot(d7, b1)) - (11.88 * material_params.time)))))) + (d8 * (s8 * cos(((19.76 * dot(d8, b1)) - (13.92 * material_params.time)))))) + (d9 * (s9 * cos(((27.2 * dot(d9, b1)) - (16.33 * material_params.time))))));
+  vec2 x2 = (start - (g1 * bend));
+  vec2 b2 = (x2 + vec2(((0.25 * sin(((0.73 * x2.y) + (0.4 * material_params.time)))) + (0.08 * sin((((2.11 * x2.y) - (0.9 * x2.x)) + (0.7 * material_params.time))))), ((0.25 * sin(((0.61 * x2.x) - (0.3 * material_params.time)))) + (0.08 * sin((((1.87 * x2.x) + (0.8 * x2.y)) - (0.6 * material_params.time)))))));
+  vec2 g2 = (((((((((d1 * (s1 * cos(((2.03 * dot(d1, b2)) - (4.46 * material_params.time))))) + (d2 * (s2 * cos(((2.9 * dot(d2, b2)) - (5.33 * material_params.time)))))) + (d3 * (s3 * cos(((4.11 * dot(d3, b2)) - (6.35 * material_params.time)))))) + (d4 * (s4 * cos(((5.56 * dot(d4, b2)) - (7.39 * material_params.time)))))) + (d5 * (s5 * cos(((7.57 * dot(d5, b2)) - (8.62 * material_params.time)))))) + (d6 * (s6 * cos(((10.52 * dot(d6, b2)) - (10.16 * material_params.time)))))) + (d7 * (s7 * cos(((14.38 * dot(d7, b2)) - (11.88 * material_params.time)))))) + (d8 * (s8 * cos(((19.76 * dot(d8, b2)) - (13.92 * material_params.time)))))) + (d9 * (s9 * cos(((27.2 * dot(d9, b2)) - (16.33 * material_params.time))))));
+  vec2 at = (start - (g2 * bend));
+  vec2 bat = (at + vec2(((0.25 * sin(((0.73 * at.y) + (0.4 * material_params.time)))) + (0.08 * sin((((2.11 * at.y) - (0.9 * at.x)) + (0.7 * material_params.time))))), ((0.25 * sin(((0.61 * at.x) - (0.3 * material_params.time)))) + (0.08 * sin((((1.87 * at.x) + (0.8 * at.y)) - (0.6 * material_params.time)))))));
+  float c1 = (0.0 - ((s1 * 2.03) * sin(((2.03 * dot(d1, bat)) - (4.46 * material_params.time)))));
+  float c2 = (0.0 - ((s2 * 2.9) * sin(((2.9 * dot(d2, bat)) - (5.33 * material_params.time)))));
+  float c3 = (0.0 - ((s3 * 4.11) * sin(((4.11 * dot(d3, bat)) - (6.35 * material_params.time)))));
+  float c4 = (0.0 - ((s4 * 5.56) * sin(((5.56 * dot(d4, bat)) - (7.39 * material_params.time)))));
+  float c5 = (0.0 - ((s5 * 7.57) * sin(((7.57 * dot(d5, bat)) - (8.62 * material_params.time)))));
+  float c6 = (0.0 - ((s6 * 10.52) * sin(((10.52 * dot(d6, bat)) - (10.16 * material_params.time)))));
+  float c7 = (0.0 - ((s7 * 14.38) * sin(((14.38 * dot(d7, bat)) - (11.88 * material_params.time)))));
+  float c8 = (0.0 - ((s8 * 19.76) * sin(((19.76 * dot(d8, bat)) - (13.92 * material_params.time)))));
+  float c9 = (0.0 - ((s9 * 27.2) * sin(((27.2 * dot(d9, bat)) - (16.33 * material_params.time)))));
+  float hxx = ((((((((((c1 * d1.x) * d1.x) + ((c2 * d2.x) * d2.x)) + ((c3 * d3.x) * d3.x)) + ((c4 * d4.x) * d4.x)) + ((c5 * d5.x) * d5.x)) + ((c6 * d6.x) * d6.x)) + ((c7 * d7.x) * d7.x)) + ((c8 * d8.x) * d8.x)) + ((c9 * d9.x) * d9.x));
+  float hzz = ((((((((((c1 * d1.y) * d1.y) + ((c2 * d2.y) * d2.y)) + ((c3 * d3.y) * d3.y)) + ((c4 * d4.y) * d4.y)) + ((c5 * d5.y) * d5.y)) + ((c6 * d6.y) * d6.y)) + ((c7 * d7.y) * d7.y)) + ((c8 * d8.y) * d8.y)) + ((c9 * d9.y) * d9.y));
+  float hxz = ((((((((((c1 * d1.x) * d1.y) + ((c2 * d2.x) * d2.y)) + ((c3 * d3.x) * d3.y)) + ((c4 * d4.x) * d4.y)) + ((c5 * d5.x) * d5.y)) + ((c6 * d6.x) * d6.y)) + ((c7 * d7.x) * d7.y)) + ((c8 * d8.x) * d8.y)) + ((c9 * d9.x) * d9.y));
+  float det = (((1.0 + (bend * hxx)) * (1.0 + (bend * hzz))) - (((bend * bend) * hxz) * hxz));
+  float focus = min((1.0 / max(abs(det), 0.12)), 6.0);
+  vec3 throughDown = pow(vec3(0.3679, 0.3679, 0.3679), (material_params.absorb * (depth / cosDown)));
+  return ((s.albedo * focus) * throughDown);
+}
+
+float LightVisibility(Surface s, LightSample light, int i) {
+  return ShadowFactor(s, light, i);
+}
+
+void main() {
+  Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  vec3 lit = AccumulateLights(s) * s.occlusion + s.albedo * (s.ambient + SampleLightmap()) * s.occlusion + s.emissive;
+  float depth = max((material_params.level - v_world_position.y), 0.0);
+  float ior = 1.33;
+  float cosDown = sqrt((1.0 - ((1.0 - (material_params.toSun.y * material_params.toSun.y)) / (ior * ior))));
+  vec3 throughDown = pow(vec3(0.3679, 0.3679, 0.3679), (material_params.absorb * (depth / cosDown)));
+  float toEye = length((material_params.eye - v_world_position));
+  float eyeDepth = max((material_params.level - material_params.eye.y), 0.0);
+  float path = mix(((depth * toEye) / max((depth + max((material_params.eye.y - material_params.level), 0.0)), 0.001)), toEye, step(0.0, (eyeDepth - 0.001)));
+  vec3 throughUp = pow(vec3(0.3679, 0.3679, 0.3679), (material_params.absorb * path));
+  vec3 sunLit = max(((lit - s.emissive) - ((s.albedo * s.ambient) * s.occlusion)), vec3(0.0, 0.0, 0.0));
+  vec3 floorLit = (sunLit + (((s.albedo * s.ambient) * s.occlusion) * throughDown));
+  vec3 back = (material_params.scatter * ((material_params.sunColor * throughDown) + s.ambient));
+  vec4 result = vec4(((floorLit * throughUp) + (back * (vec3(1.0, 1.0, 1.0) - throughUp))), 1.0);
+  WriteSurface(result.rgb, result.a);
+}
+
+--- evaluated
+  at 0.05: 0.581608846986, 0.560951872543, 0.468823697570, 1.00000000000
+  light: 0.699032844089, 0.395253134000, 0.203076362238
+  at 0.5: 0.581608846986, 0.560951872543, 0.468823697570, 1.00000000000
+  light: 0.699032844089, 0.395253134000, 0.203076362238
+  at 0.95: 0.581608846986, 0.560951872543, 0.468823697570, 1.00000000000
+  light: 0.699032844089, 0.395253134000, 0.203076362238
