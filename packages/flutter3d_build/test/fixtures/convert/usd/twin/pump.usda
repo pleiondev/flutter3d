@@ -1,0 +1,37 @@
+#usda 1.0
+(
+    defaultPrim = "Pump"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Pump"
+{
+    custom string twin:model = "XP-200"
+
+    def Cube "Body"
+    {
+        double size = 0.6
+        double3 xformOp:translate = (0, 0, 0.3)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Pump/Looks/Housing>
+        custom string twin:part = "housing"
+    }
+
+    def Scope "Looks"
+    {
+        def Material "Housing"
+        {
+            token outputs:mtlx:surface.connect = </Pump/Looks/Housing/Surface.outputs:out>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "ND_UsdPreviewSurface_surfaceshader"
+                color3f inputs:diffuseColor = (0.1, 0.3, 0.7)
+                float inputs:metallic = 0.2
+                float inputs:roughness = 0.5
+                token outputs:out
+            }
+        }
+    }
+}

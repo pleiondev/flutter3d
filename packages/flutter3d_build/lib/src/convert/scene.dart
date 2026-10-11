@@ -13,7 +13,14 @@ import 'dart:math' as math;
 import 'package:flutter3d_core/formats.dart' show SurfaceMaterial;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart'
-    show EntityDef, EntityTypes, Level, LevelMaterial, Prefab, PrefabOverrides;
+    show
+        EntityDef,
+        EntityTypes,
+        Level,
+        LevelMaterial,
+        Prefab,
+        PrefabAttributes,
+        PrefabOverrides;
 import 'package:vector_math/vector_math.dart';
 
 import 'report.dart';
@@ -313,11 +320,18 @@ String levelDocument({
 /// [value] with every number rounded by [roundNumber]: the level's own
 /// vectors are single precision, and `0.9` read back from one is
 /// `0.8999999761581421`.
+///
+/// A source's attributes ([PrefabAttributes]) are left as they came: they
+/// are the source's numbers, not the level's, and a tolerance of 2.5e-6 is
+/// not 3e-6.
 Object? _rounded(Object? value) => switch (value) {
   /// A number, in whatever unit the level holds it in.
   final double d => roundNumber(d),
   final Map<String, Object?> map => <String, Object?>{
-    for (final MapEntry(:key, :value) in map.entries) key: _rounded(value),
+    for (final MapEntry(:key, :value) in map.entries)
+      key: key == PrefabAttributes.ownKey || key == PrefabAttributes.nodesKey
+          ? value
+          : _rounded(value),
   },
   final List<Object?> list => <Object?>[for (final v in list) _rounded(v)],
   _ => value,
@@ -338,8 +352,17 @@ List<Map<String, Object?>> _rows(
     return seen == 0 ? name : '$name.$seen';
   }
 
-  void walk(SceneItem item, Matrix4 parent, Set<String> inlining) {
+  // [inherited] is what the instances being written out row by row said
+  // about themselves: their rows carry it, as `expandPrefabs` gives an
+  // instance's attributes to the rows it expands to.
+  void walk(
+    SceneItem item,
+    Matrix4 parent,
+    Set<String> inlining,
+    Map<String, Object?> inherited,
+  ) {
     final world = parent * item.local;
+    final properties = _inheriting(item.properties, inherited);
     if (item.instance case final NestedInstance nested) {
       final placement = placementOf(world);
       final keepsInstance =
@@ -360,7 +383,7 @@ List<Map<String, Object?>> _rows(
             ..remove('scale'),
           'prefab': nested.prefab,
           if (nested.overrides.isNotEmpty) 'overrides': nested.overrides,
-          ...item.properties,
+          ...properties,
         });
       } else if (inlining.contains(nested.prefab)) {
         report.drop(item.name, 'prefab "${nested.prefab}" contains itself');
@@ -379,8 +402,12 @@ List<Map<String, Object?>> _rows(
             'they address rows of a template the document no longer names',
           );
         }
+        final carried = switch (properties[PrefabAttributes.ownKey]) {
+          final Map<String, Object?> own => own,
+          _ => const <String, Object?>{},
+        };
         for (final root in target.roots) {
-          walk(root, world, <String>{...inlining, nested.prefab});
+          walk(root, world, <String>{...inlining, nested.prefab}, carried);
         }
       }
     } else if (item.asset != null) {
@@ -391,7 +418,7 @@ List<Map<String, Object?>> _rows(
         'asset': assetPath(prefix, item.asset!),
         if (item.materials.any((String? m) => m != null))
           'materials': item.materials,
-        ...item.properties,
+        ...properties,
       });
     } else if (item.shape case final PrimitiveShape shape) {
       // A prop is drawn by its size, and turned by its yaw alone: the scale
@@ -422,16 +449,31 @@ List<Map<String, Object?>> _rows(
         ...sized.toProperties(),
         if (item.materials.any((String? m) => m != null))
           'materials': item.materials,
-        ...item.properties,
+        ...properties,
       });
     }
     for (final child in item.children) {
-      walk(child, world, inlining);
+      walk(child, world, inlining, inherited);
     }
   }
 
   for (final root in prefab.roots) {
-    walk(root, Matrix4.identity(), <String>{prefab.id});
+    walk(root, Matrix4.identity(), <String>{prefab.id}, const {});
   }
   return rows;
 }
+
+/// [properties] with [inherited] written over their own attributes; the
+/// very [properties] when nothing is inherited.
+Map<String, Object?> _inheriting(
+  Map<String, Object?> properties,
+  Map<String, Object?> inherited,
+) => inherited.isEmpty
+    ? properties
+    : <String, Object?>{
+        ...properties,
+        PrefabAttributes.ownKey: <String, Object?>{
+          ...?properties[PrefabAttributes.ownKey] as Map<String, Object?>?,
+          ...inherited,
+        },
+      };

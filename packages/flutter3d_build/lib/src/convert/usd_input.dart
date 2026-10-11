@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show PrefabAttributes;
 import 'package:vector_math/vector_math.dart';
 
 import '../build_exceptions.dart';
@@ -263,11 +264,15 @@ final class _UsdReader {
     final instances = <SceneItem>[];
     final skipped = <String, int>{};
     final materialKeys = <String>{};
+    // What the layer's prims said about themselves, by their node's path in
+    // the layer's model; an instance's goes on its own row.
+    final nodeAttributes = <String, Map<String, Object?>>{};
 
     Future<void> walk(
       UsdPrim prim,
       Matrix4 parentWorld,
       int? parentNode,
+      String? parentPath,
     ) async {
       if (prim.specifier != 'def') {
         skipped['${prim.specifier} prims'] =
@@ -288,6 +293,8 @@ final class _UsdReader {
       }
       final (local, resets) = _localMatrix(prim);
       final world = resets ? local : parentWorld * local;
+      final path = parentPath == null ? prim.name : '$parentPath/${prim.name}';
+      final attributes = _attributesOf(prim);
 
       // A reference to another file: that file's prefab, placed here.
       final reference = _referenceOf(prim);
@@ -303,7 +310,7 @@ final class _UsdReader {
             );
           } else {
             for (final child in target.children) {
-              await walk(child, world, parentNode);
+              await walk(child, world, parentNode, parentPath);
             }
           }
           return;
@@ -337,6 +344,7 @@ final class _UsdReader {
             local: toEngine.multiplied(world)
               ..multiply(Matrix4.inverted(toEngine)),
             instance: NestedInstance(nested),
+            properties: PrefabAttributes(own: attributes).toProperties(),
           ),
         );
         if (reference.target != null) {
@@ -345,16 +353,42 @@ final class _UsdReader {
             'layer is placed',
           );
         }
-        if (prim.children.isNotEmpty) {
+        final opinions = prim.children
+            .where((UsdPrim c) => c.specifier != 'def')
+            .length;
+        if (opinions > 0) {
           report.drop(
-            '${prim.path}\'s own children',
+            '${prim.path}: $opinions ${opinions == 1 ? 'prim' : 'prims'} '
+                'written over the reference',
             'they are opinions over the referenced layer, which is placed '
                 'as it is',
+          );
+        }
+        // A prim defined under the reference is the composed stage's as
+        // much as the referenced layer's are: drawn in this layer's model,
+        // under a node where the instance stands.
+        final defined = prim.children
+            .where((UsdPrim c) => c.specifier == 'def')
+            .toList();
+        if (defined.isNotEmpty) {
+          final node = assembler.node(
+            prim.name,
+            parentNode == null ? toEngine * local : local,
+            parent: parentNode,
+          );
+          for (final child in defined) {
+            await walk(child, world, node, path);
+          }
+          report.map(
+            '${prim.path}: ${defined.length} '
+            '${defined.length == 1 ? 'prim' : 'prims'} defined under the '
+            'reference, kept in this layer\'s model beside the instance',
           );
         }
         return;
       }
 
+      if (attributes.isNotEmpty) nodeAttributes[path] = attributes;
       final node = assembler.node(
         prim.name,
         parentNode == null ? toEngine * local : local,
@@ -380,16 +414,17 @@ final class _UsdReader {
         );
       }
       for (final child in prim.children) {
-        await walk(child, world, node);
+        await walk(child, world, node, path);
       }
     }
 
     for (final prim in usd.prims) {
-      await walk(prim, Matrix4.identity(), null);
+      await walk(prim, Matrix4.identity(), null, null);
     }
     for (final MapEntry(:key, :value) in skipped.entries) {
       report.drop('$id: $value $key', _skipReason(key));
     }
+    _sayAttributes(id, nodeAttributes, instances);
 
     final roots = <SceneItem>[];
     if (!assembler.isEmpty) {
@@ -400,7 +435,13 @@ final class _UsdReader {
           relative,
           report,
         );
-        roots.add(SceneItem(name: id, asset: path));
+        roots.add(
+          SceneItem(
+            name: id,
+            asset: path,
+            properties: PrefabAttributes(nodes: nodeAttributes).toProperties(),
+          ),
+        );
       } on Object catch (error) {
         report.fail('the model of $id did not convert: $error');
       }
@@ -408,6 +449,131 @@ final class _UsdReader {
     roots.addAll(instances);
     if (roots.isEmpty) report.warn('$id: nothing drawable in the layer');
     return roots;
+  }
+
+  /// What [prim]'s author added to it: every attribute declared `custom`,
+  /// every one under `userProperties:` (where several exporters write
+  /// theirs without the keyword), and each entry of its `customData`
+  /// dictionary as `customData:<key>`. By name, each as JSON holds it.
+  ///
+  /// A relationship, a connection and an attribute with no value are said
+  /// in the report and left out; a time-sampled one carries its first
+  /// sample, with a warning.
+  Map<String, Object?> _attributesOf(UsdPrim prim) {
+    final out = <String, Object?>{};
+    for (final property in prim.properties.values) {
+      final name = property.name;
+      if (!property.custom && !name.startsWith('userProperties:')) continue;
+      final where = '${prim.path}.$name';
+      if (property.isRelationship) {
+        report.drop(
+          where,
+          'a relationship names prims, which a level row does not carry',
+        );
+        continue;
+      }
+      if (name.endsWith('.connect')) {
+        report.drop(where, 'a connection is not a value a row can carry');
+        continue;
+      }
+      final value = _attributeValue(property.value, _isIntegral(property));
+      if (value == null) {
+        report.drop(
+          where,
+          property.value == null
+              ? 'it has no value (declared only, or None)'
+              : 'its value is not one a level can hold (a path, or not a '
+                    'finite number)',
+        );
+        continue;
+      }
+      if (property.timeSampled) {
+        report.warn('$where: time-sampled; its first sample is carried');
+      }
+      out[name] = value;
+    }
+    if (prim.metadata['customData'] case final Map<String, Object?> data) {
+      for (final MapEntry(:key, value: raw) in data.entries) {
+        final value = _attributeValue(raw, false);
+        if (value == null) {
+          report.drop(
+            '${prim.path} customData $key',
+            'its value is not one a level can hold',
+          );
+        } else {
+          out['customData:$key'] = value;
+        }
+      }
+    }
+    return out;
+  }
+
+  /// Whether [property] is written as an integer type: its numbers are
+  /// carried as integers, which the reader parsed as doubles.
+  static bool _isIntegral(UsdProperty property) => const <String>{
+    'int',
+    'uint',
+    'int64',
+    'uint64',
+    'uchar',
+    'int2',
+    'int3',
+    'int4',
+  }.contains(property.typeName.replaceFirst('[]', ''));
+
+  /// [value] as JSON holds it, or null when it cannot be: a path, an
+  /// infinity, a NaN, or nothing at all.
+  static Object? _attributeValue(Object? value, bool integral) =>
+      switch (value) {
+        final double d when !d.isFinite => null,
+        final double d => integral ? d.toInt() : d,
+        final bool b => b,
+        final String s => s,
+        final UsdWord w => w.word,
+        final UsdAsset a => a.path,
+        final List<Object?> list => switch (<Object?>[
+          for (final e in list) _attributeValue(e, integral),
+        ]) {
+          final items when items.contains(null) => null,
+          final items => items,
+        },
+        final Map<String, Object?> map => switch (<String, Object?>{
+          for (final MapEntry(:key, :value) in map.entries)
+            key: _attributeValue(value, false),
+        }) {
+          final entries when entries.containsValue(null) => null,
+          final entries => entries,
+        },
+        _ => null,
+      };
+
+  /// Says in the report how many custom attributes the layer [id] carried,
+  /// and where they went.
+  void _sayAttributes(
+    String id,
+    Map<String, Map<String, Object?>> nodes,
+    List<SceneItem> instances,
+  ) {
+    final onNodes = nodes.values.fold(0, (int n, Map m) => n + m.length);
+    if (onNodes > 0) {
+      report.map(
+        '$id: $onNodes custom attributes on ${nodes.length} '
+        '${nodes.length == 1 ? 'prim' : 'prims'} -> '
+        '${PrefabAttributes.nodesKey}',
+      );
+    }
+    final carrying = <Map>[
+      for (final item in instances)
+        if (item.properties[PrefabAttributes.ownKey] case final Map own) own,
+    ];
+    if (carrying.isNotEmpty) {
+      report.map(
+        '$id: ${carrying.fold(0, (int n, Map m) => n + m.length)} custom '
+        'attributes on ${carrying.length} '
+        '${carrying.length == 1 ? 'instance' : 'instances'} -> '
+        '${PrefabAttributes.ownKey}',
+      );
+    }
   }
 
   static bool _sameFrame(Matrix4 a, Matrix4 b) {
@@ -809,7 +975,11 @@ final class _UsdReader {
     }
     final shaderId = _word(shader['info:id']) ?? '';
     final vocabulary = switch (shaderId) {
-      'UsdPreviewSurface' => ShadingVocabulary.previewSurface,
+      // MaterialX names UsdPreviewSurface's node `ND_UsdPreviewSurface_…`.
+      final String s
+          when s == 'UsdPreviewSurface' ||
+              s.startsWith('ND_UsdPreviewSurface') =>
+        ShadingVocabulary.previewSurface,
       final String s when s.contains('standard_surface') =>
         ShadingVocabulary.standardSurface,
       _ => null,
