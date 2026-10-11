@@ -80,6 +80,7 @@ import '../view/flutter3d_view.dart';
 import '../view/frame_info.dart';
 import '../view/view_settings.dart';
 
+part 'scene_widgets_bindings.dart';
 part 'scene_widgets_features.dart';
 part 'scene_widgets_input.dart';
 part 'scene_widgets_mount.dart';
