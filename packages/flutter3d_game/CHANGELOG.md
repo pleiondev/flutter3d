@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A scrub shows where it went at once.** `RunTimeline.scrubTo`,
+  `returnToPresent`, `releaseAt`, `swapLevel` and `tracks` leave the
+  loop's `published` at the state they put the loop at, a keyframe with
+  nothing to replay included, instead of the moment before until the next
+  step.
 - **An actor is drawn through the scene binding of its body.**
   `ActorVisuals` binds `ActorCodecs.body` to the kind of node `f3d.actor`
   (`ActorVisuals.nodeKind`) in the `SceneBindings` it is given

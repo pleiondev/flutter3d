@@ -175,6 +175,35 @@ void main() {
     expect(run.rewind.step, 300);
   });
 
+  test('the view sees the scrubbed moment and the present at once, before '
+      'any step', () {
+    // Mutation: drop `loop.republish()` from `_play` and from
+    // `returnToPresent`. A scrub to the oldest keyframe plays no step, so the
+    // view then shows the present while the state is 300 steps back, and the
+    // return shows the oldest moment until the run steps again.
+    final run = _run(300);
+    final loop = run.timeline.loop;
+    final heard = <int>[];
+    loop.onPublished((state) => heard.add(state.step));
+    expect(loop.published.step, 300);
+    run.timeline.pause();
+
+    final oldest = run.rewind.oldestStep!;
+    expect(run.timeline.scrubTo(oldest), isA<ScrubMoved>());
+    expect(run.toy.state, run.seen[oldest]);
+    expect(loop.step, oldest);
+    expect(loop.published.step, oldest);
+    expect(heard.last, oldest);
+
+    expect(run.timeline.scrubTo(oldest + 7), isA<ScrubMoved>());
+    expect(loop.published.step, oldest + 7);
+
+    expect(run.timeline.returnToPresent(), isTrue);
+    expect(loop.step, 300);
+    expect(loop.published.step, 300);
+    expect(heard.last, 300);
+  });
+
   test('tracks hold every change each entity made over the buffer, and '
       'reading them changes nothing', () {
     // Mutation: drop the final restore in `tracks`. The live state is then

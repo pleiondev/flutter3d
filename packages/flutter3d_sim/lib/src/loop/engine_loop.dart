@@ -629,6 +629,25 @@ final class EngineLoop extends LoopRegistry {
   /// Plugins reach it as `host.registry<ProbeSamplers>()`.
   final ProbeSamplers probeSamplers = ProbeSamplers();
 
+  /// Publishes the state as it stands, outside a step: the probes read
+  /// again, [published] rebuilt and every [onPublished] listener called.
+  ///
+  /// **For a rewind that stays where it lands.** [rewindTo] does not
+  /// publish, since a rollback resimulates at once and each of its steps
+  /// publishes; a scrub to a keyframe, or a return to the present, steps
+  /// nothing, and without this the view would show the moment before until
+  /// the next step. Does nothing while nothing reads [published].
+  void republish() {
+    if (!_publishing) return;
+    _probes = readProbes(
+      world,
+      probeSamplers,
+      step: _step,
+      seconds: _step * stepSeconds,
+    );
+    _publish();
+  }
+
   void _publish() {
     if (!_publishing) return;
     final state = _build();

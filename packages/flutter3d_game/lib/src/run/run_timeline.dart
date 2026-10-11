@@ -484,7 +484,9 @@ final class RunTimeline {
   /// the first scrub, and [returnToPresent] restores it exactly; going on
   /// from the scrubbed moment is [branchHere]. Scrubbing forward from a
   /// scrubbed step plays on from there instead of from the keyframe, so a
-  /// drag to the right costs the distance dragged.
+  /// drag to the right costs the distance dragged. The loop's `published`
+  /// is the scrubbed moment as soon as this returns, a keyframe included,
+  /// where no step is played.
   ///
   /// Only while paused, since the loop would step the scrubbed state as if it
   /// were the present. A scrub to the present is [returnToPresent].
@@ -520,11 +522,15 @@ final class RunTimeline {
   }
 
   /// Puts the present back after a scrub. Does nothing at the present, and
-  /// answers whether there was a scrub to leave.
+  /// answers whether there was a scrub to leave. The loop publishes the
+  /// present at once (`EngineLoop.republish`), so the view leaves the scrub
+  /// before the next step.
   bool returnToPresent() {
     final present = _present;
     if (present == null) return false;
-    loop.rewindTo(rewind.step - _offset, state: present);
+    loop
+      ..rewindTo(rewind.step - _offset, state: present)
+      ..republish();
     _forgetScrub();
     _history.add(const TimelineReturned());
     return true;
@@ -590,7 +596,9 @@ final class RunTimeline {
       },
       observeAfter: true,
     );
-    loop.rewindTo(hereStep, state: here);
+    loop
+      ..rewindTo(hereStep, state: here)
+      ..republish();
     return tracks;
   }
 
@@ -627,7 +635,16 @@ final class RunTimeline {
     loop.rewindTo(base - offset, state: point.snapshot);
   }
 
-  void _play(List<InputFrame> frames, int seed) => _playEach(frames, seed);
+  /// Plays [frames] from a restored keyframe. With none to play, the
+  /// keyframe is where the state stays, and nothing steps to publish it, so
+  /// the loop publishes it here: a view shows the moment it was put at.
+  void _play(List<InputFrame> frames, int seed) {
+    if (frames.isEmpty) {
+      loop.republish();
+      return;
+    }
+    _playEach(frames, seed);
+  }
 
   /// Plays [frames] through the loop, one resimulated step each, with the
   /// devices muted and the tape as the loop's playback; [each] is called

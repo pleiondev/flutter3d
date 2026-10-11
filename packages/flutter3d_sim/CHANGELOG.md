@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **A rewind that stays put can say where it is.** `EngineLoop.republish`
+  reads the probes again and publishes the state as it stands, outside a
+  step, so a scrub to a keyframe or a return to the present reaches the
+  view before the next step.
 - **A placed thing keeps what its source said about it.**
   `PrefabAttributes` reads a row's own attributes (`attributes`) and a
   model row's attributes of its nodes by node path (`nodeAttributes`), as
