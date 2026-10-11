@@ -193,6 +193,35 @@ void main() {
     test('a query over a type nothing has is empty, not an error', () {
       expect(_world().queryOf<_Visual>(), isEmpty);
     });
+
+    test('a query answers in entity order from a sparse or a dense store', () {
+      // A store keeps its entries in the order they were set, and a query
+      // answers in entity order whichever store it starts from: a sparse one
+      // by sorting its indices, a dense one by asking it at every index.
+      // Mutations: walk the smallest store's keys unsorted, or let the dense
+      // walk skip asking that store.
+      final world = _world();
+      final entities = <Entity>[for (var i = 0; i < 40; i++) world.spawn()];
+      for (final entity in entities.reversed) {
+        world.set(entity, _Position(0.0, 0.0));
+      }
+      for (final i in <int>[30, 3, 17]) {
+        world.set(entities[i], _Name('$i'));
+      }
+      final named = <Entity>[entities[3], entities[17], entities[30]];
+
+      expect(world.query().having<_Position>().entities, entities);
+      expect(world.query().having<_Position>().having<_Name>().entities, named);
+      expect(
+        world.query().having<_Name>().changed<_Name>(since: 0).entities,
+        named,
+        reason: 'a type named twice is one condition',
+      );
+      expect(world.query().without<_Name>().entities, <Entity>[
+        for (final entity in entities)
+          if (!named.contains(entity)) entity,
+      ]);
+    });
   });
 
   group('writing it down', () {

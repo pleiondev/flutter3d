@@ -630,8 +630,90 @@ extension _ShadowPasses on Renderer {
     return true;
   }
 
+  /// [_casterFlags]: the caster is drawn into some cascade, given a volume
+  /// that holds it.
+  static const int _casts = 1;
+
+  /// [_casterFlags]: the caster is see-through this frame.
+  static const int _castsSeeThrough = 2;
+
+  /// [_casterFlags]: the caster is marked static.
+  static const int _castsStatic = 4;
+
+  static int _mix(int key, int value) => 0x1fffffff & (key * 31 + value);
+
+  /// Fills [_casterKeys] and [_casterFlags] for this frame's [scene], once,
+  /// for every cascade's key to read.
+  ///
+  /// Masked casters read a cutoff and an alpha off their material, and
+  /// neither a material's fields nor the texture it points at reach any
+  /// version, so they are read directly, as are the faces a caster records,
+  /// a swapped mesh, a morph's weights and an instance moved inside a batch.
+  /// What is read is the same whichever cascade asks, so it is read once:
+  /// the keys used to walk every caster's material, mesh and joints again
+  /// for every cascade and once more for the static tiles.
+  void _keyCasters(Scene scene, bool Function(MeshNode node) seeThrough) {
+    final meshes = scene.meshes;
+    if (_casterKeys.length < meshes.length) {
+      final capacity = math.max(meshes.length, _casterKeys.length * 2);
+      _casterKeys = Int32List(capacity);
+      _casterFlags = Uint8List(capacity);
+    }
+    for (var i = 0; i < meshes.length; i++) {
+      final node = meshes[i];
+      if (!_castsShadow(node)) {
+        _casterFlags[i] = 0;
+        continue;
+      }
+      final translucent = seeThrough(node);
+      _casterFlags[i] =
+          _casts |
+          (translucent ? _castsSeeThrough : 0) |
+          (node.shadowIsStatic ? _castsStatic : 0);
+      final material = node.material;
+      var key = 17;
+      if (translucent) {
+        // What it lets through is read off the material, which no version
+        // follows: its colour, its transmission, its index and its volume.
+        key = _mix(key, material.baseColor.r.hashCode);
+        key = _mix(key, material.baseColor.g.hashCode);
+        key = _mix(key, material.baseColor.b.hashCode);
+        key = _mix(key, (material.extensions?.transmission ?? 0.0).hashCode);
+        key = _mix(key, (material.extensions?.ior ?? 1.5).hashCode);
+        final volume = material.extensions;
+        if (volume != null) {
+          key = _mix(key, volume.thickness.hashCode);
+          key = _mix(key, volume.attenuationDistance.hashCode);
+          final through = volume.attenuationColor;
+          key = _mix(key, through.r.hashCode);
+          key = _mix(key, through.g.hashCode);
+          key = _mix(key, through.b.hashCode);
+        }
+      }
+      key = _mix(key, identityHashCode(node));
+      key = _mix(key, node.worldVersion);
+      key = _mix(key, identityHashCode(material));
+      key = _mix(key, material.alphaMode.hashCode);
+      key = _mix(key, material.alphaCutoff.hashCode);
+      key = _mix(key, material.baseColor.a.hashCode);
+      key = _mix(key, identityHashCode(material.albedo));
+      key = _mix(key, node.castsShadowFromEveryFace ? 1 : 0);
+      key = _mix(key, identityHashCode(node.mesh));
+      key = _mix(key, node.morph?.version ?? 0);
+      if (node is InstancedMeshNode) key = _mix(key, node.dataVersion);
+      final skeleton = node.skeleton;
+      if (skeleton != null) {
+        for (final joint in skeleton.joints) {
+          key = _mix(key, joint.worldVersion);
+        }
+      }
+      _casterKeys[i] = key;
+    }
+  }
+
   /// Everything that decides a texel of cascade [shaderMatrix]'s tile —
-  /// `gfx-68n`, per cascade since `S1`.
+  /// `gfx-68n`, per cascade since `S1` — from the casters [_keyCasters]
+  /// keyed this frame.
   ///
   /// **Per cascade, so a caster moving in one does not redraw the others.**
   /// The whole atlas used to share one key with `sceneChangeEpoch` in
@@ -642,72 +724,38 @@ extension _ShadowPasses on Renderer {
   /// is fitted to the casters rather than to the camera, stays drawn while
   /// the camera walks, and a character crossing the near cascade leaves the
   /// far ones alone.
-  ///
-  /// Masked casters read a cutoff and an alpha off their material, and
-  /// neither a material's fields nor the texture it points at reach any
-  /// version, so they are read directly, as are the faces a caster records,
-  /// a swapped mesh, a morph's weights and an instance moved inside a batch.
   int _cascadeBakeKey(
     Scene scene,
     ShadowSettings settings,
     vm.Matrix4? shaderMatrix,
     vm.Frustum? frustum, {
     bool? only,
-    bool Function(MeshNode node)? seeThrough,
   }) {
-    int mix(int key, int value) => 0x1fffffff & (key * 31 + value);
-    var key = mix(
+    var key = _mix(
       settings.directionalCasterFaces.hashCode,
       scene.staticShadowGeneration,
     );
-    for (final value in shaderMatrix?.storage ?? const <double>[]) {
-      key = mix(key, value.hashCode);
+    if (shaderMatrix != null) {
+      final storage = shaderMatrix.storage;
+      for (var i = 0; i < storage.length; i++) {
+        key = _mix(key, storage[i].hashCode);
+      }
     }
-    for (final node in scene.meshes) {
+    final meshes = scene.meshes;
+    for (var i = 0; i < meshes.length; i++) {
+      final flags = _casterFlags[i];
+      if (flags & _casts == 0) continue;
       // A see-through caster is never kept in the static atlas — its share
       // of the map is blended into the frame's, after the walls — so it
       // belongs to the frame's key whatever it is marked as.
-      final translucent = seeThrough?.call(node) ?? false;
-      if (only != null && (translucent ? only : node.shadowIsStatic != only)) {
+      if (only != null &&
+          (flags & _castsSeeThrough != 0
+              ? only
+              : (flags & _castsStatic != 0) != only)) {
         continue;
       }
-      if (!_drawsIntoCascade(node, frustum)) continue;
-      final material = node.material;
-      if (translucent) {
-        // What it lets through is read off the material, which no version
-        // follows: its colour, its transmission, its index and its volume.
-        key = mix(key, material.baseColor.r.hashCode);
-        key = mix(key, material.baseColor.g.hashCode);
-        key = mix(key, material.baseColor.b.hashCode);
-        key = mix(key, (material.extensions?.transmission ?? 0.0).hashCode);
-        key = mix(key, (material.extensions?.ior ?? 1.5).hashCode);
-        final volume = material.extensions;
-        if (volume != null) {
-          key = mix(key, volume.thickness.hashCode);
-          key = mix(key, volume.attenuationDistance.hashCode);
-          final through = volume.attenuationColor;
-          for (final value in <double>[through.r, through.g, through.b]) {
-            key = mix(key, value.hashCode);
-          }
-        }
-      }
-      key = mix(key, identityHashCode(node));
-      key = mix(key, node.worldVersion);
-      key = mix(key, identityHashCode(material));
-      key = mix(key, material.alphaMode.hashCode);
-      key = mix(key, material.alphaCutoff.hashCode);
-      key = mix(key, material.baseColor.a.hashCode);
-      key = mix(key, identityHashCode(material.albedo));
-      key = mix(key, node.castsShadowFromEveryFace ? 1 : 0);
-      key = mix(key, identityHashCode(node.mesh));
-      key = mix(key, node.morph?.version ?? 0);
-      if (node is InstancedMeshNode) key = mix(key, node.dataVersion);
-      final skeleton = node.skeleton;
-      if (skeleton != null) {
-        for (final joint in skeleton.joints) {
-          key = mix(key, joint.worldVersion);
-        }
-      }
+      if (!_inCascadeVolume(meshes[i], frustum)) continue;
+      key = _mix(key, _casterKeys[i]);
     }
     return key;
   }
@@ -723,18 +771,24 @@ extension _ShadowPasses on Renderer {
 
   /// Whether [node] is drawn into the cascade whose volume is [frustum]: the
   /// tests the draw loop makes, in one place so the key and the loop agree.
-  static bool _drawsIntoCascade(MeshNode node, vm.Frustum? frustum) {
+  static bool _drawsIntoCascade(MeshNode node, vm.Frustum? frustum) =>
+      _castsShadow(node) && _inCascadeVolume(node, frustum);
+
+  /// The half of [_drawsIntoCascade] no cascade changes.
+  static bool _castsShadow(MeshNode node) {
     if (!node.isVisibleInHierarchy) return false;
     if (!node.shadowCasting.casts) return false;
     final mesh = node.mesh;
     if (mesh is! DrawableGeometry || mesh.indexCount == 0) return false;
-    if (frustum != null &&
-        node.frustumCulled &&
-        !frustum.intersectsWithAabb3(node.worldBounds)) {
-      return false;
-    }
     return node is! InstancedMeshNode || node.count > 0;
   }
+
+  /// The half of [_drawsIntoCascade] each cascade asks: whether its volume
+  /// [frustum] holds [node], or there is no volume to ask.
+  static bool _inCascadeVolume(MeshNode node, vm.Frustum? frustum) =>
+      frustum == null ||
+      !node.frustumCulled ||
+      frustum.intersectsWithAabb3(node.worldBounds);
 
   /// Draws the directional light's shadow map, and says whether it drew one.
   ///
@@ -1061,18 +1115,12 @@ extension _ShadowPasses on Renderer {
     }
 
     final staticFresh = fresh || _shadowMapStatic == null;
+    _keyCasters(scene, seeThrough);
     // `S1`: the static casters keyed as a whole rather than per tile, since
     // a tile that scrolls gains the casters its new strip holds without any
     // of them having changed; and each tile's key is that and its matrix.
     final staticScene = split
-        ? _cascadeBakeKey(
-            scene,
-            settings,
-            null,
-            null,
-            only: true,
-            seeThrough: transmits ? seeThrough : null,
-          )
+        ? _cascadeBakeKey(scene, settings, null, null, only: true)
         : 0;
     final staticKeys = <int>[
       for (var i = 0; i < count; i++)
@@ -1089,7 +1137,6 @@ extension _ShadowPasses on Renderer {
                       shaderMatrices[i],
                       cascadeFrusta[i],
                       only: split ? false : null,
-                      seeThrough: transmits ? seeThrough : null,
                     ) *
                     31 +
                 (split ? staticKeys[i] + 1 : 0)),

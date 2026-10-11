@@ -262,4 +262,58 @@ void main() {
     built.mover.material.alphaCutoff = 0.9;
     expect(cascadeDraws(frame()), greaterThan(0));
   });
+
+  test('a frame reads a caster for its keys once, not once a cascade', () {
+    // The keys used to walk every caster once per cascade, reading its
+    // material, its mesh and its faces each time, so a frame with three
+    // cascades did three times the reading of a frame with one. What a
+    // caster contributes is the same in every cascade; only whether it is in
+    // one differs.
+    int readsPerHeldFrame(int cascades) {
+      final device = CpuDevice(
+        width: _size,
+        height: _size,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      );
+      final renderer = Renderer.create(device: device);
+      final built = _scene(device);
+      final counted = built.scene.add(
+        _CountingNode(
+          DeviceMesh.upload(device, CuboidShape().build()),
+          RenderMaterial(name: 'counted'),
+        )..setPosition(-1.5, 0.7, 0.5),
+      );
+      FrameResult frame() => renderer.render(
+        width: _size,
+        height: _size,
+        scene: built.scene,
+        views: <RenderView>[RenderView(camera: built.camera)],
+        settings: RenderSettings(
+          shadows: ShadowSettings(enabled: true, cascades: cascades),
+        ),
+      );
+      frame();
+      frame();
+      counted.reads = 0;
+      expect(cascadeDraws(frame()), 0, reason: 'a held frame draws nothing');
+      return counted.reads;
+    }
+
+    expect(readsPerHeldFrame(3), readsPerHeldFrame(1));
+  });
+}
+
+/// A caster that counts how often the faces it records are asked for: a
+/// held frame asks only to key it. (Its version would not do: each cascade's
+/// volume test reads its bounds, which check the version.)
+final class _CountingNode extends MeshNode {
+  _CountingNode(super.mesh, super.material);
+
+  int reads = 0;
+
+  @override
+  bool get castsShadowFromEveryFace {
+    reads++;
+    return super.castsShadowFromEveryFace;
+  }
 }
