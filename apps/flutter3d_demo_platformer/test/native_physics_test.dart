@@ -11,6 +11,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d_demo_platformer/src/run_elements.dart'
     show elementsPart;
@@ -245,6 +246,42 @@ void main() {
       break;
     }
     expect(again, live);
+  });
+
+  test('a save digests the same whichever build of the core wrote it, '
+      'and differently when a body moved', () {
+    // [snapshot] as a build with ABI [abi] would have written it: the core
+    // stamps its F3D_ABI_VERSION at byte 8 of the header, and nothing else
+    // of the bytes depends on it.
+    String restamped(String snapshot, int abi) {
+      final bytes = base64Decode(snapshot);
+      ByteData.sublistView(bytes).setUint32(8, abi, Endian.little);
+      return base64Encode(bytes);
+    }
+
+    final game = _Game(native: true)..settle(30);
+    final save = game.staged.sim.save().toJson();
+    final dynamics = save['dynamics']! as Map<String, Object?>;
+    final elements =
+        (save['parts']! as Map<String, Object?>)[elementsPart]!
+            as Map<String, Object?>;
+    final digest = StateDigest.of(save);
+    dynamics['core'] = restamped(dynamics['core']! as String, 37);
+    elements['world'] = restamped(elements['world']! as String, 9999);
+    // Mutation: hash the snapshot strings as they lie in `state_digest.dart`
+    // and an ABI bump calls every tape with native physics another run.
+    expect(StateDigest.of(save), digest);
+
+    final world = NativeWorld();
+    addTearDown(world.dispose);
+    final body = world.addBody(position: Vector3(0.0, 1.0, 0.0));
+    world.setShape(body, const NativeShape.sphere(0.25));
+    final before = base64Encode(world.snapshot());
+    world.setPosition(body, Vector3(0.0, 1.0, 0.001));
+    final after = base64Encode(world.snapshot());
+    expect(StateDigest.of(restamped(before, 1)), StateDigest.of(before));
+    // Mutation: skip the snapshot past its header and the two agree.
+    expect(StateDigest.of(after), isNot(StateDigest.of(before)));
   });
 
   test('two runs on the core land on the same bits', () {

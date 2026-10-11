@@ -87,7 +87,9 @@
 /// silencing the question.
 library;
 
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -158,6 +160,44 @@ void main() {
         StateDigest.of(<String, Object?>{'ab': 1}),
       };
       expect(numbers, hasLength(11));
+    });
+
+    test('reads a native world snapshot without the stamp of the build '
+        'that wrote it', () {
+      // The header `f3d_snapshot.c` writes: magic, format 1.0, the writer's
+      // ABI, bytes a real, one section; then a section holding one body's
+      // position. The same world written by builds 37 and 39 is one state.
+      String snapshot({required int abi, double x = 1.5}) {
+        final bytes = ByteData(44)
+          ..setUint32(0, 0x53443346, Endian.little)
+          ..setUint32(4, 1 << 16, Endian.little)
+          ..setUint32(8, abi, Endian.little)
+          ..setUint32(12, 4, Endian.little)
+          ..setUint32(16, 1, Endian.little)
+          ..setUint32(20, 0x59444F42, Endian.little)
+          ..setUint32(24, 1, Endian.little)
+          ..setUint32(28, 12, Endian.little)
+          ..setFloat32(32, x, Endian.little)
+          ..setFloat32(36, 2.0, Endian.little)
+          ..setFloat32(40, -3.0, Endian.little);
+        return base64Encode(bytes.buffer.asUint8List());
+      }
+
+      // Mutation: hash the string as it lies and the first pair disagrees.
+      expect(
+        StateDigest.of(<String, Object?>{'core': snapshot(abi: 37)}),
+        StateDigest.of(<String, Object?>{'core': snapshot(abi: 39)}),
+      );
+      // Mutation: skip the whole snapshot and the second pair agrees.
+      expect(
+        StateDigest.of(<String, Object?>{'core': snapshot(abi: 39)}),
+        isNot(
+          StateDigest.of(<String, Object?>{'core': snapshot(abi: 39, x: 1.25)}),
+        ),
+      );
+      // A string is still a string: text that is not a snapshot keeps every
+      // character it has.
+      expect(StateDigest.of('RjNEUw-not-a-world'), isNot(StateDigest.of('')));
     });
 
     test('refuses what a snapshot could not have held', () {
