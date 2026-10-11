@@ -4281,6 +4281,7 @@ final class Renderer with RenderServices
   void warmUp({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
 
 final class RendererSteps extends RenderStepRegistry
+  Future<Registration> addComputeStep(ComputeStep step, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
   GraphicsDevice get device
   Iterable<PluginRegistry> get companions
   List<PassContributor> get contributors

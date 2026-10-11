@@ -46,6 +46,7 @@ import '../scene/scene_binding.dart';
 import '../scene/scene_node.dart';
 import 'cluster_draws.dart';
 import 'composite_mix.dart';
+import 'compute_step.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
 import 'depth_turn.dart';

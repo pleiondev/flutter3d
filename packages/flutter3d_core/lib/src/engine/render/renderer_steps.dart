@@ -230,6 +230,35 @@ final class RendererSteps extends RenderStepRegistry {
     return registration;
   }
 
+  /// Places [step] on [executors] (`ComputeStep.prepare`) and adds it as a
+  /// node at [at], as [addNode] does — the one call that puts a compute step
+  /// in the frame.
+  ///
+  /// **Placed before it is added, because a frame cannot wait.** Loading a
+  /// kernel is asynchronous on every device; the frame graph only asks the
+  /// step whether it was placed. [executors] is what
+  /// `DeviceRegistry.computeExecutors` answers for the device this renderer
+  /// draws on: that device, the sidecar `registerWgpuSidecar` added, the CPU
+  /// `registerCpuBackend` added. A step nothing can run is added all the
+  /// same: the frame reports it as `PassSkip.unsupported`, with
+  /// `ComputeStep.refusal` saying why, and culls what only read its output.
+  ///
+  /// Throws what [addNode] throws, before anything is loaded.
+  Future<Registration> addComputeStep(
+    ComputeStep step,
+    ComputeExecutors executors, {
+    RenderAnchor? at,
+    RenderStep? owner,
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) async {
+    // The checks first, then the placement, then the node: a name refused
+    // loads no kernel on any device.
+    addNode(step, at: at, step: owner, after: after, before: before).cancel();
+    await step.prepare(executors);
+    return addNode(step, at: at, step: owner, after: after, before: before);
+  }
+
   /// Every anchor a node can be placed at here: the engine's, then the ones
   /// added with [addAnchor], in the order they were added.
   @override

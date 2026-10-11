@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`RendererSteps.addComputeStep` puts a compute step in the frame.** It
+  places the step on the executors `DeviceRegistry.computeExecutors`
+  answers — the drawing device, the sidecar `registerWgpuSidecar` added,
+  the CPU `registerCpuBackend` added — and adds it as a node. A step
+  nothing can run is added all the same and reported as unsupported, with
+  `ComputeStep.refusal` saying why.
 - **A shadow technique's own producer draws the directional map.** The
   shadow pass fits the cascades first and draws after, and between the two
   it asks `ShadowTechnique.shadowMapProducer` with the fit in
