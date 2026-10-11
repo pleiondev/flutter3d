@@ -97,6 +97,10 @@ dev_dependencies:
   # renderer misses or misdirects fails here and not only on Metal. Test only:
   # the engine names shaders and never reads their sources.
   flutter3d_shaders: ^1.0.0-rc.1
+  # The frame allocation benchmark's counter: the VM's own allocation profile,
+  # read through the service the test starts with `--enable-vmservice`.
+  # Already in the workspace's lock through the editor's run tooling.
+  vm_service: ^15.3.0
 
 # **This package declares no assets, and that is a decision worth the paragraph.**
 #
