@@ -17,6 +17,7 @@ import 'determinism_check.dart';
 import 'engine_time.dart';
 import 'frame_cadence.dart';
 import 'loop_change.dart';
+import 'probes.dart';
 import 'published_worlds.dart';
 import 'sim_queries.dart';
 import 'time_source.dart';
@@ -112,6 +113,7 @@ final class EngineLoop extends LoopRegistry {
     int reconcileWindow = 600,
     int stepEventLimit = 4096,
     this.determinismCheck,
+    this.profile = SimulationProfile.deterministic,
   }) : _timing = timing, // ignore: prefer_initializing_formals
        materials =
            materials ??
@@ -124,8 +126,11 @@ final class EngineLoop extends LoopRegistry {
        ) {
     // Armed only where assertions run: a debug build and a test. A release
     // build never evaluates this, so it never steps twice.
+    // And only under a profile that promises bits: an `accurate` run is
+    // held to analytic tests, and two runs of one of its steps need not
+    // agree to the last bit for the profile to be keeping its word.
     assert(() {
-      _checking = determinismCheck != null;
+      _checking = determinismCheck != null && profile.isBitExact;
       return true;
     }());
     for (final phase in LoopPhase.stepPhases) {
@@ -150,7 +155,8 @@ final class EngineLoop extends LoopRegistry {
         MaterialStateComponent.codec,
         published: true,
       )
-      ..register<WorldPosition>(const WorldPositionCodec(), published: true);
+      ..register<WorldPosition>(const WorldPositionCodec(), published: true)
+      ..register<Probe>(Probe.codec);
     events.declare<OriginShifted>(
       OriginShifted.eventName,
       description:
@@ -168,9 +174,11 @@ final class EngineLoop extends LoopRegistry {
         snapshots,
         queries,
         publishedWorlds,
+        probeSamplers,
         if (!registries.contains(this.materials)) this.materials,
       ],
       backend: backend,
+      profile: profile,
     )..installAll(plugins);
   }
 
@@ -218,10 +226,31 @@ final class EngineLoop extends LoopRegistry {
   final SimulationVersion simulationBase;
 
   /// The simulation this loop runs: [simulationBase] with every enabled
-  /// simulation plugin's own number. What a run file and a network hello
-  /// carry.
-  SimulationVersion get simulationVersion =>
-      simulationBase.withPlugins(plugins.simulationVersions);
+  /// simulation plugin's own number, under [profile]. What a run file and a
+  /// network hello carry.
+  SimulationVersion get simulationVersion => simulationBase
+      .withPlugins(plugins.simulationVersions)
+      .withProfile(profile);
+
+  /// What this simulation promises about its numbers:
+  /// [SimulationProfile.deterministic], bit for bit on every platform,
+  /// unless a laboratory or a twin asks for another.
+  ///
+  /// Carried by [simulationVersion], so a run recorded under one profile is
+  /// refused under the other and a match forms only within one; handed to
+  /// every plugin as `PluginHost.profile`; and what the double-step check
+  /// asks: a [determinismCheck] runs only under a profile that
+  /// [SimulationProfile.isBitExact].
+  final SimulationProfile profile;
+
+  /// [world]'s properties under this loop's [profile]: what a game calls
+  /// where it stages a physics world for this loop, so the bodies' own
+  /// integrators read the profile the loop runs (`WorldProperties.profile`).
+  /// Unchanged — the same value — when the world already says it.
+  void stageWorld(CollisionWorld world) {
+    if (world.properties.profile == profile) return;
+    world.properties = world.properties.copyWith(profile: profile);
+  }
 
   /// The bus: step and frame channels.
   final EventBus events;
@@ -261,8 +290,8 @@ final class EngineLoop extends LoopRegistry {
 
   bool _checking = false;
 
-  /// Whether steps are being run twice: a [determinismCheck] was given and
-  /// assertions are on. Read by a conformance run that wants to know the
+  /// Whether steps are being run twice: a [determinismCheck] was given,
+  /// assertions are on and the [profile] promises bits. Read by a conformance run that wants to know the
   /// check it asked for is really running.
   bool get checksDeterminism => _checking;
 
@@ -561,8 +590,20 @@ final class EngineLoop extends LoopRegistry {
       positions: positions,
       events: events._takeCollected(),
       simulation: simulationVersion,
+      probes: _probes,
     );
   }
+
+  List<ProbeReading> _probes = const <ProbeReading>[];
+
+  /// What every [Probe] in [world] read at the end of the last step, in
+  /// ascending entity order: what [published] carries and a [ProbeTrace]
+  /// records. Empty before the first step and in a world with no probe.
+  List<ProbeReading> get probeReadings => _probes;
+
+  /// The samplers a [Probe] reads its quantity through, by quantity id.
+  /// Plugins reach it as `host.registry<ProbeSamplers>()`.
+  final ProbeSamplers probeSamplers = ProbeSamplers();
 
   void _publish() {
     if (!_publishing) return;
@@ -833,6 +874,14 @@ final class EngineLoop extends LoopRegistry {
     }
     input.endStep();
     _step++;
+    // Read after the publish phase, from the world the step left: reading
+    // changes nothing, so a reading moves no digest.
+    _probes = readProbes(
+      world,
+      probeSamplers,
+      step: _step,
+      seconds: _step * stepSeconds,
+    );
     _keepIfDue();
     _publish();
     for (final observer in List.of(_stepObservers)) {
@@ -1058,6 +1107,28 @@ final class EngineLoop extends LoopRegistry {
     List<String> before = const <String>[],
   }) => _addSystem(name, phase, system, after, before, null);
 
+  /// Runs [assimilation] as a system of [LoopPhase.input] under [name], each
+  /// step handed the step's `InputState.externalThisStep`.
+  @override
+  Registration addAssimilation(
+    String name,
+    Assimilation assimilation, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => _addSystem(
+    name,
+    LoopPhase.input,
+    _assimilating(assimilation),
+    after,
+    before,
+    null,
+  );
+
+  LoopSystem _assimilating(Assimilation assimilation) {
+    final context = _Assimilating(this);
+    return (_) => assimilation.assimilate(context);
+  }
+
   @override
   LoopRegistry forPlugin(PluginScope scope) => _ScopedLoop(this, scope);
 
@@ -1261,7 +1332,60 @@ final class _ScopedLoop extends LoopRegistry {
   }
 
   @override
+  Registration addAssimilation(
+    String name,
+    Assimilation assimilation, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) {
+    if (_viewOnly) {
+      throw PluginException(
+        'plugin "${_scope.manifest.id}" declares that it touches only the '
+        'view, and added the assimilation "$name", which writes the world '
+        'inside the step. Declare touches: PluginTouches.simulation',
+      );
+    }
+    return _loop._addSystem(
+      name,
+      LoopPhase.input,
+      _loop._assimilating(assimilation),
+      after,
+      before,
+      _scope,
+    );
+  }
+
+  @override
   LoopRegistry forPlugin(PluginScope scope) => _loop.forPlugin(scope);
+}
+
+/// What an assimilation is handed: the step's numbers from the loop's own
+/// context, and the external inputs from its input.
+final class _Assimilating extends AssimilationContext {
+  _Assimilating(this.loop);
+
+  final EngineLoop loop;
+
+  @override
+  int get step => loop._context.step;
+
+  @override
+  double get dt => loop._context.dt;
+
+  @override
+  List<ExternalStateInput> get inputs => loop.input.externalThisStep;
+
+  @override
+  EcsWorld get world => loop.world;
+
+  @override
+  SimulationProfile get profile => loop.profile;
+
+  @override
+  bool get isResimulated => loop._context.isResimulated;
+
+  @override
+  void publish(BusEvent event) => loop.events.publish(event);
 }
 
 abstract base class _Entry {

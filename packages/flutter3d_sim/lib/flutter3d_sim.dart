@@ -110,6 +110,7 @@ export 'src/loop/local_simulation.dart';
 export 'src/loop/loop_change.dart';
 export 'src/loop/pace.dart';
 export 'src/loop/pause_gate.dart';
+export 'src/loop/probes.dart' hide readProbes;
 export 'src/loop/published_worlds.dart';
 export 'src/loop/run_loop.dart';
 export 'src/loop/run_outcome.dart';

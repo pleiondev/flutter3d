@@ -1,5 +1,9 @@
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show FormatDocument, FormatSpec, Flutter3dFormatException;
+    show
+        ExternalStateInput,
+        FormatDocument,
+        FormatSpec,
+        Flutter3dFormatException;
 
 import 'action_set.dart';
 import 'game_action.dart';
@@ -40,6 +44,7 @@ final class InputFrame {
     this.tunes = const <String, double>{},
     this.axes = const <String, double>{},
     this.dualAxes = const <String, ({double x, double y})>{},
+    this.external = const <ExternalStateInput>[],
   });
 
   factory InputFrame.fromJson(Map<String, Object?> json) => InputFrame(
@@ -150,6 +155,16 @@ final class InputFrame {
   /// [lookX]/[lookY] are those two. Written from [InputTape.version] 2.
   final Map<String, ({double x, double y})> dualAxes;
 
+  /// State that arrived from outside the simulation for this step, in the
+  /// order it was fed (`InputState.feedExternal`): the step's own kind of
+  /// input for a twin, a laboratory fed by an instrument or a headset.
+  ///
+  /// **Not in the frame's own document.** A tape writes the step's external
+  /// inputs beside its frames, under `externalInputs` with the step each was
+  /// fed at ([InputTape.toJson]), and a run lifts that list to its top
+  /// level, where `.f3drun` 5 reserved it; [toJson] here leaves it out.
+  final List<ExternalStateInput> external;
+
   /// Whether this frame says anything a version-1 reader would drop.
   bool get needsVersion2 => axes.isNotEmpty || dualAxes.isNotEmpty;
 
@@ -166,10 +181,28 @@ final class InputFrame {
     tunes: tunes,
     axes: axes,
     dualAxes: dualAxes,
+    external: external,
+  );
+
+  /// This frame with [external] in place of its own.
+  InputFrame withExternal(List<ExternalStateInput> external) => InputFrame(
+    pressed: pressed,
+    released: released,
+    stickX: stickX,
+    stickY: stickY,
+    lookX: lookX,
+    lookY: lookY,
+    values: values,
+    slot: slot,
+    tunes: tunes,
+    axes: axes,
+    dualAxes: dualAxes,
+    external: List<ExternalStateInput>.unmodifiable(external),
   );
 
   /// Whether this step is worth writing down at all.
   bool get isIdle =>
+      external.isEmpty &&
       pressed.isEmpty &&
       released.isEmpty &&
       values.isEmpty &&
@@ -256,12 +289,28 @@ final class InputTape extends FormatDocument {
     version: formatVersion,
     suffixes: <String>['.tape.json'],
     fixture: 'test/fixtures/v<N>/input.tape.json',
+    understands: <String>{externalInputsRequirement},
   );
 
   @override
   FormatSpec get spec => format;
 
-  static const Set<String> _known = <String>{'seed', 'frames'};
+  /// What a tape holding [InputFrame.external] says it `requires`: a build
+  /// that would replay the tape without them, into another run, refuses it
+  /// by this name instead.
+  static const String externalInputsRequirement = 'externalInputs';
+
+  @override
+  List<String> get requires => <String>[
+    if (frames.any((frame) => frame.external.isNotEmpty))
+      externalInputsRequirement,
+  ];
+
+  static const Set<String> _known = <String>{
+    'seed',
+    'frames',
+    'externalInputs',
+  };
 
   /// Reads what [toJson] wrote, at any version up to [formatVersion].
   ///
@@ -278,18 +327,70 @@ final class InputTape extends FormatDocument {
     // A newer tape, another format's document or a `requires` this build does
     // not know is refused here, with the reason.
     final lifted = format.open(json, refuse: InputTapeFormatException.new);
+    final frames = <InputFrame>[
+      for (final frame in json['frames'] as List<Object?>? ?? const <Object?>[])
+        InputFrame.fromJson(
+          (frame! as Map<Object?, Object?>).cast<String, Object?>(),
+        ),
+    ];
+    for (final MapEntry(key: step, value: inputs) in readExternalInputs(
+      json['externalInputs'],
+      steps: frames.length,
+    ).entries) {
+      frames[step] = frames[step].withExternal(inputs);
+    }
     return InputTape(
       unknown: FormatDocument.unknownIn(lifted, known: _known),
       seed: (json['seed'] as num?)?.toInt() ?? 0,
       version: version,
-      frames: <InputFrame>[
-        for (final frame
-            in json['frames'] as List<Object?>? ?? const <Object?>[])
-          InputFrame.fromJson(
-            (frame! as Map<Object?, Object?>).cast<String, Object?>(),
-          ),
-      ],
+      frames: frames,
     );
+  }
+
+  /// [frames]' external inputs as a tape writes them: one entry per input,
+  /// each with the `step` it was fed at, in step order and, within a step,
+  /// in the order it was fed. Empty for a tape with none.
+  List<Map<String, Object?>> externalInputsJson() => <Map<String, Object?>>[
+    for (var step = 0; step < frames.length; step++)
+      for (final input in frames[step].external)
+        <String, Object?>{'step': step, ...input.toJson()},
+  ];
+
+  /// Reads a list [externalInputsJson] wrote into the inputs of each step,
+  /// by step. Throws an [InputTapeFormatException] for an entry that is not
+  /// one, or a step outside the tape's [steps] frames or out of order.
+  static Map<int, List<ExternalStateInput>> readExternalInputs(
+    Object? json, {
+    required int steps,
+  }) {
+    if (json == null) return const <int, List<ExternalStateInput>>{};
+    if (json is! List) {
+      throw const InputTapeFormatException(
+        'the external inputs are not a list',
+      );
+    }
+    final read = <int, List<ExternalStateInput>>{};
+    var last = 0;
+    for (final entry in json) {
+      final step = switch (entry) {
+        {'step': final int step} when step >= last && step < steps => step,
+        _ => throw InputTapeFormatException(
+          'an external input names no step from $last to ${steps - 1} '
+          '(entries are in step order, one frame each): $entry',
+        ),
+      };
+      try {
+        (read[step] ??= <ExternalStateInput>[]).add(
+          ExternalStateInput.fromJson(entry),
+        );
+      } on Flutter3dFormatException catch (error) {
+        throw InputTapeFormatException(
+          'the external input at step $step: ${error.message}',
+        );
+      }
+      last = step;
+    }
+    return read;
   }
 
   /// The newest tape version this build reads and writes.
@@ -320,6 +421,8 @@ final class InputTape extends FormatDocument {
     'frames': <Map<String, Object?>>[
       for (final frame in frames) frame.toJson(),
     ],
+    if (frames.any((frame) => frame.external.isNotEmpty))
+      'externalInputs': externalInputsJson(),
     for (final MapEntry(:key, :value) in unknown.entries)
       if (!_known.contains(key)) key: value,
   };
@@ -375,6 +478,7 @@ final class InputTapeRecorder {
             if (value.x != 0.0 || value.y != 0.0)
               axis.name: (x: value.x, y: value.y),
         },
+        external: input.externalThisStep,
       ),
     );
   }
@@ -476,6 +580,9 @@ final class InputTapePlayback {
     if (slot != null) input.requestSlot(slot);
     for (final MapEntry(key: name, :value) in frame.tunes.entries) {
       input.tune(name, value);
+    }
+    for (final external in frame.external) {
+      input.feedExternal(external);
     }
   }
 }

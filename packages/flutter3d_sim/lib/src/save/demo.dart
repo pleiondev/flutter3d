@@ -3,7 +3,9 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         Flutter3dFormatException,
         FormatDocument,
         FormatMigration,
+        ExternalStateInput,
         FormatSpec,
+        ProbeReading,
         SimulationVersion;
 
 import '../ecs/snapshots.dart' show WorldSnapshotPart;
@@ -103,6 +105,7 @@ final class Demo {
     this.events,
     this.simulation,
     this.poses,
+    this.probes = const <ProbeReading>[],
     this.unknown = const <String, Object?>{},
   });
 
@@ -152,6 +155,13 @@ final class Demo {
   ///
   /// All three are checked for shape when read, and written back as they
   /// were ([unknown]), as is any top-level key this build does not know.
+  ///
+  /// **This build fills the two lists.** `externalInputs` holds every
+  /// [InputFrame.external] of the [tape], lifted out of it to the run's top
+  /// level (each entry `ExternalStateInput.toJson` with its `step`), and is
+  /// put back into the tape's frames when read; `probes` is [probes], each
+  /// entry `ProbeReading.toJson`, its `step` the number of steps run when it
+  /// was read. Neither needed a version: 5 reserved both.
   static const int formatVersion = 5;
 
   /// The extension a run is written under — `.f3drun`, wherever it becomes an
@@ -287,6 +297,12 @@ final class Demo {
   /// without one.
   final PoseRecord? poses;
 
+  /// What the run's probes read while it was recorded, in step order (a
+  /// `ProbeTrace`'s readings). Outputs: a replay reads them again, and a
+  /// build that refuses the tape still draws its charts from these. Empty
+  /// for a run recorded without probes.
+  final List<ProbeReading> probes;
+
   /// How many fixed steps the run lasted.
   int get steps => tape.steps;
 
@@ -321,17 +337,45 @@ final class Demo {
     _ => false,
   };
 
-  bool get _hasExternalInputs => switch (unknown['externalInputs']) {
-    final List<Object?> inputs => inputs.isNotEmpty,
-    _ => false,
+  bool get _hasExternalInputs =>
+      tape.frames.any((frame) => frame.external.isNotEmpty) ||
+      _unread('externalInputs').isNotEmpty;
+
+  /// The entries of the reserved list [key] this build could not read as
+  /// its own type — a later build's shape — kept in [unknown] under the
+  /// same key and written back among the ones it could.
+  List<Map<String, Object?>> _unread(String key) => switch (unknown[key]) {
+    final List<Object?> entries => <Map<String, Object?>>[
+      for (final entry in entries)
+        if (entry is Map) entry.cast<String, Object?>(),
+    ],
+    _ => const <Map<String, Object?>>[],
   };
+
+  /// [read] and the [_unread] entries of [key] together, in step order;
+  /// within a step, the unread first.
+  List<Map<String, Object?>> _merged(
+    String key,
+    List<Map<String, Object?>> read,
+  ) {
+    final all = <Map<String, Object?>>[..._unread(key), ...read];
+    int stepOf(Map<String, Object?> entry) =>
+        (entry['step'] as num?)?.toInt() ?? 0;
+    // A stable sort: `List.sort` is not one, so the place breaks ties.
+    final order = List<int>.generate(all.length, (i) => i)
+      ..sort((a, b) {
+        final byStep = stepOf(all[a]).compareTo(stepOf(all[b]));
+        return byStep != 0 ? byStep : a.compareTo(b);
+      });
+    return <Map<String, Object?>>[for (final i in order) all[i]];
+  }
 
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(version: writtenVersion),
     'level': level,
     'levelHash': levelHash,
     'run': start.toJson(),
-    'tape': tape.toJson(),
+    'tape': tape.toJson()..remove('externalInputs'),
     'buildStamp': buildStamp,
     'checkpoints': checkpoints.toJson(),
     if (platform != null) 'platform': platform,
@@ -349,8 +393,14 @@ final class Demo {
     if (events != null) 'events': events!.toJson(),
     if (simulation != null) 'simulation': simulation!.toJson(),
     if (poses != null) 'poses': poses!.toJson(),
+    if (_hasExternalInputs)
+      'externalInputs': _merged('externalInputs', tape.externalInputsJson()),
+    if (probes.isNotEmpty || _unread('probes').isNotEmpty)
+      'probes': _merged('probes', <Map<String, Object?>>[
+        for (final reading in probes) reading.toJson(),
+      ]),
     for (final MapEntry(:key, :value) in unknown.entries)
-      if (!_known.contains(key)) key: value,
+      if (!_known.contains(key) && !_reserved.contains(key)) key: value,
   };
 
   /// One step per version, each taking a document of that version to the
@@ -442,9 +492,22 @@ final class Demo {
         throw DemoFormatException('the data sources: ${error.message}');
       }
     }
+    // A reserved list's entries this build can read become its own types;
+    // the rest, a later build's shape, are kept as they were written.
+    final (externalInputs, unreadInputs) = _split(
+      json['externalInputs'],
+      ExternalStateInput.fromJson,
+    );
+    final (probeEntries, unreadProbes) = _split(
+      json['probes'],
+      ProbeReading.fromJson,
+    );
     final InputTape readTape;
     try {
-      readTape = InputTape.fromJson(tape);
+      readTape = InputTape.fromJson(<String, Object?>{
+        ...tape,
+        if (externalInputs.isNotEmpty) 'externalInputs': externalInputs,
+      });
     } on Flutter3dFormatException catch (error) {
       throw DemoFormatException('the tape: ${error.message}');
     }
@@ -482,6 +545,16 @@ final class Demo {
       _checkSteps(key, json[key], steps: readTape.steps);
     }
     _checkParent(json['parent']);
+    final probes = List<ProbeReading>.unmodifiable(<ProbeReading>[
+      for (final reading in probeEntries) ProbeReading.fromJson(reading),
+    ]);
+    final unknown = <String, Object?>{
+      for (final MapEntry(:key, :value) in FormatDocument.unknownIn(
+        json,
+        known: _known,
+      ).entries)
+        if (!_reserved.contains(key)) key: value,
+    };
     return Demo(
       level: level,
       levelHash: levelHash,
@@ -498,8 +571,33 @@ final class Demo {
       events: events,
       simulation: simulation,
       poses: poses,
-      unknown: FormatDocument.unknownIn(json, known: _known),
+      probes: probes,
+      unknown: <String, Object?>{
+        ...unknown,
+        if (unreadInputs.isNotEmpty) 'externalInputs': unreadInputs,
+        if (unreadProbes.isNotEmpty) 'probes': unreadProbes,
+      },
     );
+  }
+
+  /// The entries of a reserved list [raw] that [read] takes, and the ones
+  /// it refuses, each as written. Shape is [_checkSteps]'s to refuse.
+  static (List<Object?>, List<Object?>) _split(
+    Object? raw,
+    Object Function(Object? json) read,
+  ) {
+    if (raw is! List) return (const <Object?>[], const <Object?>[]);
+    final taken = <Object?>[];
+    final kept = <Object?>[];
+    for (final entry in raw) {
+      try {
+        read(entry);
+        taken.add(entry);
+      } on Flutter3dFormatException {
+        kept.add(entry);
+      }
+    }
+    return (taken, kept);
   }
 
   /// A reserved field ([formatVersion] 5), when there: a list of objects

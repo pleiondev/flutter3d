@@ -29,6 +29,12 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 /// test run pay for it, a player does not. [every] spaces the checks out for
 /// a game whose digest is expensive.
 ///
+/// **Only under a profile that promises bits.** The loop runs it when its
+/// `SimulationProfile.isBitExact`, the deterministic profile's case; under
+/// the accurate one a step is held to analytic tests, not to two runs
+/// agreeing to the last bit, and a check handed to such a loop is not
+/// armed (`EngineLoop.checksDeterminism` says so).
+///
 /// The second run is the real one: the recorders, the tape and the frame
 /// channel see the step once, as if nothing had been checked. A step
 /// subscriber is handed the step's events twice, once per run, so one that

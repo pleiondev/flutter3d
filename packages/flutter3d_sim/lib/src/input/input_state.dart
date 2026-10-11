@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show ExternalStateInput;
 import 'package:vector_math/vector_math.dart';
 
 import 'game_action.dart';
@@ -448,6 +450,26 @@ final class InputState {
     _tunes[name] = value;
   }
 
+  /// Feeds [input], state that arrived from outside the simulation, to the
+  /// next step: a plant's sensor, a log's line, a headset's pose.
+  ///
+  /// **Input, for the reason [tune] is**: recorded with the step that took
+  /// it (`InputFrame.external`), replayed with that step, handed to the
+  /// step's assimilations (`LoopRegistry.addAssimilation`), and muted with
+  /// the devices during a replay, so telemetry arriving while the timeline
+  /// replays does not land in the past. Kept in the order it was fed.
+  void feedExternal(ExternalStateInput input) {
+    if (muted) return;
+    _external.add(input);
+  }
+
+  /// What was fed from outside for this step, in order — see
+  /// [feedExternal].
+  List<ExternalStateInput> get externalThisStep =>
+      List<ExternalStateInput>.unmodifiable(_external);
+
+  final List<ExternalStateInput> _external = <ExternalStateInput>[];
+
   /// Drops everything, held state included.
   ///
   /// For losing focus. A key that was down when the window went away never
@@ -466,6 +488,7 @@ final class InputState {
     _dualAxes.clear();
     _slotRequest = null;
     _tunes.clear();
+    _external.clear();
   }
 
   // MARK: - Step boundaries
@@ -486,6 +509,7 @@ final class InputState {
     _dualAxes.removeWhere((action, _) => action.isDelta);
     _slotRequest = null;
     _tunes.clear();
+    _external.clear();
   }
 
   void _recomputeMoveAxis() {
