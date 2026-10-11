@@ -331,9 +331,9 @@ String writeFmat(MaterialDocument document, {LightingModels? lightingModels}) {
 /// or `.toInt()` rather than trusting which shape the literal came in as
 /// (`readFmat`'s own `_number` and the version check both do), so appending
 /// `.0` costs nothing to read — including to the handful of fields, like a
-/// colour hint's channel count, that happen to be genuine integers. `fmat`
-/// and the envelope's `version` are the exceptions worth keeping bare: a
-/// version number that looks like one.
+/// colour hint's channel count, that happen to be genuine integers. `fmat`,
+/// the envelope's `version` and an instance's `materialVersion` are the
+/// exceptions worth keeping bare: a version number that looks like one.
 final RegExp _bareIntegerLine = RegExp(
   r'^(\s*(?:"[^"]+"\s*:\s*)?)(-?\d+)(,?)\s*$',
 );
@@ -342,7 +342,9 @@ String _ensureFloatLiterals(String json) => json
     .split('\n')
     .map((line) {
       final trimmed = line.trimLeft();
-      if (trimmed.startsWith('"fmat"') || trimmed.startsWith('"version"')) {
+      if (trimmed.startsWith('"fmat"') ||
+          trimmed.startsWith('"version"') ||
+          trimmed.startsWith('"materialVersion"')) {
         return line;
       }
       final match = _bareIntegerLine.firstMatch(line);
@@ -406,6 +408,9 @@ Map<String, Object?> surfaceMaterialToJson(
   if (surface.unlit) 'unlit': true,
   if (surface.lightingModel case final LightingModel model)
     'lightingModel': writeLightingJson(model, models: lightingModels),
+  if (surface.materialVersion case final int version)
+    'materialVersion': version,
+  if (surface.physicalMaterial case final String id) 'physicalMaterial': id,
 };
 
 /// The inverse of [surfaceMaterialToJson]: a [SurfaceMaterial] built from
@@ -460,6 +465,14 @@ SurfaceMaterial surfaceMaterialFromJson(
     models: lightingModels,
   ),
   extensions: extensions,
+  physicalMaterial: switch (json['physicalMaterial']) {
+    final String id => id,
+    _ => null,
+  },
+  materialVersion: switch (json['materialVersion']) {
+    final num version => version.toInt(),
+    _ => null,
+  },
 );
 
 /// A slot's `transform`, `KHR_texture_transform`'s three fields under its
@@ -731,4 +744,6 @@ const Set<String> _writtenKeys = <String>{
   'parameters',
   'hints',
   'extensions',
+  'materialVersion',
+  'physicalMaterial',
 };

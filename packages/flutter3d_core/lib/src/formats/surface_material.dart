@@ -330,6 +330,8 @@ final class SurfaceMaterial {
     this.lightingModel,
     this.extensions,
     this.extras,
+    this.physicalMaterial,
+    this.materialVersion,
   });
 
   final String? name;
@@ -396,6 +398,30 @@ final class SurfaceMaterial {
   /// glTF's own `extras` on this material, carried opaquely — see
   /// [ModelNode.extras] for what that means and why.
   final Map<String, Object?>? extras;
+
+  /// The id of the physical material this surface is made of —
+  /// `f3d.glass`, or a plugin's `<pluginId>.<name>` — in the engine's
+  /// `MaterialCatalog` (`flutter3d_matter`); null when the document never
+  /// said.
+  ///
+  /// **A reference, not a copy.** How the surface looks stays this
+  /// material's own; what it is made of (its density for a collider, its
+  /// absorption for a sound, its index for a converter's F0) is the
+  /// catalog's, read by whoever has one. This package does not, so it
+  /// keeps the id exactly as written. A `.f3d` that needs a material the
+  /// catalog does not ship carries it whole (`F3dDocument.physicalMaterials`).
+  final String? physicalMaterial;
+
+  /// The version of the material program its [lightingModel] names that
+  /// this instance was written for (`material Hatch version 3`, see
+  /// `MaterialProgram.version`); null when the document never said, which
+  /// is read as version 1.
+  ///
+  /// **The instance keeps the version; a loader lifts.** The parameters an
+  /// instance set mean what they meant at this version, and
+  /// `MaterialProgram.lift` carries them to the program's own through its
+  /// `updates`. This package keeps the number as written.
+  final int? materialVersion;
 
   @override
   String toString() =>

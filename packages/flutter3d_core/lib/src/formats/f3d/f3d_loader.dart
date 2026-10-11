@@ -429,8 +429,18 @@ final class F3dDocument extends ModelDocument {
     _readFiles(),
   );
 
+  /// The physical materials the file carries whole, by id —
+  /// [F3dSection.physicalMaterials]: each the document `flutter3d_matter`
+  /// writes for one, read back by `PhysicalMaterial.fromJson` and added to
+  /// a `MaterialCatalog` by whoever has one. This package does not read
+  /// them. Empty for a file that carries none, which is every file whose
+  /// materials name only the catalog's own.
+  late final Map<String, Map<String, Object?>> physicalMaterials =
+      Map<String, Map<String, Object?>>.unmodifiable(_readPhysicalMaterials());
+
   late final Map<int, (int?, int?)> _attachments = _readNodeAttachments();
   late final Map<int, LightingModel> _lighting = _readMaterialLighting();
+  late final Map<int, (String?, int?)> _references = _readMaterialReferences();
 
   /// The one `asset` record, or null when the section is empty — a file
   /// written before `fmt-04`, or one whose document genuinely said nothing.

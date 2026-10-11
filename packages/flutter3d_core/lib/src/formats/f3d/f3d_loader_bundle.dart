@@ -1,6 +1,7 @@
 /// Reads what makes a `.f3d` a whole asset: lights, cameras and the nodes
 /// that carry them, each material's lighting model, material language
-/// programs, prefab documents and files carried whole.
+/// programs, prefab documents, files carried whole, and what each material
+/// is made of.
 ///
 /// **A part of `f3d_loader.dart`, not a file of its own**, for the reason
 /// the other parts give. Every section here is optional: a file without one
@@ -161,6 +162,47 @@ extension _F3dBundle on F3dDocument {
     } on FormatException catch (error) {
       throw F3dFormatException('$what is not JSON: ${error.message}');
     }
+  }
+
+  Map<String, Map<String, Object?>> _readPhysicalMaterials() =>
+      <String, Map<String, Object?>>{
+        for (final MapEntry(:key, :value) in _readNamedTexts(
+          F3dSection.physicalMaterials,
+        ).entries)
+          key: switch (_decodeJson(value, 'physical material "$key"')) {
+            final Map<String, Object?> document => document,
+            _ => throw F3dFormatException(
+              'Physical material "$key" is not a JSON object.',
+            ),
+          },
+      };
+
+  /// Section 37, by material index: the physical material's id and the
+  /// program version, each null when the record says nothing of it.
+  Map<int, (String?, int?)> _readMaterialReferences() {
+    final table = _table(
+      F3dSection.materialReferences,
+      F3dRecord.materialReference,
+    );
+    return <int, (String?, int?)>{
+      for (var i = 0; i < table.count; i++)
+        if (_recordOffset(
+              F3dSection.materialReferences,
+              i,
+              F3dRecord.materialReference,
+            )
+            case final o)
+          _view.getUint32(o, Endian.little): (
+            _string(
+              _view.getUint32(o + 4, Endian.little),
+              _view.getUint32(o + 8, Endian.little),
+            ),
+            switch (_view.getUint32(o + 12, Endian.little)) {
+              0 => null,
+              final version => version,
+            },
+          ),
+    };
   }
 
   Map<String, Uint8List> _readFiles() {

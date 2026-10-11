@@ -125,6 +125,8 @@ extension _F3dMaterials on F3dDocument {
       extensions: extensions,
       lightingModel: _lighting[index],
       extras: _extrasOf(F3dExtrasOwner.material, index),
+      physicalMaterial: _references[index]?.$1,
+      materialVersion: _references[index]?.$2,
     );
   }
 
