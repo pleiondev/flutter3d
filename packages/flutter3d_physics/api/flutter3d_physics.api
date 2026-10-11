@@ -302,11 +302,6 @@ final class Contact
 
 typedef ContactFilter = bool Function(SweptContact contact);
 
-final class ContactLedger
-  List<StepContact> get contacts
-  void clear()
-  void record(Iterable<StepContact> inContact, {bool Function(StepContact before)? heldWhileResting})
-
 final class ContactPhase
   String toString()
   final String name
@@ -833,13 +828,13 @@ final class StepContact implements Comparable<StepContact>
   String toString()
   String? get materialA
   String? get materialB
+  Vector3 get normal
+  Vector3 get point
+  Vector3 get relativeVelocity
   factory StepContact({required Collider a, required Collider b, required int idA, required int idB, int feature = 0, required ContactPhase phase, required Vector3 point, required Vector3 normal, required double impulse, required Vector3 relativeVelocity})
   final Collider a
   final Collider b
   final ContactPhase phase
-  final Vector3 normal
-  final Vector3 point
-  final Vector3 relativeVelocity
   final double impulse
   final int feature
   final int idA
@@ -920,6 +915,8 @@ double circularSegment(double radius, double offset)
 ({double flow, double area}) circularWeir({required double head, required double radius, required double tilt, required double g, double discharge = sharpEdgeDischarge, int steps = 360})
 
 void contactBetween(CollisionShape a, Vector3 aAt, CollisionShape b, Vector3 bAt, Contact out, {double margin = 0.02})
+
+const double contactSlop = 0.005
 
 bool convexOverlap(CollisionShape a, Vector3 aPosition, CollisionShape b, Vector3 bPosition)
 

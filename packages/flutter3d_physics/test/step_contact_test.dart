@@ -1,5 +1,7 @@
 // A step's contacts on the reference: what began, persisted and ended, in
 // the world's order, with the impulse and the velocity a game reads.
+import 'dart:convert';
+
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
@@ -157,17 +159,73 @@ void main() {
     expect(contact.materialB, Materials.oak.id);
   });
 
-  test('a restore forgets the step before: the next step begins', () {
+  test(
+    'a save keeps the step before: a restored run tells the same phases',
+    () {
+      final world = floored();
+      final dynamics = Dynamics(world: world);
+      final body = ball(dynamics, Vector3(0.0, 0.252, 0.0));
+      dynamics
+        ..step(dt)
+        ..step(dt);
+      expect(dynamics.contacts.single.phase, ContactPhase.persist);
+      final saved = dynamics.saveState();
+      final at = body.save();
+      // Through JSON, as a save goes to disk.
+      final written = jsonDecode(jsonEncode(saved));
+      dynamics.step(dt);
+      final first = dynamics.contacts.single;
+      body.restore(at);
+      // Mutation: forget the ledger on a restore, and this begins.
+      dynamics
+        ..restoreState(written)
+        ..step(dt);
+      final again = dynamics.contacts.single;
+      expect(again.phase, ContactPhase.persist);
+      expect(again.phase, first.phase);
+      expect(again.point, first.point);
+      // A save from before contacts were saved begins every contact.
+      body.restore(at);
+      dynamics
+        ..restoreState(<String, Object?>{'world': world.properties.toJson()})
+        ..step(dt);
+      expect(dynamics.contacts.single.phase, ContactPhase.begin);
+    },
+  );
+
+  test('a contact that ends after a restore ends where the save had it', () {
+    final world = floored();
+    final dynamics = Dynamics(world: world);
+    final body = ball(dynamics, Vector3(0.0, 0.252, 0.0));
+    for (var i = 0; i < 5; i++) {
+      dynamics.step(dt);
+    }
+    final rested = dynamics.contacts.single;
+    final saved = jsonDecode(jsonEncode(dynamics.saveState()));
+    final at = body.save();
+    dynamics.step(dt);
+    body.restore(at);
+    dynamics
+      ..restoreState(saved)
+      ..remove(body)
+      ..step(dt);
+    final ended = dynamics.contacts.single;
+    expect(ended.phase, ContactPhase.end);
+    expect(ended.point, rested.point);
+    expect(ended.normal, rested.normal);
+  });
+
+  test('a contact is a value: what reads it does not change it', () {
     final world = floored();
     final dynamics = Dynamics(world: world);
     ball(dynamics, Vector3(0.0, 0.252, 0.0));
-    dynamics
-      ..step(dt)
-      ..step(dt);
-    expect(dynamics.contacts.single.phase, ContactPhase.persist);
-    dynamics
-      ..restoreState(dynamics.saveState())
-      ..step(dt);
-    expect(dynamics.contacts.single.phase, ContactPhase.begin);
+    dynamics.step(dt);
+    final contact = dynamics.contacts.single;
+    final point = contact.point.clone();
+    // Mutation: hand out the vector it holds, and this moves the contact.
+    contact.point.add(Vector3.all(1.0));
+    contact.normal.scale(-1.0);
+    expect(contact.point, point);
+    expect(contact.normal.y, closeTo(-1.0, 1e-12));
   });
 }

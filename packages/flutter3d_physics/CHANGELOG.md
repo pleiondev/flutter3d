@@ -7,8 +7,19 @@
   contact acted, and a `ContactPhase` (`begin`, `persist`, `end`, an open
   class). `Dynamics` fills it, sorted by the world's ids so every backend
   reports the same order; a sleeping pair persists and a removed body ends
-  its contacts. `ContactLedger` tells phases for a backend whose solver
-  keeps no contacts of its own. Nothing the solver computes moves.
+  its contacts. A contact is a value: its vectors are handed out new on
+  every read. Its point is the middle of the two's manifold, as the native
+  core reports it, and in contact means within `contactSlop` (five
+  millimetres, a constant the native core's header is written from) or
+  pushed on by the solver, whatever `Dynamics.slop` a game tunes the
+  correction to. Nothing the solver computes moves.
+- **Breaking, against the earlier rc.1 snapshot only:** `StepContact.point`,
+  `.normal` and `.relativeVelocity` are getters that hand out a new vector,
+  and `ContactLedger` is no longer exported: only the reference's own
+  dynamics tells phases with it. Neither existed in 0.8.5.
+- **`Dynamics.saveState` keeps the last step's contacts**, so a run
+  restored and stepped tells the phases the run it was saved from would; a
+  save from before it begins every contact of the next step, as it did.
 - **Breaking: `CollisionShape` is an `abstract base class`, no longer
   `sealed`.** A shape of a game's own extends it directly and says its
   bounds, its planes and its support; every pair method defaults to the GJK

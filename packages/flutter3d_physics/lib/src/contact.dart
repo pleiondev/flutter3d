@@ -24,6 +24,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
 import 'collision_shape.dart';
+import 'collision_world.dart';
 import 'tolerances.dart';
 
 /// Two shapes, overlapping.
@@ -324,13 +325,24 @@ void _emit(
 }
 
 /// Where [a] at [aAt] and [b] at [bAt], meeting along [normal] (out of [b],
-/// into [a]) at [depth], touch: halfway between their surfaces, into [out].
+/// into [a]) at [depth], touch, into [out]: the middle of their manifold,
+/// as the native core reports it (`f3d_manifold_middle`).
 ///
-/// The middle of what the two have in common across the normal, and along
-/// it the middle of the gap or the overlap. A sphere's is on the line its
-/// centre is pushed along, as a point of a ball can only be. What the core
-/// reports as the middle of its manifold's points, for the shapes both
-/// cores know: a box flat on a floor touches under its centre.
+/// **The manifold of the contact the reference found**, which is between
+/// the shapes as [contactBetween] has them — unrotated, at their bounds
+/// where they are not spheres or ground — and each of whose points is
+/// halfway between the two surfaces, as the core's are. A sphere's is one
+/// point, on the line its centre is pushed along. Two boxes' are the
+/// corners of the face they share, the overlap of the two across the
+/// normal, so their middle is that face's, halfway along the normal. A
+/// body on ground has the face of its own that the ground holds up, as the
+/// ground's bounds say nothing of where its surface is. [a] is the body:
+/// the reference asks only of a body against a body or against the level,
+/// in that order.
+///
+/// For the shapes both cores know and the contacts they find alike — a
+/// sphere on anything, two boxes face to face — the core's manifold is
+/// these points, and this its middle to the rounding of the core's floats.
 void contactPointBetween(
   CollisionShape a,
   Vector3 aAt,
@@ -352,8 +364,8 @@ void contactPointBetween(
       ..addScaled(normal, b.radius - depth * 0.5);
     return;
   }
-  // Across the normal: the middle of the two boxes' overlap, which for two
-  // boxes resting one on the other is the face they share.
+  // Across the normal: the middle of the two boxes' overlap, the face they
+  // share.
   final ha = a.boundsHalfExtents, hb = b.boundsHalfExtents;
   double middle(double ac, double ah, double bc, double bh) =>
       (math.max(ac - ah, bc - bh) + math.min(ac + ah, bc + bh)) * 0.5;
@@ -362,20 +374,12 @@ void contactPointBetween(
     middle(aAt.y, ha.y, bAt.y, hb.y),
     middle(aAt.z, ha.z, bAt.z, hb.z),
   );
-  // Along it, in metres along the normal: half the depth out of the surface
-  // of the side that is not ground, whose bounds say nothing about where
-  // its surface is.
-  final halfway = a is CollisionHeightfield
-      ? bAt.dot(normal) +
-            hb.x * normal.x.abs() +
-            hb.y * normal.y.abs() +
-            hb.z * normal.z.abs() -
-            depth * 0.5
-      : aAt.dot(normal) -
-            (ha.x * normal.x.abs() +
-                ha.y * normal.y.abs() +
-                ha.z * normal.z.abs()) +
-            depth * 0.5;
+  // Along it, in metres along the normal: [a]'s surface facing [b], and
+  // half the depth out of it.
+  final halfway =
+      aAt.dot(normal) -
+      (ha.x * normal.x.abs() + ha.y * normal.y.abs() + ha.z * normal.z.abs()) +
+      depth * 0.5;
   out.addScaled(normal, halfway - out.dot(normal));
 }
 
@@ -417,25 +421,41 @@ final class ContactPhase {
   String toString() => 'ContactPhase.$name';
 }
 
+/// How near two colliders must be for a step to say they are in contact,
+/// in metres: five millimetres, the overlap the solvers leave a resting
+/// body at, so a body at rest is in contact on every step it rests.
+///
+/// **One number on both cores.** The native core's `F3D_LINEAR_SLOP`, which
+/// its solver and its contact reports read, is written from this into its
+/// generated header (`flutter3d_physics_native`'s `tool/gen_materials.dart`),
+/// so the two say "touching" of the same pairs. A constant rather than a
+/// setting: a tape replays its contact events on either core, and a setting
+/// one of them read and the other did not would part them.
+const double contactSlop = 0.005;
+
 /// One contact a step of a `RigidDynamics` found, as it reports it
 /// (`RigidDynamics.contacts`): two colliders, at least one a body, where
 /// and how they met.
 ///
-/// **In contact** is touching — within five millimetres, the overlap a
-/// resting body is left at — or pushed on by the solver however near: a
-/// ball a speculative contact caught short of the floor hit it in that
-/// step. The Dart reference and the C core say it the same way.
+/// **In contact** is touching — within [contactSlop] of it — or pushed on
+/// by the solver however near: a ball a speculative contact caught short
+/// of the floor hit it in that step. The Dart reference and the C core say
+/// it the same way.
 ///
 /// **[a] is the one the world numbered first** (`CollisionWorld.idOf`),
 /// whichever order a backend found them in, and every direction is said
 /// from it: [normal] out of [b] into [a], [relativeVelocity] [a]'s point
 /// against [b]'s. So two backends that found the same contact report the
 /// same pair, and a step's list sorts the same on both ([compareTo]).
+///
+/// **A value.** Its vectors are held as numbers and handed out as new
+/// [Vector3]s, so nothing that reads a contact changes it, and a step makes
+/// its contacts without a vector apiece.
 final class StepContact implements Comparable<StepContact> {
   /// A contact between [a] and [b], numbered [idA] and [idB] in their
   /// world; put in order here when [idB] is the lower, with [normal] and
   /// [relativeVelocity] turned to say it from the other side. The vectors
-  /// are copied.
+  /// are read, not kept.
   factory StepContact({
     required Collider a,
     required Collider b,
@@ -447,31 +467,28 @@ final class StepContact implements Comparable<StepContact> {
     required Vector3 normal,
     required double impulse,
     required Vector3 relativeVelocity,
-  }) => idA <= idB
-      ? StepContact._(
-          a,
-          b,
-          idA,
-          idB,
-          feature,
-          phase,
-          point.clone(),
-          normal.clone(),
-          impulse,
-          relativeVelocity.clone(),
-        )
-      : StepContact._(
-          b,
-          a,
-          idB,
-          idA,
-          feature,
-          phase,
-          point.clone(),
-          -normal,
-          impulse,
-          -relativeVelocity,
-        );
+  }) {
+    final turned = idA > idB;
+    final s = turned ? -1.0 : 1.0;
+    return StepContact._(
+      turned ? b : a,
+      turned ? a : b,
+      turned ? idB : idA,
+      turned ? idA : idB,
+      feature,
+      phase,
+      point.x,
+      point.y,
+      point.z,
+      normal.x * s,
+      normal.y * s,
+      normal.z * s,
+      impulse,
+      relativeVelocity.x * s,
+      relativeVelocity.y * s,
+      relativeVelocity.z * s,
+    );
+  }
 
   StepContact._(
     this.a,
@@ -480,10 +497,16 @@ final class StepContact implements Comparable<StepContact> {
     this.idB,
     this.feature,
     this.phase,
-    this.point,
-    this.normal,
+    this._px,
+    this._py,
+    this._pz,
+    this._nx,
+    this._ny,
+    this._nz,
     this.impulse,
-    this.relativeVelocity,
+    this._vx,
+    this._vy,
+    this._vz,
   );
 
   /// The collider the world numbered first.
@@ -499,22 +522,26 @@ final class StepContact implements Comparable<StepContact> {
   /// [b]'s number, above [idA].
   final int idB;
 
-  /// Which of the pair's faces, for two bodies that meet on more than one
-  /// at once — a box in a corner of a mesh room, a compound's leg against a
-  /// wall while it stands on the floor: nought for the first, one for the
-  /// second. Nought for every pair the reference finds, which meet at one
-  /// point.
+  /// Which of the pair's manifolds, as the native core numbers them: nought
+  /// for the first, one for the second face two bodies meet on at once — a
+  /// box in a corner of a mesh room, a compound's leg against a wall while
+  /// it stands on the floor. Nought for every pair the reference finds,
+  /// which meet on one.
   final int feature;
 
   /// What became of it since the step before.
   final ContactPhase phase;
 
-  /// Halfway between the two surfaces, relative to the world's origin, in
-  /// metres. For [ContactPhase.end], where it last was.
-  final Vector3 point;
+  final double _px, _py, _pz, _nx, _ny, _nz, _vx, _vy, _vz;
 
-  /// Unit length, out of [b] into [a]: the way [a] moves to come apart.
-  final Vector3 normal;
+  /// The middle of the two's manifold, each of its points halfway between
+  /// the surfaces, relative to the world's origin, in metres. For
+  /// [ContactPhase.end], where it last was. A new vector each read.
+  Vector3 get point => Vector3(_px, _py, _pz);
+
+  /// Unit length, out of [b] into [a]: the way [a] moves to come apart. A
+  /// new vector each read.
+  Vector3 get normal => Vector3(_nx, _ny, _nz);
 
   /// The impulse the solver pushed the two apart with along [normal] over
   /// the step, in newton-seconds; nought for a contact that ended, and for
@@ -524,8 +551,9 @@ final class StepContact implements Comparable<StepContact> {
 
   /// [a]'s point's velocity against [b]'s as the step found them, before
   /// gravity or any contact acted, in metres per second: what an impact
-  /// was struck at. Zero for a contact that ended or sleeps.
-  final Vector3 relativeVelocity;
+  /// was struck at. Zero for a contact that ended or sleeps. A new vector
+  /// each read.
+  Vector3 get relativeVelocity => Vector3(_vx, _vy, _vz);
 
   /// [a]'s material's id, or null for a collider made of none.
   String? get materialA => a.material?.id;
@@ -541,10 +569,37 @@ final class StepContact implements Comparable<StepContact> {
     idB,
     feature,
     phase,
-    point,
-    normal,
+    _px,
+    _py,
+    _pz,
+    _nx,
+    _ny,
+    _nz,
     impulse,
-    relativeVelocity,
+    _vx,
+    _vy,
+    _vz,
+  );
+
+  /// This contact ended where it was, or held while both sides rest: in
+  /// [phase], pushing with nothing, at no speed.
+  StepContact _still(ContactPhase phase) => StepContact._(
+    a,
+    b,
+    idA,
+    idB,
+    feature,
+    phase,
+    _px,
+    _py,
+    _pz,
+    _nx,
+    _ny,
+    _nz,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
   );
 
   /// By [idA], then [idB], then [feature]: the order a step's list is in.
@@ -561,18 +616,22 @@ final class StepContact implements Comparable<StepContact> {
 }
 
 /// The step before's contacts, kept so this step's can be told begun,
-/// persisting or ended: what a `RigidDynamics` whose solver keeps no such
-/// thing of its own hands its contacts to, once a step.
+/// persisting or ended: what the reference `Dynamics`, whose solver keeps
+/// no such thing of its own, hands its contacts to once a step. Not part of
+/// the package's API: a backend with contacts of its own tells their phases
+/// itself, as the native core does.
 ///
-/// **Memory, not state.** It is not in a save, as the reference's warm
-/// starts are not: a run restored and stepped tells its phases against the
-/// step this ledger last saw, which [clear] makes none, so every contact
-/// of the next step begins. The C core keeps its contacts in its snapshot,
-/// and is exact across a restore.
+/// **In a save**, as the native core keeps its manifolds' phases in its
+/// snapshot: [save] writes what the step before was in contact as, and
+/// [restore] puts it back, so a run restored and stepped tells its phases
+/// as the run it was saved from would.
 final class ContactLedger {
   List<StepContact> _now = const <StepContact>[];
   final Map<(int, int, int), StepContact> _before =
       <(int, int, int), StepContact>{};
+
+  /// This step's keys, kept to be cleared rather than made again.
+  final Set<(int, int, int)> _found = <(int, int, int)>{};
 
   /// The last step's contacts, in order: the begun and persisting ones and
   /// the ones that ended.
@@ -590,33 +649,19 @@ final class ContactLedger {
     bool Function(StepContact before)? heldWhileResting,
   }) {
     final now = <StepContact>[];
-    final found = <(int, int, int)>{};
+    _found.clear();
     for (final contact in inContact) {
       final key = (contact.idA, contact.idB, contact.feature);
-      if (!found.add(key)) continue;
-      now.add(
-        contact.withPhase(
-          _before.containsKey(key) ? ContactPhase.persist : ContactPhase.begin,
-        ),
-      );
+      if (!_found.add(key)) continue;
+      final phase = _before.containsKey(key)
+          ? ContactPhase.persist
+          : ContactPhase.begin;
+      now.add(contact.phase == phase ? contact : contact.withPhase(phase));
     }
     for (final MapEntry(:key, value: before) in _before.entries) {
-      if (found.contains(key)) continue;
+      if (_found.contains(key)) continue;
       final held = heldWhileResting?.call(before) ?? false;
-      now.add(
-        StepContact._(
-          before.a,
-          before.b,
-          before.idA,
-          before.idB,
-          before.feature,
-          held ? ContactPhase.persist : ContactPhase.end,
-          before.point,
-          before.normal,
-          0.0,
-          Vector3.zero(),
-        ),
-      );
+      now.add(before._still(held ? ContactPhase.persist : ContactPhase.end));
     }
     now.sort();
     _before.clear();
@@ -631,5 +676,72 @@ final class ContactLedger {
   void clear() {
     _before.clear();
     _now = const <StepContact>[];
+  }
+
+  /// What the step before was in contact as, for a save: each contact's
+  /// ids, feature, and where it was — what one that ends next step is
+  /// reported at — in their order.
+  List<Object?> save() => <Object?>[
+    for (final contact in _before.values.toList()..sort())
+      <Object?>[
+        contact.idA,
+        contact.idB,
+        contact.feature,
+        contact._px,
+        contact._py,
+        contact._pz,
+        contact._nx,
+        contact._ny,
+        contact._nz,
+      ],
+  ];
+
+  /// Back to what [save] wrote, the colliders found in [world] by their
+  /// ids; [contacts] is none until the next [record], as after a step that
+  /// was not taken. A contact whose collider [world] no longer holds is
+  /// left out; a save with none — one from before contacts were saved —
+  /// begins every contact of the next step.
+  void restore(Object? saved, CollisionWorld world) {
+    clear();
+    if (saved is! List) return;
+    final byId = <int, Collider>{
+      for (final collider in <Collider>[...world.statics, ...world.movers])
+        ?world.idOf(collider): collider,
+    };
+    for (final entry in saved) {
+      if (entry case [
+        final int idA,
+        final int idB,
+        final int feature,
+        final num px,
+        final num py,
+        final num pz,
+        final num nx,
+        final num ny,
+        final num nz,
+        ...,
+      ]) {
+        final a = byId[idA], b = byId[idB];
+        if (a == null || b == null) continue;
+        _before[(idA, idB, feature)] = StepContact._(
+          a,
+          b,
+          idA,
+          idB,
+          feature,
+          ContactPhase.persist,
+          px.toDouble(),
+          py.toDouble(),
+          pz.toDouble(),
+          nx.toDouble(),
+          ny.toDouble(),
+          nz.toDouble(),
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+        );
+      }
+    }
   }
 }

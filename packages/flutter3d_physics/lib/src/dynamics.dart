@@ -159,7 +159,11 @@ final class Dynamics extends RigidDynamics {
 
   /// How much overlap is tolerated before it is corrected, in metres.
   /// Correcting the last millimetre is what makes a resting box hum.
-  double slop = 0.005;
+  ///
+  /// [contactSlop] unless a game tunes it; what this step says is in
+  /// contact ([contacts]) reads [contactSlop] whatever this is, as the
+  /// native core does.
+  double slop = contactSlop;
 
   /// What fraction of the excess penetration is corrected per step.
   double correction = 0.35;
@@ -291,32 +295,38 @@ final class Dynamics extends RigidDynamics {
 
   late final Pusher _pusher = Pusher(this);
 
-  /// The world it steps in, `world.properties`, as JSON: the warm starts
-  /// held between steps were never part of a save, and the runs' digests are
-  /// what they are without them — but the world's gravity and air are part
-  /// of what the next step computes, so a run rewound across a change of
-  /// gravity steps on under the gravity it was saved with.
+  /// The world it steps in, `world.properties`, as JSON, and what the last
+  /// step was in contact as: the warm starts held between steps were never
+  /// part of a save, and the bodies step to the same bits without them —
+  /// but the world's gravity and air are part of what the next step
+  /// computes, so a run rewound across a change of gravity steps on under
+  /// the gravity it was saved with; and the contacts are what the next
+  /// step tells its own phases against, so a run rewound reports the
+  /// contacts the run it was saved from would, as the native core does
+  /// from its snapshot.
   @override
-  Object? saveState() => <String, Object?>{'world': world.properties.toJson()};
+  Object? saveState() => <String, Object?>{
+    'world': world.properties.toJson(),
+    'contacts': _ledger.save(),
+  };
 
-  /// Puts the world's properties back as [saveState] wrote them; a save from
-  /// before they were saved (null) leaves the world as it is.
-  ///
-  /// The contacts of the step before are forgotten with it, as the warm
-  /// starts are not carried: the first step after a restore begins every
-  /// contact it finds (`ContactLedger`).
+  /// Puts the world's properties and the last step's contacts back as
+  /// [saveState] wrote them, after the bodies' own restore; a save from
+  /// before they were saved leaves the world as it is, and begins every
+  /// contact the next step finds.
   @override
   void restoreState(Object? saved) {
     if (saved case {'world': final Map<String, Object?> properties}) {
       world.properties = WorldProperties.fromJson(properties);
     }
-    _ledger.clear();
+    _ledger.restore(saved is Map ? saved['contacts'] : null, world);
   }
 
   /// What the last step found in contact, begun, persisting or ended.
   ///
-  /// A pair is in contact when it is within [slop] of touching or the
-  /// solver pushed on it, as the core says it; a pair of a sleeping body
+  /// A pair is in contact when it is within [contactSlop] of touching or
+  /// the solver pushed on it, as the core says it, whatever [slop] this
+  /// solver corrects to; a pair of a sleeping body
   /// that this solver did not ask about — against the level, or against
   /// another sleeper — persists as it was, with no impulse, as the core
   /// keeps a sleeping pair's manifold.
@@ -329,11 +339,15 @@ final class Dynamics extends RigidDynamics {
   /// can be told as it was before it.
   final Set<RigidBody> _fell = <RigidBody>{};
 
+  /// This step's pairs in contact, kept to be cleared rather than made
+  /// again.
+  final List<StepContact> _inContact = <StepContact>[];
+
   /// This step's pairs in contact, to the ledger.
   void _report() {
-    final inContact = <StepContact>[];
+    final inContact = _inContact..clear();
     for (final pair in _pairs) {
-      if (pair.depth < -slop && pair.normalImpulse <= 0.0) continue;
+      if (pair.depth < -contactSlop && pair.normalImpulse <= 0.0) continue;
       final a = pair.a.collider;
       final b = pair.b?.collider ?? pair.against!;
       final idA = world.idOf(a);
@@ -359,13 +373,13 @@ final class Dynamics extends RigidDynamics {
   /// Whether a contact of the step before, not found this step, was left
   /// alone because both of its sides rest: each still in the world, and
   /// either a sleeping body or not a body at all.
-  bool _resting(StepContact before) {
-    for (final side in <Collider>[before.a, before.b]) {
-      if (world.idOf(side) == null) return false;
-      final body = bodyOf(side);
-      if (body != null && !body.isAsleep) return false;
-    }
-    return true;
+  bool _resting(StepContact before) =>
+      _restingSide(before.a) && _restingSide(before.b);
+
+  bool _restingSide(Collider side) {
+    if (world.idOf(side) == null) return false;
+    final body = bodyOf(side);
+    return body == null || body.isAsleep;
   }
 
   /// [body]'s velocity at [point] as the step found it, before [gravity]
