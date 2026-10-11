@@ -37,6 +37,13 @@
 /// every intermediate stays under 2^53, where both platforms are exact. It is
 /// FNV-1a's number, arrived at by a route a browser can walk.
 ///
+/// ## What it leaves out
+///
+/// One field of one kind of string: the ABI stamp in the header of a native
+/// world snapshot, which names the build that wrote the world rather than the
+/// world. Why, and what guards compatibility instead, is at
+/// `StateDigest._withoutStamp`.
+///
 /// ## What it is not
 ///
 /// Not cryptographic and not claimed to be. A player who wants to forge a
@@ -152,12 +159,63 @@ final class StateDigest {
 
   void _text(String value) {
     _byte(_tagText);
-    final bytes = utf8.encode(value);
+    final bytes = utf8.encode(_withoutStamp(value));
     _length(bytes.length);
     for (final byte in bytes) {
       _byte(byte);
     }
   }
+
+  /// [value] with the stamp of the build that wrote it zeroed, when it is a
+  /// native world snapshot in base64; [value] itself otherwise.
+  ///
+  /// **The one string whose every character is not state.** A snapshot of the
+  /// native core (`f3d_snapshot.c`) opens with a 20-byte header: the magic
+  /// `F3DS`, the format's minor and major, the writer's `F3D_ABI_VERSION`,
+  /// the bytes a real is written in, and the count of sections. The third
+  /// field says which build of the core wrote the bytes, not what world they
+  /// hold: the core's ABI moves whenever a function or a struct of its
+  /// interface does, the same world steps to the same bits on either side of
+  /// it, and a digest that read the stamp would call every tape with native
+  /// physics a different run on the day of the bump. So the stamp is folded
+  /// in as zero, and only here: every place that writes a snapshot into a
+  /// save — a dynamics' `core`, a game's elements' `world` — writes it as
+  /// `base64Encode(world.snapshot())`, and this is where all of them are read.
+  ///
+  /// What the stamp guarded is guarded elsewhere. Whether a tape may be played
+  /// by this build at all is `SimulationVersion`'s question, asked before a
+  /// step; whether the core can read the bytes is the snapshot reader's, which
+  /// refuses a format major other than its own. The format's minor and major
+  /// stay in the digest, because a world written in another layout is other
+  /// bytes the reader may treat otherwise.
+  ///
+  /// Only the first 16 characters are decoded — the 12 bytes up to the
+  /// stamp's end — so a string that is not a snapshot costs a prefix check.
+  static String _withoutStamp(String value) {
+    // "F3D", the first three bytes of the magic, in base64; and the header's
+    // 20 bytes are 28 characters at least.
+    if (value.length < 28 || !value.startsWith('RjNE')) return value;
+    final Uint8List head;
+    try {
+      head = base64Decode(value.substring(0, 16));
+    } on FormatException {
+      return value;
+    }
+    final header = ByteData.sublistView(head);
+    if (header.getUint32(0, Endian.little) != _snapshotMagic ||
+        header.getUint16(6, Endian.little) != _snapshotMajor ||
+        header.getUint32(8, Endian.little) == 0) {
+      return value;
+    }
+    header.setUint32(8, 0, Endian.little);
+    return base64Encode(head) + value.substring(16);
+  }
+
+  /// `F3DS` read little-endian, as `F3D_SNAPSHOT_MAGIC` in `f3d_snapshot.c`.
+  static const int _snapshotMagic = 0x53443346;
+
+  /// The format major whose header [_withoutStamp] knows the layout of.
+  static const int _snapshotMajor = 1;
 
   /// A number as the eight bytes of its double, whatever kind of number it was.
   ///

@@ -8,6 +8,13 @@
   Expanding an instance gives its own attributes to every row it becomes,
   its keys winning, so a pump placed as `P-101` is `P-101` on each of its
   parts. The engine reads none of them.
+- **A digest reads the world, not the build that wrote it.** `StateDigest`
+  folds the ABI stamp in a native world snapshot's header (byte 8, the
+  writing core's `F3D_ABI_VERSION`) in as zero, so a bump of the core's ABI
+  that steps the same bits no longer moves every checkpoint of a tape with
+  native physics. Compatibility stays with `SimulationVersion` and with the
+  snapshot reader's format check. Digests over native snapshots taken before
+  this differ once; the repository's tapes are recorded again.
 - **A headset's display time is a clock.** `TimeSource.display()`
   (`DisplayTime`) hands each frame the gap between the display times an XR
   runtime predicts, so the world drawn for a frame stands where it will be
