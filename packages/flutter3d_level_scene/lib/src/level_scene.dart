@@ -22,6 +22,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show MaterialCatalog, PhysicalMaterial;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -114,10 +116,29 @@ final class LevelSceneParts {
 /// decoder — and handed in already on the device. A caller with neither
 /// hands nothing, and every surface is drawn in the numbers the document
 /// itself carries.
+///
+/// **A substance named by id is read from [materials].** A level material
+/// that says what it is made of (`LevelMaterial.physicalMaterial`, an id
+/// in the engine's `MaterialCatalog`) takes from the catalogue what the
+/// document leaves unsaid about how it meets light — see [materialFrom].
+/// Without a catalogue, or for an id it does not hold, the surface is drawn
+/// in the document's numbers alone; refusing a level made of a substance
+/// nobody installed is `Level.requireMaterials`'s, before anything is built.
 final class LevelScene {
-  const LevelScene({this.batching = LevelBatching.perMaterial});
+  const LevelScene({this.batching = LevelBatching.perMaterial, this.materials});
 
   final LevelBatching batching;
+
+  /// Where the substances a level names are looked up by id; null reads
+  /// none.
+  final MaterialCatalog? materials;
+
+  /// The substance [source] names, when [materials] holds it.
+  PhysicalMaterial? substanceOf(LevelMaterial source) =>
+      switch (source.physicalMaterial) {
+        final String id => materials?.byId(id),
+        null => null,
+      };
 
   /// The level's brushes, lights and probes in a new [Scene].
   ///
@@ -230,12 +251,15 @@ final class LevelScene {
           surface,
           DeviceMesh.upload(device, meshDataOf(surface)),
           deferred[surface.material] ??
-              materialFrom(
-                level.materials[surface.material] ?? LevelMaterial(),
-                textures,
-                name: surface.material,
-                tiling: tiling,
-              ),
+              switch (level.materials[surface.material] ?? LevelMaterial()) {
+                final source => materialFrom(
+                  source,
+                  textures,
+                  name: surface.material,
+                  tiling: tiling,
+                  substance: substanceOf(source),
+                ),
+              },
           lightmapTexture,
         ),
     ];
@@ -298,11 +322,26 @@ final class LevelScene {
   /// in the game package, which must not know that textures exist, and
   /// [RenderMaterial] lives in the renderer, which must not know that levels do. This
   /// is the seam, and it is the only place that knows both.
+  ///
+  /// **What it is made of, where the document is silent.** With the
+  /// [substance] the material names (`LevelMaterial.physicalMaterial`, read
+  /// by id — [substanceOf]), a metal's surface is drawn metallic with the
+  /// metal's own reflectance as its colour (`OpticalProperties.
+  /// metalReflectance`, the base colour a metallic–roughness material takes
+  /// for a metal), and its roughness is the middle of the range the
+  /// catalogue gives (`roughnessMin`, `roughnessMax`) — each only where the
+  /// document does not say `metallic`, `baseColor` or `roughness` itself,
+  /// so an author's number always wins over the catalogue's.
+  ///
+  /// [LevelMaterial.parameters] go onto the material as the document wrote
+  /// them; lifting values written for an older version of the material the
+  /// surface is drawn with is the loader's, which knows that material.
   static RenderMaterial materialFrom(
     LevelMaterial source,
     Map<String, TextureHandle?> textures, {
     String? name,
     SamplerDescriptor tiling = _tiling,
+    PhysicalMaterial? substance,
   }) {
     final material = RenderMaterial(
       name: name,
@@ -323,6 +362,10 @@ final class LevelScene {
       emissiveStrength:
           source.emissive * RenderMaterial.defaultEmissiveStrength,
     );
+    if (substance != null) _lookOf(material, source, substance);
+    for (final MapEntry(:key, :value) in source.parameters.entries) {
+      material.parameters[key] = Float32List.fromList(value);
+    }
     if (!source.hasMaps) return material;
 
     material
@@ -339,6 +382,32 @@ final class LevelScene {
       ..metallicRoughnessSampler = tiling
       ..occlusionSampler = tiling;
     return material;
+  }
+
+  /// What [substance]'s optical group says about [material], where
+  /// [source]'s document says nothing: see [materialFrom].
+  static void _lookOf(
+    RenderMaterial material,
+    LevelMaterial source,
+    PhysicalMaterial substance,
+  ) {
+    final optical = substance.optical;
+    if (optical == null) return;
+    // What the document holds — the keys it was read with, and anything set
+    // since that is not a default — is what its author said.
+    final said = source.toJson();
+    if (optical.metalReflectance case final f0?
+        when !said.containsKey('metallic')) {
+      material.metallic = 1.0;
+      if (!said.containsKey('baseColor')) {
+        material.baseColor = LinearColor(f0.red, f0.green, f0.blue);
+      }
+    }
+    final low = optical.roughnessMin?.value;
+    final high = optical.roughnessMax?.value;
+    if (low != null && high != null && !said.containsKey('roughness')) {
+      material.roughness = (low + high) / 2.0;
+    }
   }
 
   /// How far the filter may reach across a brush surface at a grazing angle.

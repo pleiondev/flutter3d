@@ -78,7 +78,7 @@ void main() {
   testWidgets('a capped view draws again as soon as its ticker restarts', (
     tester,
   ) async {
-    // Mutation: leave `FrameCadence.reset()` out of `_startTicker`. The
+    // Mutation: leave `_ticks = _vsync` out of `_startTicker`. The
     // restarted ticker counts from nought again, the cadence still holds the
     // last frame drawn at two seconds, and the view draws nothing until the
     // new ticker has caught up with the old one — ten minutes for a ten

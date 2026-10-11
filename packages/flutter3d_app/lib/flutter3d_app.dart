@@ -66,6 +66,7 @@ export 'src/surface/scene_surface.dart';
 export 'src/surface/status_screens.dart';
 export 'src/view/flutter3d_view.dart';
 export 'src/view/frame_info.dart';
+export 'src/view/probe_builder.dart';
 export 'src/view/view_settings.dart'
     show
         DeviceSettings,

@@ -42,6 +42,10 @@ dependencies:
   # The foundation's value types and their crossings into `vector_math`.
   flutter3d_foundation: ^1.0.0-rc.1
 
+  # The substances a level names by id (`physicalMaterial`), read from the
+  # catalogue for how a surface made of one meets light.
+  flutter3d_matter: ^1.0.0-rc.1
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0

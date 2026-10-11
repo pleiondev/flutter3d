@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show MaterialVersionException;
 import 'package:flutter3d_level_scene/flutter3d_level_scene.dart'
     show LevelBatching, LevelScene;
 import 'package:flutter3d_matter/flutter3d_matter.dart';
@@ -150,6 +152,11 @@ final class LevelLoader {
   /// collision world is made in with the level's own laid over it
   /// (`Level.worldOver`): the standard world when null. A level filled with a
   /// medium no catalogue has is refused, naming the plugin it needs.
+  ///
+  /// [programs] are the materials written in the material language that a
+  /// level's surfaces may be drawn with, by name (`HotMaterials.programs`):
+  /// what [build] lifts the parameter values a level wrote for an older
+  /// version of one of them with.
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
@@ -162,6 +169,7 @@ final class LevelLoader {
     DeviceClass? deviceClass,
     PhysicsBackend physics = const DartPhysics(),
     WorldProperties? gameWorld,
+    Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
   }) async {
     final read = readDocument ?? _bundleDocument;
     final level = Level.fromJson(
@@ -186,6 +194,7 @@ final class LevelLoader {
       batching: batching,
       physics: physics,
       gameWorld: gameWorld,
+      programs: programs,
     );
   }
 
@@ -349,14 +358,18 @@ final class LevelLoader {
     // a piece's place in it. A layout with no way back to the authored brushes
     // is worse than none: every face past the hole would sample a stranger's
     // texels, which reads as scrambled light rather than as a missing bake.
-    final batches = LevelScene(batching: loaded.batching).brushBatches(
-      cut,
-      device: device,
-      textures: loaded.materialTextures,
-      lightmapLayout: origins == null ? null : loaded.lightmapLayout,
-      lightmapTexture: loaded.lightmap,
-      origins: origins,
-    );
+    final batches =
+        LevelScene(
+          batching: loaded.batching,
+          materials: loaded.collision.materials,
+        ).brushBatches(
+          cut,
+          device: device,
+          textures: loaded.materialTextures,
+          lightmapLayout: origins == null ? null : loaded.lightmapLayout,
+          lightmapTexture: loaded.lightmap,
+          origins: origins,
+        );
     for (final batch in batches) {
       loaded.scene.add(batch.node);
       loaded.brushNodes.add(batch.node);
@@ -384,6 +397,20 @@ final class LevelLoader {
   /// [authored]'s recipes are expanded first, and everything after — the
   /// validator, the colliders, the batches, the entities — sees the level as
   /// it is played.
+  ///
+  /// **A material instance written for an older version is lifted.** A
+  /// level material gives the material it is drawn with parameter values
+  /// (`LevelMaterial.parameters`), written for the version of that material
+  /// it names (`LevelMaterial.materialVersion`, 1 when it names none). When
+  /// the surface defers to a `.fmat` whose shader is one of [programs], the
+  /// values are carried to that program's own version through its
+  /// `updates` (`MaterialProgram.lift`) before they reach the material, so
+  /// a parameter renamed or rescaled since the level was saved still means
+  /// what its author set. A level written for a newer version than this
+  /// build's, and a value for a parameter the program no longer has, are
+  /// warnings in [LoadedLevel.issues]: the first keeps the material's own
+  /// values, the second is left out. A surface drawn with no program known
+  /// here takes the values as written.
   Future<LoadedLevel> build(
     Level authored, {
     required GraphicsDevice device,
@@ -396,6 +423,7 @@ final class LevelLoader {
     LevelBatching batching = LevelBatching.perMaterial,
     PhysicsBackend physics = const DartPhysics(),
     WorldProperties? gameWorld,
+    Map<String, MaterialProgram> programs = const <String, MaterialProgram>{},
   }) async {
     final level = expandRecipes(authored);
     // Errors throw with every one listed, because a level with a door whose key
@@ -497,6 +525,13 @@ final class LevelLoader {
               loadIssues,
             )
             case final RenderMaterial material) {
+          _giveInstance(
+            material,
+            entry.key,
+            entry.value,
+            programs[material.lighting.shaderName],
+            loadIssues,
+          );
           deferred[entry.key] = material;
         }
       }
@@ -572,15 +607,16 @@ final class LevelLoader {
     // Everything from here on needs no Flutter, and lives where a program
     // with none can reach it: the textures and `.fmat` materials this method
     // loaded are handed over already on the device.
-    final parts = LevelScene(batching: batching).build(
-      level,
-      device: device,
-      textures: textures,
-      deferred: deferred,
-      visibility: visibility,
-      lightmapLayout: layout,
-      lightmapTexture: lightmapTexture,
-    );
+    final parts = LevelScene(batching: batching, materials: collision.materials)
+        .build(
+          level,
+          device: device,
+          textures: textures,
+          deferred: deferred,
+          visibility: visibility,
+          lightmapLayout: layout,
+          lightmapTexture: lightmapTexture,
+        );
 
     return LoadedLevel(
         level: level,
@@ -639,7 +675,14 @@ final class LevelLoader {
     Map<String, TextureHandle?> textures, {
     String? name,
     SamplerDescriptor tiling = SamplerDescriptor.trilinearRepeat,
-  }) => LevelScene.materialFrom(source, textures, name: name, tiling: tiling);
+    PhysicalMaterial? substance,
+  }) => LevelScene.materialFrom(
+    source,
+    textures,
+    name: name,
+    tiling: tiling,
+    substance: substance,
+  );
 
   /// How far the filter may reach across a brush surface at a grazing angle
   /// — [LevelScene.tilingAnisotropy].
@@ -649,6 +692,53 @@ final class LevelLoader {
   /// [LevelScene.tilingSamplerFor].
   static SamplerDescriptor tilingSamplerFor(GraphicsDevice device) =>
       LevelScene.tilingSamplerFor(device);
+
+  /// Gives [material], bound for the level material [name], the parameter
+  /// values [source] wrote, lifted to [program]'s version when the surface
+  /// is drawn with one — see [build].
+  static void _giveInstance(
+    RenderMaterial material,
+    String name,
+    LevelMaterial source,
+    MaterialProgram? program,
+    List<LevelIssue> issues,
+  ) {
+    if (source.parameters.isEmpty) return;
+    var values = source.parameters;
+    if (program != null) {
+      try {
+        values = program.lift(values, from: source.materialVersion ?? 1);
+      } on MaterialVersionException catch (error) {
+        issues.add(
+          LevelIssue(
+            LevelIssueSeverity.warning,
+            'its parameter values cannot be carried to this build\'s '
+            '${error.material}, so the material keeps its own: '
+            '${error.message}',
+            where: 'material "$name"',
+          ),
+        );
+        return;
+      }
+    }
+    final declared = program == null
+        ? null
+        : <String>{for (final parameter in program.parameters) parameter.name};
+    for (final MapEntry(:key, :value) in values.entries) {
+      if (declared != null && !declared.contains(key)) {
+        issues.add(
+          LevelIssue(
+            LevelIssueSeverity.warning,
+            'gives "$key", which ${program!.name} at version '
+            '${program.version} does not have, so it is left out',
+            where: 'material "$name"',
+          ),
+        );
+        continue;
+      }
+      material.parameters[key] = Float32List.fromList(value);
+    }
+  }
 
   /// Reads the `.fmat` at [path] and binds it, or says why it could not.
   ///

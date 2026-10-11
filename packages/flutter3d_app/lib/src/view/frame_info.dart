@@ -22,8 +22,13 @@ final class FrameInfo {
   /// when there is one to give.
   const FrameInfo({required this.seconds, this.result});
 
-  /// Seconds since the frame before, by the display's clock; nought for the
-  /// first.
+  /// Seconds since the frame before; nought for the first.
+  ///
+  /// By the display's clock for [SceneSurface.onFrame]. For a
+  /// [Flutter3dView] and a [Scene3D] it is what their `time` source
+  /// answered for the frame (`TimeSource`): the display's clock by default,
+  /// a tenth of it at a tenth of real speed, nought while a hand-moved clock
+  /// is not moved. The loop stepped by the same seconds.
   final double seconds;
 
   /// What the renderer answered for the last frame it drew: this one, to a

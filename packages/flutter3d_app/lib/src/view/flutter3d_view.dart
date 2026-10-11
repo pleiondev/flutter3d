@@ -21,6 +21,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show ValueListenable, ValueNotifier;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
@@ -36,6 +37,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         FormatSpec,
         OriginShifted,
         PluginRegistry,
+        PublishedState,
         Registration,
         VmExtensions;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
@@ -45,6 +47,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
         InputState,
         IsolateSimulation,
         SimulationHandle,
+        TimeSource,
         simFormats;
 
 import '../backend_native.dart'
@@ -81,7 +84,28 @@ final class Flutter3dEngine {
     // ignore: prefer_initializing_formals
   }) : _device = device,
        // ignore: prefer_initializing_formals
-       _renderer = renderer;
+       _renderer = renderer,
+       _published = ValueNotifier<PublishedState>(simulation.published);
+
+  /// What the simulation published last, as the view saw it after the
+  /// frame it drew: its step, its components and positions, its events, and
+  /// what every probe read ([PublishedState.probes]).
+  ///
+  /// **The way a widget beside the view reads the simulation.** A gauge, a
+  /// chart or a readout over the picture listens here (a
+  /// `ValueListenableBuilder`, or [ProbeBuilder] for one probe) rather than
+  /// reaching into the world, so it reads the same wherever the simulation
+  /// runs: inline, or in an isolate (`SimulationPlacement.isolate`), where
+  /// the state arrives as plain values. It changes at most once a frame the
+  /// view draws, and not while the view is paused.
+  ValueListenable<PublishedState> get published => _published;
+  final ValueNotifier<PublishedState> _published;
+
+  /// Brings [published] up to what [simulation] holds now.
+  void _republish() {
+    final now = simulation.published;
+    if (!identical(now, _published.value)) _published.value = now;
+  }
 
   /// The backends this engine chose its device from — its own registry, not
   /// one shared with other engines in the isolate. The registry it opens a
@@ -214,6 +238,7 @@ final class Flutter3dEngine {
     view.dispose();
     if (ownsRenderer) renderer.dispose();
     if (ownsDevice) device.dispose();
+    _published.dispose();
   }
 }
 
@@ -314,7 +339,30 @@ final class Flutter3dView extends StatefulWidget {
     this.restoreState,
     this.onPausedChanged,
     this.onListenerMoved,
+    this.time,
   });
+
+  /// Where the simulation's time comes from: how many seconds each frame
+  /// the view draws hands the loop. Null is the display's own clock,
+  /// `TimeSource.realTime`.
+  ///
+  /// **The loop's step stays fixed whatever the source**, so a run is as
+  /// deterministic at a tenth of real speed as at full: a slower source
+  /// hands each frame less time, and the loop runs fewer steps. A
+  /// laboratory slows its world with `TimeSource.scaled(0.1)` or steps it by
+  /// hand with `TimeSource.manual()` (`ManualTime.advance` from a button); a
+  /// digital twin replays a recorded log at the pace it was taken with
+  /// `TimeSource.log`. Which display refreshes are drawn is still the
+  /// display's ([ViewSettings.frameRateCap]); every frame drawn asks this
+  /// source for its seconds, the frame callbacks are told them
+  /// ([FrameInfo.seconds]), and a simulation placed in an isolate is
+  /// stepped by them too.
+  ///
+  /// A source handed in is the caller's: the view asks it and never resets
+  /// it, so a log goes on where it was when the view's ticker stops and
+  /// starts again. Replacing it with another starts the new one from the
+  /// next frame.
+  final TimeSource? time;
 
   /// The world to draw; null makes an empty one, with a light.
   final Scene? scene;
@@ -409,7 +457,6 @@ class _Flutter3dViewState extends State<Flutter3dView>
   PlacedSimulation? _placed;
   Object? _error;
   Ticker? _ticker;
-  Duration _last = Duration.zero;
   bool _shown = true;
   bool _foreground = true;
   bool _paused = false;
@@ -419,8 +466,16 @@ class _Flutter3dViewState extends State<Flutter3dView>
   Object? _pendingRestore;
   bool _hasPendingRestore = false;
   StreamSubscription<DeviceLoss>? _losses;
-  final FrameCadence _cadence = FrameCadence();
-  double _owed = 0.0;
+  late final FrameCadence _cadence = FrameCadence(time: widget.time);
+
+  /// The vsync time the ticker's own count is added to: a ticker counts
+  /// from nought each time it starts, and the cadence is handed one clock
+  /// that only goes forward, so the source is asked across a stop and a
+  /// start as if the stop had not happened rather than reset.
+  Duration _ticks = Duration.zero;
+
+  /// The last vsync time handed to the cadence, on that one clock.
+  Duration _vsync = Duration.zero;
 
   /// Whether the fallback banner was closed.
   bool _bannerClosed = false;
@@ -737,10 +792,11 @@ class _Flutter3dViewState extends State<Flutter3dView>
   void _startTicker() {
     _ticker ??= createTicker(_tick);
     if (!_ticker!.isActive) {
-      // A ticker counts from nought each time it starts, and the cadence
-      // would wait for the old count: forget the last frame it drew.
-      _last = Duration.zero;
-      _cadence.reset();
+      // A ticker counts from nought each time it starts: carry on the one
+      // clock the cadence reads from where it stopped, so it neither waits
+      // for the old count nor hands the source the time the view was away.
+      // The source itself is not reset; a log goes on where it was.
+      _ticks = _vsync;
       _ticker!.start();
     }
   }
@@ -748,16 +804,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
   void _tick(Duration elapsed) {
     final engine = _engine;
     if (engine == null) return;
-    _owed += (elapsed - _last).inMicroseconds / 1e6;
-    _last = elapsed;
-    if (_paused) {
-      _owed = 0.0;
-      return;
-    }
-    // A refresh the cap skips is not drawn: the time goes on owing, and the
-    // next frame drawn steps by all of it. A cap of nought or less is none,
-    // and a display that says nought hertz does not know its rate: the
-    // cadence measures it from the timestamps.
+    final vsync = _vsync = _ticks + elapsed;
+    // A cap of nought or less is none, and a display that says nought hertz
+    // does not know its rate: the cadence measures it from the timestamps.
     final cap = widget.view.frameRateCap;
     final hertz = View.maybeOf(context)?.display.refreshRate;
     _cadence
@@ -765,9 +814,17 @@ class _Flutter3dViewState extends State<Flutter3dView>
       ..refreshRate = hertz != null && hertz > 0.0 && hertz.isFinite
           ? hertz
           : null;
-    if (_cadence.due(elapsed) == null) return;
-    final seconds = _owed;
-    _owed = 0.0;
+    if (_paused) {
+      // Counted as drawn against a clock that stands still, so the time away
+      // is handed to nothing: not to the loop when the view comes back, and
+      // not out of a log or a hand-moved clock while nobody watches.
+      _cadence.due(vsync, clock: const _StandingStill());
+      return;
+    }
+    // A refresh the cap skips is not drawn, and the next frame drawn asks
+    // the source for all the time since the last one.
+    final seconds = _cadence.due(vsync);
+    if (seconds == null) return;
     final frame = FrameInfo(seconds: seconds, result: _drawn);
     _guarded('onBeforeFrame', () => widget.onBeforeFrame?.call(engine, frame));
     _guarded('the loop', () {
@@ -776,6 +833,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
       // pauses with the view and runs no faster than the frames.
       _placed?.advance(seconds);
     });
+    // What an isolate published arrives between frames; what the loop here
+    // published, during this one. Either way the widgets hear it once.
+    engine._republish();
     _guarded('onFrame', () => widget.onFrame?.call(engine, frame));
     _followCamera(engine);
     final listener = widget.onListenerMoved;
@@ -840,6 +900,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
   @override
   void didUpdateWidget(Flutter3dView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(widget.time, oldWidget.time)) {
+      _cadence.time = widget.time ?? const TimeSource.realTime();
+    }
     if (_engine == null) return;
     if (widget.view.continuous) {
       _startTicker();
@@ -1018,6 +1081,14 @@ final class _Follower {
 
   Registration onScene;
   int holders = 0;
+}
+
+/// The clock a paused view counts its refreshes against: no time passes.
+final class _StandingStill extends TimeSource {
+  const _StandingStill();
+
+  @override
+  double elapsed(Duration from, Duration to) => 0.0;
 }
 
 /// What the warm-up's zone hands out once the view has gone: a timer that

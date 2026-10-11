@@ -62,15 +62,25 @@ import 'package:flutter/rendering.dart' show RenderPositionedBox;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine show RenderMaterial;
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show SceneBinding, SceneBindingContext;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show Registration;
+    show
+        BindingInterpolation,
+        BindingLifetime,
+        Entity,
+        PublishedState,
+        Registration;
+import 'package:flutter3d_sim/flutter3d_sim.dart'
+    show LocalSimulation, SimulationHandle, TimeSource;
 
 import '../surface/scene_surface.dart' show FramePresenter;
 import '../view/flutter3d_view.dart';
 import '../view/frame_info.dart';
 import '../view/view_settings.dart';
 
+part 'scene_widgets_bindings.dart';
 part 'scene_widgets_features.dart';
 part 'scene_widgets_input.dart';
 part 'scene_widgets_mount.dart';
@@ -94,6 +104,15 @@ abstract interface class _SceneHost {
   /// The [OrbitCamera3D]s built, in order; the last is the one gestures
   /// turn.
   List<_Orbit> get orbits;
+
+  /// The simulation the scene shows, for a [Binding3D] that names none:
+  /// the view's, under a [Scene3D]; null under a mount, which has no loop.
+  SimulationHandle? get simulation;
+
+  /// How far the frame is between the last two steps of [simulation],
+  /// nought to one: the loop's own under a [Scene3D] whose simulation runs
+  /// inline, and one (the newest step, unblended) where it is elsewhere.
+  double get alpha;
 
   /// Told when [tappable] or [orbits] gained their first entry or lost
   /// their last: a [Scene3D] listens for gestures only while something
@@ -162,7 +181,14 @@ final class Scene3D extends StatefulWidget {
     this.onFrame,
     this.presenter,
     this.frameRateCap,
+    this.time,
   });
+
+  /// Where the scene's time comes from: `Flutter3dView.time`, which this
+  /// hands to the view underneath. Null is the display's own clock. The
+  /// loop, the models' clips, the particles and [onFrame] all run on it, so
+  /// `TimeSource.scaled(0.1)` slows the whole scene to a tenth.
+  final TimeSource? time;
 
   /// Frames a second this scene is drawn at most, held to a whole number of
   /// the display's refreshes — `A1.5`: sixty on a 120 Hz screen is every
@@ -244,6 +270,21 @@ class _Scene3DState extends State<Scene3D>
 
   @override
   Set<_Animated> get animated => _animated;
+
+  @override
+  SimulationHandle? get simulation => _controller?.engine.simulation;
+
+  /// A fraction, nought to one: the loop's own when the simulation runs
+  /// in it, one otherwise.
+  @override
+  double get alpha {
+    final view = _controller?.engine;
+    if (view == null) return 1.0;
+    final inline =
+        view.simulation is LocalSimulation &&
+        identical((view.simulation as LocalSimulation).loop, view.loop);
+    return inline ? view.loop.alpha : 1.0;
+  }
 
   @override
   void initState() {
@@ -328,6 +369,7 @@ class _Scene3DState extends State<Scene3D>
           onCreated: _created,
           onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
               _beforeFrame(frame),
+          time: widget.time,
         ),
       ],
     );

@@ -182,6 +182,10 @@ void main() {
       },
     );
     expect(asked, 'read');
+    // The program read off the same source, for a level's values to be
+    // lifted through.
+    expect(loaded.programs.keys, <String>['Paint']);
+    expect(loaded.programs['Paint']!.version, 1);
     expect(
       generatedMaterialPathFor('assets_src/fx/paint.f3dmat'),
       'flutter3d_generated/fx/paint.f3dshaders',

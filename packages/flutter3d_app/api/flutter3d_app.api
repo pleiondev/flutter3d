@@ -12,6 +12,13 @@ abstract base class BinaryStorage
   abstract Future<void> remove(String name)
   const BinaryStorage()
 
+final class Binding3D extends StatefulWidget
+  State<Binding3D> createState()
+  const Binding3D({super.key, this.components, this.simulation, this.materials})
+  final Set<String>? components
+  final SimulationHandle? simulation
+  final engine.RenderMaterial? Function(String id)? materials
+
 typedef BuiltEnvironment = EnvironmentCube;
 
 final class Camera3D extends Spatial3D
@@ -108,6 +115,7 @@ final class Flutter3dEngine
   Registration followOrigin(ParticleSystem particles)
   Renderer get renderer
   Scene get scene
+  ValueListenable<PublishedState> get published
   final DeviceRegistry devices
   final EngineLog log
   final EngineLoop loop
@@ -120,7 +128,7 @@ final class Flutter3dEngine
 
 final class Flutter3dView extends StatefulWidget
   State<Flutter3dView> createState()
-  const Flutter3dView({super.key, this.scene, this.camera, this.onCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved})
+  const Flutter3dView({super.key, this.scene, this.camera, this.onCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.time})
   final CameraNode? camera
   final DeviceSettings device
   final EngineLog? log
@@ -131,6 +139,7 @@ final class Flutter3dView extends StatefulWidget
   final PluginSettings plugins
   final Scene? scene
   final String? restorationId
+  final TimeSource? time
   final ViewSettings view
   final bool autofocus
   final void Function(Flutter3dEngine engine)? onCreated
@@ -168,6 +177,7 @@ final class FrameTimingLog
 final class HotMaterials
   BundledMaterials get materials
   HotMaterials(this.library, BundledMaterials materials)
+  Map<String, MaterialProgram> get programs
   RenderMaterial bind(RenderMaterial material, String name)
   final LoadedShaderLibrary library
 
@@ -230,10 +240,10 @@ final class LevelLoadFailed extends StatelessWidget
   final VoidCallback? onStartOver
 
 final class LevelLoader
-  Future<LoadedLevel> build(Level authored, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelVisibility? visibility, Lightmap? lightmap, List<LevelIssue> issues = const <LevelIssue>[], LevelBatching batching = LevelBatching.perMaterial, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld})
-  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelDocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld})
+  Future<LoadedLevel> build(Level authored, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelVisibility? visibility, Lightmap? lightmap, List<LevelIssue> issues = const <LevelIssue>[], LevelBatching batching = LevelBatching.perMaterial, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
+  Future<LoadedLevel> load(String assetPath, {required GraphicsDevice device, required EntityRegistry registry, List<LevelRule> rules = const <LevelRule>[], AssetBytes? readAsset, LevelDocumentText? readDocument, bool sidecars = true, LevelBatching batching = LevelBatching.perMaterial, DeviceClass? deviceClass, PhysicsBackend physics = const DartPhysics(), WorldProperties? gameWorld, Map<String, MaterialProgram> programs = const <String, MaterialProgram>{}})
   const LevelLoader()
-  static RenderMaterial materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerDescriptor tiling = SamplerDescriptor.trilinearRepeat})
+  static RenderMaterial materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerDescriptor tiling = SamplerDescriptor.trilinearRepeat, PhysicalMaterial? substance})
   static SamplerDescriptor tilingSamplerFor(GraphicsDevice device)
   static ShadowCastingMode shadowModeOf(ShadowCasting casting)
   static const int tilingAnisotropy = LevelScene.tilingAnisotropy
@@ -475,6 +485,13 @@ final class PluginSettings
   final Iterable<FormatSpec> formats
   final Iterable<PluginRegistry> registries
 
+final class ProbeBuilder extends StatelessWidget
+  Widget build(BuildContext context)
+  const ProbeBuilder({super.key, required this.published, required this.probe, required this.builder})
+  final String probe
+  final ValueListenable<PublishedState> published
+  final Widget Function(BuildContext context, ProbeReading? reading) builder
+
 final class PropVisuals
   Map<String, SceneNode> get nodes
   Map<String, Vector3> get restPositions
@@ -505,13 +522,14 @@ final class RendererFailure extends StatelessWidget
 
 final class Scene3D extends StatefulWidget
   State<Scene3D> createState()
-  const Scene3D({super.key, this.children = const <Widget>[], this.settings = const RenderSettings(), this.clearColor, this.device, this.materials, this.continuous = true, this.placeholder = const SizedBox.expand(), this.onCreated, this.onFrame, this.presenter, this.frameRateCap})
+  const Scene3D({super.key, this.children = const <Widget>[], this.settings = const RenderSettings(), this.clearColor, this.device, this.materials, this.continuous = true, this.placeholder = const SizedBox.expand(), this.onCreated, this.onFrame, this.presenter, this.frameRateCap, this.time})
   final FramePresenter? presenter
   final GraphicsDevice? device
   final LinearColor? clearColor
   final List<Widget> children
   final RenderSettings settings
   final ShaderLibrary? materials
+  final TimeSource? time
   final Widget placeholder
   final bool continuous
   final double? frameRateCap
