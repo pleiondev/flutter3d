@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Native cloth refuses a profile that does not promise bits.** Under
+  `ClothSettings.profile` that is not bit-exact (`accurate`),
+  `NativeClothSimulation.step` throws `NativeClothRefused` with
+  `NativeClothRefusal.notBitExact` instead of running the float core, and
+  its owner falls back to `DartCloth`. The wind's drag the core is given is
+  `WindSettings.effectiveDrag`, scaled by the air's density: exactly the
+  drag in standard air.
 - **The Dart views' defaults are the header's.** `NativeMaterial`'s
   emissivity and conductivity default to `MaterialCatalog`'s, which the
   core's presets read as `F3D_PRESET_DEFAULT_*`; `DebrisSettings.friction`
