@@ -353,7 +353,9 @@ bool _refuses(Future<ByteData> Function() ask) {
 /// of its own. What is checked here is that a well-formed chain is accepted and
 /// a malformed one is refused rather than half-uploaded.
 Future<void> checkCubeMipLevels(GraphicsDevice device) async {
-  if (!device.features.has(DeviceFeature.cubeTextures)) return;
+  if (!device.features.has(DeviceFeature.cubeTextures)) {
+    decline(device, 'has no cube textures, so no cube chain is handed to it');
+  }
 
   const size = 4;
   List<ByteData> faces(int side) => <ByteData>[
@@ -473,20 +475,22 @@ Future<void> checkPixelBufferSize(GraphicsDevice device) async {
   // tells its caller to ask for `DeviceFeature.manualMipmaps` before handing
   // over levels, and Impeller's answer is the driver's rather than a constant,
   // so a suite that asked anyway would put a failure on a device that had
-  // done nothing wrong.
-  if (!device.features.has(DeviceFeature.manualMipmaps)) return;
-  require(
-    refusesResource(
-      () => device.createTextureFromPixels(
-        width: width,
-        height: height,
-        format: format,
-        pixels: ByteData(exact),
-        mipLevels: <ByteData>[ByteData(exact)],
+  // done nothing wrong. Not a decline where it is not asked: the base level,
+  // which is what this check is named for, has been asked above.
+  if (device.features.has(DeviceFeature.manualMipmaps)) {
+    require(
+      refusesResource(
+        () => device.createTextureFromPixels(
+          width: width,
+          height: height,
+          format: format,
+          pixels: ByteData(exact),
+          mipLevels: <ByteData>[ByteData(exact)],
+        ),
       ),
-    ),
-    'a mip level the size of the base was accepted',
-  );
+      'a mip level the size of the base was accepted',
+    );
+  }
 }
 
 /// A region overwrite lands exactly where it was aimed, and nowhere else —

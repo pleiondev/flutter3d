@@ -28,7 +28,9 @@ import '../flutter3d_conformance.dart';
 const int _size = 8;
 
 Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
-  if (!device.features.has(DeviceFeature.cubeTextures)) return;
+  if (!device.features.has(DeviceFeature.cubeTextures)) {
+    decline(device, 'has no cube textures, so no pass renders into a face');
+  }
 
   // Two levels where the device will draw into one below the base, one where
   // it will not: a device that answers false is entitled to, and what is
@@ -113,7 +115,11 @@ Future<void> checkRenderToCubeFaceAndMip(GraphicsDevice device) async {
 Future<void> checkPassViewportCoversTheLevel(GraphicsDevice device) async {
   if (!device.features.has(DeviceFeature.cubeTextures) ||
       !device.features.has(DeviceFeature.renderToMipLevel)) {
-    return;
+    decline(
+      device,
+      'renders into no level below a cube\'s base, so no level has a '
+      'viewport to cover',
+    );
   }
 
   // Sixteen across at level one, so the two texels a centre tap reads sit nine

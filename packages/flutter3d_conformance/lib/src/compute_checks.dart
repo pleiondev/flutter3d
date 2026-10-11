@@ -19,19 +19,20 @@ const int _count = 1024;
 /// number, and the message names the first one.
 Future<void> checkPrefixSum(GraphicsDevice device) async {
   if (!device.features.has(DeviceFeature.compute)) {
-    throw const ConformanceDeclinedException(
-      'this device answers false to supportsCompute, which is a legitimate '
-      'answer: compute is optional, and FieldPass is the path every backend '
-      'has',
+    decline(
+      device,
+      'has no compute, which is a legitimate answer: compute is optional, '
+      'and FieldPass is the path every backend has',
     );
   }
   // 1.0: a device that ships none of the engine's compute stages computes
   // kernels only — the wgpu sidecar — and is held to the kernel checks
   // instead. A device that ships some of them and not this one is wrong.
   if (computeShaders.every((String name) => device.shaders[name] == null)) {
-    throw const ConformanceDeclinedException(
-      'this device computes kernels only and ships none of the engine\'s '
-      'own compute stages; the kernel checks hold it to the same bytes',
+    decline(
+      device,
+      'computes kernels only and ships none of the engine\'s own compute '
+      'stages; the kernel checks hold it to the same bytes',
     );
   }
   final stage = device.shaders['PrefixSum'];

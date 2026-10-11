@@ -89,12 +89,23 @@ Future<void> checkCompressedTextureSamples(GraphicsDevice device) async {
     (TextureFormat.astc4x4LDR, _astc4x4Solid()),
   ];
 
-  for (final (format, block) in candidates) {
-    // Not a failure: the interface says to ask, and a backend that answers
-    // false is entitled to. A backend with neither family — the software
-    // rasteriser — runs nothing here, and that is the honest outcome.
-    if (!device.textureFormatSupport(format).sampled) continue;
+  // Not a failure: the interface says to ask, and a backend that answers
+  // false is entitled to. A backend with none of the families — the software
+  // rasteriser — is asked nothing here, and says so rather than passing.
+  final sampled = candidates
+      .where(
+        ((TextureFormat, Uint8List) c) =>
+            device.textureFormatSupport(c.$1).sampled,
+      )
+      .toList();
+  if (sampled.isEmpty) {
+    decline(
+      device,
+      'samples none of BC1, ETC2 and ASTC 4x4, so no compressed block is drawn',
+    );
+  }
 
+  for (final (format, block) in sampled) {
     final texture = device.createTextureFromPixels(
       width: 4,
       height: 4,

@@ -245,10 +245,11 @@ Future<void> checkFloatTextureUpload(GraphicsDevice device) async {
 Future<void> checkFloat32Filtering(GraphicsDevice device) async {
   if (!(device.features.has(DeviceFeature.float32Filterable) &&
       device.features.has(DeviceFeature.float32Renderable))) {
-    throw const ConformanceDeclinedException(
-      'this device answers false to supportsFloat32Filtering, which is a '
-      'legitimate answer: the evsm shadow filter is refused there and the '
-      'fixed kernel draws instead',
+    decline(
+      device,
+      'does not filter and render 32-bit floats, which is a legitimate '
+      'answer: the evsm shadow filter is refused there and the fixed kernel '
+      'draws instead',
     );
   }
   final vertex = device.shaders['VertexTextureProbeVertex'];

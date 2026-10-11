@@ -158,6 +158,12 @@ final class ConformanceDeclinedException extends CapabilityException {
 /// Ends the check with no verdict: [device] cannot be asked this, and [why]
 /// says what it answered.
 ///
+/// **The one way a check refuses to answer**, since 1.0. A check that
+/// returned early on a missing feature was counted as a pass, and one that
+/// built a [ConformanceDeclinedException] by hand left out which backend
+/// declined; every check here declines through this, and the package's own
+/// test holds every check file to it.
+///
 /// [why] is a sentence about the capability, not about the check — "answers
 /// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
 /// read on its own, beside a check name, by somebody holding a phone.

@@ -30,9 +30,10 @@ RenderPassDescriptor _twoViews(GraphicsDevice device) {
 void _needsLayers(GraphicsDevice device) {
   if (!device.features.has(DeviceFeature.textureArrays) ||
       !device.features.has(DeviceFeature.renderToArrayLayer)) {
-    throw const ConformanceDeclinedException(
-      'this device draws into no array layer, so neither one pass of two '
-      'views nor two passes of one has anywhere to go',
+    decline(
+      device,
+      'draws into no array layer, so neither one pass of two views nor two '
+      'passes of one has anywhere to go',
     );
   }
 }
@@ -42,9 +43,7 @@ void _needsLayers(GraphicsDevice device) {
 Future<void> checkMultiviewRefusedByName(GraphicsDevice device) async {
   _needsLayers(device);
   if (device.features.has(DeviceFeature.multiview)) {
-    throw const ConformanceDeclinedException(
-      'this device reports multiview, so a masked pass is not refused here',
-    );
+    decline(device, 'reports multiview, so a masked pass is not refused here');
   }
   final descriptor = _twoViews(device);
   try {
