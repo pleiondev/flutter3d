@@ -3231,6 +3231,113 @@ List<Finding> proveDetectorsWork() {
     'only more than the minute is the claim to read',
   );
 
+  // An accessible UI. Each mutation is the one the widgets carried before
+  // their promise was kept.
+  fires(
+    'a typed colour',
+    typedColorsIn(
+          'return DecoratedBox(\n'
+          '  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55)),\n'
+          ');\nconst c = Color(0xCCFFFFFF);',
+        ).length ==
+        2,
+    'a black at 0.55 and a hex colour in a widget',
+  );
+  quiet(
+    'a typed colour',
+    typedColorsIn(
+      '/// Was `Colors.white` on a sky.\n'
+      'final c = theme.panel; // not Color(0x73000000) any more',
+    ).isEmpty,
+    'a doc and a comment naming colours',
+    'prose explaining the rule must not break it',
+  );
+  fires(
+    'a pinned text size',
+    fixedTextScalesIn(
+          'Text(t, textScaler: TextScaler.noScaling);\n'
+          'MediaQuery(data: d.copyWith(textScaler: TextScaler.linear(1)));',
+        ).length ==
+        2,
+    'no scaling, and a linear scaler of one',
+  );
+  fires(
+    'an unscaled painter',
+    unscaledTextPaintersIn(
+          'final p = TextPainter(\n  text: span,\n  textDirection: d,\n);',
+        ).single ==
+        1,
+    'a TextPainter made without a scaler',
+  );
+  quiet(
+    'an unscaled painter',
+    unscaledTextPaintersIn(
+      'final p = TextPainter(\n  text: TextSpan(text: f(x)),\n'
+      '  textScaler: MediaQuery.textScalerOf(context),\n);',
+    ).isEmpty,
+    "a TextPainter given the context's scaler past a nested call",
+    'the scaler is inside its arguments',
+  );
+  fires(
+    'an unnamed control',
+    unnamedPointerWidgetsIn(
+          'Widget build(BuildContext context) => Listener(\n'
+          '  onPointerDown: (_) => begin(),\n  child: sheet,\n);',
+        ).single ==
+        1,
+    "a title sheet's Listener with nothing to name it",
+  );
+  quiet(
+    'an unnamed control',
+    unnamedPointerWidgetsIn(
+          'return Semantics(\n  button: true,\n  label: prompt,\n'
+          '  child: Listener(onPointerDown: (_) => begin()),\n);',
+        ).isEmpty &&
+        unnamedPointerWidgetsIn(
+          'final l = ValueListenableBuilder(x);\n'
+          'controller.addListener(f);',
+        ).isEmpty,
+    'a Listener under Semantics, a ValueListenableBuilder, an addListener',
+    'the first is named, the others take no pointer',
+  );
+  fires(
+    'motion without reduction',
+    motionWithoutReductionIn(
+          'late final c = AnimationController(vsync: this);',
+        ).single ==
+        1,
+    'an AnimationController in a library that never asks',
+  );
+  quiet(
+    'motion without reduction',
+    motionWithoutReductionIn(
+      'late final c = AnimationController(vsync: this);\n'
+      'if (MediaQuery.disableAnimationsOf(context)) c.value = 1.0;',
+    ).isEmpty,
+    'a controller beside the reduced-motion flag',
+    'the library reads what the player asked for',
+  );
+  fires(
+    'an accessibility test',
+    accessibilityTestGapsIn(
+          '// labeledTapTargetGuideline textContrastGuideline textScaler\n'
+          'void main() {}',
+        ).length ==
+        4,
+    'a test with the words only in a comment',
+  );
+  quiet(
+    'an accessibility test',
+    accessibilityTestGapsIn(
+      "@Tags(<String>['accessibility'])\nlibrary;\n"
+      'final g = <Object>[labeledTapTargetGuideline, '
+      'androidTapTargetGuideline, textContrastGuideline];\n'
+      'final s = TextScaler.linear(2); // textScaler',
+    ).isEmpty,
+    'a test that asks every guideline at a larger size',
+    'it does what the promise asks',
+  );
+
   return broken;
 }
 
@@ -3418,5 +3525,135 @@ List<int> temporaryMutesIn(String source) {
   return <int>[
     for (var i = 0; i < lines.length; i++)
       if (lines[i].contains(temporaryMuteMarker)) i + 1,
+  ];
+}
+
+// --------------------------------------------------- an accessible UI
+
+/// The 1-based lines of [code] that [pattern] matches, [code] being source
+/// with its comments already removed.
+List<int> _linesMatching(String code, RegExp pattern) {
+  final lines = code.split('\n');
+  return <int>[
+    for (var i = 0; i < lines.length; i++)
+      if (pattern.hasMatch(lines[i])) i + 1,
+  ];
+}
+
+final RegExp _typedColor = RegExp(
+  r'\bColors\.\w|\bColor\s*\(\s*0x|\bColor\.(?:fromARGB|fromRGBO|from)\s*\(',
+);
+
+/// The 1-based lines of [source] that type a colour in: `Colors.white`,
+/// `Color(0x…)`, `Color.fromARGB(…)`.
+///
+/// **A colour typed into a widget is a colour no contrast check sees.** The
+/// tokens of a theme are held to WCAG's ratios over any frame
+/// (`GameUiTheme.contrastPairs`); a `Colors.white.withValues(alpha: 0.55)` in
+/// a widget is a pair nobody named, and the touch controls were exactly
+/// that, a third of white over a sky.
+List<int> typedColorsIn(String source) =>
+    _linesMatching(codeOf(source), _typedColor);
+
+final RegExp _fixedTextScale = RegExp(
+  r'\bTextScaler\.noScaling\b|\btextScaleFactor\b|\bTextScaler\.linear\s*\(',
+);
+
+/// The 1-based lines of [source] that pin the text size: a
+/// `TextScaler.noScaling`, a `textScaleFactor`, a `TextScaler.linear(…)`.
+List<int> fixedTextScalesIn(String source) =>
+    _linesMatching(codeOf(source), _fixedTextScale);
+
+/// The 1-based lines of [source] that make a `TextPainter` without handing
+/// it a `textScaler` before its arguments close.
+///
+/// **A painter's text does not scale unless it is told to**: `TextPainter`
+/// defaults to `TextScaler.noScaling`, so a label painted on a canvas stays
+/// small on a phone set to large text while every `Text` beside it grows.
+List<int> unscaledTextPaintersIn(String source) {
+  final code = codeOf(source);
+  final found = <int>[];
+  for (final match in RegExp(r'\bTextPainter\s*\(').allMatches(code)) {
+    var depth = 0;
+    var end = match.end - 1;
+    for (; end < code.length; end++) {
+      if (code[end] == '(') depth++;
+      if (code[end] == ')' && --depth == 0) break;
+    }
+    if (!code.substring(match.start, end).contains('textScaler')) {
+      found.add('\n'.allMatches(code.substring(0, match.start)).length + 1);
+    }
+  }
+  return found;
+}
+
+final RegExp _pointerWidget = RegExp(
+  r'\b(?:GestureDetector|RawGestureDetector|Listener|InkWell)\s*\(',
+);
+final RegExp _semanticsWidget = RegExp(r'\b(?:Merge)?Semantics\s*\(');
+
+/// How many lines above a widget that takes the pointer its `Semantics` may
+/// open: the wrapper, its flags and label, and a `child:` that calls the
+/// method building the widget.
+const int semanticsReach = 12;
+
+/// The 1-based lines of [source] that make a widget taking the pointer —
+/// a `GestureDetector`, a `Listener`, an `InkWell` — with no `Semantics` or
+/// `MergeSemantics` opened in the [semanticsReach] lines above it.
+///
+/// **A control a screen reader cannot name is a control that is not there**
+/// for its user. Flutter's own controls carry their semantics; a widget
+/// built from a bare `Listener` carries none, and the stick, the pedals and
+/// the title sheet that began a game on any touch were each one.
+List<int> unnamedPointerWidgetsIn(String source) {
+  final lines = codeOf(source).split('\n');
+  return <int>[
+    for (var i = 0; i < lines.length; i++)
+      if (_pointerWidget.hasMatch(lines[i]) &&
+          !lines
+              .sublist(i - semanticsReach < 0 ? 0 : i - semanticsReach, i + 1)
+              .any(_semanticsWidget.hasMatch))
+        i + 1,
+  ];
+}
+
+final RegExp _animates = RegExp(
+  r'\b(?:AnimationController|TweenAnimationBuilder|AnimatedContainer|'
+  r'AnimatedOpacity|AnimatedPositioned|AnimatedSwitcher|AnimatedScale|'
+  r'AnimatedSlide|AnimatedRotation|AnimatedAlign|AnimatedPadding)\s*[<(]|'
+  r'\bcreateTicker\s*\(',
+);
+final RegExp _readsReducedMotion = RegExp(
+  r'[dD]isableAnimations|\breduceMotion\b|\bAccommodations\b',
+);
+
+/// The 1-based lines of [source] that animate — a controller, a ticker, an
+/// implicitly animated widget — in a library that never reads whether the
+/// player asked for less motion (`MediaQuery.disableAnimationsOf`,
+/// `Accommodations.reduceMotion`). Empty when it reads it.
+List<int> motionWithoutReductionIn(String source) {
+  final code = codeOf(source);
+  if (_readsReducedMotion.hasMatch(code)) return const <int>[];
+  return _linesMatching(code, _animates);
+}
+
+/// What an accessibility test [source] does not do of what the promise
+/// asks, one phrase each; empty when it does all of it.
+///
+/// It asks Flutter's guidelines for labelled targets, target size and text
+/// contrast, and it mounts at a larger text size through a `textScaler`.
+/// `tool/ci.sh` finds it by its path, `test/accessibility_test.dart`.
+List<String> accessibilityTestGapsIn(String source) {
+  final code = codeOf(source);
+  return <String>[
+    if (!code.contains('labeledTapTargetGuideline'))
+      'never asks `labeledTapTargetGuideline`',
+    if (!code.contains('MinimumTapTargetGuideline') &&
+        !code.contains('androidTapTargetGuideline'))
+      'never asks a target-size guideline',
+    if (!code.contains('textContrastGuideline'))
+      'never asks `textContrastGuideline`',
+    if (!RegExp('[tT]extScaler').hasMatch(code))
+      'never mounts at a larger text size',
   ];
 }
