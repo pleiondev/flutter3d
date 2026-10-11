@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<materialx version="1.38">
+  <!-- One material, in a document named as the MaterialX library names its
+       glass: bound to the catalog's glass by that name, and a graph, so its
+       program shades with the glass's own F0. -->
+  <nodegraph name="NG_glass">
+    <texcoord name="uv" type="vector2" />
+    <extract name="u" type="float">
+      <input name="in" type="vector2" nodename="uv" />
+      <input name="index" type="integer" value="0" />
+    </extract>
+    <mix name="tint" type="color3">
+      <input name="bg" type="color3" value="0.9, 0.95, 1.0" />
+      <input name="fg" type="color3" value="0.8, 0.9, 0.95" />
+      <input name="mix" type="float" nodename="u" />
+    </mix>
+    <output name="out" type="color3" nodename="tint" />
+  </nodegraph>
+  <standard_surface name="SR_glass" type="surfaceshader">
+    <input name="base_color" type="color3" nodegraph="NG_glass" output="out" />
+    <input name="specular_roughness" type="float" value="0.05" />
+  </standard_surface>
+  <surfacematerial name="Glass" type="material">
+    <input name="surfaceshader" type="surfaceshader" nodename="SR_glass" />
+  </surfacematerial>
+</materialx>

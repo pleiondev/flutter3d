@@ -4,6 +4,15 @@
 /// names it when a node graph computes an input the material language can
 /// say. A graph it cannot say is folded to the nearest metal-rough surface,
 /// with a warning naming the node that stopped it.
+///
+/// **What it is made of, by the name MaterialX knows it by.** A material
+/// the engine's catalog knows in [ExternalIdSpace.materialX] — by the
+/// material's own name, its shader's, or, for a document of one material,
+/// the document's (the MaterialX library names its examples by file:
+/// `standard_surface_glass`) — is made of that catalog material: the `.fmat`
+/// names it (`physicalMaterial`), and a program shades with its optical
+/// group's F0. One the catalog does not know is said so in the report, and
+/// reflects as [dielectricF0].
 library;
 
 import 'dart:io';
@@ -11,6 +20,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show ExternalIdSpace, MaterialCatalog, PhysicalMaterial;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show dielectricF0;
 
 import 'confine.dart';
 import 'context.dart';
@@ -48,8 +60,32 @@ Future<void> convertMaterialXInput(
   if (materials.isEmpty) {
     report.warn('no surface material in the document');
   }
+  final catalog = MaterialCatalog.builtIn();
+  final file = source.substring(source.lastIndexOf('/') + 1);
+  final stem = file.endsWith('.mtlx')
+      ? file.substring(0, file.length - '.mtlx'.length)
+      : file;
   for (final (name, shader) in materials) {
-    final material = document.convert(name, shader);
+    final known = <String>[
+      name,
+      ?shader['name'],
+      // The document's name speaks for its material only when it has one.
+      if (materials.length == 1) stem,
+    ];
+    final bound = <(String, PhysicalMaterial)>[
+      for (final each in known)
+        if (catalog.byExternal(ExternalIdSpace.materialX, each)
+            case final PhysicalMaterial physical)
+          (each, physical),
+    ].firstOrNull;
+    report.map(switch (bound) {
+      (final said, final physical) =>
+        'material "$name": made of ${physical.id} (MaterialX "$said")',
+      null =>
+        'material "$name": no material in the catalog is known by its '
+            'MaterialX name, so its physics takes the defaults',
+    });
+    final material = document.convert(name, shader, physical: bound?.$2);
     planMaterial(material, context.plan, owner: report.input, report: report);
     if (material.program != null) {
       // The parameters half: the images in their slots, and the program
@@ -151,12 +187,21 @@ final class _MtlxDocument {
       ? null
       : scope.children.where((XmlElement e) => e['name'] == name).firstOrNull;
 
-  MaterialSource convert(String name, XmlElement shader) {
+  /// [name]'s material from [shader], made of [physical] when the catalog
+  /// knows it.
+  MaterialSource convert(
+    String name,
+    XmlElement shader, {
+    PhysicalMaterial? physical,
+  }) {
     final id = safeFileName(name);
     final vocabulary = _vocabularies[shader.name];
     if (vocabulary == null) {
       report.drop('material "$name"', '${shader.name} is not mapped');
-      return MaterialSource(id, SurfaceMaterial(name: id));
+      return MaterialSource(
+        id,
+        SurfaceMaterial(name: id, physicalMaterial: physical?.id),
+      );
     }
     final inputs = <String, InputValue>{};
     final graphs = <String, _Expr>{};
@@ -169,9 +214,18 @@ final class _MtlxDocument {
       graphs[inputName] = expr;
     }
     if (!inputs.values.any((InputValue v) => v is GraphInput)) {
-      return surfaceFromInputs(id, inputs, vocabulary, report);
+      return _madeOf(
+        surfaceFromInputs(id, inputs, vocabulary, report),
+        physical?.id,
+      );
     }
-    final program = _program(id, inputs, graphs, vocabulary);
+    final program = _program(
+      id,
+      inputs,
+      graphs,
+      vocabulary,
+      f0: physical?.optical?.f0 ?? dielectricF0,
+    );
     // With a program, the parameters are only its companion's: what they
     // fold away the program computes, so their notes would mislead.
     final surface = surfaceFromInputs(
@@ -180,11 +234,17 @@ final class _MtlxDocument {
       vocabulary,
       program == null ? report : ConvertReport(report.input, report.format),
     );
-    if (program == null) return surface;
+    if (program == null) return _madeOf(surface, physical?.id);
     report.map('material "$name": node graph -> material language program');
     return MaterialSource(
       id,
-      _withLighting(surface.surface, id, program.$2, surface.images),
+      _withLighting(
+        surface.surface,
+        id,
+        program.$2,
+        surface.images,
+        physical: physical?.id,
+      ),
       images: <MaterialImage>[
         ...surface.images,
         for (final image in program.$2)
@@ -201,8 +261,9 @@ final class _MtlxDocument {
     SurfaceMaterial surface,
     String id,
     List<MaterialImage> slotted,
-    List<MaterialImage> existing,
-  ) {
+    List<MaterialImage> existing, {
+    String? physical,
+  }) {
     final all = <MaterialImage>[
       ...existing,
       for (final image in slotted)
@@ -230,6 +291,43 @@ final class _MtlxDocument {
       alphaMode: surface.alphaMode,
       alphaCutoff: surface.alphaCutoff,
       lightingModel: LightingModel(name, name),
+      physicalMaterial: physical,
+    );
+  }
+
+  /// [source] with its surface made of the catalog material [id], or as it
+  /// is when [id] is null.
+  static MaterialSource _madeOf(MaterialSource source, String? id) {
+    if (id == null) return source;
+    final s = source.surface;
+    return MaterialSource(
+      source.id,
+      SurfaceMaterial(
+        name: s.name,
+        baseColor: s.baseColor,
+        metallic: s.metallic,
+        roughness: s.roughness,
+        baseColorTexture: s.baseColorTexture,
+        metallicRoughnessTexture: s.metallicRoughnessTexture,
+        normalTexture: s.normalTexture,
+        normalScale: s.normalScale,
+        occlusionTexture: s.occlusionTexture,
+        occlusionStrength: s.occlusionStrength,
+        emissiveTexture: s.emissiveTexture,
+        emissive: s.emissive,
+        emissiveStrength: s.emissiveStrength,
+        alphaMode: s.alphaMode,
+        alphaCutoff: s.alphaCutoff,
+        doubleSided: s.doubleSided,
+        unlit: s.unlit,
+        lightingModel: s.lightingModel,
+        extensions: s.extensions,
+        extras: s.extras,
+        physicalMaterial: id,
+        materialVersion: s.materialVersion,
+      ),
+      images: source.images,
+      program: source.program,
     );
   }
 
@@ -361,12 +459,15 @@ final class _MtlxDocument {
 
   /// The program for [graphs] — the inputs that are node graphs — with the
   /// images it samples in slot order, or null with the reason reported.
+  /// [f0] is what a dielectric reflects head-on: the bound catalog
+  /// material's, or [dielectricF0].
   (String, List<MaterialImage>)? _program(
     String id,
     Map<String, InputValue> inputs,
     Map<String, _Expr> graphs,
-    ShadingVocabulary vocabulary,
-  ) {
+    ShadingVocabulary vocabulary, {
+    required double f0,
+  }) {
     final images = <String>[];
     final writer = _GlslWriter(images);
     String term(String? name, String fallback, String glslType) {
@@ -438,7 +539,10 @@ final class _MtlxDocument {
       ..writeln(
         '    let lobe = pow(max(nDotH, 0.0), shininess) * (shininess + 8.0) / 25.1327;',
       )
-      ..writeln('    let f0 = mix(vec3(0.04, 0.04, 0.04), baseColor, metal);')
+      ..writeln(
+        '    let f0 = mix(vec3(${_number(f0)}, ${_number(f0)}, '
+        '${_number(f0)}), baseColor, metal);',
+      )
       ..writeln('    return baseColor * (1.0 - metal) / 3.14159 + f0 * lobe;')
       ..writeln('  }')
       ..writeln('  fragment {')
@@ -474,6 +578,12 @@ final class _MtlxDocument {
 }
 
 /// The material language name for [id]: a capitalised identifier.
+/// [value] as the material language writes a float: always with a point.
+String _number(double value) {
+  final text = value.toString();
+  return text.contains('.') || text.contains('e') ? text : '$text.0';
+}
+
 String _programName(String id) {
   final parts = id
       .split(RegExp(r'[^A-Za-z0-9]+'))
