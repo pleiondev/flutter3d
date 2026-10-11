@@ -11,6 +11,7 @@ This takes about fifteen minutes, from a fresh checkout to a lit mesh turning on
 <li>A resolved pub workspace and a built shader bundle</li>
 <li>The engine's own demo running, with every feature switchable</li>
 <li>Your own Flutter app drawing a mesh through <code>Flutter3dView</code></li>
+<li>The same view under a twin fed by a real source and a laboratory on the accurate profile</li>
 </ul>
 </div>
 
@@ -75,6 +76,24 @@ The script calls `impellerc` directly instead of going through Native Assets, an
 (cd apps/flutter3d_demo_platformer && flutter run -d chrome)
 ```
 
+The starting points for your own application are smaller, and each is one `Flutter3dView`:
+
+```bash
+# A lit cube you can turn: the smallest application.
+(cd packages/flutter3d_app/example && flutter run -d macos)
+
+# A digital twin: a tank of water on a real site, the air temperature polled
+# from Open-Meteo, the history on a tape you scrub, the clock at 1x, 10x or 30x.
+(cd packages/flutter3d_app/example && flutter run -d macos -t lib/twin_main.dart)
+
+# A laboratory: a pendulum on the accurate profile, stepped by hand, its
+# measured period beside the one the series gives.
+(cd packages/flutter3d_education/example && flutter run -d macos -t lib/pendulum_main.dart)
+
+# The seed of a game: a level to walk through, what the editor scaffolds from.
+(cd packages/flutter3d_game/example && flutter run -d macos)
+```
+
 <div class="note">
 <p>To produce something you can hand out, build it with <code>flutter build web --release</code>. That is how the <a href="/platformer/demo/">playable demos</a> on this site are built. Leave out <code>--wasm</code> for now: the dart2wasm build of the WebGL backend throws on its first frame, and <code>site/tool/demos.sh</code> records the details.</p>
 </div>
@@ -91,7 +110,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-There are 14299 tests across 61 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run.
+There are 14325 tests across 61 packages and 17 applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so 96 scenes stay checkable in a headless run.
 
 ## Your own application
 
@@ -165,6 +184,15 @@ void main() => runApp(
 ```
 
 The view makes an empty scene with a light, and a camera at `(0, 1, 5)` looking at the origin, unless you hand it a `scene` and a `camera` of your own. Its other options come in four groups: `view: ViewSettings(settings: ...)` is what every frame is drawn with, `plugins: PluginSettings(plugins: [...])` go into its loop, `loop: LoopSettings(...)` holds the step rate, the input and where the simulation runs, and a `device` or `renderer` you hand it in `device: DeviceSettings(...)` is borrowed and left alone when the view goes. The [core tutorial](/core/tutorial/) walks through the rest.
+
+### A twin or a laboratory
+
+The same view starts a twin and a laboratory; what changes is where the simulation's time and input come from. `TimeSource` and `SimulationPlacement` below come from `flutter3d_sim` and `flutter3d_app`.
+
+- **A clock of your own.** `time:` is how many seconds each frame hands the loop. `TimeSource.scaled(10)` runs ten minutes of the model in one, `TimeSource.manual()` moves only when your button calls `advance`, and `TimeSource.log(...)` replays a recording at the pace it was taken. The fixed step stays the loop's, so a run at a tenth of real speed is the same run.
+- **Readings as input.** A twin feeds what its source says into the step's input (`InputState.feedExternal` from `EngineLoop.onStepInput`), and an `Assimilation` decides what the model makes of it. The readings are then on the run's tape, so a `RunTimeline` scrubs the history without asking the source again. `packages/flutter3d_app/example/lib/twin_main.dart` polls a REST endpoint in its own code and does exactly this.
+- **Probes, not the world.** A `Probe` on an entity publishes a quantity every step, and `ProbeBuilder(published: engine.published, probe: ...)` shows it beside the view, the same whether the simulation runs in the view's loop or in an isolate.
+- **The accurate profile.** The view's own loop runs the deterministic profile a game is played on. A laboratory that demonstrates builds its loop on `SimulationProfile.accurate` in a top-level function and hands it to `loop: LoopSettings(simulation: SimulationPlacement.isolate(...))`; `packages/flutter3d_education/example/lib/pendulum_main.dart` measures a pendulum's period that way, within 1e-4 of its series over a hundred swings. A laboratory a server verifies by replaying the student's run stays on the deterministic profile.
 
 ### Or write the scene as widgets
 
