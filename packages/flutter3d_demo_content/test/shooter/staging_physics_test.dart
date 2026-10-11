@@ -4,6 +4,8 @@ library;
 
 import 'package:flutter3d_demo_content/shooter_sample.dart';
 import 'package:flutter3d_demo_content/shooter_staging.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show WorldPosition;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,5 +81,20 @@ void main() {
 
   test('on the reference, none: the crypt as it always was', () {
     expect(shooterDynamics(CollisionWorld()), isNull);
+  });
+
+  test("a headless run says where the player is in the world, whatever the "
+      "world's origin", () {
+    final world = CollisionWorld();
+    final level = _room()..addTo(world);
+    final run = const ShooterHeadlessGame().start(level, world, InputState());
+    world.update();
+    final before = run.position;
+    // Mutation: read the player's float32 position against the default
+    // origin, and moving the world's origin moves the player by as much.
+    world.moveOriginTo(const WorldPosition(100.0, 0.0, -40.0));
+    expect(run.position.x, closeTo(before.x, 1e-4));
+    expect(run.position.z, closeTo(before.z, 1e-4));
+    expect(run.eye.x, closeTo(before.x, 1e-4));
   });
 }
