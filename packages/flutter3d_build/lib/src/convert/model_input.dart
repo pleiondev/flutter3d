@@ -105,6 +105,22 @@ Future<void> convertModelInput(
 }
 
 void _reportDocument(ModelDocument document, ConvertReport report) {
+  // Who made it and on what terms, on the result where a server converting
+  // an upload reads them. The `.f3d` asset record holds the generator only,
+  // so the report is where they go on from here.
+  final asset = document.asset;
+  report
+    ..author = asset?.author
+    ..license = asset?.license
+    ..copyright = asset?.copyright;
+  if (asset?.author != null ||
+      asset?.license != null ||
+      asset?.copyright != null) {
+    report.drop(
+      'the author, the licence and the copyright',
+      'a .f3d file has no field for them; this report carries them',
+    );
+  }
   for (final material in document.materials) {
     final extensions = material.extensions;
     if (extensions == null) continue;

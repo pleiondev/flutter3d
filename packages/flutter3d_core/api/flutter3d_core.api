@@ -506,10 +506,12 @@ final class AssetRequest
 
 abstract base class AssetSource
   String get fileName
+  String? get contentHash
   abstract AssetUriResolver get resolveUri
   abstract Future<Uint8List> read()
   abstract String get key
   const AssetSource()
+  int? get version
 
 typedef AssetSourceFactory = AssetSource Function(String path);
 
@@ -1109,11 +1111,16 @@ final class DisplayTransform
   final int size
 
 final class DocumentAsset
+  DocumentAsset copyWith({String? generator, Map<String, Object?>? extras, String? copyright, String? author, String? license, Map<String, Object?>? xmp})
   String toString()
   bool operator ==(Object other)
-  const DocumentAsset({this.generator, this.extras})
+  const DocumentAsset({this.generator, this.extras, this.copyright, this.author, this.license, this.xmp})
   final Map<String, Object?>? extras
+  final Map<String, Object?>? xmp
+  final String? author
+  final String? copyright
   final String? generator
+  final String? license
   int get hashCode
 
 final class DocumentDifference
@@ -1993,6 +2000,16 @@ abstract base class HostSkinningHook extends SkinningHook
   abstract Float32List? skin(SkinningContext context)
   bool record(SkinningContext context)
   const HostSkinningHook()
+
+final class HubAssetSource extends AssetSource
+  AssetUriResolver get resolveUri
+  Future<Uint8List> read()
+  String get key
+  String? get contentHash
+  const HubAssetSource(this.reference, {this.cache = HubCachePolicy.standard})
+  final HubCachePolicy cache
+  final HubReference reference
+  int get version
 
 typedef ImageDecoder = Future<Rgba8Image?> Function(Uint8List encoded);
 
@@ -6116,10 +6133,12 @@ final class AssetRequest
 
 abstract base class AssetSource
   String get fileName
+  String? get contentHash
   abstract AssetUriResolver get resolveUri
   abstract Future<Uint8List> read()
   abstract String get key
   const AssetSource()
+  int? get version
 
 typedef AssetSourceFactory = AssetSource Function(String path);
 
@@ -6200,11 +6219,16 @@ abstract base class DecoderRegistry extends PluginRegistry
   const DecoderRegistry()
 
 final class DocumentAsset
+  DocumentAsset copyWith({String? generator, Map<String, Object?>? extras, String? copyright, String? author, String? license, Map<String, Object?>? xmp})
   String toString()
   bool operator ==(Object other)
-  const DocumentAsset({this.generator, this.extras})
+  const DocumentAsset({this.generator, this.extras, this.copyright, this.author, this.license, this.xmp})
   final Map<String, Object?>? extras
+  final Map<String, Object?>? xmp
+  final String? author
+  final String? copyright
   final String? generator
+  final String? license
   int get hashCode
 
 final class DocumentDifference

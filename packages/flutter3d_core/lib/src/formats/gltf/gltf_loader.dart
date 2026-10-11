@@ -18,6 +18,7 @@ import 'glb_container.dart';
 import 'gltf_accessor.dart';
 import 'gltf_asset.dart';
 import 'gltf_primitive_mode.dart';
+import 'gltf_xmp.dart';
 
 export 'gltf_primitive_mode.dart';
 
@@ -154,6 +155,15 @@ final class GltfLoader extends ModelDecoder {
     // is this one: the top-level object every other key in `json` is a
     // sibling of.
     final documentExtras = _extrasOf(json);
+    // Who made it and on what terms: `asset.copyright`, and the author and
+    // licence of the packet the root `asset` points at, kept whole.
+    final copyright = assetBlock is Map ? assetBlock['copyright'] : null;
+    final xmp = documentXmpPacket(json);
+    final said =
+        generator is String ||
+        copyright is String ||
+        documentExtras != null ||
+        xmp != null;
 
     return GltfAsset(
       surfaces: graph.surfaces,
@@ -168,10 +178,14 @@ final class GltfLoader extends ModelDecoder {
       lights: lights,
       cameras: cameras,
       variants: variants,
-      asset: generator is String || documentExtras != null
+      asset: said
           ? DocumentAsset(
               generator: generator is String ? generator : null,
               extras: documentExtras,
+              copyright: copyright is String ? copyright : null,
+              author: authorOf(xmp),
+              license: licenseOf(xmp),
+              xmp: xmp,
             )
           : null,
     );

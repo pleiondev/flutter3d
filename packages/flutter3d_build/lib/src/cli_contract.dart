@@ -75,8 +75,8 @@ Map<String, Object?> cliJson(String command, Map<String, Object?> body) =>
 /// list of the object that follows.
 const Map<String, String> cliJsonBodies = <String, String>{
   'convert':
-      '{output, dryRun, reports: [{input, format, outcome, error?, written, '
-      'mapped, dropped, warnings}]}',
+      '{output, dryRun, reports: [{input, format, outcome, error?, author?, '
+      'license?, copyright?, written, mapped, dropped, warnings}]}',
   'doctor': '{checks: [{name, status, detail, fix?}]}',
   'plugins':
       '{check, path, current? (with --check), written? (without), '
