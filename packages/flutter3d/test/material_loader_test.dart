@@ -193,6 +193,27 @@ void main() {
       expect(warnings, isEmpty);
     });
 
+    // Mutation: leave `physicalMaterial:` out of either `RenderMaterial` the
+    // loader builds. The look still loads, and a hit on the surface asks the
+    // catalogue about nothing: a footstep on oak sounds of no material.
+    test('carries what the surface is made of', () async {
+      final material = await loadMaterial(
+        FileAssetSource(
+          _materialBeside(
+            '{"fmat": 1, "name": "plank", "physicalMaterial": "f3d.oak"}',
+          ),
+        ),
+        device: FakeBackend(),
+      );
+      expect(material.physicalMaterial, 'f3d.oak');
+
+      final bound = await bindSurfaceMaterial(
+        SurfaceMaterial(name: 'plank', physicalMaterial: 'f3d.oak'),
+        textureFor: (_, _) async => null,
+      );
+      expect(bound.physicalMaterial, 'f3d.oak');
+    });
+
     // Mutation: make `resolve` rethrow instead of catching — the load fails
     // and this whole test throws rather than reporting a warning.
     test('costs a missing image a warning, not the material', () async {

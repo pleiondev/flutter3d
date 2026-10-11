@@ -246,6 +246,7 @@ Future<RenderMaterial> bindMaterial(
     parameterBlock: document.parameterBlock,
     parameters: document.parameters,
     extraTextures: extra,
+    physicalMaterial: surface.physicalMaterial,
   );
 }
 
@@ -391,5 +392,6 @@ Future<RenderMaterial> bindSurfaceMaterial(
                 map: transform.clone(),
           }
         : null,
+    physicalMaterial: source.physicalMaterial,
   );
 }
