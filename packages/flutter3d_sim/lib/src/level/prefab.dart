@@ -399,6 +399,7 @@ List<EntityDef> _expand(
           if (reaching.isNotEmpty) 'overrides': reaching,
         },
         components: row.components,
+        physicalMaterial: row.physicalMaterial,
       ),
     );
   }
@@ -480,6 +481,7 @@ Level expandPrefabs(Level level) {
     recipes: level.recipes,
     behaviors: level.behaviors,
     renderSettings: level.renderSettings,
+    geoOrigin: level.geoOrigin,
     source: <String, Object?>{...level.toJson()}..remove('prefabs'),
   );
 }

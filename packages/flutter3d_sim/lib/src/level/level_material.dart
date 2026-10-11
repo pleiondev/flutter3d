@@ -32,6 +32,7 @@ final class LevelMaterial {
     this.depthLayer = 0,
     this.parameters = const <String, List<double>>{},
     this.materialVersion,
+    this.physicalMaterial,
     Map<String, Object?> source = const <String, Object?>{},
   }) : baseColor = baseColor ?? _defaultBaseColor,
        // ignore: prefer_initializing_formals
@@ -134,6 +135,13 @@ final class LevelMaterial {
   /// as the document said it.
   final int? materialVersion;
 
+  /// The substance a surface in this material is made of, as a body and a
+  /// sound feel it: the id of a material in the engine's `MaterialCatalog`
+  /// (`f3d.concrete`, `<pluginId>.basalt`), or null for none named. A level
+  /// naming one no installed plugin declares is refused
+  /// (`Level.requireMaterials`).
+  final String? physicalMaterial;
+
   /// [baseColor] as the document stores it: sRGB-encoded, in single
   /// precision, which is what a level file has always said.
   Vector4 get storedBaseColor {
@@ -173,6 +181,7 @@ final class LevelMaterial {
       ),
       final version => version,
     },
+    physicalMaterial: readPhysicalMaterial(json, 'a material'),
     source: json,
   );
 
@@ -231,5 +240,21 @@ final class LevelMaterial {
       materialVersion,
       whenAbsent: materialVersion != null,
     ),
+    WriteThroughField(
+      'physicalMaterial',
+      physicalMaterial,
+      whenAbsent: physicalMaterial != null,
+    ),
   ]);
 }
+
+/// A level document's `physicalMaterial` on [what]: a material's id, or
+/// null where it says none.
+String? readPhysicalMaterial(Map<String, Object?> json, String what) =>
+    switch (json['physicalMaterial']) {
+      null => null,
+      final String id when id.isNotEmpty => id,
+      final other => throw LevelFormatException(
+        '$what\'s "physicalMaterial" must be a material\'s id, not $other',
+      ),
+    };

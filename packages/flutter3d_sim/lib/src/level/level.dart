@@ -24,7 +24,7 @@ export 'entity_def.dart';
 export 'level_format_exception.dart';
 export 'level_ids.dart';
 export 'level_light.dart';
-export 'level_material.dart';
+export 'level_material.dart' hide readPhysicalMaterial;
 export 'level_recipes.dart';
 export 'level_sketch.dart';
 export 'prefab.dart';
@@ -68,6 +68,7 @@ final class Level extends FormatDocument {
     Map<String, Map<String, Object?>>? behaviors,
     Map<String, Prefab>? prefabs,
     this.renderSettings = RenderSettingsPatch.empty,
+    this.geoOrigin,
     Map<String, Object?> source = const <String, Object?>{},
   }) : brushes = LevelIds.unique(
          brushes ?? <Brush>[],
@@ -134,6 +135,7 @@ final class Level extends FormatDocument {
     'behaviors',
     'prefabs',
     'renderSettings',
+    'geoOrigin',
   };
 
   /// The plugin namespaces this level's entities carry components of, which
@@ -208,6 +210,11 @@ final class Level extends FormatDocument {
   /// `physicalMaterial` on a level material, a brush and an entity (the id
   /// of a material in the engine's `MaterialCatalog`). A later reader fills
   /// them in without a version 6.
+  ///
+  /// **This build fills both**: [geoOrigin], and `physicalMaterial` on
+  /// [LevelMaterial], [Brush] and [EntityDef] (a prefab's entities among
+  /// them), which [requireMaterials] holds to the engine's catalogue. A
+  /// version-5 document that carried them reads as it always did.
   static const int formatVersion = 5;
 
   /// 4 → 5: lights to photometric units, and the British keys to American.
@@ -373,15 +380,62 @@ final class Level extends FormatDocument {
   /// filled with a material nobody registered is refused with an
   /// `UnknownMaterialException` naming the plugin it needs — before a
   /// single body falls through it.
+  ///
+  /// The level's [geoOrigin], when it names one, is the world's, over the
+  /// game's and over a `geoOrigin` in [world]; and with [materials] every
+  /// substance the level names is checked too ([requireMaterials]).
   WorldProperties worldOver(
     WorldProperties game, {
     MaterialCatalog? materials,
   }) {
-    final properties = world.over(game);
-    if (materials != null && properties.medium != 'f3d.air') {
-      materials.require(properties.medium);
+    final laid = world.over(game);
+    final properties = geoOrigin == null
+        ? laid
+        : laid.copyWith(geoOrigin: geoOrigin);
+    if (materials != null) {
+      if (properties.medium != 'f3d.air') materials.require(properties.medium);
+      requireMaterials(materials);
     }
     return properties;
+  }
+
+  /// Where the level's origin is on the Earth, or null for a level that is
+  /// nowhere in particular: the document's `geoOrigin` (latitude and
+  /// longitude in degrees, altitude in metres, its axes east, up and
+  /// south). What a twin's site, an outdoor AR anchor or a map overlay lines
+  /// the level up by; [worldOver] makes it the world's.
+  final GeoOrigin? geoOrigin;
+
+  /// Every material id the level names as a substance — on its materials,
+  /// its brushes, its entities and its prefabs' entities — sorted: what a
+  /// catalogue has to hold to play it, and what a bundle that carries the
+  /// level carries the materials of (the `.f3d` file's `physicalMaterials`
+  /// section).
+  List<String> get physicalMaterialIds => <String>{
+    for (final material in materials.values) ?material.physicalMaterial,
+    for (final brush in brushes) ?brush.physicalMaterial,
+    for (final entity in entities) ?entity.physicalMaterial,
+    for (final prefab in prefabs.values)
+      for (final entity in prefab.entities) ?entity.physicalMaterial,
+  }.toList()..sort();
+
+  /// Throws an `UnknownMaterialException` naming the plugin it belongs to
+  /// for the first of [physicalMaterialIds] that [materials] does not hold:
+  /// a level made of a plugin's basalt is refused where that plugin is not
+  /// installed, before a body is made of nothing.
+  void requireMaterials(MaterialCatalog materials) {
+    for (final id in physicalMaterialIds) {
+      materials.require(id);
+    }
+  }
+
+  static GeoOrigin? _geoOrigin(Object? section) {
+    if (section == null) return null;
+    try {
+      return GeoOrigin.fromJson(section);
+    } on GeoOriginFormatException catch (error) {
+      throw LevelFormatException('"geoOrigin": ${error.message}');
+    }
   }
 
   static WorldPropertiesPatch _worldPatch(Map<String, Object?> section) {
@@ -618,6 +672,7 @@ final class Level extends FormatDocument {
             ),
           },
           components: entity.components,
+          physicalMaterial: entity.physicalMaterial,
         ),
       _ => entity,
     };
@@ -681,6 +736,7 @@ final class Level extends FormatDocument {
           '"renderSettings" must be an object of settings by id',
         ),
       },
+      geoOrigin: _geoOrigin(json['geoOrigin']),
       source: json,
     );
   }
@@ -702,6 +758,15 @@ final class Level extends FormatDocument {
       whenAbsent: fogColor != defaultFogColor,
     ),
     WriteThroughField('fogDensity', fogDensity, whenAbsent: fogDensity != 0.0),
+    // As written when it reads back the same: a document that left the
+    // frame or the altitude unsaid goes on leaving them unsaid.
+    WriteThroughField(
+      'geoOrigin',
+      _geoOrigin(_source['geoOrigin']) == geoOrigin
+          ? _source['geoOrigin']
+          : geoOrigin?.toJson(),
+      whenAbsent: geoOrigin != null,
+    ),
     WriteThroughField('world', world.toJson(), whenAbsent: !world.isEmpty),
     WriteThroughField('music', music, whenAbsent: music != null),
     WriteThroughField('next', next, whenAbsent: next != null),

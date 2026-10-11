@@ -137,6 +137,7 @@ Level _recipesExpanded(Level level) {
     next: level.next,
     prefabs: level.prefabs,
     renderSettings: level.renderSettings,
+    geoOrigin: level.geoOrigin,
     source: <String, Object?>{...level.toJson()}..remove('recipes'),
   );
 }

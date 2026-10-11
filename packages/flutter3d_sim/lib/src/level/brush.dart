@@ -119,6 +119,7 @@ final class Brush {
     this.ramp,
     this.drawOrder = 0,
     this.depthLayer,
+    this.physicalMaterial,
     Map<String, Object?> source = const <String, Object?>{},
   }) : center = center.clone(),
        size = size.clone(),
@@ -147,6 +148,12 @@ final class Brush {
 
   /// What this brush is called by the editor and by tools. See [LevelIds].
   final String id;
+
+  /// The substance the brush is made of, over its [material]'s
+  /// `LevelMaterial.physicalMaterial`: the id of a material in the engine's
+  /// `MaterialCatalog`, or null to take the material's. A level naming one
+  /// no installed plugin declares is refused (`Level.requireMaterials`).
+  final String? physicalMaterial;
 
   /// This brush under another [id], everything else as it is.
   Brush withId(String id) =>
@@ -316,6 +323,7 @@ final class Brush {
     ramp: _rampFromName(json.textOrNull('ramp')),
     drawOrder: json.integerOrNull('drawOrder') ?? 0,
     depthLayer: json.integerOrNull('depthLayer'),
+    physicalMaterial: readPhysicalMaterial(json, 'a brush'),
     source: json,
   );
 
@@ -383,6 +391,11 @@ final class Brush {
         'depthLayer',
         depthLayer,
         whenAbsent: depthLayer != null,
+      ),
+      WriteThroughField(
+        'physicalMaterial',
+        physicalMaterial,
+        whenAbsent: physicalMaterial != null,
       ),
     ]);
   }

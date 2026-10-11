@@ -113,9 +113,15 @@ void main() {
       expect(level.behaviors.keys, <String>['patrol']);
       expect(level.entities.first.properties['behavior'], 'patrol');
       expect(level.world.gravity!.y, closeTo(-1.62, 1e-6));
-      // `geoOrigin` and `physicalMaterial` are reserved: no reader yet, and
-      // a read and a write must not lose them. Mutation: list `geoOrigin`
-      // among the known keys without a field.
+      // `geoOrigin` and `physicalMaterial`, reserved by 5, now read: the
+      // file says them as it was minted, before anything read them, and a
+      // read and a write keep its spelling (no `frame`, no default altitude
+      // added). Mutation: write the origin canonically and the bytes move.
+      expect(level.geoOrigin!.latitudeDegrees, 59.9386);
+      expect(level.geoOrigin!.longitudeDegrees, 30.3141);
+      expect(level.geoOrigin!.altitude, 12.0);
+      expect(level.materials['floor']!.physicalMaterial, 'f3d.concrete');
+      expect(level.physicalMaterialIds, <String>['f3d.concrete']);
       expect(level.toJson(), json);
     });
 

@@ -38,6 +38,7 @@ final class EntityDef {
     this.name,
     Map<String, Object?>? properties,
     Map<String, Map<String, Object?>>? components,
+    this.physicalMaterial,
     Map<String, Object?> source = const <String, Object?>{},
   }) : position = position?.clone() ?? Vector3.zero(),
        // ignore: prefer_initializing_formals
@@ -88,11 +89,18 @@ final class EntityDef {
   /// level rather than dropping them.
   final Map<String, Map<String, Object?>> components;
 
+  /// The substance this entity's body is made of: the id of a material in
+  /// the engine's `MaterialCatalog` (`f3d.oak`, `<pluginId>.basalt`), or
+  /// null for the material its kind gives it. The row's `physicalMaterial`;
+  /// a level naming one no installed plugin declares is refused
+  /// (`Level.requireMaterials`).
+  final String? physicalMaterial;
+
   /// The top-level keys of a row, which belong to the format and never reach
   /// [properties].
   ///
-  /// `type`, `id`, `at`, `yaw`, `name`, `props` and `components` are read
-  /// today; `layer`, `rotation`, `scale`, `tags`, `parent` and `enabled` are
+  /// `type`, `id`, `at`, `yaw`, `name`, `props`, `components` and
+  /// `physicalMaterial` are read today; `layer`, `rotation`, `scale`, `tags`, `parent` and `enabled` are
   /// held back for later minors, so no game can have used them for a
   /// property of its own by then.
   static const Set<String> reservedKeys = <String>{
@@ -103,6 +111,7 @@ final class EntityDef {
     'name',
     'props',
     'components',
+    'physicalMaterial',
     'layer',
     'rotation',
     'scale',
@@ -163,7 +172,12 @@ final class EntityDef {
     if (id != null && (id is! String || id.isEmpty)) {
       throw LevelFormatException('an entity\'s "id" must be text, not $id');
     }
-    final shaped = json.containsKey('props') || json.containsKey('components');
+    // `physicalMaterial` was reserved by format 5, long after `props`, so a
+    // row naming it is in the newer shape whatever else it says.
+    final shaped =
+        json.containsKey('props') ||
+        json.containsKey('components') ||
+        json.containsKey('physicalMaterial');
     // The older shape: everything not reserved is a property, so the format
     // grew by writing new keys. Moved under `props` on the way in, so the
     // row is written back in the shape this build writes.
@@ -195,6 +209,14 @@ final class EntityDef {
         ),
       },
       components: row.objectMap('components'),
+      physicalMaterial: switch (row['physicalMaterial']) {
+        null => null,
+        final String id when id.isNotEmpty => id,
+        final other => throw LevelFormatException(
+          'an entity\'s "physicalMaterial" must be a material\'s id, not '
+          '$other',
+        ),
+      },
       source: row,
     );
   }
@@ -215,5 +237,10 @@ final class EntityDef {
     WriteThroughField('components', <String, Object?>{
       for (final entry in components.entries) entry.key: entry.value,
     }, whenAbsent: components.isNotEmpty),
+    WriteThroughField(
+      'physicalMaterial',
+      physicalMaterial,
+      whenAbsent: physicalMaterial != null,
+    ),
   ]);
 }
