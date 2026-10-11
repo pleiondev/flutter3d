@@ -141,6 +141,7 @@ extension _ShadowPasses on Renderer {
     int firstTile = 0,
     FrameWorkBudget? budget,
     Set<int>? drawnTiles,
+    List<_CubeFit?>? fits,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (slotCount <= 0) return false;
@@ -219,14 +220,15 @@ extension _ShadowPasses on Renderer {
     // viewports — so a frame with no allowance draws what it always drew.
     // Fitted first and drawn after, as the directional map is, so a
     // technique's own producer can draw into what the engine fitted (D22):
-    // see [_fitCubeShadow].
-    final fits = _fitCubeShadow(slotCount);
+    // see [_fitCubeShadow]. The frame's fit when the caller has one, so a
+    // frame that asked a technique for a producer and got none fits once.
+    final rows = fits ?? _fitCubeShadow(slotCount);
     final tileCount = slotCount * Renderer._cubeFaces.length;
     for (var n = 0; n < tileCount; n++) {
       final tileIndex = (firstTile + n) % tileCount;
       final slot = tileIndex ~/ Renderer._cubeFaces.length;
       final face = tileIndex % Renderer._cubeFaces.length;
-      final fit = fits[slot];
+      final fit = rows[slot];
       if (fit == null) continue;
       position.setFrom(fit.position);
       final range = fit.range;
@@ -584,26 +586,24 @@ extension _ShadowPasses on Renderer {
   /// lit stages, and the producer's node run where [_renderCubeShadow] would
   /// have drawn. False, and nothing done, when the technique has none.
   ///
+  /// [fits] is the frame's fit, worked out the first time it is read: the
+  /// technique is asked with lights that fit themselves only when it reads
+  /// them, so an engine technique, which has no producer and reads nothing,
+  /// costs no fit, and a technique of one's own that answers null leaves the
+  /// fit for the tile loop to reuse rather than to redo.
+  ///
   /// The scheduler forgets what it drew, so the frame after the producer
   /// goes draws every face of the engine's own again.
   bool _produceCubeShadow({
     required RenderFrame frame,
     required ShadowSettings settings,
     required int slotCount,
+    required List<_CubeFit?> Function() fits,
   }) {
     if (!settings.enabled || settings.strength <= 0.0 || slotCount <= 0) {
       return false;
     }
-    // The engine's own three produce nothing, so a frame drawn through one
-    // fits nothing here: the tile loop fits the rows it draws.
-    final technique = settings.directionalTechnique;
-    if (identical(technique, ShadowTechnique.pcf) ||
-        identical(technique, ShadowTechnique.pcss) ||
-        identical(technique, ShadowTechnique.evsm)) {
-      return false;
-    }
-    final fits = _fitCubeShadow(slotCount);
-    final producer = technique.cubeAtlasProducer(
+    final producer = settings.directionalTechnique.cubeAtlasProducer(
       ShadowProducerContext(
         settings: settings,
         camera: frame.view?.camera,
@@ -611,23 +611,12 @@ extension _ShadowPasses on Renderer {
           atlas: _cubeShadow!,
           depth: _cubeShadowDepth!,
           tile: _cubeShadowTile,
-          lights: List<ShadowCubeLight>.unmodifiable(<ShadowCubeLight>[
-            for (final (row, fit) in fits.indexed)
-              if (fit != null)
-                ShadowCubeLight(
-                  row: row,
-                  position: fit.position.clone(),
-                  range: fit.range,
-                  viewProjections: List<vm.Matrix4>.unmodifiable(
-                    fit.drawMatrices,
-                  ),
-                ),
-          ]),
+          lights: _FittedCubeLights(fits),
         ),
       ),
     );
     if (producer == null) return false;
-    for (final (row, fit) in fits.indexed) {
+    for (final (row, fit) in fits().indexed) {
       if (fit == null) continue;
       for (final (face, matrix) in fit.shaderMatrices.indexed) {
         final at = (row * 6 + face) * 16;
@@ -2529,4 +2518,39 @@ final class _CubeFit {
 
   /// Each face's matrix as the device draws with it.
   final List<vm.Matrix4> drawMatrices;
+}
+
+/// [ShadowCubeAtlas.lights] as a technique is handed them: the rows the
+/// frame's fit holds, fitted the first time anything reads the list, so
+/// asking a technique that never looks costs nothing. Unmodifiable, as the
+/// list it stands for always was.
+final class _FittedCubeLights extends ListBase<ShadowCubeLight> {
+  _FittedCubeLights(this._fits);
+
+  final List<_CubeFit?> Function() _fits;
+
+  late final List<ShadowCubeLight> _lights = <ShadowCubeLight>[
+    for (final (row, fit) in _fits().indexed)
+      if (fit != null)
+        ShadowCubeLight(
+          row: row,
+          position: fit.position.clone(),
+          range: fit.range,
+          viewProjections: List<vm.Matrix4>.unmodifiable(fit.drawMatrices),
+        ),
+  ];
+
+  @override
+  int get length => _lights.length;
+
+  @override
+  set length(int value) =>
+      throw UnsupportedError('the cube atlas\'s lights cannot be changed');
+
+  @override
+  ShadowCubeLight operator [](int index) => _lights[index];
+
+  @override
+  void operator []=(int index, ShadowCubeLight value) =>
+      throw UnsupportedError('the cube atlas\'s lights cannot be changed');
 }

@@ -224,12 +224,17 @@ final class _CubeShadowNode extends RenderNode {
   void execute(RenderFrame frame) {
     _renderer._ensureCubeAtlas(settings);
 
+    // The rows' faces, fitted once a frame and only when something reads
+    // them: the technique's producer, or the tile loop below.
+    late final fits = _renderer._fitCubeShadow(slotCount);
+
     // D22: a technique's own producer maintains the atlas instead, into the
     // rows the engine fitted.
     if (_renderer._produceCubeShadow(
       frame: frame,
       settings: settings,
       slotCount: slotCount,
+      fits: () => fits,
     )) {
       frame.resources.provide(
         FrameResourceIds.cubeShadow,
@@ -263,6 +268,7 @@ final class _CubeShadowNode extends RenderNode {
         firstTile: _renderer._shadowFaceScheduler.scanStart,
         budget: limited ? budget : null,
         drawnTiles: drawnTiles,
+        fits: fits,
       );
       _renderer._shadowFaceScheduler.recordDrawn(drawnTiles);
     }

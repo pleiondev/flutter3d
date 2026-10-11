@@ -75,6 +75,27 @@ final class _Producing extends ShadowTechnique {
   }
 }
 
+/// A technique of one's own with no producer: it looks at the lights it is
+/// handed, when [reads] says so, and answers null, so the engine draws.
+final class _Declining extends ShadowTechnique {
+  _Declining({required this.reads});
+
+  final bool reads;
+  final List<List<ShadowCubeLight>> seen = <List<ShadowCubeLight>>[];
+
+  @override
+  String get name => 'declining';
+
+  @override
+  ShadowKernel kernelFor(ShadowSettings settings) => ShadowKernel.box3x3;
+
+  @override
+  RenderNode? cubeAtlasProducer(ShadowProducerContext context) {
+    if (reads) seen.add(List<ShadowCubeLight>.of(context.cubeAtlas!.lights));
+    return null;
+  }
+}
+
 Scene _floorBoxAndLamp(GraphicsDevice device) => Scene()
   ..add(
     MeshNode(
@@ -161,4 +182,65 @@ void main() {
       expect(again, engine);
     },
   );
+
+  test('a technique with no producer is asked, and the engine draws', () async {
+    // Mutation: let `_produceCubeShadow` report a technique's null as
+    // produced, and the engine draws nothing: the box loses its shadow. The
+    // lights a technique reads are fitted then, and the tile loop draws
+    // from the same fit.
+    final device = CpuDevice(
+      width: _width,
+      height: _height,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+    final scene = _floorBoxAndLamp(device);
+    final camera = CameraNode()
+      ..setPosition(0.0, 9.0, 0.01)
+      ..lookAt(Vector3.zero());
+
+    Future<Uint8List> draw(ShadowFilter filter) async {
+      final frame = renderer.render(
+        width: _width,
+        height: _height,
+        scene: scene,
+        views: <RenderView>[RenderView(camera: camera)],
+        settings: RenderSettings(
+          shadows: ShadowSettings(
+            cubeResolution: ShadowSettings.minCubeTile,
+            filter: filter,
+          ),
+        ),
+      );
+      return (await device.readback(frame.frame)).buffer.asUint8List();
+    }
+
+    final engine = await draw(ShadowFilter.pcf);
+    final silent = _Declining(reads: false);
+    final looking = _Declining(reads: true);
+    expect(
+      await draw(
+        ShadowFilter.custom(
+          'silent',
+          base: ShadowFilter.pcf,
+          technique: silent,
+        ),
+      ),
+      engine,
+    );
+    expect(
+      await draw(
+        ShadowFilter.custom(
+          'looking',
+          base: ShadowFilter.pcf,
+          technique: looking,
+        ),
+      ),
+      engine,
+    );
+    final lamp = looking.seen.single.single;
+    expect(lamp.position, Vector3(0.0, 2.5, 0.0));
+    expect(lamp.range, 8.0);
+    expect(lamp.viewProjections, hasLength(6));
+  });
 }
