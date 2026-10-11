@@ -536,10 +536,18 @@ final class Dynamics extends RigidDynamics {
     });
   }
 
-  /// The world it steps in, `world.properties`, as JSON, and what the last
-  /// step was in contact as: the warm starts held between steps were never
-  /// part of a save, and the bodies step to the same bits without them —
-  /// but the world's gravity and air are part of what the next step
+  /// The world it steps in, `world.properties`, as JSON, what the last
+  /// step was in contact as, and the warm starts it held for the next one.
+  ///
+  /// **The warm starts are state.** The solver begins each contact from the
+  /// impulse the step before ended it with. Left out of the save, a step
+  /// taken again after a restore began from whatever the undone step had
+  /// left there, so the first contact after a rollback (an oak ball on
+  /// granite, at its fifteenth step) ended in other last bits than the run
+  /// it rewound. Written as `[key, impulse, …]` in key order, and only when
+  /// there are any, so a save out of contact is what it was.
+  ///
+  /// The world's gravity and air are part of what the next step
   /// computes, so a run rewound across a change of gravity steps on under
   /// the gravity it was saved with; and the contacts are what the next
   /// step tells its own phases against, so a run rewound reports the
@@ -554,6 +562,13 @@ final class Dynamics extends RigidDynamics {
   Object? saveState() => <String, Object?>{
     'world': world.properties.toJson(),
     'contacts': _ledger.save(),
+    if (_held.isNotEmpty)
+      'held': <Object?>[
+        for (final key
+            in _held.keys.toList()..sort(
+              (a, b) => (a as num).compareTo(b as num),
+            )) ...<Object?>[key, _held[key]!.normal],
+      ],
     if (_exact)
       'exact': <Object?>[
         for (final body in bodies) _state[body]?.toList(growable: false),
@@ -572,6 +587,16 @@ final class Dynamics extends RigidDynamics {
       world.properties = WorldProperties.fromJson(properties);
     }
     _ledger.restore(saved is Map ? saved['contacts'] : null, world);
+    // A save without warm starts was out of contact, or written before they
+    // were saved: either way the next step starts every contact from zero.
+    _held.clear();
+    if (saved case {'held': final List<Object?> held}) {
+      for (var i = 0; i + 1 < held.length; i += 2) {
+        if ((held[i], held[i + 1]) case (final num key, final num normal)) {
+          _held[key.toInt()] = _Held(normal.toDouble());
+        }
+      }
+    }
     _state.clear();
     _integrators.clear();
     if (saved case {

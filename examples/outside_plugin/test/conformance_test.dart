@@ -18,7 +18,7 @@ void main() {
     runPluginConformance(
       OutsidePlugin.new,
       harness: const PluginHarness(
-        setUp: bounceBall,
+        setUp: dropBall,
         profile: warmingProfile,
         steps: 240,
       ),
@@ -28,7 +28,7 @@ void main() {
   group('under the default profile', () {
     runPluginConformance(
       OutsidePlugin.new,
-      harness: const PluginHarness(setUp: bounceBall, steps: 240),
+      harness: const PluginHarness(setUp: dropBall, steps: 240),
     );
   });
 
@@ -39,7 +39,7 @@ void main() {
     ]) {
       final outcomes = checkPluginConformance(
         OutsidePlugin.new,
-        harness: PluginHarness(setUp: bounceBall, profile: profile, steps: 240),
+        harness: PluginHarness(setUp: dropBall, profile: profile, steps: 240),
       );
       expect(
         earnsBadge(outcomes),
