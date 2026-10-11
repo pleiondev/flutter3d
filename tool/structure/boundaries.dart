@@ -356,6 +356,8 @@ List<(String, String, String, String)> undeclaredNames(
 /// more is a finding.
 const Map<String, String> typeNamesDeclaredOutside = <String, String>{
   'Match': '`dart:core`, the result of a `RegExp`',
+  'Expression':
+      '`package:analyzer`\'s AST node, which the lints\' migration scan reads',
   'Key': 'Flutter\'s widget key',
   'Link': 'Flutter\'s `widgets.dart`, a link a screen reader announces',
   'PluginRegistry':

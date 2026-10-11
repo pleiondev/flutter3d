@@ -1492,6 +1492,10 @@ const Map<String, String> readsSimulationWorld = <String, String>{
 /// Version constants that number something other than a file a reader opens,
 /// by `path#constant`, with the reason.
 const Map<String, String> notAVersionedFormat = <String, String>{
+  'packages/flutter3d_foundation/lib/src/expressions/expression_bytecode.dart#expressionBytecodeVersion':
+      'the version of an internal bytecode no file carries in 1.0: it is '
+      'compiled in memory and run there, and becomes a format, with '
+      'fixtures, only when a minor publishes it',
   'packages/flutter3d_sim/lib/src/ecs/snapshots.dart#changesVersion':
       'a part version inside a run\'s snapshot, not a file: the run format '
       '(`f3d.run`) is the file, and its v5 fixture carries a capture at this '
