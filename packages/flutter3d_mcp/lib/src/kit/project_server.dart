@@ -39,7 +39,7 @@ const String projectMcpSchemaVersion = '1.0.0';
 /// ProjectMcpServer(stdioChannel(input: stdin, output: stdout), tools: tools);
 /// ```
 ///
-/// Every tool it lists is `<plugin id>.<name>`, kept in step as plugins are
+/// Every tool it lists is `<namespace>.<name>`, kept in step as plugins are
 /// switched on and off.
 base class ProjectMcpServer extends ToolTableServer<McpTools, ToolResult> {
   ProjectMcpServer(

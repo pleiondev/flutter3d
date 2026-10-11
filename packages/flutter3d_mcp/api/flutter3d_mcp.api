@@ -103,7 +103,7 @@ Map<String, Object?> commandInputSchema(PluginCommandInfo command)
 
 const Map<String, Object?> editorAnswerSchema = …
 
-const String editorMcpSchemaVersion = '1.1.0'
+const String editorMcpSchemaVersion = '1.2.0'
 
 const String editorMcpVersion = '1.0.0-rc.1'
 
@@ -466,7 +466,7 @@ String describeType({required String family, String? kind})
 
 const Map<String, Object?> editorAnswerSchema = …
 
-const String editorMcpSchemaVersion = '1.1.0'
+const String editorMcpSchemaVersion = '1.2.0'
 
 const String editorMcpVersion = '1.0.0-rc.1'
 

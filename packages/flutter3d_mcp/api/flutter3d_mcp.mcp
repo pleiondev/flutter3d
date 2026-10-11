@@ -3,7 +3,7 @@
 # A change here is a semver decision: see "Tools for agents are a contract too" in CONTRIBUTING.md.
 
 server flutter3d.editor
-  schema 1.1.0
+  schema 1.2.0
   alias addBrush -> brush.add
   alias addLight -> light.add
   alias applyOverrides -> prefab.applyOverrides
@@ -103,7 +103,7 @@ tool capture.open
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 
 tool command.run
-  says Run any command the editor knows by its name, with its own arguments: the built-in ones (moveBy, addBrush, …) and every one the project's plugins added, named `<plugin id>.<name>`.
+  says Run any command the editor knows by its name, with its own arguments: the built-in ones (moveBy, addBrush, …) and every one the project's plugins added, named `<namespace>.<name>`.
   hints writes
   arg arguments {"properties":{},"type":"object"}
   arg name required {"type":"string"}
@@ -289,7 +289,7 @@ tool play.swap
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 
 tool plugin.list
-  says What the project's plugins brought to this editor: their commands with the arguments each takes (each is also a tool of its own, `<plugin id>.<name>`), the fields they hint for components, entity kinds and materials, their gizmos, their importers and the kinds of file they list.
+  says What the project's plugins brought to this editor: their commands with the arguments each takes (each is also a tool of its own, `<namespace>.<name>`), the fields they hint for components, entity kinds and materials, their gizmos, their importers and the kinds of file they list.
   hints readOnly
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 

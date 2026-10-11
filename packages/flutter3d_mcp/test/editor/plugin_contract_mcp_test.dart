@@ -220,6 +220,21 @@ void main() {
     expect(tools.named('sails.furl'), isNull);
   });
 
+  test('the editor half of a package offers its command under the '
+      'package\'s namespace', () async {
+    final tools = McpTools();
+    shareCommands(pieces, tools, session);
+    pieces.forPlugin(_Scope('boats.editor')).addCommand('sink', (_) => null);
+    // Mutation: share under the plugin's whole id, `boats.editor.sink`, or
+    // name the tool `editor.sink` under `boats`.
+    expect(tools.named('boats.sink'), isNotNull);
+    expect(tools.named('boats.sink')!.namespace, 'boats');
+    expect(tools.tools.map((ProjectTool t) => t.name), <String>[
+      'boats.raise',
+      'boats.sink',
+    ]);
+  });
+
   test('plugin.list says what the plugins brought', () async {
     final answer = await call('plugin.list', const <String, Object?>{});
     // Mutation: leave the commands out of the listing.

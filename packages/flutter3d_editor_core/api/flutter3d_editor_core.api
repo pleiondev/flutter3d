@@ -586,6 +586,7 @@ abstract base class PluginCommand extends DocumentCommand
 
 final class PluginCommandInfo
   String get bareName
+  String? get namespace
   const PluginCommandInfo({required this.name, required this.plugin, required this.description, required this.arguments})
   final List<FieldHint> arguments
   final String name

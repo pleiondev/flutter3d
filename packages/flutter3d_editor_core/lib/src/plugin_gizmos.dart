@@ -250,7 +250,7 @@ final class DrawnMark {
     required this.mark,
   });
 
-  /// The gizmo's published name, `<pluginId>.<name>`.
+  /// The gizmo's published name, `<namespace>.<name>`.
   final String gizmo;
 
   /// Which of the level's lists the marked thing is in.

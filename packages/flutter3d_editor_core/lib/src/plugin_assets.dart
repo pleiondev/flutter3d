@@ -83,7 +83,7 @@ abstract base class EditorImporter {
 final class AddedImporter {
   const AddedImporter(this.name, this.importer);
 
-  /// `<pluginId>.<name>`, or the application's own name.
+  /// `<namespace>.<name>`, or the application's own name.
   final String name;
 
   final EditorImporter importer;
@@ -141,7 +141,7 @@ final class AssetBrowserEntry {
 final class AddedAssetEntry {
   const AddedAssetEntry(this.name, this.entry);
 
-  /// `<pluginId>.<name>`, or the editor's own name.
+  /// `<namespace>.<name>`, or the editor's own name.
   final String name;
 
   final AssetBrowserEntry entry;

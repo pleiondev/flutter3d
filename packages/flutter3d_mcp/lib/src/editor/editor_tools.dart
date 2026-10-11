@@ -1024,7 +1024,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       description:
           'Run any command the editor knows by its name, with its own '
           'arguments: the built-in ones (moveBy, addBrush, …) and every one '
-          'the project\'s plugins added, named `<plugin id>.<name>`.',
+          'the project\'s plugins added, named `<namespace>.<name>`.',
       inputSchema: ObjectSchema(
         properties: <String, Schema>{
           'name': StringSchema(
@@ -1447,7 +1447,7 @@ List<EditorTool> get editorTools => <EditorTool>[
       description:
           'What the project\'s plugins brought to this editor: their commands '
           'with the arguments each takes (each is also a tool of its own, '
-          '`<plugin id>.<name>`), the fields they hint for components, entity '
+          '`<namespace>.<name>`), the fields they hint for components, entity '
           'kinds and materials, their gizmos, their importers and the kinds '
           'of file they list.',
       inputSchema: ObjectSchema(),

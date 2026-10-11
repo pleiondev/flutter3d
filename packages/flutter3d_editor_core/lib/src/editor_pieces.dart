@@ -163,20 +163,23 @@ abstract base class EditorRegistry extends PluginRegistry {
 /// What is added comes back out in order: the application's first, then each
 /// plugin's in install order, and within one owner as it was added.
 ///
-/// **A plugin's pieces are published under its id**, as its MCP tools are:
-/// `addCommand('sink', …)` through the `boats` plugin's view is the command
-/// `boats.sink` and its component `buoyancy` is `boats.buoyancy`. A palette
-/// row is the exception: it is keyed by the entity type it places, which is
-/// the level format's word and not the plugin's. So a command
-/// or component the editor adds in a later minor never collides with a
-/// plugin's, and two plugins may each have a `sink`. The application, adding
-/// through the root, names its pieces as it likes — without a dot, so its
-/// names cannot pass for a plugin's.
+/// **A plugin's pieces are published under its namespace**
+/// (`PluginManifest.namespace`, D23), as its MCP tools, quantities, fields
+/// and render steps are: `addCommand('sink', …)` through the view of the
+/// `boats.editor` plugin is the command `boats.sink`, and its component
+/// `buoyancy` is `boats.buoyancy`. A name given whole, `boats.sink`, is
+/// taken as it is; one in another namespace is refused with a
+/// `PluginException`. A palette row is the exception: it is keyed by the
+/// entity type it places, which is the level format's word and not the
+/// plugin's. So a command or component the editor adds in a later minor
+/// never collides with a plugin's, and two packages may each have a `sink`.
+/// The application, adding through the root, names its pieces as it likes —
+/// without a dot, so its names cannot pass for a plugin's.
 ///
 /// **The rest of the editor's plugin contract is here too**: [addGizmo],
-/// [addImporter] and [addAssetEntry], each published under the plugin's id
-/// as a command is; and [hints], the [EditorHints] a plugin finds with
-/// `host.maybeRegistry<EditorHintRegistry>()` without depending on this
+/// [addImporter] and [addAssetEntry], each published under the plugin's
+/// namespace as a command is; and [hints], the [EditorHints] a plugin finds
+/// with `host.maybeRegistry<EditorHintRegistry>()` without depending on this
 /// package, which an inspector section, a palette row and a material
 /// panel's controls are built from. Panels and docks are widgets, and so
 /// `flutter3d_editor_widgets`' `EditorPanels`.
@@ -220,25 +223,41 @@ final class EditorPieces extends EditorRegistry {
   String get _owner =>
       _scope == null ? 'the application' : 'plugin "${_scope.manifest.id}"';
 
-  /// [name] as this view publishes it: `<pluginId>.<name>` through a
-  /// plugin's view, [name] itself through the root.
+  /// [name] as this view publishes it: through a plugin's view,
+  /// `<namespace>.<name>` for a bare name and [name] itself when it is
+  /// already in the plugin's namespace (`PluginManifest.qualify`); through
+  /// the root, [name] itself.
   ///
-  /// Throws an [ArgumentError] for an empty name, and for a dotted one
-  /// through the root or a plugin's view: the dot is the namespace's.
+  /// Throws an [ArgumentError] for an empty name, for a dotted one through
+  /// the root, and for one with a dot of its own after the namespace's: the
+  /// dot is the namespace's. Throws a [PluginException] for a name in
+  /// another namespace than the plugin's, naming both.
   String published(String name, {String what = 'name'}) {
     if (name.isEmpty) {
       throw ArgumentError.value(name, what, 'needs a name');
     }
-    if (name.contains('.') && !builtInComponentKind(name)) {
+    final scope = _scope;
+    if (scope == null) {
+      if (name.contains('.') && !builtInComponentKind(name)) {
+        throw ArgumentError.value(
+          name,
+          what,
+          'has a dot, which is the namespace\'s: the application names its '
+          'pieces without one, so they cannot pass for a plugin\'s',
+        );
+      }
+      return name;
+    }
+    final whole = scope.manifest.qualify(name, what: 'the $what');
+    if (whole.indexOf('.') != whole.lastIndexOf('.')) {
       throw ArgumentError.value(
         name,
         what,
-        'has a dot, which is the namespace\'s: a plugin\'s pieces are '
-        'published as `<plugin id>.<name>` for it',
+        'has a dot of its own: a plugin\'s pieces are published as '
+        '`<namespace>.<name>`, one dot, the namespace\'s',
       );
     }
-    final scope = _scope;
-    return scope == null ? name : '${scope.manifest.id}.$name';
+    return whole;
   }
 
   /// Whether [kind] is one of the editor's own component kinds, some of
@@ -304,11 +323,11 @@ final class EditorPieces extends EditorRegistry {
   }
 
   /// Makes [name] a command, read back by [read], and answers the name it
-  /// is published as: `<pluginId>.<name>` through a plugin's view.
+  /// is published as: `<namespace>.<name>` through a plugin's view.
   ///
   /// [arguments] say what [read] takes, as an inspector field says what a
   /// property is: the editor's MCP server offers the command as a tool of
-  /// its own, `<pluginId>.<name>`, with these as its input schema, and an
+  /// its own, `<namespace>.<name>`, with these as its input schema, and an
   /// editor's menu can ask for them. Empty for a command that takes none,
   /// or whose arguments only `command.run` passes.
   ///
@@ -324,7 +343,7 @@ final class EditorPieces extends EditorRegistry {
     if (written.isEmpty) {
       throw ArgumentError.value(written, 'name', 'a command needs a name');
     }
-    final name = published(written);
+    final name = published(written, what: 'command');
     if (editorCommandNames.contains(name)) {
       throw ArgumentError.value(
         name,
@@ -441,7 +460,7 @@ final class EditorPieces extends EditorRegistry {
   }
 
   /// Adds [written] to the inspector, its kind published as
-  /// `<pluginId>.<kind>` through a plugin's view.
+  /// `<namespace>.<kind>` through a plugin's view.
   ///
   /// Throws an [ArgumentError] for a kind one of the editor's own components
   /// has, and for a kind another owner already added, naming it.
@@ -537,7 +556,7 @@ final class EditorPieces extends EditorRegistry {
   // ------------------------------------------------------------------ gizmos
 
   /// Draws [gizmo] over every thing of a level it applies to, its name
-  /// published as `<pluginId>.<name>` through a plugin's view.
+  /// published as `<namespace>.<name>` through a plugin's view.
   ///
   /// Throws an [ArgumentError] for an empty or dotted name, and for a name
   /// another owner already added, naming it.
@@ -636,7 +655,7 @@ final class EditorPieces extends EditorRegistry {
   // --------------------------------------------------------------- importers
 
   /// Lets [importer] bring its kind of file into a project, its name
-  /// published as `<pluginId>.<name>` through a plugin's view.
+  /// published as `<namespace>.<name>` through a plugin's view.
   ///
   /// Throws an [ArgumentError] for an empty or dotted name, and for a name
   /// another owner already added, naming it.
@@ -673,7 +692,7 @@ final class EditorPieces extends EditorRegistry {
   // ----------------------------------------------------------- asset browser
 
   /// Lists [entry]'s kind of file in the asset browser, its name published
-  /// as `<pluginId>.<name>` through a plugin's view.
+  /// as `<namespace>.<name>` through a plugin's view.
   ///
   /// Throws an [ArgumentError] for an empty or dotted name, and for a name
   /// another owner already added, naming it.
@@ -730,7 +749,7 @@ final class PluginCommandInfo {
     required this.arguments,
   });
 
-  /// Its published name, `<pluginId>.<name>`.
+  /// Its published name, `<namespace>.<name>`.
   final String name;
 
   /// The plugin's id, or null for a command the application added.
@@ -742,13 +761,19 @@ final class PluginCommandInfo {
   /// What it takes, as hints; empty when it was registered without them.
   final List<FieldHint> arguments;
 
-  /// The command's own name, without the plugin's id.
-  String get bareName {
-    final id = plugin;
-    return id != null && name.startsWith('$id.')
-        ? name.substring(id.length + 1)
-        : name;
+  /// The namespace it is published under, `PluginManifest.namespace` of its
+  /// plugin, or null for a command the application added.
+  String? get namespace {
+    if (plugin == null) return null;
+    final dot = name.indexOf('.');
+    return dot < 0 ? null : name.substring(0, dot);
   }
+
+  /// The command's own name, without the namespace.
+  String get bareName => switch (namespace) {
+    final String space => name.substring(space.length + 1),
+    null => name,
+  };
 }
 
 final class _Listener {

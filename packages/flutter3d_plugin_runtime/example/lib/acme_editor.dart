@@ -7,10 +7,11 @@
 ///   parameters of the `acme_sample_Hair` lit model. A game installs the
 ///   plugin with no editor and the hints are skipped.
 /// - **Editor pieces** (`package:flutter3d_editor_core`): a command an
-///   agent sees as `acme_sample.editor.stoke` (a plugin's commands, like
-///   its MCP tools, are under its id), a gizmo that rings an ember with its
-///   reach and lets the ring be pulled, an importer that brings in a list of
-///   embers, and an asset-browser entry for such lists.
+///   agent sees as `acme_sample.stoke` (a plugin's commands, like its MCP
+///   tools and every name of the runtime half, are under the package's
+///   namespace, not under this half's whole id), a gizmo that rings an
+///   ember with its reach and lets the ring be pulled, an importer that
+///   brings in a list of embers, and an asset-browser entry for such lists.
 ///
 /// A panel is a widget and lives in `flutter3d_editor_widgets`
 /// (`EditorPanels`); this example is plain Dart and brings none.
@@ -84,10 +85,10 @@ final class StokeEmbers extends PluginCommand {
 
   final double by;
 
-  /// The published name: the plugin's id and the name it registers it by,
-  /// as every editor command and MCP tool of a plugin is.
+  /// The published name: the plugin's namespace and the name it registers
+  /// it by, as every editor command and MCP tool of a plugin is.
   @override
-  String get name => 'acme_sample.editor.stoke';
+  String get name => 'acme_sample.stoke';
 
   @override
   String get says => 'stoke every ember by $by K';
@@ -190,7 +191,9 @@ final class AcmeEditorPlugin extends Flutter3dPlugin {
   PluginManifest get manifest => const PluginManifest(
     id: 'acme_sample.editor',
     apiVersion: PluginApiVersion(1, 0),
-    touches: PluginTouches.view,
+    // Tooling only: the editor and its tools. A game need not install it,
+    // and a run made with it installed carries nothing of it.
+    touches: PluginTouches.tooling,
     description: 'What the sample brings to a level editor.',
   );
 
