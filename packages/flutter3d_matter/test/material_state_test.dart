@@ -92,4 +92,32 @@ void main() {
       ),
     );
   });
+
+  test('a state is refused an id that its document would be refused', () {
+    // Mutation: drop the id check from `withQuantity` or `at(also:)`. A
+    // body's state is saved with `charring`, and the save fails to load.
+    const charred = Quantity(0.4, Unit.one);
+    expect(
+      () => const MaterialState().withQuantity('charring', charred),
+      throwsA(
+        isA<MaterialFormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('"charring"'),
+        ),
+      ),
+    );
+    expect(
+      () => MaterialState.at(also: <String, Quantity>{'charring': charred}),
+      throwsA(isA<MaterialFormatException>()),
+    );
+    final state = const MaterialState().withQuantity('acme.charring', charred);
+    expect(MaterialState.fromJson(state.toJson()), state);
+    expect(
+      MaterialState.at(
+        also: <String, Quantity>{'acme.charring': charred},
+      )['acme.charring'],
+      charred,
+    );
+  });
 }
