@@ -30,8 +30,9 @@ abstract base class FieldRegistry extends PluginRegistry {
   const FieldRegistry();
 
   /// Declares [field]. Throws an [ArgumentError] for a declaration with a
-  /// [FieldDeclaration.problem], an id already declared, or, from a plugin,
-  /// an id outside its namespace.
+  /// [FieldDeclaration.problem] or an id already declared; a
+  /// [PluginException] for a plugin's id outside its namespace
+  /// (`PluginManifest.nameProblem`).
   Registration declare(FieldDeclaration field);
 
   /// Every field declared, in the order it was.

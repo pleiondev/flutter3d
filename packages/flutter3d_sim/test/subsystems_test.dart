@@ -338,8 +338,8 @@ void main() {
           plugins: <Flutter3dPlugin>[_Acme(subsystem: _soak(id: 'other.soak'))],
         ),
         throwsA(
-          isA<ArgumentError>().having(
-            (ArgumentError e) => '${e.message}',
+          isA<PluginException>().having(
+            (PluginException e) => e.message,
             'message',
             contains('"acme.<name>"'),
           ),

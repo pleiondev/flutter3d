@@ -35,13 +35,9 @@ final class _LoopFields extends FieldRegistry {
     if (field.problem case final problem?) {
       throw ArgumentError.value(field.id, 'field', problem);
     }
-    if (_scope case final scope? when !_inNamespace(field.id, scope)) {
-      throw ArgumentError.value(
-        field.id,
-        'field',
-        'plugin "${scope.manifest.id}" declares fields under its own id, as '
-            '"${scope.manifest.id}.<name>"',
-      );
+    if (_scope?.manifest.nameProblem(field.id, what: 'the field')
+        case final problem?) {
+      throw PluginException(problem);
     }
     if (declarationOf(field.id) != null) {
       throw ArgumentError.value(
@@ -115,13 +111,9 @@ final class _LoopSubsystems extends SubsystemRegistry {
     if (declaration.problem case final problem?) {
       throw ArgumentError.value(id, 'subsystem', problem);
     }
-    if (_scope case final scope? when !_inNamespace(id, scope)) {
-      throw ArgumentError.value(
-        id,
-        'subsystem',
-        'plugin "${scope.manifest.id}" registers subsystems under its own '
-            'id, as "${scope.manifest.id}.<name>"',
-      );
+    if (_scope?.manifest.nameProblem(id, what: 'the subsystem')
+        case final problem?) {
+      throw PluginException(problem);
     }
     if (_declared.any((d) => d.id == id)) {
       throw ArgumentError.value(
@@ -203,9 +195,6 @@ final class _LoopSubsystems extends SubsystemRegistry {
   SubsystemRegistry forPlugin(PluginScope scope) =>
       _LoopSubsystems._scoped(this, scope);
 }
-
-bool _inNamespace(String id, PluginScope scope) =>
-    id.startsWith('${scope.manifest.id}.');
 
 /// What a subsystem is handed: the step's numbers from the loop's context,
 /// and the host fields it declared, read-only where it only reads.

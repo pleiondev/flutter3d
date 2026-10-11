@@ -221,9 +221,10 @@ abstract base class SubsystemRegistry extends PluginRegistry {
   const SubsystemRegistry();
 
   /// Registers [subsystem]. Throws an [ArgumentError] for a declaration
-  /// with a [SubsystemDeclaration.problem], an id already registered, a
-  /// plugin's id outside its namespace, or a field it names that nobody
-  /// declared, that is not held in host memory, or whose writer is another.
+  /// with a [SubsystemDeclaration.problem], an id already registered, or a
+  /// field it names that nobody declared, that is not held in host memory,
+  /// or whose writer is another; a [PluginException] for a plugin's id
+  /// outside its namespace (`PluginManifest.nameProblem`).
   Registration register(Subsystem subsystem);
 
   /// Every subsystem registered, running or not, in the order it was.
