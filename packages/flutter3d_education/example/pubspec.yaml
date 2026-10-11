@@ -1,5 +1,5 @@
 name: chemlab
-description: "A virtual chemistry bench on flutter3d: glassware turned from profiles, labels typeset in TeX and wrapped on without a decal, and liquid you can pour."
+description: "Two laboratories on flutter3d: a chemistry bench with glassware turned from profiles, labels typeset in TeX and liquid you can pour, and a pendulum on the accurate profile with a clock moved by hand."
 publish_to: 'none'
 version: 0.1.0+1
 resolution: workspace
@@ -35,6 +35,13 @@ dependencies:
   flutter3d_matter:
     path: ../../flutter3d_matter
 
+  # The pendulum laboratory (`lib/pendulum_main.dart`): a loop of its own on
+  # the accurate profile, its probes, and the hand-moved clock.
+  flutter3d_sim:
+    path: ../../flutter3d_sim
+  flutter3d_plugin_api:
+    path: ../../flutter3d_plugin_api
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -44,6 +51,9 @@ dev_dependencies:
   # A frame drawn with no GPU, for the picture this example is tested by.
   flutter3d_testing:
     path: ../../flutter3d_testing
+  # A device that draws nothing, for the pendulum's screen in a test.
+  flutter3d_hardware:
+    path: ../../flutter3d_hardware
   flutter_lints: ^6.0.0
 
 flutter:
