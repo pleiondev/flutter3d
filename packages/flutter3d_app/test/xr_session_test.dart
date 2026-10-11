@@ -16,7 +16,8 @@ import 'package:flutter3d_app/xr_testing.dart';
 import 'package:flutter3d_core/flutter3d_core.dart'
     show EnvironmentDepth, EnvironmentDepthNode;
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
-import 'package:flutter3d_matter/flutter3d_matter.dart' show GeoOrigin;
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show GeoOrigin, WorldProperties;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show ExternalStateInput, LoopPhase, ReadingKind;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -393,6 +394,33 @@ void main() {
       final restored = await second.restoreAnchor(kept.id);
       expect(restored!.pose, kept.pose);
       expect(await second.restoreAnchor('nobody'), isNull);
+    });
+
+    test('an outdoor anchor stands where its place is in the world', () {
+      // Mutation: answer the anchor's own pose, or the origin's place, and
+      // a bench placed by latitude stands a hundred metres off.
+      // Radians: 52° north, and about a hundred metres further north.
+      final site = GeoOrigin(latitude: 0.9076, longitude: 0.2269, altitude: 40);
+      final north = GeoOrigin(
+        latitude: 0.9076 + 1.566e-5,
+        longitude: 0.2269,
+        altitude: 40.0,
+      );
+      final anchor = XrAnchor(id: 'bench', pose: XrPose.identity(), geo: north);
+      final world = WorldProperties(geoOrigin: site);
+
+      final at = anchor.placeIn(world)!;
+      expect(at, site.positionOf(north));
+      expect(at.z, closeTo(-100.0, 1.5), reason: 'north is −z');
+      expect(at.x.abs(), lessThan(0.01));
+
+      // Nowhere to stand: a world nowhere in particular, an anchor placed by
+      // no place on the Earth.
+      expect(anchor.placeIn(WorldProperties()), isNull);
+      expect(
+        XrAnchor(id: 'indoor', pose: XrPose.identity()).placeIn(world),
+        isNull,
+      );
     });
 
     test('a runtime without anchors or haptics refuses them by name', () async {

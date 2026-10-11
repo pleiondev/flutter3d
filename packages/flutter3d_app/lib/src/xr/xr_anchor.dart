@@ -1,7 +1,10 @@
 /// Points fixed to the real world, kept by the runtime and in a level.
 library;
 
-import 'package:flutter3d_matter/flutter3d_matter.dart' show GeoOrigin;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show WorldPosition;
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show GeoOrigin, WorldProperties;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef, XrPose;
 import 'package:vector_math/vector_math.dart' show Quaternion, Vector3;
 
@@ -61,6 +64,19 @@ final class XrAnchor {
 
   /// Where it is on the Earth, when it was placed there.
   final GeoOrigin? geo;
+
+  /// Where [geo] is in [world]: the place seen from the world's own origin
+  /// (`WorldProperties.geoOrigin`, a level's site), in metres east, up and
+  /// north (−z) of it — where an outdoor anchor stands in the level. Null
+  /// for an anchor placed by no place on the Earth, or in a world that is
+  /// nowhere in particular.
+  WorldPosition? placeIn(WorldProperties world) =>
+      switch ((world.geoOrigin, geo)) {
+        (final GeoOrigin origin?, final GeoOrigin place?) => origin.positionOf(
+          place,
+        ),
+        _ => null,
+      };
 
   /// The entity type an anchor is kept under in a level.
   static const String entityType = 'xr.anchor';

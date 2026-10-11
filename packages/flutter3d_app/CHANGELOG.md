@@ -14,7 +14,9 @@
   (`XrSwapchain`); `XrPanel` shows a Flutter widget as a layer of its own,
   so text in a headset is composed once and stays crisp. `XrAnchor` keeps a
   point fixed to the room under a stable id, in a level as an `xr.anchor`
-  entity and on the Earth through `GeoOrigin`. Every hook takes one object,
+  entity and on the Earth through `GeoOrigin`, and `XrAnchor.placeIn` says
+  where an outdoor anchor stands in a world whose `geoOrigin` is its site.
+  Every hook takes one object,
   and every feature beyond the frame has a body that refuses it, so a
   runtime written against 1.0 compiles against every 1.x. The WebXR and
   OpenXR sessions arrive in rc.2.
