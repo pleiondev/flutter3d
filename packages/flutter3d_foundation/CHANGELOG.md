@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **The engine's expression language.** `parseExpression` reads text such
+  as `1.8e-6 [Pa·s] * exp(1850 [K] / T)` or `T > 100 [°C] && p < 2 [bar]`
+  into a typed `Expression` tree whose every node carries an
+  `ExpressionType`: its components and the `Dimension` it measures, so a
+  sum of a length and a time is refused where it is written. Numbers in a
+  unit are kept in the coherent SI unit. `CompiledExpression` turns the
+  tree into Dart closures once and runs it on `Portable` maths, the same
+  bits on every platform, with values taken as `Quantity`s by name;
+  `ExpressionCodec` writes the canonical text a document stores;
+  `ExpressionVisitor` (with `visitUnknown`) is how a translator reads the
+  tree, and `ExpressionParser` is a `base class` a host language extends,
+  as the material language does. `ExpressionBuiltin` lists the functions,
+  each with its unit rule; `Unit.coherent` names the coherent unit of a
+  dimension.
 - **A refusal of bad bytes is still a `FormatException`.**
   `Flutter3dFormatException` implements it, so code that catches
   `on FormatException`, as 0.8 code does, keeps catching the engine's

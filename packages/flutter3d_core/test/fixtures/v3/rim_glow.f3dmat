@@ -1,0 +1,50 @@
+// The rim material in version 3 of the material language: a version of its
+// own and the updates that carry an older instance's values to it, and
+// never rewritten once a release has read it.
+//
+// The rim of version 2, at its own version 3: its glow was called `rim`
+// before version 2 and was twice as bright before version 3, when the
+// pulse it no longer has was dropped.
+f3dmat 3
+material RimGlow version 3 {
+  param float rimPower = 3.0;
+  uniform vec3 rimColor = vec3(0.2, 0.5, 1.0);
+  uniform float breath = 0.0;
+
+  updates {
+    2: rename rim -> rimColor;
+    3: scale rimColor 0.5;
+    3: remove pulse;
+  }
+
+  state {
+    blend additive;
+    depthWrite off;
+    depthLayer 1;
+    doubleSided on;
+    directional off;
+  }
+
+  vertex {
+    out world = world + normal * (0.02 * breath);
+  }
+
+  light {
+    return albedo;
+  }
+
+  ambient {
+    return albedo * (ambient + lightmap) * 0.5;
+  }
+
+  composite {
+    return (direct + indirect) * occlusion + emissive;
+  }
+
+  fragment {
+    let facing = clamp(nDotV, 0.0, 1.0);
+    let rim = pow(1.0 - facing, rimPower);
+    let soft = clamp((sceneDepth - viewDepth) * 4.0, 0.0, 1.0);
+    return vec4(lit * (0.25 + 0.75 * facing) + rimColor * rim, soft);
+  }
+}

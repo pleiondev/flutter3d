@@ -87,13 +87,42 @@
 /// its type because the parser worked it out; an emitter that had to infer
 /// types would be a second type checker, and the two would disagree about
 /// something like `vec3 * float` on one backend only.
+///
+/// **The expressions are the engine's expression language.** This parser
+/// extends `flutter3d_foundation`'s [ExpressionParser]: it reads the
+/// declarations and the blocks, and every expression in them is read and
+/// typed by the base class, under [materialSyntax] (the tokens versions 1
+/// and 2 know, no units, no comparisons) and with [materialBuiltins], so a
+/// file of either version reads exactly as it did before the language was
+/// lifted out.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show
+        ExpressionParser,
+        ExpressionScope,
+        ExpressionSyntax,
+        ExpressionSyntaxException,
+        ExpressionToken,
+        tokenizeExpression;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
 import 'package:flutter3d_shaders/backend.dart' show uniformBlocks;
 
 import 'material_ast.dart';
+
+/// The tokens the material language reads: the expression language's
+/// arithmetic, its own `{ } = ;`, and no units, exponents or comparisons,
+/// which no version of it has had.
+///
+/// `:` and `>` are version 3's, for an `updates` block's `2: rename a -> b`;
+/// in an expression they are refused as they were.
+const ExpressionSyntax materialSyntax = ExpressionSyntax(
+  units: false,
+  exponents: false,
+  logic: false,
+  punctuation: '{}=;:>',
+);
 
 /// What the engine binds, and therefore the only names a `texture` declaration
 /// with `=` may point at.
@@ -127,7 +156,27 @@ const List<String> materialTextureBindings = <String>[
 /// a syntax error, and because a version 1 file stays exactly what it was —
 /// one that binds `let sceneDepth` still compiles. A version 2 file also
 /// keeps names starting `f3d_` for the generated stage.
-const int materialLanguageVersion = 2;
+///
+/// **Version 3** (1.0) gives a material a version of its own and the
+/// updates that carry an older instance's values to it:
+///
+/// ```text
+/// f3dmat 3
+/// material Hatch version 3 {
+///   uniform vec3 inkColor = vec3(0.1);
+///   uniform float roughness = 0.5;
+///   updates {
+///     2: rename ink -> inkColor;
+///     3: scale roughness 0.5;
+///   }
+///   ...
+/// }
+/// ```
+///
+/// An update is `rename a -> b`, `scale a <factor>` or `remove a`, under
+/// the version it leads to, from 2 to the material's own;
+/// `MaterialProgram.lift` applies them. Everything else reads as version 2.
+const int materialLanguageVersion = 3;
 
 /// `.f3dmat` in the format registry: text, versioned by an optional
 /// `f3dmat <N>` line, so it has no JSON envelope and no fixed magic.
@@ -161,112 +210,14 @@ final class MaterialSyntaxException extends Flutter3dFormatException {
 }
 
 /// Reads [source] as one material.
-MaterialProgram parseMaterial(String source) =>
-    _Parser(_lex(source)).parseMaterial();
-
-// ---------------------------------------------------------------------------
-// Lexing
-// ---------------------------------------------------------------------------
-
-/// A token's kind, as the character or word that opens it.
-///
-/// Strings rather than a type of their own: the parser compares against
-/// literals it writes out anyway (`'{'`, `'return'`), and a kind enum would be
-/// a second spelling of the same set with a conversion between them.
-final class _Token {
-  const _Token(this.kind, this.text, this.line, this.column, [this.number]);
-
-  /// One of `name`, `number`, `end`, or the punctuation itself.
-  final String kind;
-  final String text;
-  final int line;
-  final int column;
-
-  /// A number token's value as written; a token carries no unit.
-  final double? number;
-}
-
-const String _punctuation = '{}()=;,.+-*/';
-
-List<_Token> _lex(String source) {
-  final tokens = <_Token>[];
-  var line = 1;
-  var column = 1;
-  var at = 0;
-
-  void advance(int count) {
-    for (var i = 0; i < count; i++) {
-      if (source[at + i] == '\n') {
-        line++;
-        column = 1;
-      } else {
-        column++;
-      }
-    }
-    at += count;
+MaterialProgram parseMaterial(String source) {
+  final List<ExpressionToken> tokens;
+  try {
+    tokens = tokenizeExpression(source, syntax: materialSyntax);
+  } on ExpressionSyntaxException catch (error) {
+    throw MaterialSyntaxException(error.message, error.line, error.column);
   }
-
-  while (at < source.length) {
-    final ch = source[at];
-    if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n') {
-      advance(1);
-      continue;
-    }
-    // `//` to the end of the line. A material is a thing an author comments,
-    // and a language with no comments is one whose files grow a README beside
-    // them.
-    if (ch == '/' && at + 1 < source.length && source[at + 1] == '/') {
-      while (at < source.length && source[at] != '\n') {
-        advance(1);
-      }
-      continue;
-    }
-
-    final startLine = line;
-    final startColumn = column;
-    if (_isDigit(ch) ||
-        (ch == '.' && at + 1 < source.length && _isDigit(source[at + 1]))) {
-      var end = at;
-      while (end < source.length &&
-          (_isDigit(source[end]) || source[end] == '.')) {
-        end++;
-      }
-      final text = source.substring(at, end);
-      final value = double.tryParse(text);
-      if (value == null) {
-        throw MaterialSyntaxException(
-          '"$text" is not a number.',
-          startLine,
-          startColumn,
-        );
-      }
-      advance(end - at);
-      tokens.add(_Token('number', text, startLine, startColumn, value));
-      continue;
-    }
-    if (_isNameStart(ch)) {
-      var end = at;
-      while (end < source.length && _isNamePart(source[end])) {
-        end++;
-      }
-      final text = source.substring(at, end);
-      advance(end - at);
-      tokens.add(_Token('name', text, startLine, startColumn));
-      continue;
-    }
-    if (_punctuation.contains(ch)) {
-      advance(1);
-      tokens.add(_Token(ch, ch, startLine, startColumn));
-      continue;
-    }
-    throw MaterialSyntaxException(
-      '"$ch" is not part of this language.',
-      startLine,
-      startColumn,
-    );
-  }
-  tokens.add(_Token('end', '', line, column));
-  return tokens;
+  return _Parser(tokens).parseMaterial();
 }
 
 /// Names a `let` would collide with once `emitMaterialFragment` writes it into
@@ -387,24 +338,20 @@ const List<MaterialInput> _surfaceVersion2Inputs = <MaterialInput>[
   ...materialCompositeInputs,
 ];
 
-bool _isDigit(String ch) => ch.compareTo('0') >= 0 && ch.compareTo('9') <= 0;
-
-bool _isNameStart(String ch) =>
-    (ch.compareTo('a') >= 0 && ch.compareTo('z') <= 0) ||
-    (ch.compareTo('A') >= 0 && ch.compareTo('Z') <= 0) ||
-    ch == '_';
-
-bool _isNamePart(String ch) => _isNameStart(ch) || _isDigit(ch);
-
 // ---------------------------------------------------------------------------
 // Parsing
 // ---------------------------------------------------------------------------
 
-final class _Parser {
-  _Parser(this.tokens);
-
-  final List<_Token> tokens;
-  int at = 0;
+/// The material language over the expression language's parser: the
+/// declarations and blocks are read here, every expression by the base
+/// class, with a material's names resolved by [resolveName] and `sample`
+/// read by [parseSpecialCall].
+final class _Parser extends ExpressionParser {
+  _Parser(super.tokens)
+    : super(
+        scope: const ExpressionScope(builtins: materialBuiltins),
+        syntax: materialSyntax,
+      );
 
   final List<MaterialParameter> parameters = <MaterialParameter>[];
   final List<MaterialTextureSlot> textures = <MaterialTextureSlot>[];
@@ -424,11 +371,11 @@ final class _Parser {
 
   /// Where the fragment body first read `lit`, to point at when the material
   /// turns out to have no `light` block to gather it.
-  _Token? litAt;
+  ExpressionToken? litAt;
 
   /// Where a body first read the scene behind it, to point at when the
   /// material turns out not to be translucent.
-  _Token? sceneAt;
+  ExpressionToken? sceneAt;
   final Set<String> inputsUsed = <String>{};
 
   /// The slots `sample` read, for the rule that a full-screen stage and a
@@ -486,43 +433,31 @@ final class _Parser {
     returns: MaterialType.vec4,
   );
 
-  _Token get current => tokens[at];
-
-  Never fail(String message, [_Token? where]) {
+  @override
+  Never fail(String message, [ExpressionToken? where]) {
     final token = where ?? current;
     throw MaterialSyntaxException(message, token.line, token.column);
-  }
-
-  _Token take(String kind, String what) {
-    if (current.kind != kind) {
-      fail(
-        'expected $what, found "${current.text.isEmpty ? 'the end of the '
-                  'file' : current.text}".',
-      );
-    }
-    final token = current;
-    at++;
-    return token;
-  }
-
-  bool takeIf(String kind) {
-    if (current.kind != kind) return false;
-    at++;
-    return true;
-  }
-
-  bool takeWordIf(String word) {
-    if (current.kind != 'name' || current.text != word) return false;
-    at++;
-    return true;
   }
 
   MaterialProgram parseMaterial() {
     version = parseVersion();
     kind = parseKind();
     final surface = kind == MaterialStageKind.surface;
-    final name = take('name', 'the material\'s name').text;
-    take('{', '"{" after the material\'s name');
+    final name = expectToken('name', 'the material\'s name').text;
+    var materialVersion = 1;
+    if (current.kind == 'name' && current.text == 'version') {
+      if (version < 3) {
+        fail(
+          'a material\'s own version is material language version 3: open '
+          'the file with "f3dmat 3".',
+        );
+      }
+      position++;
+      materialVersion = wholeNumber('the material\'s version', from: 1);
+    }
+    expectToken('{', '"{" after the material\'s name');
+    final updates = <(ExpressionToken, MaterialUpdate)>[];
+    ExpressionToken? updatesAt;
     // The picture a full-screen stage draws over, bound as every post stage
     // of the engine's binds it.
     if (kind == MaterialStageKind.fullscreen) {
@@ -536,43 +471,43 @@ final class _Parser {
     List<MaterialStatement>? composite;
     var state = MaterialFileState.none;
     var workgroup = (8, 8);
-    _Token? lightAt;
-    _Token? ambientAt;
-    _Token? compositeAt;
-    _Token? stateAt;
-    _Token? workgroupAt;
+    ExpressionToken? lightAt;
+    ExpressionToken? ambientAt;
+    ExpressionToken? compositeAt;
+    ExpressionToken? stateAt;
+    ExpressionToken? workgroupAt;
 
     /// The body a word opens, read once.
     List<MaterialStatement> once(
       List<MaterialStatement>? already,
-      _Token where,
+      ExpressionToken where,
       String what,
       _Block block,
     ) {
-      at++;
+      position++;
       if (already != null) fail('a material has one $what.', where);
       return parseBody(block);
     }
 
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the material is never closed with "}".');
       final word = current.kind == 'name' ? current.text : '';
       final where = current;
-      if (takeWordIf('param')) {
+      if (skipWordIf('param')) {
         parseParameter();
-      } else if (takeWordIf('uniform')) {
+      } else if (skipWordIf('uniform')) {
         parseParameter(uniform: true);
-      } else if (takeWordIf('texture')) {
+      } else if (skipWordIf('texture')) {
         parseTexture();
       } else if (word == 'fragment' && kind != MaterialStageKind.compute) {
-        at++;
+        position++;
         if (body != null) fail('a material has one fragment body.');
         body = parseBody(surface ? fragmentBlock : fullscreenBlock);
       } else if (word == 'kernel' && kind == MaterialStageKind.compute) {
         body = once(body, where, 'kernel', kernelBlock);
       } else if (word == 'light' && surface) {
         lightAt = where;
-        at++;
+        position++;
         if (light != null) fail('a material has one light block.', lightAt);
         light = parseBody(lightBlock);
       } else if (surface &&
@@ -588,7 +523,7 @@ final class _Parser {
           '"f3dmat 2".',
         );
       } else if (word == 'state' && surface) {
-        at++;
+        position++;
         if (stateAt != null) fail('a material has one state block.', where);
         stateAt = where;
         state = parseState();
@@ -601,10 +536,20 @@ final class _Parser {
         compositeAt = where;
         composite = once(composite, where, 'composite block', compositeBlock);
       } else if (word == 'workgroup' && kind == MaterialStageKind.compute) {
-        at++;
+        position++;
         if (workgroupAt != null) fail('a kernel has one workgroup.', where);
         workgroupAt = where;
         workgroup = parseWorkgroup();
+      } else if (word == 'updates' && version < 3) {
+        fail(
+          '"updates" is material language version 3: open the file with '
+          '"f3dmat 3".',
+        );
+      } else if (word == 'updates') {
+        position++;
+        if (updatesAt != null) fail('a material has one updates block.', where);
+        updatesAt = where;
+        updates.addAll(parseUpdates());
       } else {
         fail(switch (kind) {
           _ when version < 2 =>
@@ -652,7 +597,7 @@ final class _Parser {
     }
     // The two hooks shape the light a `light` block gathers; without one
     // there is no `lit` for them to shape.
-    for (final (hook, where) in <(String, _Token?)>[
+    for (final (hook, where) in <(String, ExpressionToken?)>[
       ('ambient', ambientAt),
       ('composite', compositeAt),
     ]) {
@@ -702,9 +647,12 @@ final class _Parser {
         );
       }
     }
+    checkUpdates(name, materialVersion, updates);
 
     return MaterialProgram(
       name: name,
+      version: materialVersion,
+      updates: <MaterialUpdate>[for (final (_, update) in updates) update],
       parameters: parameters,
       textures: textures,
       body: body,
@@ -724,7 +672,7 @@ final class _Parser {
   MaterialStageKind parseKind() {
     final token = current;
     for (final candidate in MaterialStageKind.all) {
-      if (!takeWordIf(candidate.name)) continue;
+      if (!skipWordIf(candidate.name)) continue;
       if (candidate != MaterialStageKind.surface && version < 2) {
         fail(
           '"${candidate.name}" is material language version 2: open the file '
@@ -743,7 +691,7 @@ final class _Parser {
 
   /// A `state` block's settings, once each — version 2.
   MaterialFileState parseState() {
-    take('{', '"{" after "state"');
+    expectToken('{', '"{" after "state"');
     final seen = <String>{};
     MaterialBlend? blend;
     double? cutoff;
@@ -756,13 +704,13 @@ final class _Parser {
     bool? effectsDepth;
     var environment = true;
     var directional = true;
-    _Token? cutoffAt;
-    _Token? coverageAt;
-    _Token? compareAt;
-    _Token? effectsAt;
+    ExpressionToken? cutoffAt;
+    ExpressionToken? coverageAt;
+    ExpressionToken? compareAt;
+    ExpressionToken? effectsAt;
 
-    bool onOff(_Token key) {
-      final value = take('name', '"on" or "off" after "${key.text}"');
+    bool onOff(ExpressionToken key) {
+      final value = expectToken('name', '"on" or "off" after "${key.text}"');
       return switch (value.text) {
         'on' => true,
         'off' => false,
@@ -773,13 +721,13 @@ final class _Parser {
       };
     }
 
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the state block is never closed.');
-      final key = take('name', 'a setting');
+      final key = expectToken('name', 'a setting');
       if (!seen.add(key.text)) fail('"${key.text}" is set twice.', key);
       switch (key.text) {
         case 'blend':
-          final value = take('name', 'a blend after "blend"');
+          final value = expectToken('name', 'a blend after "blend"');
           blend =
               MaterialBlend.byName(value.text) ??
               fail(
@@ -789,7 +737,7 @@ final class _Parser {
               );
         case 'cutoff':
           cutoffAt = key;
-          final value = take('number', 'the alpha the mask cuts at');
+          final value = expectToken('number', 'the alpha the mask cuts at');
           cutoff = value.number!;
           if (cutoff < 0 || cutoff > 1) {
             fail('a cutoff is an alpha, from nought to one.', value);
@@ -800,7 +748,10 @@ final class _Parser {
           depthTest = onOff(key);
         case 'depthCompare':
           compareAt = key;
-          final value = take('name', 'a depth test after "depthCompare"');
+          final value = expectToken(
+            'name',
+            'a depth test after "depthCompare"',
+          );
           if (!materialDepthCompares.contains(value.text)) {
             fail(
               '"${value.text}" is not a depth test: '
@@ -815,8 +766,11 @@ final class _Parser {
         case 'doubleSided':
           doubleSided = onOff(key);
         case 'depthLayer':
-          final negative = takeIf('-');
-          final value = take('number', 'a whole number after "depthLayer"');
+          final negative = skipIf('-');
+          final value = expectToken(
+            'number',
+            'a whole number after "depthLayer"',
+          );
           final number = value.number!;
           if (number != number.truncateToDouble() ||
               number > materialDepthLayerLimit) {
@@ -843,7 +797,7 @@ final class _Parser {
             key,
           );
       }
-      take(';', '";" after the setting');
+      expectToken(';', '";" after the setting');
     }
 
     final masked = blend == MaterialBlend.mask;
@@ -889,13 +843,128 @@ final class _Parser {
     );
   }
 
+  /// A whole number token of at least [from], [what] naming it in a
+  /// refusal.
+  int wholeNumber(String what, {required int from}) {
+    final token = expectToken('number', what);
+    final value = token.number!;
+    if (value != value.truncateToDouble() || value < from) {
+      fail('$what is a whole number from $from, not "${token.text}".', token);
+    }
+    return value.toInt();
+  }
+
+  /// An `updates` block — version 3: `<version>: rename a -> b;`,
+  /// `<version>: scale a <factor>;` and `<version>: remove a;`, each with
+  /// the token it starts at.
+  List<(ExpressionToken, MaterialUpdate)> parseUpdates() {
+    expectToken('{', '"{" after "updates"');
+    final updates = <(ExpressionToken, MaterialUpdate)>[];
+    while (!skipIf('}')) {
+      if (current.kind == 'end') fail('the updates block is never closed.');
+      final at = current;
+      final leadsTo = wholeNumber('an update\'s version', from: 2);
+      expectToken(':', '":" after the update\'s version');
+      final verb = expectToken('name', 'rename, scale or remove');
+      final update = switch (verb.text) {
+        'rename' => () {
+          final from = expectToken('name', 'the name the parameter had').text;
+          expectToken('-', '"->" after the old name');
+          expectToken('>', '"->" after the old name');
+          final to = expectToken('name', 'the name the parameter has now').text;
+          if (from == to) fail('"$from" is renamed to itself.', verb);
+          return MaterialRenameUpdate(leadsTo, from, to);
+        }(),
+        'scale' => () {
+          final parameter = expectToken('name', 'the parameter to scale').text;
+          final negative = skipIf('-');
+          final factor = expectToken(
+            'number',
+            'the factor its value is scaled by',
+          );
+          return MaterialScaleUpdate(
+            leadsTo,
+            parameter,
+            negative ? -factor.number! : factor.number!,
+          );
+        }(),
+        'remove' => MaterialRemoveUpdate(
+          leadsTo,
+          expectToken('name', 'the parameter that is removed').text,
+        ),
+        _ => fail(
+          '"${verb.text}" is not an update: rename, scale and remove are.',
+          verb,
+        ),
+      };
+      expectToken(';', '";" after the update');
+      updates.add((at, update));
+    }
+    return updates;
+  }
+
+  /// Every update leads to a version from 2 to the material's own, and a
+  /// rename or a scale names, by the name it ends up with, a parameter the
+  /// material declares: an update of a parameter nobody has is a typo that
+  /// would otherwise carry an instance's value nowhere.
+  void checkUpdates(
+    String material,
+    int materialVersion,
+    List<(ExpressionToken, MaterialUpdate)> updates,
+  ) {
+    final ordered =
+        <(int, ExpressionToken, MaterialUpdate)>[
+          for (final (index, (at, update)) in updates.indexed)
+            (index, at, update),
+        ]..sort(
+          (a, b) => a.$3.version != b.$3.version
+              ? a.$3.version.compareTo(b.$3.version)
+              : a.$1.compareTo(b.$1),
+        );
+    for (final (k, (_, at, update)) in ordered.indexed) {
+      if (update.version > materialVersion) {
+        fail(
+          'an update leads to a version from 2 to the material\'s own, '
+          '$materialVersion, and this one leads to ${update.version}: raise '
+          'the material\'s version with "material $material version '
+          '${update.version}".',
+          at,
+        );
+      }
+      String? name = switch (update) {
+        MaterialRenameUpdate(:final to) => to,
+        MaterialScaleUpdate(:final name) => name,
+        _ => null,
+      };
+      final written = name;
+      for (final (_, _, later) in ordered.skip(k + 1)) {
+        if (name == null) break;
+        name = switch (later) {
+          MaterialRenameUpdate(:final from, :final to) when from == name => to,
+          MaterialRemoveUpdate(name: final removed) when removed == name =>
+            null,
+          _ => name,
+        };
+      }
+      if (name != null && parameterNamed(name) == null) {
+        fail(
+          written == name
+              ? '"$name" is not a parameter "$material" declares.'
+              : '"$written" becomes "$name", which "$material" does not '
+                    'declare.',
+          at,
+        );
+      }
+    }
+  }
+
   /// `workgroup x y;` — a kernel's workgroup size, version 2.
   ///
   /// At most 256 invocations in all: WebGPU's own limit, which the other
   /// backends that run compute meet too.
   (int, int) parseWorkgroup() {
     int side() {
-      final token = take('number', 'a whole number of invocations');
+      final token = expectToken('number', 'a whole number of invocations');
       final value = token.number!;
       if (value != value.truncateToDouble() || value < 1 || value > 256) {
         fail('a workgroup side is a whole number from 1 to 256.', token);
@@ -905,7 +974,7 @@ final class _Parser {
 
     final x = side();
     final y = side();
-    take(';', '";" after the workgroup');
+    expectToken(';', '";" after the workgroup');
     if (x * y > 256) {
       fail('a workgroup is at most 256 invocations, and $x by $y is ${x * y}.');
     }
@@ -925,8 +994,8 @@ final class _Parser {
   /// language compiles to whatever this build thinks its words mean.
   int parseVersion() {
     final header = current;
-    if (!takeWordIf('f3dmat')) return 1;
-    final number = take('number', 'the language version after "f3dmat"');
+    if (!skipWordIf('f3dmat')) return 1;
+    final number = expectToken('number', 'the language version after "f3dmat"');
     final value = number.number!;
     if (value != value.truncateToDouble() || value < 1) {
       fail(
@@ -951,8 +1020,8 @@ final class _Parser {
     // `uniform(Hair) vec3 tint = …;` — version 2 (D21): a member of a block
     // of the material's own rather than of `MaterialParams`.
     String? block;
-    if (uniform && takeIf('(')) {
-      final named = take('name', 'the uniform block\'s name');
+    if (uniform && skipIf('(')) {
+      final named = expectToken('name', 'the uniform block\'s name');
       if (version < 2) {
         fail(
           'a uniform block of a material\'s own is version 2; start the file '
@@ -968,7 +1037,7 @@ final class _Parser {
           named,
         );
       }
-      take(')', '")" after the block\'s name');
+      expectToken(')', '")" after the block\'s name');
       block = named.text;
     }
     final type = parseType();
@@ -978,7 +1047,7 @@ final class _Parser {
         '"texture".',
       );
     }
-    final nameToken = take('name', 'the parameter\'s name');
+    final nameToken = expectToken('name', 'the parameter\'s name');
     checkFreeName(nameToken);
     // A uniform reaches the shader under its own name, as a member of the
     // block — `P8` — so the names GLSL and the emitter keep are closed to it,
@@ -992,13 +1061,13 @@ final class _Parser {
         nameToken,
       );
     }
-    take(
+    expectToken(
       '=',
       '"=" and a default value — a parameter without one is a '
           'parameter a variant can forget to set',
     );
     final value = parseConstant(type);
-    take(';', '";" after the parameter');
+    expectToken(';', '";" after the parameter');
     parameters.add(
       MaterialParameter(
         nameToken.text,
@@ -1011,11 +1080,11 @@ final class _Parser {
   }
 
   void parseTexture() {
-    final nameToken = take('name', 'the slot\'s name');
+    final nameToken = expectToken('name', 'the slot\'s name');
     checkFreeName(nameToken);
     // `texture fur;` — version 2 (D21): a texture of the material's own, in
     // its slot table, bound as `material_fur`.
-    if (kind == MaterialStageKind.surface && takeIf(';')) {
+    if (kind == MaterialStageKind.surface && skipIf(';')) {
       if (version < 2) {
         fail(
           'a texture of a material\'s own is version 2; start the file with '
@@ -1032,8 +1101,8 @@ final class _Parser {
       );
       return;
     }
-    take('=', '"=" and the engine binding this slot reads');
-    final binding = take('name', 'the engine binding\'s name');
+    expectToken('=', '"=" and the engine binding this slot reads');
+    final binding = expectToken('name', 'the engine binding\'s name');
     if (kind != MaterialStageKind.surface) {
       // A full-screen stage or a kernel is bound by whoever draws it, by
       // the names it declares — `FullscreenEffect.textures` — so the slot
@@ -1060,7 +1129,7 @@ final class _Parser {
         binding,
       );
     }
-    take(';', '";" after the texture');
+    expectToken(';', '";" after the texture');
     textures.add(MaterialTextureSlot(nameToken.text, binding.text));
   }
 
@@ -1089,7 +1158,7 @@ final class _Parser {
   /// GLSL would allow some of this and the result is a material whose author
   /// thinks they are reading the surface normal and is reading their own
   /// variable — a bug that looks like the lighting being wrong.
-  void checkFreeName(_Token token) {
+  void checkFreeName(ExpressionToken token) {
     final name = token.text;
     for (final input in takenInputs()) {
       if (input.name == name) {
@@ -1104,7 +1173,7 @@ final class _Parser {
     if (kind == MaterialStageKind.fullscreen && name == 'scene') {
       fail('"scene" is the picture a full-screen stage draws over.', token);
     }
-    if (MaterialBuiltin.byName(name) != null || name == 'sample') {
+    if (builtinNamed(name) != null || name == 'sample') {
       fail('"$name" is a builtin function.', token);
     }
     if (MaterialType.numeric.values.any((t) => t.name == name)) {
@@ -1122,7 +1191,7 @@ final class _Parser {
   }
 
   MaterialType parseType() {
-    final token = take('name', 'a type');
+    final token = expectToken('name', 'a type');
     for (final type in MaterialType.numeric.values) {
       if (type.name == token.text) return type;
     }
@@ -1152,15 +1221,15 @@ final class _Parser {
   /// shader, or a stage of their own.
   List<MaterialStatement> parseBody(_Block body) {
     final what = body.what;
-    take('{', '"{" after "${body.opening}"');
+    expectToken('{', '"{" after "${body.opening}"');
     locals.clear();
     outputs.clear();
     block = body;
     final statements = <MaterialStatement>[];
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the $what is never closed.');
-      if (takeWordIf('let')) {
-        final nameToken = take('name', 'the name being bound');
+      if (skipWordIf('let')) {
+        final nameToken = expectToken('name', 'the name being bound');
         checkFreeName(nameToken);
         // Only a `let` is written into the shader under its own name; a
         // parameter is folded to a number and a slot to its binding.
@@ -1178,17 +1247,17 @@ final class _Parser {
             nameToken,
           );
         }
-        take('=', '"=" after the name');
+        expectToken('=', '"=" after the name');
         final value = parseExpression();
         if (!value.type.isNumeric) {
           fail('a "let" binds a number or a vector, not a ${value.type}.');
         }
-        take(';', '";" after the binding');
+        expectToken(';', '";" after the binding');
         locals[nameToken.text] = value.type;
         statements.add(MaterialLet(nameToken.text, value));
-      } else if (body.isVertex && takeWordIf('out')) {
+      } else if (body.isVertex && skipWordIf('out')) {
         statements.add(parseOutput());
-      } else if (!body.isVertex && takeWordIf('return')) {
+      } else if (!body.isVertex && skipWordIf('return')) {
         final value = parseExpression();
         if (value.type != body.returns) {
           fail(switch (body.opening) {
@@ -1216,7 +1285,7 @@ final class _Parser {
                   '${value.type}.',
           });
         }
-        take(';', '";" after the returned value');
+        expectToken(';', '";" after the returned value');
         statements.add(MaterialReturn(value));
         if (current.kind != '}') {
           fail('nothing follows the return in a $what.');
@@ -1248,7 +1317,7 @@ final class _Parser {
 
   /// `out name = value;` in a `vertex` block — version 2.
   MaterialOutput parseOutput() {
-    final nameToken = take('name', 'the output\'s name');
+    final nameToken = expectToken('name', 'the output\'s name');
     final name = nameToken.text;
     final output =
         materialVertexOutputs.where((o) => o.name == name).firstOrNull ??
@@ -1265,88 +1334,27 @@ final class _Parser {
         nameToken,
       );
     }
-    take('=', '"=" after the output');
+    expectToken('=', '"=" after the output');
     final value = parseExpression();
     if (value.type != output.type) {
       fail('"$name" is a ${output.type}, and this is a ${value.type}.');
     }
-    take(';', '";" after the output');
+    expectToken(';', '";" after the output');
     return MaterialOutput(output, value);
   }
 
-  // Expressions, by precedence: sum over product over unary over postfix.
+  /// `sample(slot, uv)`, the one call that reads something outside the
+  /// material.
+  @override
+  MaterialExpression? parseSpecialCall(ExpressionToken name) =>
+      name.text == 'sample' ? sampleCall(name) : null;
 
-  MaterialExpression parseExpression() {
-    var left = parseProduct();
-    while (current.kind == '+' || current.kind == '-') {
-      final op = take(current.kind, 'an operator');
-      final right = parseProduct();
-      left = binary(op, left, right);
-    }
-    return left;
-  }
-
-  MaterialExpression parseProduct() {
-    var left = parseUnary();
-    while (current.kind == '*' || current.kind == '/') {
-      final op = take(current.kind, 'an operator');
-      final right = parseUnary();
-      left = binary(op, left, right);
-    }
-    return left;
-  }
-
-  MaterialExpression parseUnary() {
-    if (current.kind == '-') {
-      final token = take('-', '"-"');
-      final operand = parseUnary();
-      if (!operand.type.isNumeric) {
-        fail('a ${operand.type} cannot be negated.', token);
-      }
-      if (operand is MaterialConstant) {
-        return MaterialConstant(<double>[
-          for (final component in operand.value) -component,
-        ], operand.type);
-      }
-      return MaterialNegate(operand);
-    }
-    return parsePostfix();
-  }
-
-  MaterialExpression parsePostfix() {
-    var value = parsePrimary();
-    while (takeIf('.')) {
-      final field = take('name', 'a component after "."');
-      value = swizzle(value, field);
-    }
-    return value;
-  }
-
-  MaterialExpression parsePrimary() {
-    if (takeIf('(')) {
-      final inner = parseExpression();
-      take(')', '")"');
-      return inner;
-    }
-    if (current.kind == 'number') {
-      final token = take('number', 'a number');
-      return MaterialConstant(<double>[token.number!], MaterialType.float);
-    }
-    if (current.kind != 'name') {
-      fail('expected a value, found "${current.text}".');
-    }
-
-    final token = take('name', 'a value');
+  /// A material's names, in the order a body sees them: its `let`s, its
+  /// parameters, then the inputs of the body being read; and a sentence
+  /// naming where a name it cannot read here is read instead.
+  @override
+  MaterialExpression resolveName(ExpressionToken token) {
     final name = token.text;
-
-    // A constructor.
-    for (final type in MaterialType.numeric.values) {
-      if (type.name == name) return construct(type, token);
-    }
-    if (name == 'sample') return sampleCall(token);
-    final builtin = MaterialBuiltin.byName(name);
-    if (builtin != null) return call(builtin, token);
-
     final local = locals[name];
     if (local != null) return MaterialLocalRef(name, local);
     final parameter = parameterNamed(name);
@@ -1437,58 +1445,7 @@ final class _Parser {
     return null;
   }
 
-  List<MaterialExpression> arguments() {
-    take('(', '"(" and the arguments');
-    final arguments = <MaterialExpression>[];
-    if (!takeIf(')')) {
-      do {
-        arguments.add(parseExpression());
-      } while (takeIf(','));
-      take(')', '")" after the arguments');
-    }
-    return arguments;
-  }
-
-  MaterialExpression construct(MaterialType type, _Token token) {
-    final parts = arguments();
-    var components = 0;
-    for (final part in parts) {
-      if (!part.type.isNumeric) {
-        fail('a ${part.type} is not a number and cannot go in a $type.', token);
-      }
-      components += part.type.components;
-    }
-    // GLSL's own rule for the one-argument case: `vec3(1.0)` is every
-    // component. Anything else has to add up exactly.
-    if (parts.length == 1 && parts.single.type == MaterialType.float) {
-      final only = parts.single;
-      if (only is MaterialConstant) {
-        return MaterialConstant(
-          List<double>.filled(type.components, only.value.single),
-          type,
-        );
-      }
-      return MaterialConstruct(
-        List<MaterialExpression>.filled(type.components, only),
-        type,
-      );
-    }
-    if (components != type.components) {
-      fail(
-        'a $type takes ${type.components} components and these add up to '
-        '$components.',
-        token,
-      );
-    }
-    if (parts.every((p) => p is MaterialConstant)) {
-      return MaterialConstant(<double>[
-        for (final part in parts) ...(part as MaterialConstant).value,
-      ], type);
-    }
-    return MaterialConstruct(parts, type);
-  }
-
-  MaterialExpression sampleCall(_Token token) {
+  MaterialExpression sampleCall(ExpressionToken token) {
     final body = block;
     if (body != null && !body.samples) {
       fail(
@@ -1498,8 +1455,8 @@ final class _Parser {
         token,
       );
     }
-    take('(', '"(" after sample');
-    final slotToken = take('name', 'the texture slot');
+    expectToken('(', '"(" after sample');
+    final slotToken = expectToken('name', 'the texture slot');
     final slot = textureNamed(slotToken.text);
     if (slot == null) {
       fail(
@@ -1508,108 +1465,12 @@ final class _Parser {
       );
     }
     sampled.add(slot.name);
-    take(',', '"," and the coordinates');
+    expectToken(',', '"," and the coordinates');
     final uv = parseExpression();
     if (uv.type != MaterialType.vec2) {
       fail('sample takes a vec2 of coordinates, not a ${uv.type}.', token);
     }
-    take(')', '")" after sample');
+    expectToken(')', '")" after sample');
     return MaterialSample(slot, uv);
-  }
-
-  MaterialExpression call(MaterialBuiltin builtin, _Token token) {
-    final parts = arguments();
-    if (parts.length != builtin.arity) {
-      fail(
-        '${builtin.name} takes ${builtin.arity} arguments and was given '
-        '${parts.length}.',
-        token,
-      );
-    }
-    var width = 1;
-    for (final part in parts) {
-      if (!part.type.isNumeric) {
-        fail('${builtin.name} takes numbers, not a ${part.type}.', token);
-      }
-      if (part.type.components > width) width = part.type.components;
-    }
-    for (final part in parts) {
-      final components = part.type.components;
-      if (components != width && !(builtin.componentWise && components == 1)) {
-        fail(
-          '${builtin.name} was given a ${part.type} beside a '
-          '${MaterialType.numeric[width]}.',
-          token,
-        );
-      }
-    }
-    final resultWidth = builtin.resultComponents ?? width;
-    return MaterialCall(builtin, parts, MaterialType.numeric[resultWidth]!);
-  }
-
-  MaterialExpression binary(
-    _Token op,
-    MaterialExpression left,
-    MaterialExpression right,
-  ) {
-    if (!left.type.isNumeric || !right.type.isNumeric) {
-      fail('"${op.text}" works on numbers, not on a texture.', op);
-    }
-    final a = left.type.components;
-    final b = right.type.components;
-    if (a != b && a != 1 && b != 1) {
-      fail(
-        'a ${left.type} and a ${right.type} cannot be combined with '
-        '"${op.text}".',
-        op,
-      );
-    }
-    return MaterialBinary(
-      op.text,
-      left,
-      right,
-      MaterialType.numeric[a > b ? a : b]!,
-    );
-  }
-
-  MaterialExpression swizzle(MaterialExpression target, _Token field) {
-    if (!target.type.isNumeric) {
-      fail('a ${target.type} has no components.', field);
-    }
-    const sets = <String>['xyzw', 'rgba'];
-    final indices = <int>[];
-    String? chosen;
-    for (final letter in field.text.split('')) {
-      final set = sets.firstWhere((s) => s.contains(letter), orElse: () => '');
-      if (set.isEmpty) {
-        fail(
-          '"$letter" is not a component: xyzw and rgba are, and one '
-          'swizzle does not mix the two.',
-          field,
-        );
-      }
-      // GLSL refuses `.xg` too, and for the reason it reads badly rather than
-      // for one about the hardware: two names for the same component in one
-      // expression is somebody having lost track of which vector they are in.
-      chosen ??= set;
-      if (set != chosen) {
-        fail('"${field.text}" mixes xyzw with rgba.', field);
-      }
-      final index = set.indexOf(letter);
-      if (index >= target.type.components) {
-        fail('a ${target.type} has no "$letter".', field);
-      }
-      indices.add(index);
-    }
-    if (indices.isEmpty || indices.length > 4) {
-      fail('"${field.text}" is not one to four components.', field);
-    }
-    final type = MaterialType.numeric[indices.length]!;
-    if (target is MaterialConstant) {
-      return MaterialConstant(<double>[
-        for (final index in indices) target.value[index],
-      ], type);
-    }
-    return MaterialSwizzle(target, indices, type);
   }
 }

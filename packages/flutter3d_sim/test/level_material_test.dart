@@ -80,4 +80,60 @@ void main() {
       reason: 'a material with nothing to say must go on saying nothing',
     );
   });
+
+  test('a material instance keeps its values and the version they were '
+      'written for', () {
+    // The loader lifts the values through the material's updates; the level
+    // keeps the version as the document said it, so a level written for an
+    // older material is not read as if it were current.
+    //
+    // Mutation: drop `materialVersion` from `toJson`, and the save forgets
+    // which version the values belong to.
+    final document = <String, Object?>{
+      'fmat': 'assets/materials/hatch.fmat',
+      'parameters': <String, Object?>{
+        'ink': <num>[0.1, 0.2, 0.3],
+        'roughness': 0.5,
+      },
+      'materialVersion': 2,
+    };
+    final read = LevelMaterial.fromJson(document);
+    expect(read.parameters, <String, List<double>>{
+      'ink': <double>[0.1, 0.2, 0.3],
+      'roughness': <double>[0.5],
+    });
+    expect(read.materialVersion, 2);
+    expect(read.toJson(), document);
+
+    final built = LevelMaterial(
+      parameters: const <String, List<double>>{
+        'inkColor': <double>[1, 0, 0],
+      },
+      materialVersion: 3,
+    ).toJson();
+    expect(built['parameters'], <String, Object?>{
+      'inkColor': <double>[1, 0, 0],
+    });
+    expect(built['materialVersion'], 3);
+
+    final plain = LevelMaterial.fromJson(const <String, Object?>{});
+    expect(plain.parameters, isEmpty);
+    expect(plain.materialVersion, isNull);
+    expect(plain.toJson().containsKey('parameters'), isFalse);
+    expect(plain.toJson().containsKey('materialVersion'), isFalse);
+  });
+
+  test('a material instance that is not one is refused, saying why', () {
+    expect(
+      () => LevelMaterial.fromJson(const <String, Object?>{
+        'parameters': <String, Object?>{'ink': 'red'},
+      }),
+      throwsA(isA<LevelFormatException>()),
+    );
+    expect(
+      () =>
+          LevelMaterial.fromJson(const <String, Object?>{'materialVersion': 0}),
+      throwsA(isA<LevelFormatException>()),
+    );
+  });
 }

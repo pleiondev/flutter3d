@@ -20149,3 +20149,138 @@ entries:
       library to `renderer.renderSteps.addMaterials`, which takes it out
       again when its registration is cancelled. `GpuRenderBackend.open` no
       longer takes `extraBundles`.
+
+  # The material language stands on the expression language: its arithmetic
+  # nodes, types and builtins are the foundation's under their material
+  # names, so every name still reads and every call still compiles.
+
+  - id: 3e0-core-MaterialExpression-typedef
+    package: flutter3d_core
+    symbol: MaterialExpression
+    kind: none
+    wave: 3
+    reason: >-
+      `MaterialExpression` is now a name of the expression language's
+      `Expression`, with the same `type` and `accept`; an expression kind of
+      your own still extends it, and a visitor still extends
+      `MaterialExpressionVisitor`.
+
+  - id: 3e0-core-MaterialConstant-typedef
+    package: flutter3d_core
+    symbol: MaterialConstant
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionConstant`, with the same constructor, `value` and
+      `type`.
+
+  - id: 3e0-core-MaterialConstruct-typedef
+    package: flutter3d_core
+    symbol: MaterialConstruct
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionConstruct`, with the same constructor and
+      `arguments`.
+
+  - id: 3e0-core-MaterialSwizzle-typedef
+    package: flutter3d_core
+    symbol: MaterialSwizzle
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionSwizzle`, with the same constructor, `target` and
+      `components`.
+
+  - id: 3e0-core-MaterialNegate-typedef
+    package: flutter3d_core
+    symbol: MaterialNegate
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionNegate`, with the same constructor and `operand`.
+
+  - id: 3e0-core-MaterialBinary-typedef
+    package: flutter3d_core
+    symbol: MaterialBinary
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionBinary`, with the same constructor, `op`, `left`
+      and `right`.
+
+  - id: 3e0-core-MaterialCall-typedef
+    package: flutter3d_core
+    symbol: MaterialCall
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionCall`, with the same constructor, `builtin` and
+      `arguments`.
+
+  - id: 3e0-core-MaterialType-typedef
+    package: flutter3d_core
+    symbol: MaterialType
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionType`: `float`, `vec2`, `vec3`, `vec4`, `texture`,
+      `numeric`, `name`, `components` and `isNumeric` read as before. A type
+      now also says the dimension it measures, which for a material is
+      always none.
+
+  - id: 3e0-core-MaterialBuiltin-typedef
+    package: flutter3d_core
+    symbol: MaterialBuiltin
+    kind: none
+    wave: 3
+    reason: >-
+      A name of `ExpressionBuiltin`, with the same constants, `byName`,
+      `apply`, `arity`, `componentWise` and `resultComponents`. `all` now
+      lists the expression language's builtins; the sixteen a material may
+      call are `materialBuiltins`. `glsl` is `name`, the same word.
+
+  - id: 3e0-core-MaterialBuiltin-glsl
+    package: flutter3d_core
+    symbol: MaterialBuiltin.glsl
+    kind: rewrite
+    wave: 3
+    template: '{target}.name'
+    imports: [package:flutter3d_core/formats.dart]
+
+  - id: 3e0-core-MaterialInputRef-variable
+    package: flutter3d_core
+    symbol: MaterialInputRef
+    kind: none
+    wave: 3
+    reason: >-
+      It extends the expression language's `ExpressionVariable`, named as
+      its input; `input`, the constructor and a material visitor's
+      `visitInputRef` are unchanged.
+
+  - id: 3e0-core-MaterialParamRef-variable
+    package: flutter3d_core
+    symbol: MaterialParamRef
+    kind: none
+    wave: 3
+    reason: >-
+      It extends `ExpressionVariable`, named as its parameter; `parameter`,
+      the constructor and `visitParamRef` are unchanged.
+
+  - id: 3e0-core-MaterialLocalRef-variable
+    package: flutter3d_core
+    symbol: MaterialLocalRef
+    kind: none
+    wave: 3
+    reason: >-
+      It extends `ExpressionVariable`; `name`, the constructor and
+      `visitLocalRef` are unchanged.
+
+  - id: 3e0-core-MaterialSample-expression
+    package: flutter3d_core
+    symbol: MaterialSample
+    kind: none
+    wave: 3
+    reason: >-
+      It extends `Expression`, which `MaterialExpression` now names; `slot`,
+      `uv`, the constructor and `visitSample` are unchanged.

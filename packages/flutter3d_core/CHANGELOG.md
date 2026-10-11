@@ -1,5 +1,29 @@
 ## 1.0.0-rc.1
 
+- **A material has a version of its own, and updates.** Material language
+  version 3 reads `material Hatch version 3 { updates { 2: rename ink ->
+  inkColor; 3: scale roughness 0.5; } … }`: `MaterialProgram.version` and
+  `MaterialProgram.updates` (`MaterialRenameUpdate`, `MaterialScaleUpdate`,
+  `MaterialRemoveUpdate`, an open `MaterialUpdate`), and
+  `MaterialProgram.lift(values, from:)` carries an instance's values from
+  the version they were written for, refusing a newer one with
+  `MaterialVersionException`. An update of a parameter the material does not
+  declare, or past its version, is refused where it is written. Versions 1
+  and 2 read as before; `test/fixtures/v3/rim_glow.f3dmat` is the new
+  version's fixture.
+- **The material language stands on the expression language.** Its
+  parser extends `flutter3d_foundation`'s `ExpressionParser`, so a
+  material's expressions are that language's tree: `MaterialExpression`,
+  `MaterialConstant`, `MaterialConstruct`, `MaterialSwizzle`,
+  `MaterialNegate`, `MaterialBinary`, `MaterialCall`, `MaterialType` and
+  `MaterialBuiltin` are now names of `Expression`, `ExpressionConstant`,
+  …, `ExpressionType` and `ExpressionBuiltin`; the inputs, parameters and
+  `let`s are `ExpressionVariable`s and `MaterialExpressionVisitor` extends
+  `ExpressionVisitor`. Versions 1 and 2 read exactly as before, which a
+  record of every `.f3dmat` in the repository holds: the tree, the GLSL
+  and the colour. A material calls the sixteen `materialBuiltins`;
+  `MaterialBuiltin.glsl` is `name`, the same word; the builtins compute
+  on `Portable` maths.
 - **A skinning hook writes a buffer the scene draws.** `SkinningHook` names
   its `kernels` and `demand` and `record`s each claimed mesh into
   `SkinningContext.output`, a buffer of `FrameResourceIds.skinnedVertices`

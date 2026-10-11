@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'json_reader.dart';
 import 'json_write_through.dart';
+import 'level_format_exception.dart';
 
 /// The values a document is allowed to leave unsaid.
 ///
@@ -29,6 +30,8 @@ final class LevelMaterial {
     this.orm,
     this.fmat,
     this.depthLayer = 0,
+    this.parameters = const <String, List<double>>{},
+    this.materialVersion,
     Map<String, Object?> source = const <String, Object?>{},
   }) : baseColor = baseColor ?? _defaultBaseColor,
        // ignore: prefer_initializing_formals
@@ -108,6 +111,27 @@ final class LevelMaterial {
   /// `RenderMaterial.depthLayer` draws it.
   final int depthLayer;
 
+  /// The values this surface gives the parameters of the material it is
+  /// drawn with, when that material is written in the engine's material
+  /// language: each a parameter's name and its components, as
+  /// `RenderMaterial.parameters` takes them.
+  ///
+  /// Empty is every level written so far, and the material's defaults.
+  final Map<String, List<double>> parameters;
+
+  /// The version of that material [parameters] were written for: its
+  /// `material Name version N`. Null for a level that predates material
+  /// versions, which is read as version 1.
+  ///
+  /// **The level keeps the version, and the loader lifts the values.** A
+  /// material that renamed or rescaled a parameter since says how, in its
+  /// `updates` block; the loader, which reads both the level and the
+  /// material, carries [parameters] from this version to the material's
+  /// own with `MaterialProgram.lift` and writes the new version back when
+  /// the level is saved. This package does not read materials, so it keeps
+  /// the number exactly as the document said it.
+  final int? materialVersion;
+
   /// [baseColor] as the document stores it: sRGB-encoded, in single
   /// precision, which is what a level file has always said.
   Vector4 get storedBaseColor {
@@ -140,8 +164,38 @@ final class LevelMaterial {
     orm: json.textOrNull('orm'),
     fmat: json.textOrNull('fmat'),
     depthLayer: json.integerOrNull('depthLayer') ?? 0,
+    parameters: _parameters(json['parameters']),
+    materialVersion: switch (json.integerOrNull('materialVersion')) {
+      final int version when version < 1 => throw LevelFormatException(
+        'a material version counts from 1, and this one says $version',
+      ),
+      final version => version,
+    },
     source: json,
   );
+
+  /// A document's `parameters`: each name to a number or a list of them.
+  static Map<String, List<double>> _parameters(Object? json) => switch (json) {
+    null => const <String, List<double>>{},
+    final Map<String, Object?> map => <String, List<double>>{
+      for (final MapEntry(:key, :value) in map.entries)
+        key: switch (value) {
+          final num number => <double>[number.toDouble()],
+          final List<Object?> list
+              when list.isNotEmpty &&
+                  list.length <= 4 &&
+                  list.every((e) => e is num) =>
+            <double>[for (final e in list) (e! as num).toDouble()],
+          _ => throw LevelFormatException(
+            'material parameter "$key" is a number or a list of one to four, '
+            'not $value',
+          ),
+        },
+    },
+    _ => throw LevelFormatException(
+      'a material\'s "parameters" is a map of names to numbers, not $json',
+    ),
+  };
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
     WriteThroughField(
@@ -166,5 +220,14 @@ final class LevelMaterial {
     // an editor's change to the field reach the document.
     WriteThroughField('fmat', fmat, whenAbsent: fmat != null),
     WriteThroughField('depthLayer', depthLayer, whenAbsent: depthLayer != 0),
+    WriteThroughField('parameters', <String, Object?>{
+      for (final MapEntry(:key, :value) in parameters.entries)
+        key: value.length == 1 ? value.single : value,
+    }, whenAbsent: parameters.isNotEmpty),
+    WriteThroughField(
+      'materialVersion',
+      materialVersion,
+      whenAbsent: materialVersion != null,
+    ),
   ]);
 }

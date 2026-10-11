@@ -437,6 +437,19 @@ final class Unit {
     newtonPerMeter,
   ];
 
+  /// The coherent SI unit of [dimension]: scale one, no offset, written as
+  /// its dimension (`kg·m·s⁻²`), or a named unit of this class when one is
+  /// exactly that (`N`), so a value an expression computes reads as it is
+  /// usually written.
+  static Unit coherent(Dimension dimension) {
+    for (final unit in named) {
+      if (unit.dimension == dimension && unit.scale == 1 && unit.offset == 0) {
+        return unit;
+      }
+    }
+    return Unit('$dimension', dimension);
+  }
+
   // ------------------------------------------------------------ the algebra
 
   /// Whether a value in this unit can be converted to [other]: the two

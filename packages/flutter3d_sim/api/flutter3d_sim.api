@@ -1462,12 +1462,13 @@ final class LevelLightType
   static const List<LevelLightType> values = <LevelLightType>[directional, point, spot]
 
 final class LevelMaterial
-  LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, Map<String, Object?> source = const <String, Object?>{}})
+  LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, this.parameters = const <String, List<double>>{}, this.materialVersion, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
   Vector4 get storedBaseColor
   bool get hasMaps
   factory LevelMaterial.fromJson(Map<String, Object?> json)
   final LinearColor baseColor
+  final Map<String, List<double>> parameters
   final String? albedo
   final String? fmat
   final String? normal
@@ -1477,6 +1478,7 @@ final class LevelMaterial
   final double roughness
   final double texelsPerMeter
   final int depthLayer
+  final int? materialVersion
 
 final class LevelPatch
   LevelPatchResult applyTo(Level level)

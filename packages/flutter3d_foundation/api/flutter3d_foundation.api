@@ -20,6 +20,17 @@ abstract base class Capability
 abstract base class CapabilityException extends Flutter3dException
   const CapabilityException()
 
+final class CompiledExpression
+  ExpressionType get type
+  List<double> evaluate(List<List<double>> slots)
+  List<double> evaluateNamed(Map<String, Object> values)
+  Quantity quantity(Map<String, Object> values)
+  bool truth(Map<String, Object> values)
+  factory CompiledExpression(Expression expression)
+  final Expression expression
+  final List<ExpressionType> types
+  final List<String> variables
+
 typedef CrashReporter = void Function(Object error, StackTrace stackTrace, LogRecord record);
 
 final class Dimension
@@ -65,6 +76,204 @@ final class EngineLog
   void info(String message, {String source = ''})
   void trace(String message, {String source = ''})
   void warning(String message, {String source = '', Object? error, StackTrace? stackTrace})
+
+abstract base class Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const Expression(this.type)
+  final ExpressionType type
+
+final class ExpressionBinary extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionBinary(this.op, this.left, this.right, ExpressionType type)
+  final Expression left
+  final Expression right
+  final String op
+
+final class ExpressionBuiltin
+  String toString()
+  const ExpressionBuiltin(this.name, {required this.arity, required this.apply, required this.dimension, required this.units, this.componentWise = true, this.resultComponents})
+  final Dimension? Function(List<Expression> arguments) dimension
+  final List<double> Function(List<List<double>> arguments) apply
+  final String name
+  final String units
+  final bool componentWise
+  final int arity
+  final int? resultComponents
+  static ExpressionBuiltin? byName(String name)
+  static const ExpressionBuiltin abs = ExpressionBuiltin('abs', arity: 1, apply: _abs, dimension: _first, units: 'takes any dimension')
+  static const ExpressionBuiltin acos = ExpressionBuiltin('acos', arity: 1, apply: _acos, dimension: _pureOnly, units: 'takes a pure number')
+  static const ExpressionBuiltin asin = ExpressionBuiltin('asin', arity: 1, apply: _asin, dimension: _pureOnly, units: 'takes a pure number')
+  static const ExpressionBuiltin atan = ExpressionBuiltin('atan', arity: 1, apply: _atan, dimension: _pureOnly, units: 'takes a pure number')
+  static const ExpressionBuiltin atan2 = ExpressionBuiltin('atan2', arity: 2, apply: _atan2, dimension: _sameToPure, units: 'takes arguments of one dimension')
+  static const ExpressionBuiltin clamp = ExpressionBuiltin('clamp', arity: 3, apply: _clamp, dimension: _same, units: 'takes arguments of one dimension')
+  static const ExpressionBuiltin cos = ExpressionBuiltin('cos', arity: 1, apply: _cos, dimension: _angleToPure, units: 'takes an angle or a pure number')
+  static const ExpressionBuiltin dot = …
+  static const ExpressionBuiltin exp = ExpressionBuiltin('exp', arity: 1, apply: _exp, dimension: _pureOnly, units: 'takes a pure number')
+  static const ExpressionBuiltin floor = ExpressionBuiltin('floor', arity: 1, apply: _floor, dimension: _first, units: 'takes any dimension')
+  static const ExpressionBuiltin fract = ExpressionBuiltin('fract', arity: 1, apply: _fract, dimension: _first, units: 'takes any dimension')
+  static const ExpressionBuiltin length = ExpressionBuiltin('length', arity: 1, apply: _length, dimension: _first, units: 'takes any dimension', componentWise: false, resultComponents: 1)
+  static const ExpressionBuiltin log = ExpressionBuiltin('log', arity: 1, apply: _log, dimension: _pureOnly, units: 'takes a pure number')
+  static const ExpressionBuiltin max = ExpressionBuiltin('max', arity: 2, apply: _max, dimension: _same, units: 'takes arguments of one dimension')
+  static const ExpressionBuiltin min = ExpressionBuiltin('min', arity: 2, apply: _min, dimension: _same, units: 'takes arguments of one dimension')
+  static const ExpressionBuiltin mix = ExpressionBuiltin('mix', arity: 3, apply: _mix, dimension: _mixDimension, units: 'takes two ends of one dimension and a pure number between them')
+  static const ExpressionBuiltin normalize = ExpressionBuiltin('normalize', arity: 1, apply: _normalize, dimension: _pure, units: 'takes any dimension, and answers a pure direction', componentWise: false)
+  static const ExpressionBuiltin pow = …
+  static const ExpressionBuiltin sign = ExpressionBuiltin('sign', arity: 1, apply: _sign, dimension: _pure, units: 'takes any dimension')
+  static const ExpressionBuiltin sin = ExpressionBuiltin('sin', arity: 1, apply: _sin, dimension: _angleToPure, units: 'takes an angle or a pure number')
+  static const ExpressionBuiltin smoothstep = ExpressionBuiltin('smoothstep', arity: 3, apply: _smoothstep, dimension: _sameToPure, units: 'takes arguments of one dimension')
+  static const ExpressionBuiltin sqrt = ExpressionBuiltin('sqrt', arity: 1, apply: _sqrt, dimension: _sqrtDimension, units: 'takes a dimension whose exponents are even')
+  static const ExpressionBuiltin step = ExpressionBuiltin('step', arity: 2, apply: _step, dimension: _sameToPure, units: 'takes arguments of one dimension')
+  static const ExpressionBuiltin tan = ExpressionBuiltin('tan', arity: 1, apply: _tan, dimension: _angleToPure, units: 'takes an angle or a pure number')
+  static const List<ExpressionBuiltin> all = …
+
+final class ExpressionCall extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionCall(this.builtin, this.arguments, ExpressionType type)
+  final ExpressionBuiltin builtin
+  final List<Expression> arguments
+
+final class ExpressionCodec
+  Expression decode(String text)
+  Expression fromJson(Object? json)
+  Object toJson(Expression expression)
+  String encode(Expression expression)
+  const ExpressionCodec({this.scope = const ExpressionScope()})
+  final ExpressionScope scope
+
+final class ExpressionConditional extends Expression
+  ExpressionConditional(this.condition, this.then, this.otherwise)
+  R accept<R>(ExpressionVisitor<R> visitor)
+  final Expression condition
+  final Expression otherwise
+  final Expression then
+
+final class ExpressionConstant extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionConstant(this.value, ExpressionType type)
+  final List<double> value
+
+final class ExpressionConstruct extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionConstruct(this.arguments, ExpressionType type)
+  final List<Expression> arguments
+
+final class ExpressionNegate extends Expression
+  ExpressionNegate(this.operand)
+  R accept<R>(ExpressionVisitor<R> visitor)
+  final Expression operand
+
+final class ExpressionNot extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionNot(this.operand)
+  final Expression operand
+
+base class ExpressionParser
+  Expression binary(ExpressionToken op, Expression left, Expression right)
+  Expression call(ExpressionBuiltin builtin, ExpressionToken token)
+  Expression comparison(ExpressionToken op, Expression left, Expression right)
+  Expression construct(ExpressionType type, ExpressionToken token)
+  Expression logical(ExpressionToken op, Expression left, Expression right)
+  Expression parseAnd()
+  Expression parseComparison()
+  Expression parseConditional()
+  Expression parseExpression()
+  Expression parseOr()
+  Expression parsePostfix()
+  Expression parsePrimary()
+  Expression parseProduct()
+  Expression parseSum()
+  Expression parseUnary()
+  Expression quantity(ExpressionToken number, ExpressionToken unitToken)
+  Expression resolveName(ExpressionToken name)
+  Expression swizzle(Expression target, ExpressionToken field)
+  Expression? parseSpecialCall(ExpressionToken name)
+  ExpressionBuiltin? builtinNamed(String name)
+  ExpressionParser(this.tokens, {this.scope = const ExpressionScope(), this.syntax = ExpressionSyntax.standard})
+  ExpressionToken expectToken(String kind, String what)
+  ExpressionToken get current
+  List<Expression> arguments()
+  Never fail(String message, [ExpressionToken? where])
+  bool skipIf(String kind)
+  bool skipWordIf(String word)
+  final ExpressionScope scope
+  final ExpressionSyntax syntax
+  final List<ExpressionToken> tokens
+  int position
+
+final class ExpressionScope
+  const ExpressionScope({this.variables = const <String, ExpressionType>{}, this.builtins = ExpressionBuiltin.all, this.units = const <Unit>[]})
+  factory ExpressionScope.quantities(Map<String, Unit> variables, {List<ExpressionBuiltin> builtins = ExpressionBuiltin.all, List<Unit> units = const <Unit>[]})
+  final List<ExpressionBuiltin> builtins
+  final List<Unit> units
+  final Map<String, ExpressionType> variables
+
+final class ExpressionSwizzle extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionSwizzle(this.target, this.components, ExpressionType type)
+  final Expression target
+  final List<int> components
+
+final class ExpressionSyntax
+  const ExpressionSyntax({this.units = true, this.exponents = true, this.logic = true, this.punctuation = ''})
+  final String punctuation
+  final bool exponents
+  final bool logic
+  final bool units
+  static const ExpressionSyntax standard = ExpressionSyntax()
+
+final class ExpressionSyntaxException extends Flutter3dFormatException
+  String toString()
+  const ExpressionSyntaxException(this.message, this.line, this.column)
+  final String message
+  final int column
+  final int line
+
+final class ExpressionToken
+  String toString()
+  const ExpressionToken(this.kind, this.text, this.line, this.column, [this.number])
+  final String kind
+  final String text
+  final double? number
+  final int column
+  final int line
+
+final class ExpressionType
+  ExpressionType withDimension(Dimension other)
+  String toString()
+  bool get isNumeric
+  bool operator ==(Object other)
+  const ExpressionType(this.name, this.components, {this.dimension = Dimension.none, this.isBoolean = false})
+  final Dimension dimension
+  final String name
+  final bool isBoolean
+  final int components
+  int get hashCode
+  static ExpressionType measuring(Unit unit, [int components = 1])
+  static const ExpressionType boolean = ExpressionType('bool', 1, isBoolean: true)
+  static const ExpressionType float = ExpressionType('float', 1)
+  static const ExpressionType texture = ExpressionType('texture', 0)
+  static const ExpressionType vec2 = ExpressionType('vec2', 2)
+  static const ExpressionType vec3 = ExpressionType('vec3', 3)
+  static const ExpressionType vec4 = ExpressionType('vec4', 4)
+  static const Map<int, ExpressionType> numeric = <int, ExpressionType>{1: float, 2: vec2, 3: vec3, 4: vec4}
+
+base class ExpressionVariable extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const ExpressionVariable(this.name, ExpressionType type)
+  final String name
+
+abstract base class ExpressionVisitor<R>
+  abstract R visitBinary(ExpressionBinary expression)
+  abstract R visitCall(ExpressionCall expression)
+  abstract R visitConditional(ExpressionConditional expression)
+  abstract R visitConstant(ExpressionConstant expression)
+  abstract R visitConstruct(ExpressionConstruct expression)
+  abstract R visitNegate(ExpressionNegate expression)
+  abstract R visitNot(ExpressionNot expression)
+  abstract R visitSwizzle(ExpressionSwizzle expression)
+  abstract R visitUnknown(Expression expression)
+  abstract R visitVariable(ExpressionVariable expression)
+  const ExpressionVisitor()
 
 abstract base class Flutter3dException implements Exception
   Object? get cause
@@ -282,6 +491,7 @@ final class Unit
   final double offset
   final double scale
   int get hashCode
+  static Unit coherent(Dimension dimension)
   static Unit fromJson(Object? json, {Iterable<Unit> also = const <Unit>[]})
   static Unit parse(String text, {Iterable<Unit> also = const <Unit>[]})
   static Unit? tryParse(String text, {Iterable<Unit> also = const <Unit>[]})
@@ -376,3 +586,13 @@ final class WorldPosition
 
 extension WorldPositionVector on WorldPosition
   Vector3 toVector3Relative(WorldPosition origin)
+
+List<double> applyExpressionOperator(String op, List<double> a, List<double> b)
+
+List<List<double>> broadcastExpressionArguments(List<List<double>> arguments, ExpressionBuiltin builtin)
+
+const List<String> expressionOperators = <String>['||', '&&', '<', '<=', '>', '>=', '==', '!=', '+', '-', '*', '/']
+
+Expression parseExpression(String source, {ExpressionScope scope = const ExpressionScope(), ExpressionSyntax syntax = ExpressionSyntax.standard})
+
+List<ExpressionToken> tokenizeExpression(String source, {ExpressionSyntax syntax = ExpressionSyntax.standard})
