@@ -69,6 +69,18 @@ F3D_API int f3d_joint_set_limit_stiffness__w(void * world, uint32_t joint_low, u
   return f3d_joint_set_limit_stiffness((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, growth, lower, upper, ahead, behind, side, other_side);
 }
 
+F3D_API int f3d_joint_set_drive__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real qx, f3d_real qy, f3d_real qz, f3d_real qw, f3d_real stiffness, f3d_real damping, f3d_real max_torque) {
+  return f3d_joint_set_drive((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, qx, qy, qz, qw, stiffness, damping, max_torque);
+}
+
+F3D_API int f3d_joint_set_drive_fade__w(void * world, uint32_t joint_low, uint32_t joint_high, f3d_real floor, f3d_real fade) {
+  return f3d_joint_set_drive_fade((void *)world, ((uint64_t)joint_high << 32) | joint_low, floor, fade);
+}
+
+F3D_API int f3d_joint_get_drive_level__w(void * world, uint32_t joint_low, uint32_t joint_high, void * out) {
+  return f3d_joint_get_drive_level((void *)world, ((uint64_t)joint_high << 32) | joint_low, (void *)out);
+}
+
 F3D_API int f3d_joint_set_motor__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real speed, f3d_real max_force) {
   return f3d_joint_set_motor((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, speed, max_force);
 }

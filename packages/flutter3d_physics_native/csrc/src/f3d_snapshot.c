@@ -571,6 +571,15 @@ static void io_joint(Io *io, F3dJointSlot *j) {
    * as. */
   io_real(io, &j->limit_growth);
   io_reals(io, j->limit_at, 6);
+  /* Grown after those: a joint written before its drive has none. */
+  io_u8(io, &j->driven);
+  io_quat(io, &j->drive_target);
+  io_real(io, &j->drive_stiffness);
+  io_real(io, &j->drive_damping);
+  io_real(io, &j->drive_torque);
+  io_real(io, &j->drive_level);
+  io_real(io, &j->drive_floor);
+  io_real(io, &j->drive_fade);
 }
 
 static void io_compound(Io *io, F3dCompound *c) {

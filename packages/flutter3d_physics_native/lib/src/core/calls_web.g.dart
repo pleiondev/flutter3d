@@ -633,6 +633,35 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber side,
     JSNumber otherSide,
   );
+  @JS('f3d_joint_set_drive__w')
+  external JSNumber f3d_joint_set_drive(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber qx,
+    JSNumber qy,
+    JSNumber qz,
+    JSNumber qw,
+    JSNumber stiffness,
+    JSNumber damping,
+    JSNumber maxTorque,
+  );
+  @JS('f3d_joint_set_drive_fade__w')
+  external JSNumber f3d_joint_set_drive_fade(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber floor,
+    JSNumber fade,
+  );
+  @JS('f3d_joint_get_drive_level__w')
+  external JSNumber f3d_joint_get_drive_level(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber out,
+  );
   @JS('f3d_joint_set_motor__w')
   external JSNumber f3d_joint_set_motor(
     JSNumber world,
@@ -2263,6 +2292,50 @@ int f3d_joint_set_limit_stiffness(
       behind.toJS,
       side.toJS,
       otherSide.toJS,
+    )
+    .toDartInt;
+int f3d_joint_set_drive(
+  int world,
+  int joint,
+  int enabled,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double stiffness,
+  double damping,
+  double maxTorque,
+) => _x
+    .f3d_joint_set_drive(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      enabled.toJS,
+      qx.toJS,
+      qy.toJS,
+      qz.toJS,
+      qw.toJS,
+      stiffness.toJS,
+      damping.toJS,
+      maxTorque.toJS,
+    )
+    .toDartInt;
+int f3d_joint_set_drive_fade(int world, int joint, double floor, double fade) =>
+    _x
+        .f3d_joint_set_drive_fade(
+          world.toJS,
+          lowHalf(joint).toJS,
+          highHalf(joint).toJS,
+          floor.toJS,
+          fade.toJS,
+        )
+        .toDartInt;
+int f3d_joint_get_drive_level(int world, int joint, int out) => _x
+    .f3d_joint_get_drive_level(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      out.toJS,
     )
     .toDartInt;
 int f3d_joint_set_motor(
