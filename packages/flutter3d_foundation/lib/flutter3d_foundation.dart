@@ -8,6 +8,10 @@
 ///   a [Capability];
 /// * [Unit] and [Quantity], a unit as a vector of dimension exponents and a
 ///   value that refuses to cross dimensions;
+/// * the expression language: [parseExpression] into a typed [Expression]
+///   whose units are checked as it is read, [CompiledExpression] to run it
+///   the same to the bit everywhere, [ExpressionCodec] for the text a
+///   document stores, and [ExpressionVisitor] for a translator;
 /// * [WorldPosition], a place in the world in double precision, and
 ///   [LinearColor], the one colour type, with their crossings into
 ///   `vector_math`'s float32 vectors ([WorldPositionVector],
@@ -30,6 +34,7 @@
 library;
 
 export 'src/exceptions.dart';
+export 'src/expressions.dart';
 export 'src/formats.dart';
 export 'src/issues.dart';
 export 'src/linear_color.dart';
