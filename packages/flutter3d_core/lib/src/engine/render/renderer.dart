@@ -303,6 +303,10 @@ final class Renderer with RenderServices {
   }
 
   void _relayerShaders() {
+    _releasePipelinesAfterFrame(<PipelineHandle>[
+      ..._predrawPipelines.values,
+      ..._pipelineCache.values,
+    ]);
     _fragmentShaders.clear();
     _opaqueStages.clear();
     _predrawPipelines.clear();
@@ -759,7 +763,13 @@ final class Renderer with RenderServices {
   /// already-trimmed pool, so a caller does not have to track whether it
   /// already ran.
   void dispose() {
+    // Every pipeline the caches and the passes hold, given back now, since a
+    // disposed renderer has no later frame to wait for; then those already
+    // waiting in the ring.
+    _releasePipelines(_heldPipelines.toList());
+    _pendingPipelines.forEach(_releasePipelines);
     _pipelineCache.clear();
+    _fullscreenPipelines.clear();
     _fragmentShaders.clear();
     _opaqueStages.clear();
     _predrawPipelines.clear();
@@ -1311,6 +1321,10 @@ final class Renderer with RenderServices {
   /// is declared.
   final Map<String, PipelineHandle> _pipelineCache = <String, PipelineHandle>{};
 
+  /// The links [_pipelineForAsync] has asked for and not yet had, by key, so
+  /// two meshes of one material start one link between them.
+  final Map<String, Future<void>> _linking = <String, Future<void>>{};
+
   /// Pipelines the renderer has built so far.
   ///
   /// Reported per frame because it is the number that has to stay put: light
@@ -1357,6 +1371,12 @@ final class Renderer with RenderServices {
     for (final contributor in renderSteps._store.contributors.all) {
       contributor.relinkShaders();
     }
+    _releasePipelinesAfterFrame(_heldPipelines);
+    _transmittanceShadowPipeline = null;
+    _skinnedTransmittanceShadowPipeline = null;
+    _instancedTransmittanceShadowPipeline = null;
+    _causticSurfacePipeline = null;
+    _causticPhotonPipeline = null;
     _pipelineCache.clear();
     _fragmentShaders.clear();
     _opaqueStages.clear();
@@ -4758,6 +4778,19 @@ final class Renderer with RenderServices {
       views: views,
       settings: settings,
     );
+    // The scene's pipelines first, every one asked for at once, so a device
+    // that compiles off the thread compiles them side by side while the
+    // event loop runs; the steps after find them linked.
+    final meshes = scene.meshes;
+    final total = meshes.length + steps.length;
+    var linked = 0;
+    await Future.wait(<Future<void>>[
+      for (final node in meshes)
+        _linkSceneVariant(
+          node,
+          _pipelineForAsync,
+        ).then((_) => onProgress?.call(++linked / total)),
+    ]);
     final clock = Stopwatch()..start();
     for (final (i, step) in steps.indexed) {
       // Raised only around the step itself: whatever runs between slices is
@@ -4768,7 +4801,7 @@ final class Renderer with RenderServices {
       } finally {
         _warmingUp = false;
       }
-      onProgress?.call((i + 1) / steps.length);
+      onProgress?.call((meshes.length + i + 1) / total);
       if (clock.elapsed >= slice && i < steps.length - 1) {
         await Future<void>.delayed(Duration.zero);
         clock
@@ -4776,6 +4809,38 @@ final class Renderer with RenderServices {
           ..start();
       }
     }
+  }
+
+  /// Links the pipeline the scene pass will draw [node] with through [link]:
+  /// the lit model's opaque stage (`A1.2`) for anything but a blend or a
+  /// faded node, where the model has one — a mask or a hash is cut by the
+  /// pre-draw and then drawn through it too. Linking the plain stage alone
+  /// left every model but the one the warm-up frames happened to see to link
+  /// during play.
+  T _linkSceneVariant<T>(
+    MeshNode node,
+    T Function(
+      LightingModel model, {
+      required bool skinned,
+      bool instanced,
+      bool lightmapped,
+      bool opaque,
+    })
+    link,
+  ) {
+    final skinned = node.skeleton != null;
+    final instanced = node is InstancedMeshNode;
+    final material = node.material;
+    return link(
+      material.lighting,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: node.lightmapped && !skinned && !instanced,
+      opaque:
+          material.alphaMode != MaterialAlphaMode.blend &&
+          node.tint.a >= 1.0 &&
+          _opaqueStageFor(material.lighting) != null,
+    );
   }
 
   /// What [warmUp] does, as steps small enough to slice between: a lit
@@ -4789,27 +4854,7 @@ final class Renderer with RenderServices {
     required RenderSettings settings,
   }) => <void Function()>[
     for (final node in scene.meshes)
-      () {
-        final skinned = node.skeleton != null;
-        final instanced = node is InstancedMeshNode;
-        final material = node.material;
-        // The variant the scene pass will draw it with: the lit model's
-        // opaque stage (`A1.2`) for anything but a blend or a faded node,
-        // where the model has one — a mask or a hash is cut by the pre-draw
-        // and then drawn through it too. Linking the plain stage alone left
-        // every model but the one the warm-up frames happened to see to link
-        // during play.
-        _pipelineFor(
-          material.lighting,
-          skinned: skinned,
-          instanced: instanced,
-          lightmapped: node.lightmapped && !skinned && !instanced,
-          opaque:
-              material.alphaMode != MaterialAlphaMode.blend &&
-              node.tint.a >= 1.0 &&
-              _opaqueStageFor(material.lighting) != null,
-        );
-      },
+      () => _linkSceneVariant(node, _pipelineFor),
     // And what only a later frame reaches: the tile reset a kept cascade
     // atlas redraws a tile with (`S1`), and the copy a static one is read
     // through — neither runs on a first frame, which draws every tile from a
@@ -5969,6 +6014,8 @@ final class Renderer with RenderServices {
 
     // See [releaseMeshAfterFrame].
     _releaseMeshes(_pendingMeshes[slot]);
+    // See [_releasePipelinesAfterFrame].
+    _releasePipelines(_pendingPipelines[slot]);
   }
 
   /// Bloom and the composite — tone map, look, debug overlay — over an
@@ -6334,6 +6381,77 @@ final class Renderer with RenderServices {
         _kFramesInFlight,
         (_) => <TextureHandle>[],
       );
+
+  /// Every pipeline the renderer holds: its caches and the passes' own.
+  /// A handle may sit in more than one; [_releasePipelines] gives each back
+  /// once.
+  Iterable<PipelineHandle?> get _heldPipelines => <PipelineHandle?>[
+    ..._pipelineCache.values,
+    ..._predrawPipelines.values,
+    ..._fullscreenPipelines.values,
+    _debugLinePipeline,
+    _shadowPipeline,
+    _skinnedShadowPipeline,
+    _instancedShadowPipeline,
+    _maskedShadowPipeline,
+    _skinnedMaskedShadowPipeline,
+    _instancedMaskedShadowPipeline,
+    _maskedCubeShadowPipeline,
+    _skinnedMaskedCubeShadowPipeline,
+    _instancedMaskedCubeShadowPipeline,
+    _transmittanceShadowPipeline,
+    _skinnedTransmittanceShadowPipeline,
+    _instancedTransmittanceShadowPipeline,
+    _causticSurfacePipeline,
+    _causticPhotonPipeline,
+    _bloomUpsamplePipeline,
+    _wboitResolvePipeline,
+    _sceneColourCopyPipeline,
+    _compositePipeline,
+    _probePrefilterPipeline,
+    _skyPipeline,
+    _skyCubePipeline,
+    _skyPhysicalPipeline,
+    _cubeShadowPipeline,
+    _skinnedCubeShadowPipeline,
+    _instancedCubeShadowPipeline,
+    _cubeShadowResetPipeline,
+    _shadowCopyPipeline,
+  ];
+
+  /// Gives the pipelines a cache drops back to the device once no frame in
+  /// flight can still be drawing with them, through the same ring as the
+  /// textures and meshes, filed under the last frame submitted.
+  ///
+  /// **A cache that let go of a pipeline used to leave it to the device.**
+  /// A reload or a material bundle added cleared the renderer's caches and
+  /// built every pipeline again, and the old ones were never released; on a
+  /// backend whose pipelines are driver objects that is a leak per reload.
+  void _releasePipelinesAfterFrame(Iterable<PipelineHandle?> pipelines) {
+    final lastSubmitted =
+        (_frameIndex + _kFramesInFlight - 1) % _kFramesInFlight;
+    final slot = _pendingPipelines[lastSubmitted];
+    for (final pipeline in pipelines) {
+      if (pipeline != null) slot.add(pipeline);
+    }
+  }
+
+  final List<List<PipelineHandle>> _pendingPipelines =
+      List<List<PipelineHandle>>.generate(
+        _kFramesInFlight,
+        (_) => <PipelineHandle>[],
+      );
+
+  /// Disposes each of [pipelines] once, however often it is listed, and
+  /// empties the list when it is the ring's.
+  void _releasePipelines(List<PipelineHandle?> pipelines) {
+    final released = Set<PipelineHandle>.identity();
+    for (final pipeline in pipelines) {
+      if (pipeline == null || pipeline.isDisposed) continue;
+      if (released.add(pipeline)) pipeline.dispose();
+    }
+    pipelines.clear();
+  }
 
   /// Builds and submits the debug overlay for one view. Returns false when there
   /// was nothing to draw.
