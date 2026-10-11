@@ -1286,9 +1286,9 @@ final class WebGlDevice extends GraphicsDevice
 
   /// [createPipeline], linked without waiting for the driver in the calling
   /// turn where the browser offers `KHR_parallel_shader_compile`
-  /// ([parallelShaderCompile]): the program is linked, and its status is
-  /// read once the driver says, without waiting, that it is done — see
-  /// `WebGlShaderLibrary.linkAsync`. A link of the same pair through
+  /// ([supportsParallelShaderCompile]): the program is linked, and its
+  /// status is read once the driver says, without waiting, that it is done —
+  /// see `WebGlShaderLibrary.linkAsync`. A link of the same pair through
   /// [createPipeline] in the meantime finishes that program rather than
   /// linking a second. A pair the linker refuses is reported to
   /// [pipelineRefusals], as [createPipeline] reports it, and the handle's
@@ -1314,7 +1314,7 @@ final class WebGlDevice extends GraphicsDevice
   /// Whether this context links on the driver's threads and says when it is
   /// done (`KHR_parallel_shader_compile`), which is what lets
   /// [createPipelineAsync] link without holding up its caller.
-  bool get parallelShaderCompile => _library.parallelCompile;
+  bool get supportsParallelShaderCompile => _library.parallelCompile;
   set _parallelShaderCompile(bool value) => _library.parallelCompile = value;
 
   /// The program for [handle], whose pair would not link at

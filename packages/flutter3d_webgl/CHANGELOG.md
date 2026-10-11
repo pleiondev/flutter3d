@@ -6,7 +6,8 @@
   the driver is done; a `createPipeline` of the same pair meanwhile finishes
   that program instead of linking a second, and a pair the linker refuses
   is reported to `pipelineRefusals` as `createPipeline` reports it.
-  `WebGlDevice.parallelShaderCompile` says whether the context has it.
+  `WebGlDevice.supportsParallelShaderCompile` says whether the context
+  has it.
 - **Registers its material compiler beside the device.**
   `registerWebGlBackend(compilers:)` adds `WebGlSectionCompiler` to a
   `MaterialCompilerRegistry`: each stage of a material translated to

@@ -55,7 +55,7 @@ Future<WebGlDevice?> _open() async {
       'Unlinkable': _unlinkable,
     }),
   );
-  if (!device.parallelShaderCompile) {
+  if (!device.supportsParallelShaderCompile) {
     markTestSkipped('no KHR_parallel_shader_compile in this browser');
     device.dispose();
     return null;
