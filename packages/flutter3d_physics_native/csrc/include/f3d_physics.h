@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 37u
+#define F3D_ABI_VERSION 38u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -1078,6 +1078,39 @@ F3D_API int f3d_joint_set_cone(F3dWorld *world, F3dJoint joint, int enabled,
  * revolute or prismatic joint has it as a motor of speed nought. */
 F3D_API int f3d_joint_set_friction(F3dWorld *world, F3dJoint joint,
                                    int enabled, f3d_real torque);
+
+/* A spherical joint's swing held inside four limits, radians, each above
+ * nought and below 3: B's axis measured from the neutral direction
+ * (nx, ny, nz), as a turn towards (fx, fy, fz) — made square to it — of at
+ * most [ahead], away from it of at most [behind], and towards neutral ×
+ * ahead and away from that of at most [side] and [other_side], with an
+ * ellipse through the four between them. Both directions are in the world
+ * and taken into A's frame as A stands now, as an axis is when a joint is
+ * made; the neutral need not be B's axis now. A neck that bends forward
+ * further than back, a hip that lifts the thigh ahead further than out:
+ * the limits of an anatomy rather than a cone. It holds beside the cone
+ * and the twist limits. */
+F3D_API int f3d_joint_set_swing(F3dWorld *world, F3dJoint joint, int enabled,
+                                f3d_real nx, f3d_real ny, f3d_real nz,
+                                f3d_real fx, f3d_real fy, f3d_real fz,
+                                f3d_real ahead, f3d_real behind, f3d_real side,
+                                f3d_real other_side);
+
+/* Viscous damping of a spherical or revolute joint: B turning against A
+ * resisted with [damping], N m s per radian, nought or more, times how fast
+ * it turns — what a joint's tissue does, where friction holds against a
+ * fixed torque. Solved implicitly, so no value is too much for the step. */
+F3D_API int f3d_joint_set_damping(F3dWorld *world, F3dJoint joint,
+                                  int enabled, f3d_real damping);
+
+/* Soft limits on a spherical or revolute joint: past its twist or hinge
+ * limits, its cone or its swing limits, it is held back by a spring of
+ * [stiffness], N m per radian, above nought, at damping ratio [ratio] —
+ * the tissue at the end of a joint's range — rather than by its own stiff
+ * one. [enabled] nought makes them hard again. */
+F3D_API int f3d_joint_set_limit_softness(F3dWorld *world, F3dJoint joint,
+                                         int enabled, f3d_real stiffness,
+                                         f3d_real ratio);
 
 /* A motor driving a revolute or prismatic joint at [speed], rad/s or m/s,
  * with at most [max_force], N m or N. */

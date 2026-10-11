@@ -579,6 +579,40 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber enabled,
     JSNumber torque,
   );
+  @JS('f3d_joint_set_swing__w')
+  external JSNumber f3d_joint_set_swing(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber nx,
+    JSNumber ny,
+    JSNumber nz,
+    JSNumber fx,
+    JSNumber fy,
+    JSNumber fz,
+    JSNumber ahead,
+    JSNumber behind,
+    JSNumber side,
+    JSNumber otherSide,
+  );
+  @JS('f3d_joint_set_damping__w')
+  external JSNumber f3d_joint_set_damping(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber damping,
+  );
+  @JS('f3d_joint_set_limit_softness__w')
+  external JSNumber f3d_joint_set_limit_softness(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber stiffness,
+    JSNumber ratio,
+  );
   @JS('f3d_joint_set_motor__w')
   external JSNumber f3d_joint_set_motor(
     JSNumber world,
@@ -2117,6 +2151,64 @@ int f3d_joint_set_friction(int world, int joint, int enabled, double torque) =>
           torque.toJS,
         )
         .toDartInt;
+int f3d_joint_set_swing(
+  int world,
+  int joint,
+  int enabled,
+  double nx,
+  double ny,
+  double nz,
+  double fx,
+  double fy,
+  double fz,
+  double ahead,
+  double behind,
+  double side,
+  double otherSide,
+) => _x
+    .f3d_joint_set_swing(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      enabled.toJS,
+      nx.toJS,
+      ny.toJS,
+      nz.toJS,
+      fx.toJS,
+      fy.toJS,
+      fz.toJS,
+      ahead.toJS,
+      behind.toJS,
+      side.toJS,
+      otherSide.toJS,
+    )
+    .toDartInt;
+int f3d_joint_set_damping(int world, int joint, int enabled, double damping) =>
+    _x
+        .f3d_joint_set_damping(
+          world.toJS,
+          lowHalf(joint).toJS,
+          highHalf(joint).toJS,
+          enabled.toJS,
+          damping.toJS,
+        )
+        .toDartInt;
+int f3d_joint_set_limit_softness(
+  int world,
+  int joint,
+  int enabled,
+  double stiffness,
+  double ratio,
+) => _x
+    .f3d_joint_set_limit_softness(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      enabled.toJS,
+      stiffness.toJS,
+      ratio.toJS,
+    )
+    .toDartInt;
 int f3d_joint_set_motor(
   int world,
   int joint,

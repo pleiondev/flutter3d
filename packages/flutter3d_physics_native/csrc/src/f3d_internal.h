@@ -691,6 +691,11 @@ enum {
   /* A spherical joint's swing held inside a cone. */
   F3D_JOINT_CONE = 1u << 4,
   F3D_JOINT_FRICTION = 1u << 5,
+  /* A spherical joint's swing held inside four limits about a neutral
+   * direction: ahead of it, behind it and to either side. */
+  F3D_JOINT_SWING = 1u << 6,
+  /* Viscous damping against its bodies' turn on each other. */
+  F3D_JOINT_VISCOUS = 1u << 7,
 };
 
 /* One joint's arena slot. Plain data, zeroed when taken: in a snapshot,
@@ -734,6 +739,20 @@ typedef struct F3dJointSlot {
   /* The angular impulse its locked turns put on B over the last substep,
    * in the world. */
   F3dVec3 turned;
+  /* A spherical joint's swing limits: the neutral direction B's axis is
+   * measured from and the one called ahead, both in A's frame and square
+   * to each other; the most it swings ahead, behind, towards neutral ×
+   * ahead and away from that, radians; and what holding them pushed with. */
+  F3dVec3 swing_axis, swing_ahead;
+  f3d_real swing_limit[4];
+  f3d_real swing_impulse;
+  /* Viscous damping, N m s per radian, against B's turn on A: about a
+   * revolute joint's axis, about every axis of a spherical one. */
+  f3d_real damping;
+  /* Soft limits: past a limit, a cone or a swing limit, the joint is held
+   * back by a spring of this stiffness, N m per radian, at this damping
+   * ratio, rather than by its own stiff one; nought stiffness for that. */
+  f3d_real limit_stiffness, limit_ratio;
 } F3dJointSlot;
 
 /* Everything in a world that is not behind a pointer. A snapshot writes it

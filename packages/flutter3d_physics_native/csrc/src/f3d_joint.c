@@ -1,7 +1,9 @@
 /*
  * Joints — P9, phase 7: fixed, spherical, revolute, prismatic and distance
  * joints, with limits, motors and springs, solved in the same soft substeps
- * as the contacts, as Box2D v3 solves them.
+ * as the contacts, as Box2D v3 solves them; and for a ragdoll, a spherical
+ * joint's cone, its swing limits on four sides, friction, viscous damping
+ * and soft limits.
  *
  * Each joint is a set of constraints on the relative motion of its two
  * bodies at their anchors: a point held together, turning locked about two
@@ -278,6 +280,83 @@ int f3d_joint_set_friction(F3dWorld *world, F3dJoint joint, int enabled, f3d_rea
     j->flags &= (uint8_t)~F3D_JOINT_FRICTION;
   }
   j->friction_impulse = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  wake_both(world, j);
+  return 1;
+}
+
+int f3d_joint_set_swing(F3dWorld *world, F3dJoint joint, int enabled,
+                        f3d_real nx, f3d_real ny, f3d_real nz, f3d_real fx,
+                        f3d_real fy, f3d_real fz, f3d_real ahead,
+                        f3d_real behind, f3d_real side, f3d_real other_side) {
+  F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL || j->type != F3D_JOINT_SPHERICAL) return 0;
+  if (enabled) {
+    if (!finite3(nx, ny, nz) || !finite3(fx, fy, fz)) return 0;
+    const f3d_real limits[4] = {ahead, behind, side, other_side};
+    for (int k = 0; k < 4; k++) {
+      /* Short of a half turn: there the swing has no direction to be
+       * measured in. */
+      if (!(f3d_finite(limits[k]) && limits[k] > F3D_R(0.0) &&
+            limits[k] < F3D_R(3.0))) {
+        return 0;
+      }
+    }
+    F3dVec3 n = f3d_v3(nx, ny, nz);
+    const f3d_real ln = f3d_sqrt(f3d_dot(n, n));
+    if (!(ln > F3D_R(1e-6))) return 0;
+    n = f3d_scale(n, F3D_R(1.0) / ln);
+    /* Ahead, made square to the neutral direction. */
+    F3dVec3 f = f3d_v3(fx, fy, fz);
+    f = f3d_madd(f, n, -f3d_dot(f, n));
+    const f3d_real lf = f3d_sqrt(f3d_dot(f, f));
+    if (!(lf > F3D_R(1e-6))) return 0;
+    f = f3d_scale(f, F3D_R(1.0) / lf);
+    const F3dSlot *sa = f3d_slot_of(world, j->a);
+    if (sa == NULL) return 0;
+    const F3dMat3 ra = f3d_mat_of(sa->orientation);
+    j->flags |= F3D_JOINT_SWING;
+    j->swing_axis = unturn(&ra, n);
+    j->swing_ahead = unturn(&ra, f);
+    for (int k = 0; k < 4; k++) j->swing_limit[k] = limits[k];
+  } else {
+    j->flags &= (uint8_t)~F3D_JOINT_SWING;
+  }
+  j->swing_impulse = F3D_R(0.0);
+  wake_both(world, j);
+  return 1;
+}
+
+int f3d_joint_set_damping(F3dWorld *world, F3dJoint joint, int enabled,
+                          f3d_real damping) {
+  F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL ||
+      (j->type != F3D_JOINT_SPHERICAL && j->type != F3D_JOINT_REVOLUTE)) {
+    return 0;
+  }
+  if (enabled && !(f3d_finite(damping) && damping >= F3D_R(0.0))) return 0;
+  if (enabled) {
+    j->flags |= F3D_JOINT_VISCOUS;
+    j->damping = damping;
+  } else {
+    j->flags &= (uint8_t)~F3D_JOINT_VISCOUS;
+  }
+  wake_both(world, j);
+  return 1;
+}
+
+int f3d_joint_set_limit_softness(F3dWorld *world, F3dJoint joint, int enabled,
+                                 f3d_real stiffness, f3d_real ratio) {
+  F3dJointSlot *j = joint_of(world, joint);
+  if (j == NULL ||
+      (j->type != F3D_JOINT_SPHERICAL && j->type != F3D_JOINT_REVOLUTE)) {
+    return 0;
+  }
+  if (enabled && !(f3d_finite(stiffness) && stiffness > F3D_R(0.0) &&
+                   f3d_finite(ratio) && ratio >= F3D_R(0.0))) {
+    return 0;
+  }
+  j->limit_stiffness = enabled ? stiffness : F3D_R(0.0);
+  j->limit_ratio = enabled ? ratio : F3D_R(0.0);
   wake_both(world, j);
   return 1;
 }
@@ -788,6 +867,44 @@ static f3d_real rate_of(const Frame *f, const Axis *x) {
                  x->n);
 }
 
+/* How a limit already passed is held back: by the joint's own stiff
+ * spring [hard], only in the pass that corrects position, or — a soft
+ * limit — by a spring of the joint's limit stiffness over the inertia
+ * [mass] it turns, at its limit damping ratio, in both passes, as a spring
+ * is. Never stiffer than the hard one, which is as stiff as the substep
+ * holds steadily. Sets the bias, mass and impulse scales; 0 when the limit
+ * is not pushed this pass. */
+static int past_limit(const F3dJointSlot *j, f3d_real c, f3d_real mass,
+                      f3d_real h, Soft hard, int use_bias, f3d_real *bias,
+                      f3d_real *ms, f3d_real *is) {
+  if (j->limit_stiffness > F3D_R(0.0) && mass > F3D_R(0.0)) {
+    const f3d_real most = f3d_min(F3D_R(60.0), F3D_R(0.25) / h);
+    const f3d_real hertz = f3d_min(
+        f3d_sqrt(j->limit_stiffness / mass) / (F3D_R(2.0) * F3D_PI), most);
+    const Soft s = soft(hertz, j->limit_ratio, h);
+    *bias = s.bias_rate * c;
+    *ms = s.mass_scale;
+    *is = s.impulse_scale;
+    return 1;
+  }
+  if (!use_bias) return 1;
+  *bias = hard.bias_rate * c;
+  *ms = hard.mass_scale;
+  *is = hard.impulse_scale;
+  return 1;
+}
+
+/* Viscous damping of B's turn on A about [n], unit: the impulse that
+ * leaves the turn what damping it over the substep would, solved
+ * implicitly, so no damping is too much for the step. */
+static void damp_about(const F3dJointSlot *j, Frame *f, F3dVec3 n, f3d_real h) {
+  const f3d_real mass = angular_mass(f, n);
+  if (!(mass > F3D_R(0.0))) return;
+  const f3d_real ch = j->damping * h;
+  const f3d_real turning = f3d_dot(f3d_sub(f->b->spin, f->a->spin), n);
+  twist(f, f3d_scale(n, -turning * mass * ch / (mass + ch)));
+}
+
 /* The spring, the motor and the limits along a free direction. */
 static void solve_axis(F3dJointSlot *j, Frame *f, Axis *x, f3d_real target,
                        f3d_real h, Soft s, int use_bias) {
@@ -821,10 +938,8 @@ static void solve_axis(F3dJointSlot *j, Frame *f, Axis *x, f3d_real target,
       f3d_real bias = F3D_R(0.0), ms = F3D_R(1.0), is = F3D_R(0.0);
       if (c > F3D_R(0.0)) {
         bias = c * inv_h;
-      } else if (use_bias) {
-        bias = s.bias_rate * c;
-        ms = s.mass_scale;
-        is = s.impulse_scale;
+      } else {
+        past_limit(j, c, x->mass, h, s, use_bias, &bias, &ms, &is);
       }
       const f3d_real cdot = sign * rate_of(f, x);
       const f3d_real lambda = -x->mass * ms * (cdot + bias) - is * *acc;
@@ -866,20 +981,102 @@ static void solve_cone(F3dJointSlot *j, Frame *f, f3d_real h, Soft s, int use_bi
   const f3d_real swing = swing_of(j, f, &n);
   if (n.x == F3D_R(0.0) && n.y == F3D_R(0.0) && n.z == F3D_R(0.0)) return;
   const f3d_real c = j->cone - swing;
+  const f3d_real mass = angular_mass(f, n);
   f3d_real bias = F3D_R(0.0), ms = F3D_R(1.0), is = F3D_R(0.0);
   if (c > F3D_R(0.0)) {
     bias = c / h;
-  } else if (use_bias) {
-    bias = s.bias_rate * c;
-    ms = s.mass_scale;
-    is = s.impulse_scale;
+  } else {
+    past_limit(j, c, mass, h, s, use_bias, &bias, &ms, &is);
   }
   const f3d_real cdot = -f3d_dot(f3d_sub(f->b->spin, f->a->spin), n);
-  const f3d_real lambda = -angular_mass(f, n) * ms * (cdot + bias) - is * j->cone_impulse;
+  const f3d_real lambda = -mass * ms * (cdot + bias) - is * j->cone_impulse;
   const f3d_real total = f3d_max(j->cone_impulse + lambda, F3D_R(0.0));
   const f3d_real delta = total - j->cone_impulse;
   j->cone_impulse = total;
   twist(f, f3d_scale(n, -delta));
+}
+
+/* A spherical joint's swing against its four limits: B's axis measured
+ * from the neutral direction as a turn ahead (towards swing_ahead) and a
+ * turn aside (towards neutral × ahead), each held to the limit on its own
+ * side, and the two together to the ellipse through the four — so a limb
+ * swung forward and out stops short of where either alone would. Returns
+ * how far the swing may still go, radians, negative past the ellipse, and
+ * in [n] the direction to turn B about that takes it further out; 0 when
+ * the swing is too small to have a direction or B's axis is turned right
+ * round. */
+static int swing_limit_of(const F3dJointSlot *j, const Frame *f, F3dVec3 *n,
+                          f3d_real *c) {
+  const F3dVec3 neutral = turn(&f->ra, j->swing_axis);
+  const F3dVec3 ahead = turn(&f->ra, j->swing_ahead);
+  const F3dVec3 a2 = turn(&f->rb, j->axis_b);
+  const F3dVec3 x = f3d_cross(neutral, a2);
+  const f3d_real s = f3d_sqrt(f3d_dot(x, x));
+  if (!(s > F3D_R(1e-9))) return 0;
+  /* The swing as a turn vector, angle times axis. A turn about
+   * neutral × ahead carries the axis ahead; about −ahead, aside. */
+  const f3d_real angle = f3d_atan2(s, f3d_dot(neutral, a2));
+  const F3dVec3 v = f3d_scale(x, angle / s);
+  const F3dVec3 about_ahead = f3d_cross(neutral, ahead);
+  const f3d_real p = f3d_dot(v, about_ahead);
+  const f3d_real q = -f3d_dot(v, ahead);
+  const f3d_real a = p >= F3D_R(0.0) ? j->swing_limit[0] : j->swing_limit[1];
+  const f3d_real b = q >= F3D_R(0.0) ? j->swing_limit[2] : j->swing_limit[3];
+  const f3d_real r = f3d_sqrt((p / a) * (p / a) + (q / b) * (q / b));
+  /* The gradient of r: which way out is steepest, and how fast. */
+  const f3d_real gp = p / (a * a), gq = q / (b * b);
+  const f3d_real g = f3d_sqrt(gp * gp + gq * gq);
+  if (!(r > F3D_R(1e-6)) || !(g > F3D_R(1e-12))) return 0;
+  F3dVec3 out = f3d_madd(f3d_scale(about_ahead, gp / g), ahead, -gq / g);
+  /* Square to B's axis: a turn about the axis itself is a twist, which
+   * moves no swing, and pushed with one a limb thin about its length is
+   * spun about its length. */
+  out = f3d_madd(out, a2, -f3d_dot(out, a2));
+  const f3d_real lo = f3d_sqrt(f3d_dot(out, out));
+  if (!(lo > F3D_R(1e-9))) return 0;
+  *n = f3d_scale(out, F3D_R(1.0) / lo);
+  /* (1 − r) over |∇r| = g / r: the angle left, to first order. */
+  *c = (F3D_R(1.0) - r) * r / g;
+  return 1;
+}
+
+static void solve_swing(F3dJointSlot *j, Frame *f, f3d_real h, Soft s, int use_bias) {
+  if (!(j->flags & F3D_JOINT_SWING)) return;
+  F3dVec3 n;
+  f3d_real c;
+  if (!swing_limit_of(j, f, &n, &c)) {
+    j->swing_impulse = F3D_R(0.0);
+    return;
+  }
+  const f3d_real mass = angular_mass(f, n);
+  f3d_real bias = F3D_R(0.0), ms = F3D_R(1.0), is = F3D_R(0.0);
+  if (c > F3D_R(0.0)) {
+    bias = c / h;
+  } else {
+    past_limit(j, c, mass, h, s, use_bias, &bias, &ms, &is);
+  }
+  const f3d_real cdot = -f3d_dot(f3d_sub(f->b->spin, f->a->spin), n);
+  const f3d_real lambda = -mass * ms * (cdot + bias) - is * j->swing_impulse;
+  const f3d_real total = f3d_max(j->swing_impulse + lambda, F3D_R(0.0));
+  const f3d_real delta = total - j->swing_impulse;
+  j->swing_impulse = total;
+  twist(f, f3d_scale(n, -delta));
+}
+
+/* Viscous damping: about each of the world's axes on a spherical joint,
+ * about its axis on a revolute one; once a substep, with the position
+ * pass. */
+static void solve_damping(F3dJointSlot *j, Frame *f, f3d_real h, int use_bias) {
+  if (!(j->flags & F3D_JOINT_VISCOUS) || !use_bias) return;
+  if (j->type == F3D_JOINT_REVOLUTE) {
+    damp_about(j, f, f->axis, h);
+    return;
+  }
+  for (int k = 0; k < 3; k++) {
+    const F3dVec3 n = f3d_v3(k == 0 ? F3D_R(1.0) : F3D_R(0.0), k == 1 ? F3D_R(1.0) : F3D_R(0.0),
+                             k == 2 ? F3D_R(1.0) : F3D_R(0.0));
+    damp_about(j, f, n, h);
+  }
 }
 
 /* Friction: B's turn against A's resisted about each of the world's axes
@@ -920,9 +1117,11 @@ void f3d_solve_joints(F3dWorld *world, const F3dSolverBody *bodies, f3d_real h,
         solve_block(j, &f, s, use_bias);
         break;
       case F3D_JOINT_SPHERICAL:
-        /* Its friction, its twist about the axis, limited as a hinge's
-         * angle is, then its swing inside the cone, then its point. */
+        /* Its friction and damping, its twist about the axis, limited as
+         * a hinge's angle is, then its swing inside the cone and its swing
+         * limits, then its point. */
         solve_friction(j, &f, h);
+        solve_damping(j, &f, h, use_bias);
         if (j->flags & F3D_JOINT_LIMIT) {
           x.angular = 1;
           x.n = twist_axis(j, &f);
@@ -931,9 +1130,11 @@ void f3d_solve_joints(F3dWorld *world, const F3dSolverBody *bodies, f3d_real h,
           solve_axis(j, &f, &x, F3D_R(0.0), h, s, use_bias);
         }
         solve_cone(j, &f, h, s, use_bias);
+        solve_swing(j, &f, h, s, use_bias);
         solve_block(j, &f, s, use_bias);
         break;
       case F3D_JOINT_REVOLUTE:
+        solve_damping(j, &f, h, use_bias);
         x.angular = 1;
         x.n = f.axis;
         x.value = hinge_angle(j, &f);
@@ -1027,6 +1228,10 @@ void f3d_warm_joints(F3dWorld *world, const F3dSolverBody *bodies) {
         swing_of(j, &f, &n);
         twist(&f, f3d_scale(n, -j->cone_impulse));
         twist(&f, j->friction_impulse);
+        f3d_real c;
+        if ((j->flags & F3D_JOINT_SWING) && swing_limit_of(j, &f, &n, &c)) {
+          twist(&f, f3d_scale(n, -j->swing_impulse));
+        }
         break;
       }
       case F3D_JOINT_PRISMATIC: {

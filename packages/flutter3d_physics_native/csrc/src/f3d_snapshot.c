@@ -557,6 +557,15 @@ static void io_joint(Io *io, F3dJointSlot *j) {
   io_real(io, &j->break_force);
   io_real(io, &j->break_torque);
   io_vec(io, &j->turned);
+  /* Grown at the end: a joint written before them has no swing limits, no
+   * damping and hard limits, which is what nought reads as. */
+  io_vec(io, &j->swing_axis);
+  io_vec(io, &j->swing_ahead);
+  io_reals(io, j->swing_limit, 4);
+  io_real(io, &j->swing_impulse);
+  io_real(io, &j->damping);
+  io_real(io, &j->limit_stiffness);
+  io_real(io, &j->limit_ratio);
 }
 
 static void io_compound(Io *io, F3dCompound *c) {

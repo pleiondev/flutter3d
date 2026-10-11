@@ -1625,6 +1625,106 @@ external int _f3d_joint_set_friction(
 int f3d_joint_set_friction(int world, int joint, int enabled, double torque) =>
     _f3d_joint_set_friction(Pointer.fromAddress(world), joint, enabled, torque);
 
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint64,
+    Int32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_joint_set_swing', isLeaf: true)
+external int _f3d_joint_set_swing(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double nx,
+  double ny,
+  double nz,
+  double fx,
+  double fy,
+  double fz,
+  double ahead,
+  double behind,
+  double side,
+  double otherSide,
+);
+int f3d_joint_set_swing(
+  int world,
+  int joint,
+  int enabled,
+  double nx,
+  double ny,
+  double nz,
+  double fx,
+  double fy,
+  double fz,
+  double ahead,
+  double behind,
+  double side,
+  double otherSide,
+) => _f3d_joint_set_swing(
+  Pointer.fromAddress(world),
+  joint,
+  enabled,
+  nx,
+  ny,
+  nz,
+  fx,
+  fy,
+  fz,
+  ahead,
+  behind,
+  side,
+  otherSide,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float)>(
+  symbol: 'f3d_joint_set_damping',
+  isLeaf: true,
+)
+external int _f3d_joint_set_damping(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double damping,
+);
+int f3d_joint_set_damping(int world, int joint, int enabled, double damping) =>
+    _f3d_joint_set_damping(Pointer.fromAddress(world), joint, enabled, damping);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float, Float)>(
+  symbol: 'f3d_joint_set_limit_softness',
+  isLeaf: true,
+)
+external int _f3d_joint_set_limit_softness(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double stiffness,
+  double ratio,
+);
+int f3d_joint_set_limit_softness(
+  int world,
+  int joint,
+  int enabled,
+  double stiffness,
+  double ratio,
+) => _f3d_joint_set_limit_softness(
+  Pointer.fromAddress(world),
+  joint,
+  enabled,
+  stiffness,
+  ratio,
+);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float, Float)>(
   symbol: 'f3d_joint_set_motor',
   isLeaf: true,
