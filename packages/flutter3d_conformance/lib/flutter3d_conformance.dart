@@ -78,6 +78,7 @@ import 'src/shader_link_checks.dart';
 import 'src/sharing_checks.dart';
 import 'src/stencil_checks.dart';
 import 'src/vertex_texture_checks.dart';
+import 'src/xr_checks.dart';
 
 export 'src/capability_checks.dart' show capabilityChecks, unprobedFeatures;
 export 'src/compute_checks.dart' show computeChecks;
@@ -103,6 +104,7 @@ export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
 export 'src/multiview_checks.dart' show multiviewChecks;
 export 'src/sharing_checks.dart' show sharingChecks;
+export 'src/xr_checks.dart' show xrChecks;
 
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
@@ -465,6 +467,9 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   // Since 1.0: a field held on a device, in a 3D texture or a storage
   // buffer, or refused by the feature that is missing.
   ...fieldResidenceChecks,
+  // Since 1.0: a headset's two views reach their own layers of the
+  // runtime's image, a pass each, copied, or in one multiview pass.
+  ...xrChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders
