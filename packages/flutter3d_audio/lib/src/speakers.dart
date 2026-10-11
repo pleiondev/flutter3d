@@ -1,6 +1,7 @@
 import 'package:flutter3d_audio_core/flutter3d_audio_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show IssueSink, ResourceException;
+import 'package:flutter3d_matter/flutter3d_matter.dart' show WorldProperties;
 import 'package:vector_math/vector_math.dart';
 
 import 'soloud_backend.dart';
@@ -31,6 +32,10 @@ import 'soloud_backend.dart';
 /// all. If that is what the exception's cause says, the answer is
 /// `flutter clean`.
 ///
+/// [world] is the air the scene's sounds travel in (`AudioScene.world`): the
+/// standard world unless a game hands in its own, and settable on the scene
+/// afterwards, for a level that brings its own air.
+///
 /// Throws [AudioDeviceException] when the device does not open; nothing is
 /// left open then.
 Future<Speakers> openSpeakers({
@@ -40,6 +45,7 @@ Future<Speakers> openSpeakers({
   double Function(Vector3 from, Vector3 to)? occlusion,
   IssueSink? onIssue,
   SpatialRenderer spatial = const EqualPowerPanner(),
+  WorldProperties? world,
 }) async {
   final backend = SoLoudBackend(onIssue: onIssue);
   try {
@@ -57,6 +63,7 @@ Future<Speakers> openSpeakers({
     maxVoices: maxVoices,
     occlusion: occlusion,
     spatial: spatial,
+    world: world,
   );
   await scene.preload(bank);
   return Speakers(backend: backend, scene: scene);
@@ -89,11 +96,33 @@ final class Speakers {
   /// The scene: play, place and mix here.
   final AudioScene scene;
 
-  /// Holds every voice: the view paused, the application went to the
-  /// background.
+  /// Holds every voice where it is: the view paused, the application went
+  /// to the background, a route covered the game, the player opened a menu.
+  ///
+  /// **Called by the game, not for it.** `Flutter3dView.onPausedChanged` is
+  /// where a view says it stopped being shown or the application left the
+  /// foreground; a game wires it here (`(paused) => paused ?
+  /// speakers.pause() : speakers.resume()`), and a pause menu calls it too.
+  ///
+  /// **What it holds.** Every voice the device is playing stops at the
+  /// sample it was on, loops included, and a voice the scene starts while
+  /// paused — a sound the game plays under the menu — is held from its first
+  /// sample rather than played over it (`AudioBackend.pause`).
+  ///
+  /// **What it does not.** The [scene] is not paused: an
+  /// `AudioScene.update` still mixes, voices still change gain, pan and
+  /// muffle, and the ones out of range are still stopped, so on [resume]
+  /// the voices go on as the mix last left them, not as they were when the
+  /// pause began. A game that wants the mix to dip under its pause menu
+  /// blends a mix snapshot in alongside. Nothing is released either: a
+  /// pause holds the device open, [dispose] closes it.
+  ///
+  /// Twice in a row is the same as once, and a [resume] undoes both.
   void pause() => backend.pause();
 
-  /// Lets the voices [pause] held go on.
+  /// Lets the voices [pause] held go on from where they were, and the ones
+  /// started during the pause from their beginning. Without a [pause]
+  /// first, nothing happens.
   void resume() => backend.resume();
 
   /// Stops the scene's voices and closes the device; nothing is played

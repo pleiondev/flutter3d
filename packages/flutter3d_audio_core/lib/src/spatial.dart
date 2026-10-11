@@ -5,7 +5,6 @@ import 'package:vector_math/vector_math.dart';
 
 import 'audio_scene.dart';
 import 'listener.dart';
-import 'units.dart';
 
 /// Scratch for [EqualPowerPanner.render], which is const and so cannot own
 /// one: a mix is single-threaded and the vector never outlives a call.
@@ -18,7 +17,16 @@ final Vector3 _toSound = Vector3.zero();
 /// propagation graph, a head size — without every renderer's signature
 /// changing. Made and reused by `AudioScene`; copy what you keep.
 final class SpatialQuery {
-  SpatialQuery({required this.listener, required this.emitter, this.occlusion});
+  SpatialQuery({
+    required this.listener,
+    required this.emitter,
+    this.occlusion,
+    WorldProperties? world,
+  }) : world = world ?? WorldProperties.standard;
+
+  /// The world the sound travels in: its air's speed of sound is what a
+  /// Doppler shift is reckoned against. `AudioScene.world`.
+  WorldProperties world;
 
   /// Where the ears are.
   AudioListener listener;
@@ -111,20 +119,23 @@ abstract base class SpatialRenderer {
 ///
 /// **Doppler is wired and off.** With a [dopplerFactor] above nought, each
 /// emitter's and the listener's velocity in metres per second shift its
-/// [SpatialResult.rate] the way the classic formula does, against
-/// [speedOfSound]; at nought, the default, the rate is exactly one and
-/// nothing a game hears has changed.
+/// [SpatialResult.rate] the way the classic formula does, against the speed
+/// of sound in the world the scene mixes in ([SpatialQuery.world]); at
+/// nought, the default, the rate is exactly one and nothing a game hears
+/// has changed.
 final class EqualPowerPanner extends SpatialRenderer {
-  const EqualPowerPanner({
-    this.dopplerFactor = 0.0,
-    this.speedOfSound = speedOfSoundInAir,
-  }) : assert(dopplerFactor >= 0.0),
-       assert(speedOfSound > 0.0);
+  /// A panner that reckons against the world it is mixed in, or against
+  /// [speedOfSound] when one is given.
+  const EqualPowerPanner({this.dopplerFactor = 0.0, this.speedOfSound})
+    : assert(dopplerFactor >= 0.0),
+      assert(speedOfSound == null || speedOfSound > 0.0);
 
   /// A panner whose Doppler shift is reckoned against the sound speed of
-  /// [world]'s air: `WorldProperties.speedOfSound`, from its temperature
-  /// (`speedOfSoundAt`) — 343 m/s in a room, 331 at freezing. What a game
-  /// whose world is not a room's hands its `AudioScene`.
+  /// [world]'s air, whatever world the scene mixes in:
+  /// `WorldProperties.speedOfSound`, from its temperature
+  /// (`speedOfSoundAt`) — 343 m/s in a room, 331 at freezing. For a sound
+  /// that stays in one air while the scene's changes; a scene's own panner
+  /// follows `AudioScene.world` without it.
   EqualPowerPanner.inWorld(WorldProperties world, {double dopplerFactor = 0.0})
     : this(dopplerFactor: dopplerFactor, speedOfSound: world.speedOfSound);
 
@@ -132,10 +143,15 @@ final class EqualPowerPanner extends SpatialRenderer {
   /// is what the air does. Games usually want a fraction of it.
   final double dopplerFactor;
 
-  /// The speed of sound, in metres per second: the air's at 20 °C
-  /// ([speedOfSoundInAir]) unless the panner was made for a world
-  /// ([EqualPowerPanner.inWorld]).
-  final double speedOfSound;
+  /// The speed of sound this panner was pinned to, in metres per second
+  /// ([EqualPowerPanner.inWorld]), or null to take the world's the scene
+  /// mixes in ([speedOfSoundIn]).
+  final double? speedOfSound;
+
+  /// The speed of sound a shift is reckoned against in [world], m/s: the
+  /// pinned [speedOfSound], else [world]'s air's.
+  double speedOfSoundIn(WorldProperties world) =>
+      speedOfSound ?? world.speedOfSound;
 
   /// The two ears' gains for [pan], by the equal-power law: `cos` and `sin`
   /// of `(pan + 1) · π / 4`, so that left² + right² is always one and a
@@ -180,7 +196,13 @@ final class EqualPowerPanner extends SpatialRenderer {
       // got through, so a wall that halves the sound muffles it by half.
       ..muffle = 1.0 - through
       ..rate = dopplerFactor > 0.0
-          ? _doppler(toSound, distance, listener, emitter)
+          ? _doppler(
+              toSound,
+              distance,
+              listener,
+              emitter,
+              speedOfSoundIn(query.world),
+            )
           : 1.0;
 
     // Pan is the left-right component of the direction, and nothing else. A
@@ -205,14 +227,15 @@ final class EqualPowerPanner extends SpatialRenderer {
   /// The play-rate multiple for a source and a listener moving along the
   /// line between them: `(c + f·v_listener) / (c − f·v_source)`, each speed
   /// the component toward the other (so both approaching raise the pitch),
-  /// f the [dopplerFactor], clamped below the speed of sound so a
-  /// supersonic source does not divide by nothing, and the result to
-  /// `[0.25, 4]`, the range a backend's rate is good for.
+  /// c the [speedOfSound], f the [dopplerFactor], clamped below the speed of
+  /// sound so a supersonic source does not divide by nothing, and the result
+  /// to `[0.25, 4]`, the range a backend's rate is good for.
   double _doppler(
     Vector3 toSound,
     double distance,
     AudioListener listener,
     AudioEmitter emitter,
+    double speedOfSound,
   ) {
     if (distance < 1e-6) return 1.0;
     final limit = speedOfSound / dopplerFactor * 0.99;

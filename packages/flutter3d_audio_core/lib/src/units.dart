@@ -28,13 +28,13 @@ import 'dart:math' as math;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
     show standardSpeedOfSound;
 
-/// How fast sound travels in air at 20 °C, in metres per second. What a
-/// doppler shift is computed against unless a renderer is told otherwise.
+/// How fast sound travels in air at 20 °C, in metres per second: the
+/// standard world's, which a scene given no world of its own mixes in.
 ///
 /// The world's number, read from `standardSpeedOfSound`, not one of audio's
-/// own: a world whose air is not a room's hands the renderer its own speed,
-/// from its air's temperature (`EqualPowerPanner.inWorld`,
-/// `WorldProperties.speedOfSound`).
+/// own, and not what the mix reads: a doppler shift is reckoned against the
+/// scene's world (`AudioScene.world`, `WorldProperties.speedOfSound`, from
+/// its air's temperature), which this equals to the bit in a room.
 const double speedOfSoundInAir = standardSpeedOfSound;
 
 /// The level, in decibels, at and below which a gain is taken as silence.

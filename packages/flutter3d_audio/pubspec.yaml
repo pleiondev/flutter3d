@@ -34,6 +34,9 @@ dependencies:
   # `Issue`, the one type a library reports what it could not do in, and
   # `ResourceException`, the family a device that will not open belongs to.
   flutter3d_foundation: ^1.0.0-rc.1
+  # `WorldProperties`: the air the speakers' scene reckons a Doppler shift
+  # against, handed to `openSpeakers` as the audio core's scene takes it.
+  flutter3d_matter: ^1.0.0-rc.1
   vector_math: ^2.2.0
   flutter_soloud: ^5.1.2
 

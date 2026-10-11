@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart' show WorldProperties;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show WorldPosition;
 import 'package:vector_math/vector_math.dart';
@@ -203,7 +204,9 @@ final class AudioScene {
     Mixer? mixer,
     math.Random? random,
     this.spatial = const EqualPowerPanner(),
+    WorldProperties? world,
   }) : mixer = mixer ?? Mixer(),
+       world = world ?? WorldProperties.standard,
        _random = random ?? math.Random(1),
        assert(maxVoices > 0);
 
@@ -211,6 +214,16 @@ final class AudioScene {
   /// a game hands in another — a binaural one, one that follows sound
   /// through the level.
   final SpatialRenderer spatial;
+
+  /// The world the sounds travel in: its air's speed of sound, from its
+  /// temperature, is what a Doppler shift is reckoned against
+  /// ([SpatialQuery.world]). The standard world, a room at sea level,
+  /// unless a game hands in its own.
+  ///
+  /// Settable, because the scene outlives a level and a level brings its
+  /// own air: the next [update] hears the new one. A game that keeps a
+  /// collision world sets it to that world's `properties`.
+  WorldProperties world;
 
   /// Where the play-rate variance is drawn from.
   ///
@@ -365,7 +378,8 @@ final class AudioScene {
         (_query ??= SpatialQuery(listener: listener, emitter: emitter))
           ..listener = listener
           ..emitter = emitter
-          ..occlusion = occlusion;
+          ..occlusion = occlusion
+          ..world = world;
     final out = emitter.spatial;
     spatial.render(query, out);
     emitter
