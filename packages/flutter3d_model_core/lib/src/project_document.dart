@@ -438,12 +438,21 @@ final class ProjectModelDocument extends ModelDocument {
               : indexOfId[skeleton.skeletonRoot!],
         ),
     ];
-    asset = project.animationGraphs.isEmpty
+    // The graphs in the root `extras`, and who made it and on what terms
+    // (`ModelProject.rights`); null for a project with neither, so its export
+    // is the file it always was.
+    final rights = project.rights;
+    asset = project.animationGraphs.isEmpty && rights == null
         ? null
         : DocumentAsset(
-            extras: <String, Object?>{
-              AnimationGraphJson.extrasKey: project.animationGraphs,
-            },
+            extras: project.animationGraphs.isEmpty
+                ? null
+                : <String, Object?>{
+                    AnimationGraphJson.extrasKey: project.animationGraphs,
+                  },
+            copyright: rights?.copyright,
+            author: rights?.author,
+            license: rights?.license,
           );
     animations = <AnimationClip>[
       for (final ProjectClip clip in project.clips)
@@ -702,6 +711,7 @@ ModelProject fromModelDocument(
     skeletons: _skeletonsOf(document.skins, objectIdOfNode),
     clips: _clipsOf(document.animations, objectIdOfNode),
     animationGraphs: _graphsOf(document.asset),
+    rights: _rightsOf(document.asset),
   );
 
   if (options.scale != 1.0 || options.upAxis == UpAxis.z) {
@@ -849,6 +859,20 @@ List<ProjectSkeleton> _skeletonsOf(
 /// The graphs [asset]'s root `extras` keeps, as JSON by name — every one, as
 /// the project file keeps them: one this build cannot read is kept for the
 /// build that can and refused only when somebody sets it.
+/// Who made [asset]'s model and on what terms, the three alone, or null
+/// where it says none of them.
+DocumentAsset? _rightsOf(DocumentAsset? asset) =>
+    asset == null ||
+        (asset.copyright == null &&
+            asset.author == null &&
+            asset.license == null)
+    ? null
+    : DocumentAsset(
+        copyright: asset.copyright,
+        author: asset.author,
+        license: asset.license,
+      );
+
 Map<String, Map<String, Object?>> _graphsOf(DocumentAsset? asset) {
   final kept = asset?.extras?[AnimationGraphJson.extrasKey];
   if (kept is! Map<String, Object?>) {

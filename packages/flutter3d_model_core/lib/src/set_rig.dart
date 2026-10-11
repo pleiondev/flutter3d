@@ -212,6 +212,7 @@ final class SetRig extends ModelCommand {
         lighting: next.lighting,
         animationGraphs: next.animationGraphs,
         unknown: next.unknown,
+        rights: next.rights,
       );
     }
 

@@ -677,9 +677,20 @@ final class ModelProject with ModelProjectView {
     this.lighting = const SceneLighting(),
     this.animationGraphs = const <String, Map<String, Object?>>{},
     this.unknown = const <String, Object?>{},
+    this.rights,
   });
 
   final ProjectProfile profile;
+
+  /// Who made the project and on what terms: its copyright, its author and
+  /// its licence (`DocumentAsset.copyright`, `author`, `license`; the rest
+  /// of a `DocumentAsset` is not kept). Null when nothing says.
+  ///
+  /// **The project's own, beside the credits its objects owe**
+  /// ([ModelObject.credit]): a model opened from a file that said whose it
+  /// was keeps saying so ([fromModelDocument]), through the project's file
+  /// and into what it exports, a `.f3d` or a glTF.
+  final DocumentAsset? rights;
 
   /// What the objects are painted with. [ModelObject.materialSlots] indexes
   /// this; a slot that indexes nothing is drawn in the viewport's own default,
@@ -808,6 +819,7 @@ final class ModelProject with ModelProjectView {
       lighting: lighting,
       animationGraphs: animationGraphs,
       unknown: unknown,
+      rights: rights,
     );
   }
 
@@ -827,6 +839,7 @@ final class ModelProject with ModelProjectView {
     lighting: lighting,
     animationGraphs: animationGraphs,
     unknown: unknown,
+    rights: rights,
   );
 
   /// This project without the object [id], and without anything under it.
@@ -868,6 +881,7 @@ final class ModelProject with ModelProjectView {
       lighting: lighting,
       animationGraphs: animationGraphs,
       unknown: unknown,
+      rights: rights,
       // Unchanged on purpose: an id belonging to something deleted must not
       // come back, or a step of history that names it starts naming something
       // else the moment it is undone and redone.
@@ -884,6 +898,8 @@ final class ModelProject with ModelProjectView {
     SceneLighting? lighting,
     Map<String, Map<String, Object?>>? animationGraphs,
     Map<String, Object?>? unknown,
+    DocumentAsset? rights,
+    bool clearRights = false,
   }) => ModelProject(
     profile: profile ?? this.profile,
     objects: objects,
@@ -895,6 +911,7 @@ final class ModelProject with ModelProjectView {
     lighting: lighting ?? this.lighting,
     animationGraphs: animationGraphs ?? this.animationGraphs,
     unknown: unknown ?? this.unknown,
+    rights: clearRights ? null : (rights ?? this.rights),
   );
 
   @override

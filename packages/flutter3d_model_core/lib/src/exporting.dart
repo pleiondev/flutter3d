@@ -425,6 +425,7 @@ ModelProject _withoutModifiers(ModelProject project) => ModelProject(
   lighting: project.lighting,
   animationGraphs: project.animationGraphs,
   unknown: project.unknown,
+  rights: project.rights,
 );
 
 /// [project] with nothing in it but [keep] and everything hanging under
@@ -474,6 +475,7 @@ ModelProject _narrowedTo(ModelProject project, Set<int> keep) {
     lighting: project.lighting,
     animationGraphs: project.animationGraphs,
     unknown: project.unknown,
+    rights: project.rights,
   );
 }
 

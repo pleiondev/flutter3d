@@ -163,6 +163,7 @@ final class AddNode extends ModelCommand {
         lighting: project.lighting,
         animationGraphs: project.animationGraphs,
         unknown: project.unknown,
+        rights: project.rights,
       ),
     );
   }

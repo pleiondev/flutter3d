@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A project says who made it and on what terms, and what its materials
+  are made of.** `ModelProject.rights` (a `DocumentAsset` holding the
+  copyright, the author and the licence; `copyWith(rights:,
+  clearRights:)`) is taken from the model a project is opened from
+  (`fromModelDocument`), kept through the `.f3dproj` file under `rights`,
+  and written into what it exports (`toModelDocument`). A material's
+  `physicalMaterial` and `materialVersion` are kept through the file as
+  well. Both are optional keys of version 2, written only when said, so a
+  project without them is the bytes it was.
 - **Breaking: fifteen enums are open sets and five sealed types are not
   sealed.** `AuditCheck`, `ExportFormat`, `ExportSeverity`,
   `OriginPlacement`, `ProfileTarget`, `ResizeFilter`, `SelectionMode`,

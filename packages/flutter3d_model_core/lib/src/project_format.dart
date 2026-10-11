@@ -137,6 +137,7 @@ const Set<String> _manifestKeys = <String>{
   'lighting',
   'animationGraphs',
   'objects',
+  'rights',
 };
 
 const int projectHeaderBytes = 16;
@@ -639,6 +640,9 @@ Uint8List writeProject(
         for (final MapEntry(:key, :value) in project.unknown.entries)
           if (!_manifestKeys.contains(key)) key: value,
         'profile': _profileJson(project.profile),
+        // Who made it and on what terms, only when the project says: most
+        // projects are somebody's own work and say nothing.
+        'rights': ?_rightsJson(project.rights),
         // Written down rather than worked out from the objects on the way back
         // in: an id belonging to something deleted must not be handed out again,
         // and `objects.length + 1` after a delete is exactly that mistake — a
@@ -1103,6 +1107,7 @@ ProjectRead readProject(Uint8List bytes) {
       for (final MapEntry(:key, :value) in document.entries)
         if (key is String && !_manifestKeys.contains(key)) key: value,
     };
+    final rights = _rightsFrom(document['rights']);
 
     final (List<HistoryStep> history, String? historyRefusal) = _readHistory(
       bytes,
@@ -1118,6 +1123,7 @@ ProjectRead readProject(Uint8List bytes) {
       lighting: lighting,
       animationGraphs: animationGraphs,
       unknown: unknown,
+      rights: rights,
       nextId: nextId,
       warnings: warnings,
       simulationChunks: simulationChunks,
@@ -1136,6 +1142,7 @@ ProjectRead readProject(Uint8List bytes) {
         lighting: lighting,
         animationGraphs: animationGraphs,
         unknown: unknown,
+        rights: rights,
         nextId: nextId,
       ),
       warnings: warnings,
@@ -1180,6 +1187,7 @@ ProjectRead readProject(Uint8List bytes) {
   required SceneLighting lighting,
   required Map<String, Map<String, Object?>> animationGraphs,
   required Map<String, Object?> unknown,
+  required DocumentAsset? rights,
   required int nextId,
   required List<String> warnings,
   required int fileVersion,
@@ -1373,8 +1381,9 @@ ProjectRead readProject(Uint8List bytes) {
           lighting: carriedLighting,
           animationGraphs: carriedGraphs,
           // Not kept per step: what a later build added is the file's, and
-          // an undo puts back the edit, not the file.
+          // an undo puts back the edit, not the file. Its rights likewise.
           unknown: unknown,
+          rights: rights,
           nextId: carriedNextId,
         ),
         selectionBefore: selection,
@@ -1887,6 +1896,35 @@ Map<String, Object?> _trackJson(ProjectTrack track) => <String, Object?>{
   'values': <double>[...track.track.values],
 };
 
+/// A project's [ModelProject.rights] as the manifest writes them, the three
+/// that are said; null when none is.
+Map<String, Object?>? _rightsJson(DocumentAsset? rights) {
+  final json = <String, Object?>{
+    'copyright': ?rights?.copyright,
+    'author': ?rights?.author,
+    'license': ?rights?.license,
+  };
+  return json.isEmpty ? null : json;
+}
+
+/// The manifest's `rights`, or null where it says none. A right of another
+/// type is not a refusal: what the project is made of reads the same
+/// without it.
+DocumentAsset? _rightsFrom(Object? json) {
+  if (json is! Map) return null;
+  String? text(String key) => switch (json[key]) {
+    final String value when value.isNotEmpty => value,
+    _ => null,
+  };
+  final (copyright, author, license) = (
+    text('copyright'),
+    text('author'),
+    text('license'),
+  );
+  if (copyright == null && author == null && license == null) return null;
+  return DocumentAsset(copyright: copyright, author: author, license: license);
+}
+
 Map<String, Object?> _materialJson(ProjectMaterial material) {
   final surface = material.surface;
   return <String, Object?>{
@@ -1924,6 +1962,12 @@ Map<String, Object?> _materialJson(ProjectMaterial material) {
     'alphaCutoff': surface.alphaCutoff,
     'doubleSided': surface.doubleSided,
     'unlit': surface.unlit,
+    // Younger still, each written only when said: what the surface is made
+    // of, by its id in the engine's catalogue, and the version of its
+    // program the instance was written at.
+    if (surface.physicalMaterial case final String id) 'physicalMaterial': id,
+    if (surface.materialVersion case final int version)
+      'materialVersion': version,
     // Younger than the fields above, read the same optional way `fmat` and
     // `graph` are (`_readMaterials`'s own doc comment): absent means no
     // shader has been chosen, not a refusal. Only a built-in shader's own
@@ -2107,6 +2151,14 @@ Map<String, Object?>? _bindingJson(TextureBinding? binding) => binding == null
                   'Material $i\'s extension texture',
                 ),
               ),
+              _ => null,
+            },
+            physicalMaterial: switch (entry['physicalMaterial']) {
+              final String id when id.isNotEmpty => _intern(id, pool),
+              _ => null,
+            },
+            materialVersion: switch (entry['materialVersion']) {
+              final int version when version >= 1 => version,
               _ => null,
             },
           ),

@@ -1528,6 +1528,64 @@ void main() {
       expect(after.materials[1].fmat, isNull);
     });
 
+    test('what a material is made of and the version it was written at '
+        'survive, and default to nothing said', () {
+      final made = ModelProject(
+        materials: <ProjectMaterial>[
+          ProjectMaterial(
+            surface: SurfaceMaterial(
+              physicalMaterial: 'f3d.oak',
+              materialVersion: 3,
+            ),
+          ),
+          ProjectMaterial(surface: SurfaceMaterial()),
+        ],
+      );
+
+      final after = opened(writeProject(made));
+      // Mutation: leave either key out of `_materialJson`. A plank imported
+      // from a .f3d made of oak, saved and opened again, is made of nothing,
+      // and its program lifts it from version 1 a second time.
+      expect(after.materials[0].surface.physicalMaterial, 'f3d.oak');
+      expect(after.materials[0].surface.materialVersion, 3);
+      expect(after.materials[1].surface.physicalMaterial, isNull);
+      expect(after.materials[1].surface.materialVersion, isNull);
+    });
+
+    test('who made the project and on what terms survive, and an export '
+        'carries them', () {
+      const rights = DocumentAsset(
+        copyright: '© 2026 Ada Modeller',
+        author: 'Ada Modeller',
+        license: 'CC-BY-4.0',
+      );
+      final after = opened(writeProject(ModelProject(rights: rights)));
+      // Mutation: leave `rights` out of the manifest. A model opened from a
+      // glTF that said whose it was, saved as a project and exported, goes
+      // out saying nothing.
+      expect(after.rights, rights);
+      expect(opened(writeProject(ModelProject())).rights, isNull);
+
+      // In from a model that says them, and out into what is exported.
+      final imported = fromModelDocument(
+        PlainModelDocument(
+          surfaces: const <ModelSurface>[],
+          asset: const DocumentAsset(
+            generator: 'Blender 4.2',
+            copyright: '© 2026 Ada Modeller',
+            author: 'Ada Modeller',
+            license: 'CC-BY-4.0',
+          ),
+        ),
+      );
+      expect(imported.rights, rights);
+      final exported = toModelDocument(after).asset!;
+      expect(exported.copyright, rights.copyright);
+      expect(exported.author, rights.author);
+      expect(exported.license, rights.license);
+      expect(toModelDocument(ModelProject()).asset, isNull);
+    });
+
     test('the image bytes come back whole, with what they were called', () {
       final after = opened(writeProject(painting()));
 
