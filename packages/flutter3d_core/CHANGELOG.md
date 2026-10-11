@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **The material language stands on the expression language.** Its
+  parser extends `flutter3d_foundation`'s `ExpressionParser`, so a
+  material's expressions are that language's tree: `MaterialExpression`,
+  `MaterialConstant`, `MaterialConstruct`, `MaterialSwizzle`,
+  `MaterialNegate`, `MaterialBinary`, `MaterialCall`, `MaterialType` and
+  `MaterialBuiltin` are now names of `Expression`, `ExpressionConstant`,
+  …, `ExpressionType` and `ExpressionBuiltin`; the inputs, parameters and
+  `let`s are `ExpressionVariable`s and `MaterialExpressionVisitor` extends
+  `ExpressionVisitor`. Versions 1 and 2 read exactly as before, which a
+  record of every `.f3dmat` in the repository holds: the tree, the GLSL
+  and the colour. A material calls the sixteen `materialBuiltins`;
+  `MaterialBuiltin.glsl` is `name`, the same word; the builtins compute
+  on `Portable` maths.
 - **A skinning hook writes a buffer the scene draws.** `SkinningHook` names
   its `kernels` and `demand` and `record`s each claimed mesh into
   `SkinningContext.output`, a buffer of `FrameResourceIds.skinnedVertices`
