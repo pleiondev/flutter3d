@@ -35,8 +35,11 @@ const PhysicalMaterial _plum = PhysicalMaterial(
   id: 'orchard.plumJam',
   name: 'plum jam',
   phase: MaterialPhase.liquid,
-  mechanical: MechanicalProperties(density: 1300.0, source: 'a test'),
-  fluid: FluidProperties(viscosity: 30.0, source: 'a test'),
+  mechanical: MechanicalProperties(
+    density: ConstantLaw(1300.0),
+    source: 'a test',
+  ),
+  fluid: FluidProperties(viscosity: ConstantLaw(30.0), source: 'a test'),
 );
 
 void main() {
@@ -56,14 +59,14 @@ void main() {
   test("the decided reference values are the catalogue's (decision 3)", () {
     final water = Materials.water;
     expect(water.density, 998.2);
-    expect(water.fluid!.viscosity, 1.002e-3);
-    expect(water.fluid!.surfaceTension, 0.0728);
-    expect(water.thermal!.specificHeat, 4182.0);
+    expect(water.fluid!.viscosity!.value, 1.002e-3);
+    expect(water.fluid!.surfaceTension!.value, 0.0728);
+    expect(water.thermal!.specificHeat!.value, 4182.0);
     // Mercury at 20 °C, not the 25 °C values it was labelled with.
     expect(Materials.mercury.density, 13546.0);
-    expect(Materials.mercury.fluid!.viscosity, 1.55e-3);
+    expect(Materials.mercury.fluid!.viscosity!.value, 1.55e-3);
     expect(Materials.oliveOil.density, 911.0);
-    expect(Materials.oliveOil.fluid!.viscosity, 0.084);
+    expect(Materials.oliveOil.fluid!.viscosity!.value, 0.084);
     // The air's is the standard world's, not a second number.
     expect(Materials.air.density, standardAirDensity);
   });
@@ -92,7 +95,7 @@ void main() {
   test('a body as a data plugin lists it reads without the envelope', () {
     final read = PhysicalMaterial.fromJson(_plum.toBody());
     expect(read.id, _plum.id);
-    expect(read.fluid!.viscosity, 30.0);
+    expect(read.fluid!.viscosity!.value, 30.0);
   });
 
   test('a document is refused for a newer version, no source or a bad id', () {
@@ -127,13 +130,19 @@ void main() {
       id: 'orchard.slip',
       name: 'slip',
       phase: MaterialPhase.liquid,
-      mechanical: MechanicalProperties(density: 998.2, source: 'a slip'),
-      fluid: FluidProperties(
-        viscosity: 1.002e-3,
-        surfaceTension: 72.8,
+      mechanical: MechanicalProperties(
+        density: ConstantLaw(998.2),
         source: 'a slip',
       ),
-      thermal: ThermalProperties(emissivity: 96.0, source: 'a slip'),
+      fluid: FluidProperties(
+        viscosity: ConstantLaw(1.002e-3),
+        surfaceTension: ConstantLaw(72.8),
+        source: 'a slip',
+      ),
+      thermal: ThermalProperties(
+        emissivity: ConstantLaw(96.0),
+        source: 'a slip',
+      ),
     );
     expect(slipped.problems(), hasLength(2));
     expect(

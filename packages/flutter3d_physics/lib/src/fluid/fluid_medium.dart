@@ -26,8 +26,8 @@ final class FluidMedium {
   /// for a material that does not say all three.
   factory FluidMedium.of(PhysicalMaterial material, {double? contactAngle}) {
     final density = material.density;
-    final viscosity = material.fluid?.viscosity;
-    final tension = material.fluid?.surfaceTension;
+    final viscosity = material.fluid?.viscosity?.value;
+    final tension = material.fluid?.surfaceTension?.value;
     if (density == null || viscosity == null || tension == null) {
       throw ArgumentError.value(
         material.id,

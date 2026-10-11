@@ -1,0 +1,331 @@
+{
+  "format": "f3d.physicalMaterial",
+  "version": 2,
+  "requires": [],
+  "generator": "flutter3d",
+  "id": "f3d.water",
+  "name": "water",
+  "phase": "liquid",
+  "temperature": 293.15,
+  "pressure": 101325.0,
+  "mechanical": {
+    "density": {
+      "value": 998.2,
+      "law": "formula",
+      "expression": "998.2 [kg/m³] * (((751.59611 + (T / 1 [K]) * (1.8912304 + (T / 1 [K]) * (-0.0035873694)))) / 997.7228156533284)",
+      "inputs": {
+        "T": {
+          "id": "f3d.temperature",
+          "unit": "K",
+          "low": 273.16,
+          "high": 372.16
+        }
+      },
+      "confidence": "handbook"
+    },
+    "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), \"Properties of water in the range 0–100 °C\", at 20 °C"
+  },
+  "fluid": {
+    "viscosity": {
+      "value": 0.001002,
+      "law": "table",
+      "input": {
+        "id": "f3d.temperature",
+        "unit": "K"
+      },
+      "points": [
+        [
+          273.16,
+          0.0017911
+        ],
+        [
+          282.16,
+          0.001344
+        ],
+        [
+          291.16,
+          0.0010524
+        ],
+        [
+          293.15,
+          0.001002
+        ],
+        [
+          300.16,
+          0.00085072
+        ],
+        [
+          309.16,
+          0.00070485
+        ],
+        [
+          318.16,
+          0.00059566
+        ],
+        [
+          327.16,
+          0.00051167
+        ],
+        [
+          336.16,
+          0.0004456
+        ],
+        [
+          345.16,
+          0.00039268
+        ],
+        [
+          354.16,
+          0.00034963
+        ],
+        [
+          363.16,
+          0.00031414
+        ],
+        [
+          372.16,
+          0.00028453
+        ]
+      ],
+      "confidence": "handbook"
+    },
+    "surfaceTension": {
+      "value": 0.0728,
+      "law": "table",
+      "input": {
+        "id": "f3d.temperature",
+        "unit": "K"
+      },
+      "points": [
+        [
+          273.16,
+          0.075646
+        ],
+        [
+          283.132,
+          0.074224
+        ],
+        [
+          293.103,
+          0.072743
+        ],
+        [
+          293.15,
+          0.0728
+        ],
+        [
+          303.075,
+          0.071206
+        ],
+        [
+          313.047,
+          0.069613
+        ],
+        [
+          323.018,
+          0.067966
+        ],
+        [
+          332.99,
+          0.066266
+        ],
+        [
+          342.961,
+          0.064514
+        ],
+        [
+          352.933,
+          0.062713
+        ],
+        [
+          362.905,
+          0.060862
+        ],
+        [
+          372.876,
+          0.058965
+        ]
+      ],
+      "confidence": "handbook"
+    },
+    "bulkModulus": {
+      "value": 2180000000.0,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "source": "CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa"
+  },
+  "thermal": {
+    "specificHeat": {
+      "value": 4182.0,
+      "law": "table",
+      "input": {
+        "id": "f3d.temperature",
+        "unit": "K"
+      },
+      "points": [
+        [
+          273.16,
+          4219.4
+        ],
+        [
+          291.16,
+          4185.6
+        ],
+        [
+          293.15,
+          4182.0
+        ],
+        [
+          309.16,
+          4179.2
+        ],
+        [
+          327.16,
+          4182.6
+        ],
+        [
+          345.16,
+          4191.3
+        ],
+        [
+          363.16,
+          4205.2
+        ]
+      ],
+      "confidence": "handbook"
+    },
+    "conductivity": {
+      "value": 0.598,
+      "law": "table",
+      "input": {
+        "id": "f3d.temperature",
+        "unit": "K"
+      },
+      "points": [
+        [
+          273.16,
+          0.55568
+        ],
+        [
+          291.16,
+          0.59444
+        ],
+        [
+          293.15,
+          0.598
+        ],
+        [
+          309.16,
+          0.62311
+        ],
+        [
+          327.16,
+          0.64499
+        ],
+        [
+          345.16,
+          0.66133
+        ],
+        [
+          363.16,
+          0.67279
+        ]
+      ],
+      "confidence": "handbook"
+    },
+    "volumetricExpansion": {
+      "value": 0.000207,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "meltingPoint": {
+      "value": 273.15,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "boilingPoint": {
+      "value": 373.15,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "latentHeatOfFusion": {
+      "value": 334000.0,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "latentHeatOfVaporization": {
+      "value": 2257000.0,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "source": "CRC Handbook (2016), at 20 °C: specific heat 4.182 kJ/(kg·K), conductivity 0.598 W/(m·K), expansion 2.07e-4 1/K; melting and boiling at one atmosphere, and the latent heats there (IAPWS-95, as the Handbook tabulates it)"
+  },
+  "acoustic": {
+    "absorption": [
+      0.008,
+      0.008,
+      0.013,
+      0.015,
+      0.02,
+      0.025
+    ],
+    "speedOfSound": {
+      "value": 1482.3,
+      "law": "table",
+      "input": {
+        "id": "f3d.temperature",
+        "unit": "K"
+      },
+      "points": [
+        [
+          273.16,
+          1402.4
+        ],
+        [
+          291.16,
+          1476.1
+        ],
+        [
+          293.15,
+          1482.3
+        ],
+        [
+          309.16,
+          1521.8
+        ],
+        [
+          327.16,
+          1546.5
+        ],
+        [
+          345.16,
+          1555.0
+        ],
+        [
+          363.16,
+          1550.5
+        ]
+      ],
+      "confidence": "handbook"
+    },
+    "source": "speed at 20 °C: Del Grosso and Mader, J. Acoust. Soc. Am. 52 (1972); absorption of a still water surface (a swimming pool): Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients"
+  },
+  "optical": {
+    "refractiveIndex": {
+      "value": 1.333,
+      "law": "constant",
+      "confidence": "handbook"
+    },
+    "absorption": [
+      0.34,
+      0.0565,
+      0.0092
+    ],
+    "source": "n_D at 20 °C: CRC Handbook (2016); absorption of pure water at 650, 550 and 450 nm: Pope and Fry, Applied Optics 36 (1997)"
+  },
+  "externalIds": {
+    "CAS": "7732-18-5"
+  },
+  "confidence": "handbook"
+}

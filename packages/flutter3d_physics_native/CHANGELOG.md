@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **The core's header carries the whole catalogue, and tables for its
+  laws.** `f3d_materials.g.h` defines every built-in material's values at
+  its reference state, as before for the 33 it had and now for all 238;
+  each thermal or fluid property that changes with temperature also has a
+  `…_TABLE_N`, `…_TABLE_X` and `…_TABLE_Y` for the core to interpolate by
+  body temperature. `F3D_DEFAULT_FRICTION` and the `F3D_PRESET_DEFAULT_*`
+  values every material preset starts from are written there too. The
+  values the core already read are unchanged to the bit.
+- **`NativeLiquidProperties.of`, `NativeLiquidHeat.of` and
+  `NativeMaterial.of` read a material's laws at its reference state**
+  (`PropertyLaw.value`), as the catalogue's properties are laws now.
+
 - **wgpu-native is fetched where the compute sidecar fetches it.** The
   hook's pinned release, checksums and unpacking moved to
   `flutter3d_wgpu`'s `wgpu_native_hook.dart`, which this hook imports, so
