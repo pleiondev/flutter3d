@@ -68,7 +68,10 @@ typedef _Staged = ({
   _VelocityProbe probe,
 });
 
-_Staged _staged() {
+/// The scene in front of a camera, with the probe placed unless [probed] is
+/// false: a placed node that reads the velocity is itself a reader, and
+/// switches the velocity passes on whatever the settings say.
+_Staged _staged({bool probed = true}) {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -80,9 +83,11 @@ _Staged _staged() {
     ..add(MeshNode(mesh, RenderMaterial())..setPosition(0.0, 0.0, -5.0))
     ..add(camera);
   final probe = _VelocityProbe(device);
+  final renderer = Renderer.create(device: device);
+  if (probed) renderer.renderSteps.addNode(probe);
   return (
     device: device,
-    renderer: Renderer.create(device: device)..renderSteps.addNode(probe),
+    renderer: renderer,
     scene: scene,
     camera: camera,
     probe: probe,
@@ -157,7 +162,9 @@ void main() {
   });
 
   test('without temporal on there is no velocity to show', () {
-    final it = _staged();
+    // No probe: showing the velocity is not a read of it, and nothing else
+    // here would ask for one.
+    final it = _staged(probed: false);
     final result = it.renderer.render(
       width: _width,
       height: _height,
