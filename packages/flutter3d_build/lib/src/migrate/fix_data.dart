@@ -489,8 +489,17 @@ typedef FixDataProblem = (String, String);
               containerKey(declared.$1): e.topName,
             };
           }
+          // Each added parameter takes a place of its own: two at one index
+          // make `dart fix` write the second twice and drop the first.
           final changes = <String>[
-            for (final c in e.changes) ?_parameterChange(c),
+            for (final (i, c) in e.changes.indexed)
+              ?_parameterChange(
+                c,
+                <Map<String, Object?>>[
+                  for (final before in e.changes.take(i))
+                    if (before['add'] != null) before,
+                ].length,
+              ),
           ];
           if (changes.length != e.changes.length) {
             problems.add((e.id, 'a change is not rename/remove/add'));
@@ -554,7 +563,9 @@ String _transform({
   return out.toString();
 }
 
-String? _parameterChange(Map<String, Object?> c) {
+/// [c] as a `dart fix` change; an added parameter without an `index:` of its
+/// own goes at [added], the number of additions before it.
+String? _parameterChange(Map<String, Object?> c, int added) {
   if (c['rename'] case final String old) {
     return "      - kind: 'renameParameter'\n"
         "        oldName: '$old'\n"
@@ -574,7 +585,7 @@ String? _parameterChange(Map<String, Object?> c) {
         : (required ? 'required_positional' : 'optional_positional');
     final value = c['value'];
     return "      - kind: 'addParameter'\n"
-        '        index: ${c['index'] ?? 0}\n'
+        '        index: ${c['index'] ?? added}\n'
         "        name: '$name'\n"
         '        style: $style'
         '${value == null ? '' : "\n        argumentValue:\n          expression: '${'$value'.replaceAll("'", "''")}'"}';

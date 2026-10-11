@@ -59,3 +59,60 @@ final class AssetNotFoundException implements Exception {
 }
 
 String loadText(String path) => throw AssetNotFoundException(path);
+
+// ------------------------------------------------------------- argument
+// 0.8: `Lamp({Vector4? glow, double beamDegrees = 30})` with `glow` an
+// sRGB-encoded vector and the beam in degrees, `Lamp.tinted(Vector3
+// color)` with a linear one, and `Vector4 glow` a field changed in place.
+
+/// The vectors of `vector_math`, as far as the fixtures use them.
+final class Vector3 {
+  Vector3(this.x, this.y, this.z);
+  final double x;
+  final double y;
+  final double z;
+}
+
+final class Vector4 {
+  Vector4(this.x, this.y, this.z, this.w);
+  final double x;
+  final double y;
+  final double z;
+  final double w;
+  Vector4 operator *(double s) => Vector4(x * s, y * s, z * s, w * s);
+}
+
+final class LinearColor {
+  const LinearColor(this.r, this.g, this.b, [this.a = 1]);
+  factory LinearColor.fromSrgb(double r, double g, double b, [double a = 1]) =>
+      LinearColor(r, g, b, a);
+  final double r;
+  final double g;
+  final double b;
+  final double a;
+  static const LinearColor white = LinearColor(1, 1, 1);
+}
+
+final class Lamp {
+  Lamp({this.glow = LinearColor.white, this.beam = 0.5});
+  Lamp.tinted(LinearColor color) : glow = color, beam = 0.5;
+  LinearColor glow;
+  final double beam;
+}
+
+// ----------------------------------------------------------------- gone
+// 0.8: `class Shade { const Shade(); }`, renamed `KindShade`; and
+// `Board.table()`, a static that is `Board.fill(Table())` now.
+
+final class Table {
+  Table();
+  final List<int> rows = <int>[];
+}
+
+final class KindShade {
+  const KindShade();
+}
+
+abstract final class Board {
+  static Table fill(Table into) => into..rows.add(1);
+}

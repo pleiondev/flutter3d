@@ -32,12 +32,23 @@ enum MigrationKind {
   /// no check beside it gets the TODO alone.
   nullToThrow,
 
+  /// Rewrite the value passed to, or assigned to, a parameter or a field
+  /// of [MigrationRule.members] through [MigrationRule.template], and name
+  /// it [MigrationRule.to] where it was renamed; only a value of one of
+  /// [MigrationRule.types] when there are any.
+  argument,
+
   /// The name went internal: one diagnostic per import of
   /// [MigrationRule.package] in a file that uses one, listing them.
   internal,
 
   /// Say what to do, with a link; change nothing.
   manual,
+
+  /// The class [MigrationRule.type] is [MigrationRule.to]: written where a
+  /// creation names it and the analyzer finds no type there (`const
+  /// Old()`), which is the one place `dart fix`'s rename does not reach.
+  rename,
 }
 
 /// Which uses of a rule's name a [MigrationKind.manual] rule is about.
@@ -76,6 +87,8 @@ final class MigrationRule {
     this.exception,
     this.instead,
     this.library = false,
+    this.to,
+    this.types = const <String>[],
   });
 
   /// A rule from the plain data `flutter3d_build`'s `lintsRules` writes:
@@ -113,6 +126,8 @@ final class MigrationRule {
       exception: json['exception'] as String?,
       instead: json['instead'] as String?,
       library: (json['library'] as bool?) ?? false,
+      to: json['to'] as String?,
+      types: strings(json['types']),
     );
   }
 
@@ -121,7 +136,9 @@ final class MigrationRule {
 
   /// For [MigrationMatch.uses]: only these members of [type] — the type's
   /// own name standing for its unnamed constructor. Empty for every use.
-  /// For [MigrationKind.regroup]: the named arguments that move.
+  /// For [MigrationKind.regroup]: the named arguments that move. For
+  /// [MigrationKind.argument]: the parameters and fields whose value it
+  /// rewrites.
   final List<String> members;
 
   /// The table entry's id: also the anchor of its line in the guide.
@@ -139,7 +156,9 @@ final class MigrationRule {
 
   /// For [MigrationKind.rewrite]: the replacement, with `{target}` for the
   /// receiver (dropped with its dot when there is none) and `{0}`, `{1}`…
-  /// for the arguments of a call.
+  /// for the arguments of a call. For [MigrationKind.argument]: the value
+  /// written, with `{value}` for the old one and `{components}` for its
+  /// components, as a vector's creation lists them or `v.x, v.y, …`.
   final String? template;
 
   /// The libraries [template] needs in scope, imported when it is not.
@@ -174,4 +193,12 @@ final class MigrationRule {
   /// For [MigrationKind.internal]: whether [type] is a library's URI, a
   /// library gone whole, rather than a name.
   final bool library;
+
+  /// For [MigrationKind.argument]: the parameter's new name, null where it
+  /// kept its own. For [MigrationKind.rename]: the class's new name.
+  final String? to;
+
+  /// For [MigrationKind.argument]: the types (by name) of the values it
+  /// rewrites, the parameter's old ones. Empty for any value.
+  final List<String> types;
 }

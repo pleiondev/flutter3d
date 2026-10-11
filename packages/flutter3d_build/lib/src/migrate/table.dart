@@ -59,11 +59,19 @@ final class MigrationEntry {
   /// A `nullToThrow`'s exception type.
   String? get exception => fields['exception'] as String?;
 
-  /// A `regroup`'s named arguments that move into [options].
+  /// A `regroup`'s named arguments that move into [options]; an
+  /// `argument`'s parameters (or fields) whose value it rewrites.
   List<String> get arguments => <String>[
     for (final a
         in (fields['arguments'] as List<Object?>?) ?? const <Object?>[])
       '$a',
+  ];
+
+  /// An `argument`'s old types: it rewrites only a value of one of them.
+  /// Empty for any value.
+  List<String> get types => <String>[
+    for (final t in (fields['types'] as List<Object?>?) ?? const <Object?>[])
+      '$t',
   ];
 
   /// A `recordToClass`'s map from each record field (`$1`, `name`) to the

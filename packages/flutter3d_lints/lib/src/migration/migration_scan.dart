@@ -112,6 +112,14 @@ final class _Scan extends RecursiveAstVisitor<void> {
         case MigrationKind.nullToThrow:
           into(throwers, r.member ?? r.type, r);
           continue;
+        case MigrationKind.argument:
+          for (final m in r.members) {
+            into(arguments, m, r);
+          }
+          continue;
+        case MigrationKind.rename:
+          into(classRenames, r.type, r);
+          continue;
         case MigrationKind.rewrite ||
             MigrationKind.implementsToWith ||
             MigrationKind.manual:
@@ -161,6 +169,14 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   /// `nullToThrow` rules by the name of what is called.
   final Map<String, List<MigrationRule>> throwers =
+      <String, List<MigrationRule>>{};
+
+  /// `argument` rules by each parameter or field they rewrite.
+  final Map<String, List<MigrationRule>> arguments =
+      <String, List<MigrationRule>>{};
+
+  /// `rename` rules of a class, by its old name.
+  final Map<String, List<MigrationRule>> classRenames =
       <String, List<MigrationRule>>{};
 
   /// The internal names this unit uses, by package, in the order met, and
@@ -241,6 +257,14 @@ final class _Scan extends RecursiveAstVisitor<void> {
           if (_callMatches(node, rule)) _regroup(argumentList, rule);
         }
       }
+      // `Old()` with no `new` or `const`, where `Old` is no name at all.
+      if (node.parent case MethodInvocation(
+        :final methodName,
+        target: null,
+      ) when methodName == node && node.element == null) {
+        _renameClass(node.token, node);
+      }
+      if (arguments[name] case final rules?) _readOfOldType(node, rules);
     }
     final rules = <MigrationRule>[...?byMember[name], ...?byListedMember[name]];
     if (rules.isNotEmpty && !node.inDeclarationContext()) {
@@ -293,10 +317,34 @@ final class _Scan extends RecursiveAstVisitor<void> {
       return receiver != null && _isOrExtends(receiver, rule.type);
     }
     // Gone: a member nothing declares any more, on a receiver that still
-    // resolves to the type.
-    return receiver != null &&
-        _isOrExtends(receiver, rule.type) &&
-        _ownedAs(receiver.element, rule);
+    // resolves to the type, or a static one named through the class.
+    final on = _classNamed(node) ?? receiver;
+    return on != null &&
+        _isOrExtends(on, rule.type) &&
+        _ownedAs(on.element, rule);
+  }
+
+  /// The class [node] is named through as a static member:
+  /// `DesktopInput` in `DesktopInput.defaultBindings()`.
+  static InterfaceType? _classNamed(SimpleIdentifier node) {
+    final target = switch (node.parent) {
+      PrefixedIdentifier(:final prefix, :final identifier)
+          when identifier == node =>
+        prefix,
+      PropertyAccess(:final target?, :final propertyName)
+          when propertyName == node =>
+        target,
+      MethodInvocation(:final target?, :final methodName)
+          when methodName == node =>
+        target,
+      _ => null,
+    };
+    final element = switch (target) {
+      SimpleIdentifier(:final element) => element,
+      PrefixedIdentifier(:final element) => element,
+      _ => null,
+    };
+    return element is InterfaceElement ? element.thisType : null;
   }
 
   InterfaceType? _receiverType(SimpleIdentifier node) {
@@ -422,6 +470,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     final text = _text(target);
     final primary =
         target is Identifier ||
+        target is Literal ||
         target is PropertyAccess ||
         target is MethodInvocation ||
         target is ParenthesizedExpression ||
@@ -440,31 +489,51 @@ final class _Scan extends RecursiveAstVisitor<void> {
   List<MigrationEdit> _importsFor(MigrationRule rule, [Set<String>? named]) {
     if (rule.imports.isEmpty) return const <MigrationEdit>[];
     final scope = unit.declaredFragment?.scope;
+    // An import may carry a `show` list (`dart:math show pi`): what it
+    // shows is named too, lower case or not.
+    final shown = <String>{
+      for (final i in rule.imports)
+        if (i.indexOf(' show ') case final at when at > 0)
+          ...i.substring(at + 6).split(',').map((String n) => n.trim()),
+    };
     final names =
         named ??
-        RegExp(r'\b([A-Z][\w$]*)\b')
-            .allMatches(rule.template!.replaceAll(RegExp(r'\{[^}]*\}'), ''))
-            .map((Match m) => m.group(1)!)
-            .toSet();
+        <String>{
+          ...RegExp(r'\b([A-Z][\w$]*)\b')
+              .allMatches(rule.template!.replaceAll(RegExp(r'\{[^}]*\}'), ''))
+              .map((Match m) => m.group(1)!),
+          ...shown.where((String n) => rule.template!.contains(n)),
+        };
     final missing =
         scope != null &&
         names.any((String n) => scope.lookup(n).getter == null);
     if (!missing) return const <MigrationEdit>[];
-    final already = unit.directives.whereType<ImportDirective>().map(
-      (ImportDirective d) => d.uri.stringValue,
-    );
+    // Only an import without a prefix brings the bare names a template
+    // writes.
+    final already = <String?>{
+      for (final d in unit.directives.whereType<ImportDirective>())
+        if (d.prefix == null) d.uri.stringValue,
+    };
     final directives = unit.directives;
     final at = directives.isEmpty ? 0 : directives.last.end;
     return <MigrationEdit>[
-      for (final uri in rule.imports)
-        if (!already.contains(uri))
+      for (final spec in rule.imports)
+        if (!already.contains(spec.split(' ').first))
           MigrationEdit(
             at,
             0,
-            "${directives.isEmpty ? '' : '\n'}import '$uri';"
+            "${directives.isEmpty ? '' : '\n'}${_importDirective(spec)}"
             "${directives.isEmpty ? '\n' : ''}",
           ),
     ];
+  }
+
+  /// `import '<uri>';` for [spec], a URI with an optional `show` list.
+  static String _importDirective(String spec) {
+    final space = spec.indexOf(' ');
+    return space < 0
+        ? "import '$spec';"
+        : "import '${spec.substring(0, space)}'${spec.substring(space)};";
   }
 
   // ---------------------------------------------------------------- types
@@ -508,7 +577,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
                 MigrationKind.enumToClass ||
                 MigrationKind.recordToClass ||
                 MigrationKind.nullToThrow ||
-                MigrationKind.internal:
+                MigrationKind.argument ||
+                MigrationKind.internal ||
+                MigrationKind.rename:
               break;
           }
         }
@@ -771,6 +842,13 @@ final class _Scan extends RecursiveAstVisitor<void> {
   @override
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
     final name = node.constructorName;
+    if (name.type case NamedType(
+      element: null,
+      importPrefix: null,
+      name: final token,
+    )) {
+      _renameClass(token, name.type);
+    }
     for (final rule
         in regroups[name.type.name.lexeme] ?? const <MigrationRule>[]) {
       if (name.name?.name == rule.member && _ownedAs(name.type.element, rule)) {
@@ -1053,6 +1131,262 @@ final class _Scan extends RecursiveAstVisitor<void> {
       (s is ExpressionStatement &&
           (s.expression is ThrowExpression ||
               s.expression is RethrowExpression));
+
+  // -------------------------------------------------------------- rename
+
+  /// A class renamed since the release, named by [name] where the analyzer
+  /// finds no type ([at] is the creation's type, or the bare call): the new
+  /// name, when exactly one rule's new name is in scope here, or a TODO
+  /// naming them.
+  void _renameClass(Token name, AstNode at) {
+    final rules = classRenames[name.lexeme];
+    if (rules == null) return;
+    final scope = unit.declaredFragment?.scope;
+    final fits = <MigrationRule>[
+      for (final r in rules)
+        if (r.to case final to?
+            when scope?.lookup(to).getter is InterfaceElement)
+          r,
+    ];
+    if (fits case [final rule]) {
+      _add(
+        rule,
+        at,
+        edits: <MigrationEdit>[
+          MigrationEdit(name.offset, name.length, rule.to!),
+        ],
+      );
+      return;
+    }
+    for (final rule in rules) {
+      _add(rule, at);
+    }
+  }
+
+  // ------------------------------------------------------------ argument
+
+  @override
+  void visitArgumentList(ArgumentList node) {
+    if (arguments.isNotEmpty) {
+      for (final argument in node.arguments) {
+        final name = switch (argument) {
+          NamedArgument(:final name) => name.lexeme,
+          _ => argument.correspondingParameter?.name,
+        };
+        for (final rule in arguments[name] ?? const <MigrationRule>[]) {
+          if (_invokes(node, rule)) _argument(argument, rule);
+        }
+      }
+    }
+    super.visitArgumentList(node);
+  }
+
+  @override
+  void visitAssignmentExpression(AssignmentExpression node) {
+    if (arguments.isNotEmpty && node.operator.type == TokenType.EQ) {
+      final (
+        SimpleIdentifier? field,
+        DartType? on,
+      ) = switch (node.leftHandSide) {
+        PropertyAccess(:final propertyName, :final realTarget) => (
+          propertyName,
+          realTarget.staticType,
+        ),
+        PrefixedIdentifier(:final identifier, :final prefix) => (
+          identifier,
+          prefix.staticType,
+        ),
+        // A field of the class the code is in, or of what it mixes in.
+        final SimpleIdentifier name
+            when node.writeElement?.enclosingElement is InterfaceElement =>
+          (name, _enclosingThis(name)),
+        _ => (null, null),
+      };
+      if (field != null && on is InterfaceType) {
+        for (final rule in arguments[field.name] ?? const <MigrationRule>[]) {
+          final aboutAField =
+              rule.member == null || rule.members.contains(rule.member);
+          if (aboutAField &&
+              _isOrExtends(on, rule.type) &&
+              _ownedAs(on.element, rule)) {
+            _assigned(node, field, rule);
+          }
+        }
+      }
+    }
+    super.visitAssignmentExpression(node);
+  }
+
+  /// Whether [list] is the arguments of a call [rule] is about: a creation
+  /// of [MigrationRule.type] or a subclass, a method of it — only the one
+  /// named [MigrationRule.member] when that is no parameter it rewrites —
+  /// or the top-level function of that name.
+  bool _invokes(ArgumentList list, MigrationRule rule) {
+    final member = rule.members.contains(rule.member) ? null : rule.member;
+    switch (list.parent) {
+      case InstanceCreationExpression(:final constructorName):
+        final element = constructorName.type.element;
+        return element is InterfaceElement &&
+            _ownedAs(element, rule) &&
+            _isOrExtends(element.thisType, rule.type) &&
+            (member == null ||
+                member == (constructorName.name?.name ?? rule.type));
+      case MethodInvocation(:final methodName, :final realTarget):
+        final element = methodName.element;
+        final enclosing = element?.enclosingElement;
+        if (enclosing is LibraryElement) {
+          return rule.member == null &&
+              methodName.name == rule.type &&
+              _ownedAs(element, rule);
+        }
+        if (member != null && methodName.name != member) return false;
+        final on = enclosing is InterfaceElement
+            ? enclosing.thisType
+            : _classNamed(methodName) ??
+                  switch (realTarget?.staticType ??
+                      _enclosingThis(methodName)) {
+                    final InterfaceType type => type,
+                    _ => null,
+                  };
+        return on != null &&
+            _isOrExtends(on, rule.type) &&
+            _ownedAs(on.element, rule);
+    }
+    return false;
+  }
+
+  /// [argument] renamed and its value rewritten as [rule] says, when the
+  /// value is of a type the rule rewrites.
+  void _argument(Argument argument, MigrationRule rule) {
+    final value = argument.argumentExpression;
+    if (!_typeFits(value, rule)) return;
+    final edits = <MigrationEdit>[
+      if ((rule.to, argument) case (final to?, NamedArgument(:final name)))
+        MigrationEdit(name.offset, name.length, to),
+    ];
+    if (rule.template case final template?) {
+      final text = _valueText(template, value);
+      if (text == null) {
+        _add(rule, value);
+        return;
+      }
+      edits
+        ..add(MigrationEdit(value.offset, value.length, text))
+        ..addAll(_importsFor(rule));
+    }
+    if (edits.isNotEmpty) _add(rule, argument, edits: edits);
+  }
+
+  /// `x.field = value` with [field] renamed and the value rewritten.
+  void _assigned(
+    AssignmentExpression node,
+    SimpleIdentifier field,
+    MigrationRule rule,
+  ) {
+    final value = node.rightHandSide;
+    if (!_typeFits(value, rule)) return;
+    final edits = <MigrationEdit>[
+      if (rule.to case final to?) MigrationEdit(field.offset, field.length, to),
+    ];
+    if (rule.template case final template?) {
+      final text = _valueText(template, value);
+      if (text == null) {
+        _add(rule, value);
+        return;
+      }
+      edits
+        ..add(MigrationEdit(value.offset, value.length, text))
+        ..addAll(_importsFor(rule));
+    }
+    if (edits.isNotEmpty) _add(rule, node, edits: edits);
+  }
+
+  /// A read of a field [rules] retyped whose value is then used as the old
+  /// type — `lamp.glow.x`, `view.clearColor.setValues(…)` — which no
+  /// rewrite of a value reaches: a TODO.
+  void _readOfOldType(SimpleIdentifier node, List<MigrationRule> rules) {
+    final AstNode whole = switch (node.parent) {
+      final PrefixedIdentifier p when p.identifier == node => p,
+      final PropertyAccess p when p.propertyName == node => p,
+      _ => node,
+    };
+    final used = switch (whole.parent) {
+      PropertyAccess(:final target) => target == whole,
+      MethodInvocation(:final target) => target == whole,
+      PrefixedIdentifier(:final prefix) => prefix == whole,
+      _ => false,
+    };
+    if (!used) return;
+    for (final rule in rules) {
+      if (rule.types.isNotEmpty && _isMemberOf(node, rule)) _add(rule, node);
+    }
+  }
+
+  /// Whether [value] is of a type [rule] rewrites.
+  static bool _typeFits(Expression value, MigrationRule rule) {
+    if (rule.types.isEmpty) return true;
+    final type = value.staticType;
+    return type is InterfaceType &&
+        rule.types.any((String t) => _isOrExtends(type, t));
+  }
+
+  /// [template] with [value] in it: `{components}` the components as a
+  /// vector's creation lists them (or `v.x, v.y, …` of a name), `{value}`
+  /// the value itself, bare where the template hands it on as an argument
+  /// and in parentheses where it is an operand. Null where [value] has no
+  /// components this can write without evaluating it twice.
+  String? _valueText(String template, Expression value) {
+    final parts = template.contains('{components}') ? _components(value) : '';
+    if (parts == null) return null;
+    final text = template.replaceAll('{components}', parts);
+    return text.replaceAllMapped('{value}', (Match m) {
+      final before = text.substring(0, m.start).trimRight();
+      final after = text.substring(m.end).trimLeft();
+      final handedOn =
+          (before.isEmpty ||
+              before.endsWith('(') ||
+              before.endsWith(',') ||
+              before.endsWith(':') ||
+              before.endsWith('[')) &&
+          (after.isEmpty ||
+              after.startsWith(')') ||
+              after.startsWith(',') ||
+              after.startsWith(']'));
+      return handedOn ? _text(value) : _operand(value);
+    });
+  }
+
+  /// [value]'s components, comma-separated: a vector made right there
+  /// gives its own arguments as written, a name of a vector its fields.
+  String? _components(Expression value) {
+    if (value
+        case InstanceCreationExpression(
+          constructorName: ConstructorName(name: null),
+          argumentList: ArgumentList(:final arguments),
+        )
+        when arguments.isNotEmpty &&
+            arguments.every((Argument a) => a is! NamedArgument)) {
+      return arguments.map(_text).join(', ');
+    }
+    final type = value.staticType;
+    final fields = switch (type is InterfaceType ? type.element.name : null) {
+      'Vector2' => const <String>['x', 'y'],
+      'Vector3' => const <String>['x', 'y', 'z'],
+      'Vector4' => const <String>['x', 'y', 'z', 'w'],
+      _ => null,
+    };
+    if (fields == null || !_isPath(value)) return null;
+    final name = _text(value);
+    return fields.map((String f) => '$name.$f').join(', ');
+  }
+
+  /// Whether [e] is a name or a chain of field reads, which reads the same
+  /// value however many times it is written.
+  static bool _isPath(Expression e) => switch (e) {
+    Identifier() || ThisExpression() => true,
+    PropertyAccess(:final target?) => _isPath(target),
+    _ => false,
+  };
 
   // ---------------------------------------------------------------- text
 

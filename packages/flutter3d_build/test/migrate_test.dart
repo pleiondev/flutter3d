@@ -410,6 +410,55 @@ int ef(int x)
       expect(moved, contains("uris: ['package:flutter3d_core/more.dart']"));
     });
 
+    test('parameters added by one entry take a place each, so `dart fix` '
+        'writes every one of them', () {
+      // Two additions at one index made `dart fix` write the second twice
+      // and drop the first: `open(height: 720, height: 720)`.
+      final out = generateFixData(
+        <MigrationTable>[
+          MigrationTable.parse('''
+format: 1
+from: 0.1.0
+to: 1.0.0
+date: 2026-10-08
+guide: https://example.dev/migrating/
+entries:
+  - id: core-Ab-open
+    package: flutter3d_core
+    symbol: Ab.open
+    kind: parameters
+    changes:
+      - add: width
+        named: true
+        required: true
+        value: 1280
+      - add: height
+        named: true
+        required: true
+        value: 720
+'''),
+        ],
+        released: <String, Map<String, String>>{
+          '0.1.0': <String, String>{
+            'flutter3d_core':
+                'library package:flutter3d_core/flutter3d_core.dart\n\n'
+                'final class Ab\n  static Ab open()\n',
+          },
+        },
+        current: <String, String>{
+          'flutter3d_core':
+              'library package:flutter3d_core/flutter3d_core.dart\n\n'
+              'final class Ab\n'
+              '  static Ab open({required int width, required int height})\n',
+        },
+        stamp: 'abc',
+      );
+      expect(out.problems, isEmpty);
+      final fix = out.files['flutter3d_core']!;
+      expect(fix, contains("index: 0\n        name: 'width'"));
+      expect(fix, contains("index: 1\n        name: 'height'"));
+    });
+
     test('kinds of declarations and members', () {
       expect(topLevelKind('abstract base mixin class A'), 'class');
       expect(topLevelKind('mixin M on A'), 'mixin');
@@ -434,7 +483,11 @@ int ef(int x)
       final source = generateLintsTable(<MigrationTable>[table], stamp: 's');
       expect(source, contains("switchOver: 'Mn'"));
       expect(source, contains('kind: MigrationKind.rewrite'));
-      expect(source, isNot(contains("id: 'core-Ab'")));
+      // A move is `dart fix`'s alone; a class rename reaches the plugin
+      // too, for the `const` creation `dart fix` cannot resolve.
+      expect(source, isNot(contains("id: 'core-ef'")));
+      expect(source, contains("id: 'core-Ab'"));
+      expect(source, contains('kind: MigrationKind.rename'));
     });
 
     test('the first sentence ends outside code', () {

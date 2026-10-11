@@ -40,8 +40,8 @@ import 'api.dart';
 /// migration diagnostics and their fixes; `import` into the `migrate`
 /// command's own import rewrite — and `none` into nothing but a line in the
 /// guide, with the reason a caller has nothing to do. `regroup`,
-/// `enumToClass`, `recordToClass` and `nullToThrow` are carried out by the
-/// lints with the resolved code; `internal` is one diagnostic per import
+/// `enumToClass`, `recordToClass`, `nullToThrow` and `argument` are carried
+/// out by the lints with the resolved code; `internal` is one diagnostic per import
 /// and one line per package in the guide.
 const Map<String, String?> migrationKinds = <String, String?>{
   'rename': 'to',
@@ -53,6 +53,7 @@ const Map<String, String?> migrationKinds = <String, String?>{
   'enumToClass': null,
   'recordToClass': 'fields',
   'nullToThrow': 'exception',
+  'argument': 'arguments',
   'internal': null,
   'manual': 'guidance',
   'none': 'reason',
@@ -64,75 +65,18 @@ const Map<String, List<String>> migrationKindsAlsoNeed = <String, List<String>>{
   'regroup': <String>['options', 'arguments'],
 };
 
-/// **The ceiling on `manual` entries.** What wave M left after it moved the
-/// backends' own names to `internal`. A `manual` entry is a TODO in
-/// somebody's code; a break the kinds above can carry out uses them, and
-/// one that cannot is named in [manualAllowlist] with the reason.
-const int manualCeiling = 341;
+/// **The ceiling on `manual` entries.** What is left once the colour
+/// arguments, the renamed parameters and the gone statics became kinds the
+/// tools apply (`argument`, `rewrite`, `rename`): every one of them, with
+/// nothing allowlisted past it. A `manual` entry is a TODO in somebody's
+/// code; a break the kinds above can carry out uses them, and one that
+/// cannot is named in [manualAllowlist] with the reason, or the ceiling
+/// moves in a commit that says why.
+const int manualCeiling = 308;
 
 /// `manual` entries past [manualCeiling], each with why no kind carries it
-/// out. Entry id to reason.
-const Map<String, String> manualAllowlist = <String, String>{
-  'particles-ParticleGradient-color':
-      'a colour argument changes type from a vector to a linear colour; no '
-      'kind rewrites an argument\'s type yet',
-  'particles-ParticleColorOverLife-color':
-      'a colour argument changes type from a vector to a linear colour; no '
-      'kind rewrites an argument\'s type yet',
-  '2f-game_racing-SkyPreset-colors':
-      'colour fields change type from a vector to a linear colour; no kind '
-      'rewrites a field\'s type where it is read',
-  '2a-hardware-RecordedBlendColor':
-      'a field of a test-only record changes type; a trace reader is '
-      'written by hand',
-  '2a-hardware-TraceSetBlendColor':
-      'a field of a trace event changes type; a trace reader is written by '
-      'hand',
-  'sim-StepSystems':
-      'a genre\'s step moves into named systems with an order; which '
-      'moments a game had is the person\'s to say',
-  'sim-StepPhase':
-      'a phase becomes a named system placed before or after another; the '
-      'name is new',
-  '2f-game_shooter-GameSimulation-systems':
-      'moving a rule out of the step needs a name it never had and a '
-      'different context type',
-  'sim-LevelLight-constructor':
-      'positional arguments become named and the colour changes type, in '
-      'one call',
-  'sim-RoomDoor-named':
-      'positional arguments become named ones, whose order a person reads',
-  'build-convert-confined':
-      'where a model\'s files live is the user\'s layout, not a shape a '
-      'program can rewrite: the files move, or the call passes `root:`',
-  'flutter3d-BundleAssetSource-missing':
-      'a `catch` changes what it catches; whether the handler still fits is '
-      'the reader\'s call',
-  'flutter3d-loadModelAsset-missing':
-      'a `catch` changes what it catches; whether the handler still fits is '
-      'the reader\'s call',
-  'core-RenderView-clearColor':
-      'a value\'s type and encoding change (an sRGB vector to a linear '
-      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
-  'rc-model_core-RenderPreset-clearColorSrgb':
-      'a value\'s type and encoding change (an sRGB vector to a linear '
-      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
-  '2b-core-IrradianceField':
-      'a value\'s type and encoding change (an sRGB vector to a linear '
-      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
-  '2b-model_core-ProjectLight':
-      'a value\'s type and encoding change (an sRGB vector to a linear '
-      'colour, or the old unit to lux); no kind rewrites an argument\'s value',  '2s-game-PadInput-device':
-      'an argument and a returned element change type from a device '
-      'package\'s to the game\'s own; no kind rewrites an argument\'s '
-      'expression or the type a comparison is written against',
-  '2s-game-PadPresses-menuButton':
-      'an argument changes type from a device package\'s button to the '
-      'game\'s own; no kind rewrites an argument\'s expression',
-  '2s-game-DesktopInput-capture':
-      'an argument changes type from a device package\'s pointer lock to '
-      'the game\'s own capture; no kind rewrites an argument\'s expression',
-};
+/// out. Entry id to reason. Empty: the ceiling holds the whole count.
+const Map<String, String> manualAllowlist = <String, String>{};
 
 /// Words in what a person reads that belong to the work behind the release,
 /// not to the user: a wave, a plan file, a review's decision number.
