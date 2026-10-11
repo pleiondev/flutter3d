@@ -1,5 +1,34 @@
 ## 1.0.0-rc.1
 
+- **Every value that was recalled or carried over is checked against a
+  source that was read** (`tool/data/sources/verification.json`): 274
+  confirmed keep their number and name the page that confirms it; 21
+  corrected take the source's (steel's modulus 200→211.9 GPa, glass's
+  conductivity 1.4→0.937 W/(m·K), wood's heat of combustion 15→11.12
+  MJ/kg, oak's density 545→706 kg/m³ and Poisson's ratio 0.29→0.35,
+  pine's 0.29→0.328, rubber's ignition 623.15→673.15 K, polyethylene's
+  Poisson's ratio 0.42→0.45, chromium's resistivity 1.25→1.34e-7 Ω·m,
+  molybdenum's Poisson's ratio 0.31→0.293, polypropylene's strength
+  36.2→34 MPa, PVC's yield and strength 42.75 and 46.2→55 MPa,
+  polystyrene's strength 43.8→52 MPa and its and expanded polystyrene's
+  heat of combustion 39.8→41.96 MJ/kg, nylon 66's yield 63.8→82 MPa,
+  PEEK's modulus 3.6→4 GPa and yield 91→98 MPa; rubber on asphalt
+  sliding 0.65→0.75, PTFE on steel 0.125→0.065); 53 whose name covers
+  grades take the grade the research proposed, with the spread across
+  grades as their interval and the grade named in the description; 17
+  stay estimates, saying what was searched. A wood's modulus is the one
+  along the grain (oak 12.5, pine 12.3, Douglas-fir 13.4 GPa), a
+  composite's that of a quasi-isotropic laminate. Water's bulk modulus is
+  the adiabatic 2.1934 GPa and ethanol's specific heat its 20 °C 2393
+  J/(kg·K). Molten basalt's viscosity is the measured crystal-free 37 Pa·s,
+  a constant, as the melt model's law is too far from it to anchor.
+- **Measured coefficients of restitution are pair data**: 34 pairs from
+  `restitution.json`, each the record's value or, where it gives a curve,
+  its value at 1 m/s; the three on concrete, which the research trusts
+  little, are estimates. A coefficient is held at that one speed: a law in
+  impact speed would need a law input that is a contact's rather than a
+  body's state, which `LawInput` reads from `MaterialState`, so the
+  e(v) points stay in the data for a later minor.
 - **Every property of a material is a law.** The fields of
   `MechanicalProperties`, `FluidProperties`, `ThermalProperties`,
   `AcousticProperties`, `OpticalProperties` and `ElectricalProperties` are

@@ -22,10 +22,10 @@
           "law": "table"
         },
         "bulkModulus": {
-          "value": 2180000000.0,
+          "value": 2193400000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       },
       "thermal": {
@@ -120,7 +120,7 @@
           "value": 0.073,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "bulkModulus": {
           "value": 2372000000.0,
@@ -138,7 +138,7 @@
           "value": 0.596,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0002575,
@@ -197,13 +197,13 @@
           "value": 1.412,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "surfaceTension": {
           "value": 0.0634,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "bulkModulus": {
           "value": 4696000000.0,
@@ -221,7 +221,7 @@
           "value": 0.285,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.000504,
@@ -293,7 +293,7 @@
           "value": 0.0012,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "surfaceTension": {
           "value": 0.0223,
@@ -308,22 +308,22 @@
       },
       "thermal": {
         "specificHeat": {
-          "value": 2440.0,
+          "value": 2393.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.167,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.00109,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "meltingPoint": {
           "value": 159.0,
@@ -390,13 +390,13 @@
           "value": 0.084,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "surfaceTension": {
           "value": 0.032,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "bulkModulus": {
           "value": 1600000000.0,
@@ -451,7 +451,7 @@
           "value": 0.05,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         }
       },
       "thermal": {
@@ -488,7 +488,7 @@
           "value": 0.00155,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "surfaceTension": {
           "value": 0.4865,
@@ -565,10 +565,10 @@
       },
       "fluid": {
         "viscosity": {
-          "value": 100.0,
-          "confidence": "handbook",
-          "law": "formula",
-          "verification": "catalog"
+          "value": 37.0,
+          "confidence": "measured",
+          "law": "constant",
+          "verification": "ambiguous"
         },
         "surfaceTension": {
           "value": 0.35,
@@ -618,7 +618,7 @@
           "value": 0.0000181,
           "confidence": "handbook",
           "law": "table",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "bulkModulus": {
           "value": 142000.0,
@@ -636,7 +636,7 @@
           "value": 0.0257,
           "confidence": "handbook",
           "law": "table",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.003421,
@@ -679,40 +679,40 @@
           "verification": "fetched"
         },
         "youngsModulus": {
-          "value": 200000000000.0,
+          "value": 211900000000.0,
           "confidence": "handbook",
           "law": "table",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "poissonRatio": {
           "value": 0.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 250000000.0,
           "confidence": "handbook",
           "law": "table",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 400000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.74,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "kineticFriction": {
           "value": 0.57,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "thermal": {
@@ -737,7 +737,7 @@
           "value": 0.6,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         }
       },
       "acoustic": {
@@ -789,13 +789,13 @@
           "value": 70000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.33,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.2,
@@ -832,13 +832,13 @@
           "value": 2792.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 397000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.09,
@@ -871,7 +871,7 @@
           "value": 2.65e-8,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       },
       "inelastic": {
@@ -896,13 +896,13 @@
           "value": 130000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.34,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.6,
@@ -939,13 +939,13 @@
           "value": 2835.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 208700.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.15,
@@ -1003,13 +1003,13 @@
           "value": 79000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.42,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -1045,13 +1045,13 @@
           "value": 3129.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 63700.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.045,
@@ -1103,25 +1103,25 @@
           "value": 2500.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 72000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.22,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.94,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "kineticFriction": {
           "value": 0.4,
@@ -1132,16 +1132,16 @@
       },
       "thermal": {
         "specificHeat": {
-          "value": 750.0,
+          "value": 720.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "conductivity": {
-          "value": 1.4,
+          "value": 0.937,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "volumetricExpansion": {
           "value": 0.000027,
@@ -1209,16 +1209,16 @@
           "verification": "fetched"
         },
         "youngsModulus": {
-          "value": 30000000000.0,
+          "value": 32837000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
           "value": 0.2,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.6,
@@ -1248,7 +1248,7 @@
           "value": 0.9,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -1313,7 +1313,7 @@
           "value": 835.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.72,
@@ -1369,19 +1369,19 @@
           "value": 2630.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 50000000000.0,
-          "confidence": "estimate",
+          "value": 59300000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
-          "value": 0.25,
-          "confidence": "estimate",
+          "value": 0.23,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -1394,13 +1394,13 @@
           "value": 775.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 2.79,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000243,
@@ -1409,9 +1409,9 @@
         },
         "emissivity": {
           "value": 0.93,
-          "confidence": "handbook",
+          "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         }
       },
       "acoustic": {
@@ -1430,19 +1430,19 @@
           "value": 2680.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 50000000000.0,
-          "confidence": "estimate",
+          "value": 46300000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
-          "value": 0.25,
-          "confidence": "estimate",
+          "value": 0.23,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -1455,13 +1455,13 @@
           "value": 830.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 2.8,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000294,
@@ -1508,21 +1508,21 @@
         },
         "youngsModulus": {
           "value": 9300000000.0,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.33,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 1000000.0,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.1,
@@ -1534,7 +1534,7 @@
           "value": 0.03,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         }
       },
       "thermal": {
@@ -1559,13 +1559,13 @@
           "value": 273.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 334000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.97,
@@ -1598,16 +1598,16 @@
           "verification": "fetched"
         },
         "youngsModulus": {
-          "value": 910000000.0,
+          "value": 13400000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
           "value": 0.29,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.375,
@@ -1621,7 +1621,7 @@
           "value": 1700.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.12,
@@ -1639,19 +1639,19 @@
           "value": 663.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
-          "value": 15000000.0,
-          "confidence": "estimate",
+          "value": 11120000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "radiantFraction": {
           "value": 0.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -1690,22 +1690,22 @@
       "confidence": "handbook",
       "mechanical": {
         "density": {
-          "value": 545.0,
+          "value": 706.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "youngsModulus": {
-          "value": 910000000.0,
+          "value": 12500000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "poissonRatio": {
-          "value": 0.29,
+          "value": 0.35,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 0.375,
@@ -1716,16 +1716,16 @@
       },
       "thermal": {
         "specificHeat": {
-          "value": 1730.0,
+          "value": 1620.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "conductivity": {
           "value": 0.14,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.00011838,
@@ -1742,19 +1742,19 @@
           "value": 588.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
           "value": 12400000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "radiantFraction": {
           "value": 0.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -1786,22 +1786,22 @@
       "confidence": "handbook",
       "mechanical": {
         "density": {
-          "value": 640.0,
+          "value": 571.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "youngsModulus": {
-          "value": 910000000.0,
+          "value": 12300000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "poissonRatio": {
-          "value": 0.29,
+          "value": 0.328,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 0.375,
@@ -1812,16 +1812,16 @@
       },
       "thermal": {
         "specificHeat": {
-          "value": 1739.0,
+          "value": 1620.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "conductivity": {
           "value": 0.12,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.000107688,
@@ -1832,25 +1832,25 @@
           "value": 0.88,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "ignitionTemperature": {
           "value": 593.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
           "value": 13900000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "radiantFraction": {
           "value": 0.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -1879,7 +1879,7 @@
       }
     },
     "f3d.paper": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 930.0,
@@ -1888,16 +1888,16 @@
           "verification": "fetched"
         },
         "youngsModulus": {
-          "value": 2000000000.0,
-          "confidence": "estimate",
+          "value": 6000000000.0,
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
           "value": 0.3,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.6,
@@ -1913,10 +1913,10 @@
           "verification": "fetched"
         },
         "conductivity": {
-          "value": 0.05,
-          "confidence": "estimate",
+          "value": 0.18,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "emissivity": {
           "value": 0.9,
@@ -1926,21 +1926,21 @@
         },
         "ignitionTemperature": {
           "value": 506.15,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
           "value": 16000000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "radiantFraction": {
           "value": 0.3,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         }
       }
     },
@@ -1948,16 +1948,16 @@
       "confidence": "handbook",
       "mechanical": {
         "youngsModulus": {
-          "value": 2000000000.0,
-          "confidence": "estimate",
-          "law": "constant",
-          "verification": "catalog"
-        },
-        "poissonRatio": {
-          "value": 0.3,
+          "value": 3850000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
+        },
+        "poissonRatio": {
+          "value": 0.27,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -1970,48 +1970,48 @@
           "value": 1800.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.1,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.7,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "ignitionTemperature": {
           "value": 623.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
           "value": 14030000.0,
-          "confidence": "measured",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "radiantFraction": {
           "value": 0.24,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         }
       }
     },
     "f3d.thatch": {
-      "confidence": "handbook",
+      "confidence": "estimate",
       "mechanical": {
         "poissonRatio": {
           "value": 0.29,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         },
         "staticFriction": {
           "value": 0.6,
@@ -2021,51 +2021,51 @@
       },
       "thermal": {
         "specificHeat": {
-          "value": 1938.0,
+          "value": 1678.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "conductivity": {
           "value": 0.0485,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.846,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "ignitionTemperature": {
           "value": 593.15,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
           "value": 10100000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "radiantFraction": {
           "value": 0.3,
-          "confidence": "handbook",
+          "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         }
       }
     },
     "f3d.charcoal": {
-      "confidence": "handbook",
+      "confidence": "estimate",
       "mechanical": {
         "poissonRatio": {
           "value": 0.29,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         },
         "staticFriction": {
           "value": 0.6,
@@ -2076,39 +2076,39 @@
       "thermal": {
         "specificHeat": {
           "value": 1017.0,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.03,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.77,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "ignitionTemperature": {
-          "value": 860.8,
+          "value": 610.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "heatOfCombustion": {
-          "value": 30000000.0,
+          "value": 29450000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "radiantFraction": {
           "value": 0.88,
-          "confidence": "handbook",
+          "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         }
       }
     },
@@ -2119,13 +2119,13 @@
           "value": 900.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.29,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         },
         "staticFriction": {
           "value": 0.6,
@@ -2138,37 +2138,37 @@
           "value": 2604.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.23,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.9,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         },
         "ignitionTemperature": {
           "value": 472.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "heatOfCombustion": {
           "value": 43800000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "radiantFraction": {
           "value": 0.17,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         }
       }
     },
@@ -2183,15 +2183,15 @@
         },
         "youngsModulus": {
           "value": 2000000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.49,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.16,
@@ -2208,10 +2208,10 @@
           "verification": "fetched"
         },
         "conductivity": {
-          "value": 0.16,
+          "value": 0.13,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "volumetricExpansion": {
           "value": 0.0002025,
@@ -2219,28 +2219,28 @@
           "law": "constant"
         },
         "emissivity": {
-          "value": 0.92,
-          "confidence": "estimate",
+          "value": 0.86,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "ignitionTemperature": {
-          "value": 623.15,
-          "confidence": "estimate",
+          "value": 673.15,
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "heatOfCombustion": {
-          "value": 32000000.0,
-          "confidence": "estimate",
+          "value": 37920000.0,
+          "confidence": "measured",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "radiantFraction": {
           "value": 0.45,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         }
       },
       "acoustic": {
@@ -2282,25 +2282,25 @@
       }
     },
     "f3d.abs": {
-      "confidence": "handbook",
+      "confidence": "estimate",
       "mechanical": {
         "density": {
           "value": 1050.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 2300000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.35,
-          "confidence": "handbook",
+          "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         },
         "tensileStrength": {
           "value": 40000000.0,
@@ -2317,15 +2317,15 @@
       "thermal": {
         "specificHeat": {
           "value": 1400.0,
-          "confidence": "handbook",
+          "confidence": "estimate",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "estimate"
         },
         "conductivity": {
           "value": 0.17,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.00027,
@@ -2347,7 +2347,7 @@
           "value": 950.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 800000000.0,
@@ -2356,16 +2356,16 @@
           "verification": "fetched"
         },
         "poissonRatio": {
-          "value": 0.42,
+          "value": 0.45,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "corrected"
         },
         "yieldStrength": {
-          "value": 29650000.0,
-          "confidence": "estimate",
+          "value": 30000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "tensileStrength": {
           "value": 15000000.0,
@@ -2385,13 +2385,13 @@
           "value": 1900.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "conductivity": {
-          "value": 0.45,
+          "value": 0.4,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "ambiguous"
         },
         "volumetricExpansion": {
           "value": 0.000324,
@@ -2400,9 +2400,9 @@
         },
         "meltingPoint": {
           "value": 403.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.92,
@@ -2412,9 +2412,9 @@
         },
         "heatOfCombustion": {
           "value": 43300000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -2430,7 +2430,7 @@
           "value": 1.54,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "estimate"
         },
         "dielectricF0": {
           "value": 0.0452,
@@ -2471,7 +2471,7 @@
           "value": 0.27,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.9,
@@ -2496,7 +2496,7 @@
           "value": 2050.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.6,
@@ -2509,13 +2509,13 @@
           "value": 1840.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.52,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.945,
@@ -9643,13 +9643,13 @@
           "value": 3134.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 247300.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.61,
@@ -9751,13 +9751,13 @@
           "value": 2435.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 104600.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.03,
@@ -9858,13 +9858,13 @@
           "value": 2022.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 23000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.63,
@@ -9972,13 +9972,13 @@
           "value": 3186.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 297800.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.47,
@@ -10037,13 +10037,13 @@
           "value": 108000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.25,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.6,
@@ -10080,13 +10080,13 @@
           "value": 1180.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 108100.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.25,
@@ -10145,13 +10145,13 @@
           "value": 50000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.36,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -10187,13 +10187,13 @@
           "value": 2875.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 60400.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.05,
@@ -10240,13 +10240,13 @@
           "value": 116000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.32,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -10282,13 +10282,13 @@
           "value": 3560.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 295600.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.19,
@@ -10339,13 +10339,13 @@
           "value": 411000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.28,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -10381,13 +10381,13 @@
           "value": 5828.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 284500.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.04,
@@ -10481,13 +10481,13 @@
           "value": 1363.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 348900.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.1,
@@ -10521,7 +10521,7 @@
           "value": 4.39e-8,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "inelastic": {
@@ -10546,13 +10546,13 @@
           "value": 168000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.38,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.2,
@@ -10589,13 +10589,13 @@
           "value": 4098.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 113600.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.06,
@@ -10646,13 +10646,13 @@
           "value": 279000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.21,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.41,
@@ -10689,13 +10689,13 @@
           "value": 2944.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 404000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.08,
@@ -10718,10 +10718,10 @@
       },
       "electrical": {
         "resistivity": {
-          "value": 1.25e-7,
+          "value": 1.34e-7,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         }
       }
     },
@@ -10736,15 +10736,15 @@
         },
         "youngsModulus": {
           "value": 329000000000.0,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
-          "value": 0.31,
-          "confidence": "handbook",
+          "value": 0.293,
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 1.0,
@@ -10817,31 +10817,31 @@
           "value": 193000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.29,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 215000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 505000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "hardness": {
           "value": 1265000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -10922,25 +10922,25 @@
           "value": 193000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 290000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 580000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -10998,7 +10998,7 @@
           "value": 7.4e-7,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       }
     },
@@ -11009,25 +11009,25 @@
           "value": 7300.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 100000000000.0,
-          "confidence": "estimate",
+          "value": 100500000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
           "value": 0.26,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
-          "value": 207000000.0,
+          "value": 200000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 1.1,
@@ -11044,10 +11044,10 @@
       },
       "thermal": {
         "conductivity": {
-          "value": 46.0,
-          "confidence": "estimate",
+          "value": 50.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "volumetricExpansion": {
           "value": 0.0000321,
@@ -11077,37 +11077,37 @@
           "value": 4430.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 113800000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.342,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 880000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 950000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "hardness": {
           "value": 3423000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -11120,13 +11120,13 @@
           "value": 526.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 6.7,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000258,
@@ -11137,7 +11137,7 @@
           "value": 1877.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -11165,7 +11165,7 @@
           "value": 0.00000178,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       }
     },
@@ -11176,37 +11176,37 @@
           "value": 2700.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 68900000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.33,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 276000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 310000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "hardness": {
           "value": 1049000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -11219,13 +11219,13 @@
           "value": 896.0,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 167.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000708,
@@ -11236,7 +11236,7 @@
           "value": 855.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.09,
@@ -11270,7 +11270,7 @@
           "value": 3.99e-8,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "inelastic": {
@@ -11289,37 +11289,37 @@
           "value": 2810.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 71700000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.33,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 503000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 572000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "hardness": {
           "value": 1716000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -11332,13 +11332,13 @@
           "value": 960.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 130.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000708,
@@ -11349,7 +11349,7 @@
           "value": 750.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.09,
@@ -11383,7 +11383,7 @@
           "value": 5.15e-8,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       }
     },
@@ -11394,37 +11394,37 @@
           "value": 2780.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 73100000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.33,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 345000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 483000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "hardness": {
           "value": 1344000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.0,
@@ -11443,7 +11443,7 @@
           "value": 121.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000696,
@@ -11488,7 +11488,7 @@
           "value": 5.82e-8,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       }
     },
@@ -11847,31 +11847,31 @@
           "value": 7850.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 207000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.3,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
-          "value": 472000000.0,
+          "value": 938000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "tensileStrength": {
-          "value": 745000000.0,
+          "value": 1000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 1.0,
@@ -11884,13 +11884,13 @@
           "value": 477.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 44.5,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000369,
@@ -11920,13 +11920,13 @@
           "value": 64000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.2,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.95,
@@ -11979,7 +11979,7 @@
           "value": 1.4714,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0364,
@@ -12001,13 +12001,13 @@
           "value": 73000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.17,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.2,
@@ -12059,13 +12059,13 @@
           "value": 1.4585,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "abbeNumber": {
           "value": 67.8,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0348,
@@ -12089,19 +12089,19 @@
           "value": 2510.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 82000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.206,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.95,
@@ -12121,13 +12121,13 @@
           "value": 858.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 1.114,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000213,
@@ -12148,13 +12148,13 @@
           "value": 1.5168,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "abbeNumber": {
           "value": 64.17,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0422,
@@ -12170,19 +12170,19 @@
           "value": 3600.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 57000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.22,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.95,
@@ -12202,13 +12202,13 @@
           "value": 557.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.78,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000246,
@@ -12229,13 +12229,13 @@
           "value": 1.62004,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "abbeNumber": {
           "value": 36.37,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.056,
@@ -12257,13 +12257,13 @@
           "value": 380000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.22,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.2,
@@ -12353,9 +12353,9 @@
         },
         "abbeNumber": {
           "value": 72.2,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.077,
@@ -12443,10 +12443,10 @@
           "verification": "fetched"
         },
         "poissonRatio": {
-          "value": 0.19,
+          "value": 0.21,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.2,
@@ -12562,10 +12562,10 @@
           "verification": "fetched"
         },
         "youngsModulus": {
-          "value": 11000000000.0,
-          "confidence": "estimate",
+          "value": 11500000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.1,
@@ -12652,9 +12652,9 @@
       "optical": {
         "refractiveIndex": {
           "value": 1.544,
-          "confidence": "handbook",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0457,
@@ -12676,7 +12676,7 @@
           "value": 120000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.2,
@@ -12721,10 +12721,10 @@
           "verification": "fetched"
         },
         "youngsModulus": {
-          "value": 129000000000.0,
-          "confidence": "handbook",
+          "value": 130000000000.0,
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.2,
@@ -12794,7 +12794,7 @@
           "value": 304000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.2,
@@ -12883,25 +12883,25 @@
       }
     },
     "f3d.basalt": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
-          "value": 2900.0,
-          "confidence": "estimate",
+          "value": 2965.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "youngsModulus": {
-          "value": 70000000000.0,
-          "confidence": "estimate",
+          "value": 62600000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
           "value": 0.25,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -12912,21 +12912,21 @@
       "thermal": {
         "specificHeat": {
           "value": 840.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
-          "value": 1.8,
-          "confidence": "estimate",
+          "value": 1.58,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "meltingPoint": {
           "value": 1450.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.72,
@@ -12943,19 +12943,19 @@
           "value": 2150.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 15000000000.0,
-          "confidence": "estimate",
+          "value": 15300000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
-          "value": 0.25,
-          "confidence": "estimate",
+          "value": 0.24,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -12968,13 +12968,13 @@
           "value": 745.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 2.9,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.0000348,
@@ -12996,19 +12996,19 @@
           "value": 2320.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 40000000000.0,
-          "confidence": "estimate",
+          "value": 50400000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
-          "value": 0.27,
-          "confidence": "estimate",
+          "value": 0.25,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -13021,13 +13021,13 @@
           "value": 810.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 2.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "volumetricExpansion": {
           "value": 0.000024,
@@ -13043,25 +13043,25 @@
       }
     },
     "f3d.slate": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 2750.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 50000000000.0,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "estimate"
         },
         "poissonRatio": {
           "value": 0.25,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "estimate"
         },
         "staticFriction": {
           "value": 0.6,
@@ -13098,7 +13098,7 @@
           "value": 2640.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.6,
@@ -13111,13 +13111,13 @@
           "value": 1105.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 5.38,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       }
     },
@@ -13488,9 +13488,9 @@
       "mechanical": {
         "density": {
           "value": 100.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -13503,25 +13503,25 @@
           "value": 2097.0,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.0464,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "meltingPoint": {
           "value": 273.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 334000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.85,
@@ -13549,9 +13549,9 @@
       "mechanical": {
         "density": {
           "value": 375.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.6,
@@ -13564,25 +13564,25 @@
           "value": 2097.0,
           "confidence": "handbook",
           "law": "formula",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "conductivity": {
           "value": 0.2139,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "meltingPoint": {
           "value": 273.15,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "latentHeatOfFusion": {
           "value": 334000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "catalog"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.85,
@@ -13625,7 +13625,7 @@
           "value": 1074.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "optical": {
@@ -14344,13 +14344,13 @@
       }
     },
     "f3d.polyethyleneLD": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 925.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 280000000.0,
@@ -14359,16 +14359,16 @@
           "verification": "fetched"
         },
         "yieldStrength": {
-          "value": 11750000.0,
-          "confidence": "estimate",
+          "value": 11000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "tensileStrength": {
-          "value": 19850000.0,
-          "confidence": "estimate",
+          "value": 25000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.2,
@@ -14385,9 +14385,9 @@
         },
         "meltingPoint": {
           "value": 383.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.92,
@@ -14397,9 +14397,9 @@
         },
         "heatOfCombustion": {
           "value": 43300000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -14415,7 +14415,7 @@
           "value": 1.51,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "estimate"
         },
         "dielectricF0": {
           "value": 0.0413,
@@ -14425,7 +14425,7 @@
       }
     },
     "f3d.polypropylene": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 910.0,
@@ -14443,19 +14443,19 @@
           "value": 0.42,
           "confidence": "estimate",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "estimate"
         },
         "yieldStrength": {
           "value": 34100000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
-          "value": 36200000.0,
-          "confidence": "estimate",
+          "value": 34000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 0.2,
@@ -14495,9 +14495,9 @@
         },
         "heatOfCombustion": {
           "value": 43400000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "optical": {
@@ -14531,21 +14531,21 @@
         },
         "poissonRatio": {
           "value": 0.38,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
-          "value": 42750000.0,
-          "confidence": "estimate",
+          "value": 55000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         },
         "tensileStrength": {
-          "value": 46200000.0,
-          "confidence": "estimate",
+          "value": 55000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 0.2,
@@ -14579,9 +14579,9 @@
         },
         "heatOfCombustion": {
           "value": 16400000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -14623,9 +14623,9 @@
         },
         "poissonRatio": {
           "value": 0.37,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
           "value": 70000000.0,
@@ -14672,9 +14672,9 @@
         },
         "heatOfCombustion": {
           "value": 24900000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -14694,9 +14694,9 @@
         },
         "abbeNumber": {
           "value": 57.2,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0388,
@@ -14792,13 +14792,13 @@
       }
     },
     "f3d.polystyrene": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 1050.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 3250000000.0,
@@ -14808,15 +14808,15 @@
         },
         "poissonRatio": {
           "value": 0.33,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "tensileStrength": {
-          "value": 43800000.0,
-          "confidence": "estimate",
+          "value": 52000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 0.5,
@@ -14838,10 +14838,10 @@
           "verification": "fetched"
         },
         "heatOfCombustion": {
-          "value": 39800000.0,
-          "confidence": "estimate",
+          "value": 41960000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         }
       },
       "acoustic": {
@@ -14855,9 +14855,9 @@
       "optical": {
         "refractiveIndex": {
           "value": 1.5916,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0521,
@@ -14895,10 +14895,10 @@
           "verification": "fetched"
         },
         "heatOfCombustion": {
-          "value": 39800000.0,
-          "confidence": "estimate",
+          "value": 41960000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         }
       },
       "acoustic": {
@@ -14979,15 +14979,15 @@
         },
         "poissonRatio": {
           "value": 0.39,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
-          "value": 63800000.0,
-          "confidence": "estimate",
+          "value": 82000000.0,
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
         },
         "tensileStrength": {
           "value": 85000000.0,
@@ -15016,9 +15016,9 @@
         },
         "meltingPoint": {
           "value": 538.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.92,
@@ -15053,9 +15053,9 @@
         },
         "poissonRatio": {
           "value": 0.46,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "yieldStrength": {
           "value": 23000000.0,
@@ -15110,9 +15110,9 @@
       "optical": {
         "refractiveIndex": {
           "value": 1.35,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0222,
@@ -15136,7 +15136,7 @@
           "value": 1350.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 2350000000.0,
@@ -15176,9 +15176,9 @@
         },
         "meltingPoint": {
           "value": 533.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.92,
@@ -15210,13 +15210,13 @@
       }
     },
     "f3d.pom": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 1410.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 2800000000.0,
@@ -15244,9 +15244,9 @@
         },
         "meltingPoint": {
           "value": 448.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "emissivity": {
           "value": 0.92,
@@ -15260,16 +15260,16 @@
       "confidence": "estimate",
       "mechanical": {
         "density": {
-          "value": 1200.0,
-          "confidence": "estimate",
-          "law": "constant",
-          "verification": "recalled"
-        },
-        "youngsModulus": {
-          "value": 2410000000.0,
+          "value": 1160.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
+        },
+        "youngsModulus": {
+          "value": 2750000000.0,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "ambiguous"
         },
         "tensileStrength": {
           "value": 55500000.0,
@@ -15298,25 +15298,25 @@
       }
     },
     "f3d.peek": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 1310.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 3600000000.0,
-          "confidence": "estimate",
-          "law": "constant",
-          "verification": "recalled"
-        },
-        "yieldStrength": {
-          "value": 91000000.0,
+          "value": 4000000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "corrected"
+        },
+        "yieldStrength": {
+          "value": 98000000.0,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "corrected"
         },
         "staticFriction": {
           "value": 0.2,
@@ -15327,14 +15327,14 @@
       "thermal": {
         "meltingPoint": {
           "value": 616.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       }
     },
     "f3d.naturalRubber": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 1150.0,
@@ -15344,15 +15344,15 @@
         },
         "youngsModulus": {
           "value": 1270000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "poissonRatio": {
           "value": 0.4999,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.16,
@@ -15391,9 +15391,9 @@
       "optical": {
         "refractiveIndex": {
           "value": 1.519,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0425,
@@ -15417,19 +15417,19 @@
           "value": 1030.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
           "value": 1320000.0,
           "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "poissonRatio": {
           "value": 0.49,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.16,
@@ -15442,7 +15442,7 @@
           "value": 0.27,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         }
       },
       "acoustic": {
@@ -15458,7 +15458,7 @@
           "value": 1.4118,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "dielectricF0": {
           "value": 0.0292,
@@ -15472,9 +15472,9 @@
       "mechanical": {
         "density": {
           "value": 1240.0,
-          "confidence": "estimate",
+          "confidence": "measured",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.16,
@@ -15500,13 +15500,13 @@
       }
     },
     "f3d.butylRubber": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 920.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.16,
@@ -15524,13 +15524,13 @@
       }
     },
     "f3d.polybutadieneRubber": {
-      "confidence": "estimate",
+      "confidence": "handbook",
       "mechanical": {
         "density": {
           "value": 910.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 1.16,
@@ -15554,13 +15554,13 @@
           "value": 1600.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "youngsModulus": {
-          "value": 10000000000.0,
+          "value": 58600000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.2,
@@ -15595,16 +15595,16 @@
       "confidence": "handbook",
       "mechanical": {
         "density": {
-          "value": 2100.0,
+          "value": 2000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "youngsModulus": {
-          "value": 12000000000.0,
+          "value": 23200000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "ambiguous"
         },
         "staticFriction": {
           "value": 0.2,
@@ -15640,7 +15640,7 @@
           "value": 135000000.0,
           "confidence": "handbook",
           "law": "constant",
-          "verification": "recalled"
+          "verification": "confirmed"
         },
         "staticFriction": {
           "value": 0.6,
@@ -15965,8 +15965,8 @@
       "confidence": "handbook"
     },
     "f3d.asphalt|f3d.rubber": {
-      "friction": 0.65,
-      "confidence": "estimate"
+      "friction": 0.75,
+      "confidence": "measured"
     },
     "f3d.ice|f3d.steel": {
       "friction": 0.03,
@@ -15974,22 +15974,155 @@
     },
     "f3d.concrete|f3d.wood": {
       "friction": 0.62,
-      "confidence": "handbook"
+      "restitution": 0.603,
+      "confidence": "estimate"
     },
     "f3d.brick|f3d.wood": {
       "friction": 0.6,
       "confidence": "handbook"
     },
     "f3d.leather|f3d.wood": {
-      "friction": 0.35,
-      "confidence": "estimate"
+      "friction": 0.31,
+      "confidence": "handbook"
     },
     "f3d.ptfe|f3d.steel": {
-      "friction": 0.125,
-      "confidence": "estimate"
+      "friction": 0.065,
+      "confidence": "handbook"
     },
     "f3d.steel|f3d.wood": {
       "friction": 0.4,
+      "confidence": "handbook"
+    },
+    "f3d.steel|f3d.steel": {
+      "restitution": 0.95,
+      "confidence": "measured"
+    },
+    "f3d.glass|f3d.glass": {
+      "restitution": 0.97,
+      "confidence": "measured"
+    },
+    "f3d.aluminum|f3d.glass": {
+      "restitution": 0.831,
+      "confidence": "measured"
+    },
+    "f3d.pmma|f3d.pmma": {
+      "restitution": 0.934,
+      "confidence": "measured"
+    },
+    "f3d.pmma|f3d.steel": {
+      "restitution": 0.9,
+      "confidence": "measured"
+    },
+    "f3d.polycarbonate|f3d.steel": {
+      "restitution": 0.95,
+      "confidence": "measured"
+    },
+    "f3d.polystyrene|f3d.polystyrene": {
+      "restitution": 0.952,
+      "confidence": "measured"
+    },
+    "f3d.pom|f3d.pom": {
+      "restitution": 0.95,
+      "confidence": "measured"
+    },
+    "f3d.pom|f3d.steel": {
+      "restitution": 0.95,
+      "confidence": "measured"
+    },
+    "f3d.granite|f3d.pom": {
+      "restitution": 0.95,
+      "confidence": "measured"
+    },
+    "f3d.brass|f3d.steel": {
+      "restitution": 0.84,
+      "confidence": "measured"
+    },
+    "f3d.aluminum|f3d.steel": {
+      "restitution": 0.84,
+      "confidence": "measured"
+    },
+    "f3d.copper|f3d.steel": {
+      "restitution": 0.77,
+      "confidence": "measured"
+    },
+    "f3d.brass|f3d.granite": {
+      "restitution": 0.94,
+      "confidence": "measured"
+    },
+    "f3d.brass|f3d.brass": {
+      "restitution": 0.77,
+      "confidence": "measured"
+    },
+    "f3d.aluminum|f3d.aluminum": {
+      "restitution": 0.4368532110091743,
+      "confidence": "measured"
+    },
+    "f3d.alumina|f3d.alumina": {
+      "restitution": 0.968,
+      "confidence": "measured"
+    },
+    "f3d.alumina|f3d.aluminum": {
+      "restitution": 0.7604427860696518,
+      "confidence": "measured"
+    },
+    "f3d.ptfe|f3d.ptfe": {
+      "restitution": 0.8,
+      "confidence": "measured"
+    },
+    "f3d.polypropylene|f3d.polypropylene": {
+      "restitution": 0.87,
+      "confidence": "measured"
+    },
+    "f3d.polyethylene|f3d.polyethylene": {
+      "restitution": 0.71,
+      "confidence": "measured"
+    },
+    "f3d.nylon66|f3d.nylon66": {
+      "restitution": 0.83,
+      "confidence": "measured"
+    },
+    "f3d.titanium|f3d.titanium": {
+      "restitution": 0.92,
+      "confidence": "measured"
+    },
+    "f3d.granite|f3d.granite": {
+      "restitution": 0.83,
+      "confidence": "measured"
+    },
+    "f3d.sandstone|f3d.steel": {
+      "restitution": 0.75,
+      "confidence": "measured"
+    },
+    "f3d.ice|f3d.ice": {
+      "restitution": 0.88,
+      "confidence": "measured"
+    },
+    "f3d.stainlessSteel304|f3d.steel": {
+      "restitution": 0.66,
+      "confidence": "measured"
+    },
+    "f3d.glass|f3d.stainlessSteel304": {
+      "restitution": 0.84,
+      "confidence": "measured"
+    },
+    "f3d.granite|f3d.steel": {
+      "restitution": 0.9,
+      "confidence": "measured"
+    },
+    "f3d.rubber|f3d.steel": {
+      "restitution": 0.42,
+      "confidence": "measured"
+    },
+    "f3d.quartz|f3d.stainlessSteel304": {
+      "restitution": 0.68,
+      "confidence": "measured"
+    },
+    "f3d.concrete|f3d.steel": {
+      "restitution": 0.597,
+      "confidence": "estimate"
+    },
+    "f3d.concrete|f3d.glass": {
+      "restitution": 0.658,
       "confidence": "estimate"
     }
   },
@@ -15998,6 +16131,7 @@
     "f3d.aluminum6061T6 thermal.conductivity": "polynomial gives 191.4 at the reference state, quoted 167.0",
     "f3d.andesiteMelt": "left out: the data has no density",
     "f3d.balsa thermal.specificHeat": "a formula law in T the expression language is not given",
+    "f3d.basaltMelt fluid.viscosity": "vft gives 91.30555676528013 at the reference state, quoted 37.0",
     "f3d.birch thermal.specificHeat": "a formula law in T the expression language is not given",
     "f3d.blood fluid.surfaceTension": "a polynomial law in t (°C) the expression language is not given",
     "f3d.bloodPlasma fluid.surfaceTension": "a polynomial law in t (°C) the expression language is not given",

@@ -82,7 +82,7 @@ the literature for rock and grains, or the engine's default.
 | `f3d.oliveOil` | density, conductivity | viscosity, surfaceTension, bulkModulus, specificHeat, volumetricExpansion, autoignitionTemperature, heatOfCombustion |
 | `f3d.honey` | — | density, viscosity, surfaceTension, specificHeat, conductivity, refractiveIndex |
 | `f3d.mercury` | density, viscosity | surfaceTension, bulkModulus, specificHeat, conductivity, volumetricExpansion, meltingPoint, boilingPoint, latentHeatOfFusion, latentHeatOfVaporization, speedOfSound, resistivity |
-| `f3d.basaltMelt` | viscosity | density, surfaceTension, specificHeat, conductivity, meltingPoint, latentHeatOfFusion, emissivity |
+| `f3d.basaltMelt` | — | density, viscosity, surfaceTension, specificHeat, conductivity, meltingPoint, latentHeatOfFusion, emissivity |
 | `f3d.air` | density, viscosity, specificHeat, conductivity, speedOfSound | bulkModulus, volumetricExpansion, impedance, refractiveIndex, abbeNumber |
 | `f3d.steel` | youngsModulus, yieldStrength, specificHeat, conductivity | density, poissonRatio, tensileStrength, staticFriction, kineticFriction, volumetricExpansion, emissivity, speedOfSound, resistivity, lossFactor |
 | `f3d.aluminum` | specificHeat, conductivity, resistivity | density, youngsModulus, poissonRatio, staticFriction, volumetricExpansion, meltingPoint, boilingPoint, latentHeatOfFusion, emissivity, speedOfSound, lossFactor |
@@ -314,6 +314,6 @@ the literature for rock and grains, or the engine's default.
 | `f3d.sawdust` | — | density, staticFriction, specificHeat, conductivity |
 | `f3d.mineralWool` | — | density, staticFriction, specificHeat, conductivity |
 
-555 values of 238 materials change with temperature; 1820 are constants at the reference state. No law in the catalogue reads pressure yet.
+554 values of 238 materials change with temperature; 1821 are constants at the reference state. No law in the catalogue reads pressure yet.
 
 <!-- coverage:end -->

@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **The presets follow the verified catalogue.** The header is written
+  from `flutter3d_matter`'s checked values, so the heat and fire presets
+  take theirs: wood burns at the 11.1 MJ/kg measured of it rather than 15
+  (an upright beam's flame climbs a part in about twenty minutes), oak, pine and Douglas-fir bend by their modulus along the
+  grain, oak is 706 kg/m³, charcoal catches at 610 K as measured rather
+  than at the 861 K its glow holds by itself, a tyre's rubber is soft
+  vulcanized (0.13 W/(m·K), emissivity 0.86, 37.9 MJ/kg, catching at
+  673 K), paper conducts as a sheet (0.18), steel's modulus is 211.9 GPa
+  and granite's 59.3. The shared scene's snapshot hash and the WebAssembly
+  modules follow.
 - **The core's header carries the whole catalogue, at its reference
   state.** `f3d_materials.g.h` defines every built-in material's values at
   its reference state, as before for the 33 it had and now for all 238.

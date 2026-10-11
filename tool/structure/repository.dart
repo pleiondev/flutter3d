@@ -1252,6 +1252,16 @@ portableStepExempt = <String, Map<String, String>>{
   },
 };
 
+/// Libraries that are where a substance's numbers are written, whole, each
+/// with its reason: `a world's gravity, air and sea are read from the
+/// world` reads none of them.
+const Map<String, String> worldLiteralCatalogues = <String, String>{
+  'flutter3d_matter/lib/src/materials/materials.g.dart':
+      'the material catalogue, generated from its data: f3d.air\'s density, '
+      'f3d.seawater\'s, a law\'s points at 20 °C and the sources quoting '
+      'them are what the rule sends a reader to',
+};
+
 /// Where a world's or a substance's number may be written as a literal, by
 /// file, by literal, with the reason.
 ///
@@ -1269,22 +1279,6 @@ const Map<String, Map<String, String>> worldLiteralExempt =
         '1.204': 'the definition of standardAirDensity',
         '101325.0': 'the definition of standardAtmosphere',
         '343.0': 'the definition of standardSpeedOfSound',
-      },
-      // The catalogue is where a substance's numbers are written: its air
-      // is f3d.air, its sea f3d.seawater, and a law's table has a point at
-      // its entry's reference state, 20 °C, written by the generator from
-      // the data.
-      'flutter3d_matter/lib/src/materials/materials.g.dart': <String, String>{
-        '1025.0':
-            'the definition of f3d.seawater — the sea\'s density is the '
-            'catalogue entry\'s',
-        '1.204': 'the definition of f3d.air\'s density, and its law\'s point',
-        '343.0':
-            'a speed of sound at 20 °C in the data: f3d.air\'s, and '
-            'its table\'s points',
-        '293.15': 'a table\'s point at its entry\'s reference temperature',
-        '101325': 'a pressure in a source\'s words, the data\'s reference',
-        '101.325': 'a pressure in kilopascals in a source\'s words',
       },
       // A game's own world, set once where it stages (decision 1 of
       // tasks/1.0-physics-audit.md): everything in that game reads it from

@@ -3998,6 +3998,7 @@ List<Finding> _worldNumbersFromTheWorld() {
   for (final entry in scanned.entries) {
     for (final file in dartFilesIn(Directory('${entry.value.path}/lib'))) {
       final where = '${entry.key}/${relative(file, entry.value)}';
+      if (worldLiteralCatalogues.containsKey(where)) continue;
       final exempt = worldLiteralExempt[where] ?? const <String, String>{};
       for (final hit in worldLiteralsIn(file.readAsStringSync())) {
         if (exempt.containsKey(hit.literal)) {

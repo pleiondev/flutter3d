@@ -10,6 +10,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart' show Materials;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -320,7 +321,11 @@ void main() {
     expect(boards.ignitionTemperature, wood.ignitionTemperature);
     expect(boards.heatOfGasification, wood.heatOfGasification);
     expect(wood.heatOfGasification, greaterThan(0));
-    expect(NativeMaterial.steel().modulus, closeTo(2e11, 1e6));
+    // The catalogue's steel, as the core holds it in floats.
+    expect(
+      NativeMaterial.steel().modulus,
+      closeTo(Materials.steel.mechanical!.youngsModulus!.value, 1e5),
+    );
   });
 
   test('a burner burns on stone until it is put out', () {
@@ -333,7 +338,11 @@ void main() {
       ..setShape(stone, const NativeShape.sphere(0.1))
       ..setMaterial(stone, NativeMaterial.stone());
     final pine = NativeBurner(fuel: NativeMaterial.wood(), rate: 0.001);
-    expect(pine.power, closeTo(15000.0, 1.0));
+    // A gram a second of the catalogue's wood, at its heat of combustion.
+    expect(
+      pine.power,
+      closeTo(0.001 * Materials.wood.thermal!.heatOfCombustion!.value, 1.0),
+    );
     expect(
       () => world.setBurner(
         stone,

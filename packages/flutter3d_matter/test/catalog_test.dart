@@ -93,6 +93,60 @@ void main() {
     expect(granite.source, contains("Byerlee's rule"));
   });
 
+  test('a verified value names what verified it', () {
+    final verified =
+        jsonDecode(File('tool/data/catalog.verified.json').readAsStringSync())
+            as Map<String, Object?>;
+    // Mutation: leave the verification unapplied, and a value is still
+    // "recalled", its source a memory rather than a page.
+    var recalled = 0;
+    for (final material
+        in (verified['materials']! as Map<String, Object?>).values) {
+      for (final group in (material! as Map<String, Object?>).values) {
+        if (group is! Map<String, Object?>) continue;
+        for (final value in group.values) {
+          final v = value! as Map<String, Object?>;
+          if (v['verification'] == 'recalled' && v['value'] is num) recalled++;
+        }
+      }
+    }
+    expect(recalled, 0);
+    // A wood bends by its modulus along the grain.
+    final oak = Materials.oak.mechanical!.youngsModulus!;
+    expect(oak.value, 12.5e9);
+    expect(oak.source, contains('along the grain'));
+    // An ambiguous value is the grade proposed, its spread the interval,
+    // the grade named.
+    final yield4340 = Materials.steel4340.mechanical!.yieldStrength!;
+    expect(yield4340.value, 938e6);
+    expect(yield4340.interval, const PropertyInterval(470e6, 1165e6));
+    expect(
+      File('lib/src/materials/materials.g.dart').readAsStringSync(),
+      contains(
+        RegExp(r'4340.*Of the grades its name covers, its yieldStrength'),
+      ),
+    );
+    // Water's bulk modulus is the adiabatic one, ethanol's heat at 20 °C.
+    expect(Materials.water.fluid!.bulkModulus!.value, 2193400000.0);
+    expect(Materials.ethanol.thermal!.specificHeat!.value, 2393.0);
+  });
+
+  test('a pair measured to bounce says so', () {
+    final catalogue = MaterialCatalog.builtIn();
+    final steel = catalogue.pairOf('f3d.steel', 'f3d.steel')!;
+    expect(steel.restitution, 0.95);
+    expect(steel.confidence, Confidence.measured);
+    expect(steel.source, contains('Lifshitz'));
+    // A pair the research trusts little goes in as an estimate.
+    final onConcrete = catalogue.pairOf('f3d.steel', 'f3d.concrete')!;
+    expect(onConcrete.restitution, 0.597);
+    expect(onConcrete.confidence, Confidence.estimate);
+    expect(
+      catalogue.contact(Materials.steel, Materials.steel).restitution,
+      0.95,
+    );
+  });
+
   test("a family's median is of measured frictions, never of estimates", () {
     final byId = <String, PhysicalMaterial>{
       for (final m in Materials.all) m.id: m,

@@ -106,7 +106,11 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa; the table alone gives 0.07273575581628561 at the reference state; its point there is the quoted 0.0728, 1.0008832545010828 times it',
       ),
-      bulkModulus: ConstantLaw(2180000000.0, confidence: Confidence.handbook),
+      bulkModulus: ConstantLaw(
+        2193400000.0,
+        confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, Thermophysical Properties of Fluid Systems, water (C7732185), isobar 0.101325 MPa, row 293.150 K: 293.15 K, 0.101325 MPa, liquid; adiabatic K_s = rho*c^2 (rho 998.207 kg/m3, c 1482.35 m/s) (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7732185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the adiabatic modulus the schema names, K_s = rho c^2, rather than the isothermal 2.18e9',
+      ),
       source: 'CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa',
     ),
     thermal: ThermalProperties(
@@ -178,7 +182,11 @@ abstract final class Materials {
     ),
     fluid: FluidProperties(
       viscosity: ConstantLaw(0.00108, confidence: Confidence.handbook),
-      surfaceTension: ConstantLaw(0.073, confidence: Confidence.handbook),
+      surfaceTension: ConstantLaw(
+        0.073,
+        confidence: Confidence.handbook,
+        source: 'MIT Seawater Property Tables (2017, r2b 2023c), table 8 \'Surface tension of seawater\' at P0; correlation of Nayar, Panchanathan, McKinley and Lienhard, J. Phys. Chem. Ref. Data 43, 043103 (2014); accuracy 0.6 %: 20 °C, 1 atm, S = 35.165 g/kg (interpolated between 30 g/kg 73.66 and 40 g/kg 73.97 mN/m) (https://web.mit.edu/seawater/2017_MIT_Seawater_Property_Tables_r2b_2023c.pdf)',
+      ),
       bulkModulus: ConstantLaw(
         2372000000.0,
         confidence: Confidence.handbook,
@@ -188,7 +196,11 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(3993.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.596, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        0.596,
+        confidence: Confidence.handbook,
+        source: 'MIT Seawater Property Tables (2017, r2b 2023c), table 7 \'Thermal conductivity of seawater\' at P0; Sharqawy, Lienhard and Zubair, Desalination and Water Treatment 16, 354-380 (2010), accuracy 3 %: 20 °C, 1 atm, S = 35.165 g/kg (interpolated between 30 g/kg 0.602 and 40 g/kg 0.601) (https://web.mit.edu/seawater/2017_MIT_Seawater_Property_Tables_r2b_2023c.pdf)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.0002575,
         confidence: Confidence.handbook,
@@ -258,9 +270,13 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'viscosity: Segur and Oberstar, Ind. Eng. Chem. 43 (1951), pure glycerol at 20 °C; surface tension: CRC Handbook (2016); the vft law as published gives 1.4124085035126235 at the reference state; it is scaled by 0.9997107752384614 onto the quoted 1.412',
+        source: 'Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.3 Viscosities, table (iii) \'Viscosity of aqueous glycerol solutions\' (data of Segur and Oberstar, Ind. Eng. Chem. 43 (1951), corrected to water 1.002 mPa s): 20 °C, 1 atm, 100 wt% glycerol (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html); the vft law as published gives 1.4124085035126235 at the reference state; it is scaled by 0.9997107752384614 onto the quoted 1.412',
       ),
-      surfaceTension: ConstantLaw(0.0634, confidence: Confidence.handbook),
+      surfaceTension: ConstantLaw(
+        0.0634,
+        confidence: Confidence.handbook,
+        source: 'Kaye and Laby, 16th ed., 2.2.5 Surface tensions, table \'Surface tension of various liquids\' (organic liquids), glycerol 63.4 mN/m at 20 °C: 20 °C, against air (https://web.archive.org/web/20170607184541/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_5.html)',
+      ),
       bulkModulus: ConstantLaw(
         4696000000.0,
         confidence: Confidence.handbook,
@@ -270,7 +286,11 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(2380.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.285, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        0.285,
+        confidence: Confidence.handbook,
+        source: 'Kaye and Laby, 16th ed., 2.3.7 Thermal conductivities, table \'Thermal conductivities of liquids\', glycerine: 293 K, linear interpolation between 0.286 (273 K) and 0.292 (333 K) (https://web.archive.org/web/20170603095741/http://www.kayelaby.npl.co.uk/general_physics/2_3/2_3_7.html)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.000504,
         confidence: Confidence.handbook,
@@ -358,7 +378,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'CRC Handbook (2016), 20 °C; the andrade law as published gives 0.0011706594649976841 at the reference state; it is scaled by 1.0250632535588595 onto the quoted 0.0012',
+        source: 'Kaye and Laby, 16th ed., 2.2.3 Viscosities, table (ii) \'Viscosities of various liquids\', ethanol: 20 °C, Andrade (ln eta vs 1/T) interpolation between 0 °C 1.873 and 25 °C 1.084 mPa s (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html); the andrade law as published gives 0.0011706594649976841 at the reference state; it is scaled by 1.0250632535588595 onto the quoted 0.0012',
       ),
       surfaceTension: FormulaLaw(
         0.0223,
@@ -382,11 +402,20 @@ abstract final class Materials {
       source: 'CRC Handbook (2016), 20 °C',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(2440.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.167, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        2393.0,
+        confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, ethanol (C64175), Condensed phase thermochemistry data, \'Constant pressure heat capacity of liquid\': 293.15 K, liquid, 1 atm; mean of 108.07 J/(mol K) at 288.15 K (Benson and D\'Arcy 1982) and 112.4 at 298.15 K (Petrov et al. 1989), M = 46.0684 g/mol (https://webbook.nist.gov/cgi/cbook.cgi?ID=C64175&Mask=2); the value at 20 °C, the entry\'s reference temperature, rather than 2440 at 25 °C',
+      ),
+      conductivity: ConstantLaw(
+        0.167,
+        confidence: Confidence.handbook,
+        source: 'Kaye and Laby, 16th ed., 2.3.7 Thermal conductivities, table \'Thermal conductivities of liquids\', ethyl alcohol: 293 K, linear interpolation between 0.189 (233 K) and 0.150 (353 K) (https://web.archive.org/web/20170603095741/http://www.kayelaby.npl.co.uk/general_physics/2_3/2_3_7.html)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.00109,
         confidence: Confidence.handbook,
+        source: 'Kaye and Laby, 16th ed., 2.3.5 Thermal expansion, table \'Coefficients of cubical expansion of liquids\', Alcohol, ethyl 109e-5 K^-1: 20 °C (T = 293 K), cubical expansivity (1/V)(dV/dT) (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_3/2_3_5.html)',
       ),
       meltingPoint: ConstantLaw(159.0, confidence: Confidence.handbook),
       boilingPoint: ConstantLaw(351.44, confidence: Confidence.handbook),
@@ -458,8 +487,16 @@ abstract final class Materials {
       source: 'Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), olive oil at 20 °C',
     ),
     fluid: FluidProperties(
-      viscosity: ConstantLaw(0.084, confidence: Confidence.handbook),
-      surfaceTension: ConstantLaw(0.032, confidence: Confidence.handbook),
+      viscosity: ConstantLaw(
+        0.084,
+        confidence: Confidence.handbook,
+        source: 'Kaye and Laby, 16th ed., 2.2.3 Viscosities, table (ii) \'Viscosities of various liquids\', Oil, olive: 20 °C; Andrade extrapolation (5 K) from 25 °C 67.0 and 30 °C 54.0 mPa s (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html)',
+      ),
+      surfaceTension: ConstantLaw(
+        0.032,
+        confidence: Confidence.handbook,
+        source: 'Melo-Espinosa et al., \'Surface tension prediction of vegetable oils using artificial neural networks and multiple linear regression\', Energy Procedia 57 (2014) 886-895, Table 1 (literature values at 20 °C, olive 33.00-33.06 mN/m, refs 24-26); mean 33.03 in Table 3: 20 °C, against air (doi:10.1016/j.egypro.2014.10.298)',
+      ),
       bulkModulus: ConstantLaw(
         1600000000.0,
         confidence: Confidence.handbook,
@@ -548,7 +585,11 @@ abstract final class Materials {
     ),
     fluid: FluidProperties(
       viscosity: ConstantLaw(10.0, confidence: Confidence.estimate),
-      surfaceTension: ConstantLaw(0.05, confidence: Confidence.estimate),
+      surfaceTension: ConstantLaw(
+        0.05,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: Read the arXiv text myself (50-60 mJ/m2; catalog 0.05 is its low end) but could not open the Rehman et al. 2008 primary (SciELO Chile 403/Cloudflare). Other reported values seen in search snippets (0.22 N/m, Oroian et al. J. Food Eng. 2013; ~1e-3 N/m) are implausible for a concentrated sugar solution. FAO \'Value-added products from beekeeping\' ch. 2 discusses honey\'s low surface tension but gives no number.',
+      ),
       source: 'viscosity: Yanniotis, Skaltsi and Karaburnioti (2006), 5 to 20 Pa·s at 20 °C across the honeys measured, the middle; surface tension: an estimate, no measurement having been read',
     ),
     thermal: ThermalProperties(
@@ -603,7 +644,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'CRC Handbook (2016), 20 °C; the andrade law as published gives 0.0015673628324101207 at the reference state; it is scaled by 0.988922263530122 onto the quoted 0.00155',
+        source: 'Kaye and Laby, 16th ed., 2.2.3 Viscosities, table (ii) \'Viscosities of various liquids\', mercury: 20 °C, Andrade interpolation between 0 °C 1.616 and 25 °C 1.528 mPa s (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html); the andrade law as published gives 0.0015673628324101207 at the reference state; it is scaled by 0.988922263530122 onto the quoted 0.00155',
       ),
       surfaceTension: ConstantLaw(0.4865, confidence: Confidence.handbook),
       bulkModulus: ConstantLaw(
@@ -639,7 +680,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Molten basalt.
+  /// Molten basalt. Of the grades its name covers, its viscosity for 1200 °C (1473.15 K, per fluids.json referenceState), 1 atm, crystal-free tholeiitic basalt melt.
   static const PhysicalMaterial basaltMelt = PhysicalMaterial(
     id: 'f3d.basaltMelt',
     name: 'molten basalt',
@@ -651,19 +692,11 @@ abstract final class Materials {
       source: 'Lesher and Spera, "Thermodynamic and transport properties of silicate melts and magma", The Encyclopedia of Volcanoes, 2nd ed. (2015): a basaltic melt near 1200 °C',
     ),
     fluid: FluidProperties(
-      viscosity: FormulaLaw(
-        100.0,
-        expression: '100.0 [Pa·s] * ((pow(10.0, (-4.55) + 5553.07 / ((T / 1 [K]) - 620.209))) / 91.30555676528013)',
-        inputs: <String, LawInput>{
-          'T': LawInput(
-            MaterialState.temperatureId,
-            unit: Unit.kelvin,
-            low: 955.7,
-            high: 1873.15,
-          ),
-        },
-        confidence: Confidence.handbook,
-        source: 'Lesher and Spera (2015): a basaltic melt\'s 10 to 1000 Pa·s as it flows, the middle in the logarithm, and a silicate melt\'s surface tension, about 0.35 N/m; the vft law as published gives 91.30555676528013 at the reference state; it is scaled by 1.0952235936425068 onto the quoted 100.0',
+      viscosity: ConstantLaw(
+        37.0,
+        confidence: Confidence.measured,
+        source: 'Saito, Sato, Ishibashi and Nakamura, \'Viscosity measurements of subliquidus magmas: A Kilauean tholeiite\', JpGU Meeting 2008, abstract V152-P007 (Pu\'u O\'o 2007 tholeiite, 1 atm, QFM): 1200 °C (1473.15 K, per fluids.json referenceState), 1 atm, crystal-free tholeiitic basalt melt (https://www2.jpgu.org/meeting/2008/program/pdf/V152/V152-P007_e.pdf)',
+        interval: PropertyInterval(37.0, 91.0),
       ),
       surfaceTension: ConstantLaw(0.35, confidence: Confidence.handbook),
       source: 'Lesher and Spera (2015): a basaltic melt\'s 10 to 1000 Pa·s as it flows, the middle in the logarithm, and a silicate melt\'s surface tension, about 0.35 N/m',
@@ -774,7 +807,7 @@ abstract final class Materials {
           0.00004328,
         ],
         confidence: Confidence.handbook,
-        source: 'Kadoya, Matsunaga and Nagashima, J. Phys. Chem. Ref. Data 14 (1985), dry air at 20 °C; the table alone gives 0.000018206 at the reference state; its point there is the quoted 0.0000181, 0.9941777436010105 times it',
+        source: 'Kaye and Laby, 16th ed., 2.2.3 Viscosities, \'Viscosities of gases and vapours\', table (i) \'Viscosities at normal pressure\', air 18.2 µPa s at 20 °C: 20 °C, 1 atm (normal pressure), air (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_3.html); the table alone gives 0.000018206 at the reference state; its point there is the quoted 0.0000181, 0.9941777436010105 times it',
       ),
       bulkModulus: ConstantLaw(
         142000.0,
@@ -844,7 +877,7 @@ abstract final class Materials {
           0.067677,
         ],
         confidence: Confidence.handbook,
-        source: 'specific heat: Lemmon and colleagues, J. Phys. Chem. Ref. Data 29 (2000); conductivity: Kadoya, Matsunaga and Nagashima (1985); dry air at 20 °C; the table alone gives 0.025874 at the reference state; its point there is the quoted 0.0257, 0.9932751024194172 times it',
+        source: 'Kaye and Laby, 16th ed., 2.3.7 Thermal conductivities, table \'Thermal conductivities of gases\' (1 atm), air: 293.15 K, 1 atm; linear interpolation between 2.41e-2 (273.2 K) and 3.17e-2 (373.2 K) (https://web.archive.org/web/20170603095741/http://www.kayelaby.npl.co.uk/general_physics/2_3/2_3_7.html); the table alone gives 0.025874 at the reference state; its point there is the quoted 0.0257, 0.9932751024194172 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003421,
@@ -903,7 +936,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Steel.
+  /// Steel. Of the grades its name covers, its emissivity for rolled sheet steel, normal emissivity, near room temperature.
   static const PhysicalMaterial steel = PhysicalMaterial(
     id: 'f3d.steel',
     name: 'steel',
@@ -913,7 +946,7 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(7854.0, confidence: Confidence.handbook),
       youngsModulus: TableLaw(
-        200000000000.0,
+        211900000000.0,
         xs: <double>[
           293.15,
           373.15,
@@ -930,23 +963,28 @@ abstract final class Materials {
           1473.15,
         ],
         ys: <double>[
-          200000000000.0,
-          200000000000.0,
-          180000000000.0,
-          160000000000.0,
-          140000000000.0,
-          120000000000.0,
-          62000000000.0,
-          26000000000.0,
-          18000000000.0,
-          13500000000.0,
-          9000000000.0,
-          4500000000.0,
+          211900000000.0,
+          211900000000.0,
+          190710000000.0,
+          169520000000.0,
+          148330000000.0,
+          127140000000.0,
+          65689000000.0,
+          27547000000.0,
+          19071000000.0,
+          14303250000.0,
+          9535500000.0,
+          4767750000.0,
           0.0,
         ],
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, row "Steel (Mild)" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
-      poissonRatio: ConstantLaw(0.3, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.3,
+        confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, row "Steel (Mild)" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
+      ),
       yieldStrength: TableLaw(
         250000000.0,
         xs: <double>[
@@ -974,13 +1012,23 @@ abstract final class Materials {
           0.0,
         ],
         confidence: Confidence.handbook,
+        source: 'SSAB, ASTM A36 structural steel product page, mechanical properties table (yield min 36 ksi, tensile 58-80 ksi): ASTM A36, minimum yield, plate (https://www.ssab.com/en-us/brands-and-products/commercial-steel/structural-steel/astm-a36)',
       ),
       tensileStrength: ConstantLaw(
         400000000.0,
         confidence: Confidence.handbook,
+        source: 'SSAB, ASTM A36 structural steel product page, mechanical properties table (yield min 36 ksi, tensile 58-80 ksi): ASTM A36, tensile range lower bound (https://www.ssab.com/en-us/brands-and-products/commercial-steel/structural-steel/astm-a36)',
       ),
-      staticFriction: ConstantLaw(0.74, confidence: Confidence.handbook),
-      kineticFriction: ConstantLaw(0.57, confidence: Confidence.handbook),
+      staticFriction: ConstantLaw(
+        0.74,
+        confidence: Confidence.handbook,
+        source: 'R.T. Barrett, Fastener Design Manual, NASA Reference Publication 1228 (1990), p. 16, table IV \'Coefficients of static and sliding friction\' (from Marks\' Standard Handbook for Mechanical Engineers, 8th ed., 1978): mild steel on mild steel, dry, static (https://ntrs.nasa.gov/api/citations/19900009424/downloads/19900009424.pdf)',
+      ),
+      kineticFriction: ConstantLaw(
+        0.57,
+        confidence: Confidence.handbook,
+        source: 'R.T. Barrett, Fastener Design Manual, NASA Reference Publication 1228 (1990), p. 16, table IV \'Coefficients of static and sliding friction\' (from Marks\' Standard Handbook for Mechanical Engineers, 8th ed., 1978): mild steel on mild steel, dry, sliding (https://ntrs.nasa.gov/api/citations/19900009424/downloads/19900009424.pdf)',
+      ),
       source: 'density: Incropera and colleagues, Fundamentals of Heat and Mass Transfer, 6th ed. (2007), table A.1, plain carbon steel; modulus, Poisson\'s ratio and ASTM A36\'s least yield and tensile strength: Callister, Materials Science and Engineering, appendix B; mild steel on mild steel, dry: Serway and Jewett, Physics for Scientists and Engineers, table 5.1',
     ),
     thermal: ThermalProperties(
@@ -1000,7 +1048,12 @@ abstract final class Materials {
         0.000036,
         confidence: Confidence.estimate,
       ),
-      emissivity: ConstantLaw(0.6, confidence: Confidence.handbook),
+      emissivity: ConstantLaw(
+        0.6,
+        confidence: Confidence.handbook,
+        source: 'CIBSE Guide C, table C3.7 \'Emissivities of various materials\' (edition not stated), as reproduced in IES VE help, table 23: rolled sheet steel, normal emissivity, near room temperature (https://help.iesve.com/ve2021/table_23_emissivities_of_various_materials__table_c3_7_cibse_guide_.htm)',
+        interval: PropertyInterval(0.08, 0.9),
+      ),
       source: 'Incropera and colleagues (2007), table A.1, plain carbon steel at 300 K; emissivity a weathered surface\'s, between the polished and the heavily oxidised steels of table A.11',
     ),
     acoustic: AcousticProperties(
@@ -1058,8 +1111,13 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         70000000000.0,
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Aluminium" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
-      poissonRatio: ConstantLaw(0.33, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.33,
+        confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Aluminium" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
+      ),
       staticFriction: ConstantLaw(
         1.2,
         confidence: Confidence.estimate,
@@ -1090,11 +1148,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         2792.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         397000.0,
         confidence: Confidence.handbook,
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.09,
@@ -1125,6 +1184,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.6.1 Electrical resistivities, \'Resistivities of metallic elements\' (273.2 K and 373.2 K columns, linear interpolation to 293.15 K): 293.15 K (interpolated), pure metal (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/general_physics/2_6/2_6_1.html)',
       ),
       source: 'CRC Handbook (2016), 20 °C',
     ),
@@ -1155,8 +1215,13 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         130000000000.0,
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Copper" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
-      poissonRatio: ConstantLaw(0.34, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.34,
+        confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Copper" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
+      ),
       staticFriction: ConstantLaw(
         1.6,
         confidence: Confidence.handbook,
@@ -1187,12 +1252,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         2835.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         208700.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 13.26 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.15,
@@ -1266,8 +1331,13 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         79000000000.0,
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Gold" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
-      poissonRatio: ConstantLaw(0.42, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.42,
+        confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Gold" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
+      ),
       staticFriction: ConstantLaw(
         1.0,
         confidence: Confidence.estimate,
@@ -1299,12 +1369,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         3129.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         63700.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 12.55 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.045,
@@ -1349,7 +1419,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Glass.
+  /// Glass. Of the grades its name covers, its specificHeat for soda-lime float glass, room temperature.
   static const PhysicalMaterial glass = PhysicalMaterial(
     id: 'f3d.glass',
     name: 'glass',
@@ -1362,19 +1432,41 @@ abstract final class Materials {
       'physicallybased.info': 'Glass',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(2500.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        2500.0,
+        confidence: Confidence.handbook,
+        source: 'Pilkington North America, Technical Bulletin ATS-129 \'Properties of Soda-Lime Silica Float Glass\', 04/2025: soda-lime silica float glass, 75 F (Pilkington) / 18 C (AGC) (https://www.pilkington.com/-/media/pilkington/site-content/usa/window-manufacturers/technical-bulletins/ats-129---properties-of-soda-lime-silica-float-glass.pdf)',
+      ),
       youngsModulus: ConstantLaw(
         72000000000.0,
         confidence: Confidence.handbook,
+        source: 'Pilkington North America, Technical Bulletin ATS-129 \'Properties of Soda-Lime Silica Float Glass\', 04/2025: soda-lime float glass, room temperature (https://www.pilkington.com/-/media/pilkington/site-content/usa/window-manufacturers/technical-bulletins/ats-129---properties-of-soda-lime-silica-float-glass.pdf)',
       ),
-      poissonRatio: ConstantLaw(0.22, confidence: Confidence.handbook),
-      staticFriction: ConstantLaw(0.94, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.22,
+        confidence: Confidence.handbook,
+        source: 'Pilkington North America, Technical Bulletin ATS-129 \'Properties of Soda-Lime Silica Float Glass\', 04/2025: soda-lime float glass, room temperature (https://www.pilkington.com/-/media/pilkington/site-content/usa/window-manufacturers/technical-bulletins/ats-129---properties-of-soda-lime-silica-float-glass.pdf)',
+      ),
+      staticFriction: ConstantLaw(
+        0.94,
+        confidence: Confidence.handbook,
+        source: 'Barrett, Fastener Design Manual, NASA RP-1228 (1990), Table IV \'Coefficients of static and sliding friction\', reprinted from Marks\' Standard Handbook for Mechanical Engineers 8th ed. (1978); glass-on-glass from ref. 8 Tomlinson, Phil. Mag. 1929: glass on glass, dry, static (https://ntrs.nasa.gov/api/citations/19900009424/downloads/19900009424.pdf)',
+      ),
       kineticFriction: ConstantLaw(0.4, confidence: Confidence.handbook),
       source: 'density: Incropera and colleagues (2007), table A.3, plate glass (soda lime); modulus and Poisson\'s ratio of soda-lime glass: Shelby, Introduction to Glass Science and Technology, 2nd ed. (2005); glass on glass, dry: Serway and Jewett, table 5.1',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(750.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(1.4, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        720.0,
+        confidence: Confidence.handbook,
+        source: 'AGC Glass Europe, Technical Data Sheet Planibel (clear float, EN 572), 11/2024, sec. 3.2-3.3: soda-lime float glass, room temperature (https://www.agc-yourglass.com/sites/default/files/2024-12/TDS_Planibel_1224_EN.pdf)',
+        interval: PropertyInterval(720.0, 880.0),
+      ),
+      conductivity: ConstantLaw(
+        0.937,
+        confidence: Confidence.handbook,
+        source: 'Pilkington North America, Technical Bulletin ATS-129 \'Properties of Soda-Lime Silica Float Glass\', 04/2025: soda-lime float glass, 75 F (https://www.pilkington.com/-/media/pilkington/site-content/usa/window-manufacturers/technical-bulletins/ats-129---properties-of-soda-lime-silica-float-glass.pdf)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.000027,
         confidence: Confidence.handbook,
@@ -1414,7 +1506,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Concrete.
+  /// Concrete. Of the grades its name covers, its youngsModulus for normal-weight concrete, C30/37, quartzite aggregate, 28 d, secant.
   static const PhysicalMaterial concrete = PhysicalMaterial(
     id: 'f3d.concrete',
     name: 'concrete',
@@ -1427,10 +1519,16 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(2300.0, confidence: Confidence.handbook),
       youngsModulus: ConstantLaw(
-        30000000000.0,
+        32837000000.0,
         confidence: Confidence.handbook,
+        source: 'EN 1992-1-1 Table 3.1 / formula Ecm = 22 (fcm/10)^0.3 GPa, as computed by eurocodeapplied.com: normal-weight concrete, C30/37, quartzite aggregate, 28 d, secant (https://cdn.eurocodeapplied.com/design/en1992/concrete-design-properties)',
+        interval: PropertyInterval(25700000000.0, 33000000000.0),
       ),
-      poissonRatio: ConstantLaw(0.2, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.2,
+        confidence: Confidence.handbook,
+        source: 'EN 1992-1-1 clause 3.1.3(4), as quoted by eurocodeapplied.com: uncracked concrete (https://cdn.eurocodeapplied.com/design/en1992/concrete-design-properties)',
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -1446,7 +1544,11 @@ abstract final class Materials {
         0.000036,
         confidence: Confidence.estimate,
       ),
-      emissivity: ConstantLaw(0.9, confidence: Confidence.handbook),
+      emissivity: ConstantLaw(
+        0.9,
+        confidence: Confidence.handbook,
+        source: 'Incropera et al., Fundamentals of Heat and Mass Transfer, Appendix A, Table A.11 Total, normal or hemispherical emissivity of selected surfaces (nonmetals); also Cengel & Ghajar Table A-18 0.88-0.94: 300 K, hemispherical (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       source: 'Incropera and colleagues (2007), table A.3, concrete (stone mix) at 300 K; emissivity 0.88–0.93, table A.11',
     ),
     acoustic: AcousticProperties(
@@ -1496,7 +1598,11 @@ abstract final class Materials {
       source: 'Incropera and colleagues (2007), table A.3, common brick',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(835.0, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        835.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Structural building materials / masonry\' p. 905 of the hosted appendix (edition not printed on the copy) (Masonry: Brick, common 1920 kg/m3, 0.72 W/mK, 835 J/kgK): common brick, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       conductivity: ConstantLaw(0.72, confidence: Confidence.handbook),
       volumetricExpansion: ConstantLaw(
         0.0000165,
@@ -1525,7 +1631,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Granite.
+  /// Granite. Of the grades its name covers, its youngsModulus for intact rock, static, lab specimens; its poissonRatio for intact rock, static, lab specimens.
   static const PhysicalMaterial granite = PhysicalMaterial(
     id: 'f3d.granite',
     name: 'granite',
@@ -1533,16 +1639,22 @@ abstract final class Materials {
     confidence: Confidence.handbook,
     externalIds: <String, String>{'IFC': 'stone'},
     mechanical: MechanicalProperties(
-      density: ConstantLaw(2630.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        2630.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Granite, Barre): Granite, Barre, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       youngsModulus: ConstantLaw(
-        50000000000.0,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(40000000000.0, 70000000000.0),
+        59300000000.0,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (granite: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(26200000000.0, 75500000000.0),
       ),
       poissonRatio: ConstantLaw(
-        0.25,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(0.2, 0.3),
+        0.23,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (granite: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(0.1, 0.39),
       ),
       staticFriction: ConstantLaw(
         0.6,
@@ -1553,13 +1665,25 @@ abstract final class Materials {
       source: 'density: Incropera and colleagues (2007), table A.3, Barre granite; modulus and Poisson\'s ratio of granite, 40–70 GPa and 0.2–0.3: Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), chart 1',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(775.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(2.79, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        775.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Granite, Barre): Granite, Barre, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
+      conductivity: ConstantLaw(
+        2.79,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Granite, Barre): Granite, Barre, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.0000243,
         confidence: Confidence.handbook,
       ),
-      emissivity: ConstantLaw(0.93, confidence: Confidence.handbook),
+      emissivity: ConstantLaw(
+        0.93,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: No primary source seen: Incropera A.11 and Cengel A-18 have no granite row; Engineering ToolBox emissivity page gives 0.96 without naming a primary; searched Buettner & Kern 1965 and Salisbury & D\'Aria 1992 (8-14 um rock emissivity) but could not open them. Silicate-rich granite has a reststrahlen dip near 9 um, so band values vary.',
+      ),
       source: 'Incropera and colleagues (2007), table A.3, Barre granite at 300 K; emissivity a rough stone surface\'s, of the 0.90–0.96 emissivity tables give for unpolished rock',
     ),
     acoustic: AcousticProperties(
@@ -1568,7 +1692,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Marble.
+  /// Marble. Of the grades its name covers, its youngsModulus for intact rock, static, lab specimens; its poissonRatio for intact rock, static, lab specimens.
   static const PhysicalMaterial marble = PhysicalMaterial(
     id: 'f3d.marble',
     name: 'marble',
@@ -1581,18 +1705,22 @@ abstract final class Materials {
       'physicallybased.info': 'Marble',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(2680.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        2680.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Marble, Halston): Marble, Halston, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       youngsModulus: ConstantLaw(
-        50000000000.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(30000000000.0, 70000000000.0),
+        46300000000.0,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (marble: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(23200000000.0, 72400000000.0),
       ),
       poissonRatio: ConstantLaw(
-        0.25,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(0.2, 0.3),
+        0.23,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (marble: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(0.1, 0.4),
       ),
       staticFriction: ConstantLaw(
         0.6,
@@ -1603,8 +1731,16 @@ abstract final class Materials {
       source: 'Incropera and colleagues (2007), table A.3, Halston marble',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(830.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(2.8, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        830.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Marble, Halston): Marble, Halston, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
+      conductivity: ConstantLaw(
+        2.8,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Marble, Halston): Marble, Halston, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.0000294,
         confidence: Confidence.estimate,
@@ -1628,7 +1764,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Ice.
+  /// Ice. Of the grades its name covers, its tensileStrength for non-porous polycrystalline ice, about 253-263 K; its kineticFriction for ice on ice, generic.
   static const PhysicalMaterial ice = PhysicalMaterial(
     id: 'f3d.ice',
     name: 'ice',
@@ -1648,18 +1784,18 @@ abstract final class Materials {
       ),
       youngsModulus: ConstantLaw(
         9300000000.0,
-        confidence: Confidence.estimate,
-        source: 'Petrenko & Whitworth, Physics of Ice (Oxford 1999), ch. 2 and 11: elastic constants and strength of polycrystalline ice near 263 K; polycrystalline, near 263 K, high-frequency; creep makes it far softer under sustained load',
+        confidence: Confidence.measured,
+        source: 'Hirata, Morishima, Ohtsuki & Nakamura, Disruption of Saturn\'s ring particles by thermal stress (arXiv:2205.05219), sect. 3.2, citing Schulson & Duval (2009) Creep and Fracture of Ice, and Petrovic (2003) J. Mater. Sci. 38, 1: polycrystalline granular ice, 263 K (acoustic) (https://arxiv.org/abs/2205.05219)',
       ),
       poissonRatio: ConstantLaw(
         0.33,
-        confidence: Confidence.estimate,
-        source: 'Petrenko & Whitworth, Physics of Ice (Oxford 1999), ch. 2 and 11: elastic constants and strength of polycrystalline ice near 263 K',
+        confidence: Confidence.measured,
+        source: 'Hirata, Morishima, Ohtsuki & Nakamura, Disruption of Saturn\'s ring particles by thermal stress (arXiv:2205.05219), sect. 3.2, citing Schulson & Duval (2009) Creep and Fracture of Ice, and Petrovic (2003) J. Mater. Sci. 38, 1: polycrystalline ice (https://arxiv.org/abs/2205.05219)',
       ),
       tensileStrength: ConstantLaw(
         1000000.0,
-        confidence: Confidence.estimate,
-        source: 'Petrenko & Whitworth, Physics of Ice (Oxford 1999), ch. 2 and 11: elastic constants and strength of polycrystalline ice near 263 K',
+        confidence: Confidence.measured,
+        source: 'Hirata, Morishima, Ohtsuki & Nakamura, Disruption of Saturn\'s ring particles by thermal stress (arXiv:2205.05219), sect. 3.2, citing Schulson & Duval (2009) Creep and Fracture of Ice, and Petrovic (2003) J. Mater. Sci. 38, 1: non-porous polycrystalline ice, about 253-263 K (https://arxiv.org/abs/2205.05219)',
         interval: PropertyInterval(700000.0, 3100000.0),
       ),
       staticFriction: TableLaw(
@@ -1668,7 +1804,12 @@ abstract final class Materials {
         ys: <double>[0.5, 0.3, 0.1],
         confidence: Confidence.handbook,
       ),
-      kineticFriction: ConstantLaw(0.03, confidence: Confidence.handbook),
+      kineticFriction: ConstantLaw(
+        0.03,
+        confidence: Confidence.handbook,
+        source: 'OpenStax College Physics 2e, Table 5.1 Coefficients of static and kinetic friction (ice on ice: 0.1 static, 0.03 kinetic): ice on ice, generic (https://openstax.org/books/college-physics-2e/pages/5-1-friction)',
+        interval: PropertyInterval(0.02, 0.09),
+      ),
       source: 'density: Incropera and colleagues (2007), table A.3, ice at 273 K; ice on ice: Serway and Jewett, table 5.1',
     ),
     thermal: ThermalProperties(
@@ -1688,10 +1829,15 @@ abstract final class Materials {
         0.000153,
         confidence: Confidence.handbook,
       ),
-      meltingPoint: ConstantLaw(273.15, confidence: Confidence.handbook),
+      meltingPoint: ConstantLaw(
+        273.15,
+        confidence: Confidence.handbook,
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-2 Boiling and freezing point properties (water: freezing point 0.0 C, latent heat of fusion 333.7 kJ/kg): 1 atm (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
+      ),
       latentHeatOfFusion: ConstantLaw(
         334000.0,
         confidence: Confidence.handbook,
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-2 Boiling and freezing point properties (water: freezing point 0.0 C, latent heat of fusion 333.7 kJ/kg): 273.15 K, 1 atm (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
       ),
       emissivity: ConstantLaw(
         0.97,
@@ -1708,7 +1854,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Wood.
+  /// Wood. Of the grades its name covers, its youngsModulus for Douglas-fir (coast), 12 % MC, radial (across the grain) modulus E_R = 0.068 x E_L 13,400 MPa.
   static const PhysicalMaterial wood = PhysicalMaterial(
     id: 'f3d.wood',
     name: 'wood',
@@ -1720,8 +1866,17 @@ abstract final class Materials {
     },
     mechanical: MechanicalProperties(
       density: ConstantLaw(545.0, confidence: Confidence.handbook),
-      youngsModulus: ConstantLaw(910000000.0, confidence: Confidence.handbook),
-      poissonRatio: ConstantLaw(0.29, confidence: Confidence.handbook),
+      youngsModulus: ConstantLaw(
+        13400000000.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC): coast Douglas-fir, 12 % MC, along the grain, E_L (table 5-3a) (https://research.fs.usda.gov/download/treesearch/37427.pdf)',
+        interval: PropertyInterval(910000000.0, 13400000000.0),
+      ),
+      poissonRatio: ConstantLaw(
+        0.29,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC) (table 5-2): Douglas-fir, ~12 % MC, mu_LR (https://research.fs.usda.gov/download/treesearch/37427.pdf)',
+      ),
       staticFriction: ConstantLaw(
         0.375,
         confidence: Confidence.estimate,
@@ -1731,15 +1886,28 @@ abstract final class Materials {
       source: 'density: Incropera and colleagues (2007), table A.3, plywood; modulus across the grain, what a contact presses, 0.068 of Douglas fir\'s 13.4 GPa along it, and Poisson\'s ratio (Wood Handbook, FPL-GTR-190, tables 5-1 and 5-2)',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1700.0, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1700.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), eqs. 4-16a..4-18 and table 4-8: solid wood, 12 % MC, 293 K, eqs. 4-16a/4-17/4-18; table 4-8 gives 1.6 (290 K) and 1.7 (300 K) kJ/(kg K) (https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+      ),
       conductivity: ConstantLaw(0.12, confidence: Confidence.handbook),
       emissivity: ConstantLaw(0.9, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(663.15, confidence: Confidence.handbook),
-      heatOfCombustion: ConstantLaw(
-        15000000.0,
-        confidence: Confidence.estimate,
+      ignitionTemperature: ConstantLaw(
+        663.15,
+        confidence: Confidence.handbook,
+        source: 'Quintiere & Harkleroad, New concepts for measuring flame spread properties, NBSIR 84-2943 (1984), table 2 (p. 28): piloted ignition, plywood plain 1.27 cm, LIFT apparatus; T_ig 390 C (https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nbsir84-2943.pdf)',
       ),
-      radiantFraction: ConstantLaw(0.3, confidence: Confidence.handbook),
+      heatOfCombustion: ConstantLaw(
+        11120000.0,
+        confidence: Confidence.handbook,
+        source: 'UL FSRI Materials and Products Database, Plywood: plywood, effective heat of combustion from micro-scale combustion calorimeter, mean of 3 (10.84..11.50 MJ/kg) (https://materials.fsri.org/materialdetail/plywood)',
+      ),
+      radiantFraction: ConstantLaw(
+        0.3,
+        confidence: Confidence.handbook,
+        source: 'Johnsson & Di Cristina, The Burning Characteristics of 3 m to 6 m Dry Douglas-Fir Trees, NIST TN 2327r1 (2025), table 10: whole dry Douglas-fir trees 3-6 m, MC < 15 %, far-field radiometers at 12 m; mean of 6 burns (0.22..0.31), +-0.03 (https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2327r1.pdf (doi:10.6028/NIST.TN.2327r1))',
+      ),
       source: 'piloted ignition at 390 °C: Quintiere and Harkleroad, NBSIR 84-2943, table 2, plywood 1.27 cm; specific heat, conductivity and about fifteen megajoules a kilogram, a wood\'s in general; a wood fire\'s radiant share, 0.30 ± 0.03 (dry Douglas-fir trees, NIST TN 2327r1, table 10)',
     ),
     acoustic: AcousticProperties(
@@ -1764,7 +1932,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Oak.
+  /// Oak. Of the grades its name covers, its youngsModulus for northern red oak, 12 % MC, along the grain, E_L (table 5-3a); its specificHeat for solid wood, 12 % MC, 293 K (eqs. 4-16a, 4-17, 4-18); ovendry at 293 K: 1237.
   static const PhysicalMaterial oak = PhysicalMaterial(
     id: 'f3d.oak',
     name: 'oak',
@@ -1772,9 +1940,21 @@ abstract final class Materials {
     confidence: Confidence.handbook,
     externalIds: <String, String>{'IFC': 'wood'},
     mechanical: MechanicalProperties(
-      density: ConstantLaw(545.0, confidence: Confidence.handbook),
-      youngsModulus: ConstantLaw(910000000.0, confidence: Confidence.handbook),
-      poissonRatio: ConstantLaw(0.29, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        706.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC) and USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), table 4-6a: northern red oak at 12 % MC: G12 = 0.63 (table 5-3a) -> 706 kg/m3 by table 4-6a (interpolating 694 at 0.62 and 717 at 0.64) (https://research.fs.usda.gov/download/treesearch/37427.pdf ; https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+      ),
+      youngsModulus: ConstantLaw(
+        12500000000.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC): northern red oak, 12 % MC, along the grain, E_L (table 5-3a) (https://research.fs.usda.gov/download/treesearch/37427.pdf)',
+      ),
+      poissonRatio: ConstantLaw(
+        0.35,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC) (table 5-2): red oak, ~12 % MC, mu_LR (https://research.fs.usda.gov/download/treesearch/37427.pdf)',
+      ),
       staticFriction: ConstantLaw(
         0.375,
         confidence: Confidence.estimate,
@@ -1784,19 +1964,37 @@ abstract final class Materials {
       source: 'density: Incropera and colleagues (2007), table A.3, oak across the grain; modulus and Poisson\'s ratio across the grain as f3d.wood\'s, no open measurement of oak\'s having been read',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1730.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.14, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1620.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), eqs. 4-16a..4-18, table 4-8: solid wood, 12 % MC, 293 K (eqs. 4-16a, 4-17, 4-18); ovendry at 293 K: 1237 (https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+        interval: PropertyInterval(1200.0, 1800.0),
+      ),
+      conductivity: ConstantLaw(
+        0.14,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), table 4-7: northern red oak, ovendry, across the grain (12 % MC: 0.18) (https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.00011838,
         confidence: Confidence.estimate,
       ),
       emissivity: ConstantLaw(0.9, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(588.15, confidence: Confidence.handbook),
+      ignitionTemperature: ConstantLaw(
+        588.15,
+        confidence: Confidence.handbook,
+        source: 'Tran & White, Burning rate of solid wood measured in a heat release rate calorimeter, Fire and Materials 16 (1992) 197-206, table 3: red oak, surface thermocouple at piloted ignition, 315 C (https://research.fs.usda.gov/download/treesearch/5952.pdf (doi:10.1002/fam.810160406))',
+      ),
       heatOfCombustion: ConstantLaw(
         12400000.0,
         confidence: Confidence.handbook,
+        source: 'Tran & White, Burning rate of solid wood measured in a heat release rate calorimeter, Fire and Materials 16 (1992) 197-206, table 4: red oak, effective heat of combustion on dry-mass basis, mean of 7 tests at 18-54 kW/m2 (11.14..13.93 MJ/kg) (https://research.fs.usda.gov/download/treesearch/5952.pdf (doi:10.1002/fam.810160406))',
       ),
-      radiantFraction: ConstantLaw(0.3, confidence: Confidence.handbook),
+      radiantFraction: ConstantLaw(
+        0.3,
+        confidence: Confidence.handbook,
+        source: 'Johnsson & Di Cristina, The Burning Characteristics of 3 m to 6 m Dry Douglas-Fir Trees, NIST TN 2327r1 (2025), table 10: whole dry Douglas-fir trees 3-6 m, MC < 15 %, far-field radiometers at 12 m; mean of 6 burns (0.22..0.31), +-0.03 (https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2327r1.pdf (doi:10.6028/NIST.TN.2327r1))',
+      ),
       source: 'specific heat: Parker\'s wood, Fire Safety Science 2 (1989), eq. 6, from the room to where it catches; conductivity of northern red oak oven-dry: Wood Handbook, FPL-GTR-190, table 4-7; a surface thermocouple at 315 °C and 12.4 MJ/kg burnt: Tran and White, Fire and Materials 16 (1992), tables 3 to 5; emissivity: Wood Handbook, table 18-2; radiant share as f3d.wood\'s',
     ),
     acoustic: AcousticProperties(
@@ -1821,7 +2019,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Pine.
+  /// Pine. Of the grades its name covers, its density for loblolly pine at 12 % MC: G12 = 0.51 -> 571 kg/m3 (table 4-6a); its youngsModulus for loblolly pine, 12 % MC, along the grain, E_L (table 5-3a); its specificHeat for solid wood, 12 % MC, 293 K (eqs. 4-16a, 4-17, 4-18); ovendry at 293 K: 1237.
   static const PhysicalMaterial pine = PhysicalMaterial(
     id: 'f3d.pine',
     name: 'pine',
@@ -1829,9 +2027,22 @@ abstract final class Materials {
     confidence: Confidence.handbook,
     externalIds: <String, String>{'IFC': 'wood'},
     mechanical: MechanicalProperties(
-      density: ConstantLaw(640.0, confidence: Confidence.handbook),
-      youngsModulus: ConstantLaw(910000000.0, confidence: Confidence.handbook),
-      poissonRatio: ConstantLaw(0.29, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        571.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC) and USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), table 4-6a: loblolly pine at 12 % MC: G12 = 0.51 -> 571 kg/m3 (table 4-6a) (https://research.fs.usda.gov/download/treesearch/37427.pdf ; https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+        interval: PropertyInterval(571.0, 661.0),
+      ),
+      youngsModulus: ConstantLaw(
+        12300000000.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC): loblolly pine, 12 % MC, along the grain, E_L (table 5-3a) (https://research.fs.usda.gov/download/treesearch/37427.pdf)',
+      ),
+      poissonRatio: ConstantLaw(
+        0.328,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 5 (Kretschmann), tables 5-1 (elastic ratios), 5-2 (Poisson ratios), 5-3a (metric, 12 % MC) (table 5-2): loblolly pine, ~12 % MC, mu_LR (https://research.fs.usda.gov/download/treesearch/37427.pdf)',
+      ),
       staticFriction: ConstantLaw(
         0.375,
         confidence: Confidence.estimate,
@@ -1841,19 +2052,41 @@ abstract final class Materials {
       source: 'density: Incropera and colleagues (2007), table A.3, yellow pine across the grain; modulus and Poisson\'s ratio as f3d.wood\'s',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1739.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.12, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1620.0,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), eqs. 4-16a..4-18, table 4-8: solid wood, 12 % MC, 293 K (eqs. 4-16a, 4-17, 4-18); ovendry at 293 K: 1237 (https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+        interval: PropertyInterval(1200.0, 1800.0),
+      ),
+      conductivity: ConstantLaw(
+        0.12,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 4 (Glass & Zelinka), table 4-7: loblolly pine, ovendry, across the grain (12 % MC: 0.15) (https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.000107688,
         confidence: Confidence.estimate,
       ),
-      emissivity: ConstantLaw(0.88, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(593.15, confidence: Confidence.handbook),
+      emissivity: ConstantLaw(
+        0.88,
+        confidence: Confidence.handbook,
+        source: 'USDA FPL Wood Handbook, FPL-GTR-190 (2010), ch. 18 (White & Dietenberger), table 18-2: Southern Pine boards, 18 mm, 7.82 % MC (value used in ignition analysis) (https://research.fs.usda.gov/download/treesearch/37415.pdf)',
+      ),
+      ignitionTemperature: ConstantLaw(
+        593.15,
+        confidence: Confidence.handbook,
+        source: 'Tran & White, Burning rate of solid wood measured in a heat release rate calorimeter, Fire and Materials 16 (1992) 197-206, table 3: southern pine, surface thermocouple at piloted ignition, 320 C (https://research.fs.usda.gov/download/treesearch/5952.pdf (doi:10.1002/fam.810160406))',
+      ),
       heatOfCombustion: ConstantLaw(
         13900000.0,
         confidence: Confidence.handbook,
+        source: 'Tran & White, Burning rate of solid wood measured in a heat release rate calorimeter, Fire and Materials 16 (1992) 197-206, table 4: southern pine, effective HoC on dry-mass basis, mean of 8 tests at 17-56 kW/m2 (10.14..16.26 MJ/kg) (https://research.fs.usda.gov/download/treesearch/5952.pdf (doi:10.1002/fam.810160406))',
       ),
-      radiantFraction: ConstantLaw(0.3, confidence: Confidence.handbook),
+      radiantFraction: ConstantLaw(
+        0.3,
+        confidence: Confidence.handbook,
+        source: 'Johnsson & Di Cristina, The Burning Characteristics of 3 m to 6 m Dry Douglas-Fir Trees, NIST TN 2327r1 (2025), table 10: whole dry Douglas-fir trees 3-6 m, MC < 15 %, far-field radiometers at 12 m; mean of 6 burns (0.22..0.31), +-0.03 (https://nvlpubs.nist.gov/nistpubs/TechnicalNotes/NIST.TN.2327r1.pdf (doi:10.6028/NIST.TN.2327r1))',
+      ),
       source: 'specific heat: Parker\'s (1989); loblolly pine\'s conductivity oven-dry: Wood Handbook, table 4-7; a surface thermocouple at 320 °C and 13.9 MJ/kg burnt: Tran and White (1992), tables 3 to 5; emissivity: Wood Handbook, table 18-2; radiant share as f3d.wood\'s',
     ),
     acoustic: AcousticProperties(
@@ -1878,20 +2111,29 @@ abstract final class Materials {
     ),
   );
 
-  /// Paper.
+  /// Paper. Of the grades its name covers, its youngsModulus for ultrasonic in-plane moduli vs apparent density 400-850 kg/m3: E_MD 5..17 GPa (fig. 6), E_CD 2..8 GPa (fig. 7); proposed ~6 GPa read off the random-handsheet lines at ~700 kg/m3; its conductivity for paper (solid sheet), 300 K, density 930.
   static const PhysicalMaterial paper = PhysicalMaterial(
     id: 'f3d.paper',
     name: 'paper',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{
       'CAS': '9004-34-6 (cellulose)',
       'physicallybased.info': 'Office Paper',
     },
     mechanical: MechanicalProperties(
       density: ConstantLaw(930.0, confidence: Confidence.handbook),
-      youngsModulus: ConstantLaw(2000000000.0, confidence: Confidence.estimate),
-      poissonRatio: ConstantLaw(0.3, confidence: Confidence.estimate),
+      youngsModulus: ConstantLaw(
+        6000000000.0,
+        confidence: Confidence.measured,
+        source: 'Baum, Habeger & Fleischman (1981), figs. 6 and 7: ultrasonic in-plane moduli vs apparent density 400-850 kg/m3: E_MD 5..17 GPa (fig. 6), E_CD 2..8 GPa (fig. 7); proposed ~6 GPa read off the random-handsheet lines at ~700 kg/m3 (doi:10.15376/frc.1981.1.453)',
+        interval: PropertyInterval(2000000000.0, 6000000000.0),
+      ),
+      poissonRatio: ConstantLaw(
+        0.3,
+        confidence: Confidence.measured,
+        source: 'Baum, Habeger & Fleischman, Measurement of the orthotropic elastic constants of paper, Trans. VIIth Fund. Res. Symp. Cambridge 1981, pp. 453-478 (p. 473): machine-made papers, geometric mean in-plane Poisson ratio (nu_xy nu_yx)^1/2, 30 samples, s.d. 0.023 (doi:10.15376/frc.1981.1.453)',
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -1901,27 +2143,51 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1340.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.05, confidence: Confidence.estimate),
+      conductivity: ConstantLaw(
+        0.18,
+        confidence: Confidence.handbook,
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-8 (miscellaneous materials at 300 K, largely from Incropera table A.3): paper (solid sheet), 300 K, density 930 (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
+        interval: PropertyInterval(0.039, 0.18),
+      ),
       emissivity: ConstantLaw(0.9, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(506.15, confidence: Confidence.estimate),
+      ignitionTemperature: ConstantLaw(
+        506.15,
+        confidence: Confidence.handbook,
+        source: 'S. H. Graf, Ignition Temperatures of Various Papers, Woods, and Fabrics, Oregon State College Eng. Exp. Station Bulletin 26 (1949), table 3: minimum (unpiloted, oven) ignition temperature, slow heating ~14-20 F/h, air flow 0.03 cu ft/min; bond paper 462-465 F (https://ir.library.oregonstate.edu/concern/file_sets/fj236300t)',
+      ),
       heatOfCombustion: ConstantLaw(
         16000000.0,
-        confidence: Confidence.estimate,
+        confidence: Confidence.handbook,
+        source: 'Jessup & Prosen, Heats of Combustion and Formation of Cellulose and Nitrocellulose, J. Res. NBS 44 (1950) 387-393, RP2086, table 2: pure cellulose (cotton linters / wood pulp), bomb calorimetry at 30 C; gross 17.35-17.39 kJ/g (https://nvlpubs.nist.gov/nistpubs/jres/44/jresv44n4p387_A1b.pdf)',
       ),
-      radiantFraction: ConstantLaw(0.3, confidence: Confidence.estimate),
+      radiantFraction: ConstantLaw(
+        0.3,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: no flat-paper radiant fraction found; closest sourced proxies: corrugated cardboard flames 0.20-0.28 by external flux (Zeng et al., FSS 11, 2014, doi:10.3801/IAFSS.FSS.11-97) and dry Douglas-fir trees 0.3 (NIST TN 2327r1, used for wood). 0.3 sits at the top of that band',
+      ),
       source: 'specific heat: Incropera and colleagues (2007), table A.3; conductivity a stack\'s across its sheets with the air between them, the engine\'s choice (a solid sheet\'s is 0.18); it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel\'s in general',
     ),
   );
 
-  /// Cardboard.
+  /// Cardboard. Of the grades its name covers, its youngsModulus for kraft linerboard, ultrasonic in-plane specific stiffness; E = (E/rho) x rho with rho = 520 kg/m3 (Semmes et al. 2014 linerboard density); its poissonRatio for kraft linerboard 26/42/69 lb, biaxial tester, in-plane; its radiantFraction for bench-scale FPA flames of corrugated cardboard, 7-10 kW, external flux 30-90 kW/m2.
   static const PhysicalMaterial cardboard = PhysicalMaterial(
     id: 'f3d.cardboard',
     name: 'cardboard',
     phase: MaterialPhase.solid,
     confidence: Confidence.handbook,
     mechanical: MechanicalProperties(
-      youngsModulus: ConstantLaw(2000000000.0, confidence: Confidence.estimate),
-      poissonRatio: ConstantLaw(0.3, confidence: Confidence.handbook),
+      youngsModulus: ConstantLaw(
+        3850000000.0,
+        confidence: Confidence.handbook,
+        source: 'Whitsitt, Relationships between elastic properties and end-use performance, Institute of Paper Chemistry Project 2695-23, Report One to the Fourdrinier Kraft Board Group (1985), table 4: kraft linerboard, ultrasonic in-plane specific stiffness; E = (E/rho) x rho with rho = 520 kg/m3 (Semmes et al. 2014 linerboard density) (https://repository.gatech.edu/server/api/core/bitstreams/7d03ae29-889d-45d3-bacf-31480a66e008/content)',
+        interval: PropertyInterval(2200000000.0, 6800000000.0),
+      ),
+      poissonRatio: ConstantLaw(
+        0.27,
+        confidence: Confidence.handbook,
+        source: 'Baum & Bornhoeft, Estimating Poisson ratios in paper using ultrasonic techniques, IPC Technical Paper Series 69 (1978), table III: kraft linerboard 26/42/69 lb, biaxial tester, in-plane (https://repository.gatech.edu/server/api/core/bitstreams/20baab06-3675-49ed-b00d-690a8cf6fd4c/content)',
+        interval: PropertyInterval(0.15, 0.51),
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -1930,27 +2196,53 @@ abstract final class Materials {
       source: 'a sheet\'s modulus in its plane, as f3d.paper\'s',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1800.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.1, confidence: Confidence.handbook),
-      emissivity: ConstantLaw(0.7, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(623.15, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1800.0,
+        confidence: Confidence.handbook,
+        source: 'Semmes, Liu, McKinnon, Stoliarov & Witkowski, A Model for Oxidative Pyrolysis of Corrugated Cardboard, Fire Safety Science 11 (2014) 111-123, table 2 (linerboard and fluted layers, virgin): virgin LB/CFL/BFL components, double-wall corrugated, ~2 % moisture (https://publications.iafss.org/publications/fss/11/111 (doi:10.3801/IAFSS.FSS.11-111))',
+      ),
+      conductivity: ConstantLaw(
+        0.1,
+        confidence: Confidence.handbook,
+        source: 'Semmes, Liu, McKinnon, Stoliarov & Witkowski, A Model for Oxidative Pyrolysis of Corrugated Cardboard, Fire Safety Science 11 (2014) 111-123, table 2 (linerboard and fluted layers, virgin): virgin components, inverse analysis of in-depth temperatures (https://publications.iafss.org/publications/fss/11/111 (doi:10.3801/IAFSS.FSS.11-111))',
+      ),
+      emissivity: ConstantLaw(
+        0.7,
+        confidence: Confidence.handbook,
+        source: 'Semmes, Liu, McKinnon, Stoliarov & Witkowski, A Model for Oxidative Pyrolysis of Corrugated Cardboard, Fire Safety Science 11 (2014) 111-123, table 2 (linerboard and fluted layers, virgin): virgin unpainted surface, inverse analysis (https://publications.iafss.org/publications/fss/11/111 (doi:10.3801/IAFSS.FSS.11-111))',
+      ),
+      ignitionTemperature: ConstantLaw(
+        623.15,
+        confidence: Confidence.handbook,
+        source: 'Khan, de Ris & Ogden, Effect of Moisture on Ignition Time of Cellulosic Materials, Fire Safety Science 9 (2008) 167-178, table 1: piloted ignition, single- and tri-wall corrugated paperboard, surface Tig computed from critical heat flux as a black surface (https://publications.iafss.org/publications/fss/9/167 (doi:10.3801/IAFSS.FSS.9-167))',
+      ),
       heatOfCombustion: ConstantLaw(
         14030000.0,
-        confidence: Confidence.measured,
+        confidence: Confidence.handbook,
+        source: 'UL FSRI Materials and Products Database, Corrugated Cardboard: corrugated cardboard, density 320 kg/m3, effective HoC by micro-scale combustion calorimeter, R1 14.08, R2 13.98 (https://materials.fsri.org/materialdetail/corrugated-cardboard)',
       ),
-      radiantFraction: ConstantLaw(0.24, confidence: Confidence.handbook),
+      radiantFraction: ConstantLaw(
+        0.24,
+        confidence: Confidence.measured,
+        source: 'Zeng, Chaos, Khan & Dorofeev, Radiation Characteristics of Corrugated Cardboard Flames, Fire Safety Science 11 (2014) 97-110, fig. 7a and text p. ~106: bench-scale FPA flames of corrugated cardboard, 7-10 kW, external flux 30-90 kW/m2 (https://publications.iafss.org/publications/fss/11/97 (doi:10.3801/IAFSS.FSS.11-97))',
+        interval: PropertyInterval(0.2, 0.28),
+      ),
       source: 'specific heat, conductivity and emissivity of its virgin layers: Semmes and colleagues, Fire Safety Science 11 (2014), table 2; it catches at 350 °C, what its 8.5 kW/m² critical flux gives a black surface (Khan, de Ris and Ogden, Fire Safety Science 9, 2008); 14.03 MJ/kg burnt (UL FSRI, Corrugated Cardboard); a radiant share of 0.20 to 0.28 (Zeng and colleagues, Fire Safety Science 11, 2014)',
     ),
   );
 
-  /// Thatch.
+  /// Thatch. Of the grades its name covers, its specificHeat for oven-dry rye/triticale straw insulating panel (~4 % pMDI resin, 211 kg/m3), water calorimeter, sample cooled ~100 C -> ~20 C.
   static const PhysicalMaterial thatch = PhysicalMaterial(
     id: 'f3d.thatch',
     name: 'thatch',
     phase: MaterialPhase.solid,
-    confidence: Confidence.handbook,
+    confidence: Confidence.estimate,
     mechanical: MechanicalProperties(
-      poissonRatio: ConstantLaw(0.29, confidence: Confidence.estimate),
+      poissonRatio: ConstantLaw(
+        0.29,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: no measured Poisson ratio for a straw bed / thatch found (searched with the elastic-constant and straw-bale literature); 0.29 is the core default. The catalog itself says the stiffness is left to the default',
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -1959,27 +2251,53 @@ abstract final class Materials {
       source: 'no measurement of a straw bed\'s stiffness was found: its modulus is left to the core\'s default',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1938.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.0485, confidence: Confidence.handbook),
-      emissivity: ConstantLaw(0.846, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(593.15, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1678.0,
+        confidence: Confidence.handbook,
+        source: 'Czajkowski, Kocewicz, Weres & Olek, Estimation of Thermal Properties of Straw-Based Insulating Panels, Materials 15 (2022) 1073, sec. 3.1 / table 2: oven-dry rye/triticale straw insulating panel (~4 % pMDI resin, 211 kg/m3), water calorimeter, sample cooled ~100 C -> ~20 C (doi:10.3390/ma15031073 (https://pmc.ncbi.nlm.nih.gov/articles/PMC8838588/))',
+        interval: PropertyInterval(1678.0, 1938.0),
+      ),
+      conductivity: ConstantLaw(
+        0.0485,
+        confidence: Confidence.measured,
+        source: 'Costes, Evrard, Biot, Keutgen, Daras, Dubois, Lebeau & Courard, Thermal Conductivity of Straw Bales: Full Size Measurements Considering the Direction of the Heat Flow, Buildings 7 (2017) 11, eq. 2: straw bale, guarded hot plate, regression lambda = 0.0444 + 2.72e-4 d evaluated at d = 15 kg/m3 (doi:10.3390/buildings7010011 (https://www.mdpi.com/2075-5309/7/1/11))',
+      ),
+      emissivity: ConstantLaw(
+        0.846,
+        confidence: Confidence.handbook,
+        source: 'UL FSRI Materials and Products Database, Straw: straw, band-averaged emissivity from FTIR reflectance, for a 600 K source spectrum (0.805 at 800 K, 0.756 at 1000 K) (https://materials.fsri.org/materialdetail/straw)',
+      ),
+      ignitionTemperature: ConstantLaw(
+        593.15,
+        confidence: Confidence.measured,
+        source: 'Rothermel, A Mathematical Model for Predicting Fire Spread in Wildland Fuels, USDA Forest Service Research Paper INT-115 (1972), \'Heat of Preignition\', eq. 12: assumed ignition temperature of cellulosic wildland fuels (20 -> 320 C) in the heat-of-preignition derivation (https://research.fs.usda.gov/download/treesearch/32533.pdf)',
+      ),
       heatOfCombustion: ConstantLaw(
         10100000.0,
         confidence: Confidence.handbook,
+        source: 'UL FSRI Materials and Products Database, Straw: straw, bulk density 43 kg/m3, effective HoC by MCC, mean of 3 (9.83..10.61) (https://materials.fsri.org/materialdetail/straw)',
       ),
-      radiantFraction: ConstantLaw(0.3, confidence: Confidence.handbook),
+      radiantFraction: ConstantLaw(
+        0.3,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: no straw/thatch radiant fraction found; catalog takes wood\'s 0.3 (sourced for Douglas-fir trees, NIST TN 2327r1, in out_G_organic_old); cellulosic cardboard flames 0.20-0.28 (Zeng et al., FSS 11, 2014)',
+      ),
       source: 'Rossa, Davim and Fernandes, Fire 9, 94 (2026), table 1; the heat to 320 °C, 581 kJ/kg (Rothermel, USDA INT-115, 1972, eq. 12); 10.1 MJ/kg and an emissivity of 0.846 (UL FSRI, Straw); a straw bale\'s conductivity at 15 kg/m³ (Costes and colleagues, Buildings 7, 11, 2017); radiant share as f3d.wood\'s',
     ),
   );
 
-  /// Charcoal.
+  /// Charcoal. Of the grades its name covers, its ignitionTemperature for eucalyptus charcoal, forced step-heating in furnace with IR camera; carbonized at 350/450/550/650 C; its heatOfCombustion for eucalyptus charcoal, LHV from bomb-calorimeter HHV, by carbonization temperature 350/450/550/650 C.
   static const PhysicalMaterial charcoal = PhysicalMaterial(
     id: 'f3d.charcoal',
     name: 'charcoal',
     phase: MaterialPhase.solid,
-    confidence: Confidence.handbook,
+    confidence: Confidence.estimate,
     mechanical: MechanicalProperties(
-      poissonRatio: ConstantLaw(0.29, confidence: Confidence.estimate),
+      poissonRatio: ConstantLaw(
+        0.29,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: no measured Poisson ratio of wood charcoal found; catalog itself leaves stiffness to the core default 0.29',
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -1988,15 +2306,38 @@ abstract final class Materials {
       source: 'no open measurement of charcoal\'s stiffness was found: its modulus is left to the core\'s default',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1017.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.03, confidence: Confidence.handbook),
-      emissivity: ConstantLaw(0.77, confidence: Confidence.handbook),
-      ignitionTemperature: ConstantLaw(860.8, confidence: Confidence.handbook),
-      heatOfCombustion: ConstantLaw(
-        30000000.0,
-        confidence: Confidence.handbook,
+      specificHeat: ConstantLaw(
+        1017.0,
+        confidence: Confidence.measured,
+        source: 'Santos, Martins, Pereira & Carneiro, Physical and thermal properties of eucalyptus wood charcoal, CERNE 26(1) (2020) 109-, abstract: eucalyptus charcoal pieces (~35 mm), apparent density 345 kg/m3 (https://www.scielo.br/j/cerne/a/YHH8FZSMrYxMmMyhfF3fSFj/ (doi:10.1590/01047760202026012699))',
       ),
-      radiantFraction: ConstantLaw(0.88, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        0.03,
+        confidence: Confidence.measured,
+        source: 'Santos, Martins, Pereira & Carneiro, Physical and thermal properties of eucalyptus wood charcoal, CERNE 26(1) (2020) 109-, abstract: eucalyptus charcoal (bed of pieces; bulk density 155, apparent 345 kg/m3) (https://www.scielo.br/j/cerne/a/YHH8FZSMrYxMmMyhfF3fSFj/ (doi:10.1590/01047760202026012699))',
+      ),
+      emissivity: ConstantLaw(
+        0.77,
+        confidence: Confidence.measured,
+        source: 'Vanaparti, Experimental Study of Radiative Properties of Charcoal Combustion in Grills, MS thesis, Auburn University (2016), abstract: burning commercial grill charcoal, black surface (0.80 with gray ash), pyrometer vs thermocouple (https://etd.auburn.edu/handle/10415/5013)',
+      ),
+      ignitionTemperature: ConstantLaw(
+        610.15,
+        confidence: Confidence.handbook,
+        source: 'Oliveira, da Silva, Cupertino, Delatorre, Amorim, de Souza, Brito & Dias Junior, Influence of Pyrolysis Temperature on Critical Variables Related to Charcoal Spontaneous Combustion, Bioresources and Bioproducts 1(2) (2025) 6: eucalyptus charcoal, forced step-heating in furnace with IR camera; carbonized at 350/450/550/650 C (https://www.mdpi.com/3042-8092/1/2/6 (doi:10.3390/bioresourbioprod1020006))',
+        interval: PropertyInterval(546.0, 697.0),
+      ),
+      heatOfCombustion: ConstantLaw(
+        29450000.0,
+        confidence: Confidence.handbook,
+        source: 'Oliveira, da Silva, Cupertino, Delatorre, Amorim, de Souza, Brito & Dias Junior, Influence of Pyrolysis Temperature on Critical Variables Related to Charcoal Spontaneous Combustion, Bioresources and Bioproducts 1(2) (2025) 6: eucalyptus charcoal, LHV from bomb-calorimeter HHV, by carbonization temperature 350/450/550/650 C (https://www.mdpi.com/3042-8092/1/2/6 (doi:10.3390/bioresourbioprod1020006))',
+        interval: PropertyInterval(26760000.0, 33500000.0),
+      ),
+      radiantFraction: ConstantLaw(
+        0.88,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: no published radiant fraction for glowing charcoal found; 0.88 is derived in the repo (charcoal_glow.md) as radiation / (radiation + free convection) of a 0.77-emissivity surface at 1204 K (Kim & Sunderland, Fire Saf. J. 106 (2019), doi:10.1016/j.firesaf.2019.04.006, ember temperature) - a model output, not a measurement',
+      ),
       source: 'Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it catches where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)',
     ),
   );
@@ -2009,8 +2350,16 @@ abstract final class Materials {
     confidence: Confidence.handbook,
     externalIds: <String, String>{'CAS': '8002-74-2'},
     mechanical: MechanicalProperties(
-      density: ConstantLaw(900.0, confidence: Confidence.handbook),
-      poissonRatio: ConstantLaw(0.29, confidence: Confidence.estimate),
+      density: ConstantLaw(
+        900.0,
+        confidence: Confidence.handbook,
+        source: 'NOAA CAMEO Chemicals, datasheet WAXES: PARAFFIN (data from USCG CHRIS, 1999): solid, 68 F (20 C), specific gravity 0.9 (https://cameochemicals.noaa.gov/chemical/18025)',
+      ),
+      poissonRatio: ConstantLaw(
+        0.29,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: searched "paraffin wax Poisson ratio / Young modulus measured": only an MD simulation of n-paraffin crystals (Stetsenko, J. Pet. Sci. Eng. 126 (2015) 124, doi:10.1016/j.petrol.2014.12.021), no bulk measurement read; 0.29 is the core default',
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -2019,20 +2368,41 @@ abstract final class Materials {
       source: 'density: Incropera and colleagues (2007), table A.3, paraffin; its stiffness was not found openly and is left to the core\'s default',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(2604.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.23, confidence: Confidence.handbook),
-      emissivity: ConstantLaw(0.9, confidence: Confidence.estimate),
-      ignitionTemperature: ConstantLaw(472.15, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        2604.0,
+        confidence: Confidence.handbook,
+        source: 'Hamins, Bundy & Dillon, Characterization of Candle Flames, J. Fire Protection Engineering 15(4) (2005) 265-285, table 1 and text: solid at 35-40 C, paraffin candle wax (https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=101159 (doi:10.1177/1042391505053163))',
+      ),
+      conductivity: ConstantLaw(
+        0.23,
+        confidence: Confidence.handbook,
+        source: 'Hamins, Bundy & Dillon, Characterization of Candle Flames, J. Fire Protection Engineering 15(4) (2005) 265-285, table 1 and text: room temperature, solid (https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=101159 (doi:10.1177/1042391505053163))',
+      ),
+      emissivity: ConstantLaw(
+        0.9,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: searched IR emissivity tables (Omega, ThermoWorks, Optris, Cengel/Incropera A.11-type tables) and "paraffin wax emissivity" papers: no paraffin entry found; 0.9 is the engine default',
+      ),
+      ignitionTemperature: ConstantLaw(
+        472.15,
+        confidence: Confidence.handbook,
+        source: 'NOAA CAMEO Chemicals, datasheet WAXES: PARAFFIN (data from USCG CHRIS, 1999): closed-cup flash point 390 F; autoignition 473 F (518 K) (https://cameochemicals.noaa.gov/chemical/18025)',
+      ),
       heatOfCombustion: ConstantLaw(
         43800000.0,
         confidence: Confidence.handbook,
+        source: 'Hamins, Bundy & Dillon, Characterization of Candle Flames, J. Fire Protection Engineering 15(4) (2005) 265-285, table 1 and text: effective heat of combustion, cone calorimeter (O2 consumption), candle wax (https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=101159 (doi:10.1177/1042391505053163))',
       ),
-      radiantFraction: ConstantLaw(0.17, confidence: Confidence.handbook),
+      radiantFraction: ConstantLaw(
+        0.17,
+        confidence: Confidence.handbook,
+        source: 'Hamins, Bundy & Dillon, Characterization of Candle Flames, J. Fire Protection Engineering 15(4) (2005) 265-285, table 1 and text: single 21 mm paraffin candle flame, ~77 W (https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=101159 (doi:10.1177/1042391505053163))',
+      ),
       source: 'Hamins, Bundy and Dillon, J. Fire Protection Eng. 15 (2005): a candle\'s 43.8 MJ/kg, 0.17 radiated, the solid\'s specific heat and conductivity; it flashes at 199 °C (NOAA CAMEO Chemicals); its surface\'s emissivity not found openly, the 0.9 every preset starts from',
     ),
   );
 
-  /// Rubber.
+  /// Rubber. Of the grades its name covers, its conductivity for vulcanized rubber, 300 K: soft 0.13, hard 0.16; natural (unvulcanized) 0.28; its emissivity for rubber at 300 K: hard 0.93, soft 0.86; its heatOfCombustion for waste tyre, gross (higher) heating value, bomb calorimetry.
   static const PhysicalMaterial rubber = PhysicalMaterial(
     id: 'f3d.rubber',
     name: 'rubber',
@@ -2044,8 +2414,16 @@ abstract final class Materials {
     },
     mechanical: MechanicalProperties(
       density: ConstantLaw(1100.0, confidence: Confidence.handbook),
-      youngsModulus: ConstantLaw(2000000.0, confidence: Confidence.estimate),
-      poissonRatio: ConstantLaw(0.49, confidence: Confidence.handbook),
+      youngsModulus: ConstantLaw(
+        2000000.0,
+        confidence: Confidence.handbook,
+        source: 'Cambridge University Engineering Department, Materials Data Book, 2003 ed., section II.3 Young\'s modulus (data courtesy Granta Design / CES 4.1): natural rubber (NR), room temperature; range 1.5-2.5 MPa (https://www-mdp.eng.cam.ac.uk/web/library/enginfo/cueddatabooks/materials.pdf)',
+      ),
+      poissonRatio: ConstantLaw(
+        0.49,
+        confidence: Confidence.handbook,
+        source: 'Mott & Roland, Limits to Poisson\'s ratio in isotropic materials, Phys. Rev. B 80, 132104 (2009), table 1 (ref. 31 therein): natural rubber, room temperature (https://arxiv.org/abs/0909.4697 (doi:10.1103/PhysRevB.80.132104))',
+      ),
       staticFriction: ConstantLaw(
         1.16,
         confidence: Confidence.handbook,
@@ -2055,18 +2433,38 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(2010.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.16, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        0.13,
+        confidence: Confidence.handbook,
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-8 (miscellaneous materials at 300 K, largely from Incropera table A.3): vulcanized rubber, 300 K: soft 0.13, hard 0.16; natural (unvulcanized) 0.28 (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
+        interval: PropertyInterval(0.13, 0.16),
+      ),
       volumetricExpansion: ConstantLaw(
         0.0002025,
         confidence: Confidence.estimate,
       ),
-      emissivity: ConstantLaw(0.92, confidence: Confidence.estimate),
-      ignitionTemperature: ConstantLaw(623.15, confidence: Confidence.estimate),
-      heatOfCombustion: ConstantLaw(
-        32000000.0,
-        confidence: Confidence.estimate,
+      emissivity: ConstantLaw(
+        0.86,
+        confidence: Confidence.handbook,
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-18(b) emissivities of nonmetals: rubber at 300 K: hard 0.93, soft 0.86 (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
+        interval: PropertyInterval(0.86, 0.93),
       ),
-      radiantFraction: ConstantLaw(0.45, confidence: Confidence.estimate),
+      ignitionTemperature: ConstantLaw(
+        673.15,
+        confidence: Confidence.measured,
+        source: 'Alvares, Hasegawa & Staggs, Ignition, Heat Release Rate and Suppression of Elastomeric Materials, Fire Technology 52 (2016) 1575-1593, abstract: piloted ignition of tyre-tread and conveyor-belt rubber compounds, cone calorimeter and ICAL; non-piloted ~600 C (doi:10.1007/s10694-015-0483-0)',
+      ),
+      heatOfCombustion: ConstantLaw(
+        37920000.0,
+        confidence: Confidence.measured,
+        source: 'Campuzano, Ortiz, Betancur & Martinez, Characterization of three different solid wastes as energy resources for pyrolysis (2018), abstract (UPB repository): waste tyre, gross (higher) heating value, bomb calorimetry (http://hdl.handle.net/20.500.11912/4396)',
+        interval: PropertyInterval(35750000.0, 38000000.0),
+      ),
+      radiantFraction: ConstantLaw(
+        0.45,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: searched Tewarson/SFPE tables (not reachable online), "tyre fire radiative fraction", Ingason & Hammarstrom SP 2010:64 tyre test: no tyre/rubber radiant fraction found; 0.45 unsourced',
+      ),
       source: 'specific heat of soft and conductivity of hard vulcanized rubber: Incropera and colleagues (2007), table A.3; its emissivity, ignition, heat of combustion and a sooty flame\'s radiant share are the engine\'s, of the order a tyre fire is measured at',
     ),
     acoustic: AcousticProperties(
@@ -2107,16 +2505,28 @@ abstract final class Materials {
     id: 'f3d.abs',
     name: 'ABS',
     phase: MaterialPhase.solid,
-    confidence: Confidence.handbook,
+    confidence: Confidence.estimate,
     externalIds: <String, String>{
       'CAS': '9003-56-9',
       'IFC': 'plastic',
       'ISO1043': 'ABS',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(1050.0, confidence: Confidence.handbook),
-      youngsModulus: ConstantLaw(2300000000.0, confidence: Confidence.handbook),
-      poissonRatio: ConstantLaw(0.35, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        1050.0,
+        confidence: Confidence.handbook,
+        source: 'INEOS Styrolution, Terluran GP-35 product information, rev. 05/30/16: INEOS Styrolution Terluran GP-35 (general-purpose ABS), ISO 1183 (https://www.tekogehause.de/uploads/manuali/materiali/TERLURAN%20C-35.pdf (file is the GP-35 sheet))',
+      ),
+      youngsModulus: ConstantLaw(
+        2300000000.0,
+        confidence: Confidence.handbook,
+        source: 'INEOS Styrolution, Terluran GP-35 product information, rev. 05/30/16: Terluran GP-35, tensile modulus ISO 527, 23 C (https://www.tekogehause.de/uploads/manuali/materiali/TERLURAN%20C-35.pdf (file is the GP-35 sheet))',
+      ),
+      poissonRatio: ConstantLaw(
+        0.35,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: searched INEOS Terluran sheet (no Poisson), Netzsch polymer database (blocked, 403), DIC/ABS papers (only glass-filled or 3D-printed ABS); Ashby (catalog\'s source) not reachable',
+      ),
       tensileStrength: ConstantLaw(40000000.0, confidence: Confidence.handbook),
       staticFriction: ConstantLaw(
         0.2,
@@ -2127,8 +2537,16 @@ abstract final class Materials {
       source: 'Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, ABS: typical values within its ranges',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1400.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.17, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1400.0,
+        confidence: Confidence.estimate,
+        source: 'estimate: no citable source was reached; searched: Terluran GP-35 sheet gives no heat capacity; Netzsch database (blocked) reportedly lists 1.26-1.68 J/(g K) (seen only in a search summary, not opened); no primary value read',
+      ),
+      conductivity: ConstantLaw(
+        0.17,
+        confidence: Confidence.handbook,
+        source: 'INEOS Styrolution, Terluran GP-35 product information, rev. 05/30/16: Terluran GP-35, DIN 52612-1 (https://www.tekogehause.de/uploads/manuali/materiali/TERLURAN%20C-35.pdf (file is the GP-35 sheet))',
+      ),
       volumetricExpansion: ConstantLaw(
         0.00027,
         confidence: Confidence.estimate,
@@ -2143,7 +2561,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Polyethylene.
+  /// Polyethylene. Of the grades its name covers, its yieldStrength for tensile stress at yield, 23 C; Hostalen GC 7260 (HDPE, 0.960 g/cm3, injection moulding); its conductivity for Polystone G (PE-HD 300), DIN 52612-1 (also 0.40 for Polystone G EL black, ISO 22007-2).
   static const PhysicalMaterial polyethylene = PhysicalMaterial(
     id: 'f3d.polyethylene',
     name: 'polyethylene',
@@ -2155,14 +2573,22 @@ abstract final class Materials {
       'ISO1043': 'PE-HD',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(950.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        950.0,
+        confidence: Confidence.handbook,
+        source: 'Rochling Industrial, Technical Data Sheet Polystone G vacuum formable natural (591099): Rochling Polystone G (PE-HD, PE 300) natural, DIN EN ISO 1183-1: \'>0.95 g/cm3\' (https://www.roechling.com/fileadmin/assets/Technical%20Data%20Sheet%20Polystone%C2%AE%20G%20vacuum%20formable%20natural%20591099%20PL.pdf)',
+      ),
       youngsModulus: ConstantLaw(800000000.0, confidence: Confidence.handbook),
-      poissonRatio: ConstantLaw(0.42, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.45,
+        confidence: Confidence.handbook,
+        source: 'Plastics Pipe Institute, Handbook of Polyethylene Pipe, 2nd ed. (2008), ch. 3 Material Properties, "Poisson\'s Ratio" and appendix D: PE pipe materials (incl. HDPE), ambient temperature, typical working stresses; tension and compression (https://clvr.imiscloud.com/common/Uploaded%20files/1-PPI/Manuals-Design%20Guides/Handbook%20of%20PE%20Pipe/SECOND_EDITION_HANDBOOK_OF_PE_PIPE_2008/Chapter_3__-_Material_Properties/Chapter%203%20-%20Material%20Properties.pdf)',
+      ),
       yieldStrength: ConstantLaw(
-        29650000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
-        interval: PropertyInterval(26200000.0, 33100000.0),
+        30000000.0,
+        confidence: Confidence.handbook,
+        source: 'LyondellBasell product page (typical properties), Hostalen GC 7260: tensile stress at yield, 23 C; Hostalen GC 7260 (HDPE, 0.960 g/cm3, injection moulding) (https://www.lyondellbasell.com/en/polymers/p/Hostalen-GC-7260/26c02c33-be38-4d1e-9451-88918420a969)',
+        interval: PropertyInterval(23000000.0, 30000000.0),
       ),
       tensileStrength: ConstantLaw(
         15000000.0,
@@ -2177,16 +2603,25 @@ abstract final class Materials {
       source: 'Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, high-density polyethylene: typical values within its ranges',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1900.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.45, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1900.0,
+        confidence: Confidence.handbook,
+        source: 'Rochling Industrial, Technical Data Sheet Polystone G vacuum formable natural (591099): Polystone G (PE-HD 300), thermal capacity DIN 52612 (https://www.roechling.com/fileadmin/assets/Technical%20Data%20Sheet%20Polystone%C2%AE%20G%20vacuum%20formable%20natural%20591099%20PL.pdf)',
+      ),
+      conductivity: ConstantLaw(
+        0.4,
+        confidence: Confidence.handbook,
+        source: 'Rochling Industrial, Technical Data Sheet Polystone G vacuum formable natural (591099): Polystone G (PE-HD 300), DIN 52612-1 (also 0.40 for Polystone G EL black, ISO 22007-2) (https://www.roechling.com/fileadmin/assets/Technical%20Data%20Sheet%20Polystone%C2%AE%20G%20vacuum%20formable%20natural%20591099%20PL.pdf)',
+        interval: PropertyInterval(0.26, 0.4),
+      ),
       volumetricExpansion: ConstantLaw(
         0.000324,
         confidence: Confidence.handbook,
       ),
       meltingPoint: ConstantLaw(
         403.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.handbook,
+        source: 'LyondellBasell product page (typical properties), Hostalen CRP 100 BLACK: DSC melting point; Hostalen CRP 100 BLACK (HDPE, 0.959 g/cm3) (https://www.lyondellbasell.com/en/polymers/p/Hostalen-CRP-100-BLACK/30908850-0d1b-4d36-85f8-450580198b6b)',
         interval: PropertyInterval(399.0, 410.0),
       ),
       emissivity: ConstantLaw(
@@ -2196,8 +2631,8 @@ abstract final class Materials {
       ),
       heatOfCombustion: ConstantLaw(
         43300000.0,
-        confidence: Confidence.estimate,
-        source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); net heat of complete combustion, polyethylene',
+        confidence: Confidence.handbook,
+        source: 'Walters, Hackett & Lyon, Heats of Combustion of High-Temperature Polymers, FAA tech. note DOT/FAA/AR-TN97/8 (1998), table 1 (Qc gross by oxygen bomb, Shc net); also Fire and Materials 24 (2000) 245: net (H2O gas), 298 K, LDPE sample (Polysciences) (https://rosap.ntl.bts.gov/view/dot/90175/dot_90175_DS1.pdf)',
       ),
       source: 'Ashby (2011), appendix C, high-density polyethylene',
     ),
@@ -2208,7 +2643,7 @@ abstract final class Materials {
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.54, confidence: Confidence.estimate),
       dielectricF0: ConstantLaw(0.0452, confidence: Confidence.estimate),
-      source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info; HDPE 1.53-1.54; LDPE 1.51',
+      source: 'estimate: no citable source was reached; searched: searched refractiveindex.info DB (PE only IR data: Smith 1975, David 2022), Kaye&Laby, scipoly table (no source), papers; no visible n_D for HDPE read',
     ),
   );
 
@@ -2240,7 +2675,11 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(800.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.27, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        0.27,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Sand): Sand, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       emissivity: ConstantLaw(
         0.9,
         confidence: Confidence.handbook,
@@ -2267,7 +2706,11 @@ abstract final class Materials {
     confidence: Confidence.handbook,
     externalIds: <String, String>{'IFC': 'earth'},
     mechanical: MechanicalProperties(
-      density: ConstantLaw(2050.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        2050.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Soil): Soil, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.estimate,
@@ -2277,8 +2720,16 @@ abstract final class Materials {
       source: 'Incropera and colleagues (2007), table A.3, soil',
     ),
     thermal: ThermalProperties(
-      specificHeat: ConstantLaw(1840.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.52, confidence: Confidence.handbook),
+      specificHeat: ConstantLaw(
+        1840.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Soil): Soil, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
+      conductivity: ConstantLaw(
+        0.52,
+        confidence: Confidence.handbook,
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Soil): Soil, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
+      ),
       emissivity: ConstantLaw(
         0.945,
         confidence: Confidence.estimate,
@@ -20475,12 +20926,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         3134.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         247300.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 13.81 kJ/mol / 55.845 g/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.61,
@@ -20591,12 +21042,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         2435.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         104600.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 11.28 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.03,
@@ -20702,12 +21153,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         2022.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         23000.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 4.774 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.63,
@@ -20809,12 +21260,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         3186.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         297800.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 17.48 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.47,
@@ -20885,23 +21336,22 @@ abstract final class Materials {
       'physicallybased.info': 'Zinc',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(7140.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        7140.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
+      ),
       youngsModulus: ConstantLaw(
         108000000000.0,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html; the Cremer & Heckl table as reproduced gives 13.1 GPa, a tenfold slip; Engineering ToolBox 83 GPa',
       ),
-      poissonRatio: ConstantLaw(
-        0.25,
-        confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
-      ),
+      poissonRatio: ConstantLaw(0.25, confidence: Confidence.handbook),
       staticFriction: ConstantLaw(
         0.6,
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; clean and dry; greased 0.04',
       ),
-      source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
+      source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Zinc" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -20926,12 +21376,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         1180.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         108100.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 7.068 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.25,
@@ -20991,12 +21441,12 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         50000000000.0,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html; the Cremer & Heckl table as reproduced gives 4.4 GPa, a tenfold slip; Engineering ToolBox 47 GPa',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Tin" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
       poissonRatio: ConstantLaw(
         0.36,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Tin" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21032,12 +21482,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         2875.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         60400.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 7.173 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.05,
@@ -21097,12 +21547,12 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         116000000000.0,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html; polycrystalline 105-120 GPa by grade',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Titanium" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
       poissonRatio: ConstantLaw(
         0.32,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Titanium" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21138,12 +21588,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         3560.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         295600.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 14.15 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.19,
@@ -21198,12 +21648,12 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         411000000000.0,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html; Engineering ToolBox 400-410 GPa',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Tungsten" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
       poissonRatio: ConstantLaw(
         0.28,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Tungsten" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21239,12 +21689,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         5828.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         284500.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 52.31 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.04,
@@ -21331,12 +21781,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         1363.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         348900.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 8.48 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: ConstantLaw(
         0.1,
@@ -21356,7 +21806,7 @@ abstract final class Materials {
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(4.39e-8, confidence: Confidence.handbook),
-      source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); CRC electrical resistivity of the elements, 20 C',
+      source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.6.1 Electrical resistivities, \'Resistivities of metallic elements\' (273.2 K and 373.2 K columns, linear interpolation to 293.15 K): 293.15 K (interpolated), pure metal (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/general_physics/2_6/2_6_1.html)',
     ),
     inelastic: InelasticProperties(
       lossFactor: ConstantLaw(
@@ -21394,7 +21844,7 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; clean and dry; greased 0.25',
       ),
-      source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
+      source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Platinum" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21423,12 +21873,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         4098.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         113600.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 22.17 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: TableLaw(
         0.06,
@@ -21477,23 +21927,22 @@ abstract final class Materials {
       'physicallybased.info': 'Chromium',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(7160.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        7160.0,
+        confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
+      ),
       youngsModulus: ConstantLaw(
         279000000000.0,
         confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html; Engineering ToolBox 248 GPa',
       ),
-      poissonRatio: ConstantLaw(
-        0.21,
-        confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
-      ),
+      poissonRatio: ConstantLaw(0.21, confidence: Confidence.handbook),
       staticFriction: ConstantLaw(
         0.41,
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; clean and dry; greased 0.34',
       ),
-      source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
+      source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.2.2 Elasticities and strengths, table \'Elasticities of metals and alloys\', 20 C: 20 C, polycrystalline, row "Chromium" (https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html)',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21522,12 +21971,12 @@ abstract final class Materials {
       boilingPoint: ConstantLaw(
         2944.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass)',
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 3.1.2 Properties of the elements, boiling point column (deg C, converted +273.15): 101325 Pa (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/chemistry/3_1/3_1_2.html)',
       ),
       latentHeatOfFusion: ConstantLaw(
         404000.0,
         confidence: Confidence.handbook,
-        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 21.0 kJ/mol',
+        source: 'A.T. Dinsdale, SGTE data for pure elements, CALPHAD 15(4) 317-425 (1991), \'SGTE pure element transition data\' table p. 323-325 (molar enthalpy of fusion / SGTE atomic weight): at the melting point, 101325 Pa (doi:10.1016/0364-5916(91)90030-N)',
       ),
       emissivity: TableLaw(
         0.08,
@@ -21543,8 +21992,8 @@ abstract final class Materials {
       source: 'physicallybased.info material database API (linear sRGB base colour / F0 from spectral complex IOR; IOR at 589 nm), retrieved 2026-10-09; https://api.physicallybased.info/materials; RTR4 table 9.2: 0.549, 0.556, 0.554',
     ),
     electrical: ElectricalProperties(
-      resistivity: ConstantLaw(1.25e-7, confidence: Confidence.handbook),
-      source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); CRC, 20 C',
+      resistivity: ConstantLaw(1.34e-7, confidence: Confidence.handbook),
+      source: 'Kaye & Laby, Tables of Physical and Chemical Constants (NPL online, v1.0, archived 2017), 2.6.1 Electrical resistivities, \'Resistivities of metallic elements\' (273.2 K and 373.2 K columns, linear interpolation to 293.15 K): 293.15 K (interpolated), pure metal (https://web.archive.org/web/2017/http://www.kayelaby.npl.co.uk/general_physics/2_6/2_6_1.html)',
     ),
   );
 
@@ -21566,13 +22015,13 @@ abstract final class Materials {
       ),
       youngsModulus: ConstantLaw(
         329000000000.0,
-        confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html; Engineering ToolBox 329 GPa',
+        confidence: Confidence.measured,
+        source: 'W. Liu, Q. Liu, M.L. Whitaker, Y. Zhao, B. Li, Experimental and theoretical studies on the elasticity of molybdenum to 12 GPa, J. Appl. Phys. 106, 043506 (2009), abstract: KS0 = 260.7 GPa, G0 = 125.1 GPa: ambient, polycrystalline, ultrasonic (doi:10.1063/1.3197135)',
       ),
       poissonRatio: ConstantLaw(
-        0.31,
-        confidence: Confidence.handbook,
-        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed., 2.2.2 elastic moduli of polycrystalline metals; https://web.archive.org/web/2019/http://www.kayelaby.npl.co.uk/general_physics/2_2/2_2_2.html',
+        0.293,
+        confidence: Confidence.measured,
+        source: 'W. Liu, Q. Liu, M.L. Whitaker, Y. Zhao, B. Li, Experimental and theoretical studies on the elasticity of molybdenum to 12 GPa, J. Appl. Phys. 106, 043506 (2009), abstract: KS0 = 260.7 GPa, G0 = 125.1 GPa: ambient, polycrystalline, ultrasonic (doi:10.1063/1.3197135)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21641,27 +22090,27 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         193000000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; 193-200 GPa',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 304 Stainless Steel\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed, RT (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ304A)',
       ),
       poissonRatio: ConstantLaw(
         0.29,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 304 Stainless Steel\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed, RT (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ304A)',
       ),
       yieldStrength: ConstantLaw(
         215000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; 0.2 % offset, annealed',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 304 Stainless Steel\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed, 0.2 % offset (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ304A)',
       ),
       tensileStrength: ConstantLaw(
         505000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 304 Stainless Steel\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ304A)',
       ),
       hardness: ConstantLaw(
         1265000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; HV 129',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 304 Stainless Steel\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed; HV 129 (converted from HRB 70) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ304A)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21735,22 +22184,22 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         193000000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 316 Stainless Steel, annealed sheet\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed sheet, in tension (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ316A)',
       ),
       poissonRatio: ConstantLaw(
         0.3,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'Giovedi, Cherubini, Abe, D\'Auria, \'Assessment of stainless steel 348 fuel rod performance...\', EPJ Nuclear Sci. Technol. 2, 2016, Table 1: RT; table compiled from refs [7-9] of the paper (doi:10.1051/epjn/2016017)',
       ),
       yieldStrength: ConstantLaw(
         290000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 316 Stainless Steel, annealed sheet\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed sheet (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ316A)',
       ),
       tensileStrength: ConstantLaw(
         580000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 316 Stainless Steel, annealed sheet\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed sheet (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ316A)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21793,11 +22242,11 @@ abstract final class Materials {
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(7.4e-7, confidence: Confidence.handbook),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI Type 316 Stainless Steel, annealed sheet\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 20 C (7.4e-5 ohm-cm) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MQ316A)',
     ),
   );
 
-  /// Grey cast iron, class 30 / G3000 (EN-GJL-200 range).
+  /// Grey cast iron, class 30 / G3000 (EN-GJL-200 range). Of the grades its name covers, its youngsModulus for EN-GJL-200, tangent modulus at origin; midpoint of 88-113 GPa; its tensileStrength for EN-GJL-200 minimum (range 200-300 MPa), 30 mm cast sample; its conductivity for EN-GJL-200 at 100 C (standard gives no 20 C value).
   static const PhysicalMaterial castIron = PhysicalMaterial(
     id: 'f3d.castIron',
     name: 'grey cast iron',
@@ -21811,20 +22260,21 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(7300.0, confidence: Confidence.handbook),
       youngsModulus: ConstantLaw(
-        100000000000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); grey iron has no single modulus: it falls with stress; 66-138 GPa by class',
-        interval: PropertyInterval(66000000000.0, 138000000000.0),
+        100500000000.0,
+        confidence: Confidence.handbook,
+        source: 'EN 1561:2011 (DIN EN 1561:2012-01) Founding - Grey cast irons, Annex A, Table A.1 (mechanical) / Table A.2 (physical), cast samples 30 mm (read in an unofficial PDF copy of the standard; cite the standard itself): EN-GJL-200, tangent modulus at origin; midpoint of 88-113 GPa (https://asremavad.com/wp-content/uploads/2019/01/DIN-EN-1561-2012.pdf)',
+        interval: PropertyInterval(78000000000.0, 143000000000.0),
       ),
       poissonRatio: ConstantLaw(
         0.26,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'EN 1561:2011 (DIN EN 1561:2012-01) Founding - Grey cast irons, Annex A, Table A.1 (mechanical) / Table A.2 (physical), cast samples 30 mm (read in an unofficial PDF copy of the standard; cite the standard itself): EN-GJL-150..350 (all grades) (https://asremavad.com/wp-content/uploads/2019/01/DIN-EN-1561-2012.pdf)',
       ),
       tensileStrength: ConstantLaw(
-        207000000.0,
+        200000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); G3000; compressive strength is about 3-4x higher',
+        source: 'EN 1561:2011 (DIN EN 1561:2012-01) Founding - Grey cast irons, Annex A, Table A.1 (mechanical) / Table A.2 (physical), cast samples 30 mm (read in an unofficial PDF copy of the standard; cite the standard itself): EN-GJL-200 minimum (range 200-300 MPa), 30 mm cast sample (https://asremavad.com/wp-content/uploads/2019/01/DIN-EN-1561-2012.pdf)',
+        interval: PropertyInterval(150000000.0, 450000000.0),
       ),
       staticFriction: ConstantLaw(
         1.1,
@@ -21836,13 +22286,13 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html',
       ),
-      source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); G3000',
+      source: 'EN 1561:2011 (DIN EN 1561:2012-01) Founding - Grey cast irons, Annex A, Table A.1 (mechanical) / Table A.2 (physical), cast samples 30 mm (read in an unofficial PDF copy of the standard; cite the standard itself): EN-GJL-200 (~ASTM A48 class 30), 20 C (https://asremavad.com/wp-content/uploads/2019/01/DIN-EN-1561-2012.pdf)',
     ),
     thermal: ThermalProperties(
       conductivity: ConstantLaw(
-        46.0,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(40.0, 55.0),
+        50.0,
+        confidence: Confidence.handbook,
+        interval: PropertyInterval(45.5, 52.5),
       ),
       volumetricExpansion: ConstantLaw(
         0.0000321,
@@ -21853,7 +22303,7 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Cengel & Ghajar (2015), table A-18, emissivities of surfaces; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; cast iron newly turned, 300 K; turned and heated 0.60-0.70',
       ),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; grey irons 40-55 W/mK, graphite-dependent',
+      source: 'EN 1561:2011 (DIN EN 1561:2012-01) Founding - Grey cast irons, Annex A, Table A.1 (mechanical) / Table A.2 (physical), cast samples 30 mm (read in an unofficial PDF copy of the standard; cite the standard itself): EN-GJL-200 at 100 C (standard gives no 20 C value) (https://asremavad.com/wp-content/uploads/2019/01/DIN-EN-1561-2012.pdf)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(4994.0, confidence: Confidence.handbook),
@@ -21872,32 +22322,32 @@ abstract final class Materials {
       density: ConstantLaw(
         4430.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
       youngsModulus: ConstantLaw(
         113800000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
       poissonRatio: ConstantLaw(
         0.342,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
       yieldStrength: ConstantLaw(
         880000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
       tensileStrength: ConstantLaw(
         950000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
       hardness: ConstantLaw(
         3423000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; HV 349',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): annealed; HV 349 estimated from HRC 36 (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -21908,7 +22358,11 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(526.3, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(6.7, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        6.7,
+        confidence: Confidence.handbook,
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.0000258,
         confidence: Confidence.handbook,
@@ -21916,9 +22370,9 @@ abstract final class Materials {
       meltingPoint: ConstantLaw(
         1877.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; solidus 1604 C; liquidus 1660 C (1933 K)',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): solidus 1604 C (liquidus 1660 C = 1933 K) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
       ),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): grade 5, annealed (0.5263 J/g-C) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(6100.0, confidence: Confidence.handbook),
@@ -21930,7 +22384,7 @@ abstract final class Materials {
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(0.00000178, confidence: Confidence.handbook),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Titanium Ti-6Al-4V (Grade 5), Annealed\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): RT (0.000178 ohm-cm) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MTP641)',
     ),
     inelastic: InelasticProperties(
       plastic: ConstitutiveModel(
@@ -21967,32 +22421,32 @@ abstract final class Materials {
       density: ConstantLaw(
         2700.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 6061-T6, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       youngsModulus: ConstantLaw(
         68900000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): AA typical, avg tension/compression (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       poissonRatio: ConstantLaw(
         0.33,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): estimated from similar Al alloys (per ASM) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       yieldStrength: ConstantLaw(
         276000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T6, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       tensileStrength: ConstantLaw(
         310000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T6, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       hardness: ConstantLaw(
         1049000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; HV 107',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): HV 107 converted from HB 95 (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -22014,9 +22468,13 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; the polynomial law as published gives 911.2 at the reference state; it is scaled by 0.9833187006145742 onto the quoted 896.0',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 0.896 J/g-C (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6); the polynomial law as published gives 911.2 at the reference state; it is scaled by 0.9833187006145742 onto the quoted 896.0',
       ),
-      conductivity: ConstantLaw(167.0, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        167.0,
+        confidence: Confidence.handbook,
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T6, 77 F (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.0000708,
         confidence: Confidence.handbook,
@@ -22024,14 +22482,14 @@ abstract final class Materials {
       meltingPoint: ConstantLaw(
         855.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; solidus 582 C; liquidus 652 C (925 K)',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): solidus 582 C (liquidus 652 C = 925 K) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
       ),
       emissivity: ConstantLaw(
         0.09,
         confidence: Confidence.handbook,
         source: 'Cengel & Ghajar (2015), table A-18, emissivities of surfaces; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; commercial aluminium sheet; anodized 0.8',
       ),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 0.896 J/g-C (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(6320.0, confidence: Confidence.handbook),
@@ -22043,7 +22501,7 @@ abstract final class Materials {
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(3.99e-8, confidence: Confidence.handbook),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 6061-T6; 6061-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 68 F (3.99e-6 ohm-cm) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA6061t6)',
     ),
     inelastic: InelasticProperties(
       lossFactor: ConstantLaw(
@@ -22070,32 +22528,32 @@ abstract final class Materials {
       density: ConstantLaw(
         2810.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 7075-T6, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       youngsModulus: ConstantLaw(
         71700000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       poissonRatio: ConstantLaw(
         0.33,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections):  (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       yieldStrength: ConstantLaw(
         503000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T6, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       tensileStrength: ConstantLaw(
         572000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T6, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       hardness: ConstantLaw(
         1716000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; HV 175',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): HV 175 converted from HB 150 (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -22106,7 +22564,11 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(960.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(130.0, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        130.0,
+        confidence: Confidence.handbook,
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T6, 77 F (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
+      ),
       volumetricExpansion: ConstantLaw(
         0.0000708,
         confidence: Confidence.handbook,
@@ -22114,14 +22576,14 @@ abstract final class Materials {
       meltingPoint: ConstantLaw(
         750.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; solidus 477 C; liquidus 635 C (908 K)',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): solidus 477 C (liquidus 635 C = 908 K) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
       ),
       emissivity: ConstantLaw(
         0.09,
         confidence: Confidence.handbook,
         source: 'Cengel & Ghajar (2015), table A-18, emissivities of surfaces; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; commercial aluminium sheet',
       ),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 0.96 J/g-C (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(6320.0, confidence: Confidence.handbook),
@@ -22133,7 +22595,7 @@ abstract final class Materials {
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(5.15e-8, confidence: Confidence.handbook),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 7075-T6; 7075-T651\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 68 F (5.15e-6 ohm-cm) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA7075T6)',
     ),
   );
 
@@ -22152,32 +22614,32 @@ abstract final class Materials {
       density: ConstantLaw(
         2780.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; Incropera 2024-T6 2770',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 2024-T3, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       youngsModulus: ConstantLaw(
         73100000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       poissonRatio: ConstantLaw(
         0.33,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections):  (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       yieldStrength: ConstantLaw(
         345000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T3, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       tensileStrength: ConstantLaw(
         483000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T3, AA typical (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       hardness: ConstantLaw(
         1344000000.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; HV 137',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): HV 137 converted from HB 120 (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -22197,7 +22659,7 @@ abstract final class Materials {
       conductivity: ConstantLaw(
         121.0,
         confidence: Confidence.handbook,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; T3; Incropera 2024-T6 177',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): T3, 77 F (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000696,
@@ -22225,7 +22687,7 @@ abstract final class Materials {
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(5.82e-8, confidence: Confidence.handbook),
-      source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'Aluminum 2024-T3\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): 68 F (5.82e-6 ohm-cm) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=MA2024T3)',
     ),
     inelastic: InelasticProperties(
       plastic: ConstitutiveModel(
@@ -22594,7 +23056,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Ni-Cr-Mo alloy steel 4340, quenched and tempered (Rc 30 in the JC fit).
+  /// Ni-Cr-Mo alloy steel 4340, quenched and tempered (Rc 30 in the JC fit). Of the grades its name covers, its yieldStrength for oil quenched 800 C, tempered 650 C, HRC 30 (proposed, matches the description 'Q&T, Rc 30'); its tensileStrength for oil quenched 800 C, tempered 650 C, HRC 30 (proposed).
   static const PhysicalMaterial steel4340 = PhysicalMaterial(
     id: 'f3d.steel4340',
     name: 'alloy steel AISI 4340',
@@ -22609,27 +23071,29 @@ abstract final class Materials {
       density: ConstantLaw(
         7850.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, annealed, 25 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): all ASM 4340 conditions (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AA)',
       ),
       youngsModulus: ConstantLaw(
         207000000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, annealed, 25 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): \'typical for steel\', all conditions (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AA)',
       ),
       poissonRatio: ConstantLaw(
         0.3,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, annealed, 25 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): calculated, all conditions (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AA)',
       ),
       yieldStrength: ConstantLaw(
-        472000000.0,
+        938000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); annealed; quenched and tempered at 315 C: about 1.62 GPa',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, oil quenched 800C, 650C temper, 13 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): oil quenched 800 C, tempered 650 C, HRC 30 (proposed, matches the description \'Q&T, Rc 30\') (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AN)',
+        interval: PropertyInterval(470000000.0, 1165000000.0),
       ),
       tensileStrength: ConstantLaw(
-        745000000.0,
+        1000000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); annealed',
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, oil quenched 800C, 650C temper, 13 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): oil quenched 800 C, tempered 650 C, HRC 30 (proposed) (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AN)',
+        interval: PropertyInterval(745000000.0, 1255000000.0),
       ),
       staticFriction: ConstantLaw(
         1.0,
@@ -22642,14 +23106,14 @@ abstract final class Materials {
       specificHeat: ConstantLaw(477.0, confidence: Confidence.handbook),
       conductivity: ConstantLaw(
         44.5,
-        confidence: Confidence.estimate,
-        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/',
+        confidence: Confidence.handbook,
+        source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, annealed, 25 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): \'typical steel\', all conditions (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AA)',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000369,
         confidence: Confidence.handbook,
       ),
-      source: 'Johnson & Cook, A constitutive model and data for metals subjected to large strains, high strain rates and high temperatures, Proc. 7th Int. Symp. Ballistics (1983), table 1; as listed with the JC fit',
+      source: 'ASM Aerospace Specification Metals / MatWeb, ASM Material Data Sheet \'AISI 4340 Steel, annealed, 25 mm round\' (read via Wayback Machine snapshot; asm.matweb.com refused direct connections): \'typical 4000 series steel\', all conditions (https://asm.matweb.com/search/SpecificMaterial.asp?bassnum=M434AA)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(5850.0, confidence: Confidence.handbook),
@@ -22686,16 +23150,17 @@ abstract final class Materials {
       'IFC': 'glass',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(
-        2225.0,
-        confidence: Confidence.handbook,
-        source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; Pyrex; BOROFLOAT 33 datasheet 2230',
-      ),
+      density: ConstantLaw(2225.0, confidence: Confidence.handbook),
       youngsModulus: ConstantLaw(
         64000000000.0,
         confidence: Confidence.handbook,
+        source: 'SCHOTT BOROFLOAT 33 Technical Details (web data sheet; E and mu per DIN 13316, n_d reference value): BOROFLOAT 33, DIN 13316, room temperature (https://www.schott.com/en-us/products/borofloat/technical-details)',
       ),
-      poissonRatio: ConstantLaw(0.2, confidence: Confidence.handbook),
+      poissonRatio: ConstantLaw(
+        0.2,
+        confidence: Confidence.handbook,
+        source: 'SCHOTT BOROFLOAT 33 Technical Details (web data sheet; E and mu per DIN 13316, n_d reference value): BOROFLOAT 33, DIN 13316 (https://www.schott.com/en-us/products/borofloat/technical-details)',
+      ),
       staticFriction: ConstantLaw(
         0.95,
         confidence: Confidence.estimate,
@@ -22707,7 +23172,7 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; glass on glass',
       ),
-      source: 'SCHOTT BOROFLOAT 33 datasheet / Corning 7740 (Pyrex) properties',
+      source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; Pyrex; BOROFLOAT 33 datasheet 2230',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(835.0, confidence: Confidence.handbook),
@@ -22737,7 +23202,7 @@ abstract final class Materials {
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.4714, confidence: Confidence.handbook),
       dielectricF0: ConstantLaw(0.0364, confidence: Confidence.handbook),
-      source: 'SCHOTT BOROFLOAT 33 datasheet / Corning 7740 (Pyrex) properties; BOROFLOAT 33 n_d; Pyrex 7740 1.474',
+      source: 'SCHOTT BOROFLOAT 33 Technical Details (web data sheet; E and mu per DIN 13316, n_d reference value): BOROFLOAT 33, n_d at 587.6 nm, reference value (https://www.schott.com/en-us/products/borofloat/technical-details)',
     ),
   );
 
@@ -22757,12 +23222,12 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         73000000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'Corning HPFS 7980 Standard Grade data sheet (Corning Inc., reproduced by UQG Optics), mechanical table and refractive index table at 22 C: Corning 7980, 25 C (https://www.uqgoptics.com/wp-content/uploads/2019/03/Corning-7980.pdf)',
       ),
       poissonRatio: ConstantLaw(
         0.17,
         confidence: Confidence.handbook,
-        source: 'Heraeus / Corning 7980 fused silica datasheets; Malitson, J. Opt. Soc. Am. 55 (1965) for n_D',
+        source: 'Heraeus Quarzglas, \'Quartz Glass for Optics: Data and Properties\' (Herasil/Homosil/Suprasil/Infrasil), mechanical properties table (reproduced by UQG Optics): Heraeus quartz glass (Herasil/Suprasil family) (https://www.uqgoptics.com/wp-content/uploads/2019/03/Heraeus-Herasil-102.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -22807,9 +23272,13 @@ abstract final class Materials {
     ),
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.4585, confidence: Confidence.handbook),
-      abbeNumber: ConstantLaw(67.8, confidence: Confidence.handbook),
+      abbeNumber: ConstantLaw(
+        67.8,
+        confidence: Confidence.handbook,
+        source: 'Corning HPFS 7980 Standard Grade data sheet (Corning Inc., reproduced by UQG Optics), mechanical table and refractive index table at 22 C: Corning 7980, V_d computed from tabulated n_d, n_F, n_C (https://www.uqgoptics.com/wp-content/uploads/2019/03/Corning-7980.pdf)',
+      ),
       dielectricF0: ConstantLaw(0.0348, confidence: Confidence.handbook),
-      source: 'Heraeus / Corning 7980 fused silica datasheets; Malitson, J. Opt. Soc. Am. 55 (1965) for n_D',
+      source: 'Corning HPFS 7980 Standard Grade data sheet (Corning Inc., reproduced by UQG Optics), mechanical table and refractive index table at 22 C: Corning 7980, n_d 587.56 nm, 22 C, dry N2 (https://www.uqgoptics.com/wp-content/uploads/2019/03/Corning-7980.pdf)',
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(
@@ -22845,8 +23314,7 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; glass on glass',
       ),
-      source:
-          'SCHOTT optical glass datasheets (N-BK7 517642.251, F2 620364.360)',
+      source: 'SCHOTT Optical Glass Datasheet N-BK7 517642.251, as of 01-Dec-2023: N-BK7 (https://media.schott.com/api/public/content/41e799d0bf874807a0bb8e702fbb75b5)',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(858.0, confidence: Confidence.handbook),
@@ -22855,8 +23323,7 @@ abstract final class Materials {
         0.0000213,
         confidence: Confidence.handbook,
       ),
-      source:
-          'SCHOTT optical glass datasheets (N-BK7 517642.251, F2 620364.360)',
+      source: 'SCHOTT Optical Glass Datasheet N-BK7 517642.251, as of 01-Dec-2023: N-BK7 (https://media.schott.com/api/public/content/41e799d0bf874807a0bb8e702fbb75b5)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(5100.0, confidence: Confidence.estimate),
@@ -22864,10 +23331,13 @@ abstract final class Materials {
     ),
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.5168, confidence: Confidence.handbook),
-      abbeNumber: ConstantLaw(64.17, confidence: Confidence.handbook),
+      abbeNumber: ConstantLaw(
+        64.17,
+        confidence: Confidence.handbook,
+        source: 'SCHOTT Optical Glass Datasheet N-BK7 517642.251, as of 01-Dec-2023: N-BK7, nu_d (https://media.schott.com/api/public/content/41e799d0bf874807a0bb8e702fbb75b5)',
+      ),
       dielectricF0: ConstantLaw(0.0422, confidence: Confidence.handbook),
-      source:
-          'SCHOTT optical glass datasheets (N-BK7 517642.251, F2 620364.360)',
+      source: 'SCHOTT Optical Glass Datasheet N-BK7 517642.251, as of 01-Dec-2023: N-BK7, n_d 587.6 nm (https://media.schott.com/api/public/content/41e799d0bf874807a0bb8e702fbb75b5)',
     ),
   );
 
@@ -22879,7 +23349,11 @@ abstract final class Materials {
     confidence: Confidence.handbook,
     externalIds: <String, String>{'SCHOTT': 'F2 620364.360'},
     mechanical: MechanicalProperties(
-      density: ConstantLaw(3600.0, confidence: Confidence.handbook),
+      density: ConstantLaw(
+        3600.0,
+        confidence: Confidence.handbook,
+        source: 'SCHOTT Optical Glass Datasheet F2 620364.360, as of 01-Feb-2014: F2 (lead flint) (https://media.schott.com/api/public/content/4c96933ddb2a4a06adf062d635f0b35d)',
+      ),
       youngsModulus: ConstantLaw(
         57000000000.0,
         confidence: Confidence.handbook,
@@ -22896,8 +23370,7 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; glass on glass',
       ),
-      source:
-          'SCHOTT optical glass datasheets (N-BK7 517642.251, F2 620364.360)',
+      source: 'SCHOTT Optical Glass Datasheet F2 620364.360, as of 01-Feb-2014: F2 (https://media.schott.com/api/public/content/4c96933ddb2a4a06adf062d635f0b35d)',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(557.0, confidence: Confidence.handbook),
@@ -22906,8 +23379,7 @@ abstract final class Materials {
         0.0000246,
         confidence: Confidence.handbook,
       ),
-      source:
-          'SCHOTT optical glass datasheets (N-BK7 517642.251, F2 620364.360)',
+      source: 'SCHOTT Optical Glass Datasheet F2 620364.360, as of 01-Feb-2014: F2 (https://media.schott.com/api/public/content/4c96933ddb2a4a06adf062d635f0b35d)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(3980.0, confidence: Confidence.estimate),
@@ -22915,10 +23387,13 @@ abstract final class Materials {
     ),
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.62004, confidence: Confidence.handbook),
-      abbeNumber: ConstantLaw(36.37, confidence: Confidence.handbook),
+      abbeNumber: ConstantLaw(
+        36.37,
+        confidence: Confidence.handbook,
+        source: 'SCHOTT Optical Glass Datasheet F2 620364.360, as of 01-Feb-2014: F2, nu_d (https://media.schott.com/api/public/content/4c96933ddb2a4a06adf062d635f0b35d)',
+      ),
       dielectricF0: ConstantLaw(0.056, confidence: Confidence.handbook),
-      source:
-          'SCHOTT optical glass datasheets (N-BK7 517642.251, F2 620364.360)',
+      source: 'SCHOTT Optical Glass Datasheet F2 620364.360, as of 01-Feb-2014: F2, n_d 587.6 nm (https://media.schott.com/api/public/content/4c96933ddb2a4a06adf062d635f0b35d)',
     ),
   );
 
@@ -22938,12 +23413,12 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         380000000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); 99.9 %; 96 % 303 GPa',
+        source: 'CoorsTek Advanced Alumina Materials & Manufacturing Processes, property table (ASTM C848), (c) 2023 CoorsTek 01023 L: AD-998 (min 99.8 % Al2O3), 20 C (https://www.coorstek.com/media/4235/advanced-alumina.pdf)',
       ),
       poissonRatio: ConstantLaw(
         0.22,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'CoorsTek Advanced Alumina Materials & Manufacturing Processes, property table (ASTM C848), (c) 2023 CoorsTek 01023 L: AD-998, 20 C (https://www.coorstek.com/media/4235/advanced-alumina.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -23024,8 +23499,8 @@ abstract final class Materials {
       refractiveIndex: ConstantLaw(1.7682, confidence: Confidence.handbook),
       abbeNumber: ConstantLaw(
         72.2,
-        confidence: Confidence.handbook,
-        source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info',
+        confidence: Confidence.measured,
+        source: 'Malitson & Dodge, \'Refractive index and birefringence of synthetic sapphire\', J. Opt. Soc. Am. 62, 1405 (1972); ordinary-ray Sellmeier fit as reproduced on refractiveindex.info (Al2O3, Malitson-o): ordinary ray, 293 K, V_d from n_d, n_F, n_C (https://refractiveindex.info/?shelf=main&book=Al2O3&page=Malitson-o)',
       ),
       dielectricF0: ConstantLaw(0.077, confidence: Confidence.handbook),
       source: 'physicallybased.info material database API (linear sRGB base colour / F0 from spectral complex IOR; IOR at 589 nm), retrieved 2026-10-09; https://api.physicallybased.info/materials; ordinary ray; extraordinary about 1.760',
@@ -23076,7 +23551,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Silicon carbide ceramic.
+  /// Silicon carbide ceramic. Of the grades its name covers, its poissonRatio for CoorsTek UltraSiC (SC-30) direct-sintered SiC, 20 C.
   static const PhysicalMaterial siliconCarbide = PhysicalMaterial(
     id: 'f3d.siliconCarbide',
     name: 'silicon carbide',
@@ -23095,9 +23570,10 @@ abstract final class Materials {
         source: 'Engineering ToolBox, Young\'s modulus, tensile and yield strength for common materials; https://www.engineeringtoolbox.com/young-modulus-d_417.html; Callister 207-483 GPa by process',
       ),
       poissonRatio: ConstantLaw(
-        0.19,
+        0.21,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'CoorsTek Ceramic Material Properties chart (ASTM C848 for E and Poisson), (c) 2017 CoorsTek 01042 R: CoorsTek UltraSiC (SC-30) direct-sintered SiC, 20 C (https://coorstek.com/media/4244/ceramic-material-properties.pdf)',
+        interval: PropertyInterval(0.14, 0.21),
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -23195,7 +23671,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Pyrolytic graphite: strongly anisotropic; extruded electrode graphite in the notes.
+  /// Pyrolytic graphite: strongly anisotropic; extruded electrode graphite in the notes. Of the grades its name covers, its youngsModulus for SGL SIGRAFINE R6510 isotropic fine-grain graphite, dynamic modulus.
   static const PhysicalMaterial graphite = PhysicalMaterial(
     id: 'f3d.graphite',
     name: 'graphite (pyrolytic)',
@@ -23205,9 +23681,10 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(2210.0, confidence: Confidence.handbook),
       youngsModulus: ConstantLaw(
-        11000000000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); extruded polycrystalline graphite, 11 GPa',
+        11500000000.0,
+        confidence: Confidence.handbook,
+        source: 'SGL Carbon, Technical data sheet SIGRAFINE R6510 (TDS R6510.02), dynamic modulus DIN 51915: SGL SIGRAFINE R6510 isotropic fine-grain graphite, dynamic modulus (https://nstx.pppl.gov/nstxhome/DragNDrop/Working_Groups/PFCR/materials/R6510.pdf)',
+        interval: PropertyInterval(10000000000.0, 30000000000.0),
       ),
       staticFriction: ConstantLaw(
         0.1,
@@ -23307,9 +23784,9 @@ abstract final class Materials {
       source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
     ),
     optical: OpticalProperties(
-      refractiveIndex: ConstantLaw(1.544, confidence: Confidence.handbook),
+      refractiveIndex: ConstantLaw(1.544, confidence: Confidence.measured),
       dielectricF0: ConstantLaw(0.0457, confidence: Confidence.handbook),
-      source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info; ordinary ray; physicallybased.info rounds to 1.54',
+      source: 'G. Ghosh, \'Dispersion-equation coefficients for the refractive index and birefringence of calcite and quartz crystals\', Opt. Commun. 163, 95-102 (1999); ordinary-ray fit as reproduced on refractiveindex.info (SiO2, Ghosh-o): alpha-quartz ordinary ray, 587.6 nm, room temperature (https://refractiveindex.info/?shelf=main&book=SiO2&page=Ghosh-o)',
     ),
   );
 
@@ -23328,7 +23805,7 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         120000000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); Callister glass-ceramic (Pyroceram)',
+        source: 'Corning Inc., PYROCERAM Code 9606 glass-ceramic product information sheet (04/2014), via Wayback Machine: PYROCERAM 9606, room temperature (https://web.archive.org/web/2020/https://www.corning.com/media/worldwide/global/documents/Pyroceram%20PI%20sheet_042414.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -23363,7 +23840,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Single-crystal silicon (a wafer).
+  /// Single-crystal silicon (a wafer). Of the grades its name covers, its youngsModulus for single-crystal Si, E along <100> (45 deg to flat on a (100) wafer), room temperature.
   static const PhysicalMaterial silicon = PhysicalMaterial(
     id: 'f3d.silicon',
     name: 'silicon (crystalline)',
@@ -23380,9 +23857,10 @@ abstract final class Materials {
         source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
       ),
       youngsModulus: ConstantLaw(
-        129000000000.0,
-        confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); anisotropic: 130-185 GPa by direction (Engineering ToolBox)',
+        130000000000.0,
+        confidence: Confidence.measured,
+        source: 'Hopcroft, Nix & Kenny, \'What is the Young\'s Modulus of Silicon?\', J. Microelectromech. Syst. 19, 229-238 (2010); values read from M. Hopcroft\'s companion summary slides \'What is the Young\'s Modulus of Silicon?\' v1.1 (Stanford, 2007): single-crystal Si, E along <100> (45 deg to flat on a (100) wafer), room temperature (doi:10.1109/JMEMS.2009.2039697)',
+        interval: PropertyInterval(129000000000.0, 130000000000.0),
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -23439,7 +23917,7 @@ abstract final class Materials {
       youngsModulus: ConstantLaw(
         304000000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); hot pressed',
+        source: 'CoorsTek Ceramic Material Properties chart (ASTM C848 for E and Poisson), (c) 2017 CoorsTek 01042 R: dense Si3N4 (CoorsTek SN 101C / NT 154, 20 C) (https://coorstek.com/media/4244/ceramic-material-properties.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -23514,31 +23992,31 @@ abstract final class Materials {
     ),
   );
 
-  /// Dense basalt (solid rock; its melt is f3d.basaltMelt).
+  /// Dense basalt (solid rock; its melt is f3d.basaltMelt). Of the grades its name covers, its density for fresh dense mafic rock (diabase, the intrusive equivalent of basalt), 20 C; its youngsModulus for intact rock, static, lab specimens; its poissonRatio for intact rock, static, lab specimens; its conductivity for tholeiitic basalt, zero porosity, 5 % olivine, air-dry, 300 K, 5 MPa.
   static const PhysicalMaterial basalt = PhysicalMaterial(
     id: 'f3d.basalt',
     name: 'basalt',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{'IFC': 'stone'},
     mechanical: MechanicalProperties(
       density: ConstantLaw(
-        2900.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(2800.0, 3000.0),
+        2965.0,
+        confidence: Confidence.handbook,
+        source: 'Daly, Manger & Clark (1966), Density of rocks, Section 4 of Handbook of Physical Constants (rev. ed.), GSA Memoir 97, Table 4-1 (diabase, fresh: 40 samples, mean 2.965, range 2.804-3.110 g/cm3): fresh dense mafic rock (diabase, the intrusive equivalent of basalt), 20 C (https://literature.wolkersdorfer.info/literature/Density%20of%20Rocks.pdf)',
+        interval: PropertyInterval(2100.0, 3110.0),
       ),
       youngsModulus: ConstantLaw(
-        70000000000.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(50000000000.0, 100000000000.0),
+        62600000000.0,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (basalt: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(34900000000.0, 100600000000.0),
       ),
       poissonRatio: ConstantLaw(
         0.25,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(0.2, 0.3),
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (basalt: average of 16 samples): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(0.16, 0.38),
       ),
       staticFriction: ConstantLaw(
         0.6,
@@ -23550,19 +24028,19 @@ abstract final class Materials {
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(
         840.0,
-        confidence: Confidence.estimate,
+        confidence: Confidence.handbook,
         interval: PropertyInterval(800.0, 900.0),
       ),
       conductivity: ConstantLaw(
-        1.8,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest; dense basalt; vesicular basalt lower',
-        interval: PropertyInterval(1.5, 2.5),
+        1.58,
+        confidence: Confidence.handbook,
+        source: 'Robertson, E.C. (1988), Thermal properties of rocks, USGS Open-File Report 88-441, fig. 1-2 and intercept tables p. 10-13 (eq. 6: K = KF + (Ks - KF) y^2; Ks = 3.60 + 0.036*olivine% CU dry, 4.70 CU water-saturated at 5 % olivine; 1 CU = 0.4184 W/mK): tholeiitic basalt, zero porosity, 5 % olivine, air-dry, 300 K, 5 MPa (https://pubs.usgs.gov/of/1988/0441/report.pdf)',
+        interval: PropertyInterval(1.45, 1.97),
       ),
       meltingPoint: ConstantLaw(
         1450.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest; melting range, solidus to liquidus; the engine\'s molten rock uses 1450 K',
+        confidence: Confidence.handbook,
+        source: 'Ault, Eaton & Richter (1961), Molten rock temperatures in the 1959 Kilauea eruption and cooling lake, GSA Bulletin 72, 791 (abstract: \'Temperatures of the erupting basalt ranged between 1060 and 1190 C\'): Kilauea tholeiitic basalt, erupting molten rock, 1 atm (doi:10.1130/0016-7606(1961)72[791:LTITKE]2.0.CO;2)',
         interval: PropertyInterval(1250.0, 1500.0),
       ),
       emissivity: ConstantLaw(
@@ -23570,11 +24048,11 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Emissivity coefficients of common materials (about 300 K); https://www.engineeringtoolbox.com/emissivity-coefficients-d_447.html',
       ),
-      source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
+      source: 'Robertson, E.C. (1988), Thermal properties of rocks, USGS Open-File Report 88-441, Table 12 Specific heats of common rocks (from Goranson 1942), p. 87: basalt, about 0 C (first column of the table) (https://pubs.usgs.gov/of/1988/0441/report.pdf)',
     ),
   );
 
-  /// Sandstone (Berea sandstone for the thermal data).
+  /// Sandstone (Berea sandstone for the thermal data). Of the grades its name covers, its youngsModulus for intact rock, static, lab specimens; its poissonRatio for intact rock, static, lab specimens.
   static const PhysicalMaterial sandstone = PhysicalMaterial(
     id: 'f3d.sandstone',
     name: 'sandstone',
@@ -23585,19 +24063,19 @@ abstract final class Materials {
       density: ConstantLaw(
         2150.0,
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, table A.3 (common materials at 300 K: named rocks, woods, etc.); Berea',
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Sandstone, Berea): Sandstone, Berea, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
       ),
       youngsModulus: ConstantLaw(
-        15000000000.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(10000000000.0, 40000000000.0),
+        15300000000.0,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (sandstone: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(1900000000.0, 39200000000.0),
       ),
       poissonRatio: ConstantLaw(
-        0.25,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(0.2, 0.35),
+        0.24,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (sandstone: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(0.06, 0.46),
       ),
       staticFriction: ConstantLaw(
         0.6,
@@ -23618,11 +24096,11 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Emissivity coefficients of common materials (about 300 K); https://www.engineeringtoolbox.com/emissivity-coefficients-d_447.html; as tabulated; low for a rough mineral surface, check before use',
       ),
-      source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, table A.3 (common materials at 300 K: named rocks, woods, etc.)',
+      source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Sandstone, Berea): Sandstone, Berea, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
     ),
   );
 
-  /// Limestone (Salem limestone for the thermal data).
+  /// Limestone (Salem limestone for the thermal data). Of the grades its name covers, its youngsModulus for intact rock, static, lab specimens; its poissonRatio for intact rock, static, lab specimens.
   static const PhysicalMaterial limestone = PhysicalMaterial(
     id: 'f3d.limestone',
     name: 'limestone',
@@ -23633,19 +24111,19 @@ abstract final class Materials {
       density: ConstantLaw(
         2320.0,
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, table A.3 (common materials at 300 K: named rocks, woods, etc.); Salem',
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Limestone, Salem): Limestone, Salem, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
       ),
       youngsModulus: ConstantLaw(
-        40000000000.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(20000000000.0, 70000000000.0),
+        50400000000.0,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (limestone: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(7700000000.0, 91600000000.0),
       ),
       poissonRatio: ConstantLaw(
-        0.27,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
-        interval: PropertyInterval(0.25, 0.3),
+        0.25,
+        confidence: Confidence.handbook,
+        source: 'Amadei, Deformability properties of rocks and rock masses (CU Boulder course notes), Tables 1 and 2, typical E and Poisson ratio of nine rock types after Johnson & DeGraff (1988), Principles of Engineering Geology, Wiley (limestone: average of the sample set): intact rock, static, lab specimens (https://www.colorado.edu/faculty/amadei/sites/default/files/attached-files/deformability.pdf)',
+        interval: PropertyInterval(0.12, 0.33),
       ),
       staticFriction: ConstantLaw(
         0.6,
@@ -23667,7 +24145,7 @@ abstract final class Materials {
         source: 'Engineering ToolBox, Emissivity coefficients of common materials (about 300 K); https://www.engineeringtoolbox.com/emissivity-coefficients-d_447.html',
         interval: PropertyInterval(0.9, 0.93),
       ),
-      source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, table A.3 (common materials at 300 K: named rocks, woods, etc.)',
+      source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Limestone, Salem): Limestone, Salem, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
     ),
   );
 
@@ -23676,25 +24154,25 @@ abstract final class Materials {
     id: 'f3d.slate',
     name: 'slate',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{'IFC': 'stone'},
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         2750.0,
-        confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
+        confidence: Confidence.handbook,
+        source: 'Daly, Manger & Clark (1966), Density of rocks, Section 4 of Handbook of Physical Constants (rev. ed.), GSA Memoir 97, Table 4-5 Average densities of metamorphic rocks (mean 2.81, range 2.72-2.84 g/cm3): Slate, Taconic sequence, Vermont (17 samples) (https://literature.wolkersdorfer.info/literature/Density%20of%20Rocks.pdf)',
         interval: PropertyInterval(2700.0, 2800.0),
       ),
       youngsModulus: ConstantLaw(
         50000000000.0,
         confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
+        source: 'estimate: no citable source was reached; searched: Johnson & DeGraff table (via Amadei) has no slate column (shale 13.7, schist 42.4 GPa); found Rodriguez-Sastre et al. 2008 (doi:10.1007/s10064-008-0122-9) and Yang et al. 2024 Appl. Sci. 14, 1473 (doi:10.3390/app14041473) but could not open their tables. Slate is strongly anisotropic (E depends on cleavage angle).',
         interval: PropertyInterval(20000000000.0, 80000000000.0),
       ),
       poissonRatio: ConstantLaw(
         0.25,
         confidence: Confidence.estimate,
-        source: 'representative value inside the textbook ranges for intact rock (Goodman 1989 appendix 1; Jaeger, Cook & Zimmerman, Fundamentals of Rock Mechanics, 4th ed.); a rock\'s properties vary by site more than the ranges suggest',
+        source: 'estimate: no citable source was reached; searched: no slate entry in Johnson & DeGraff; papers above not readable (403)',
         interval: PropertyInterval(0.2, 0.3),
       ),
       staticFriction: ConstantLaw(
@@ -23729,7 +24207,7 @@ abstract final class Materials {
       density: ConstantLaw(
         2640.0,
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, table A.3 (common materials at 300 K: named rocks, woods, etc.)',
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Quartzite, Sioux): Quartzite, Sioux, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.6,
@@ -23741,7 +24219,7 @@ abstract final class Materials {
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1105.0, confidence: Confidence.handbook),
       conductivity: ConstantLaw(5.38, confidence: Confidence.handbook),
-      source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, table A.3 (common materials at 300 K: named rocks, woods, etc.)',
+      source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Rock: Quartzite, Sioux): Quartzite, Sioux, 300 K (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
     ),
   );
 
@@ -24070,7 +24548,7 @@ abstract final class Materials {
     ),
   );
 
-  /// New-fallen snow.
+  /// New-fallen snow. Of the grades its name covers, its density for fresh snow.
   static const PhysicalMaterial snowFresh = PhysicalMaterial(
     id: 'f3d.snowFresh',
     name: 'snow (fresh)',
@@ -24083,8 +24561,8 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         100.0,
-        confidence: Confidence.estimate,
-        source: 'Cuffey & Paterson (2010), table 2.1, typical densities of snow and firn; a representative density in the class\'s range',
+        confidence: Confidence.handbook,
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-8 (Snow, fresh 100 kg/m3): fresh snow (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
         interval: PropertyInterval(50.0, 200.0),
       ),
       staticFriction: ConstantLaw(0.6, confidence: Confidence.estimate),
@@ -24103,22 +24581,22 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice; ice at 273 K per kilogram of snow, from the law; the polynomial law as published gives 2097.8742999999995 at the reference state; it is scaled by 0.9995832448111884 onto the quoted 2097.0',
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Ice, 273 K: 920 kg/m3, 1.88 W/mK, 2040 J/kgK): ice at 273 K (snow mass is ice) (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf); the polynomial law as published gives 2097.8742999999995 at the reference state; it is scaled by 0.9995832448111884 onto the quoted 2097.0',
       ),
       conductivity: ConstantLaw(
         0.0464,
-        confidence: Confidence.estimate,
-        source: 'Sturm, Holmgren, Konig & Morris, The thermal conductivity of seasonal snow, J. Glaciology 43(143), 1997, eq. 4 (quadratic fit, 0.156-0.6 g/cm3); Sturm 1997 at 0.1 g/cm3',
+        confidence: Confidence.measured,
+        source: 'Sturm, Holmgren, Konig & Morris (1997), The thermal conductivity of seasonal snow, J. Glaciology 43(143), 26-41, eq. 4 low-density branch k = 0.023 + 0.234 rho (rho < 0.156): seasonal snow, density 0.1 g/cm3 (doi:10.3189/S0022143000002781)',
       ),
       meltingPoint: ConstantLaw(
         273.15,
         confidence: Confidence.handbook,
-        source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice',
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-2 Boiling and freezing point properties (water: freezing point 0.0 C, latent heat of fusion 333.7 kJ/kg): 1 atm (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
       ),
       latentHeatOfFusion: ConstantLaw(
         334000.0,
         confidence: Confidence.handbook,
-        source: 'the flutter3d_matter catalog as of rc.1 (packages/flutter3d_matter/lib/src/materials/materials.dart), whose own source string is quoted in the note; as f3d.ice',
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-2 Boiling and freezing point properties (water: freezing point 0.0 C, latent heat of fusion 333.7 kJ/kg): 273.15 K (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
       ),
       emissivity: ConstantLaw(
         0.85,
@@ -24126,7 +24604,7 @@ abstract final class Materials {
         source: 'Cengel & Ghajar (2015), table A-18, emissivities of surfaces; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; Cengel A-18 at 273 K; Engineering ToolBox gives 0.96-0.98 and thermal-infrared measurements of snow are usually 0.97-0.99: check before use',
         interval: PropertyInterval(0.8, 0.9),
       ),
-      source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice; ice at 273 K per kilogram of snow, from the law',
+      source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Ice, 273 K: 920 kg/m3, 1.88 W/mK, 2040 J/kgK): ice at 273 K (snow mass is ice) (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
     ),
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.3098, confidence: Confidence.handbook),
@@ -24135,7 +24613,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Wind-packed or groomed snow.
+  /// Wind-packed or groomed snow. Of the grades its name covers, its density for wind-packed snow.
   static const PhysicalMaterial snowPacked = PhysicalMaterial(
     id: 'f3d.snowPacked',
     name: 'snow (wind-packed)',
@@ -24148,9 +24626,9 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         375.0,
-        confidence: Confidence.estimate,
-        source: 'Cuffey & Paterson (2010), table 2.1, typical densities of snow and firn; a representative density in the class\'s range',
-        interval: PropertyInterval(350.0, 400.0),
+        confidence: Confidence.handbook,
+        source: 'Paterson, W.S.B. (1994), The Physics of Glaciers, 3rd ed., table of typical densities of snow and ice, as reproduced by the Scottish Avalanche Information Service Lochaber blog (Feb 2023): wind-packed snow (https://lochaberblog.sais.gov.uk/2023/02/high-density-snow)',
+        interval: PropertyInterval(375.0, 375.0),
       ),
       staticFriction: ConstantLaw(0.6, confidence: Confidence.estimate),
       source: 'estimate: no measurement of it on itself was read; the engine\'s default coefficient (MaterialCatalog.defaultFriction)',
@@ -24168,22 +24646,22 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice; ice at 273 K per kilogram of snow, from the law; the polynomial law as published gives 2097.8742999999995 at the reference state; it is scaled by 0.9995832448111884 onto the quoted 2097.0',
+        source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Ice, 273 K: 920 kg/m3, 1.88 W/mK, 2040 J/kgK): ice at 273 K (snow mass is ice) (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf); the polynomial law as published gives 2097.8742999999995 at the reference state; it is scaled by 0.9995832448111884 onto the quoted 2097.0',
       ),
       conductivity: ConstantLaw(
         0.2139,
-        confidence: Confidence.estimate,
-        source: 'Sturm, Holmgren, Konig & Morris, The thermal conductivity of seasonal snow, J. Glaciology 43(143), 1997, eq. 4 (quadratic fit, 0.156-0.6 g/cm3); Sturm 1997 at 0.375 g/cm3',
+        confidence: Confidence.measured,
+        source: 'Sturm, Holmgren, Konig & Morris (1997), The thermal conductivity of seasonal snow, J. Glaciology 43(143), 26-41, eq. 4 k = 0.138 - 1.01 rho + 3.233 rho^2 (0.156-0.6 g/cm3): seasonal snow, density 0.375 g/cm3 (doi:10.3189/S0022143000002781)',
       ),
       meltingPoint: ConstantLaw(
         273.15,
         confidence: Confidence.handbook,
-        source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice',
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-2 Boiling and freezing point properties (water: freezing point 0.0 C, latent heat of fusion 333.7 kJ/kg): 1 atm (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
       ),
       latentHeatOfFusion: ConstantLaw(
         334000.0,
         confidence: Confidence.handbook,
-        source: 'the flutter3d_matter catalog as of rc.1 (packages/flutter3d_matter/lib/src/materials/materials.dart), whose own source string is quoted in the note; as f3d.ice',
+        source: 'Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), Appendix 1, Table A-2 Boiling and freezing point properties (water: freezing point 0.0 C, latent heat of fusion 333.7 kJ/kg): 273.15 K (https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf)',
       ),
       emissivity: ConstantLaw(
         0.85,
@@ -24191,7 +24669,7 @@ abstract final class Materials {
         source: 'Cengel & Ghajar (2015), table A-18, emissivities of surfaces; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; Cengel A-18 at 273 K; Engineering ToolBox gives 0.96-0.98 and thermal-infrared measurements of snow are usually 0.97-0.99: check before use',
         interval: PropertyInterval(0.8, 0.9),
       ),
-      source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice; ice at 273 K per kilogram of snow, from the law',
+      source: 'Incropera, DeWitt, Bergman & Lavine, Fundamentals of Heat and Mass Transfer, Appendix A, Table A.3 Thermophysical properties of common materials (typical properties at 300 K), \'Other materials\' p. 909-910 of the hosted appendix (edition not printed on the copy) (Ice, 273 K: 920 kg/m3, 1.88 W/mK, 2040 J/kgK): ice at 273 K (snow mass is ice) (https://www.mohsin-sies.com/sktn3224/notes/Appendix.Incropera%20DeWitt%20-%20Fundamentals%20of%20Heat%20and%20Mass%20Transfer.pdf)',
     ),
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.3098, confidence: Confidence.handbook),
@@ -24225,7 +24703,7 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       meltingPoint: ConstantLaw(1074.0, confidence: Confidence.handbook),
-      source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), melting, boiling points and enthalpy of fusion of the elements (J/kg = molar value / molar mass); 801 C',
+      source: 'NIST-JANAF Thermochemical Tables (Chase 1998), Sodium chloride (cr,l), table Cl-055: NaCl, crystal <-> liquid, 1 bar (https://janaf.nist.gov/tables/Cl-055.txt)',
     ),
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.5441, confidence: Confidence.handbook),
@@ -24853,23 +25331,19 @@ abstract final class Materials {
     ),
   );
 
-  /// Low-density polyethylene (film, bags).
+  /// Low-density polyethylene (film, bags). Of the grades its name covers, its yieldStrength for tensile stress at yield; Lupolen 2420F film-grade LDPE; its tensileStrength for tensile strength of blown film, MD 26 / TD 24 MPa; Lupolen 2420F.
   static const PhysicalMaterial polyethyleneLD = PhysicalMaterial(
     id: 'f3d.polyethyleneLD',
     name: 'polyethylene (low density, LDPE)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{
       'CAS': '9002-88-4',
       'IFC': 'plastic',
       'ISO1043': 'PE-LD',
     },
     mechanical: MechanicalProperties(
-      density: ConstantLaw(
-        925.0,
-        confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
-      ),
+      density: ConstantLaw(925.0, confidence: Confidence.handbook),
       youngsModulus: ConstantLaw(
         280000000.0,
         confidence: Confidence.estimate,
@@ -24877,21 +25351,23 @@ abstract final class Materials {
         interval: PropertyInterval(110000000.0, 450000000.0),
       ),
       yieldStrength: ConstantLaw(
-        11750000.0,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(9000000.0, 14500000.0),
+        11000000.0,
+        confidence: Confidence.handbook,
+        source: 'LyondellBasell product page (typical properties), Lupolen 2420F: tensile stress at yield; Lupolen 2420F film-grade LDPE (https://www.lyondellbasell.com/en/polymers/p/Lupolen-2420F/61e46490-ed79-4c71-bd7a-35125886bb3a)',
+        interval: PropertyInterval(8000000.0, 11000000.0),
       ),
       tensileStrength: ConstantLaw(
-        19850000.0,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(8300000.000000001, 31400000.0),
+        25000000.0,
+        confidence: Confidence.handbook,
+        source: 'LyondellBasell product page (typical properties), Lupolen 2420F: tensile strength of blown film, MD 26 / TD 24 MPa; Lupolen 2420F (https://www.lyondellbasell.com/en/polymers/p/Lupolen-2420F/61e46490-ed79-4c71-bd7a-35125886bb3a)',
+        interval: PropertyInterval(19850000.0, 25000000.0),
       ),
       staticFriction: ConstantLaw(
         0.2,
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; polyethylene on polyethylene',
       ),
-      source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
+      source: 'LyondellBasell product page (typical properties), Lupolen 2420F: Lupolen 2420F film-grade LDPE (https://www.lyondellbasell.com/en/polymers/p/Lupolen-2420F/61e46490-ed79-4c71-bd7a-35125886bb3a)',
     ),
     thermal: ThermalProperties(
       volumetricExpansion: ConstantLaw(
@@ -24900,7 +25376,7 @@ abstract final class Materials {
       ),
       meltingPoint: ConstantLaw(
         383.0,
-        confidence: Confidence.estimate,
+        confidence: Confidence.handbook,
         interval: PropertyInterval(378.0, 388.0),
       ),
       emissivity: ConstantLaw(
@@ -24911,10 +25387,10 @@ abstract final class Materials {
       ),
       heatOfCombustion: ConstantLaw(
         43300000.0,
-        confidence: Confidence.estimate,
-        source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); polyethylene',
+        confidence: Confidence.handbook,
+        source: 'Walters, Hackett & Lyon, Heats of Combustion of High-Temperature Polymers, FAA tech. note DOT/FAA/AR-TN97/8 (1998), table 1 (Qc gross by oxygen bomb, Shc net); also Fire and Materials 24 (2000) 245: net (H2O gas), 298 K, LDPE (Polysciences) (https://rosap.ntl.bts.gov/view/dot/90175/dot_90175_DS1.pdf)',
       ),
-      source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+      source: 'LyondellBasell product page (typical properties), Lupolen 2420F: peak melting point; Lupolen 2420F (https://www.lyondellbasell.com/en/polymers/p/Lupolen-2420F/61e46490-ed79-4c71-bd7a-35125886bb3a)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(2080.0, confidence: Confidence.handbook),
@@ -24923,7 +25399,7 @@ abstract final class Materials {
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.51, confidence: Confidence.estimate),
       dielectricF0: ConstantLaw(0.0413, confidence: Confidence.estimate),
-      source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info',
+      source: 'estimate: no citable source was reached; searched: same search as HDPE; no citable visible n_D for LDPE read',
     ),
   );
 
@@ -24932,7 +25408,7 @@ abstract final class Materials {
     id: 'f3d.polypropylene',
     name: 'polypropylene (PP)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{
       'CAS': '9003-07-0',
       'IFC': 'plastic',
@@ -24954,18 +25430,18 @@ abstract final class Materials {
       poissonRatio: ConstantLaw(
         0.42,
         confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        source: 'estimate: no citable source was reached; searched: searched PP Poisson ratio (datasheets, AMES/Callister page lacks PP, Polymerservice Merseburg wiki has table only as image, Tscharnuter 2011 not open); 0.40-0.45 typical, no value read',
       ),
       yieldStrength: ConstantLaw(
         34100000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
+        confidence: Confidence.handbook,
+        source: 'LyondellBasell product page (typical properties), Moplen HP500N B: tensile stress at yield; Moplen HP500N B homopolymer, MFR 12 (https://www.lyondellbasell.com/en/polymers/p/Moplen-HP500N-B/88ee335f-45c0-4e3e-aa8d-c2660543ba2d)',
         interval: PropertyInterval(31000000.0, 37200000.0),
       ),
       tensileStrength: ConstantLaw(
-        36200000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
+        34000000.0,
+        confidence: Confidence.handbook,
+        source: 'LyondellBasell product page (typical properties), Moplen HP500N B: maximum tensile stress = stress at yield for PP homopolymer (ISO 527); Moplen HP500N B (https://www.lyondellbasell.com/en/polymers/p/Moplen-HP500N-B/88ee335f-45c0-4e3e-aa8d-c2660543ba2d)',
         interval: PropertyInterval(31000000.0, 41400000.0),
       ),
       staticFriction: ConstantLaw(
@@ -24995,8 +25471,8 @@ abstract final class Materials {
       ),
       heatOfCombustion: ConstantLaw(
         43400000.0,
-        confidence: Confidence.estimate,
-        source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); net, polypropylene',
+        confidence: Confidence.handbook,
+        source: 'Walters, Hackett & Lyon, Heats of Combustion of High-Temperature Polymers, FAA tech. note DOT/FAA/AR-TN97/8 (1998), table 1 (Qc gross by oxygen bomb, Shc net); also Fire and Materials 24 (2000) 245: net, 298 K, PP (Polysciences) (https://rosap.ntl.bts.gov/view/dot/90175/dot_90175_DS1.pdf)',
       ),
       source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
     ),
@@ -25033,20 +25509,18 @@ abstract final class Materials {
       ),
       poissonRatio: ConstantLaw(
         0.38,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.measured,
+        source: 'Callister, Materials Science and Engineering: An Introduction, 7th ed. (Wiley 2007), appendix B, as reproduced in AMES Web, Poisson\'s Ratio of Polymers: room temperature (https://amesweb.info/Materials/Poissons_Ratio_of_Polymers.aspx)',
       ),
       yieldStrength: ConstantLaw(
-        42750000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
-        interval: PropertyInterval(40700000.0, 44800000.0),
+        55000000.0,
+        confidence: Confidence.handbook,
+        source: 'Angst+Pfister, PVC-U sheet material data sheet PVC-U_00_001-01 (DIN EN ISO 527): PVC-U sheet, ISO 527, 23 C (https://www.apsoparts.com/media/downloads/asset//std.lang.all/1_/en/PVC-U_00_001-01_EN.pdf)',
       ),
       tensileStrength: ConstantLaw(
-        46200000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
-        interval: PropertyInterval(40700000.0, 51700000.0),
+        55000000.0,
+        confidence: Confidence.handbook,
+        source: 'Angst+Pfister, PVC-U sheet material data sheet PVC-U_00_001-01 (DIN EN ISO 527): PVC-U sheet, ISO 527; tensile strength = yield peak (elongation at break 20 %) (https://www.apsoparts.com/media/downloads/asset//std.lang.all/1_/en/PVC-U_00_001-01_EN.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -25074,8 +25548,8 @@ abstract final class Materials {
       ),
       heatOfCombustion: ConstantLaw(
         16400000.0,
-        confidence: Confidence.estimate,
-        source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); net, PVC',
+        confidence: Confidence.handbook,
+        source: 'NIST Fire Calorimetry Database, Test11_PVC_R1 (2019), table 3 input parameters, HOCf = 16.90 +/- 0.70 MJ/kg: net, per unit mass fuel, rigid PVC panels 6.4 mm (https://www.nist.gov/node/1839636)',
       ),
       source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; low for a polymer (rigid PVC is usually quoted near 900-1000): check',
     ),
@@ -25111,8 +25585,8 @@ abstract final class Materials {
       ),
       poissonRatio: ConstantLaw(
         0.37,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.measured,
+        source: 'Callister, Materials Science and Engineering: An Introduction, 7th ed. (Wiley 2007), appendix B, as reproduced in AMES Web, Poisson\'s Ratio of Polymers: room temperature (https://amesweb.info/Materials/Poissons_Ratio_of_Polymers.aspx)',
       ),
       tensileStrength: ConstantLaw(
         70000000.0,
@@ -25146,8 +25620,8 @@ abstract final class Materials {
       ),
       heatOfCombustion: ConstantLaw(
         24900000.0,
-        confidence: Confidence.estimate,
-        source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); net, PMMA',
+        confidence: Confidence.handbook,
+        source: 'Walters, Hackett & Lyon, Heats of Combustion of High-Temperature Polymers, FAA tech. note DOT/FAA/AR-TN97/8 (1998), table 1 (Qc gross by oxygen bomb, Shc net); also Fire and Materials 24 (2000) 245: net, 298 K, PMMA (Aldrich) (https://rosap.ntl.bts.gov/view/dot/90175/dot_90175_DS1.pdf)',
       ),
       source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
     ),
@@ -25159,8 +25633,8 @@ abstract final class Materials {
       refractiveIndex: ConstantLaw(1.4905, confidence: Confidence.handbook),
       abbeNumber: ConstantLaw(
         57.2,
-        confidence: Confidence.estimate,
-        source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info',
+        confidence: Confidence.handbook,
+        source: 'Sultanova, Kasarova & Nikolov, Dispersion properties of optical polymers, Acta Physica Polonica A 116 (2009) 585, table (measured n, Abbe numbers): 20 C, nd at 587.6 nm (http://przyrbwn.icm.edu.pl/APP/PDF/116/a116z442.pdf)',
       ),
       dielectricF0: ConstantLaw(0.0388, confidence: Confidence.handbook),
       source: 'Wikipedia, Poly(methyl methacrylate), infobox and Properties; https://en.wikipedia.org/wiki/Poly(methyl_methacrylate); 589.3 nm',
@@ -25260,7 +25734,7 @@ abstract final class Materials {
     id: 'f3d.polystyrene',
     name: 'polystyrene (PS, general purpose)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{
       'CAS': '9003-53-6',
       'IFC': 'plastic',
@@ -25274,19 +25748,22 @@ abstract final class Materials {
         source: 'Engineering ToolBox, Young\'s modulus, tensile and yield strength for common materials; https://www.engineeringtoolbox.com/young-modulus-d_417.html; midpoint of the range; Callister 2.28-3.28',
         interval: PropertyInterval(3000000000.0, 3500000000.0),
       ),
-      poissonRatio: ConstantLaw(0.33, confidence: Confidence.estimate),
+      poissonRatio: ConstantLaw(
+        0.33,
+        confidence: Confidence.measured,
+        source: 'Callister, Materials Science and Engineering: An Introduction, 7th ed. (Wiley 2007), appendix B, as reproduced in AMES Web, Poisson\'s Ratio of Polymers: room temperature (https://amesweb.info/Materials/Poissons_Ratio_of_Polymers.aspx)',
+      ),
       tensileStrength: ConstantLaw(
-        43800000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
-        interval: PropertyInterval(35900000.0, 51700000.0),
+        52000000.0,
+        confidence: Confidence.handbook,
+        source: 'INEOS Styrolution PS 165N data sheet: ISO 527 stress at break, 23 C, GPPS PS 165N (https://plasticker.de/docs/recybase/943_1772264222.pdf)',
       ),
       staticFriction: ConstantLaw(
         0.5,
         confidence: Confidence.handbook,
         source: 'Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; polystyrene on polystyrene, clean and dry; also 0.5 greased',
       ),
-      source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+      source: 'INEOS Styrolution PS 158K data sheet, revision 2016-01-17: ISO 1183, GPPS PS 158K (https://plasticker.de/docs/recybase/3644_1783596902.pdf)',
     ),
     thermal: ThermalProperties(
       volumetricExpansion: ConstantLaw(
@@ -25300,19 +25777,19 @@ abstract final class Materials {
         interval: PropertyInterval(0.9, 0.97),
       ),
       heatOfCombustion: ConstantLaw(
-        39800000.0,
-        confidence: Confidence.estimate,
+        41960000.0,
+        confidence: Confidence.handbook,
       ),
-      source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); net, polystyrene',
+      source: 'Walters, Hackett & Lyon, Heats of Combustion of High-Temperature Polymers, FAA tech. note DOT/FAA/AR-TN97/8 (1998), table 1 (Qc gross by oxygen bomb, Shc net); also Fire and Materials 24 (2000) 245: net, 298 K, PS (Polysciences) (https://rosap.ntl.bts.gov/view/dot/90175/dot_90175_DS1.pdf)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(2350.0, confidence: Confidence.handbook),
       source: 'Engineering ToolBox, Speed of sound in solids (longitudinal bulk, shear, thin rod; the classic CRC / Kinsler table); https://www.engineeringtoolbox.com/sound-speed-solids-d_713.html; Olympus 2340',
     ),
     optical: OpticalProperties(
-      refractiveIndex: ConstantLaw(1.5916, confidence: Confidence.estimate),
+      refractiveIndex: ConstantLaw(1.5916, confidence: Confidence.handbook),
       dielectricF0: ConstantLaw(0.0521, confidence: Confidence.estimate),
-      source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info; Sultanova et al. 2009, 589 nm',
+      source: 'Sultanova, Kasarova & Nikolov, Dispersion properties of optical polymers, Acta Physica Polonica A 116 (2009) 585, table (measured n, Abbe numbers): 20 C, 587.6 nm (http://przyrbwn.icm.edu.pl/APP/PDF/116/a116z442.pdf)',
     ),
   );
 
@@ -25336,9 +25813,9 @@ abstract final class Materials {
       specificHeat: ConstantLaw(1200.0, confidence: Confidence.handbook),
       conductivity: ConstantLaw(0.04, confidence: Confidence.handbook),
       heatOfCombustion: ConstantLaw(
-        39800000.0,
-        confidence: Confidence.estimate,
-        source: 'SFPE Handbook of Fire Protection Engineering, 3rd ed. (2002), Tewarson, Generation of heat and chemical compounds in fires, table 3-4.14 (net heat of complete combustion of polymers); as solid polystyrene per kg',
+        41960000.0,
+        confidence: Confidence.handbook,
+        source: 'Walters, Hackett & Lyon, Heats of Combustion of High-Temperature Polymers, FAA tech. note DOT/FAA/AR-TN97/8 (1998), table 1 (Qc gross by oxygen bomb, Shc net); also Fire and Materials 24 (2000) 245: net, per kg of polymer, PS (Polysciences) (https://rosap.ntl.bts.gov/view/dot/90175/dot_90175_DS1.pdf)',
       ),
       source: 'ASHRAE Handbook of Fundamentals (1993), ch. 22 table 4, as reproduced in Cengel & Ghajar (2015), tables A-5 (building materials) and A-6 (insulation), mean temperature 24 C; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
     ),
@@ -25402,13 +25879,13 @@ abstract final class Materials {
       ),
       poissonRatio: ConstantLaw(
         0.39,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.measured,
+        source: 'Callister, Materials Science and Engineering: An Introduction, 7th ed. (Wiley 2007), appendix B, as reproduced in AMES Web, Poisson\'s Ratio of Polymers: room temperature (https://amesweb.info/Materials/Poissons_Ratio_of_Polymers.aspx)',
       ),
       yieldStrength: ConstantLaw(
-        63800000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); midpoint of the range',
+        82000000.0,
+        confidence: Confidence.handbook,
+        source: 'Celanese (DuPont) Zytel 101L NC010 PA66 data sheet, Celanese Materials Database, revised 2023-04-04: ISO 527, 50 mm/min, 23 C, dry as moulded (https://quickparts.com/wp-content/uploads/2023/04/zytel®-101l-nc010-gb.pdf)',
         interval: PropertyInterval(44800000.0, 82800000.0),
       ),
       tensileStrength: ConstantLaw(
@@ -25432,8 +25909,8 @@ abstract final class Materials {
       ),
       meltingPoint: ConstantLaw(
         538.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); about 265 C',
+        confidence: Confidence.handbook,
+        source: 'Celanese (DuPont) Zytel 101L NC010 PA66 data sheet, Celanese Materials Database, revised 2023-04-04: ISO 11357, 10 K/min (https://quickparts.com/wp-content/uploads/2023/04/zytel®-101l-nc010-gb.pdf)',
       ),
       emissivity: ConstantLaw(
         0.92,
@@ -25469,8 +25946,8 @@ abstract final class Materials {
       ),
       poissonRatio: ConstantLaw(
         0.46,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.handbook,
+        source: 'DuPont, Teflon PTFE fluoropolymer resin Properties Handbook, H-37051-3 (7/96), Poisson\'s ratio section p. 9: 23 C (https://cdn.toxicdocs.org/K6/K6RD4NNj8dVar4pb7aORgak4X/K6RD4NNj8dVar4pb7aORgak4X.pdf)',
       ),
       yieldStrength: ConstantLaw(
         23000000.0,
@@ -25513,9 +25990,9 @@ abstract final class Materials {
       source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
     ),
     optical: OpticalProperties(
-      refractiveIndex: ConstantLaw(1.35, confidence: Confidence.estimate),
+      refractiveIndex: ConstantLaw(1.35, confidence: Confidence.handbook),
       dielectricF0: ConstantLaw(0.0222, confidence: Confidence.estimate),
-      source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info; 1.35-1.38',
+      source: 'Polyalto, Material Property Tables - Fluoropolymers (typical properties, PTFE/FEP/PFA/PVDF/ETFE), refractive index row: ASTM D542 / ISO 489, sodium D (https://www.polyalto.com/sites/24423/Material%20Property%20Tables_Fluoropolymers.pdf)',
     ),
     electrical: ElectricalProperties(
       resistivity: ConstantLaw(
@@ -25542,7 +26019,7 @@ abstract final class Materials {
       density: ConstantLaw(
         1350.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); Cengel A-8 "polyester" 1395',
+        source: 'DuPont Teijin Films, Mylar polyester film physical-thermal properties, H-37232-3, typical properties table: ASTM D1505, biaxially oriented film (https://people.physics.carleton.ca/~msd/tpc_archival_reports/results_2004/docs/mylar.pdf)',
       ),
       youngsModulus: ConstantLaw(
         2350000000.0,
@@ -25571,8 +26048,8 @@ abstract final class Materials {
       ),
       meltingPoint: ConstantLaw(
         533.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); about 260 C',
+        confidence: Confidence.handbook,
+        source: 'DuPont Teijin Films, Mylar polyester film physical-thermal properties, H-37232-3, typical properties table: DSC, Mylar film (https://people.physics.carleton.ca/~msd/tpc_archival_reports/results_2004/docs/mylar.pdf)',
       ),
       emissivity: ConstantLaw(
         0.92,
@@ -25598,7 +26075,7 @@ abstract final class Materials {
     id: 'f3d.pom',
     name: 'acetal (POM)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{
       'CAS': '9002-81-7',
       'IFC': 'plastic',
@@ -25607,8 +26084,8 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         1410.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.handbook,
+        source: 'DuPont, Delrin 150 NC010 product information (high-viscosity acetal homopolymer), as distributed by CS Hyde, data sheet 45-F: ISO 1183, Delrin 150 NC010 homopolymer (https://catalog.cshyde.com/Asset/Data Sheet 45-F Delrin® 150 NC010.pdf)',
       ),
       youngsModulus: ConstantLaw(
         2800000000.0,
@@ -25632,18 +26109,18 @@ abstract final class Materials {
         0.0002925,
         confidence: Confidence.estimate,
       ),
-      meltingPoint: ConstantLaw(448.0, confidence: Confidence.estimate),
+      meltingPoint: ConstantLaw(448.0, confidence: Confidence.handbook),
       emissivity: ConstantLaw(
         0.92,
         confidence: Confidence.estimate,
         source: 'Engineering ToolBox, Emissivity coefficients of common materials (about 300 K); https://www.engineeringtoolbox.com/emissivity-coefficients-d_447.html; plastics 0.90-0.97 in general',
         interval: PropertyInterval(0.9, 0.97),
       ),
-      source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); homopolymer about 175 C',
+      source: 'DuPont, Delrin 150 NC010 product information (high-viscosity acetal homopolymer), as distributed by CS Hyde, data sheet 45-F: ISO 11357, 10 K/min, Delrin 150 NC010 (https://catalog.cshyde.com/Asset/Data Sheet 45-F Delrin® 150 NC010.pdf)',
     ),
   );
 
-  /// Cured bisphenol-A epoxy casting resin.
+  /// Cured bisphenol-A epoxy casting resin. Of the grades its name covers, its density for 25 C; EPON 828 (DGEBA) liquid resin, uncured; its youngsModulus for room temperature, unfilled amine/anhydride-cured EPON 828 systems.
   static const PhysicalMaterial epoxy = PhysicalMaterial(
     id: 'f3d.epoxy',
     name: 'epoxy (cast, unfilled)',
@@ -25656,15 +26133,16 @@ abstract final class Materials {
     },
     mechanical: MechanicalProperties(
       density: ConstantLaw(
-        1200.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
-        interval: PropertyInterval(1110.0, 1400.0),
+        1160.0,
+        confidence: Confidence.handbook,
+        source: 'Westlake/Hexion EPON Resin 828 technical data sheet (Miller-Stephenson, 2024): Density 1.16 g/mL at 25 C; Ashby, Material property data for engineering materials, 5th ed. (Ansys Granta EduPack, Oct 2021) Table A2: Epoxies 1,100-1,400 kg/m3: 25 C; EPON 828 (DGEBA) liquid resin, uncured (https://miller-stephenson.com/wp-content/uploads/2024/06/EPON-828_TDS.pdf)',
+        interval: PropertyInterval(1100.0, 1400.0),
       ),
       youngsModulus: ConstantLaw(
-        2410000000.0,
+        2750000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        source: 'Westlake/Hexion EPON Resin 828 technical data sheet (Miller-Stephenson, 2024): unfilled systems have tensile modulus greater than 400,000 psi (2750 MPa); Ashby, Material property data for engineering materials, 5th ed. (Ansys Granta EduPack, Oct 2021) Table A3: Epoxies 2.4-3.1 GPa: room temperature, unfilled amine/anhydride-cured EPON 828 systems (https://miller-stephenson.com/wp-content/uploads/2024/06/EPON-828_TDS.pdf)',
+        interval: PropertyInterval(2400000000.0, 3100000000.0),
       ),
       tensileStrength: ConstantLaw(
         55500000.0,
@@ -25698,7 +26176,7 @@ abstract final class Materials {
     id: 'f3d.peek',
     name: 'PEEK (polyether ether ketone)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{
       'CAS': '29658-26-2',
       'IFC': 'plastic',
@@ -25708,17 +26186,17 @@ abstract final class Materials {
       density: ConstantLaw(
         1310.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        source: 'Victrex PEEK 450G product datasheet (Victrex plc, current online version), Density (Crystalline) 1.30 g/cm3: 23 C, crystalline moulded, unfilled general-purpose grade 450G, ISO 1183 (https://www.victrex.com/en/downloads/datasheets/victrex-peek-450g)',
       ),
       youngsModulus: ConstantLaw(
-        3600000000.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); unfilled grades about 3.5-4 GPa; filled grades to 8',
+        4000000000.0,
+        confidence: Confidence.handbook,
+        source: 'Victrex PEEK 450G product datasheet (Victrex plc, current online version), Tensile Modulus (23 C) 4000 MPa: 23 C, ISO 527-1 tensile modulus, unfilled 450G (https://www.victrex.com/en/downloads/datasheets/victrex-peek-450g)',
       ),
       yieldStrength: ConstantLaw(
-        91000000.0,
+        98000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        source: 'Victrex PEEK 450G product datasheet (Victrex plc, current online version), Tensile Stress (Yield, 23 C) 98.0 MPa: 23 C, ISO 527-2 tensile stress at yield, unfilled 450G (https://www.victrex.com/en/downloads/datasheets/victrex-peek-450g)',
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -25728,8 +26206,8 @@ abstract final class Materials {
       source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
-      meltingPoint: ConstantLaw(616.0, confidence: Confidence.estimate),
-      source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers); 343 C',
+      meltingPoint: ConstantLaw(616.0, confidence: Confidence.handbook),
+      source: 'Victrex PEEK 450G product datasheet (Victrex plc, current online version), Melting Temperature 343 C: DSC ISO 11357-3, 450G (https://www.victrex.com/en/downloads/datasheets/victrex-peek-450g)',
     ),
   );
 
@@ -25738,19 +26216,19 @@ abstract final class Materials {
     id: 'f3d.naturalRubber',
     name: 'natural rubber (gum vulcanisate)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{'CAS': '9006-04-6'},
     mechanical: MechanicalProperties(
       density: ConstantLaw(1150.0, confidence: Confidence.handbook),
       youngsModulus: ConstantLaw(
         1270000.0,
-        confidence: Confidence.estimate,
-        source: 'Ogden, Large deformation isotropic elasticity: on the correlation of theory and experiment for incompressible rubberlike solids, Proc. R. Soc. A 326 (1972); three-term fit to Treloar\'s (1944) vulcanised natural rubber; 3 x the Ogden fit\'s small-strain shear modulus 0.42 MPa',
+        confidence: Confidence.handbook,
+        source: 'Twizell & Ogden, Non-linear optimization of the material constants in Ogden\'s strain-energy function, Brunel TR/05/81 (1981), Table I reproducing Ogden (1972) constants mu = 6.3, -0.1, 0.012 kg/cm2, alpha = 1.3, -2.0, 5.0; published in J. Austral. Math. Soc. Ser. B, pp. 424-434, doi:10.1017/S0334270000003787: Treloar (1944) vulcanised natural rubber, room temperature, small-strain limit E = 3 mu, mu = 1/2 sum(mu_i alpha_i) (https://bura.brunel.ac.uk/bitstream/2438/2277/1/TR_05_81.pdf)',
       ),
       poissonRatio: ConstantLaw(
         0.4999,
-        confidence: Confidence.estimate,
-        source: 'Treloar, The Physics of Rubber Elasticity, 3rd ed. (1975); incompressible in the fit',
+        confidence: Confidence.measured,
+        source: 'Wood & Martin, Compressibility of natural rubber at pressures below 500 kg/cm2, J. Res. NBS 68A (1964) 259, abstract: compressibility 50.4e-6 (kg/cm2)^-1 for the peroxide-cured vulcanizate: 25 C, 1 kg/cm2, peroxide-cured natural rubber; nu = (3K - 2G)/(2(3K + G)) (doi:10.6028/jres.068A.022)',
       ),
       staticFriction: ConstantLaw(
         1.16,
@@ -25777,9 +26255,9 @@ abstract final class Materials {
       source: 'Engineering ToolBox, Speed of sound in solids (longitudinal bulk, shear, thin rod; the classic CRC / Kinsler table); https://www.engineeringtoolbox.com/sound-speed-solids-d_713.html; gum rubber',
     ),
     optical: OpticalProperties(
-      refractiveIndex: ConstantLaw(1.519, confidence: Confidence.estimate),
+      refractiveIndex: ConstantLaw(1.519, confidence: Confidence.handbook),
       dielectricF0: ConstantLaw(0.0425, confidence: Confidence.estimate),
-      source: 'refractiveindex.info (Sultanova et al. 2009 for polymers; Malitson for silica; Dodge for sapphire/fluorides); n at 589 nm; https://refractiveindex.info',
+      source: 'Wood & Tilton, Refractive index of natural rubber for different wavelengths, J. Res. NBS 43 (1949) 57, RP2004, Table 3 (n_D prism 1 = 1.519093): 25.0 C, sodium D line 589.3 nm, natural rubber prism 1 (https://nvlpubs.nist.gov/nistpubs/jres/43/jresv43n1p57_A1b.pdf)',
     ),
     inelastic: InelasticProperties(
       lossFactor: ConstantLaw(
@@ -25802,7 +26280,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Polydimethylsiloxane elastomer, 10:1 mix.
+  /// Polydimethylsiloxane elastomer, 10:1 mix. Of the grades its name covers, its youngsModulus for Sylgard 184 10:1, cured at 25 C (proposed); tensile, ASTM specimens.
   static const PhysicalMaterial siliconeRubber = PhysicalMaterial(
     id: 'f3d.siliconeRubber',
     name: 'silicone rubber (PDMS, Sylgard 184)',
@@ -25813,18 +26291,18 @@ abstract final class Materials {
       density: ConstantLaw(
         1030.0,
         confidence: Confidence.handbook,
-        source: 'Dow SYLGARD 184 silicone elastomer technical data sheet; Johnston et al., J. Micromech. Microeng. 24 (2014) 035017 for the cure-dependent modulus',
+        source: 'Dow SYLGARD 184 Silicone Elastomer technical data sheet, Form No. 11-3184-01 C (2017), Typical Properties: Specific Gravity (Cured) 1.03: cured, 10:1 mix (https://www.farnell.com/datasheets/3154500.pdf)',
       ),
       youngsModulus: ConstantLaw(
         1320000.0,
         confidence: Confidence.measured,
-        source: 'Dow SYLGARD 184 silicone elastomer technical data sheet; Johnston et al., J. Micromech. Microeng. 24 (2014) 035017 for the cure-dependent modulus; cured at 25 C; 2.97 MPa cured at 200 C (Johnston et al. 2014)',
+        source: 'Johnston, McCluskey, Tan & Tracey, Mechanical characterization of bulk Sylgard 184 for microfluidics and microengineering, J. Micromech. Microeng. 24 (2014) 035017, abstract: Sylgard 184 10:1, cured at 25 C (proposed); tensile, ASTM specimens (https://uhra.herts.ac.uk/id/eprint/3211/)',
         interval: PropertyInterval(1320000.0, 2970000.0),
       ),
       poissonRatio: ConstantLaw(
         0.49,
-        confidence: Confidence.estimate,
-        source: 'Dow SYLGARD 184 silicone elastomer technical data sheet; Johnston et al., J. Micromech. Microeng. 24 (2014) 035017 for the cure-dependent modulus',
+        confidence: Confidence.measured,
+        source: 'Mueller, Wapler & Wallrabe, A quick and accurate method to determine the Poisson\'s ratio and the coefficient of thermal expansion of PDMS, Soft Matter 15 (2019) 779, abstract: nu = 0.4950 +- 0.0010: Sylgard 184, cured; thermal-expansion/profilometer method (doi:10.1039/c8sm02105h)',
       ),
       staticFriction: ConstantLaw(
         1.16,
@@ -25835,7 +26313,7 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       conductivity: ConstantLaw(0.27, confidence: Confidence.handbook),
-      source: 'Dow SYLGARD 184 silicone elastomer technical data sheet; Johnston et al., J. Micromech. Microeng. 24 (2014) 035017 for the cure-dependent modulus',
+      source: 'Dow SYLGARD 184 Silicone Elastomer technical data sheet, Form No. 11-3184-01 C (2017), Typical Properties: Thermal Conductivity 0.15 btu/hr ft F, 0.27 W/m K: cured Sylgard 184 (https://www.farnell.com/datasheets/3154500.pdf)',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(1485.0, confidence: Confidence.handbook),
@@ -25844,7 +26322,7 @@ abstract final class Materials {
     optical: OpticalProperties(
       refractiveIndex: ConstantLaw(1.4118, confidence: Confidence.handbook),
       dielectricF0: ConstantLaw(0.0292, confidence: Confidence.handbook),
-      source: 'Dow SYLGARD 184 silicone elastomer technical data sheet; Johnston et al., J. Micromech. Microeng. 24 (2014) 035017 for the cure-dependent modulus',
+      source: 'Dow SYLGARD 184 Silicone Elastomer technical data sheet, Form No. 11-3184-01 C (2017), Typical Properties: Refractive Index @ 589 nm 1.4118: 589 nm, cured (https://www.farnell.com/datasheets/3154500.pdf)',
     ),
   );
 
@@ -25858,8 +26336,8 @@ abstract final class Materials {
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         1240.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.measured,
+        source: 'Denka Neoprene WHV-100 sales specification (via Vanderbilt): nominal specific gravity at 25/4 C 1.23: 25/4 C, raw polymer, Denka Neoprene WHV-100 (general purpose) (https://www.vanderbiltworldwide.com/specs/76410.pdf)',
         interval: PropertyInterval(1230.0, 1250.0),
       ),
       staticFriction: ConstantLaw(
@@ -25888,13 +26366,13 @@ abstract final class Materials {
     id: 'f3d.butylRubber',
     name: 'butyl rubber (IIR)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{'CAS': '9010-85-9'},
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         920.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.handbook,
+        source: 'ExxonMobil Exxon Butyl 065 sales specification: characteristic specific gravity 0.92; product datasheet lists density 0.91 g/cm3 (ASTM D297): raw polymer, Exxon Butyl 065 (https://www.exxonmobilchemical.com/en/chemicals/webapi/dps/v1/datasheets/150000104156/0/en)',
       ),
       staticFriction: ConstantLaw(
         1.16,
@@ -25914,13 +26392,13 @@ abstract final class Materials {
     id: 'f3d.polybutadieneRubber',
     name: 'polybutadiene rubber (BR)',
     phase: MaterialPhase.solid,
-    confidence: Confidence.estimate,
+    confidence: Confidence.handbook,
     externalIds: <String, String>{'CAS': '9003-17-2'},
     mechanical: MechanicalProperties(
       density: ConstantLaw(
         910.0,
-        confidence: Confidence.estimate,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed., appendix B, tables B.2-B.4 (room-temperature ranges for polymers)',
+        confidence: Confidence.handbook,
+        source: 'Arlanxeo Buna CB 1203 product data (density 0.91 g/cm3, ASTM D 297): raw polymer, high-cis (>96 %) Co-catalysed BR, ASTM D297 (https://www.arlanxeo.com/en/BR/Buna%C2%AE/p/buna-cb-1203)',
       ),
       staticFriction: ConstantLaw(
         1.16,
@@ -25935,7 +26413,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Unidirectional carbon-fibre/epoxy, fibre volume about 0.6.
+  /// Unidirectional carbon-fibre/epoxy, fibre volume about 0.6. Of the grades its name covers, its youngsModulus for proposed: quasi-isotropic [0/45/90/-45] laminate, CLT from T300/5208 ply data at 301 K (E1 147.7, E2 11.1, G12 6.94 GPa, nu12 0.298).
   static const PhysicalMaterial carbonFiberComposite = PhysicalMaterial(
     id: 'f3d.carbonFiberComposite',
     name: 'carbon-fibre/epoxy composite (CFRP)',
@@ -25946,12 +26424,13 @@ abstract final class Materials {
       density: ConstantLaw(
         1600.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); Vf 0.65; Incropera graphite-fibre epoxy at Vf 0.25: 1400',
+        source: 'Hexcel HexPly 8552 product data sheet (EU), UD carbon prepregs, AS4 column (8552/35%/134, nominal Vf 57.42 %): Nominal Laminate Density 1.58 g/cm3: cured UD AS4/8552 laminate, Vf 57.4 % (https://hexcel.com/wp-content/uploads/2025/12/HexPly_8552_eu_DataSheet1.pdf)',
       ),
       youngsModulus: ConstantLaw(
-        10000000000.0,
+        58600000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); transverse; along the fibres 142 GPa (Callister); quasi-isotropic laminates about 50 GPa',
+        source: 'Milkovich & Herakovich, Temperature dependence of elastic and strength properties of T300/5208 graphite-epoxy, NASA CR-173616 (1984), Tables 1, 3, 4; Hexcel HexPly 8552 product data sheet (EU), UD carbon prepregs, AS4 column (8552/35%/134, nominal Vf 57.42 %): 0 deg tensile modulus 141 GPa, 90 deg 10 GPa (1.39 msi): proposed: quasi-isotropic [0/45/90/-45] laminate, CLT from T300/5208 ply data at 301 K (E1 147.7, E2 11.1, G12 6.94 GPa, nu12 0.298) (https://ntrs.nasa.gov/citations/19840017699)',
+        interval: PropertyInterval(10000000000.0, 141000000000.0),
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -25983,7 +26462,7 @@ abstract final class Materials {
     ),
   );
 
-  /// Unidirectional E-glass/epoxy, fibre volume about 0.6.
+  /// Unidirectional E-glass/epoxy, fibre volume about 0.6. Of the grades its name covers, its density for GFRP epoxy laminate, upper bound of Granta range; its youngsModulus for proposed: quasi-isotropic laminate, CLT from UD E-glass/epoxy ply data (EL 44.6, ET 17.0, GLT 3.49 GPa, nuLT 0.262), Vf ~0.57.
   static const PhysicalMaterial fiberglassComposite = PhysicalMaterial(
     id: 'f3d.fiberglassComposite',
     name: 'glass-fibre/epoxy composite (GFRP)',
@@ -25992,14 +26471,16 @@ abstract final class Materials {
     externalIds: <String, String>{'IFC': 'plastic'},
     mechanical: MechanicalProperties(
       density: ConstantLaw(
-        2100.0,
+        2000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
+        source: 'Ashby, Material property data for engineering materials, 5th ed. (Ansys Granta EduPack, Oct 2021) Table A2: GFRP, epoxy matrix (isotropic) 1,800-2,000 kg/m3: GFRP epoxy laminate, upper bound of Granta range (https://Ansys.com/content/dam/amp/2021/august/webpage-requests/education-resources-dam-upload-batch-2/material-property-data-for-eng-materials-BOKENGEN21.pdf)',
+        interval: PropertyInterval(1800.0, 2000.0),
       ),
       youngsModulus: ConstantLaw(
-        12000000000.0,
+        23200000000.0,
         confidence: Confidence.handbook,
-        source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); transverse; along the fibres 45 GPa',
+        source: 'Samborsky, Mandell & Agastra, 3-D static elastic constants and strength properties of a glass/epoxy unidirectional laminate, Montana State University report, Table 1 (Vf 56.8-58.2 %); Ashby, Material property data for engineering materials, 5th ed. (Ansys Granta EduPack, Oct 2021) Table A3: GFRP epoxy (isotropic) 15-28 GPa: proposed: quasi-isotropic laminate, CLT from UD E-glass/epoxy ply data (EL 44.6, ET 17.0, GLT 3.49 GPa, nuLT 0.262), Vf ~0.57 (https://www.montana.edu/composites/documents/3D%20Static%20Property%20Report.pdf)',
+        interval: PropertyInterval(17000000000.0, 44600000000.0),
       ),
       staticFriction: ConstantLaw(
         0.2,
@@ -26035,7 +26516,7 @@ abstract final class Materials {
       tensileStrength: ConstantLaw(
         135000000.0,
         confidence: Confidence.handbook,
-        source: 'Reilly & Burstein, The elastic and ultimate properties of compact bone tissue, J. Biomech. 8 (1975); Currey, Bones (2002); longitudinal',
+        source: 'Bitca, Annals of the University of Oradea, Fascicle of Management and Technological Engineering (2005), Table 1 reproducing Reilly & Burstein, J. Biomech. 8 (1975) 393-405: tensile strength 133.0 MPa longitudinal, 51.0 transverse: human femoral cortical bone, wet, longitudinal tension (doi:10.1016/0021-9290(75)90075-5)',
       ),
       staticFriction: ConstantLaw(0.6, confidence: Confidence.estimate),
       source: 'estimate: no measurement of it on itself was read; the engine\'s default coefficient (MaterialCatalog.defaultFriction)',
@@ -26553,9 +27034,9 @@ abstract final class Materials {
     MaterialPair(
       'f3d.rubber',
       'f3d.asphalt',
-      friction: 0.65,
-      confidence: Confidence.estimate,
-      source: 'kinetic friction, dry: Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html',
+      friction: 0.75,
+      confidence: Confidence.measured,
+      source: 'kinetic friction, dry: J.Y. Wong, Theory of Ground Vehicles, 2nd ed., Wiley 1993, p. 26 (secondary: hpwizard.com): car tyre on dry asphalt and concrete, sliding (locked wheel) coefficient (https://www.hpwizard.com/tire-friction-coefficient.html)',
     ),
     MaterialPair(
       'f3d.ice',
@@ -26568,8 +27049,9 @@ abstract final class Materials {
       'f3d.wood',
       'f3d.concrete',
       friction: 0.62,
-      confidence: Confidence.handbook,
-      source: 'static friction, clean, dry: Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html',
+      restitution: 0.603,
+      confidence: Confidence.estimate,
+      source: 'friction: static friction, clean, dry: Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html; restitution 0.603 at drop from 92 cm: Bennett & Meepagala (2005), The Physics Factbook, \'Coefficients of Restitution\', wooden ball (species not given) dropped on a concrete floor; as steel|concrete (https://hypertextbook.com/facts/2006/restitution.shtml)',
     ),
     MaterialPair(
       'f3d.wood',
@@ -26581,23 +27063,254 @@ abstract final class Materials {
     MaterialPair(
       'f3d.leather',
       'f3d.wood',
-      friction: 0.35,
-      confidence: Confidence.estimate,
-      source: 'static friction, clean, dry: Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html',
+      friction: 0.31,
+      confidence: Confidence.handbook,
+      source: 'static friction, clean, dry: Smithsonian Physical Tables, 7th rev. ed. (F.E. Fowle, 1920), \'Coefficients of friction\' table compiled by Rankine from Morin and others; same table in the 1914 edition: leather on oak; f = 0.27-0.35 (1/f 3.70-2.86, angle of repose 15.0-19.5 deg), the force \'necessary to just move\' the object, i.e. limiting (static) friction; midpoint used (https://archive.org/details/smithsphystables00smitrich)',
     ),
     MaterialPair(
       'f3d.ptfe',
       'f3d.steel',
-      friction: 0.125,
-      confidence: Confidence.estimate,
-      source: 'static friction, clean, dry: Engineering ToolBox, Friction and friction coefficients for some common materials (dry, clean unless noted); https://www.engineeringtoolbox.com/friction-coefficients-d_778.html',
+      friction: 0.065,
+      confidence: Confidence.handbook,
+      source: 'static friction, clean, dry: DuPont, \'Teflon PTFE fluoropolymer resin Properties Handbook\', H-37051-3, Table 1 (Static coefficient of friction against polished steel) and Table 15: Teflon PTFE granular resin against polished steel, static, 500 psi load: 0.05-0.08 (midpoint used). Dynamic at PV 8,000-10,000: 0.10 at 10 fpm, 0.13 at 100 fpm, unstable at 1,000 fpm. Static friction decreases as pressure rises (handbook Fig. 13) (https://cdn.toxicdocs.org/K6/K6RD4NNj8dVar4pb7aORgak4X/K6RD4NNj8dVar4pb7aORgak4X.pdf)',
     ),
     MaterialPair(
       'f3d.wood',
       'f3d.steel',
       friction: 0.4,
+      confidence: Confidence.handbook,
+      source: 'kinetic friction, smooth dry wood on hard smooth surfaces: Glass & Zelinka, \'Moisture relations and physical properties of wood\', Wood Handbook FPL-GTR-190 (USDA FPL, 2010), ch. 4, Friction Properties, p. 4-17: smooth, dry wood against hard, smooth surfaces: 0.3-0.5 (midpoint); 0.5-0.7 at intermediate moisture content; 0.7-0.9 near fibre saturation (https://research.fs.usda.gov/download/treesearch/37428.pdf)',
+    ),
+    MaterialPair(
+      'f3d.steel',
+      'f3d.steel',
+      restitution: 0.95,
+      confidence: Confidence.measured,
+      source: 'restitution 0.95 at 0.07-1.35 m/s: Lifshitz & Kolsky, \'Some experiments on anelastic rebound\', J. Mech. Phys. Solids 12 (1964) 35-43, Fig. 1; digitized by Guttler et al., arXiv:1204.0001 (file lifshitz_kolsky.txt), 12.7 mm steel ball on a pendulum striking a 5 cm thick mild-steel block; mirror-polished surfaces; constant ~0.95 below ~0.3 m/s (yield), then falling (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.glass',
+      'f3d.glass',
+      restitution: 0.97,
+      confidence: Confidence.measured,
+      source: 'restitution 0.97 at 0.64-1.2 m/s (range given by Foerster et al.; constant e is a model assumption over that range): Foerster, Louge, Chang & Allia, \'Measurements of the collision properties of small spheres\', Phys. Fluids 6 (1994) 1108-1115, Table 1 (as digitized by Guttler et al., file foerster_et_al_1.txt); same value in the Cornell \'Fall 1999 Impact Parameter Chart\', binary sphere-sphere, 3 mm soda-lime glass spheres (3.18 mm in the Cornell chart), density 2.5 g/cm3; grade 200 polished spheres, ±0.01 (https://doi.org/10.1063/1.868282)',
+    ),
+    MaterialPair(
+      'f3d.aluminum',
+      'f3d.glass',
+      restitution: 0.831,
+      confidence: Confidence.measured,
+      source: 'restitution 0.831 at 1.0-1.7 m/s (Foerster); 0.80-1.92 m/s (Lorenz): Foerster et al., Phys. Fluids 6 (1994) 1108, Table 1 (file foerster_et_al_2.txt in arXiv:1204.0001); Lorenz, Tuozzolo & Louge, Exp. Mech. 37 (1997), Table 1, 3 mm soda-lime glass sphere on a 64 mm thick aluminum plate, machine finish; Lorenz et al. 1997 Table 1: 2.97 mm fresh glass bead on smooth aluminum 0.816±0.013; spent bead on spent aluminum 0.800±0.010 (https://doi.org/10.1063/1.868282)',
+    ),
+    MaterialPair(
+      'f3d.pmma',
+      'f3d.pmma',
+      restitution: 0.934,
+      confidence: Confidence.measured,
+      source: 'restitution 0.934 at 0.35-1.25 m/s: Lorenz, Tuozzolo & Louge, Experimental Mechanics 37 (1997) 292-298, Table 1, binary sphere-sphere, 4.00 mm acrylic spheres, density 1.22 g/cm3; ±0.009 (https://grainflowresearch.mae.cornell.edu/impact/papers/Measurements%20of%20Impact%206-29-05.pdf)',
+    ),
+    MaterialPair(
+      'f3d.pmma',
+      'f3d.steel',
+      restitution: 0.9,
+      confidence: Confidence.measured,
+      source: 'restitution 0.9 at 1.7-3.8 m/s: Sondergaard, Chaney & Brennen, \'Measurements of solid spheres bouncing off flat plates\', J. Appl. Mech. 57 (1990) 694-699, Fig. 5; digitized by Guttler et al., arXiv:1204.0001 (sondergaard_et_al_1/2.txt). I checked the figure in the Caltech PDF: matches, 4.76 mm steel ball bearing on a 1.27 cm thick lucite (PMMA) plate clamped on two sides, impact beyond 2.75 diameters from the support; drop test, rebound height; 9.52 mm ball on the same plate: [[1.797,0.764],[1.998,0.758],[2.178,0.754],[2.442,0.75],[2.742,0.744],[2.991,0.735],[3.273,0.714],[3.641,0.714]] (https://doi.org/10.1115/1.2897590)',
+    ),
+    MaterialPair(
+      'f3d.polycarbonate',
+      'f3d.steel',
+      restitution: 0.95,
+      confidence: Confidence.measured,
+      source: 'restitution 0.95 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', Flat Plate section, row \'Chrome Steel Hoover Precision / Lexan\', 3.18 mm chrome steel sphere on a flat Lexan (polycarbonate) plate; ±0.02 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.polystyrene',
+      'f3d.polystyrene',
+      restitution: 0.952,
+      confidence: Confidence.measured,
+      source: 'restitution 0.952 at 0.34-1.23 m/s: Lorenz, Tuozzolo & Louge, Experimental Mechanics 37 (1997) 292-298, Table 1, binary sphere-sphere, 4.00 mm polystyrene spheres, density 1.06 g/cm3; ±0.009; Cornell chart has a second 3.95 mm set at 0.95±0.02 (https://grainflowresearch.mae.cornell.edu/impact/papers/Measurements%20of%20Impact%206-29-05.pdf)',
+    ),
+    MaterialPair(
+      'f3d.pom',
+      'f3d.pom',
+      restitution: 0.95,
+      confidence: Confidence.measured,
+      source: 'restitution 0.95 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', Binary section, Delrin rows, binary sphere-sphere, Delrin (acetal) spheres 2.38-6.35 mm, density 1.44 g/cm3; rows: AIN Plastics 6.35 mm 0.95±0.01, 3.97 mm 0.97±0.01; Small Parts 6.35 mm 0.97±0.01, 4.76 mm 0.97±0.01, 3.18 mm 0.97±0.02, 2.38 mm 0.94±0.02; Delrin 3.96 mm 0.95±0.01 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.pom',
+      'f3d.steel',
+      restitution: 0.95,
+      confidence: Confidence.measured,
+      source: 'restitution 0.95 at 0.05-1.4 m/s: King, White, Maxwell & Menon, \'Inelastic impact of a sphere on a massive plane: nonmonotonic velocity-dependence of the restitution coefficient\', EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3B (open circles), 9.4 mm (R = 0.47 cm) Delrin sphere dropped without spin onto a surface-ground steel disc 2.5 cm thick, 22 cm diameter, on 1.25 cm sorbothane; e from time between successive bounces; air (results unchanged in dry N2) (https://arxiv.org/abs/cond-mat/0209490)',
+    ),
+    MaterialPair(
+      'f3d.granite',
+      'f3d.pom',
+      restitution: 0.95,
+      confidence: Confidence.measured,
+      source: 'restitution 0.95 at 0.03-1.3 m/s: King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3B (diamonds), 9.4 mm Delrin sphere on a granite optical table 120x80x30 cm; as above (https://arxiv.org/abs/cond-mat/0209490)',
+    ),
+    MaterialPair(
+      'f3d.brass',
+      'f3d.steel',
+      restitution: 0.84,
+      confidence: Confidence.measured,
+      source: 'restitution 0.84 at 0.003-1.5 m/s: King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 4A (squares) and Fig. 3A, 9.4 mm brass sphere on a surface-ground steel disc 2.5 cm thick (see pom|steel); e is non-monotonic: ~1 at a few mm/s, minimum ~0.8 near 0.01-0.03 m/s, peak near 0.2 m/s, then falls (plate-vibration effect per the authors) (https://arxiv.org/abs/cond-mat/0209490)',
+    ),
+    MaterialPair(
+      'f3d.aluminum',
+      'f3d.steel',
+      restitution: 0.84,
+      confidence: Confidence.measured,
+      source: 'restitution 0.84 at 0.003-1.0 m/s: King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3A (filled triangles), 9.4 mm aluminium sphere on a surface-ground steel disc 2.5 cm thick; as brass|steel (https://arxiv.org/abs/cond-mat/0209490)',
+    ),
+    MaterialPair(
+      'f3d.copper',
+      'f3d.steel',
+      restitution: 0.77,
+      confidence: Confidence.measured,
+      source: 'restitution 0.77 at 0.003-0.65 m/s: King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3A (open circles), 9.4 mm copper sphere on a surface-ground steel disc 2.5 cm thick; as brass|steel (https://arxiv.org/abs/cond-mat/0209490)',
+    ),
+    MaterialPair(
+      'f3d.brass',
+      'f3d.granite',
+      restitution: 0.94,
+      confidence: Confidence.measured,
+      source: 'restitution 0.94 at 0.01-1.4 m/s: King et al., EPL 93 (2011) 14002 (arXiv:cond-mat/0209490), Fig. 3C (squares), 9.4 mm brass sphere on a granite optical table 120x80x30 cm; massive target, flat e(v) (https://arxiv.org/abs/cond-mat/0209490)',
+    ),
+    MaterialPair(
+      'f3d.brass',
+      'f3d.brass',
+      restitution: 0.77,
+      confidence: Confidence.measured,
+      source: 'restitution 0.77 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', row \'Brass / Same\', binary sphere-sphere, 3.18 mm brass spheres; ±0.01 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.aluminum',
+      'f3d.aluminum',
+      restitution: 0.4368532110091743,
+      confidence: Confidence.measured,
+      source: 'restitution 0.4368532110091743 at 1.0 m/s, read between its points (0.3-1.3 m/s): Weir & Tallon, Chem. Eng. Sci. 60 (2005) 3637-3647, Fig. 7; digitized by Guttler et al., arXiv:1204.0001 (weir_tallon_1/2.txt), binary, 55 mm aluminum spheres on 3.8 m bifilar pendulums; 55 mm aluminum sphere on aluminum plate (cylinder): [[0.306,0.692],[0.658,0.619],[0.959,0.575],[1.27,0.564]] (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.alumina',
+      'f3d.alumina',
+      restitution: 0.968,
+      confidence: Confidence.measured,
+      source: 'restitution 0.968 at 1.0 m/s, read between its points (0.05-0.45 m/s): Sorace et al., Mech. Res. Commun. 36 (2009) 364-368, Fig. 3; digitized by Guttler et al., arXiv:1204.0001 (sorace_et_al_1.txt), binary sphere-sphere, 3 mm alumina spheres on a pendulum; low speed; ~0.96 above 0.25 m/s (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.alumina',
+      'f3d.aluminum',
+      restitution: 0.7604427860696518,
+      confidence: Confidence.measured,
+      source: 'restitution 0.7604427860696518 at 1.0 m/s, read between its points (0.45-6.3 m/s): Gorham & Kharaz, \'The measurement of particle rebound characteristics\', Powder Technology 112 (2000) 193-202, Fig. 12; digitized by Guttler et al., arXiv:1204.0001 (gorham_kharz_1.txt), 5 mm alumina sphere dropped on an aluminum alloy anvil; normal impacts; oblique impacts (normal component) indistinguishable (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.ptfe',
+      'f3d.ptfe',
+      restitution: 0.8,
+      confidence: Confidence.measured,
+      source: 'restitution 0.8 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', row \'Teflon / Same\', binary sphere-sphere, 3.91 mm Teflon spheres, density 2.32 g/cm3; ±0.02 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.polypropylene',
+      'f3d.polypropylene',
+      restitution: 0.87,
+      confidence: Confidence.measured,
+      source: 'restitution 0.87 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', row \'Polypropylene / Same\', binary sphere-sphere, 4.00 mm polypropylene spheres, density 0.947 g/cm3; ±0.06 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.polyethylene',
+      'f3d.polyethylene',
+      restitution: 0.71,
+      confidence: Confidence.measured,
+      source: 'restitution 0.71 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', row \'LDPE / Same\', binary sphere-sphere, 3.96 mm LDPE spheres, density 1.03 g/cm3; ±0.22 (large scatter) (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.nylon66',
+      'f3d.nylon66',
+      restitution: 0.83,
+      confidence: Confidence.measured,
+      source: 'restitution 0.83 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', row \'Nylon / Same\', binary sphere-sphere, 3.93 mm nylon spheres, density 1.17 g/cm3; ±0.02 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.titanium',
+      'f3d.titanium',
+      restitution: 0.92,
+      confidence: Confidence.measured,
+      source: 'restitution 0.92 at not stated in the chart: Louge group (Cornell), \'Fall 1999 Impact Parameter Chart\', row \'Titanium / Same\', binary sphere-sphere, 3.00 mm titanium spheres; ±0.01 (https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html)',
+    ),
+    MaterialPair(
+      'f3d.granite',
+      'f3d.granite',
+      restitution: 0.83,
+      confidence: Confidence.measured,
+      source: 'restitution 0.83 at 0.1-1.5 m/s: Durda et al., \'Experimental determination of the coefficient of restitution for meter-scale granite spheres\', Icarus 211 (2011) 849-855, Fig. 4; digitized by Guttler et al., arXiv:1204.0001 (durda_et_al.txt), binary, two 1 m diameter granite spheres (1.3 t) on 15 m crane-suspended cables; milled, \'smooth but not polished\'; authors give constant 0.8±0.06 (survey text) (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.sandstone',
+      'f3d.steel',
+      restitution: 0.75,
+      confidence: Confidence.measured,
+      source: 'restitution 0.75 at 0.14-2 m/s: Imre, Rabsamen & Springman, \'A coefficient of restitution of rock materials\', Computers & Geosciences 34 (2008) 339-350; digitized by Guttler et al., arXiv:1204.0001 (imre_et_al.txt), 3 mm ball-bearing steel sphere dropped on a polished natural sandstone block; e from flight time between bounces (accelerometer on target) (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.ice',
+      'f3d.ice',
+      restitution: 0.88,
+      confidence: Confidence.measured,
+      source: 'restitution 0.88 at 0.01-5.5 m/s: Higa, Arakawa & Maeno, \'Measurements of restitution coefficients of ice at low temperatures\', Planet. Space Sci. 44 (1996) 917-925, Fig. 5a-c; digitized by Guttler et al., arXiv:1204.0001 (higa_et_al_1..3.txt), polycrystalline ice sphere, radius 1.5 cm (as Deckers & Teiser 2016 describe Higa 1996), dropped on a polished decimetre ice block; 261 K, smooth frost-free; cracking/fragmentation at higher speeds. 269 K: [[0.01,0.897],[0.025,0.88],[0.064,0.882],[0.162,0.877],[0.367,0.786],[0.872,0.54],[1.935,0.258],[5.362,0.046]]; 245 K: [[0.02,0.866],[0.045,0.836],[0.089,0.844],[0.204,0.84],[0.453,0.887],[0.936,0.842],[1.952,0.488],[3.981,0.158]] (https://arxiv.org/abs/1204.0001)',
+    ),
+    MaterialPair(
+      'f3d.stainlessSteel304',
+      'f3d.steel',
+      restitution: 0.66,
+      confidence: Confidence.measured,
+      source: 'restitution 0.66 at 1.74-2.43 m/s (drop heights 155-300 mm): Sandeep, Senetakis, Cheung, Choi, Wang, Coop & Ng, \'Experimental study on the coefficient of restitution of grain against block interfaces for natural and engineered materials\', Can. Geotech. J. (2019), Table 2 (accepted manuscript, UCL Discovery), 2 mm chrome steel ball on a 9x9 cm, 6 cm thick stainless steel block (grade not stated; E 200 GPa); high-speed cameras; average values; visible plastic marks on the block (https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf)',
+    ),
+    MaterialPair(
+      'f3d.glass',
+      'f3d.stainlessSteel304',
+      restitution: 0.84,
+      confidence: Confidence.measured,
+      source: 'restitution 0.84 at 1.74-2.43 m/s: Sandeep et al., Can. Geotech. J. (2019), Table 2, 2 mm glass ball on a 9x9x6 cm stainless steel block; as above (https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf)',
+    ),
+    MaterialPair(
+      'f3d.granite',
+      'f3d.steel',
+      restitution: 0.9,
+      confidence: Confidence.measured,
+      source: 'restitution 0.9 at 1.74-2.43 m/s: Sandeep et al., Can. Geotech. J. (2019), Table 2, 2 mm chrome steel ball on a 9x9x6 cm fresh granite block; glass ball on the same granite: [[1.74,0.93],[1.93,0.95],[2.17,0.95],[2.43,0.92]] (https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf)',
+    ),
+    MaterialPair(
+      'f3d.rubber',
+      'f3d.steel',
+      restitution: 0.42,
+      confidence: Confidence.measured,
+      source: 'restitution 0.42 at 1.74-2.43 m/s: Sandeep et al., Can. Geotech. J. (2019), Tables 1-2, 2 mm chrome steel ball on a 9x9x6 cm rubber block (density 1.5 t/m3, E ~0.1 GPa, nu 0.5; rubber compound not stated); glass ball on the same rubber: [[1.74,0.38],[1.93,0.37],[2.17,0.37],[2.43,0.37]] (https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf)',
+    ),
+    MaterialPair(
+      'f3d.quartz',
+      'f3d.stainlessSteel304',
+      restitution: 0.68,
+      confidence: Confidence.measured,
+      source: 'restitution 0.68 at 1.74-2.43 m/s: Sandeep et al., Can. Geotech. J. (2019), Table 3, 2 mm handpicked rounded Leighton Buzzard quartz sand grain on a 9x9x6 cm stainless steel block; ±0.03-0.08 per point; on granite [[1.74,0.75],[1.93,0.80],[2.17,0.80],[2.43,0.82]], on brass 0.54-0.58, on rubber 0.40-0.44 (https://discovery.ucl.ac.uk/10082944/1/Sandeep_et_al_TRS_Manuscript_Revised_COPY.pdf)',
+    ),
+    MaterialPair(
+      'f3d.concrete',
+      'f3d.steel',
+      restitution: 0.597,
       confidence: Confidence.estimate,
-      source: 'kinetic friction, smooth dry wood on hard smooth surfaces: Wood Handbook, FPL-GTR-190 (USDA Forest Products Laboratory, 2010), ch. 4 (Glass & Zelinka): eq. 4-15 conductivity, eq. 4-16..4-18 heat capacity, table 4-7, eq. 4-19/4-20 expansion, friction text; https://research.fs.usda.gov/download/treesearch/37428.pdf; 0.5-0.7 at intermediate moisture, 0.7-0.9 near fibre saturation',
+      source: 'restitution 0.597 at drop from 92 cm (about 4.2 m/s): Bennett & Meepagala (Midwood High School, 2005), in \'Coefficients of Restitution\', The Physics Factbook (ed. G. Elert), 2006, steel ball bearing (size not given) dropped on a concrete floor; e = sqrt(rebound/drop height), mean of 5 drops; same setup: wooden ball 0.603, glass marble 0.658 (https://hypertextbook.com/facts/2006/restitution.shtml)',
+    ),
+    MaterialPair(
+      'f3d.concrete',
+      'f3d.glass',
+      restitution: 0.658,
+      confidence: Confidence.estimate,
+      source: 'restitution 0.658 at drop from 92 cm: Bennett & Meepagala (2005), The Physics Factbook, \'Coefficients of Restitution\', glass marble dropped on a concrete floor; as steel|concrete (https://hypertextbook.com/facts/2006/restitution.shtml)',
     ),
   ];
 }

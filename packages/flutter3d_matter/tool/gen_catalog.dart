@@ -292,11 +292,15 @@ final class _Value {
   });
 
   /// A double, or a list of them.
-  final Object value;
-  final String? confidence;
+  Object value;
+  String? confidence;
   String? source;
-  final List<double>? interval;
-  final String? verification;
+  List<double>? interval;
+  String? verification;
+
+  /// The research's record of the value, whose law [_law] reads: kept so
+  /// a law can be anchored again on a verified value.
+  Map<String, Object?>? lawSpec;
 
   /// The law's Dart, once made: `ConstantLaw(…)`, `TableLaw(…)`, ….
   String? lawDart;
@@ -507,6 +511,16 @@ final class _Catalogue {
       );
     }
 
+    // The verification, over everything above: each value checked against
+    // a source that was read.
+    _verify(
+      entries,
+      json('verification.json'),
+      json('verification_decisions.json'),
+      solids,
+      dropped,
+    );
+
     // A liquid or a gas the data gives no density or viscosity for is left
     // out: everything that flows it reads both, and neither is invented.
     final list = <_Entry>[];
@@ -527,6 +541,12 @@ final class _Catalogue {
       _finish(entry);
     }
     final pairs = _pairs(base, solids, entries);
+    _restitution(
+      pairs,
+      json('restitution.json'),
+      json('verification_decisions.json'),
+      entries,
+    );
     return _Catalogue(list, pairs, dropped);
   }
 
@@ -635,6 +655,7 @@ final class _Catalogue {
     Map<String, String> dropped,
   ) {
     if (value.value is! double) return;
+    value.lawSpec = p;
     final laws = <Map<String, Object?>>[
       if (p['law'] case final Map<String, Object?> law) law,
       for (final law in (p['laws'] as List?) ?? const <Object?>[])
@@ -786,6 +807,306 @@ final class _Catalogue {
         null => why,
         final said => '$said; then $why',
       };
+
+  /// The kind of source a [citation] is: `handbook` for a handbook, a
+  /// table, a standard or a maker's data sheet, `measured` for a paper that
+  /// measured it.
+  static String _kindOf(String citation) =>
+      RegExp(
+        r'[Hh]andbook|[Tt]able|[Dd]ata ?[Ss]heet|NIST|CRC|Kaye|Incropera|'
+        r'Cengel|ASM|EN \d|ISO|ASTM|Guide|[Pp]roduct|ToolBox|MatWeb|Granta|'
+        r'[Tt]ypical|OpenStax|Bulletin|[Mm]aterials? [Dd]atabase|eurocode|'
+        r'Physical Tables',
+      ).hasMatch(citation)
+      ? 'handbook'
+      : 'measured';
+
+  /// The spread a research [note] gives around [value] — "spread 23 ..
+  /// 30 MPa" — in the value's unit, or null when it gives none this reads.
+  static List<double>? _spreadIn(String note, double value) {
+    final match = RegExp(
+      r'(?:[Ss]pread|spreads|span)\D{0,40}?(\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*'
+      r'(?:\.\.|-|–| to )\s*(\d+(?:\.\d+)?(?:e[+-]?\d+)?)',
+    ).firstMatch(note);
+    if (match == null) return null;
+    final low = double.parse(match[1]!), high = double.parse(match[2]!);
+    for (final unit in const <double>[1.0, 1e9, 1e6, 1e3, 1e-3, 1e-2]) {
+      if (low * unit <= value * 1.0001 && value <= high * unit * 1.0001) {
+        return <double>[low * unit, high * unit];
+      }
+    }
+    return null;
+  }
+
+  /// Applies the verification ([verification], `verification.json`) to
+  /// [entries]' values and to [solids]' friction pairs, choosing where its
+  /// records leave a choice as [decisions] says.
+  ///
+  /// A confirmed value keeps its number and takes the source that confirms
+  /// it; a corrected one takes the source's number; an ambiguous one takes
+  /// the grade the research proposed — along the grain for a wood's
+  /// modulus — with the spread across grades as its interval and the grade
+  /// named in the entry's description; an estimate stays one, its source
+  /// saying what was searched. A value whose number changes has its law
+  /// anchored again on the new one.
+  static void _verify(
+    Map<String, _Entry> entries,
+    Map<String, Object?> verification,
+    Map<String, Object?> decisions,
+    Map<String, Object?> solids,
+    Map<String, String> dropped,
+  ) {
+    final alongTheGrain = decisions['alongTheGrain']! as Map<String, Object?>;
+    final atReference =
+        decisions['atTheReferenceState']! as Map<String, Object?>;
+    final spreads = decisions['spreads']! as Map<String, Object?>;
+    final grades = <_Entry, List<String>>{};
+    for (final r
+        in (verification['values']! as List).cast<Map<String, Object?>>()) {
+      final id = r['material']! as String;
+      final [group, name] = (r['property']! as String).split('.');
+      final entry = entries[id];
+      final value = entry?.groups[group]?[name];
+      // A colour is three numbers with no confidence of its own: a
+      // confirmed one stands as it is.
+      if (value?.value is List && r['status'] == 'confirmed') continue;
+      if (entry == null || value == null || value.value is! double) {
+        throw StateError(
+          'the verification names $id ${r['property']}, which the '
+          'catalogue does not hold',
+        );
+      }
+      final key = '$id $group.$name';
+      final status = r['status']! as String;
+      // Null for an estimate, which no source gave.
+      final source = (r['source_value'] as num?)?.toDouble() ?? double.nan;
+      final was = value.value as double;
+      var conditions = r['conditions']! as String;
+      double? taken;
+      String? why;
+      switch (status) {
+        case 'confirmed':
+          if (atReference[key] case final String reason) {
+            taken = source;
+            why = reason;
+          }
+        case 'corrected':
+          taken = source;
+        case 'ambiguous':
+          taken = source;
+          (grades[entry] ??= <String>[]).add('$name for $conditions');
+        case 'estimate':
+          value
+            ..confidence = 'estimate'
+            ..verification = 'estimate'
+            ..source =
+                'estimate: no citable source was reached; searched: '
+                '${r['note']}';
+          continue;
+        default:
+          throw StateError('$key: a verification status "$status"');
+      }
+      // A wood's modulus is the one along the grain, whichever direction
+      // the record measured: what a beam or a board of it bends by.
+      if (group == 'mechanical' && name == 'youngsModulus') {
+        if (alongTheGrain[id] case final Map<String, Object?> along) {
+          taken = (along['value']! as num).toDouble();
+          conditions = along['conditions']! as String;
+          if (status != 'ambiguous') {
+            (grades[entry] ??= <String>[]).add('$name for $conditions');
+          }
+        }
+      }
+      value
+        ..confidence = _kindOf(r['citation']! as String)
+        ..verification = status
+        ..source = <String>[
+          '${r['citation']}: $conditions (${r['url']})',
+          ?why,
+        ].join('; ');
+      if (status == 'ambiguous') {
+        final low = math.min(was, taken!), high = math.max(was, taken);
+        value.interval = switch (spreads[key]) {
+          [final num a, final num b] => <double>[a.toDouble(), b.toDouble()],
+          _ => _spreadIn(r['note']! as String, taken) ?? <double>[low, high],
+        };
+      }
+      if (taken != null && taken != was) {
+        value
+          ..value = taken
+          ..lawDart = null
+          ..lawKind = 'constant'
+          ..anchor = null;
+        if (value.interval case [
+          final low,
+          final high,
+        ] when taken < low || taken > high) {
+          value.interval = null;
+        }
+        if (value.lawSpec case final spec?) {
+          dropped.remove(key);
+          _law(entry, group, name, value, spec, dropped);
+        }
+      }
+    }
+    for (final MapEntry(key: entry, value: named) in grades.entries) {
+      final what =
+          entry.description ??
+          '${entry.name[0].toUpperCase()}${entry.name.substring(1)}.';
+      entry.description =
+          '$what Of the grades its name covers, its '
+          '${named.join('; its ')}.';
+    }
+
+    // The friction pairs, in the research data the catalogue's pairs are
+    // made of.
+    final raw = (solids['pairs']! as List).cast<Map<String, Object?>>();
+    for (final r
+        in (verification['frictionPairs']! as List)
+            .cast<Map<String, Object?>>()) {
+      final [a, b] = (r['material']! as String).split('|');
+      final match = RegExp(
+        r'^pair\.(\w+) \((\w+)\)$',
+      ).firstMatch(r['property']! as String)!;
+      final field = match[1]!, condition = match[2]!;
+      bool sides(Map<String, Object?> p) =>
+          ('f3d.${p['a']}' == a && 'f3d.${p['b']}' == b) ||
+          ('f3d.${p['a']}' == b && 'f3d.${p['b']}' == a);
+      final found =
+          raw
+              .where((p) => sides(p) && p['condition'] == condition)
+              .firstOrNull ??
+          raw
+              .where(
+                (p) =>
+                    sides(p) &&
+                    '${p['condition']}'.contains(condition) &&
+                    !'${p['condition']}'.contains('tyre'),
+              )
+              .firstOrNull;
+      final p = found?[field];
+      if (p is! Map<String, Object?>) {
+        throw StateError(
+          'the verification names the pair $a|$b $field '
+          '($condition), which the data does not hold',
+        );
+      }
+      final status = r['status']! as String;
+      final source = (r['source_value'] as num?)?.toDouble() ?? double.nan;
+      p
+        ..remove('note')
+        ..remove('sourceUrl')
+        ..['verification'] = status;
+      if (status == 'estimate') {
+        p
+          ..['confidence'] = 'estimate'
+          ..['source'] =
+              'estimate: no citable source was reached; '
+              'searched: ${r['note']}';
+        continue;
+      }
+      p
+        ..['confidence'] = _kindOf(r['citation']! as String)
+        ..['source'] = '${r['citation']}: ${r['conditions']} (${r['url']})';
+      if (status != 'confirmed') p['value'] = source;
+      if (status == 'ambiguous') {
+        p['range'] =
+            _spreadIn(r['note']! as String, source) ??
+            <double>[
+              math.min(source, (r['catalog_value']! as num).toDouble()),
+              math.max(source, (r['catalog_value']! as num).toDouble()),
+            ];
+      }
+    }
+  }
+
+  /// Adds the measured coefficients of restitution ([data],
+  /// `restitution.json`) to [pairs], one a pair of the catalogue's
+  /// materials: the first record of the pair that gives a value, or the
+  /// value its points give at the reference impact speed [decisions] names.
+  /// A record the research marks of low reliability is an estimate. The
+  /// coefficient is held at that one speed: a law in impact speed waits for
+  /// a law input that is a contact's rather than a body's state, and the
+  /// points stay in the data.
+  static void _restitution(
+    List<Map<String, Object?>> pairs,
+    Map<String, Object?> data,
+    Map<String, Object?> decisions,
+    Map<String, _Entry> entries,
+  ) {
+    final rules = decisions['restitution']! as Map<String, Object?>;
+    final speed = (rules['referenceSpeed']! as num).toDouble();
+    final low = rules['estimateWhenNoteSays']! as String;
+    final records = <String, List<Map<String, Object?>>>{};
+    for (final r in (data['pairs']! as List).cast<Map<String, Object?>>()) {
+      final a = r['a']! as String, b = r['b']! as String;
+      if (!entries.containsKey(a) || !entries.containsKey(b)) continue;
+      (records[MaterialPair.keyOf(a, b)] ??= <Map<String, Object?>>[]).add(r);
+    }
+    for (final MapEntry(:key, value: list) in records.entries) {
+      double? e;
+      Map<String, Object?>? from;
+      String? at;
+      for (final r in list) {
+        if (r['restitution'] case final num given) {
+          e = given.toDouble();
+          from = r;
+          at = '${r['impactSpeed']}';
+          break;
+        }
+      }
+      if (e == null) {
+        for (final r in list) {
+          final points = <List<double>>[
+            for (final point in (r['points'] as List?) ?? const <Object?>[])
+              <double>[for (final n in point! as List) (n! as num).toDouble()],
+          ];
+          if (points.length < 2) continue;
+          e = TableLaw(
+            0,
+            xs: <double>[for (final p in points) p[0]],
+            ys: <double>[for (final p in points) p[1]],
+          ).interpolate(speed);
+          from = r;
+          at =
+              '${_d(speed)} m/s, read between its points (${r['impactSpeed']})';
+          break;
+        }
+      }
+      if (e == null || from == null) continue;
+      final estimate = '${from['note']}'.contains(low);
+      final said =
+          'restitution ${_d(e)} at $at: ${from['citation']}, '
+          '${from['geometry']}; ${from['conditions']} (${from['url']})';
+      final held = pairs.where((p) {
+        return MaterialPair.keyOf(
+              p['first']! as String,
+              p['second']! as String,
+            ) ==
+            key;
+      }).firstOrNull;
+      final confidence = estimate ? 'estimate' : 'measured';
+      if (held == null) {
+        final [first, second] = key.split('|');
+        pairs.add(<String, Object?>{
+          'first': first,
+          'second': second,
+          'restitution': e,
+          'confidence': confidence,
+          'source': said,
+        });
+        continue;
+      }
+      held
+        ..['restitution'] = e
+        ..['source'] = 'friction: ${held['source']}; $said'
+        ..['confidence'] = switch ((held['confidence'], confidence)) {
+          ('estimate', _) || (_, 'estimate') => 'estimate',
+          ('handbook', _) => 'handbook',
+          _ => confidence,
+        };
+    }
+  }
 
   static bool _inTemperature(Map<String, Object?> law) {
     final x = '${law['x'] ?? law['variable'] ?? 'T'}';
@@ -1336,7 +1657,12 @@ final class _Catalogue {
           pair['first']! as String,
           pair['second']! as String,
         ): <String, Object?>{
-          for (final key in <String>['friction', 'contactAngle', 'confidence'])
+          for (final key in <String>[
+            'friction',
+            'restitution',
+            'contactAngle',
+            'confidence',
+          ])
             if (pair[key] != null) key: pair[key],
         },
     },
