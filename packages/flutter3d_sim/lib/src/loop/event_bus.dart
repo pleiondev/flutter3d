@@ -493,8 +493,9 @@ final class _ScopedBus extends EventRegistry {
   ) {
     if (!_scope.manifest.touches.simulates) {
       throw PluginException(
-        'plugin "${_scope.manifest.id}" declares that it touches only the '
-        'view, and subscribed "$label" to the step channel, which runs '
+        'plugin "${_scope.manifest.id}" declares that it touches only '
+        '${_touchesOnly(_scope.manifest.touches)}, and subscribed "$label" to '
+        'the step channel, which runs '
         'inside the step. Subscribe with onFrame, or declare touches: '
         'PluginTouches.simulation',
       );

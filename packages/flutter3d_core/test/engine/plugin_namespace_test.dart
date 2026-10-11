@@ -68,16 +68,17 @@ final class _Events extends EventRegistry {
 
 /// A plugin that does whatever it is handed in `install`.
 final class _Plugin extends Flutter3dPlugin {
-  _Plugin(this.id, this.body);
+  _Plugin(this.id, this.body, {this.touches = PluginTouches.view});
 
   final String id;
   final void Function(PluginHost host) body;
+  final PluginTouches touches;
 
   @override
   PluginManifest get manifest => PluginManifest(
     id: id,
     apiVersion: PluginApiVersion.current,
-    touches: PluginTouches.view,
+    touches: touches,
   );
 
   @override
@@ -206,6 +207,41 @@ void main() {
       renderer.renderSteps.settingsNamed(SettingsSlot.bloom.id),
       isNotNull,
     );
+  });
+
+  test('a plugin that touches only tooling adds no step, node or stage', () {
+    // Mutation: hold a tooling plugin to the view's rules alone. An editor
+    // plugin could add to the frame a game draws without it, and the game
+    // would draw differently in the editor than on its own.
+    for (final (what, add) in <(String, void Function(RendererSteps))>[
+      (
+        'the render step',
+        (steps) => steps.addStep(const RenderStep('acme_glow.glow')),
+      ),
+      ('the node', (steps) => steps.addNode(_Node('acme_glow.blur'))),
+      ('stages', (steps) => steps.addMaterials(FakeBackend().shaders)),
+    ]) {
+      final renderer = _renderer();
+      expect(
+        () => _install(
+          renderer,
+          _Plugin(
+            'acme_glow.editor',
+            (host) => add(host.registry<RendererSteps>()),
+            touches: PluginTouches.tooling,
+          ),
+        ),
+        throwsA(
+          isA<PluginException>().having(
+            (PluginException e) => e.message,
+            'message',
+            allOf(contains('"acme_glow.editor"'), contains(what)),
+          ),
+        ),
+        reason: what,
+      );
+      expect(renderer.renderSteps.added, isEmpty);
+    }
   });
 
   test('the application names what it likes', () {
