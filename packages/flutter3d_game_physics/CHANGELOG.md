@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A body wading is heard.** `ElementSounds.wade(scene, waders, dt)` plays
+  a splash as each `Wader` goes into water fast enough, as loud as it goes
+  and not again for a moment, and holds a wash to each one ploughing
+  through, apart from the falls; `ElementCues` gains `wash` (the falls'
+  unless given) and `wading` (`WadingHearing.standard`, a walker;
+  `WadingHearing.car`), and `ElementCues.circuit` is the racing demo's
+  cues, so its own copy of them can go.
 - **The Quaternius profile names each joint's group.** Its spine, neck,
   shoulders, elbows, hips and knees are of `JointGroup.spine` and the
   rest, so `JointTissue.human` holds each at the end of its range with the
