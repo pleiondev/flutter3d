@@ -159,23 +159,22 @@ ByteData stampedEngineBundle(
         fragment: (entry! as Map<String, Object?>)['type'] == 'fragment',
       ),
   ];
-  return ShaderBundle(
-    name: 'flutter3d',
-    sdk: dart,
-    stages: stages,
-    sections: <String, ByteData>{
-      ShaderBundle.impellerSection: Uint8List.fromList(
-        impellerc,
-      ).buffer.asByteData(),
-      EngineBundleStamp.section: EngineBundleStamp(
+  return EngineBundleStamp(
         dart: dart,
         engine: engine,
         needs: needs,
         full: full,
         stages: stages.length,
-      ).encode(),
-    },
-  ).encode();
+      )
+      .bundle(
+        stages: stages,
+        sections: <String, ByteData>{
+          ShaderBundle.impellerSection: Uint8List.fromList(
+            impellerc,
+          ).buffer.asByteData(),
+        },
+      )
+      .encode();
 }
 
 /// What `impellerc` said when it refused [bundle], as a

@@ -77,6 +77,7 @@ import 'dart:io';
 
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginException;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show ShaderStageNeed;
 import 'package:yaml/yaml.dart';
 
 /// One plugin class a dependency declares.
@@ -140,7 +141,19 @@ final class PluginDiscovery {
     required this.readFiles,
     this.warnings = const <String>[],
     this.excluded = const <DiscoveredPlugin>[],
+    this.packages = const <PluginPackage>[],
+    this.dependencies = const <String>{},
   });
+
+  /// Every package the application depends on, directly or through another:
+  /// what the shader build asks to see whether a backend that loads the
+  /// engine's bundle is among them.
+  final Set<String> dependencies;
+
+  /// The packages at least one of [plugins] comes from, by name: where each
+  /// is, for the build that compiles its materials (D19), and the shader
+  /// needs it declares (D15).
+  final List<PluginPackage> packages;
 
   /// The plugins, by package name and then in the order each pubspec lists
   /// them, after the application's `without` and `set`, and then what its
@@ -160,6 +173,38 @@ final class PluginDiscovery {
   /// `without` entry that matches nothing, a `with` entry the group already
   /// holds, or a key the project's list does not have.
   final List<String> warnings;
+}
+
+/// A package that marks plugins the application installs.
+///
+/// Its pubspec may say which of the engine's shader stages its plugins draw
+/// with, beside the marker:
+///
+/// ```yaml
+/// flutter3d_plugins:
+///   plugin: style.dart#ToonLightingAddon
+///   shaders: [toon]
+/// ```
+///
+/// and the project's bundle carries them whatever the project declares.
+final class PluginPackage {
+  const PluginPackage({
+    required this.name,
+    required this.root,
+    this.shaderNeeds = const <String>[],
+  });
+
+  /// The package's name.
+  final String name;
+
+  /// Its root directory, as the package config resolves it.
+  final String root;
+
+  /// The shader needs its `flutter3d_plugins: shaders:` lists.
+  final List<String> shaderNeeds;
+
+  @override
+  String toString() => name;
 }
 
 /// One entry of an application's `flutter3d_plugins: without:` list, or a
@@ -453,6 +498,9 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
     set: selection.set,
     add: selection.add,
   );
+  final installedFrom = <String>{
+    for (final plugin in selected.kept) plugin.package,
+  };
   return PluginDiscovery(
     plugins: selected.kept,
     readFiles: read,
@@ -462,7 +510,78 @@ PluginDiscovery discoverPlugins(Directory appRoot) {
       ...selected.warnings,
     ],
     excluded: selected.excluded,
+    dependencies: Set<String>.unmodifiable(reached),
+    packages: <PluginPackage>[
+      for (final package in installedFrom.toList()..sort())
+        if (roots[package] case final root?)
+          PluginPackage(
+            name: package,
+            root: _withoutTrailingSlash(root.toFilePath()),
+            shaderNeeds: shaderNeedsOf(
+              package,
+              pubspecOf(package),
+              libraries: <String>{
+                for (final plugin in selected.kept)
+                  if (plugin.package == package)
+                    plugin.import.replaceFirst('package:$package/', ''),
+              },
+            ),
+          ),
+    ],
   );
+}
+
+String _withoutTrailingSlash(String path) =>
+    path.length > 1 && path.endsWith('/')
+    ? path.substring(0, path.length - 1)
+    : path;
+
+/// The shader needs [package]'s pubspec declares under
+/// `flutter3d_plugins: shaders:` (D15): the engine's by name, its own by an
+/// id-prefixed name. Empty when it declares none.
+///
+/// A list is the whole package's. A map, like the `plugin:` marker's, is
+/// from a library to its needs, and a library counts only when one of the
+/// installed plugins comes from it — [libraries], relative to `lib/` — so an
+/// application that leaves `style.dart` out does not carry its toon stages.
+List<String> shaderNeedsOf(
+  String package,
+  Map<Object?, Object?> pubspec, {
+  Set<String> libraries = const <String>{},
+}) {
+  Never wrong() => throw PluginDiscoveryException(
+    '$package: `$pluginMarkerKey: shaders:` is a list of shader needs, such '
+    'as [toon], or a map from a library to such a list',
+  );
+  List<String> needsIn(Object? list) {
+    if (list is! List || list.any((need) => need is! String)) wrong();
+    return <String>[
+      for (final need in list.cast<String>())
+        if (need.contains('.') ||
+            ShaderStageNeed.engine.any((known) => known.name == need))
+          need
+        else
+          throw PluginDiscoveryException(
+            '$package: "$need" under `$pluginMarkerKey: shaders:` is not a '
+            'shader need; the engine\'s are '
+            '${ShaderStageNeed.engine.map((n) => n.name).join(', ')}',
+          ),
+    ];
+  }
+
+  final marker = pubspec[pluginMarkerKey];
+  return switch (marker is Map ? marker['shaders'] : null) {
+    null => const <String>[],
+    final List<Object?> list => needsIn(list),
+    final Map<Object?, Object?> byLibrary => <String>{
+      for (final MapEntry(key: library, value: needs) in byLibrary.entries)
+        if (library is! String)
+          ...wrong()
+        else if (libraries.contains(library))
+          ...needsIn(needs),
+    }.toList(),
+    _ => wrong(),
+  };
 }
 
 /// What [pubspec] declares as its plugins, the `plugin:` under

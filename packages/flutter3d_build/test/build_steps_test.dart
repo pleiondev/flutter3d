@@ -61,13 +61,14 @@ void main() {
   setUp(() => project = Directory.systemTemp.createTempSync('f3d_steps_'));
   tearDown(() => project.deleteSync(recursive: true));
 
-  test('with no steps of its own, the build runs the engine\'s three in the '
-      'order it always did', () async {
+  test('with no steps of its own, the build runs the engine\'s in the '
+      'order it always did, the shaders after the plugin list', () async {
     final report = await runBuildSteps(project, log: _Silent());
 
     // Mutation: list the built-ins as plugins, models, materials. The
-    // plugin list would be written before the materials compiled.
-    expect(report.ran, <String>['models', 'materials', 'plugins']);
+    // plugin list would be written before the materials compiled. The
+    // shaders read the converted models and the plugins, so they come last.
+    expect(report.ran, <String>['models', 'materials', 'plugins', 'shaders']);
     expect(report.dependencies, isEmpty);
   });
 
@@ -93,6 +94,7 @@ void main() {
       'materials',
       'atlas',
       'plugins',
+      'shaders',
       'bake',
     ]);
     final report = await runBuildSteps(project, steps: steps, log: _Silent());

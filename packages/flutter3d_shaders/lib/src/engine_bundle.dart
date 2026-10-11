@@ -14,6 +14,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter3d_hardware/shader_bundle.dart';
+
 /// The stamp a project's engine bundle carries, in its [section].
 final class EngineBundleStamp {
   const EngineBundleStamp({
@@ -37,6 +39,30 @@ final class EngineBundleStamp {
   /// application that hot-reloads across the rebuild. Older ones are removed.
   static const String previousProjectAsset =
       'flutter3d_generated/shaders/flutter3d.previous.f3dshaders';
+
+  /// The directory both live in, and every plugin material the hook compiles
+  /// (D19): the line a project's `flutter: assets:` lists, since Flutter
+  /// bundles a directory's files and not its subdirectories.
+  static const String projectDirectory = 'flutter3d_generated/shaders/';
+
+  /// Where the hook writes the bundle of the plugin material named
+  /// [material] — the name its `material` line gives it — compiled for the
+  /// SDK the project builds with. A plugin's own loader asks for this key
+  /// before any bundle the plugin ships.
+  static String projectMaterialAsset(String material) =>
+      '$projectDirectory$material.f3dshaders';
+
+  /// The engine's bundle: [stages] and [sections] under the name `flutter3d`,
+  /// with [dart] in the header and this stamp in [section].
+  ShaderBundle bundle({
+    required List<ShaderBundleStage> stages,
+    required Map<String, ByteData> sections,
+  }) => ShaderBundle(
+    name: 'flutter3d',
+    sdk: dart,
+    stages: stages,
+    sections: <String, ByteData>{...sections, section: encode()},
+  );
 
   /// The Dart that ran the build: the token the header's `sdk` carries.
   final String dart;

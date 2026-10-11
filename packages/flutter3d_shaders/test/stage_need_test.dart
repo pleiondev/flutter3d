@@ -45,6 +45,10 @@ void main() {
         'Pbr',
         'PbrOpaque',
         'Unlit',
+        // Drawn by the renderer itself when a setting or a node asks.
+        'Xray',
+        'Normals',
+        'PlanarReflection',
         'Composite',
         'FullscreenVertex',
         'ShadowDepth',

@@ -74,20 +74,6 @@ final class ShaderStageNeed {
     'ToonOpaque',
   ]);
 
-  /// `LightingModel.xray`: the see-through debug look.
-  static const ShaderStageNeed xray = ShaderStageNeed('xray', <String>['Xray']);
-
-  /// `LightingModel.normals`: normals as colours, for debugging.
-  static const ShaderStageNeed normals = ShaderStageNeed('normals', <String>[
-    'Normals',
-  ]);
-
-  /// `LightingModel.planarReflection`: a mirror that samples its own render.
-  static const ShaderStageNeed planarReflection = ShaderStageNeed(
-    'planarReflection',
-    <String>['PlanarReflection'],
-  );
-
   /// Impostors: the billboard a level-of-detail chain ends in, which the
   /// asset build bakes when a rule says `impostor: true`.
   static const ShaderStageNeed impostor = ShaderStageNeed('impostor', <String>[
@@ -96,14 +82,15 @@ final class ShaderStageNeed {
   ]);
 
   /// The engine's needs a project may declare, [base] not among them.
+  ///
+  /// Only lighting a project chooses: the x-ray look, the normals view and
+  /// the planar mirror are drawn by the renderer itself when a setting or a
+  /// node asks, which a build cannot see, so they stay in [base].
   static const List<ShaderStageNeed> engine = <ShaderStageNeed>[
     pbrLayered,
     blinnPhong,
     lambert,
     toon,
-    xray,
-    normals,
-    planarReflection,
     impostor,
   ];
 

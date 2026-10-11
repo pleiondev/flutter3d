@@ -119,7 +119,17 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
   }
 
   final basePubspecLines = withDependency ?? pubspecLines;
-  final generatedEntries = _generatedAssetEntries(layout);
+  final generatedEntries = <String>{
+    ..._generatedAssetEntries(layout),
+    // D15: the engine's bundle and the plugins' materials the hook writes,
+    // in a directory of their own, for a project that draws.
+    if (basePubspecLines.any(
+      (line) => RegExp(
+        r'^\s+flutter3d(_impeller|_webgl|_webgpu)?\s*:',
+      ).hasMatch(line),
+    ))
+      '- ${layout.generatedDir.path.split('/').last}/shaders/',
+  };
   final missingEntries = generatedEntries
       .where((entry) => !_hasTopLevelAssetEntry(basePubspecLines, entry))
       .toList();

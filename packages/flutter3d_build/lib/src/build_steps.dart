@@ -36,6 +36,7 @@ import 'convert.dart';
 import 'layout.dart';
 import 'material_build.dart';
 import 'plugin_discovery.dart';
+import 'shader_build.dart';
 
 /// One thing a build does: an importer, a baker, a generated file.
 ///
@@ -65,10 +66,19 @@ abstract base class BuildStep {
   /// The engine's plugin discovery, which writes `lib/plugins.g.dart`.
   static const String plugins = 'plugins';
 
-  /// The engine's three, in the order they run.
-  static const List<String> builtIn = <String>[models, materials, plugins];
+  /// The engine's shader build (D15, D19): the stages the project needs and
+  /// its plugins' materials, compiled for the SDK the build runs on.
+  static const String shaders = 'shaders';
 
-  /// Unique among the steps of one build. The engine's three are taken.
+  /// The engine's own steps, in the order they run.
+  static const List<String> builtIn = <String>[
+    models,
+    materials,
+    plugins,
+    shaders,
+  ];
+
+  /// Unique among the steps of one build. The engine's own are taken.
   String get name;
 
   /// Steps this one runs after. A name no step has is ignored, as a loop
@@ -102,7 +112,17 @@ final class BuildStepContext {
     this.sink,
     this.textures = TextureFamily.auto,
     this.deviceClasses,
+    this.fullShaders = false,
+    this.shaderTarget = ShaderBuildTarget.any,
   });
+
+  /// Whether the engine's bundle holds every stage, whatever the project
+  /// declares — `--full-shaders`, or `fullShaders: true` among the hook's
+  /// user defines.
+  final bool fullShaders;
+
+  /// Which backends' sections the engine's bundle carries.
+  final ShaderBuildTarget shaderTarget;
 
   /// The application's root: its `pubspec.yaml`, `assets_src/` and
   /// `flutter3d_generated/`.
@@ -188,12 +208,16 @@ Future<BuildStepsReport> runBuildSteps(
   IOSink? log,
   TextureFamily textures = TextureFamily.auto,
   List<DeviceClass>? deviceClasses,
+  bool fullShaders = false,
+  ShaderBuildTarget shaderTarget = ShaderBuildTarget.any,
 }) async {
   final context = BuildStepContext(
     projectRoot: projectRoot,
     sink: log,
     textures: textures,
     deviceClasses: deviceClasses,
+    fullShaders: fullShaders,
+    shaderTarget: shaderTarget,
   );
   final ordered = _ordered(_withBuiltIns(steps));
   final ran = <String>[];
@@ -240,7 +264,7 @@ List<BuildStep> _withBuiltIns(Iterable<BuildStep> steps) {
       );
     }
   }
-  return <BuildStep>[_Models(), _Materials(), _Plugins(), ...given];
+  return <BuildStep>[_Models(), _Materials(), _Plugins(), _Shaders(), ...given];
 }
 
 List<BuildStep> _ordered(List<BuildStep> steps) =>
@@ -252,18 +276,57 @@ List<BuildStep> _ordered(List<BuildStep> steps) =>
       what: 'build steps',
     );
 
-/// One of the engine's three, which throw their own exceptions.
+/// One of the engine's own, which throw their own exceptions.
 sealed class _BuiltInStep extends BuildStep {
   _BuiltInStep();
 
-  /// The engine's three run in the order they always did, whatever a
-  /// project's step asks of the others.
+  /// The engine's steps run in the order they always did, whatever a
+  /// project's step asks of the others; the shaders last of them, because
+  /// they read what the models and the plugin list say.
   @override
   List<String> get after => switch (name) {
     BuildStep.materials => const <String>[BuildStep.models],
     BuildStep.plugins => const <String>[BuildStep.materials],
+    BuildStep.shaders => const <String>[BuildStep.plugins],
     _ => const <String>[],
   };
+}
+
+final class _Shaders extends _BuiltInStep {
+  ShaderBuildReport? _report;
+  List<String> _read = const <String>[];
+
+  @override
+  String get name => BuildStep.shaders;
+
+  /// A directory with no pubspec has no dependencies, so no backend to load
+  /// a bundle; nor has a project no GPU backend is a dependency of.
+  @override
+  void run(BuildStepContext context) {
+    if (!File('${context.projectRoot.path}/pubspec.yaml').existsSync()) {
+      _report = null;
+      return;
+    }
+    final discovery = discoverPlugins(context.projectRoot);
+    _read = discovery.readFiles;
+    _report = runShaderBuild(
+      context.projectRoot,
+      plugins: discovery,
+      log: context.sink,
+      full: context.fullShaders,
+      target: context.shaderTarget,
+    );
+  }
+
+  @override
+  List<String> inputs(BuildStepContext context) => <String>[
+    ...?_report?.dependencies,
+    ..._read,
+    // The manifest says which needs: what the bundle was written from.
+    if (File('${context.projectRoot.path}/flutter3d_assets.yaml')
+        case final manifest when manifest.existsSync())
+      manifest.path,
+  ];
 }
 
 final class _Models extends _BuiltInStep {

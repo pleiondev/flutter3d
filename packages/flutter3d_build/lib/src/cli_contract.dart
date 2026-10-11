@@ -82,6 +82,8 @@ const Map<String, String> cliJsonBodies = <String, String>{
       '{check, path, current? (with --check), written? (without), '
       'plugins: [{package, import, class}], excluded: [{package, import, '
       'class}], warnings}',
+  'shaders':
+      '{ran, written, bytes, full, needs, stages, totalStages, materials}',
 };
 
 /// The subcommands, in the order `flutter3d help` lists them.
@@ -90,6 +92,7 @@ const List<String> cliCommands = <String>[
   'create',
   'init',
   'plugins',
+  'shaders',
   'migrate',
   'lights',
   'doctor',
@@ -110,7 +113,9 @@ Commands:
   init      Wire the build hook into an existing project.
   plugins   Write lib/plugins.g.dart from the dependencies' plugin markers,
             or check that it is current (--check).
-  migrate   Move a project written against flutter3d 0.8 to 1.0.
+  shaders   Write the engine's shader bundle for the stages this project
+            needs (--full-shaders for every one), as the build hook does.
+  migrate  Move a project written against flutter3d 0.8 to 1.0.
   lights    Fewer lights for a level, judged by the pictures they make.
   doctor    Check the SDKs and the optional tools.
   help      This text, or a command's: flutter3d help <command>.
@@ -141,6 +146,25 @@ and `with:` (a class to add).
   --check   Write nothing; exit 3 when lib/plugins.g.dart is missing or is
             not what the dependencies declare, 0 when it is current.
   --json    Print the result as JSON (format f3d.cli).''';
+
+/// What `flutter3d help shaders` prints.
+const String shadersUsage = '''
+Usage: flutter3d shaders [--full-shaders] [--target native|web|any] [--json]
+
+Writes flutter3d_generated/shaders/flutter3d.f3dshaders, the engine's shader
+bundle, with the stages this project needs: the base every renderer opens
+with, the lighting its converted models name, impostors when a rule bakes
+them, the needs listed under `shaders:` in flutter3d_assets.yaml and the
+ones its plugins declare. Every installed plugin's .f3dmat is compiled
+beside it. The build hook does the same on every build; this is the same
+step by hand, and what prints the bundle's size.
+
+  --full-shaders  Every stage, whatever is declared (what the editor
+                  carries). In the hook: `fullShaders: true` under
+                  hooks: user_defines: flutter3d_build: in pubspec.yaml.
+  --target        Which sections: native (Impeller), web (WebGL2) or any,
+                  the default.
+  --json          Print the result as JSON (format f3d.cli).''';
 
 /// What `flutter3d help help` prints.
 const String helpUsage = '''
@@ -301,6 +325,7 @@ String cliSurface() {
     'create': createUsage,
     'init': initUsage,
     'plugins': pluginsUsage,
+    'shaders': shadersUsage,
     'migrate': migrateUsage,
     'lights': lightsUsage,
     'doctor': doctorUsage,
