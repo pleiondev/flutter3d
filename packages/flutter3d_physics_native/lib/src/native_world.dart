@@ -663,6 +663,39 @@ final class NativeCompoundPart {
 /// A joint in a [NativeWorld], named as a body is.
 extension type const NativeJoint(int raw) {}
 
+/// A ball joint's swing limits — `f3d_joint_set_swing`, through
+/// [NativeWorld.setJointSwing]: the second body's axis measured from
+/// [neutral] as a turn towards [ahead] and one to the side, each held to the
+/// limit on its own side, with an ellipse through the four between them.
+/// The limits of an anatomy rather than a cone: a spine that bends forward
+/// three times as far as back, a hip that lifts the thigh ahead further than
+/// out.
+final class JointSwing {
+  const JointSwing({
+    required this.neutral,
+    required this.ahead,
+    required this.forward,
+    required this.back,
+    required this.toSide,
+    required this.fromSide,
+  });
+
+  /// Where the axis points with no swing at all, in the world: for a limb,
+  /// where it hangs in the anatomical position, which need not be where it
+  /// lies when the joint is made.
+  final Vector3 neutral;
+
+  /// Which way is ahead, in the world; made square to [neutral].
+  final Vector3 ahead;
+
+  /// The most it swings towards [ahead] and away from it, radians.
+  final double forward, back;
+
+  /// The most it swings towards neutral × ahead and away from that,
+  /// radians.
+  final double toSide, fromSide;
+}
+
 /// What kind of joint — `F3dJointType`.
 ///
 /// **Closed, and it stays closed.** These four are solved inside the core's
@@ -1974,6 +2007,66 @@ final class NativeWorld {
       joint.raw,
       torque == null ? 0 : 1,
       torque ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// A ball joint's swing held inside four limits, radians, each above
+  /// nought and below 3: its second body's axis measured from [JointSwing.neutral],
+  /// a world direction, as a turn towards [JointSwing.ahead] of at most
+  /// [JointSwing.forward], away from it of at most [JointSwing.back], and
+  /// towards neutral × ahead and away from that of at most
+  /// [JointSwing.toSide] and [JointSwing.fromSide], an ellipse through the
+  /// four between them. The directions are taken into the first body's
+  /// frame as it stands now, as a joint's axis is when it is made. Beside
+  /// a [setJointCone] and the twist limits; null takes it off.
+  void setJointSwing(NativeJoint joint, JointSwing? swing) => _checkJoint(
+    c.f3d_joint_set_swing(
+      _live,
+      joint.raw,
+      swing == null ? 0 : 1,
+      swing?.neutral.x ?? 0.0,
+      swing?.neutral.y ?? 0.0,
+      swing?.neutral.z ?? 0.0,
+      swing?.ahead.x ?? 0.0,
+      swing?.ahead.y ?? 0.0,
+      swing?.ahead.z ?? 0.0,
+      swing?.forward ?? 0.0,
+      swing?.back ?? 0.0,
+      swing?.toSide ?? 0.0,
+      swing?.fromSide ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// A ball joint's or a hinge's viscous damping: its bodies' turn on each
+  /// other resisted with [damping] N·m·s/rad times how fast they turn —
+  /// what a joint's tissue does, where [setJointFriction] holds against a
+  /// fixed torque; null takes it off.
+  void setJointDamping(NativeJoint joint, double? damping) => _checkJoint(
+    c.f3d_joint_set_damping(
+      _live,
+      joint.raw,
+      damping == null ? 0 : 1,
+      damping ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// Soft limits on a ball joint or a hinge: past its twist or hinge limits,
+  /// its cone or its swing limits, it is held back by a spring of
+  /// [stiffness] N·m/rad at damping [ratio] rather than by its own stiff
+  /// one — the tissue at the end of a joint's range; null makes them hard.
+  void setJointLimitSoftness(
+    NativeJoint joint,
+    ({double stiffness, double ratio})? softness,
+  ) => _checkJoint(
+    c.f3d_joint_set_limit_softness(
+      _live,
+      joint.raw,
+      softness == null ? 0 : 1,
+      softness?.stiffness ?? 0.0,
+      softness?.ratio ?? 0.0,
     ),
     joint,
   );

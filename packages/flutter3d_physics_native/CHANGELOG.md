@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1
 
+- **A ragdoll's joints are an anatomy, and its tissue brings it to rest.**
+  A ball joint takes swing limits ahead, behind and to either side of a
+  neutral direction, with an ellipse between them (`f3d_joint_set_swing`,
+  `NativeWorld.setJointSwing`, `JointSwing`), viscous damping
+  (`f3d_joint_set_damping`, `setJointDamping`) and soft limits
+  (`f3d_joint_set_limit_softness`, `setJointLimitSoftness`), which a hinge
+  takes too; F3D_ABI_VERSION is 38 and a joint's snapshot record grows at
+  its end, so an older snapshot reads with none of them. `RagdollSwing`
+  holds a bone to a range of motion (flexion, extension, lateral, medial,
+  twist) measured from the anatomical position against the skeleton's
+  forward and up, which `NativeRagdoll` now takes (`forward:`, `up:`).
+  **Breaking:** `NativeRagdoll(friction:)` is gone; `tissue:` takes a
+  `JointTissue` (damping, limit stiffness, and the inelastic group whose
+  loss factor sets the limits' damping ratio), `JointTissue.human` by
+  default. Joints without these settings step to the same bits as before:
+  the core's digests do not move.
+
 - **Native cloth refuses a profile that does not promise bits.** Under
   `ClothSettings.profile` that is not bit-exact (`accurate`),
   `NativeClothSimulation.step` throws `NativeClothRefusedException` with

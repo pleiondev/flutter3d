@@ -274,7 +274,17 @@ void main() {
         ),
       ),
     ];
-    final leg = NativeRagdoll(world, rest, friction: 0.0);
+    // Undamped and with hard limits, so a strike carries the shin as far
+    // as its limits let it, and no further.
+    final leg = NativeRagdoll(
+      world,
+      rest,
+      tissue: JointTissue(
+        damping: 0.0,
+        limitStiffness: 0.0,
+        inelastic: JointTissue.human.inelastic,
+      ),
+    );
     world.createJoint(
       NativeJointType.fixed,
       hip,
@@ -389,6 +399,207 @@ void main() {
       r'setEuler\(|rotation[XYZ]\(|\bmath\.(sin|cos|tan|asin|acos|atan2?|exp|log|pow)\(',
     );
     expect(source.where(asks.hasMatch).toList(), isEmpty);
+  });
+
+  group('a swing joint is an anatomy, not a cone', () {
+    /// A chest held fixed, standing, and one upper arm hung from its
+    /// shoulder at [side] (+x the figure's left, as it faces +z) bound out
+    /// in a T, held as a shoulder: forward 1.2, back 0.3, out 2.5, in 0.3.
+    /// Let fall to hanging, then struck at the elbow by [blow] with its
+    /// damping off: the furthest the arm swung from hanging, towards
+    /// [towards].
+    double swung(double side, Vector3 blow, Vector3 towards) {
+      final world = dynamics.native;
+      final rest = <RagdollBone>[
+        RagdollBone(
+          name: 'chest',
+          parent: -1,
+          head: Vector3(0.0, 3.0, 0.0),
+          tail: Vector3(0.0, 3.5, 0.0),
+          orientation: Quaternion.identity(),
+          radius: 0.1,
+          mass: 20,
+        ),
+        RagdollBone(
+          name: 'arm',
+          parent: 0,
+          head: Vector3(side * 0.2, 3.4, 0.0),
+          tail: Vector3(side * 0.5, 3.4, 0.0),
+          orientation: Quaternion.identity(),
+          radius: 0.04,
+          mass: 2,
+          joint: const RagdollSwing(
+            flexion: 1.2,
+            extension: 0.3,
+            lateral: 2.5,
+            medial: 0.3,
+            twist: 0.5,
+            hangs: true,
+          ),
+        ),
+      ];
+      final arm = NativeRagdoll(
+        world,
+        rest,
+        tissue: JointTissue(
+          damping: 2.0,
+          limitStiffness: 1e5,
+          inelastic: JointTissue.human.inelastic,
+        ),
+      );
+      final post = world.addBody(
+        position: Vector3(0.0, 3.0, 0.0),
+        type: NativeBodyType.fixed,
+        mass: 0.0,
+      );
+      world.createJoint(
+        NativeJointType.fixed,
+        post,
+        arm.bodyOf(0),
+        anchor: Vector3(0.0, 3.0, 0.0),
+      );
+      final shoulder = Vector3(side * 0.2, 3.4, 0.0);
+      // Let it fall from the T to hanging first, then strike it.
+      for (var i = 0; i < 120; i++) {
+        dynamics.step(1.0 / 60.0);
+      }
+      world.setJointDamping(arm.jointOf(1)!, null);
+      world.applyImpulse(
+        arm.bodyOf(1),
+        blow,
+        at: arm.poseOf(1).position + Vector3(0.0, -0.3, 0.0),
+      );
+      var most = 0.0;
+      for (var i = 0; i < 30; i++) {
+        dynamics.step(1.0 / 60.0);
+        final d = (world.localPositionOf(arm.bodyOf(1)) - shoulder)
+          ..normalize();
+        if (d.dot(towards) <= 0.0) continue;
+        final from = Portable.atan2(
+          Vector3(d.x, 0.0, d.z).length,
+          -d.y,
+        );
+        most = from > most ? from : most;
+      }
+      arm.dispose();
+      world.removeBody(post);
+      return most;
+    }
+
+    test('it swings further forward than back, from hanging', () {
+      // Bound out in a T, the arm is measured from hanging at the side, the
+      // skeleton's down, not from the T it was bound in: back it stops at
+      // 0.3. Mutation: measure the swing from the rest pose — the arm
+      // swings a radian and a half back to hang at all.
+      final ahead = Vector3(0.0, 0.0, 1.0), behind = Vector3(0.0, 0.0, -1.0);
+      expect(swung(1.0, ahead * 4.0, ahead), greaterThan(1.0));
+      expect(swung(1.0, behind * 4.0, behind), closeTo(0.3, 0.08));
+    });
+
+    test('out from the body is out on either side', () {
+      // Lateral is away from the midline: +x for the left arm, -x for the
+      // right; medial towards it. Mutation: take the core's side, neutral
+      // × ahead, as lateral for both arms — the right arm stops at 0.3 out
+      // and swings in through the chest.
+      final left = Vector3(1.0, 0.0, 0.0), right = Vector3(-1.0, 0.0, 0.0);
+      expect(swung(1.0, left * 4.0, left), greaterThan(1.2));
+      expect(swung(1.0, right * 4.0, right), closeTo(0.3, 0.08));
+      expect(swung(-1.0, right * 4.0, right), greaterThan(1.2));
+      expect(swung(-1.0, left * 4.0, left), closeTo(0.3, 0.08));
+    });
+  });
+
+  test("a joint's tissue damps it and gives at its limits, as the catalog's "
+      'inelastic group says', () {
+    // The give past a limit is damped at half the tissue's loss factor, the
+    // inelastic group's η = 2ζ.
+    const tissue = JointTissue.human;
+    expect(tissue.limitRatio, tissue.inelastic.lossFactor!.value / 2);
+    expect(tissue.damping, greaterThan(0.0));
+    expect(tissue.inelastic.lossFactor!.source, isNotNull);
+    // A hinge swinging free comes to rest by its damping alone, no
+    // friction anywhere. Mutation: leave the damping off — it swings on.
+    final world = dynamics.native;
+    final post = world.addBody(
+      position: Vector3(5.0, 3.0, 0.0),
+      type: NativeBodyType.fixed,
+      mass: 0.0,
+    );
+    final rest = <RagdollBone>[
+      RagdollBone(
+        name: 'upper',
+        parent: -1,
+        head: Vector3(5.0, 3.0, 0.0),
+        tail: Vector3(5.0, 2.6, 0.0),
+        orientation: Quaternion.identity(),
+        radius: 0.05,
+        mass: 2,
+      ),
+      RagdollBone(
+        name: 'lower',
+        parent: 0,
+        head: Vector3(5.0, 2.6, 0.0),
+        tail: Vector3(5.0, 2.2, 0.0),
+        orientation: Quaternion.identity(),
+        radius: 0.05,
+        mass: 2,
+        joint: RagdollHinge(axis: Vector3(1.0, 0.0, 0.0), lower: -2, upper: 2),
+      ),
+    ];
+    final limb = NativeRagdoll(world, rest);
+    addTearDown(limb.dispose);
+    world.createJoint(
+      NativeJointType.fixed,
+      post,
+      limb.bodyOf(0),
+      anchor: Vector3(5.0, 3.0, 0.0),
+    );
+    world.setAngularVelocity(limb.bodyOf(1), Vector3(6.0, 0.0, 0.0));
+    for (var i = 0; i < 300; i++) {
+      dynamics.step(1.0 / 60.0);
+    }
+    expect(world.angularVelocityOf(limb.bodyOf(1)).length, lessThan(0.05));
+  });
+
+  test('the world refuses swing limits, damping and soft limits a joint '
+      'does not take', () {
+    final world = dynamics.native;
+    final a = world.addBody(position: Vector3(9.0, 3.0, 0.0), mass: 1);
+    final b = world.addBody(position: Vector3(9.0, 2.0, 0.0), mass: 1);
+    final hinge = world.createJoint(
+      NativeJointType.revolute,
+      a,
+      b,
+      anchor: Vector3(9.0, 2.5, 0.0),
+      axis: Vector3(1.0, 0.0, 0.0),
+    );
+    final slider = world.createJoint(
+      NativeJointType.prismatic,
+      a,
+      b,
+      anchor: Vector3(9.0, 2.5, 0.0),
+      axis: Vector3(0.0, 1.0, 0.0),
+    );
+    final swing = JointSwing(
+      neutral: Vector3(0.0, -1.0, 0.0),
+      ahead: Vector3(0.0, 0.0, 1.0),
+      forward: 1.0,
+      back: 0.5,
+      toSide: 1.0,
+      fromSide: 0.5,
+    );
+    expect(() => world.setJointSwing(hinge, swing), throwsArgumentError);
+    expect(() => world.setJointDamping(slider, 1.0), throwsArgumentError);
+    expect(() => world.setJointDamping(hinge, -1.0), throwsArgumentError);
+    expect(
+      () => world.setJointLimitSoftness(hinge, (stiffness: 0.0, ratio: 1.0)),
+      throwsArgumentError,
+    );
+    world
+      ..setJointDamping(hinge, 1.0)
+      ..setJointLimitSoftness(hinge, (stiffness: 100.0, ratio: 0.5))
+      ..setJointDamping(hinge, null)
+      ..setJointLimitSoftness(hinge, null);
   });
 
   test('a bone that comes before its parent is refused', () {

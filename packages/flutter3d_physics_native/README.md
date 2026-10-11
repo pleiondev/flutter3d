@@ -9,7 +9,7 @@ It is being built in phases (P9 in the 0.9 plan). What is here now:
 - a solver that keeps bodies apart: soft contacts in substeps with warm starting, friction and restitution, so crates rest, stack, slide, roll and bounce;
 - a dynamic tree of boxes for the broadphase, which also answers box queries;
 - triangle meshes for level geometry and terrain, one sided, that bodies slide across without catching on the seams;
-- joints: fixed, spherical, hinge, slider and distance (rod, spring, rope), with limits, motors and springs, and the ball joint's cone, twist limits and friction a ragdoll is built from (give one eight substeps);
+- joints: fixed, spherical, hinge, slider and distance (rod, spring, rope), with limits, motors and springs, the ball joint's cone, twist limits and friction, swing limits ahead, behind and to either side, and viscous damping and soft limits, which a ragdoll is built from (give one eight substeps);
 - continuous collision: contacts that reach as far as a body moves in a step, and bullets swept to their time of impact, turn and all;
 - rays, shape overlaps and shape casts, and a kinematic character controller that slides, climbs steps and keeps to slopes;
 - vehicles: a chassis on up to eight wheels, each a ray with a spring, a damper and a tyre that grips inside its friction circle, steered, driven and braked a wheel at a time;

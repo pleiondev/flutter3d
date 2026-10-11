@@ -135,6 +135,23 @@ final class GridSide
   static const GridSide south = GridSide._(2, 'south')
   static const GridSide west = GridSide._(0, 'west')
 
+final class JointSwing
+  const JointSwing({required this.neutral, required this.ahead, required this.forward, required this.back, required this.toSide, required this.fromSide})
+  final Vector3 ahead
+  final Vector3 neutral
+  final double back
+  final double forward
+  final double fromSide
+  final double toSide
+
+final class JointTissue
+  const JointTissue({required this.damping, required this.limitStiffness, required this.inelastic})
+  double get limitRatio
+  final InelasticProperties inelastic
+  final double damping
+  final double limitStiffness
+  static const JointTissue human = …
+
 extension type const NativeBody(int raw)
   int get generation
   int get slot
@@ -520,7 +537,7 @@ final class NativeRagdoll
   BonePose poseOf(int index)
   NativeBody bodyOf(int index)
   NativeJoint? jointOf(int index)
-  NativeRagdoll(this.world, List<RagdollBone> rest, {List<BonePose>? pose, List<Vector3>? velocity, List<Vector3>? spin, double friction = 2.0, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
+  NativeRagdoll(this.world, List<RagdollBone> rest, {List<BonePose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
   RagdollJoint? heldAs(int index)
   bool get isAsleep
   final List<RagdollBone> bones
@@ -714,11 +731,14 @@ final class NativeWorld
   void setJointBreak(NativeJoint joint, {double force = 0, double torque = 0})
   void setJointCollide(NativeJoint joint, {required bool collide})
   void setJointCone(NativeJoint joint, double? angle)
+  void setJointDamping(NativeJoint joint, double? damping)
   void setJointFriction(NativeJoint joint, double? torque)
   void setJointLength(NativeJoint joint, {required double length, required double least, required double most})
+  void setJointLimitSoftness(NativeJoint joint, ({double stiffness, double ratio})? softness)
   void setJointLimits(NativeJoint joint, ({double lower, double upper})? limits)
   void setJointMotor(NativeJoint joint, ({double speed, double maxForce})? motor)
   void setJointSpring(NativeJoint joint, ({double hertz, double damping})? spring)
+  void setJointSwing(NativeJoint joint, JointSwing? swing)
   void setLaw(NativeBody body, NativeLawProperty property, NativeLaw? law)
   void setLinkCone(NativeMultibody multibody, int link, {double? swing, double twist = 3.141592653589793})
   void setLinkLimits(NativeMultibody multibody, int link, {double? lower, double? upper})
@@ -803,6 +823,15 @@ final class RagdollHinge extends RagdollJoint
 
 abstract final class RagdollJoint
   const RagdollJoint()
+
+final class RagdollSwing extends RagdollJoint
+  const RagdollSwing({required this.flexion, required this.extension, required this.lateral, double? medial, required this.twist, this.hangs = false})
+  final bool hangs
+  final double extension
+  final double flexion
+  final double lateral
+  final double medial
+  final double twist
 
 const String askedPhysics = String.fromEnvironment('FLUTTER3D_PHYSICS', defaultValue: 'native')
 
