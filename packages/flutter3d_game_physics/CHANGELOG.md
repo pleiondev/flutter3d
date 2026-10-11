@@ -7,6 +7,12 @@
   turned, whether it burns; `toJson`, `fromJson` and a `ComponentCodec`).
   `WreckLooks(scene, device).show(published)` draws the slicks from those
   rows, so the wrecks draw the same wherever the elements are stepped.
+- **Which crash breaks a car's tank, by its standard.** `FuelCell` says
+  whether a crash that took so much speed out of a car breaks its fuel
+  cell: `FuelCell.racing` stands the FIA's 15 m/s frontal impact test of a
+  Formula One chassis, `FuelCell.road` FMVSS No. 301's 48 km/h barrier. What
+  the tank spills burns on a burner fed that much fuel and goes out when it
+  is burnt (`Fires.setBurner`'s `fuel`).
 - **A body wading is heard.** `ElementSounds.wade(scene, waders, dt)` plays
   a splash as each `Wader` goes into water fast enough, as loud as it goes
   and not again for a moment, and holds a wash to each one ploughing
