@@ -566,6 +566,11 @@ static void io_joint(Io *io, F3dJointSlot *j) {
   io_real(io, &j->damping);
   io_real(io, &j->limit_stiffness);
   io_real(io, &j->limit_ratio);
+  /* Grown after them: a joint written before these has soft limits that
+   * are linear and as stiff at every limit, which is what nought reads
+   * as. */
+  io_real(io, &j->limit_growth);
+  io_reals(io, j->limit_at, 6);
 }
 
 static void io_compound(Io *io, F3dCompound *c) {

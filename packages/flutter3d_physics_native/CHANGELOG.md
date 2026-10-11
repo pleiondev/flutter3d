@@ -1,5 +1,23 @@
 ## 1.0.0-rc.1
 
+- **A joint's soft limit stiffens past the limit as tissue does.** Past a
+  limit by δ it holds back (k0 / b)(e^(bδ) − 1) N·m rather than k0 δ,
+  with k0 the stiffness at each limit — a twist's or a hinge's lower and
+  upper, a swing's four sides — and b the growth
+  (`f3d_joint_set_limit_stiffness`, `NativeWorld.setJointLimitStiffness`,
+  `JointLimitStiffness`); F3D_ABI_VERSION is 39, a joint's snapshot record
+  grows at its end and an older snapshot reads linear, as stiff at every
+  limit. `JointTissue` takes `limitGrowth` and a stiffness at the limit for
+  each group of joints (`groups`, `JointGroupStiffness`), and a
+  `RagdollJoint` names its `group` (`JointGroup`, open: spine, neck,
+  shoulder, elbow, hip, knee). `JointTissue.human` is measured tissue: the
+  lumbar spine 150 in flexion, 60 in extension, 300 sideways and 80 in
+  twist (Watt, Callaway and Williams 2022; McGill 1994), the neck 60, the
+  hip 100 (Amankwah 2004), the knee 180 past straight (Riener and Edrich
+  1999), the shoulder and the elbow estimates, growing at the knee
+  capsule's 8.6 a radian. It replaces one linear 3000 N·m/rad without a
+  source, 10 to 50 times stiffer at the limit than measured tissue. Joints
+  without these settings step to the same bits as before.
 - **A ragdoll's joints are an anatomy, and its tissue brings it to rest.**
   A ball joint takes swing limits ahead, behind and to either side of a
   neutral direction, with an ellipse between them (`f3d_joint_set_swing`,

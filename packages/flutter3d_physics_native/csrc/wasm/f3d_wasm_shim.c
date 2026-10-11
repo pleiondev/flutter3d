@@ -65,6 +65,10 @@ F3D_API int f3d_joint_set_limit_softness__w(void * world, uint32_t joint_low, ui
   return f3d_joint_set_limit_softness((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, stiffness, ratio);
 }
 
+F3D_API int f3d_joint_set_limit_stiffness__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real growth, f3d_real lower, f3d_real upper, f3d_real ahead, f3d_real behind, f3d_real side, f3d_real other_side) {
+  return f3d_joint_set_limit_stiffness((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, growth, lower, upper, ahead, behind, side, other_side);
+}
+
 F3D_API int f3d_joint_set_motor__w(void * world, uint32_t joint_low, uint32_t joint_high, int enabled, f3d_real speed, f3d_real max_force) {
   return f3d_joint_set_motor((void *)world, ((uint64_t)joint_high << 32) | joint_low, enabled, speed, max_force);
 }
