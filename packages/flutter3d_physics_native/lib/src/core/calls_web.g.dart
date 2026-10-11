@@ -196,6 +196,16 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber pairs,
     JSNumber capacity,
   );
+  @JS('f3d_world_contact_report_count')
+  external JSNumber f3d_world_contact_report_count(JSNumber world);
+  @JS('f3d_world_read_contact_reports')
+  external JSNumber f3d_world_read_contact_reports(
+    JSNumber world,
+    JSNumber reals,
+    JSNumber pairs,
+    JSNumber parts,
+    JSNumber capacity,
+  );
   @JS('f3d_world_events_dropped')
   external JSNumber f3d_world_events_dropped(JSNumber world);
   @JS('f3d_vehicle_create__w')
@@ -1547,6 +1557,24 @@ int f3d_world_read_contacts(int world, int contacts, int pairs, int capacity) =>
         )
         .toDartInt
         .toUnsigned(32);
+int f3d_world_contact_report_count(int world) =>
+    _x.f3d_world_contact_report_count(world.toJS).toDartInt.toUnsigned(32);
+int f3d_world_read_contact_reports(
+  int world,
+  int reals,
+  int pairs,
+  int parts,
+  int capacity,
+) => _x
+    .f3d_world_read_contact_reports(
+      world.toJS,
+      reals.toJS,
+      pairs.toJS,
+      parts.toJS,
+      capacity.toJS,
+    )
+    .toDartInt
+    .toUnsigned(32);
 int f3d_world_events_dropped(int world) =>
     _x.f3d_world_events_dropped(world.toJS).toDartInt.toUnsigned(32);
 int f3d_vehicle_create(

@@ -73,6 +73,14 @@ final class _Pair {
   /// How far the pair overlaps along [normal], in metres.
   double depth = 0.0;
 
+  /// Halfway between the two surfaces when the pair was found: where the
+  /// step's report says they touch.
+  final Vector3 point = Vector3.zero();
+
+  /// [a]'s point against the other side's when the pair was found, before
+  /// this step's gravity: what the report says they met at.
+  final Vector3 meet = Vector3.zero();
+
   /// Identifies this contact between steps, so its impulses can be carried
   /// over. Two colliders that met last step are the same contact now.
   Object key = 0;
@@ -241,13 +249,16 @@ final class Dynamics extends RigidDynamics {
     }
 
     final gravity = world.properties.gravity;
+    _fell.clear();
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
       body.velocity.addScaled(gravity, dt);
+      _fell.add(body);
     }
 
-    _collect();
+    _collect(gravity, dt);
     _solveVelocities(dt);
+    _report();
 
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
@@ -290,15 +301,97 @@ final class Dynamics extends RigidDynamics {
 
   /// Puts the world's properties back as [saveState] wrote them; a save from
   /// before they were saved (null) leaves the world as it is.
+  ///
+  /// The contacts of the step before are forgotten with it, as the warm
+  /// starts are not carried: the first step after a restore begins every
+  /// contact it finds (`ContactLedger`).
   @override
   void restoreState(Object? saved) {
     if (saved case {'world': final Map<String, Object?> properties}) {
       world.properties = WorldProperties.fromJson(properties);
     }
+    _ledger.clear();
   }
 
+  /// What the last step found in contact, begun, persisting or ended.
+  ///
+  /// A pair is in contact when it is within [slop] of touching or the
+  /// solver pushed on it, as the core says it; a pair of a sleeping body
+  /// that this solver did not ask about — against the level, or against
+  /// another sleeper — persists as it was, with no impulse, as the core
+  /// keeps a sleeping pair's manifold.
+  @override
+  List<StepContact> get contacts => _ledger.contacts;
+
+  final ContactLedger _ledger = ContactLedger();
+
+  /// The bodies this step's gravity was added to, so a contact's velocity
+  /// can be told as it was before it.
+  final Set<RigidBody> _fell = <RigidBody>{};
+
+  /// This step's pairs in contact, to the ledger.
+  void _report() {
+    final inContact = <StepContact>[];
+    for (final pair in _pairs) {
+      if (pair.depth < -slop && pair.normalImpulse <= 0.0) continue;
+      final a = pair.a.collider;
+      final b = pair.b?.collider ?? pair.against!;
+      final idA = world.idOf(a);
+      final idB = world.idOf(b);
+      if (idA == null || idB == null) continue;
+      inContact.add(
+        StepContact(
+          a: a,
+          b: b,
+          idA: idA,
+          idB: idB,
+          phase: ContactPhase.persist,
+          point: pair.point,
+          normal: pair.normal,
+          impulse: pair.normalImpulse,
+          relativeVelocity: pair.meet,
+        ),
+      );
+    }
+    _ledger.record(inContact, heldWhileResting: _resting);
+  }
+
+  /// Whether a contact of the step before, not found this step, was left
+  /// alone because both of its sides rest: each still in the world, and
+  /// either a sleeping body or not a body at all.
+  bool _resting(StepContact before) {
+    for (final side in <Collider>[before.a, before.b]) {
+      if (world.idOf(side) == null) return false;
+      final body = bodyOf(side);
+      if (body != null && !body.isAsleep) return false;
+    }
+    return true;
+  }
+
+  /// [body]'s velocity at [point] as the step found it, before [gravity]
+  /// over [dt] was added to it, into [out].
+  void _velocityAt(
+    RigidBody body,
+    Vector3 point,
+    Vector3 gravity,
+    double dt,
+    Vector3 out,
+  ) {
+    out.setFrom(body.velocity);
+    if (_fell.contains(body)) out.addScaled(gravity, -dt);
+    final w = body.angularVelocity;
+    final rx = point.x - body.position.x;
+    final ry = point.y - body.position.y;
+    final rz = point.z - body.position.z;
+    out.x += w.y * rz - w.z * ry;
+    out.y += w.z * rx - w.x * rz;
+    out.z += w.x * ry - w.y * rx;
+  }
+
+  final Vector3 _otherVelocity = Vector3.zero();
+
   /// Everything overlapping, as pairs the solver can work on.
-  void _collect() {
+  void _collect(Vector3 gravity, double dt) {
     _pairs.clear();
     _heldNext.clear();
     for (var i = 0; i < bodies.length; i++) {
@@ -344,12 +437,23 @@ final class Dynamics extends RigidDynamics {
             _contact,
           );
           if (!_contact.isTouching) continue;
+          final pair = _Pair(body, null)
+            ..against = other
+            ..normal.setFrom(_contact.normal)
+            ..depth = _contact.depth;
+          contactPointBetween(
+            body.collider.shape,
+            body.position,
+            other.shape,
+            other.position,
+            pair.normal,
+            pair.depth,
+            pair.point,
+          );
+          _velocityAt(body, pair.point, gravity, dt, pair.meet);
           _pairs.add(
-            _Pair(body, null)
+            pair
               ..key = _keyOf(body.collider, other)
-              ..against = other
-              ..normal.setFrom(_contact.normal)
-              ..depth = _contact.depth
               ..bounce = _bounceFor(
                 _pairOf(body.collider, other)?.restitution ?? body.restitution,
                 body.velocity.dot(_contact.normal),
@@ -388,11 +492,24 @@ final class Dynamics extends RigidDynamics {
         }
         var approach = body.velocity.dot(_contact.normal);
         approach -= other.velocity.dot(_contact.normal);
+        final pair = _Pair(body, other)
+          ..normal.setFrom(_contact.normal)
+          ..depth = _contact.depth;
+        contactPointBetween(
+          body.collider.shape,
+          body.position,
+          other.collider.shape,
+          other.position,
+          pair.normal,
+          pair.depth,
+          pair.point,
+        );
+        _velocityAt(body, pair.point, gravity, dt, pair.meet);
+        _velocityAt(other, pair.point, gravity, dt, _otherVelocity);
+        pair.meet.sub(_otherVelocity);
         _pairs.add(
-          _Pair(body, other)
+          pair
             ..key = _keyOf(body.collider, other.collider)
-            ..normal.setFrom(_contact.normal)
-            ..depth = _contact.depth
             ..bounce = _bounceFor(
               _pairOf(body.collider, other.collider)?.restitution ??
                   math.max(body.restitution, other.restitution),

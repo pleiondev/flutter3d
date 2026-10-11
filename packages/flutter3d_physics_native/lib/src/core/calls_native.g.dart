@@ -526,6 +526,44 @@ int f3d_world_read_contacts(int world, int contacts, int pairs, int capacity) =>
     );
 
 @Native<Uint32 Function(Pointer<Void>)>(
+  symbol: 'f3d_world_contact_report_count',
+  isLeaf: true,
+)
+external int _f3d_world_contact_report_count(Pointer<Void> world);
+int f3d_world_contact_report_count(int world) =>
+    _f3d_world_contact_report_count(Pointer.fromAddress(world));
+
+@Native<
+  Uint32 Function(
+    Pointer<Void>,
+    Pointer<Void>,
+    Pointer<Void>,
+    Pointer<Void>,
+    Uint32,
+  )
+>(symbol: 'f3d_world_read_contact_reports', isLeaf: true)
+external int _f3d_world_read_contact_reports(
+  Pointer<Void> world,
+  Pointer<Void> reals,
+  Pointer<Void> pairs,
+  Pointer<Void> parts,
+  int capacity,
+);
+int f3d_world_read_contact_reports(
+  int world,
+  int reals,
+  int pairs,
+  int parts,
+  int capacity,
+) => _f3d_world_read_contact_reports(
+  Pointer.fromAddress(world),
+  Pointer.fromAddress(reals),
+  Pointer.fromAddress(pairs),
+  Pointer.fromAddress(parts),
+  capacity,
+);
+
+@Native<Uint32 Function(Pointer<Void>)>(
   symbol: 'f3d_world_events_dropped',
   isLeaf: true,
 )

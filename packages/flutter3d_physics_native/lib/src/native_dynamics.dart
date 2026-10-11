@@ -40,6 +40,7 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'core/core.dart' as c show ContactPhases;
 import 'native_force_fields.dart';
 import 'native_ragdoll.dart' show turnBy;
 import 'native_world.dart';
@@ -299,7 +300,83 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
     for (final body in bodies) {
       _mirrors[body]!.fetch(native, body);
     }
+    _readContacts();
     world.reindex();
+  }
+
+  /// What the last step found in contact, as the core reports it: a
+  /// manifold a contact, so two bodies that meet on two faces are two
+  /// (`StepContact.feature`), and phases the core tells from the manifolds
+  /// it keeps in its snapshot — so, unlike the reference's, they hold across
+  /// a restore. Only the pairs with a body of these dynamics in them; a
+  /// body made in [native] by hand is not one.
+  @override
+  List<StepContact> get contacts => _contacts;
+  List<StepContact> _contacts = const <StepContact>[];
+
+  /// The colliders and world ids of the core bodies in the last step's
+  /// contacts, for a contact that ends after one of them was taken out of
+  /// the world and so out of [_owners].
+  Map<NativeBody, (Collider, int)> _named = <NativeBody, (Collider, int)>{};
+
+  /// The last step's contacts in contact, by their ids and feature: the one
+  /// way a contact whose body is gone is still told as one that had a body.
+  Set<(int, int, int)> _reported = <(int, int, int)>{};
+
+  void _readContacts() {
+    final contacts = <StepContact>[];
+    final named = <NativeBody, (Collider, int)>{};
+    (Collider, int)? nameOf(NativeBody handle) {
+      final collider = _owners[handle];
+      if (collider != null) {
+        final id = world.idOf(collider);
+        return id == null ? null : (collider, id);
+      }
+      return _named[handle];
+    }
+
+    forEachContactReport(native, (a, b, part, phase, reals, at) {
+      final ia = nameOf(a), ib = nameOf(b);
+      if (ia == null || ib == null) return;
+      final key = ia.$2 < ib.$2 ? (ia.$2, ib.$2, part) : (ib.$2, ia.$2, part);
+      if (!_byCollider.containsKey(ia.$1) &&
+          !_byCollider.containsKey(ib.$1) &&
+          !_reported.contains(key)) {
+        return;
+      }
+      named[a] = ia;
+      named[b] = ib;
+      contacts.add(
+        StepContact(
+          a: ia.$1,
+          b: ib.$1,
+          idA: ia.$2,
+          idB: ib.$2,
+          feature: part,
+          phase: switch (phase) {
+            c.ContactPhases.began => ContactPhase.begin,
+            c.ContactPhases.persisted => ContactPhase.persist,
+            _ => ContactPhase.end,
+          },
+          normal: Vector3(reals[at], reals[at + 1], reals[at + 2]),
+          point: Vector3(reals[at + 3], reals[at + 4], reals[at + 5]),
+          impulse: reals[at + 6],
+          relativeVelocity: Vector3(
+            reals[at + 7],
+            reals[at + 8],
+            reals[at + 9],
+          ),
+        ),
+      );
+    });
+    contacts.sort();
+    _named = named;
+    _reported = <(int, int, int)>{
+      for (final contact in contacts)
+        if (contact.phase != ContactPhase.end)
+          (contact.idA, contact.idB, contact.feature),
+    };
+    _contacts = List<StepContact>.unmodifiable(contacts);
   }
 
   /// The whole world as the core holds it, warm starts and sleep and all,

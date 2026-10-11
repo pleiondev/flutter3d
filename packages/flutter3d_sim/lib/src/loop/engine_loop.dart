@@ -6,11 +6,13 @@ import 'package:vector_math/vector_math.dart';
 import '../actors/actor_hurt.dart' show ActorDied, ActorHurt;
 import '../cinema/sequence_player.dart' show SequenceSignal;
 import '../ecs/ecs_world.dart';
+import '../ecs/material_state_component.dart';
 import '../ecs/snapshots.dart';
 import '../input/input_state.dart';
 import '../input/input_tape.dart';
 import '../save/snapshot.dart';
 import '../save/state_digest.dart';
+import 'contact_event.dart';
 import 'determinism_check.dart';
 import 'engine_time.dart';
 import 'frame_cadence.dart';
@@ -144,6 +146,10 @@ final class EngineLoop extends LoopRegistry {
     }
     this.world.components
       ..register<WorldOrigin>(WorldOrigin.codec)
+      ..register<MaterialStateComponent>(
+        MaterialStateComponent.codec,
+        published: true,
+      )
       ..register<WorldPosition>(const WorldPositionCodec(), published: true);
     events.declare<OriginShifted>(
       OriginShifted.eventName,

@@ -28,6 +28,17 @@ void main() {
     expect(c.f3d_abi_version(), c.abiVersion);
   });
 
+  test('a contact report and its phases are the header\'s', () {
+    // Mutation: a report of nine floats here, or ended numbered one.
+    expect(c.reportFloats, define('F3D_REPORT_FLOATS'));
+    expect(header, contains('F3D_CONTACT_BEGAN = ${c.ContactPhases.began},'));
+    expect(
+      header,
+      contains('F3D_CONTACT_PERSISTED = ${c.ContactPhases.persisted},'),
+    );
+    expect(header, contains('F3D_CONTACT_ENDED = ${c.ContactPhases.ended},'));
+  });
+
   test('a transform is as many floats as the header says', () {
     expect(c.transformFloats, define('F3D_TRANSFORM_FLOATS'));
   });

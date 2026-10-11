@@ -489,6 +489,25 @@ typedef Consideration = double Function(BehaviorContext context);
 
 typedef ConsiderationBuilder = Consideration Function(BehaviorParameters params);
 
+final class ContactEvent extends GameEvent
+  ContactEvent({required this.bodyA, required this.bodyB, this.feature = 0, this.materialA, this.materialB, required this.phase, required this.point, required this.normal, required this.impulse, required this.relativeVelocity})
+  String get name
+  String toString()
+  factory ContactEvent.of(StepContact contact)
+  final ContactPhase phase
+  final String? materialA
+  final String? materialB
+  final Vector3 normal
+  final Vector3 point
+  final Vector3 relativeVelocity
+  final double impulse
+  final int bodyA
+  final int bodyB
+  final int feature
+  static const String eventName = 'physics.contact'
+  static final EventCodec<ContactEvent> codec
+  static void publishAll(Iterable<StepContact> contacts, void Function(ContactEvent event) publish)
+
 abstract final class CorridorKit
   static void build(LevelSketch sketch, LevelRecipe recipe)
 
@@ -1761,6 +1780,16 @@ final class ManualTime extends TimeSource
   double get pending
   void advance(double seconds)
   void reset()
+
+final class MaterialStateComponent
+  MaterialStateComponent withState(MaterialState state)
+  String toString()
+  bool operator ==(Object other)
+  const MaterialStateComponent(this.state)
+  final Map<String, Object?> unread
+  final MaterialState state
+  int get hashCode
+  static final ComponentCodec<MaterialStateComponent> codec
 
 abstract base class Mechanism
   Mechanism({this.name})

@@ -302,6 +302,20 @@ final class Contact
 
 typedef ContactFilter = bool Function(SweptContact contact);
 
+final class ContactLedger
+  List<StepContact> get contacts
+  void clear()
+  void record(Iterable<StepContact> inContact, {bool Function(StepContact before)? heldWhileResting})
+
+final class ContactPhase
+  String toString()
+  final String name
+  static ContactPhase? byName(String name)
+  static const ContactPhase begin = ContactPhase._('begin')
+  static const ContactPhase end = ContactPhase._('end')
+  static const ContactPhase persist = ContactPhase._('persist')
+  static const List<ContactPhase> values = <ContactPhase>[begin, persist, end]
+
 abstract base class CustomShape extends CollisionShape
   abstract void support(double dx, double dy, double dz, Vector3 out)
   bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition)
@@ -327,6 +341,7 @@ final class DartPhysics extends PhysicsBackend
 
 final class Dynamics extends RigidDynamics
   Dynamics({required this.world, Vector3? gravity, this.iterations = 20})
+  List<StepContact> get contacts
   Object? saveState()
   RigidBody add(RigidBody body)
   RigidBody? bodyOf(Collider collider)
@@ -764,6 +779,7 @@ final class RigidBody
   void wake()
 
 abstract base class RigidDynamics
+  List<StepContact> get contacts
   Object? saveState()
   abstract CollisionWorld get world
   abstract List<RigidBody> get bodies
@@ -811,6 +827,24 @@ final class Spill
   final double flow
   final double width
   static final Spill none
+
+final class StepContact implements Comparable<StepContact>
+  StepContact withPhase(ContactPhase phase)
+  String toString()
+  String? get materialA
+  String? get materialB
+  factory StepContact({required Collider a, required Collider b, required int idA, required int idB, int feature = 0, required ContactPhase phase, required Vector3 point, required Vector3 normal, required double impulse, required Vector3 relativeVelocity})
+  final Collider a
+  final Collider b
+  final ContactPhase phase
+  final Vector3 normal
+  final Vector3 point
+  final Vector3 relativeVelocity
+  final double impulse
+  final int feature
+  final int idA
+  final int idB
+  int compareTo(StepContact other)
 
 final class SweepHit
   Collider? collider
