@@ -30,6 +30,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
         BonePose,
+        JointGroup,
         JointTissue,
         NativeDynamics,
         NativeRagdoll,
@@ -181,6 +182,7 @@ final class RagdollProfile {
     extension: 25.0 * _degree,
     lateral: 35.0 * _degree,
     twist: 45.0 * _degree,
+    group: JointGroup.spine,
   );
 
   /// The cervical spine, between the chest and the head (AAOS): flexion,
@@ -190,6 +192,7 @@ final class RagdollProfile {
     extension: 45.0 * _degree,
     lateral: 45.0 * _degree,
     twist: 60.0 * _degree,
+    group: JointGroup.neck,
   );
 
   /// The shoulder, from the arm hanging at the side (AAOS): flexion 180°,
@@ -204,6 +207,7 @@ final class RagdollProfile {
     medial: 30.0 * _degree,
     twist: 70.0 * _degree,
     hangs: true,
+    group: JointGroup.shoulder,
   );
 
   /// The hip, from the leg hanging straight (AAOS): flexion 120°, extension
@@ -217,18 +221,26 @@ final class RagdollProfile {
     medial: 20.0 * _degree,
     twist: 45.0 * _degree,
     hangs: true,
+    group: JointGroup.hip,
   );
 
   static const double _degree = 3.141592653589793 / 180.0;
 
   /// A knee is a hinge: the rig binds it bent a little, which says the
   /// axis and the way it bends.
-  static const RagdollJoint _knee = RagdollBend(otherwise: _limb);
+  static const RagdollJoint _knee = RagdollBend(
+    otherwise: _limb,
+    group: JointGroup.knee,
+  );
 
   /// An elbow, bound in a T-pose all but straight, would read its axis from
   /// a few hundredths of a radian of noise; asked for a tenth and a half of
   /// bend, the Quaternius arms fall back to a ball.
-  static const RagdollJoint _elbow = RagdollBend(least: 0.15, otherwise: _limb);
+  static const RagdollJoint _elbow = RagdollBend(
+    least: 0.15,
+    otherwise: _limb,
+    group: JointGroup.elbow,
+  );
 
   static const RagdollJoint _limb = RagdollBall(
     cone: 2.2,

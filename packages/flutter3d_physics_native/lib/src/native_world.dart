@@ -696,6 +696,46 @@ final class JointSwing {
   final double toSide, fromSide;
 }
 
+/// How a joint's soft limits stiffen past the limit, and how stiff each
+/// limit is — `f3d_joint_set_limit_stiffness`, through
+/// [NativeWorld.setJointLimitStiffness].
+///
+/// Past a limit by δ radians the joint is held back by
+/// (k0 / [growth]) (e^([growth] δ) − 1) N·m, k0 e^([growth] δ) stiff there:
+/// the shape passive moments take past the end of a joint's range, where
+/// the tissue stiffens the further it is stretched. [growth] nought is the
+/// linear spring k0 δ.
+///
+/// k0 is the stiffness at the limit, N·m/rad: [lower] and [upper] at a
+/// twist's or a hinge's two limits, [forward], [back], [toSide] and
+/// [fromSide] at a [JointSwing]'s four, between which a swing takes the
+/// two it is between, weighed by how far along each it is. Nought, and a
+/// cone, take the stiffness [NativeWorld.setJointLimitSoftness] gave — what
+/// makes a limit soft at all.
+final class JointLimitStiffness {
+  const JointLimitStiffness({
+    this.growth = 0.0,
+    this.lower = 0.0,
+    this.upper = 0.0,
+    this.forward = 0.0,
+    this.back = 0.0,
+    this.toSide = 0.0,
+    this.fromSide = 0.0,
+  });
+
+  /// Per radian, from nought to 100.
+  final double growth;
+
+  /// N·m/rad at a twist's or a hinge's lower and upper limit.
+  final double lower, upper;
+
+  /// N·m/rad at a swing's limit ahead and behind.
+  final double forward, back;
+
+  /// N·m/rad at a swing's limit towards neutral × ahead and away from it.
+  final double toSide, fromSide;
+}
+
 /// What kind of joint — `F3dJointType`.
 ///
 /// **Closed, and it stays closed.** These four are solved inside the core's
@@ -2067,6 +2107,29 @@ final class NativeWorld {
       softness == null ? 0 : 1,
       softness?.stiffness ?? 0.0,
       softness?.ratio ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// How a soft limit stiffens past the limit, and how stiff it is at each
+  /// one ([JointLimitStiffness]); null for the one stiffness of
+  /// [setJointLimitSoftness], linear, everywhere. Only a soft limit gives:
+  /// hard limits stay hard.
+  void setJointLimitStiffness(
+    NativeJoint joint,
+    JointLimitStiffness? stiffness,
+  ) => _checkJoint(
+    c.f3d_joint_set_limit_stiffness(
+      _live,
+      joint.raw,
+      stiffness == null ? 0 : 1,
+      stiffness?.growth ?? 0.0,
+      stiffness?.lower ?? 0.0,
+      stiffness?.upper ?? 0.0,
+      stiffness?.forward ?? 0.0,
+      stiffness?.back ?? 0.0,
+      stiffness?.toSide ?? 0.0,
+      stiffness?.fromSide ?? 0.0,
     ),
     joint,
   );

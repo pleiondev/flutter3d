@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **The Quaternius profile names each joint's group.** Its spine, neck,
+  shoulders, elbows, hips and knees are of `JointGroup.spine` and the
+  rest, so `JointTissue.human` holds each at the end of its range with the
+  stiffness measured for it, stiffening past the limit, where every joint
+  had one linear 3000 N·m/rad. Struck at the top of the chest with the
+  pelvis held, a relaxed spine now gives about 0.35 rad past its limit,
+  where it gave 0.06; thrown back on a floor, it stays inside its range,
+  as before.
+
 - **The Quaternius profile moves as a body does.** The spine, the neck,
   the shoulders and the hips are `RagdollSwing`s with the American Academy
   of Orthopaedic Surgeons' ranges of normal motion (the spine bends forward

@@ -6,6 +6,7 @@
 import 'dart:io';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart' show standardGravity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -475,10 +476,7 @@ void main() {
         final d = (world.localPositionOf(arm.bodyOf(1)) - shoulder)
           ..normalize();
         if (d.dot(towards) <= 0.0) continue;
-        final from = Portable.atan2(
-          Vector3(d.x, 0.0, d.z).length,
-          -d.y,
-        );
+        final from = Portable.atan2(Vector3(d.x, 0.0, d.z).length, -d.y);
         most = from > most ? from : most;
       }
       arm.dispose();
@@ -561,6 +559,144 @@ void main() {
     expect(world.angularVelocityOf(limb.bodyOf(1)).length, lessThan(0.05));
   });
 
+  group("past its limit a joint stiffens as its group's tissue does", () {
+    const tested = JointGroup('tested');
+
+    /// A pelvis held fixed and a chest of 2 kg and 0.3 m standing on it on a
+    /// swing of 0.3 rad every way, of [group]; tipped [ahead] or back and
+    /// let fall over onto the limit there: how far past 0.3 it comes to
+    /// lean, made of [tissue].
+    double leant(JointTissue tissue, {required bool ahead, JointGroup? group}) {
+      final world = dynamics.native;
+      final rest = <RagdollBone>[
+        RagdollBone(
+          name: 'pelvis',
+          parent: -1,
+          head: Vector3(0.0, 2.8, 0.0),
+          tail: Vector3(0.0, 3.0, 0.0),
+          orientation: Quaternion.identity(),
+          radius: 0.05,
+          mass: 10,
+        ),
+        RagdollBone(
+          name: 'chest',
+          parent: 0,
+          head: Vector3(0.0, 3.0, 0.0),
+          tail: Vector3(0.0, 3.3, 0.0),
+          orientation: Quaternion.identity(),
+          radius: 0.04,
+          mass: 2,
+          joint: RagdollSwing(
+            flexion: 0.3,
+            extension: 0.3,
+            lateral: 0.3,
+            twist: 0.5,
+            group: group,
+          ),
+        ),
+      ];
+      final body = NativeRagdoll(world, rest, tissue: tissue);
+      final post = world.addBody(
+        position: Vector3(0.0, 2.8, 0.0),
+        type: NativeBodyType.fixed,
+        mass: 0.0,
+      );
+      world
+        ..createJoint(
+          NativeJointType.fixed,
+          post,
+          body.bodyOf(0),
+          anchor: Vector3(0.0, 2.8, 0.0),
+        )
+        // About +x, up turns towards +z, which is ahead.
+        ..setAngularVelocity(body.bodyOf(1), Vector3(ahead ? 1.0 : -1.0, 0, 0));
+      for (var i = 0; i < 240; i++) {
+        dynamics.step(1.0 / 60.0);
+      }
+      final d = world.localPositionOf(body.bodyOf(1)) - Vector3(0.0, 3.0, 0.0);
+      body.dispose();
+      world.removeBody(post);
+      return Portable.atan2(ahead ? d.z : -d.z, d.y) - 0.3;
+    }
+
+    /// How far past the limit the law has it: the chest's weight's moment,
+    /// m g (l/2) sin(0.3 + δ), carried by (k0 / b)(e^(bδ) − 1).
+    double byLaw(double k0, double b) {
+      var delta = 0.0;
+      for (var i = 0; i < 100; i++) {
+        final load = 2.0 * standardGravity * 0.15 * Portable.sin(0.3 + delta);
+        delta = Portable.log(1.0 + b * load / k0) / b;
+      }
+      return delta;
+    }
+
+    final tissue = JointTissue(
+      damping: 1.0,
+      limitStiffness: 1e4,
+      limitGrowth: 8.6,
+      groups: const <JointGroupStiffness>[
+        JointGroupStiffness(
+          tested,
+          flexion: 5.0,
+          extension: 1e4,
+          lateral: 1e4,
+          twist: 1e4,
+        ),
+      ],
+      inelastic: JointTissue.human.inelastic,
+    );
+
+    test('a group soft in flexion gives ahead as its law says, and not '
+        'back', () {
+      // Mutation: give the swing's limit ahead the extension's stiffness,
+      // or none of the group's — it stops at the limit; drop the growth —
+      // it leans 0.36 past, not 0.13.
+      expect(
+        leant(tissue, ahead: true, group: tested),
+        closeTo(byLaw(5.0, 8.6), 0.02),
+      );
+      expect(leant(tissue, ahead: false, group: tested), lessThan(0.01));
+    });
+
+    test('a joint of a group the tissue does not name takes its limit '
+        'stiffness', () {
+      expect(leant(tissue, ahead: true), lessThan(0.01));
+      expect(
+        leant(tissue, ahead: true, group: const JointGroup('other')),
+        lessThan(0.01),
+      );
+      // Two groups of one name are one.
+      expect(tissue.stiffnessOf(JointGroup(tested.name))?.flexion, 5.0);
+    });
+
+    test("a human's tissue is the measured stiffness at the limit, "
+        'stiffening as the knee capsule does', () {
+      // What replaced one linear 3000 N·m/rad: the lumbar spine is 150 in
+      // flexion at the limit (Watt 2022), and with the knee capsule's growth
+      // of 8.6 a radian 3000 is where it has stiffened to 0.35 rad past.
+      const human = JointTissue.human;
+      final spine = human.stiffnessOf(JointGroup.spine)!;
+      expect(human.limitGrowth, 8.6);
+      expect(
+        (spine.flexion, spine.extension, spine.lateral, spine.twist),
+        (150.0, 60.0, 300.0, 80.0),
+      );
+      expect(
+        spine.flexion * Portable.exp(human.limitGrowth * 0.35),
+        closeTo(3000.0, 100.0),
+      );
+      for (final group in <JointGroup>[
+        JointGroup.neck,
+        JointGroup.shoulder,
+        JointGroup.elbow,
+        JointGroup.hip,
+        JointGroup.knee,
+      ]) {
+        expect(human.stiffnessOf(group), isNotNull, reason: group.name);
+      }
+    });
+  });
+
   test('the world refuses swing limits, damping and soft limits a joint '
       'does not take', () {
     final world = dynamics.native;
@@ -595,11 +731,37 @@ void main() {
       () => world.setJointLimitSoftness(hinge, (stiffness: 0.0, ratio: 1.0)),
       throwsArgumentError,
     );
+    expect(
+      () => world.setJointLimitStiffness(
+        slider,
+        const JointLimitStiffness(growth: 1.0),
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => world.setJointLimitStiffness(
+        hinge,
+        const JointLimitStiffness(growth: -1.0),
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => world.setJointLimitStiffness(
+        hinge,
+        const JointLimitStiffness(lower: -1.0),
+      ),
+      throwsArgumentError,
+    );
     world
       ..setJointDamping(hinge, 1.0)
       ..setJointLimitSoftness(hinge, (stiffness: 100.0, ratio: 0.5))
+      ..setJointLimitStiffness(
+        hinge,
+        const JointLimitStiffness(growth: 8.6, lower: 50.0, upper: 200.0),
+      )
       ..setJointDamping(hinge, null)
-      ..setJointLimitSoftness(hinge, null);
+      ..setJointLimitSoftness(hinge, null)
+      ..setJointLimitStiffness(hinge, null);
   });
 
   test('a bone that comes before its parent is refused', () {

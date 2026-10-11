@@ -19,7 +19,9 @@
 /// What brings a limp body to rest is its joints' tissue ([JointTissue]):
 /// viscous damping, a torque in proportion to how fast a joint turns, and
 /// soft limits, which give a little past the end of a joint's range rather
-/// than stopping it dead. A fixed friction torque held a limb wherever it
+/// than stopping it dead, stiffening the further they give, as measured
+/// tissue does, from a stiffness at the limit for each group of joints
+/// ([JointGroup]). A fixed friction torque held a limb wherever it
 /// was slow enough, and a body that came down on its arms stayed propped on
 /// them.
 ///
@@ -39,9 +41,45 @@ import 'package:vector_math/vector_math.dart';
 import 'native_dynamics.dart';
 import 'native_world.dart';
 
-/// How a bone is held to its parent.
+/// Which part of a body a joint is: what a [JointTissue] reads the
+/// stiffness at the end of its range by.
+///
+/// **Open.** These are the groups `JointTissue.human` has a stiffness for;
+/// a rig with a tail or wings names its own, `const JointGroup('tail')`,
+/// and gives its tissue a [JointGroupStiffness] for it. Two groups of one
+/// [name] are one group.
+final class JointGroup {
+  const JointGroup(this.name);
+
+  final String name;
+
+  /// The thoracolumbar spine, between the pelvis and the chest.
+  static const JointGroup spine = JointGroup('spine');
+
+  /// The cervical spine, between the chest and the head.
+  static const JointGroup neck = JointGroup('neck');
+
+  static const JointGroup shoulder = JointGroup('shoulder');
+  static const JointGroup elbow = JointGroup('elbow');
+  static const JointGroup hip = JointGroup('hip');
+  static const JointGroup knee = JointGroup('knee');
+
+  @override
+  bool operator ==(Object other) => other is JointGroup && other.name == name;
+
+  @override
+  int get hashCode => name.hashCode;
+
+  @override
+  String toString() => 'JointGroup($name)';
+}
+
+/// How a bone is held to its parent, and which [group] of joints it is —
+/// null for one a [JointTissue] has no stiffness of its own for.
 abstract final class RagdollJoint {
-  const RagdollJoint();
+  const RagdollJoint({this.group});
+
+  final JointGroup? group;
 }
 
 /// A ball: its swing within [cone] radians of the bone's direction at rest,
@@ -52,6 +90,7 @@ final class RagdollBall extends RagdollJoint {
     required this.cone,
     required this.twistLower,
     required this.twistUpper,
+    super.group,
   });
 
   final double cone, twistLower, twistUpper;
@@ -84,6 +123,7 @@ final class RagdollSwing extends RagdollJoint {
     double? medial,
     required this.twist,
     this.hangs = false,
+    super.group,
   }) : medial = medial ?? lateral;
 
   final double flexion, extension, lateral, medial, twist;
@@ -93,18 +133,59 @@ final class RagdollSwing extends RagdollJoint {
   final bool hangs;
 }
 
+/// How stiff one [group]'s tissue is at the end of each side of its range,
+/// N·m/rad: the k0 a [JointTissue] stiffens from past the limit.
+///
+/// A [RagdollSwing] takes [flexion] and [extension] at its limits forward
+/// and back, [lateral] and [medial] at its limits out and in, and [twist]
+/// at both of its twist's; a [RagdollHinge] [flexion] where it stops
+/// bending and [extension] where it stops straightening; a [RagdollBall]
+/// [flexion] at its cone and [twist] at its twist's.
+final class JointGroupStiffness {
+  const JointGroupStiffness(
+    this.group, {
+    required this.flexion,
+    required this.extension,
+    required this.lateral,
+    double? medial,
+    required this.twist,
+  }) : medial = medial ?? lateral;
+
+  /// The same [stiffness] at every limit.
+  const JointGroupStiffness.uniform(this.group, double stiffness)
+    : flexion = stiffness,
+      extension = stiffness,
+      lateral = stiffness,
+      medial = stiffness,
+      twist = stiffness;
+
+  final JointGroup group;
+
+  /// N·m/rad, each above nought.
+  final double flexion, extension, lateral, medial, twist;
+}
+
 /// What a ragdoll's joints are made of: what damps their turning and what
 /// holds them at the end of their range — in place of a friction torque.
 ///
 /// - [damping]: viscous, N·m·s/rad, the passive damping of a relaxed joint;
-/// - [limitStiffness]: N·m/rad, how a joint gives past the end of its
-///   range; nought for limits as hard as the core holds a joint;
+/// - [limitStiffness]: N·m/rad, how stiff a joint is at the end of its
+///   range, for a joint of a group [groups] does not name; nought for
+///   limits as hard as the core holds a joint, every group's included;
+/// - [limitGrowth]: per radian, how the tissue stiffens past the limit:
+///   δ past it, it holds back (k0 / b)(e^(bδ) − 1) N·m and is k0 e^(bδ)
+///   stiff, k0 the stiffness at the limit and b the growth; nought for a
+///   linear spring, k0 δ;
+/// - [groups]: the stiffness at the limit of each group of joints, side by
+///   side ([JointGroupStiffness]), where it is not [limitStiffness];
 /// - [inelastic]: the tissue's inelastic group, whose loss factor η makes
 ///   the damping ratio of that give, η/2.
 final class JointTissue {
   const JointTissue({
     required this.damping,
     required this.limitStiffness,
+    this.limitGrowth = 0.0,
+    this.groups = const <JointGroupStiffness>[],
     required this.inelastic,
   });
 
@@ -114,12 +195,27 @@ final class JointTissue {
   /// N·m/rad.
   final double limitStiffness;
 
+  /// Per radian.
+  final double limitGrowth;
+
+  final List<JointGroupStiffness> groups;
+
   /// Where [limitRatio] comes from.
   final InelasticProperties inelastic;
 
   /// The damping ratio of a joint's give past its range: half the tissue's
-  /// loss factor, nought where it has none.
+  /// loss factor, nought where it has none. The damping grows with the
+  /// stiffness past the limit, at this ratio to it.
   double get limitRatio => (inelastic.lossFactor?.value ?? 0.0) * 0.5;
+
+  /// [group]'s stiffness at the end of its range; null for a group [groups]
+  /// does not name, which takes [limitStiffness] at every limit.
+  JointGroupStiffness? stiffnessOf(JointGroup? group) {
+    for (final stiffness in groups) {
+      if (stiffness.group == group) return stiffness;
+    }
+    return null;
+  }
 
   /// A relaxed adult's joints.
   ///
@@ -129,19 +225,78 @@ final class JointTissue {
   ///   study", IEEE Trans. Rehabil. Eng. 6, 1998, as quoted in US patent
   ///   8,108,190; not read in the paper). Every joint takes the knee's: an
   ///   estimate for the others.
-  /// - **Limit stiffness 3000 N·m/rad**: an estimate, no source read.
-  ///   Passive moments rise steeply at the end of a joint's range (Riener
-  ///   and Edrich, J. Biomech. 32, 1999); this is chosen so the heaviest
-  ///   load a ragdoll's joint carries, the trunk on the hip, some 90 N·m,
-  ///   carries it three hundredths of a radian past its limit. At 300 the
-  ///   hero's spine, struck, went 0.7 rad past.
+  /// - **Growth 8.6 /rad** past the limit: the knee's capsule and
+  ///   ligaments resisting hyperextension, the term exp(2.220 − 0.150 φ),
+  ///   φ in degrees, of Riener and Edrich's passive knee moment
+  ///   ("Identification of passive elastic joint moments in the lower
+  ///   extremities", J. Biomech. 32, 1999; its coefficients read in US
+  ///   patent 8,108,190, not in the paper): 0.150 a degree, the stiffness
+  ///   doubling every 4.6°. Every joint takes the knee's. Measured passive
+  ///   moments stiffen this way past the end of a range; a linear spring
+  ///   at the stiffness measured there is too soft a few degrees on.
+  /// - **Stiffness at the limit**, k0, by group, N·m/rad: in vivo, relaxed,
+  ///   in the last part of the range where measured.
+  ///   - Spine: flexion 150, lateral 300 and twist 80 from the 4th quartile
+  ///     of the range in Watt, Callaway and Williams' meta-analysis ("In
+  ///     vivo through-range passive stiffness of the lumbar spine", Med.
+  ///     Biol. Eng. Comput. 60, 2022, p. 2133: 2.36, 5.03 and 1.33 N·m/deg);
+  ///     extension 60 from McGill, Seguin and Bennett (Spine 19, 1994) as
+  ///     the same meta-analysis tabulates it, 0.86 N·m/deg at 22°.
+  ///   - Neck 60: between the Hybrid III dummy's neck corridors (49 CFR
+  ///     572.33, secants of 41 in extension and 79 in flexion) and the
+  ///     failure secants of the male O–C2 segment (Nightingale et al., J.
+  ///     Biomech. 40, 2007: 38 and 67). A relaxed neck measures 4 to 8 in
+  ///     vivo, too soft to hold a head without its muscles.
+  ///   - Hip 100: Amankwah, Triolo and Kirsch's passive hip moment
+  ///     (J. Rehabil. Res. Dev. 41, 2004, p. 15), 66 to 127 between 90° and
+  ///     120° of flexion.
+  ///   - Shoulder 100: **an estimate**, no measurement past the end of the
+  ///     range found; the hip's.
+  ///   - Knee: extension 180, Riener and Edrich's moment 5° past straight;
+  ///     flexion 90, the same at 150° of flexion; its sides and twist, which
+  ///     a hinge does not have, the extension's.
+  ///   - Elbow: **an estimate**, no source found; the knee's.
+  ///   - A joint of no group: 100, the hip's, an estimate.
+  ///
+  ///   These replace one stiffness of 3000 N·m/rad, linear, at every joint:
+  ///   an estimate without a source, chosen so the trunk's 90 N·m on the
+  ///   hip carried it three hundredths of a radian past its limit. Measured
+  ///   tissue is 10 to 50 times softer at the limit; on this curve 3000 is
+  ///   the spine's stiffness in flexion 0.35 rad past it.
   /// - **Loss factor 0.011**: tendon, which loses about 7 % of the work
   ///   done on it in a cycle (Ker, "Dynamic tensile properties of the
   ///   plantaris tendon of sheep", J. Exp. Biol. 93, 1981); η = ψ / 2π.
   ///   The catalog has no tissue to take it from.
   static const JointTissue human = JointTissue(
     damping: 1.0,
-    limitStiffness: 3000.0,
+    limitStiffness: 100.0,
+    limitGrowth: 8.6,
+    groups: <JointGroupStiffness>[
+      JointGroupStiffness(
+        JointGroup.spine,
+        flexion: 150.0,
+        extension: 60.0,
+        lateral: 300.0,
+        twist: 80.0,
+      ),
+      JointGroupStiffness.uniform(JointGroup.neck, 60.0),
+      JointGroupStiffness.uniform(JointGroup.hip, 100.0),
+      JointGroupStiffness.uniform(JointGroup.shoulder, 100.0),
+      JointGroupStiffness(
+        JointGroup.knee,
+        flexion: 90.0,
+        extension: 180.0,
+        lateral: 180.0,
+        twist: 180.0,
+      ),
+      JointGroupStiffness(
+        JointGroup.elbow,
+        flexion: 90.0,
+        extension: 180.0,
+        lateral: 180.0,
+        twist: 180.0,
+      ),
+    ],
     inelastic: InelasticProperties(
       lossFactor: ConstantLaw(
         0.011,
@@ -158,11 +313,17 @@ final class JointTissue {
 
 /// A hinge about [axis], in the bone's own frame, from [lower] to [upper]
 /// radians from rest. A knee, an elbow.
+///
+/// Of the two limits, the one further from rest is taken as where the
+/// joint stops bending, its flexion, and the nearer as where it stops
+/// straightening, its extension: a knee bends 2.4 rad one way and next to
+/// nothing the other, whichever way its axis points.
 final class RagdollHinge extends RagdollJoint {
   const RagdollHinge({
     required this.axis,
     required this.lower,
     required this.upper,
+    super.group,
   });
 
   final Vector3 axis;
@@ -173,12 +334,14 @@ final class RagdollHinge extends RagdollJoint {
 /// little bent, as most do for their IK, bends about the axis across its
 /// bone and its parent's, the way it is already bent — from straight to
 /// [most] radians of bend. Bound straighter than [least] radians, the rest
-/// pose does not say which way, and it is held as [otherwise].
+/// pose does not say which way, and it is held as [otherwise]. Either is
+/// of the bend's [group] unless [otherwise] names its own.
 final class RagdollBend extends RagdollJoint {
   const RagdollBend({
     this.most = 2.4,
     this.least = 0.05,
     required this.otherwise,
+    super.group,
   });
 
   final double most, least;
@@ -278,9 +441,6 @@ final class NativeRagdoll {
     }
     final ahead = (forward ?? Vector3(0.0, 0.0, 1.0)).normalized();
     final above = (up ?? Vector3(0.0, 1.0, 0.0)).normalized();
-    final softness = tissue.limitStiffness > 0.0
-        ? (stiffness: tissue.limitStiffness, ratio: tissue.limitRatio)
-        : null;
     for (var i = 0; i < rest.length; i++) {
       final bone = rest[i];
       if (bone.parent < 0) continue;
@@ -337,9 +497,8 @@ final class NativeRagdoll {
           throw UnsupportedError('the native core has no joint for $held');
       }
       if (held != null) {
-        world
-          ..setJointDamping(joint, tissue.damping)
-          ..setJointLimitSoftness(joint, softness);
+        world.setJointDamping(joint, tissue.damping);
+        _soften(world, joint, tissue, held, bone, rest.first, ahead, above);
       }
       _joints.add(joint);
       _jointOf[i] = joint;
@@ -431,7 +590,86 @@ RagdollJoint? _resolved(RagdollBone bone, RagdollBone parent) {
     axis: turnBy(bone.orientation.conjugated(), across.normalized()),
     lower: -bent,
     upper: held.most - bent,
+    group: held.group,
   );
+}
+
+/// [joint], holding [bone] as [held] says, made of [tissue]: its limits soft
+/// at the stiffness of [held]'s group at each, stiffening past them at the
+/// tissue's growth; hard where the tissue's limit stiffness is nought.
+void _soften(
+  NativeWorld world,
+  NativeJoint joint,
+  JointTissue tissue,
+  RagdollJoint held,
+  RagdollBone bone,
+  RagdollBone root,
+  Vector3 ahead,
+  Vector3 up,
+) {
+  if (!(tissue.limitStiffness > 0.0)) {
+    world.setJointLimitSoftness(joint, null);
+    return;
+  }
+  final group = tissue.stiffnessOf(held.group ?? bone.joint?.group);
+  // The joint's own stiffness, where it has no stiffness at a limit: a
+  // cone's.
+  world.setJointLimitSoftness(joint, (
+    stiffness: group?.flexion ?? tissue.limitStiffness,
+    ratio: tissue.limitRatio,
+  ));
+  if (group == null) {
+    world.setJointLimitStiffness(
+      joint,
+      tissue.limitGrowth > 0.0
+          ? JointLimitStiffness(growth: tissue.limitGrowth)
+          : null,
+    );
+    return;
+  }
+  final (toSide, fromSide) = held is RagdollSwing
+      ? _sidesOf(bone, root, ahead, up, held.hangs)
+      : (true, true);
+  world.setJointLimitStiffness(joint, switch (held) {
+    // The limit further from rest is where it stops bending.
+    RagdollHinge(:final lower, :final upper) => JointLimitStiffness(
+      growth: tissue.limitGrowth,
+      lower: lower.abs() > upper.abs() ? group.flexion : group.extension,
+      upper: lower.abs() > upper.abs() ? group.extension : group.flexion,
+    ),
+    RagdollSwing() => JointLimitStiffness(
+      growth: tissue.limitGrowth,
+      lower: group.twist,
+      upper: group.twist,
+      forward: group.flexion,
+      back: group.extension,
+      toSide: toSide ? group.lateral : group.medial,
+      fromSide: fromSide ? group.lateral : group.medial,
+    ),
+    _ => JointLimitStiffness(
+      growth: tissue.limitGrowth,
+      lower: group.twist,
+      upper: group.twist,
+    ),
+  });
+}
+
+/// Whether the core's side, neutral × [ahead], and the side away from it
+/// take a swing's lateral limit for [bone], rather than its medial one —
+/// both for a bone on the midline. See [_swingOf].
+(bool, bool) _sidesOf(
+  RagdollBone bone,
+  RagdollBone root,
+  Vector3 ahead,
+  Vector3 up,
+  bool hangs,
+) {
+  final neutral = hangs ? -up : up.clone();
+  final side = neutral.cross(ahead);
+  final across = (bone.head - root.head).dot(ahead.cross(up));
+  final midline = across.abs() <= 0.1 * bone.head.distanceTo(bone.tail);
+  final outward = side.dot(ahead.cross(up)) * across > 0.0;
+  return (midline || outward, midline || !outward);
 }
 
 /// [swing]'s limits for [bone] as the core takes them: measured from the
@@ -447,18 +685,14 @@ JointSwing _swingOf(
   Vector3 ahead,
   Vector3 up,
 ) {
-  final neutral = swing.hangs ? -up : up.clone();
-  final side = neutral.cross(ahead);
-  final across = (bone.head - root.head).dot(ahead.cross(up));
-  final midline = across.abs() <= 0.1 * bone.head.distanceTo(bone.tail);
-  final outward = side.dot(ahead.cross(up)) * across > 0.0;
+  final (toSide, fromSide) = _sidesOf(bone, root, ahead, up, swing.hangs);
   return JointSwing(
-    neutral: neutral,
+    neutral: swing.hangs ? -up : up.clone(),
     ahead: ahead,
     forward: swing.flexion,
     back: swing.extension,
-    toSide: midline || outward ? swing.lateral : swing.medial,
-    fromSide: midline || !outward ? swing.lateral : swing.medial,
+    toSide: toSide ? swing.lateral : swing.medial,
+    fromSide: fromSide ? swing.lateral : swing.medial,
   );
 }
 

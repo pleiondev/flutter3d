@@ -241,8 +241,9 @@ void main() {
     Future<SkeletonRagdoll> heldUp(
       double turn,
       Vector3 at,
-      List<String> held,
-    ) async {
+      List<String> held, {
+      JointTissue tissue = JointTissue.human,
+    }) async {
       final h = await hero(at: at);
       h.root.setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), turn));
       final ragdoll = SkeletonRagdoll(
@@ -250,6 +251,7 @@ void main() {
         meshWorld: h.mesh.worldMatrix,
         world: dynamics.native,
         dynamics: dynamics,
+        tissue: tissue,
       );
       addTearDown(ragdoll.dispose);
       final world = dynamics.native;
@@ -290,10 +292,13 @@ void main() {
       // figure faces along (+z is ahead). AAOS: 80 degrees forward,
       // 1.40 rad; 25 back, 0.44. Mutation: put back the symmetric cone of
       // 0.5 rad — the chest stops at half a radian forward.
-      Future<double> most(double blow) async {
+      Future<double> most(
+        double blow, [
+        JointTissue tissue = JointTissue.human,
+      ]) async {
         final ragdoll = await heldUp(0.0, Vector3(0.0, 1.0, 0.0), <String>[
           'Body',
-        ]);
+        ], tissue: tissue);
         final bones = ragdoll.ragdoll.bones;
         final pelvis = ragdoll.bodyNamed('Body')!;
         final up = bones[ragdoll.bodyNamed('Head')!].head - bones[pelvis].head;
@@ -322,9 +327,31 @@ void main() {
         return most;
       }
 
+      // The ranges, held hard: the tissue's give past them is its own.
+      final hard = JointTissue(
+        damping: JointTissue.human.damping,
+        limitStiffness: 0.0,
+        inelastic: JointTissue.human.inelastic,
+      );
+      expect(
+        await most(20.0, hard),
+        greaterThan(1.25),
+        reason: '80 degrees is 1.40 rad',
+      );
+      expect(
+        await most(-20.0, hard),
+        inInclusiveRange(0.35, 0.55),
+        reason: '25 degrees',
+      );
+      // A relaxed spine, struck this hard with nothing but its tissue to
+      // stop it, gives past either end, more than the old linear stop of
+      // 3000 N·m/rad let it (0.06 back), but by what stiffening tissue
+      // allows: 0.3 to 0.35 rad here. Mutation: drop the growth, a linear
+      // spring at the stiffness measured at the limit — the chest bends
+      // forward a radian past it, to 2.4 rad.
       final forward = await most(20.0), back = await most(-20.0);
-      expect(forward, greaterThan(1.25), reason: '80 degrees is 1.40 rad');
-      expect(back, inInclusiveRange(0.35, 0.55), reason: '25 degrees');
+      expect(forward, inInclusiveRange(1.40, 1.40 + 0.4));
+      expect(back, inInclusiveRange(0.44 + 0.1, 0.44 + 0.4));
     });
 
     test('lying on its back, its arms cannot hang straight down behind '
