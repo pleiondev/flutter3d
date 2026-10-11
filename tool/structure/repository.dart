@@ -1395,6 +1395,12 @@ const Map<String, String> accessibleColorsAllowed = <String, String>{
   'flutter3d_game_ui/lib/src/theme/contrast.dart':
       'the arithmetic: the clear background a pair defaults to, and the '
       'colour a blend makes',
+  'flutter3d_lesson_viewer/lib/src/lesson_theme.dart':
+      'the viewer\'s tokens themselves, each in one of `LessonTheme.pairs`, '
+      'held to its ratio over any frame by test/theme_contrast_test.dart',
+  'flutter3d_lab_pendulum/lib/src/lab_theme.dart':
+      'the lab\'s tokens themselves, each in one of `LabTheme.pairs`, held '
+      'to its ratio over any frame by test/theme_contrast_test.dart',
 };
 
 /// Applications whose promise is not kept yet, with when it will be.
