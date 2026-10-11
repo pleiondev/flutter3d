@@ -3,7 +3,7 @@
 /// motion: every control has a name, the controls are reached by Tab in the
 /// order they are read, the scene turns from the keyboard, a larger text
 /// size breaks nothing, and the loading screen holds still when motion is
-/// reduced.
+/// reduced, as does what the lesson's surfaces host.
 library;
 
 import 'dart:ui' as ui;
@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_lesson_viewer/main.dart' show widgetRegistry;
 import 'package:flutter3d_lesson_viewer/src/lesson_loading_screen.dart';
 import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_lesson_viewer/src/lesson_view.dart';
@@ -222,6 +223,27 @@ void main() {
       tester.getSize(find.text('The housing comes off first')).width,
       lessThanOrEqualTo(360.0),
     );
+  });
+
+  testWidgets('a widget a surface hosts hears the reduced-motion flag the '
+      'screen was given, and hears it change', (tester) async {
+    final reduce = ValueNotifier<bool>(true);
+    addTearDown(reduce.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) =>
+              widgetRegistry(reduceMotion: reduce)['viewer-caption']!(context),
+        ),
+      ),
+    );
+    bool hosted() =>
+        MediaQuery.disableAnimationsOf(tester.element(find.byType(Text)));
+    expect(hosted(), isTrue);
+
+    reduce.value = false;
+    await tester.pump();
+    expect(hosted(), isFalse);
   });
 
   group('the loading screen', () {

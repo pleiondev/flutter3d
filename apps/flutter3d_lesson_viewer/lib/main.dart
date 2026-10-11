@@ -21,6 +21,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +33,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'src/lesson_loading_screen.dart';
 import 'src/lesson_player.dart';
+import 'src/lesson_theme.dart';
 import 'src/lesson_view.dart';
 
 /// The lesson this build opens, as a bundled asset path.
@@ -81,7 +83,7 @@ final class OpenKind extends EntityKind {
 /// warning, not a running caption — is the row a *reactive* widget_surface
 /// belongs to, once one is written.
 Widget _viewerCaption(BuildContext context) => const ColoredBox(
-  color: Color(0xCC0E1013),
+  color: LessonTheme.scrim,
   child: Center(
     child: Padding(
       padding: EdgeInsets.all(16.0),
@@ -89,7 +91,7 @@ Widget _viewerCaption(BuildContext context) => const ColoredBox(
         'Обойти изделие',
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: Colors.white,
+          color: LessonTheme.text,
           fontSize: 20.0,
           fontWeight: FontWeight.w600,
         ),
@@ -100,9 +102,30 @@ Widget _viewerCaption(BuildContext context) => const ColoredBox(
 
 /// Every widget a `widget_surface` entity in this application's own levels
 /// may name.
-Map<String, WidgetBuilder> widgetRegistry() => <String, WidgetBuilder>{
-  'viewer-caption': _viewerCaption,
-};
+///
+/// **The student's reduced-motion flag, carried in.** A surface is built in
+/// a pipeline of its own, under a `MediaQuery` that knows the texture's size
+/// and nothing of the system's settings, so a widget hosted there would
+/// animate whatever the student asked for. With [reduceMotion], each one
+/// reads `MediaQuery.disableAnimationsOf` as the screen around it does.
+Map<String, WidgetBuilder> widgetRegistry({
+  ValueListenable<bool>? reduceMotion,
+}) {
+  WidgetBuilder carried(WidgetBuilder build) => reduceMotion == null
+      ? build
+      : (BuildContext context) => ValueListenableBuilder<bool>(
+          valueListenable: reduceMotion,
+          builder: (BuildContext context, bool reduce, Widget? child) =>
+              MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(disableAnimations: reduce),
+                child: child!,
+              ),
+          child: Builder(builder: build),
+        );
+  return <String, WidgetBuilder>{'viewer-caption': carried(_viewerCaption)};
+}
 
 /// [level]'s own `part` entities — `ls-e-00`'s removable pieces — as plain
 /// boxed [MeshNode]s, named after their own entity so an `edu_step`'s
@@ -279,10 +302,20 @@ class _LessonScreenState extends State<LessonScreen>
 
   Ticker? _ticker;
 
+  /// The system's reduced-motion flag, handed to the widgets the lesson's
+  /// surfaces host ([widgetRegistry]), which cannot read it themselves.
+  final ValueNotifier<bool> _reduceMotion = ValueNotifier<bool>(false);
+
   @override
   void initState() {
     super.initState();
     unawaited(_open());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduceMotion.value = MediaQuery.disableAnimationsOf(context);
   }
 
   Future<void> _open() async {
@@ -304,7 +337,7 @@ class _LessonScreenState extends State<LessonScreen>
     await _lesson.open(
       device,
       camera: _camera,
-      widgetRegistry: widgetRegistry(),
+      widgetRegistry: widgetRegistry(reduceMotion: _reduceMotion),
     );
     // Gone while the lesson loaded: a ticker cannot be made for a disposed
     // state.
@@ -330,6 +363,7 @@ class _LessonScreenState extends State<LessonScreen>
     unawaited(_lesson.close());
     _renderer?.dispose();
     _device?.dispose();
+    _reduceMotion.dispose();
     super.dispose();
   }
 
@@ -360,8 +394,8 @@ class _LessonScreenState extends State<LessonScreen>
 
   Widget _didNotStart(Object error) => DidNotStart(
     error,
-    background: const Color(0xFF14161A),
-    foreground: const Color(0xFFFF8A80),
+    background: LessonTheme.background,
+    foreground: LessonTheme.error,
   );
 
   Widget _loading() => const LessonLoadingScreen();
