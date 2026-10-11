@@ -162,6 +162,26 @@ void main() {
       }
     });
 
+    test('the render ABI is reserved, one past the newest, and refused '
+        'until a release implements it', () {
+      // Mutation: raise `wasmPluginAbiMax` without implementing the render
+      // node, and a module that says ABI 3 loads with no render node read;
+      // or move the reservation, and it no longer follows the range.
+      expect(wasmRenderAbi, wasmPluginAbiMax + 1);
+      expect(wasmRenderNodeExport, 'f3d_render_node');
+      final module = WasmModule.decode(
+        (ModuleBuilder()..abi(abi: wasmRenderAbi)).build(),
+      );
+      expect(
+        () => WasmRuntime.interpreter.instantiate(
+          module,
+          const _Quiet(),
+          const WasmLimits(),
+        ),
+        _refused('ABI $wasmRenderAbi and this engine runs ABI'),
+      );
+    });
+
     test('a memory starting above the limit is refused', () {
       // Mutation: clamp the starting pages to the limit instead.
       final module = WasmModule.decode(
