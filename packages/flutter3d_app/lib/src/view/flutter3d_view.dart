@@ -587,6 +587,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
         input: loopOptions.input ?? InputState(),
         drainLook: loopOptions.drainLook,
         timing: loopOptions.timing,
+        profile: loopOptions.profile,
         plugins: plugins.plugins,
         registries: <PluginRegistry>[
           ...plugins.registries,

@@ -17,7 +17,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show EngineLog, LogLevel, LogRecord;
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show LoopPhase, Registration;
+    show LoopPhase, Registration, SimulationProfile;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -302,6 +302,46 @@ void main() {
       engine!.simulation.submit('jump');
       await _refreshes(tester, 3);
       expect(applied, <Object?>['jump']);
+    });
+
+    testWidgets('inline, the view\'s loop runs the profile it is given', (
+      tester,
+    ) async {
+      // Mutation: leave `profile:` out of the `EngineLoop` the view builds.
+      // The loop then runs the deterministic profile whatever it was handed,
+      // and a laboratory in the view gets `Portable` maths it did not ask for.
+      Future<Flutter3dEngine> open(LoopSettings loop) async {
+        Flutter3dEngine? engine;
+        await tester.pumpWidget(
+          _sized(
+            Flutter3dView(
+              key: UniqueKey(),
+              device: DeviceSettings(
+                device: FakeBackend(),
+                presenter: _noPresenter,
+              ),
+              loop: loop,
+              onCreated: (e) => engine = e,
+            ),
+          ),
+        );
+        await tester.pump();
+        return engine!;
+      }
+
+      final game = await open(const LoopSettings());
+      expect(game.loop.profile, SimulationProfile.deterministic);
+      final lab = await open(
+        const LoopSettings(profile: SimulationProfile.accurate),
+      );
+      expect(lab.loop.profile, SimulationProfile.accurate);
+      expect(lab.loop.simulationVersion.profile, SimulationProfile.accurate);
+      expect(
+        const LoopSettings()
+            .copyWith(profile: SimulationProfile.accurate)
+            .profile,
+        SimulationProfile.accurate,
+      );
     });
 
     testWidgets('in an isolate, it steps with the view\'s frames', (

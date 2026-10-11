@@ -13,7 +13,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show DeviceLoss, DeviceRegistry;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show Flutter3dPlugin, FormatSpec, PluginRegistry;
+    show Flutter3dPlugin, FormatSpec, PluginRegistry, SimulationProfile;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
     show InputState, SimulationFactory, WorldTiming;
 
@@ -254,8 +254,8 @@ final class ViewSettings {
   );
 }
 
-/// How a `Flutter3dView`'s loop runs: its step, its input, where the
-/// simulation is, and when the origin follows the camera.
+/// How a `Flutter3dView`'s loop runs: its step, its input, its profile,
+/// where the simulation is, and when the origin follows the camera.
 final class LoopSettings {
   const LoopSettings({
     this.timing = const WorldTiming(),
@@ -263,6 +263,7 @@ final class LoopSettings {
     this.drainLook,
     this.originShift = defaultOriginShift,
     this.simulation = const SimulationPlacement.inline(),
+    this.profile = SimulationProfile.deterministic,
   });
 
   /// How far, in metres, the camera wanders before the view moves the
@@ -309,6 +310,17 @@ final class LoopSettings {
   /// or [SimulationPlacement.isolate].
   final SimulationPlacement simulation;
 
+  /// What the view's own loop promises about its numbers:
+  /// [SimulationProfile.deterministic], the one a game is played on, by
+  /// default; [SimulationProfile.accurate] runs a laboratory in the view
+  /// without an isolate. The loop hands it to every plugin and names it in
+  /// its `simulationVersion`.
+  ///
+  /// The view's loop is the one it steps inline. A simulation placed with
+  /// [SimulationPlacement.isolate] builds its own loop in its factory and
+  /// says its profile there.
+  final SimulationProfile profile;
+
   /// A copy with the fields given replaced; a `clear…` flag sets that field
   /// back to null.
   LoopSettings copyWith({
@@ -317,6 +329,7 @@ final class LoopSettings {
     void Function(Vector2 out)? drainLook,
     double? originShift,
     SimulationPlacement? simulation,
+    SimulationProfile? profile,
     bool clearInput = false,
     bool clearDrainLook = false,
     bool clearOriginShift = false,
@@ -326,6 +339,7 @@ final class LoopSettings {
     drainLook: clearDrainLook ? null : drainLook ?? this.drainLook,
     originShift: clearOriginShift ? null : originShift ?? this.originShift,
     simulation: simulation ?? this.simulation,
+    profile: profile ?? this.profile,
   );
 }
 

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **The view's own loop runs the profile it is given.**
+  `LoopSettings.profile` (deterministic by default) is the
+  `SimulationProfile` of the loop `Flutter3dView` steps inline, so a
+  laboratory runs `accurate` in the view without an isolate.
 - **One session is the boundary to every XR runtime.** `XrSession` is what
   WebXR, OpenXR, ARKit, ARCore and visionOS each extend: open capabilities
   (`XrCapability`: immersive VR and AR, inline, hands, eye gaze,
