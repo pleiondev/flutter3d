@@ -1,3 +1,4 @@
+import 'capabilities.dart';
 import 'formats.dart';
 
 /// The colour a sampler clamping to its border returns outside the texture.
@@ -166,6 +167,41 @@ final class SamplerDescriptor {
       lodMinClamp != 0 ||
       lodMaxClamp != 32 ||
       borderColor != null;
+
+  /// Throws [UnsupportedCapabilityException] when this sampler needs a
+  /// feature [features] lacks: a comparison (`samplerCompare`), a
+  /// level-of-detail clamp (`samplerLodClamp`), a border colour
+  /// (`samplerBorderColor`). Each is asked for alone, so a comparison sampler
+  /// with no clamp does not need the clamp.
+  ///
+  /// **For a backend's `bindTexture`**, so that every backend refuses the
+  /// same samplers in the same words, and a field a minor adds with its
+  /// feature is refused by a backend written before it rather than ignored.
+  /// [backend] names the backend as a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (!usesExtendedState) return;
+    if (compare != null) {
+      features.require(
+        DeviceFeature.samplerCompare,
+        backend: backend,
+        reason: 'the sampler names a compare function',
+      );
+    }
+    if (lodMinClamp != 0 || lodMaxClamp != 32) {
+      features.require(
+        DeviceFeature.samplerLodClamp,
+        backend: backend,
+        reason: 'the sampler clamps its level of detail',
+      );
+    }
+    if (borderColor != null) {
+      features.require(
+        DeviceFeature.samplerBorderColor,
+        backend: backend,
+        reason: 'the sampler names a border colour',
+      );
+    }
+  }
 
   /// This sampler with its [anisotropy] replaced.
   ///

@@ -146,6 +146,39 @@ final class BlendState {
       extendedBlendOperations.contains(colorOperation) ||
       extendedBlendOperations.contains(alphaOperation);
 
+  /// Throws [UnsupportedCapabilityException] when this state needs a feature
+  /// [features] lacks: a factor that reads the blend constant
+  /// (`blendConstant`), a min or max operation (`minMaxBlend`), a factor that
+  /// reads a second fragment output (`dualSourceBlending`).
+  ///
+  /// **For a backend's `setBlend`**, so that every backend refuses the same
+  /// states in the same words, and an operation a minor adds with its
+  /// feature is refused by a backend written before it rather than ignored.
+  /// [backend] names the backend as a person would.
+  void checkFeatures(DeviceFeatures features, {required String backend}) {
+    if (usesBlendColor) {
+      features.require(
+        DeviceFeature.blendConstant,
+        backend: backend,
+        reason: 'the blend state reads the blend constant',
+      );
+    }
+    if (usesMinMax) {
+      features.require(
+        DeviceFeature.minMaxBlend,
+        backend: backend,
+        reason: 'the blend state names min or max',
+      );
+    }
+    if (usesDualSource) {
+      features.require(
+        DeviceFeature.dualSourceBlending,
+        backend: backend,
+        reason: 'the blend state reads a second fragment output',
+      );
+    }
+  }
+
   /// Whether one factor multiplies by the blend constant.
   static bool _readsConstant(BlendFactor factor) => switch (factor) {
     BlendFactor.blendColor ||

@@ -218,6 +218,8 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
           reason: 'flutter_gpu has no min or max blend operation',
         );
       }
+      // Whatever else the state needs, by the feature it names.
+      state.checkFeatures(_features, backend: impellerBackendName);
     }
     _pass.setColorBlendEnable(state != null, colorAttachmentIndex: attachment);
     if (state == null) return;
@@ -459,6 +461,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     // `depthAddressMode` needs no gate — it addresses a 3D texture's depth,
     // and there are no 3D textures here to sample.
     if (sampler != null && sampler.usesExtendedState) _refuseSampler(sampler);
+    sampler?.checkFeatures(_features, backend: impellerBackendName);
     if (!shader.mayBindSampler(slot)) return false;
     // Tile memory cannot be sampled, and the backend's own assertion for this
     // fires from inside `bindTexture` with no idea which slot or which pass.

@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A descriptor says which features its fields need.**
+  `SamplerDescriptor`, `BlendState`, `TextureDescriptor` and
+  `BufferDescriptor` gain `checkFeatures(features, backend:)`, as
+  `RenderPassDescriptor` had: a backend asks the descriptor at its
+  entrance instead of mapping fields to features by hand, so a field a
+  minor adds with its feature is refused by a backend written before it
+  rather than ignored. Each feature is asked for alone: a comparison
+  sampler no longer needs `samplerLodClamp` on the reference null backend
+  and in the `--kind backend` template, which asked for it for any
+  extended sampler.
 - **A stage has a kind, and the bundle writes it.** `ShaderStageKind`
   (`vertex`, `fragment`, `compute`) is an open class, so mesh, task and
   ray stages can be added in a minor. `ShaderBundleStage` takes `kind:`

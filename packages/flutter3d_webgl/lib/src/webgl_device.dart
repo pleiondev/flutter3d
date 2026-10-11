@@ -1068,6 +1068,8 @@ final class WebGlDevice extends GraphicsDevice
         reason: 'WebGL2 has no image load/store; that is OpenGL ES 3.1',
       );
     }
+    // Whatever else the descriptor's fields need, by the feature each names.
+    descriptor.checkFeatures(features, backend: webglBackendName);
     final limits = this.limits;
     final tooBig = switch (descriptor.dimension) {
       TextureDimension.d3 =>
@@ -1144,6 +1146,7 @@ final class WebGlDevice extends GraphicsDevice
         reason: 'WebGL2 has no indirect commands to read an argument buffer',
       );
     }
+    descriptor.checkFeatures(features, backend: webglBackendName);
     return webglCreateBuffer(
       _gl,
       _persistentBuffers,

@@ -193,57 +193,18 @@ readIndirectDraw(StorageBuffer arguments, int offsetInBytes) {
 }
 
 /// Refuses a sampler whose extended state names a feature [features] lacks:
-/// a comparison, a level-of-detail clamp, a border colour.
-void checkSampler(SamplerDescriptor? sampler, DeviceFeatures features) {
-  if (sampler == null || !sampler.usesExtendedState) return;
-  if (sampler.compare != null) {
-    features.require(
-      DeviceFeature.samplerCompare,
-      backend: cpuBackendName,
-      reason: 'the sampler names a compare function',
-    );
-  }
-  if (sampler.lodMinClamp != 0 || sampler.lodMaxClamp != 32) {
-    features.require(
-      DeviceFeature.samplerLodClamp,
-      backend: cpuBackendName,
-      reason: 'the sampler clamps its level of detail',
-    );
-  }
-  if (sampler.borderColor != null) {
-    features.require(
-      DeviceFeature.samplerBorderColor,
-      backend: cpuBackendName,
-      reason: 'the sampler names a border colour',
-    );
-  }
-}
+/// a comparison, a level-of-detail clamp, a border colour, each by its own
+/// feature, as the sampler answers it.
+void checkSampler(SamplerDescriptor? sampler, DeviceFeatures features) =>
+    sampler?.checkFeatures(features, backend: cpuBackendName);
 
 /// Refuses a blend [state] for [attachment] that needs a feature [features]
 /// lacks — the constant, min and max, a dual-source factor — or that names
 /// a dual-source factor for an attachment other than zero, which has no
 /// second output to read.
 void checkBlend(BlendState state, int attachment, DeviceFeatures features) {
-  if (state.usesBlendColor) {
-    features.require(
-      DeviceFeature.blendConstant,
-      backend: cpuBackendName,
-      reason: 'the blend state reads the blend constant',
-    );
-  }
-  if (state.usesMinMax) {
-    features.require(
-      DeviceFeature.minMaxBlend,
-      backend: cpuBackendName,
-      reason: 'the blend state names min or max',
-    );
-  }
+  state.checkFeatures(features, backend: cpuBackendName);
   if (state.usesDualSource) {
-    features.require(
-      DeviceFeature.dualSourceBlending,
-      backend: cpuBackendName,
-      reason: 'the blend state reads a second fragment output',
-    );
     if (attachment != 0) {
       throw ArgumentError.value(
         attachment,

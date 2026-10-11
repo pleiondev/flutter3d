@@ -41,7 +41,7 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show ShaderDiagnostic, UnsupportedCapabilityException;
+    show ShaderDiagnostic;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart'
@@ -2317,6 +2317,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     if (descriptor.usage.contains(TextureUsage.storage)) {
       features.require(DeviceFeature.storageTextures, backend: _backend);
     }
+    descriptor.checkFeatures(features, backend: _backend);
     return _guard(
       'a texture $descriptor',
       () => webgpuCreateTextureWithDescriptor(
@@ -2361,23 +2362,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     ByteData? contents,
   }) {
     features.require(DeviceFeature.buffers, backend: _backend);
-    final usage = descriptor.usage;
-    if (usage.contains(BufferUsage.storage) &&
-        !features.has(DeviceFeature.compute) &&
-        !features.has(DeviceFeature.renderStageStorage)) {
-      throw UnsupportedCapabilityException(
-        DeviceFeature.compute,
-        backend: _backend,
-      );
-    }
-    if (usage.contains(BufferUsage.indirect) &&
-        !features.has(DeviceFeature.indirectDraw) &&
-        !features.has(DeviceFeature.indirectDispatch)) {
-      throw UnsupportedCapabilityException(
-        DeviceFeature.indirectDraw,
-        backend: _backend,
-      );
-    }
+    descriptor.checkFeatures(features, backend: _backend);
     if (descriptor.lengthInBytes > limits.maxBufferSize) {
       throw ArgumentError.value(
         descriptor.lengthInBytes,

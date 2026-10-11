@@ -554,12 +554,8 @@ void webgpuCheckSampler(DeviceFeatures features, SamplerDescriptor? sampler) {
       reason: 'WebGPU samplers have no border colour',
     );
   }
-  if (sampler.compare != null) {
-    features.require(DeviceFeature.samplerCompare, backend: _backend);
-  }
-  if (sampler.lodMinClamp != 0 || sampler.lodMaxClamp != 32) {
-    features.require(DeviceFeature.samplerLodClamp, backend: _backend);
-  }
+  // The rest by the feature each field names, as the sampler answers it.
+  sampler.checkFeatures(features, backend: _backend);
 }
 
 /// The sampler a [slot] gets for [requested], or an [ArgumentError] where a
