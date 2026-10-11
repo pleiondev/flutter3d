@@ -30,6 +30,7 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'src/lesson_loading_screen.dart';
 import 'src/lesson_player.dart';
 import 'src/lesson_view.dart';
 
@@ -363,8 +364,5 @@ class _LessonScreenState extends State<LessonScreen>
     foreground: const Color(0xFFFF8A80),
   );
 
-  Widget _loading() => const Scaffold(
-    backgroundColor: Color(0xFF14161A),
-    body: Center(child: CircularProgressIndicator()),
-  );
+  Widget _loading() => const LessonLoadingScreen();
 }

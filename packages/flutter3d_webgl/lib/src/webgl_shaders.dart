@@ -261,10 +261,14 @@ final class WebGlShaderLibrary with ShaderLibrary {
   /// program twice; ignoring the layout when a cached program is found would
   /// hand back a pipeline that quietly draws with the wrong one, which is the
   /// mistake this shape makes impossible rather than merely unlikely.
+  ///
+  /// [owner] is the device whose `releasePipeline` the handle's `dispose`
+  /// calls, which hands it to [release].
   PipelineHandle link(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
+    GraphicsDevice? owner,
   }) {
     final linked = _programs
         .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
@@ -278,25 +282,34 @@ final class WebGlShaderLibrary with ShaderLibrary {
               ? _link(vertex, fragment)
               : pending.finish(this, vertex, fragment);
         });
-    return _wrap(vertex, fragment, linked, layout);
+    return _hold(vertex, fragment, linked, layout, owner);
   }
 
-  PipelineHandle _wrap(
+  /// A handle over [linked], the cached program of the pair, counted among
+  /// its holders so [release] deletes it with the last one.
+  PipelineHandle _hold(
     ShaderHandle vertex,
     ShaderHandle fragment,
     WebGlProgram linked,
     VertexLayoutDescriptor? layout,
-  ) => wrapPipeline(
-    backend: WebGlProgram(
-      linked.program,
-      linked.attributes,
-      linked.blocks,
-      linked.samplers,
-      layout: layout,
-      fragmentOutputs: linked.fragmentOutputs,
-    ),
-    name: '${vertex.name}+${fragment.name}',
-  );
+    GraphicsDevice? owner,
+  ) {
+    final handle = wrapPipeline(
+      backend: WebGlProgram(
+        linked.program,
+        linked.attributes,
+        linked.blocks,
+        linked.samplers,
+        layout: layout,
+        fragmentOutputs: linked.fragmentOutputs,
+      ),
+      name: '${vertex.name}+${fragment.name}',
+      owner: owner,
+    );
+    _holders[linked] = (_holders[linked] ?? 0) + 1;
+    _linkedFor[handle] = (vertex: vertex, fragment: fragment, linked: linked);
+    return handle;
+  }
 
   /// Whether the context links on the driver's own threads and says when it
   /// is done (`KHR_parallel_shader_compile`), which [linkAsync] needs. Set
@@ -316,18 +329,26 @@ final class WebGlShaderLibrary with ShaderLibrary {
   /// it says yes; only then is the status read and the program reflected.
   /// Without it this is [link], completed in the calling turn.
   ///
-  /// A [link] of the same pair in the meantime finishes this program rather
-  /// than linking a second; the future then answers with what it finished.
-  /// A pair the linker refuses completes the future with the
+  /// The program it finishes is cached and counted as [link]'s is, so its
+  /// handle is given back through [release] like any other. A [link] of the
+  /// same pair in the meantime finishes this program rather than linking a
+  /// second; where every handle over that program was released before this
+  /// future looked, the pair is linked again rather than handed back
+  /// deleted. A pair the linker refuses completes the future with the
   /// [ShaderCompileException] [link] throws.
   Future<PipelineHandle> linkAsync(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
+    GraphicsDevice? owner,
   }) async {
-    if (!parallelCompile) return link(vertex, fragment, layout: layout);
+    if (!parallelCompile) {
+      return link(vertex, fragment, layout: layout, owner: owner);
+    }
     final cached = _programs[vertex]?[fragment];
-    if (cached != null) return _wrap(vertex, fragment, cached, layout);
+    if (cached != null) {
+      return _hold(vertex, fragment, cached, layout, owner);
+    }
     final byFragment = _linking.putIfAbsent(
       vertex,
       () => <ShaderHandle, _PendingLink>{},
@@ -347,7 +368,7 @@ final class WebGlShaderLibrary with ShaderLibrary {
         // A refresh swapped the code behind a stage while the link was out
         // ([forgetPrograms] retired it): the pair is linked again, from the
         // code the handles carry now.
-        return linkAsync(vertex, fragment, layout: layout);
+        return linkAsync(vertex, fragment, layout: layout, owner: owner);
       }
       if (!pending.isComplete(_gl)) continue;
       _linking[vertex]!.remove(fragment);
@@ -355,7 +376,59 @@ final class WebGlShaderLibrary with ShaderLibrary {
           .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
           .putIfAbsent(fragment, () => pending.finish(this, vertex, fragment));
     }
-    return _wrap(vertex, fragment, pending.result(), layout);
+    final linked = pending.result();
+    if (!identical(_programs[vertex]?[fragment], linked)) {
+      // Finished by a synchronous link whose handles were all released, or
+      // by a refresh: the program is gone from the cache, and deleted.
+      return linkAsync(vertex, fragment, layout: layout, owner: owner);
+    }
+    return _hold(vertex, fragment, linked, layout, owner);
+  }
+
+  /// How many handles [link] gave out over each cached program and have not
+  /// been [release]d: the program is deleted when the last one goes.
+  final Map<WebGlProgram, int> _holders = Map<WebGlProgram, int>.identity();
+
+  /// The pair and the cached program behind each handle [link] gave out.
+  final Expando<
+    ({ShaderHandle vertex, ShaderHandle fragment, WebGlProgram linked})
+  >
+  _linkedFor = Expando('linked program');
+
+  /// Gives back a handle [link] made: `GraphicsDevice.releasePipeline`.
+  ///
+  /// **One program, several handles.** Two layouts over one pair share the
+  /// program [link] cached, and so does every pipeline a renderer asked for
+  /// twice, so the program goes with the last handle over it and not the
+  /// first. Then it leaves the cache, and the next [link] of the pair links
+  /// again. A program a refresh already retired is deleted here too, rather
+  /// than kept to the next refresh, since nothing holds it any more.
+  ///
+  /// Deleting a program the context is still using is GL's to defer: it stays
+  /// until it is no longer current, so the draws already made with it stand.
+  /// A handle given back twice, or one this library did not make, changes
+  /// nothing.
+  void release(PipelineHandle handle) {
+    final entry = _linkedFor[handle];
+    if (entry == null) return;
+    _linkedFor[handle] = null;
+    final (:vertex, :fragment, :linked) = entry;
+    final left = (_holders[linked] ?? 1) - 1;
+    if (left > 0) {
+      _holders[linked] = left;
+      return;
+    }
+    _holders.remove(linked);
+    final byFragment = _programs[vertex];
+    if (identical(byFragment?[fragment], linked)) {
+      byFragment!.remove(fragment);
+      if (byFragment.isEmpty) _programs.remove(vertex);
+    } else if (!_retired.remove(linked.program)) {
+      // Neither cached nor retired: the library was disposed, which deleted
+      // it already.
+      return;
+    }
+    _gl.deleteProgram(linked.program);
   }
 
   /// Programs [forgetPrograms] took out of the cache and has not yet deleted.
@@ -515,6 +588,7 @@ final class WebGlShaderLibrary with ShaderLibrary {
       }
     }
     _programs.clear();
+    _holders.clear();
     for (final handle in _handles.values.nonNulls) {
       _gl.deleteShader((handle.backend as WebGlShader).shader);
     }

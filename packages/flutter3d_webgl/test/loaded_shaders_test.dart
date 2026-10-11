@@ -270,7 +270,11 @@ void main() {
           .having((e) => e.backend, 'backend', 'WebGL2'),
     );
     // Bound, it is linked again and refused again, and a draw draws nothing
-    // rather than throwing or drawing with the previous program.
+    // rather than throwing or drawing with the previous program. The
+    // vertices bound for that draw are skipped with it: there is no program
+    // to describe them against. Mutation: drop the `_pipelineRefused` return
+    // from `bindVertexBuffer`. It throws "bind a pipeline before binding
+    // vertices", which is the renderer's frame failing after all.
     final target = device.createTexture(
       const RenderTargetDescriptor(
         width: 4,
@@ -284,6 +288,11 @@ void main() {
         ),
       )
       ..bindPipeline(pipeline)
+      ..bindVertexBuffer(
+        device.uploadGeometry(ByteData(36), GeometryUsage.vertices),
+        3,
+      )
+      ..bindVertexData(ByteData(36), 3)
       ..draw()
       ..submit();
     expect(device.pipelineRefusals.failuresOf(pipeline), 2);

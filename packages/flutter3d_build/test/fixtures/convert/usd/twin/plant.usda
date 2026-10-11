@@ -1,0 +1,191 @@
+#usda 1.0
+(
+    defaultPrim = "Plant"
+    doc = "A pump room as a twin exports it: elements carry their ids and ratings as custom attributes."
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Plant" (
+    customData = {
+        string site = "North yard"
+    }
+)
+{
+    custom string twin:id = "PLANT-N"
+
+    def Cube "Slab"
+    {
+        double size = 1
+        double3 xformOp:scale = (20, 10, 0.2)
+        uniform token[] xformOpOrder = ["xformOp:scale"]
+        rel material:binding = </Plant/Looks/Concrete>
+    }
+
+    def Xform "Pumps"
+    {
+        def Xform "Pump01" (
+            prepend references = @./pump.usda@
+        )
+        {
+            custom string twin:id = "P-101"
+            custom double twin:ratedFlow = 12.5 (
+                doc = "cubic metres an hour"
+            )
+            custom int twin:floor = 2
+            custom bool twin:critical = true
+            custom token twin:system = "cooling"
+            custom asset twin:datasheet = @docs/xp-200.pdf@
+            custom rel twin:feeds = </Plant/Tank>
+            double3 xformOp:translate = (2, 1, 0.1)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+
+            def Xform "Gauge"
+            {
+                custom string twin:id = "PG-101"
+                double3 xformOp:translate = (0, 0, 1)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+
+                def Sphere "Dial"
+                {
+                    double radius = 0.1
+                }
+            }
+
+            over "Body"
+            {
+                color3f[] primvars:displayColor = [(1, 0, 0)]
+            }
+        }
+
+        def Xform "Pump02" (
+            prepend references = @./pump.usda@
+        )
+        {
+            custom string twin:id = "P-102"
+            custom double twin:ratedFlow = 12.5
+            double3 xformOp:translate = (2, -1, 0.1)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+
+        def Xform "Spare" (
+            prepend references = @./pump.usda@
+        )
+        {
+            custom string twin:id = "P-103"
+            double3 xformOp:translate = (4, 0, 0.1)
+            double3 xformOp:scale = (0.5, 0.5, 0.5)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        }
+    }
+
+    def Cylinder "Tank"
+    {
+        double radius = 1.5
+        double height = 4
+        uniform token axis = "Z"
+        custom string twin:id = "T-1"
+        custom float twin:capacity = 25
+        custom double twin:level.timeSamples = {
+            0: 0.4,
+            10: 0.6,
+        }
+        custom int[] twin:nozzles = [1, 2, 3]
+        custom double twin:tolerance = 0.0000025
+        double3 xformOp:translate = (-4, 0, 2.1)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Plant/Looks/Steel>
+    }
+
+    def Cone "Hopper"
+    {
+        double radius = 0.6
+        double height = 1
+        uniform token axis = "Z"
+        double3 xformOp:translate = (6, 0, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Capsule "Filter"
+    {
+        double radius = 0.25
+        double height = 1
+        uniform token axis = "Z"
+        double3 xformOp:translate = (6, 3, 1)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Mesh "Pipe"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-4, -0.1, 3), (2, -0.1, 3), (2, 0.1, 3), (-4, 0.1, 3)]
+        string userProperties:line = "L-300"
+        rel material:binding = </Plant/Looks/Paint>
+    }
+
+    def Xform "Sensors"
+    {
+        def Xform "Temp7"
+        {
+            custom string twin:id = "TS-7"
+            custom string twin:unit = "degC"
+            custom double2 twin:range = (-20, 120)
+            custom string twin:note = None
+            double3 xformOp:translate = (0, 0, 3)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def Camera "Overview"
+    {
+    }
+
+    def PointInstancer "Bolts"
+    {
+    }
+
+    def Scope "Looks"
+    {
+        def Material "Concrete"
+        {
+            token outputs:surface.connect = </Plant/Looks/Concrete/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.5, 0.5, 0.5)
+                float inputs:roughness = 0.9
+                token outputs:surface
+            }
+        }
+
+        def Material "Steel"
+        {
+            token outputs:surface.connect = </Plant/Looks/Steel/Surface.outputs:surface>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.56, 0.57, 0.58)
+                float inputs:metallic = 1
+                float inputs:roughness = 0.4
+                token outputs:surface
+            }
+        }
+
+        def Material "Paint"
+        {
+            token outputs:mtlx:surface.connect = </Plant/Looks/Paint/Surface.outputs:out>
+
+            def Shader "Surface"
+            {
+                uniform token info:id = "ND_standard_surface_surfaceshader"
+                color3f inputs:base_color = (0.8, 0.1, 0.1)
+                float inputs:metalness = 0
+                float inputs:specular_roughness = 0.35
+                token outputs:out
+            }
+        }
+    }
+}

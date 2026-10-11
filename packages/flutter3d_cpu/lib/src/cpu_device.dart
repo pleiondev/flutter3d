@@ -28,6 +28,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_compute_encoder.dart';
 import 'cpu_encoder.dart';
+import 'cpu_raster_scratch.dart';
 import 'cpu_render_bundle.dart';
 import 'cpu_resources.dart';
 import 'cpu_shader.dart';
@@ -821,8 +822,13 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       support: textureFormatSupport,
       clock: _clock,
       refusals: pipelineRefusals,
+      scratch: _rasterScratch,
     );
   }
+
+  /// The lists every pass of this device rasterises in, kept rather than made
+  /// per draw and per triangle.
+  final CpuRasterScratch _rasterScratch = CpuRasterScratch();
 
   // ------------------------------------------------------------------ 1.0
 
@@ -1124,10 +1130,18 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
   }) {
     features.require(DeviceFeature.buffers, backend: cpuBackendName);
     final usage = descriptor.usage;
+    // Either feature takes a storage buffer. Without both, the refusal names
+    // the one the buffer was shaped for: the copy usages of `standardStorage`
+    // are a compute pass's buffer (what `createStorageBuffer` made before
+    // 1.0), a bare storage usage a render stage's. Conformance probes each
+    // feature with its own shape, and WebGL2 and Impeller answer the same.
     if (usage.contains(BufferUsage.storage) &&
-        !features.has(DeviceFeature.renderStageStorage)) {
+        !features.has(DeviceFeature.renderStageStorage) &&
+        !features.has(DeviceFeature.compute)) {
       features.require(
-        DeviceFeature.compute,
+        usage.contains(BufferUsage.standardStorage)
+            ? DeviceFeature.compute
+            : DeviceFeature.renderStageStorage,
         backend: cpuBackendName,
         reason: 'a storage buffer needs compute or render-stage storage',
       );

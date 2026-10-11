@@ -13,12 +13,28 @@
 /// the CPU's in eight values of sixteen hundred, and the skinning pass, a
 /// sum of four terms, in a third of its values. WGSL has no switch for
 /// either, so each result passes through `f3d_exact`: a bit cast and an
-/// exclusive or with a zero the compiler cannot see is zero (the top bit of
+/// inclusive or with a zero the compiler cannot see is zero (the top bit of
 /// the invocation's z), which neither a fusion nor a reordering can look
 /// through. It costs two integer operations an operation; the four kernels
-/// conformance runs then give the Dart kernel's bytes on wgpu over Metal.
-/// A quotient and a square root are not covered: a GPU may compute them to
-/// a few ulp, and no rounding afterwards brings the exact one back.
+/// conformance runs then give the Dart kernel's bytes on wgpu over Metal and
+/// on Chrome's Dawn over Metal. A quotient and a square root are not
+/// covered: a GPU may compute them to a few ulp, and no rounding afterwards
+/// brings the exact one back.
+///
+/// **An inclusive or, because a barrier meets itself.** Dawn compiles under
+/// Metal's relaxed math, which folds `0.0 + x` to `x`, so a sum that starts
+/// at zero wraps one barrier directly in another. It was an exclusive or,
+/// and two of those with one value cancel: the product beneath came out
+/// bare and fused into the next sum, and the skinning kernel was an ulp off
+/// in 26 values of 512 on Dawn. A second inclusive or with the same zero
+/// leaves the first standing.
+///
+/// **An image store is handed its level's own value.** A sum that lands
+/// halfway between two levels was stored half up on Dawn, where the Dart
+/// kernel and wgpu round it to even, and the blur kernel was a level off in
+/// 12 channels of 1024. `f3d_unorm8` rounds to the level, ties to even
+/// (WGSL's `round`), and stores the level over 255, which any conversion
+/// reads back as that level.
 library;
 
 import 'kernel_ast.dart';
@@ -33,6 +49,9 @@ final class _Emitter {
   /// The vector sizes, one for a scalar, whose products went through an
   /// `f3d_exact`.
   final Set<int> _exact = <int>{};
+
+  /// Whether the kernel stores to an image, and so needs `f3d_unorm8`.
+  bool _storesImage = false;
 
   String module(KKernel kernel) {
     final body = StringBuffer();
@@ -62,10 +81,24 @@ final class _Emitter {
             : ('f3d_exact$n', 'vec$n<f32>', 'vec$n<u32>');
         final zero = n == 1 ? 'f3d_zero' : '$u(f3d_zero)';
         out.writeln(
-          'fn $name(x: $f) -> $f { return bitcast<$f>(bitcast<$u>(x) ^ '
+          'fn $name(x: $f) -> $f { return bitcast<$f>(bitcast<$u>(x) | '
           '$zero); }',
         );
       }
+    }
+    if (_storesImage) {
+      out
+        ..writeln()
+        ..writeln(
+          '// The level a store means, ties to even, as every device reads '
+          'it.',
+        )
+        ..writeln('fn f3d_unorm8(v: vec4<f32>) -> vec4<f32> {')
+        ..writeln(
+          '  return round(clamp(v, vec4<f32>(0.0f), vec4<f32>(1.0f)) * '
+          '255.0f) / 255.0f;',
+        )
+        ..writeln('}');
     }
     final (x, y, z) = kernel.workgroup;
     out
@@ -106,9 +139,10 @@ final class _Emitter {
             '${indent}b_${binding.name}[${_expr(index)}] = ${_expr(value)};',
           );
         case KImageStore(:final binding, :final x, :final y, :final value):
+          _storesImage = true;
           out.writeln(
             '${indent}textureStore(b_${binding.name}, '
-            '${_coordinates(x, y)}, ${_expr(value)});',
+            '${_coordinates(x, y)}, f3d_unorm8(${_expr(value)}));',
           );
         case KIf(:final condition, :final then, :final otherwise):
           out.writeln('${indent}if (${_expr(condition)}) {');

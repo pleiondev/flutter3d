@@ -157,16 +157,24 @@ class _CheckPromptState extends State<CheckPrompt> {
                   ),
                 ],
               ),
-              CheckOutcome.correct => const Text(
-                'Верно.',
-                style: TextStyle(
-                  color: Colors.greenAccent,
-                  fontWeight: FontWeight.w600,
+              // Live regions: the field a screen reader was in has gone, and
+              // what took its place is the answer to what was just typed.
+              CheckOutcome.correct => Semantics(
+                liveRegion: true,
+                child: const Text(
+                  'Верно.',
+                  style: TextStyle(
+                    color: Colors.greenAccent,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-              CheckOutcome.revealed => Text(
-                'Попытки кончились. Ответ: ${widget.spec.answers.first}',
-                style: const TextStyle(color: Colors.orangeAccent),
+              CheckOutcome.revealed => Semantics(
+                liveRegion: true,
+                child: Text(
+                  'Попытки кончились. Ответ: ${widget.spec.answers.first}',
+                  style: const TextStyle(color: Colors.orangeAccent),
+                ),
               ),
             },
           ],

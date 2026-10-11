@@ -191,6 +191,11 @@ final class AtLeastOne extends LevelRule
   final String? because
   void check(Level level, List<LevelIssue> out)
 
+final class AttributeMatch
+  const AttributeMatch(this.entity, {this.node})
+  final EntityDef entity
+  final String? node
+
 final class Automap
   Automap(this.grid, {this.revealRadius = 6.0})
   Map<String, Object?> save()
@@ -2155,6 +2160,18 @@ final class Prefab
   factory Prefab.fromJson(Map<String, Object?> json)
   final List<EntityDef> entities
 
+final class PrefabAttributes
+  Iterable<String> nodesWhere(String name, Object? value)
+  Map<String, Object?> toProperties()
+  Object? operator [](String name)
+  bool get isEmpty
+  const PrefabAttributes({this.own = const <String, Object?>{}, this.nodes = const <String, Map<String, Object?>>{}})
+  factory PrefabAttributes.of(EntityDef entity)
+  final Map<String, Map<String, Object?>> nodes
+  final Map<String, Object?> own
+  static const String nodesKey = 'nodeAttributes'
+  static const String ownKey = 'attributes'
+
 final class PrefabInstance
   final EntityDef entity
   final PrefabOverrides overrides
@@ -3219,6 +3236,8 @@ List<EntityDef> expandPrefabInstance(PrefabInstance instance, Map<String, Prefab
 Level expandPrefabs(Level level)
 
 Level expandRecipes(Level level)
+
+List<AttributeMatch> findByAttribute(Iterable<EntityDef> entities, String name, Object? value)
 
 ({String path, Object? a, Object? b})? firstDifferingPath(Object? a, Object? b, [String prefix = ''])
 

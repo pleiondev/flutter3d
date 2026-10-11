@@ -207,6 +207,39 @@ void main() {
       expect(device.debugDrainErrors('releaseGeometry'), isNull);
       device.dispose();
     });
+
+    test('a pipeline is deleted with the last handle over its program, '
+        'and the pair links again', () async {
+      // Two handles over one pair share one program: the first given back
+      // leaves it, the second deletes it. Mutation: leave `releasePipeline`
+      // to the default, which does nothing. The count stays at three (two
+      // stages and the program); deleting at the first handle instead leaves
+      // the second drawing with a deleted program.
+      final device = await _makeDevice();
+      final vertex = device.shaders['DebugLineVertex']!;
+      final fragment = device.shaders['DebugLine']!;
+      final first = device.createPipeline(vertex, fragment);
+      final second = device.createPipeline(vertex, fragment);
+      expect(device.debugTrackedResourceCount, 3);
+      device.debugDrainErrors('setup');
+
+      first.dispose();
+      expect(device.debugTrackedResourceCount, 3);
+      second.dispose();
+      expect(device.debugTrackedResourceCount, 2);
+      expect(
+        device.debugDrainErrors('releasePipeline'),
+        isNull,
+        reason: 'INVALID_VALUE here would mean the program was deleted twice',
+      );
+
+      // Given back, the pair is linked anew the next time it is asked for.
+      device.createPipeline(vertex, fragment);
+      expect(device.debugTrackedResourceCount, 3);
+      device.dispose();
+      expect(device.debugTrackedResourceCount, 0);
+      expect(device.debugDrainErrors('dispose'), isNull);
+    });
   });
   test('a disposed stage is deleted, and its name answers anew', () async {
     // `ShaderHandle.dispose`: the library forgets the handle and deletes the

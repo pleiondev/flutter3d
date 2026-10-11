@@ -398,6 +398,28 @@ final class WebGpuPipelineCache<T extends Object> {
   /// leaves behind.
   void forget(WebGpuPipelineSignature signature) => _built.remove(signature);
 
+  /// Forgets every pipeline built from [stages], in whatever draw state:
+  /// what `releasePipeline` leaves once no handle over them is left. Answers
+  /// how many went.
+  ///
+  /// A build of those stages still out off the frame stops being waited
+  /// for, so what it brings back is dropped rather than cached for a
+  /// pipeline nobody holds.
+  int forgetStages(WebGpuStages stages) {
+    bool built(WebGpuPipelineSignature signature) =>
+        identical(signature.vertexModule, stages.vertexModule) &&
+        identical(signature.fragmentModule, stages.fragmentModule) &&
+        signature.vertexLayout == stages.vertexLayout;
+    final before = _built.length;
+    _built.removeWhere(
+      (WebGpuPipelineSignature signature, T _) => built(signature),
+    );
+    _pending.removeWhere(
+      (WebGpuPipelineSignature signature, int _) => built(signature),
+    );
+    return before - _built.length;
+  }
+
   /// Forgets everything. Called from `dispose`, where the device that owns the
   /// pipelines is going: a `GPURenderPipeline` has no `destroy` of its own and
   /// dies with its device.
@@ -405,4 +427,75 @@ final class WebGpuPipelineCache<T extends Object> {
     _built.clear();
     _pending.clear();
   }
+}
+
+/// What a pipeline handle stands for in the cache: its two modules, compared
+/// by identity, and its vertex layout's fingerprint. Every signature built
+/// for the handle carries these three, whatever the draw state.
+final class WebGpuStages {
+  const WebGpuStages({
+    required this.vertexModule,
+    required this.fragmentModule,
+    required this.vertexLayout,
+  });
+
+  final Object? vertexModule;
+  final Object? fragmentModule;
+  final String vertexLayout;
+
+  /// Whether [other] has the same two modules, whatever its layout: the
+  /// stage pair the bind group layouts are made for.
+  bool samePair(WebGpuStages other) =>
+      identical(other.vertexModule, vertexModule) &&
+      identical(other.fragmentModule, fragmentModule);
+
+  @override
+  bool operator ==(Object other) =>
+      other is WebGpuStages &&
+      samePair(other) &&
+      other.vertexLayout == vertexLayout;
+
+  @override
+  int get hashCode => Object.hash(
+    identityHashCode(vertexModule),
+    identityHashCode(fragmentModule),
+    vertexLayout,
+  );
+}
+
+/// How many live pipeline handles stand for each [WebGpuStages], so the
+/// pipelines built for them go with the last handle and not the first.
+///
+/// **Why a count.** `createPipeline` is nearly free here and a renderer may
+/// ask for one pair twice, or for one pair under two names; every such
+/// handle draws from the same cached `GPURenderPipeline`s. Giving one back
+/// must leave the others drawing.
+final class WebGpuPipelineHolders {
+  final Map<WebGpuStages, int> _counts = <WebGpuStages, int>{};
+
+  /// One more handle stands for [stages].
+  void hold(WebGpuStages stages) =>
+      _counts[stages] = (_counts[stages] ?? 0) + 1;
+
+  /// One handle for [stages] is given back. True when it was the last, and
+  /// what was built for [stages] may go.
+  bool release(WebGpuStages stages) {
+    final left = (_counts[stages] ?? 0) - 1;
+    if (left > 0) {
+      _counts[stages] = left;
+      return false;
+    }
+    _counts.remove(stages);
+    return true;
+  }
+
+  /// Whether any handle still stands for [stages]' pair, under any layout.
+  bool holdsPair(WebGpuStages stages) =>
+      _counts.keys.any((WebGpuStages held) => held.samePair(stages));
+
+  /// How many distinct [WebGpuStages] are held, for a test.
+  int get length => _counts.length;
+
+  /// Forgets every count: the device is going.
+  void clear() => _counts.clear();
 }

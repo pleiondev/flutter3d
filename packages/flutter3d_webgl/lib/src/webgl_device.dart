@@ -773,6 +773,20 @@ final class WebGlDevice extends GraphicsDevice
     return library;
   }
 
+  /// Deletes the GL program behind [pipeline] once no other handle shares
+  /// it: two layouts over one pair, or the same pair asked for twice, are
+  /// one program here. A pair that would not link gives back the program a
+  /// later bind linked, if one did. See `WebGlShaderLibrary.release`.
+  @override
+  void releasePipeline(PipelineHandle pipeline) {
+    if (pipeline.backend case final WebGlUnlinkedPipeline unlinked) {
+      if (unlinked.relinked case final relinked?) _library.release(relinked);
+      unlinked.relinked = null;
+      return;
+    }
+    _library.release(pipeline);
+  }
+
   @override
   void releaseTexture(TextureHandle texture) {
     final backend = texture.backend;
@@ -1068,10 +1082,19 @@ final class WebGlDevice extends GraphicsDevice
     if (descriptor.usage.contains(BufferUsage.storage)) {
       // TODO(webgl): storage buffers — WebGL2 has no shader storage blocks
       // (OpenGL ES 3.1) and no compute; the WebGPU backend has both.
+      //
+      // Either feature would take one, so the refusal names the one the
+      // buffer was shaped for: the copy usages of `standardStorage` are a
+      // compute pass's buffer (what `createStorageBuffer` made before 1.0),
+      // a bare storage usage a render stage's.
+      final forCompute = descriptor.usage.contains(BufferUsage.standardStorage);
       throw UnsupportedCapabilityException(
-        DeviceFeature.renderStageStorage,
+        forCompute ? DeviceFeature.compute : DeviceFeature.renderStageStorage,
         backend: webglBackendName,
-        reason: 'WebGL2 has no shader storage buffers; that is OpenGL ES 3.1',
+        reason: forCompute
+            ? 'WebGL2 has no compute and no shader storage buffers; both are '
+                  'OpenGL ES 3.1'
+            : 'WebGL2 has no shader storage buffers; that is OpenGL ES 3.1',
       );
     }
     if (descriptor.usage.contains(BufferUsage.indirect)) {
@@ -1273,11 +1296,12 @@ final class WebGlDevice extends GraphicsDevice
     VertexLayoutDescriptor? layout,
   }) {
     try {
-      return _library.link(vertex, fragment, layout: layout);
+      return _library.link(vertex, fragment, layout: layout, owner: this);
     } on ShaderCompileException catch (error) {
       final handle = wrapPipeline(
         backend: WebGlUnlinkedPipeline(vertex, fragment, layout),
         name: '${vertex.name}+${fragment.name}',
+        owner: this,
       );
       pipelineRefusals.report(handle, _linkRefusal(handle, error));
       return handle;
@@ -1300,11 +1324,17 @@ final class WebGlDevice extends GraphicsDevice
     VertexLayoutDescriptor? layout,
   }) async {
     try {
-      return await _library.linkAsync(vertex, fragment, layout: layout);
+      return await _library.linkAsync(
+        vertex,
+        fragment,
+        layout: layout,
+        owner: this,
+      );
     } on ShaderCompileException catch (error) {
       final handle = wrapPipeline(
         backend: WebGlUnlinkedPipeline(vertex, fragment, layout),
         name: '${vertex.name}+${fragment.name}',
+        owner: this,
       );
       pipelineRefusals.report(handle, _linkRefusal(handle, error));
       return handle;
@@ -1328,15 +1358,12 @@ final class WebGlDevice extends GraphicsDevice
     if (linked != null) return linked;
     if (pipelineRefusals.isRefused(handle)) return null;
     try {
-      return unlinked.linked =
-          _library
-                  .link(
-                    unlinked.vertex,
-                    unlinked.fragment,
-                    layout: unlinked.layout,
-                  )
-                  .backend
-              as WebGlProgram;
+      final relinked = unlinked.relinked = _library.link(
+        unlinked.vertex,
+        unlinked.fragment,
+        layout: unlinked.layout,
+      );
+      return relinked.backend as WebGlProgram;
     } on ShaderCompileException catch (error) {
       pipelineRefusals.report(handle, _linkRefusal(handle, error));
       return null;

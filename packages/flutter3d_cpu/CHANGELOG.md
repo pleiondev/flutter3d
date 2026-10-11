@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **A draw rasterises in lists the device keeps.** Every draw made its
+  varyings, its attributes and its clip positions, and every triangle its
+  window coordinates, a list to interpolate into and, with a mipped texture
+  bound, two for the derivatives: as many lists a frame as triangles, each
+  garbage when its triangle was done. They are the device's now, zeroed
+  where a fresh list was read before it was written, so every picture is
+  the one it was.
+- **A storage buffer is refused by the feature its shape asks for.** On a
+  device with neither compute nor render-stage storage, `createBuffer`
+  names `compute` for the copy usages of `BufferUsage.standardStorage` and
+  `renderStageStorage` for a bare storage usage, as WebGL2 and Impeller do;
+  it named `compute` for both, which the capability check's probe for
+  render-stage storage refuses.
 - **The dielectric's F0 is the shaders' constant.** The lit stages and the
   reflections read `dielectricF0` from `flutter3d_shaders` where they wrote
   0.04 and 0.96; `1 − dielectricF0` is 0.96 to the bit, so every picture is

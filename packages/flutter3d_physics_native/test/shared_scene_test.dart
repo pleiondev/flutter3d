@@ -3,6 +3,8 @@
 @TestOn('vm')
 library;
 
+import 'dart:typed_data';
+
 import 'package:test/test.dart';
 
 import 'scenes/shared_scene.dart';
@@ -14,5 +16,16 @@ void main() {
       sharedSceneHash,
       reason: 'changed on purpose? set sharedSceneHash in test/scenes',
     );
+  });
+
+  test('the hash does not move with the ABI stamp', () {
+    // The scene's bytes as a build with another F3D_ABI_VERSION writes them:
+    // the stamp at byte 8 is the only difference, and the world is the same.
+    //
+    // Mutation: hash bytes 8 to 11 as they lie and the two differ.
+    final snapshot = sharedSceneSnapshot();
+    final restamped = Uint8List.fromList(snapshot);
+    ByteData.sublistView(restamped).setUint32(8, 1, Endian.little);
+    expect(hashOf(restamped), hashOf(snapshot));
   });
 }

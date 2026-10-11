@@ -654,6 +654,10 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
     int slot = 0,
   }) {
     debugCheckLive(buffer, 'bindVertexBuffer');
+    // The draws after a refused pipeline are skipped, and there is no
+    // program to describe the vertices against: the bind is skipped with
+    // them rather than refused as a bind before any pipeline.
+    if (_pipelineRefused) return;
     _gl.bindBuffer(
       web.WebGLRenderingContext.ARRAY_BUFFER,
       buffer.backend as web.WebGLBuffer,
@@ -665,6 +669,9 @@ final class WebGlEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
+    // Skipped under a refused pipeline, as [bindVertexBuffer] is, before a
+    // buffer is made for draws that will not happen.
+    if (_pipelineRefused) return;
     // Transient geometry: a buffer per call, orphaned when the frame ends. The
     // flutter_gpu backend has a ring of bump allocators for this; here the
     // driver owns the lifetime, so a fresh buffer is both correct and simpler.

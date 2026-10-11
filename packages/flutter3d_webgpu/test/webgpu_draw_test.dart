@@ -415,6 +415,54 @@ void main() {
     },
   );
 
+  test('a released pipeline takes what was built for it with its last '
+      'handle', () async {
+    // Two handles over one pair and layout draw from one built pipeline.
+    // Given back one at a time, the first leaves the second drawing and the
+    // second takes the pipeline and its pair's bind groups with it.
+    // Mutation: leave `releasePipeline` to the default. Nothing leaves the
+    // caches. Forget at the first handle instead, and the second's draw
+    // builds the pipeline again.
+    final scene = await _scene();
+    if (scene == null) return;
+    final target = scene.target();
+    void drawWith(PipelineHandle pipeline) {
+      final pass = scene.device.beginRenderPass(
+        RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+      )..bindPipeline(pipeline);
+      scene.bindQuad(
+        pass,
+        where: placedAt(),
+        sampler: SamplerDescriptor.nearestClamp,
+      );
+      pass
+        ..draw()
+        ..submit();
+    }
+
+    final second = scene.device.createPipeline(
+      scene.vertexStage,
+      scene.fragmentStage,
+    );
+    drawWith(scene.pipeline);
+    drawWith(second);
+    expect(scene.device.pipelines.length, 1);
+    expect(scene.device.debugBindGroupCount, greaterThan(0));
+
+    scene.pipeline.dispose();
+    expect(scene.device.pipelines.length, 1);
+    drawWith(second);
+    expect(scene.device.pipelines.length, 1, reason: 'still built');
+    expect(_texel(await scene.device.readback(target), 4, 0, 1), _red);
+
+    final groups = scene.device.debugBindGroupCount;
+    second.dispose();
+    expect(scene.device.pipelines.length, 0);
+    expect(scene.device.debugBindGroupCount, lessThan(groups));
+    expect(await scene.device.debugDrainErrors('released'), isNull);
+    scene.device.dispose();
+  });
+
   test('a compute pipeline is realised asynchronously, whole', () async {
     final scene = await _scene();
     if (scene == null) return;

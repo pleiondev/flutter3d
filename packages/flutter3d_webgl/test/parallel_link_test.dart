@@ -156,4 +156,41 @@ void main() {
     expect(refusals.single.pipeline, pipeline.name);
     device.dispose();
   });
+
+  test('a pipeline it linked is given back like any other', () async {
+    // Mutation: hand the program out without counting it among its
+    // holders — `release` finds nothing to give back and the program stays.
+    final device = await _open();
+    if (device == null) return;
+    final before = device.debugTrackedResourceCount;
+    final pipeline = await device.createPipelineAsync(
+      device.shaders['DebugLineVertex']!,
+      device.shaders['DebugLine']!,
+    );
+    final linked = device.debugTrackedResourceCount;
+    expect(linked, greaterThan(before));
+    device.releasePipeline(pipeline);
+    expect(device.debugTrackedResourceCount, linked - 1);
+    device.dispose();
+  });
+
+  test('a link out while its pair is released hands back a live one', () async {
+    // A synchronous link finishes the program the asynchronous one started,
+    // and its handle is given back before the asynchronous caller looks.
+    // Mutation: answer with the finished program regardless — the handle is
+    // over a program already deleted, and its draws do nothing.
+    final device = await _open();
+    if (device == null) return;
+    final vertex = device.shaders['DebugLineVertex']!;
+    final fragment = device.shaders['DebugLine']!;
+    final later = device.createPipelineAsync(vertex, fragment);
+    final now = device.createPipeline(vertex, fragment);
+    final released = (now.backend as WebGlProgram).program;
+    device.releasePipeline(now);
+    final linked = await later;
+    expect((linked.backend as WebGlProgram).program, isNot(same(released)));
+    expect(device.pipelineRefusals.drain(), isEmpty);
+    device.releasePipeline(linked);
+    device.dispose();
+  });
 }

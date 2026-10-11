@@ -9,6 +9,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'cpu_raster_scratch.dart';
 import 'cpu_render_bundle.dart';
 import 'cpu_resources.dart';
 import 'cpu_shader.dart';
@@ -20,7 +21,8 @@ import 'cpu_vertex_fetch.dart';
 /// [features] is the device's answer, which every gated member asks before
 /// doing anything; [support] answers per format, for storage bindings; and
 /// [clock] is what the pass's timestamps are read from; [refusals] is the
-/// device's record of the pipelines whose draws are skipped.
+/// device's record of the pipelines whose draws are skipped; [scratch] is
+/// the device's lists the rasteriser works in, one set for every pass.
 final class CpuEncoder extends PassEncoder with CommandEncoder {
   CpuEncoder(
     this._descriptor, {
@@ -28,6 +30,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     required this._support,
     required this._clock,
     required this._refusals,
+    required this._scratch,
   }) : _features = features,
        _independentBlend = features.has(DeviceFeature.independentBlend) {
     final occlusion = _descriptor.occlusionQuerySet;
@@ -329,6 +332,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
   }
 
   final PipelineRefusals _refusals;
+
+  final CpuRasterScratch _scratch;
 
   @override
   void bindVertexBuffer(
@@ -955,13 +960,10 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     );
     final varyingCount = pipeline.vertex.varyingCount;
 
-    final clip = <Vector4>[Vector4.zero(), Vector4.zero(), Vector4.zero()];
-    final varyings = <Float32List>[
-      Float32List(varyingCount),
-      Float32List(varyingCount),
-      Float32List(varyingCount),
-    ];
-    final attributes = Float32List(stride);
+    // The device's, zeroed as fresh lists were: see [CpuRasterScratch].
+    final clip = _scratch.clip;
+    final varyings = _scratch.varyingsFor(varyingCount);
+    final attributes = _scratch.attributesFor(stride);
 
     final perPrimitive = _primitive == PrimitiveType.line ? 2 : 3;
     final primitives = count ~/ perPrimitive;
@@ -1040,10 +1042,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     }
     _statistics.add(PipelineStatistic.clipperPrimitivesOut, 1);
 
-    final sx = <double>[0, 0];
-    final sy = <double>[0, 0];
-    final sz = <double>[0, 0];
-    final invW = <double>[0, 0];
+    // The first two of the device's three: a line has two corners.
+    final CpuRasterScratch(:sx, :sy, :sz, :invW) = _scratch;
     for (var i = 0; i < 2; i++) {
       invW[i] = 1.0 / clip[i].w;
       // From the viewport's corner, as the triangle path measures them, and
@@ -1063,7 +1063,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     // does with a primitive it cannot classify.
     final stencil = _activeStencil;
     final stencilState = _stencilFront;
-    final interpolated = Float32List(varyingCount);
+    final interpolated = _scratch.interpolatedFor(varyingCount);
     final context = FragmentContext();
 
     // **No screen-space gradients here, and that is the answer rather than an
@@ -1442,10 +1442,8 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     int varyingCount,
     ShaderBindings bindings,
   ) {
-    final sx = <double>[0, 0, 0];
-    final sy = <double>[0, 0, 0];
-    final sz = <double>[0, 0, 0];
-    final invW = <double>[0, 0, 0];
+    // The device's, written whole below before anything reads them.
+    final CpuRasterScratch(:sx, :sy, :sz, :invW) = _scratch;
     for (var i = 0; i < 3; i++) {
       invW[i] = 1.0 / clip[i].w;
       final ndcX = clip[i].x * invW[i];
@@ -1580,7 +1578,7 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
     // the one for the side the camera sees.
     final stencil = _activeStencil;
     final stencilState = frontFacing ? _stencilFront : _stencilBack;
-    final interpolated = Float32List(varyingCount);
+    final interpolated = _scratch.interpolatedFor(varyingCount);
     final context = FragmentContext()..frontFacing = frontFacing;
     final storage = _storageOf(target.format);
 
@@ -1607,8 +1605,10 @@ final class CpuEncoder extends PassEncoder with CommandEncoder {
           (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
       if (det != 0.0) {
         final inv = 1.0 / det;
-        final ddx = context.ddx = Float32List(varyingCount);
-        final ddy = context.ddy = Float32List(varyingCount);
+        final (ddx, ddy) = _scratch.derivativesFor(varyingCount);
+        context
+          ..ddx = ddx
+          ..ddy = ddy;
         for (var k = 0; k < varyingCount; k++) {
           final v0 = varyings[0][k];
           final d1 = varyings[1][k] - v0;
