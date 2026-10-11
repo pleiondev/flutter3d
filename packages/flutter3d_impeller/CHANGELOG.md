@@ -12,6 +12,21 @@
 - **A debug point is one pixel.** The debug-line stage writes
   `gl_PointSize` under `impellerc`; Metal drew points of an undefined size
   without it, and the primitive-type check failed in two runs of four.
+- **The engine's bundle is held to the SDK it runs on.** `open` loads the
+  project's bundle, which `flutter3d_build`'s hook compiles for the SDK that
+  builds the application, and the one this package ships only when the
+  project has none. Both are the engine's container with the Dart in the
+  header, and either is refused with `ShaderBundleException(stale: true)`
+  when it was compiled on another SDK, naming the asset and what to do. The
+  shipped `assets/shaders/flutter3d.shaderbundle` is that container now;
+  `impellerc`'s own output, which `tool/build_shaders.sh` writes in a
+  checkout, still loads as it is.
+- **Linux, and an Android phone without Vulkan, can draw.** On OpenGL ES a
+  pipeline over a stage that reads the vertex or instance index is linked
+  with a slot for `f3d_vertex_index` or `f3d_instance_index` after its own,
+  and a shared buffer of 0, 1, 2 … is bound there before each draw. Metal
+  and Vulkan are tried once and never again. `tool/conformance.sh --linux`
+  runs the checks through Impeller on a Linux desktop.
 - **Breaking: `GpuRenderBackend.open` takes no `extraBundles`.** An
   application's own stages reach the renderer one way on every backend: a
   bundle loaded with `loadShaders` and handed to

@@ -45,6 +45,8 @@
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+#include <lib/vertex_index.glsl>
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -78,14 +80,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexIndex`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexIndex?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexIndex` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexIndex) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].

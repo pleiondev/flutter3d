@@ -13,7 +13,7 @@
 // layout, so eight more floats would be paid by every instanced draw in every
 // game, including the overwhelming majority that morph nothing.
 //
-// So: a texture, one row per instance, read by `gl_InstanceIndex`. Two texels
+// So: a texture, one row per instance, read by the instance index. Two texels
 // wide, because eight weights are two `vec4`s. It costs one sampler on one
 // stage, and the layout is untouched.
 //

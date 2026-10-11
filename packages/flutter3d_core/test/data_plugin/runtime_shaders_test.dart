@@ -19,6 +19,8 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_shaders/compile.dart' show loadShaders;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show MissingShaderStageException;
 import 'package:test/test.dart';
 
 const String _glow = '''
@@ -55,7 +57,11 @@ final class _Library with ShaderLibrary, LoadedShaderLibrary {
   List<ShaderLibrary> added,
   List<ShaderLibrary> removed,
 })
-_shaders(String backend, {Map<String, String>? engine}) {
+_shaders(
+  String backend, {
+  Map<String, String>? engine,
+  Future<ByteData?> Function(String material)? prebuilt,
+}) {
   final added = <ShaderLibrary>[];
   final removed = <ShaderLibrary>[];
   return (
@@ -67,6 +73,7 @@ _shaders(String backend, {Map<String, String>? engine}) {
         return Registration(() => removed.add(library));
       },
       engineSources: engine,
+      prebuilt: prebuilt,
     ),
     added: added,
     removed: removed,
@@ -209,6 +216,52 @@ void main() {
         throwsA(isA<PluginException>()),
         reason: 'a source that does not parse is wrong on every backend',
       );
+      // D19: the refusal is typed, and names the stage.
+      expect(
+        impeller.shaders.refusals['Glow'],
+        isA<MissingShaderStageException>().having(
+          (e) => e.stage,
+          'stage',
+          'Glow',
+        ),
+      );
+    });
+
+    test('on Impeller the build\'s compiled bundle is found by name', () async {
+      // Mutation: refuse on Impeller whatever the build wrote. Every plugin
+      // material is compiled into the project for this SDK (D19).
+      final asked = <String>[];
+      final impeller = _shaders(
+        'impeller',
+        prebuilt: (material) async {
+          asked.add(material);
+          return ShaderBundle(
+            name: material,
+            sdk: '3.13.0',
+            stages: <ShaderBundleStage>[
+              ShaderBundleStage(material, fragment: true),
+            ],
+          ).encode();
+        },
+      );
+      impeller.shaders.addMaterial(_glow, from: 'glow.f3dmat');
+      await impeller.shaders.settled;
+      expect(asked, <String>['Glow']);
+      expect(impeller.added, hasLength(1));
+      expect(impeller.shaders.statuses['Glow'], isNull);
+      expect(impeller.shaders.lighting('Glow'), isNotNull);
+    });
+
+    test('on Impeller a material the build did not write is refused by '
+        'name', () async {
+      final impeller = _shaders('impeller', prebuilt: (_) async => null);
+      impeller.shaders.addMaterial(_glow, from: 'glow.f3dmat');
+      await impeller.shaders.settled;
+      expect(impeller.added, isEmpty);
+      final refusal = impeller.shaders.refusals['Glow']!;
+      expect(refusal, isA<MissingShaderStageException>());
+      expect(refusal.message, contains('the build did not write it'));
+      expect(impeller.shaders.statuses['Glow'], refusal.message);
     });
 
     test('a render step is the renderer\'s, and off where it has no stage', () {

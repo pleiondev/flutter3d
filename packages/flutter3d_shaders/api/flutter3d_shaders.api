@@ -231,6 +231,8 @@ WebGlSectionSources decodeWebGlSection(ByteData bytes)
 
 ByteData encodeWebGlSection({required Map<String, String> vertex, required Map<String, String> fragment})
 
+String engineRevisionAt(String sdkRoot)
+
 const int fragmentGroup = 1
 
 const String glslangExecutable = 'glslangValidator'
@@ -265,7 +267,52 @@ String wgslSectionDocument({required Map<String, PackedStage> vertex, required M
 
 library package:flutter3d_shaders/flutter3d_shaders.dart
 
+final class EngineBundleStamp
+  ByteData encode()
+  ShaderBundle bundle({required List<ShaderBundleStage> stages, required Map<String, ByteData> sections})
+  String toString()
+  const EngineBundleStamp({required this.dart, required this.engine, this.needs = const <String>[], this.full = false, this.stages = 0})
+  final List<String> needs
+  final String dart
+  final String engine
+  final bool full
+  final int stages
+  static EngineBundleStamp? decode(ByteData? bytes)
+  static String projectMaterialAsset(String material)
+  static const String previousProjectAsset = 'flutter3d_generated/shaders/flutter3d.previous.f3dshaders'
+  static const String projectAsset = 'flutter3d_generated/shaders/flutter3d.f3dshaders'
+  static const String projectDirectory = 'flutter3d_generated/shaders/'
+  static const String section = 'flutter3d.stamp'
+
+final class MissingShaderStageException extends ResourceException
+  String get message
+  String toString()
+  const MissingShaderStageException(this.stage, {this.need, this.backend, this.detail})
+  factory MissingShaderStageException.forStage(String stage, {String? backend, String? detail})
+  final String stage
+  final String? backend
+  final String? detail
+  final String? need
+
 typedef RequiredShader = ({String name, bool fragment});
+
+final class ShaderStageNeed
+  String toString()
+  bool operator ==(Object other)
+  const ShaderStageNeed(this.name, this.stages)
+  final List<String> stages
+  final String name
+  int get hashCode
+  static List<String> stagesFor(Iterable<ShaderStageNeed> needs)
+  static ShaderStageNeed? bringing(String stage)
+  static ShaderStageNeed? byName(String name)
+  static const List<ShaderStageNeed> engine = <ShaderStageNeed>[pbrLayered, blinnPhong, lambert, toon, impostor]
+  static const ShaderStageNeed blinnPhong = ShaderStageNeed('blinnPhong', <String>['BlinnPhong', 'BlinnPhongOpaque'])
+  static const ShaderStageNeed impostor = ShaderStageNeed('impostor', <String>['ImpostorVertex', 'Impostor'])
+  static const ShaderStageNeed lambert = ShaderStageNeed('lambert', <String>['Lambert', 'LambertOpaque'])
+  static const ShaderStageNeed pbrLayered = ShaderStageNeed('pbrLayered', <String>['PbrLayered', 'PbrLayeredOpaque'])
+  static const ShaderStageNeed toon = ShaderStageNeed('toon', <String>['Toon', 'ToonOpaque'])
+  static final ShaderStageNeed base
 
 const List<String> computeShaders = <String>['PrefixSum', 'SplatSortCount', 'SplatSortScan', 'SplatSortScatter']
 

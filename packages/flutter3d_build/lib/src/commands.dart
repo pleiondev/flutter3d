@@ -2,8 +2,8 @@
 ///
 /// **Every entry point in `bin/` is this function.** `bin/flutter3d.dart`
 /// hands it the command line; `bin/convert.dart`, `bin/create.dart`,
-/// `bin/init.dart`, `bin/lights.dart`, `bin/migrate.dart` and
-/// `bin/plugins.dart` are the same commands under the names
+/// `bin/init.dart`, `bin/lights.dart`, `bin/migrate.dart`, `bin/plugins.dart`
+/// and `bin/shaders.dart` are the same commands under the names
 /// `dart run flutter3d_build:<name>` reaches, each one line that puts its
 /// own name in front of the arguments. So the two spellings run the same code, and a
 /// command has one usage text, one exit code table and one `--json` shape.
@@ -12,6 +12,9 @@ library;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+
+import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart'
+    show MaterialBuildException;
 
 import 'cli_contract.dart';
 import 'convert/command.dart' show runConvertCommand;
@@ -23,6 +26,7 @@ import 'plugin_author_server.dart' show PluginWorkshop;
 import 'plugin_discovery.dart';
 import 'plugin_template.dart' show PluginKind;
 import 'project_template.dart' show createProject;
+import 'shader_build.dart';
 
 /// Runs `flutter3d <command> [arguments]` and returns its exit code
 /// ([CliExit]). Writes to stdout and stderr as the command does.
@@ -44,6 +48,8 @@ Future<int> runFlutter3d(List<String> arguments) async {
       return runInit(rest);
     case 'plugins':
       return _plugins(rest);
+    case 'shaders':
+      return _shaders(rest);
     case 'migrate':
       return runMigrateCommand(rest);
     case 'lights':
@@ -84,6 +90,8 @@ Future<int> _help(String? command) async {
       await runLights(const <String>['--help']);
     case 'plugins':
       stdout.writeln(pluginsUsage);
+    case 'shaders':
+      stdout.writeln(shadersUsage);
     default:
       stderr.writeln('No command "$command".\n\n$flutter3dUsage');
       return CliExit.usage;
@@ -242,6 +250,81 @@ int _plugins(List<String> arguments) {
     stderr.writeln(error.message);
     return CliExit.failure;
   }
+}
+
+/// `flutter3d shaders [--full-shaders] [--target native|web|any] [--json]`:
+/// the build hook's shader step by hand (D15), against the project in the
+/// working directory.
+int _shaders(List<String> arguments) {
+  final known = <String>{'--full-shaders', '--json', '--target'};
+  final targetAt = arguments.indexOf('--target');
+  final targetName = targetAt < 0 || targetAt + 1 >= arguments.length
+      ? 'any'
+      : arguments[targetAt + 1];
+  final target = switch (targetName) {
+    'native' => ShaderBuildTarget.native,
+    'web' => ShaderBuildTarget.web,
+    'any' => ShaderBuildTarget.any,
+    _ => null,
+  };
+  final unknown = <String>[
+    for (var i = 0; i < arguments.length; i++)
+      if (!known.contains(arguments[i]) && i != targetAt + 1) arguments[i],
+  ];
+  if (unknown.isNotEmpty ||
+      target == null ||
+      (targetAt >= 0 && targetAt + 1 >= arguments.length)) {
+    final help = arguments.contains('-h') || arguments.contains('--help');
+    stderr.writeln(
+      help
+          ? shadersUsage
+          : '${target == null ? 'Unknown target "$targetName"' : 'Unknown option ${unknown.firstOrNull ?? '--target'}'}.\n\n$shadersUsage',
+    );
+    return help ? CliExit.ok : CliExit.usage;
+  }
+  final root = Directory.current;
+  try {
+    final discovery = discoverPlugins(root);
+    final report = runShaderBuild(
+      root,
+      plugins: discovery,
+      full: arguments.contains('--full-shaders'),
+      target: target,
+      log: arguments.contains('--json') ? _Discard() : null,
+    );
+    if (arguments.contains('--json')) {
+      stdout.writeln(
+        const JsonEncoder.withIndent('  ').convert(
+          cliJson('shaders', <String, Object?>{
+            'ran': report.ran,
+            'written': report.written,
+            'bytes': report.bytes,
+            'full': report.full,
+            'needs': report.needs,
+            'stages': report.stages,
+            'totalStages': report.totalStages,
+            'materials': report.materials,
+          }),
+        ),
+      );
+    }
+    return CliExit.ok;
+  } on PluginDiscoveryException catch (error) {
+    stderr.writeln(error.message);
+    return CliExit.failure;
+  } on MaterialBuildException catch (error) {
+    stderr.writeln(error);
+    return CliExit.failure;
+  }
+}
+
+/// A sink that keeps nothing: the build's log, when the output is JSON.
+final class _Discard implements IOSink {
+  @override
+  void writeln([Object? object = '']) {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
 }
 
 List<Object?> _rows(List<DiscoveredPlugin> plugins) => <Object?>[

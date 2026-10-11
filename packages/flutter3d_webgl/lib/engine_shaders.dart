@@ -84,6 +84,37 @@ in vec4 color;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -117,14 +148,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -370,6 +400,37 @@ in vec4 color;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -403,14 +464,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -616,7 +676,7 @@ in vec4 color;
 // layout, so eight more floats would be paid by every instanced draw in every
 // game, including the overwhelming majority that morph nothing.
 //
-// So: a texture, one row per instance, read by `gl_InstanceID`. Two texels
+// So: a texture, one row per instance, read by the instance index. Two texels
 // wide, because eight weights are two `vec4`s. It costs one sampler on one
 // stage, and the layout is untouched.
 //
@@ -688,6 +748,37 @@ in vec4 color;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -721,14 +812,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -841,6 +931,27 @@ void ApplyMorphInstanced(int instance, inout vec3 position, inout vec3 normal,
 #endif  // MORPH_INSTANCED_GLSL_
 
 
+// Which instance this is, through the header that makes it an attribute on
+// the one target with no built-in for it.
+// --- lib/instance_index.glsl ---
+// Which instance this is: `gl_InstanceID` where the target has it, the
+// attribute `f3d_instance_index` — a float per instance — on Impeller's
+// OpenGL ES target, which has no such built-in. `lib/vertex_index.glsl` says
+// why.
+
+#ifndef INSTANCE_INDEX_GLSL_
+#define INSTANCE_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_instance_index;
+int F3dInstanceIndex() { return int(f3d_instance_index + 0.5); }
+#else
+int F3dInstanceIndex() { return gl_InstanceID; }
+#endif
+
+#endif  // INSTANCE_INDEX_GLSL_
+
+
 /// Rows of the instance's 3x4 affine transform, in the node's space.
 in vec4 i_row0;
 in vec4 i_row1;
@@ -883,7 +994,7 @@ void main() {
   vec3 morphed_position = position;
   vec3 morphed_normal = normal;
   vec4 morphed_tangent = tangent;
-  ApplyMorphInstanced(gl_InstanceID, morphed_position, morphed_normal,
+  ApplyMorphInstanced(F3dInstanceIndex(), morphed_position, morphed_normal,
                       morphed_tangent);
 
   vec4 local = instance * vec4(morphed_position, 1.0);
@@ -976,6 +1087,37 @@ in vec4 color;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -1009,14 +1151,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -1175,6 +1316,37 @@ in vec3 position;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -1208,14 +1380,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -1435,6 +1606,37 @@ in vec3 position;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -1468,14 +1670,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -1732,6 +1933,37 @@ in vec3 position;
 #ifndef MORPH_GLSL_
 #define MORPH_GLSL_
 
+// --- lib/vertex_index.glsl ---
+// Which vertex this is: `gl_VertexID` where the target has it, an
+// attribute where it does not.
+//
+// Impeller's OpenGL ES backend compiles the bundle as GLSL ES 1.00, which has
+// no vertex or instance index. `impellerc` writes the built-in into the
+// `#version 100` source anyway, the driver refuses the stage at run time, and
+// a Linux machine or an Android phone without Vulkan draws nothing. GLSL ES
+// 3.00 is no way out: `--gles-language-version=300` also sets the desktop GL
+// target's version, which then reads `#version 300` (`doc/upstream.md`).
+//
+// So on that one target the index is `f3d_vertex_index`, a float per vertex
+// in a buffer of its own that the backend binds after the pipeline's own
+// slots (`flutter3d_impeller`'s `gpu_vertex_index.dart`). A float because
+// GLSL ES 1.00 has no integer attributes; it is exact up to 2^24. Every other
+// target keeps the built-in and its layout. `lib/instance_index.glsl` is the
+// same for the instance.
+
+#ifndef VERTEX_INDEX_GLSL_
+#define VERTEX_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_vertex_index;
+int F3dVertexIndex() { return int(f3d_vertex_index + 0.5); }
+#else
+int F3dVertexIndex() { return gl_VertexID; }
+#endif
+
+#endif  // VERTEX_INDEX_GLSL_
+
+
 /// Rows of the delta texture each target occupies. See the header.
 const int kMorphRows = 3;
 
@@ -1765,14 +1997,13 @@ int MorphCount() { return int(morph_info.morph_params.x + 0.5); }
 
 /// The vertex's own column in the delta texture.
 ///
-/// **`gl_VertexID`, spelt the way SPIR-V spells it.** GLSL ES 3.00 calls the
-/// same builtin `gl_VertexID`, and the browser backend's translator rewrites
-/// the name on its way out — one substitution beside the ones it already makes
-/// for `#version` and `layout(std140)`. Written the other way round, impellerc
-/// refuses it outright: "undeclared identifier (Did you mean gl_VertexID?)",
-/// which is the friendliest error in this repository.
+/// **Through `lib/vertex_index.glsl`, not `gl_VertexID` itself.** The
+/// built-in is what every target but one reads — spelt the way SPIR-V spells
+/// it, which the browser backend's translator rewrites to GLSL ES 3.00's
+/// `gl_VertexID` — and Impeller's OpenGL ES target has no such built-in at
+/// all, so there it is an attribute the backend feeds. The header says why.
 float MorphColumn() {
-  return (float(gl_VertexID) + 0.5) * morph_info.morph_params.y;
+  return (float(F3dVertexIndex()) + 0.5) * morph_info.morph_params.y;
 }
 
 /// Adds target *t*'s deltas onto one vertex, scaled by [weight].
@@ -2240,6 +2471,27 @@ precision highp float;
 /// One corner of the photon's quad, from −1 to 1 on each axis.
 in vec2 corner;
 
+// The instance index, which is the photon's texel: an attribute on the one
+// target with no built-in for it — see `lib/instance_index.glsl`.
+// --- lib/instance_index.glsl ---
+// Which instance this is: `gl_InstanceID` where the target has it, the
+// attribute `f3d_instance_index` — a float per instance — on Impeller's
+// OpenGL ES target, which has no such built-in. `lib/vertex_index.glsl` says
+// why.
+
+#ifndef INSTANCE_INDEX_GLSL_
+#define INSTANCE_INDEX_GLSL_
+
+#ifdef IMPELLER_TARGET_OPENGLES
+in float f3d_instance_index;
+int F3dInstanceIndex() { return int(f3d_instance_index + 0.5); }
+#else
+int F3dInstanceIndex() { return gl_InstanceID; }
+#endif
+
+#endif  // INSTANCE_INDEX_GLSL_
+
+
 /// What the photon carries, already divided by the area it covers, in rgb.
 /// The particles' names for the particles' pair, which is what a photon is:
 /// the varyings are numbered once across every stage, and two new names
@@ -2374,7 +2626,7 @@ void main() {
   gl_Position = vec4(4.0, 4.0, 0.5, 1.0);
 
   float n = caustic_info.grid.x;
-  float id = float(gl_InstanceID);
+  float id = float(F3dInstanceIndex());
   float column = mod(id, n);
   float row = floor(id / n);
   vec2 uv = vec2((column + 0.5) / n, (row + 0.5) / n);

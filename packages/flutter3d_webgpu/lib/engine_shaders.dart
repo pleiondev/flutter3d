@@ -47,9 +47,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(2) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(3) 
@@ -102,8 +102,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e34 = gl_VertexIndex_1;
+    return _e34;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e34 = F3dVertexIndex_u0028_();
     let _e39 = morph_info.morph_params[1u];
     return ((f32(_e34) + 0.5f) * _e39);
 }
@@ -508,9 +513,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(3) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(4) 
@@ -567,8 +572,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e41 = gl_VertexIndex_1;
+    return _e41;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e41 = F3dVertexIndex_u0028_();
     let _e46 = morph_info.morph_params[1u];
     return ((f32(_e41) + 0.5f) * _e46);
 }
@@ -945,9 +955,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(5) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(6) 
@@ -958,13 +968,13 @@ var<uniform> morph_instance_info: MorphInstanceInfo;
 var morph_instance_weights_tex: texture_2d<f32>;
 @group(0) @binding(4) 
 var morph_instance_weights_smp: sampler;
+var<private> gl_InstanceIndex_1: i32;
 var<private> i_row0_1: vec4<f32>;
 var<private> i_row1_1: vec4<f32>;
 var<private> i_row2_1: vec4<f32>;
 var<private> position_4: vec3<f32>;
 var<private> normal_4: vec3<f32>;
 var<private> tangent_4: vec4<f32>;
-var<private> gl_InstanceIndex_1: i32;
 @group(0) @binding(0) 
 var<uniform> frame_info: FrameInfo;
 var<private> v_world_position: vec3<f32>;
@@ -1012,8 +1022,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e42 = gl_VertexIndex_1;
+    return _e42;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e42 = F3dVertexIndex_u0028_();
     let _e47 = morph_info.morph_params[1u];
     return ((f32(_e42) + 0.5f) * _e47);
 }
@@ -1201,6 +1216,11 @@ fn ApplyMorphInstanced_u0028_i1_u003b_vf3_u003b_vf3_u003b_vf4_u003b(instance: pt
     return;
 }
 
+fn F3dInstanceIndex_u0028_() -> i32 {
+    let _e42 = gl_InstanceIndex_1;
+    return _e42;
+}
+
 fn main_1() {
     var instance_1: mat4x4<f32>;
     var morphed_position: vec3<f32>;
@@ -1239,7 +1259,7 @@ fn main_1() {
     morphed_normal = _e105;
     let _e106 = tangent_4;
     morphed_tangent = _e106;
-    let _e107 = gl_InstanceIndex_1;
+    let _e107 = F3dInstanceIndex_u0028_();
     param_17 = _e107;
     let _e108 = morphed_position;
     param_18 = _e108;
@@ -1300,15 +1320,15 @@ fn main_1() {
 }
 
 @vertex 
-fn main(@builtin(vertex_index) gl_VertexIndex: u32, @location(5) i_row0_: vec4<f32>, @location(6) i_row1_: vec4<f32>, @location(7) i_row2_: vec4<f32>, @location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(3) tangent: vec4<f32>, @builtin(instance_index) gl_InstanceIndex: u32, @location(2) texcoord: vec2<f32>, @location(4) color: vec4<f32>, @location(8) i_color: vec4<f32>, @location(9) i_data: vec4<f32>) -> VertexOutput {
+fn main(@builtin(vertex_index) gl_VertexIndex: u32, @builtin(instance_index) gl_InstanceIndex: u32, @location(5) i_row0_: vec4<f32>, @location(6) i_row1_: vec4<f32>, @location(7) i_row2_: vec4<f32>, @location(0) position: vec3<f32>, @location(1) normal: vec3<f32>, @location(3) tangent: vec4<f32>, @location(2) texcoord: vec2<f32>, @location(4) color: vec4<f32>, @location(8) i_color: vec4<f32>, @location(9) i_data: vec4<f32>) -> VertexOutput {
     gl_VertexIndex_1 = i32(gl_VertexIndex);
+    gl_InstanceIndex_1 = i32(gl_InstanceIndex);
     i_row0_1 = i_row0_;
     i_row1_1 = i_row1_;
     i_row2_1 = i_row2_;
     position_4 = position;
     normal_4 = normal;
     tangent_4 = tangent;
-    gl_InstanceIndex_1 = i32(gl_InstanceIndex);
     texcoord_1 = texcoord;
     color_1 = color;
     i_color_1 = i_color;
@@ -1477,9 +1497,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(2) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(3) 
@@ -1532,8 +1552,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e34 = gl_VertexIndex_1;
+    return _e34;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e34 = F3dVertexIndex_u0028_();
     let _e39 = morph_info.morph_params[1u];
     return ((f32(_e34) + 0.5f) * _e39);
 }
@@ -1813,9 +1838,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(3) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(4) 
@@ -1869,8 +1894,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e26 = gl_VertexIndex_1;
+    return _e26;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e26 = F3dVertexIndex_u0028_();
     let _e31 = morph_info.morph_params[1u];
     return ((f32(_e26) + 0.5f) * _e31);
 }
@@ -2153,9 +2183,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(4) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(5) 
@@ -2217,8 +2247,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e41 = gl_VertexIndex_1;
+    return _e41;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e41 = F3dVertexIndex_u0028_();
     let _e46 = morph_info.morph_params[1u];
     return ((f32(_e41) + 0.5f) * _e46);
 }
@@ -2645,9 +2680,9 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(1) 
 var<uniform> morph_info: MorphInfo;
-var<private> gl_VertexIndex_1: i32;
 @group(0) @binding(3) 
 var morph_texture_tex: texture_2d<f32>;
 @group(0) @binding(4) 
@@ -2727,8 +2762,13 @@ fn AddMorphTargetAt_u0028_i1_u003b_f1_u003b_f1_u003b_f1_u003b_vf3_u003b_vf3_u003
     return;
 }
 
-fn MorphColumn_u0028_() -> f32 {
+fn F3dVertexIndex_u0028_() -> i32 {
     let _e33 = gl_VertexIndex_1;
+    return _e33;
+}
+
+fn MorphColumn_u0028_() -> f32 {
+    let _e33 = F3dVertexIndex_u0028_();
     let _e38 = morph_info.morph_params[1u];
     return ((f32(_e33) + 0.5f) * _e38);
 }
@@ -3542,6 +3582,7 @@ struct VertexOutput {
     @builtin(position) gl_Position: vec4<f32>,
 }
 
+var<private> gl_InstanceIndex_1: i32;
 @group(0) @binding(5) 
 var caustic_front_tex: texture_2d<f32>;
 @group(0) @binding(6) 
@@ -3560,7 +3601,6 @@ var<private> v_uv: vec2<f32>;
 var<private> corner_1: vec2<f32>;
 var<private> v_color: vec4<f32>;
 var<private> unnamed: gl_PerVertex = gl_PerVertex(vec4<f32>(0f, 0f, 0f, 1f), 1f, array<f32, 1>(), array<f32, 1>());
-var<private> gl_InstanceIndex_1: i32;
 
 fn AtLeast_u0028_vf2_u003b_vf2_u003b_f1_u003b(a: ptr<function, vec2<f32>>, fallback: ptr<function, vec2<f32>>, least: ptr<function, f32>) -> vec2<f32> {
     var size: f32;
@@ -3644,7 +3684,7 @@ fn Follow_u0028_vf2_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, energy: ptr<fu
     var under: f32;
     var param_6: vec4<f32>;
     var clip: vec4<f32>;
-    var phi_100_: bool;
+    var phi_109_: bool;
 
     (*energy) = vec3<f32>(0f, 0f, 0f);
     let _e80 = (*uv);
@@ -3652,13 +3692,13 @@ fn Follow_u0028_vf2_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, energy: ptr<fu
     front = _e81;
     let _e83 = front[3u];
     let _e84 = (_e83 >= 1f);
-    phi_100_ = _e84;
+    phi_109_ = _e84;
     if !(_e84) {
         let _e86 = front;
         let _e88 = front;
-        phi_100_ = (dot(_e86.xyz, _e88.xyz) < 0.25f);
+        phi_109_ = (dot(_e86.xyz, _e88.xyz) < 0.25f);
     }
-    let _e93 = phi_100_;
+    let _e93 = phi_109_;
     if _e93 {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }
@@ -3834,6 +3874,11 @@ fn Follow_u0028_vf2_u003b_vf3_u003b(uv: ptr<function, vec2<f32>>, energy: ptr<fu
     return vec4<f32>(_e329.x, _e329.y, 0f, 1f);
 }
 
+fn F3dInstanceIndex_u0028_() -> i32 {
+    let _e45 = gl_InstanceIndex_1;
+    return _e45;
+}
+
 fn main_1() {
     var n: f32;
     var id: f32;
@@ -3880,7 +3925,7 @@ fn main_1() {
     unnamed.gl_Position = vec4<f32>(4f, 4f, 0.5f, 1f);
     let _e87 = caustic_info.grid[0u];
     n = _e87;
-    let _e88 = gl_InstanceIndex_1;
+    let _e88 = F3dInstanceIndex_u0028_();
     id = f32(_e88);
     let _e90 = id;
     let _e91 = n;
@@ -4021,9 +4066,9 @@ fn main_1() {
 }
 
 @vertex 
-fn main(@location(0) corner: vec2<f32>, @builtin(instance_index) gl_InstanceIndex: u32) -> VertexOutput {
-    corner_1 = corner;
+fn main(@builtin(instance_index) gl_InstanceIndex: u32, @location(0) corner: vec2<f32>) -> VertexOutput {
     gl_InstanceIndex_1 = i32(gl_InstanceIndex);
+    corner_1 = corner;
     main_1();
     let _e9 = v_uv;
     let _e10 = v_color;

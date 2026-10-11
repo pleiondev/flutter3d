@@ -12,6 +12,31 @@
 - **The debug-line stage writes `gl_PointSize`** under `impellerc` and in
   a WebGL2 compile, where a point's size was undefined; the road to WGSL
   sees neither.
+- **`ShaderStageNeed`: which of the engine's stages a project carries.**
+  `base`, always carried, and the needs a project may declare
+  (`pbrLayered`, `blinnPhong`, `lambert`, `toon`, `impostor`), each with the
+  entry points it brings; `byName`, `bringing` (the need a stage comes with)
+  and `stagesFor`. Every entry point of the manifest is brought by exactly
+  one need, which a test holds. A plugin declares its own under its id. An
+  open set, like every other.
+- **`MissingShaderStageException`: a stage asked for and not in the
+  bundle.** Under the root through `ResourceException`, with the stage,
+  the need that brings it and the backend; `forStage` fills the need in from
+  the engine's table, and the message names the word to add under
+  `shaders:` in `flutter3d_assets.yaml`.
+- **`EngineBundleStamp`: what the engine's own bundle was built with.** The
+  Dart, the engine revision, the needs and the stage count, in a section of
+  its own (`flutter3d.stamp`); `bundle` wraps compiled sections into the
+  engine's container, and `projectAsset`, `previousProjectAsset` and
+  `projectMaterialAsset` are where a project's build writes them.
+  `compile.dart` gains `engineRevisionAt`, an SDK's engine revision.
+- **No stage reads a built-in index on Impeller's OpenGL ES target.**
+  `lib/vertex_index.glsl` and `lib/instance_index.glsl` give
+  `F3dVertexIndex()` and `F3dInstanceIndex()`: `gl_VertexIndex` and
+  `gl_InstanceIndex` everywhere else, the attributes `f3d_vertex_index` and
+  `f3d_instance_index` under `IMPELLER_TARGET_OPENGLES`, where GLSL ES 1.00
+  has neither built-in. The morph column, the instanced mesh and the
+  caustic photons read them. Every other target compiles what it did.
 - **`dielectricF0`: a dielectric's F0, written once.** 0.04, the
   reflectance head-on of an index of 1.5. The GLSL reads it as
   `kDielectricF0` from `shaders/lib/shading_constants.glsl`, which

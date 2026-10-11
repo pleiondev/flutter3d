@@ -24,6 +24,7 @@ import 'device_classes.dart';
 import 'layout.dart';
 import 'pipeline_version.dart';
 import 'plugin_discovery.dart';
+import 'shader_build.dart' show ShaderBuildTarget;
 
 /// What one call to [runAssetBuild] did, for a hook's own log line and for
 /// a test to assert against without parsing stdout.
@@ -449,6 +450,15 @@ Future<void> _buildAssets(
   // written before the Dart is compiled, so a plugin dependency added since
   // the last build is in this one; the package graph and every pubspec read
   // are declared below, so adding or removing one reruns the hook.
+  // **The shaders — D15.** Every stage when the project asks for every one
+  // (`fullShaders: true` among this package's user defines, what
+  // `--full-shaders` sets); the native target's section for a native build,
+  // both sections when the build names no target.
+  final fullShaders = input.userDefines['fullShaders'] == true;
+  final shaderTarget = input.config.buildCodeAssets
+      ? ShaderBuildTarget.native
+      : ShaderBuildTarget.any;
+
   final BuildStepsReport report;
   try {
     report = await runBuildSteps(
@@ -456,6 +466,8 @@ Future<void> _buildAssets(
       steps: steps,
       textures: textures,
       deviceClasses: deviceClasses,
+      fullShaders: fullShaders,
+      shaderTarget: shaderTarget,
     );
   } on MaterialBuildException catch (error) {
     throw BuildError(message: error.toString());

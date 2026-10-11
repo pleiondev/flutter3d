@@ -24,6 +24,10 @@ in vec4 color;
 
 #include <lib/morph_instanced.glsl>
 
+// Which instance this is, through the header that makes it an attribute on
+// the one target with no built-in for it.
+#include <lib/instance_index.glsl>
+
 /// Rows of the instance's 3x4 affine transform, in the node's space.
 in vec4 i_row0;
 in vec4 i_row1;
@@ -66,7 +70,7 @@ void main() {
   vec3 morphed_position = position;
   vec3 morphed_normal = normal;
   vec4 morphed_tangent = tangent;
-  ApplyMorphInstanced(gl_InstanceIndex, morphed_position, morphed_normal,
+  ApplyMorphInstanced(F3dInstanceIndex(), morphed_position, morphed_normal,
                       morphed_tangent);
 
   vec4 local = instance * vec4(morphed_position, 1.0);

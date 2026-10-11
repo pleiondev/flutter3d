@@ -41,6 +41,7 @@ import 'dart:io';
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show ShaderStageNeed;
 import 'package:glob/glob.dart';
 import 'package:yaml/yaml.dart';
 
@@ -99,7 +100,33 @@ final class AssetRule {
   final bool exclude;
 }
 
-const Set<String> _topLevelKeys = <String>{'format', 'rules', 'classes'};
+const Set<String> _topLevelKeys = <String>{
+  'format',
+  'rules',
+  'classes',
+  'shaders',
+};
+
+/// What a project's `shaders:` says about the engine's stages it carries
+/// (D15): the needs beyond the base it declares, or every stage.
+///
+/// ```yaml
+/// shaders: [toon, pbrLayered]   # the engine's needs, or a plugin's by id
+/// shaders: full                 # every stage, as the editor carries
+/// ```
+final class ShaderSelection {
+  const ShaderSelection({this.needs = const <String>[], this.full = false});
+
+  /// Nothing declared: the base, and what materials and plugins bring.
+  static const ShaderSelection none = ShaderSelection();
+
+  /// The needs named, by `ShaderStageNeed.name`.
+  final List<String> needs;
+
+  /// Every stage, whatever is declared — `--full-shaders`.
+  final bool full;
+}
+
 const Set<String> _classKeys = <String>{
   'lods',
   'impostor',
@@ -125,6 +152,7 @@ final class AssetManifest {
   const AssetManifest([
     this.rules = const <AssetRule>[],
     this.classes = const <DeviceClassBudget>[],
+    this.shaders = ShaderSelection.none,
   ]);
 
   static const AssetManifest empty = AssetManifest();
@@ -147,6 +175,10 @@ final class AssetManifest {
   /// class to the numbers it changes (`phone: {maxTextureSide: 512}`).
   /// Empty, the default, writes the single `.f3d` a project always had.
   final List<DeviceClassBudget> classes;
+
+  /// D15: which of the engine's shader stages the project's bundle carries
+  /// beyond the base — `shaders: [toon]`, or `shaders: full`.
+  final ShaderSelection shaders;
 
   /// Reads a project's manifest if it has one, or [empty] if it does not —
   /// the "no configuration" half of `ap-04`'s own acceptance.
@@ -212,7 +244,10 @@ final class AssetManifest {
       );
     }
     final classesNode = document.nodes['classes'];
-    if (rulesNode == null && classesNode == null) return empty;
+    final shadersNode = document.nodes['shaders'];
+    if (rulesNode == null && classesNode == null && shadersNode == null) {
+      return empty;
+    }
 
     return AssetManifest(
       <AssetRule>[
@@ -222,6 +257,39 @@ final class AssetManifest {
       classesNode == null
           ? const <DeviceClassBudget>[]
           : _parseClasses(classesNode),
+      shadersNode == null ? ShaderSelection.none : _parseShaders(shadersNode),
+    );
+  }
+
+  /// `shaders:` as the word `full` or a list of needs: the engine's by name,
+  /// a plugin's by its id-prefixed name.
+  static ShaderSelection _parseShaders(YamlNode node) {
+    if (node is YamlScalar && node.value == 'full') {
+      return const ShaderSelection(full: true);
+    }
+    if (node is! YamlList) {
+      throw ManifestFormatException(
+        '"shaders" is a list of needs, such as [toon, pbrLayered], or the '
+        'word full',
+        node.span.start.line + 1,
+      );
+    }
+    return ShaderSelection(
+      needs: <String>[
+        for (final entry in node.nodes)
+          switch (_textOf(entry, 'a shader need')) {
+            final name
+                when name.contains('.') ||
+                    ShaderStageNeed.engine.any((need) => need.name == name) =>
+              name,
+            final name => throw ManifestFormatException(
+              '"$name" is not a shader need: the engine\'s are '
+              '${ShaderStageNeed.engine.map((n) => n.name).join(', ')}, and '
+              'a plugin\'s is named after its id (acme.glow)',
+              entry.span.start.line + 1,
+            ),
+          },
+      ],
     );
   }
 

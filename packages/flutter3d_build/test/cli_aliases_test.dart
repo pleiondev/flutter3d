@@ -29,6 +29,7 @@ void main() {
       'migrate',
       'plugin_mcp',
       'plugins',
+      'shaders',
     ]);
   });
 
