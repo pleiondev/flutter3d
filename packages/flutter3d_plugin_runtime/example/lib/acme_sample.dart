@@ -9,7 +9,10 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ColorTarget, DepthTarget, RenderPassDescriptor;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 /// A light type of the plugin's own: a tube, lit as a point by the engine's
 /// stages until its own model reads it.
@@ -107,6 +110,13 @@ final class SoftSun extends ShadowTechnique {
 
   @override
   RenderNode? shadowMapProducer(ShadowProducerContext context) => SunMapNode();
+
+  @override
+  RenderNode? cubeAtlasProducer(ShadowProducerContext context) =>
+      switch (context.cubeAtlas) {
+        null => null,
+        final atlas => LampAtlasNode(atlas),
+      };
 }
 
 /// What [SoftSun] draws the directional map with.
@@ -119,6 +129,37 @@ final class SunMapNode extends RenderNode {
 
   @override
   void execute(RenderFrame frame) {}
+}
+
+/// What [SoftSun] keeps the cube atlas of point and spot lights with: no
+/// moving caster, every tile cleared to nothing in the way, so the lamps
+/// cast only what the engine baked of the casters that never move.
+final class LampAtlasNode extends RenderNode {
+  LampAtlasNode(this.atlas);
+
+  /// The rows the engine laid out and fitted this frame.
+  final ShadowCubeAtlas atlas;
+
+  @override
+  String get name => 'acme_sample.lamp atlas';
+
+  @override
+  List<ResourceId> get keeps => const <ResourceId>[FrameResourceIds.cubeShadow];
+
+  @override
+  void execute(RenderFrame frame) => frame.device
+      .beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: atlas.atlas,
+              clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
+            ),
+          ],
+          depth: DepthTarget(texture: atlas.depth),
+        ),
+      )
+      .submit();
 }
 
 /// Leaves out of every view a mesh whose name starts `acme_sample.hidden`,

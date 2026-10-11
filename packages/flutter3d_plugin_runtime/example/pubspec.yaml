@@ -20,13 +20,19 @@ dependencies:
   flutter3d_plugin_runtime:
     path: ../
 
-dev_dependencies:
-  test: ^1.25.0
-  vector_math: ^2.2.0
-
-  # A device with no GPU under it, so a frame is drawn on the VM.
+  # The passes its shadow producer opens, and the clear colour it opens
+  # them with.
   flutter3d_hardware:
     path: ../../flutter3d_hardware
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+
+  # A device with no GPU under it, so a frame is drawn on the VM, and the
+  # software rasteriser the render checks draw pictures on.
+  flutter3d_cpu:
+    path: ../../flutter3d_cpu
 
   # The loop the plugin is installed into, and the conformance suite it is
   # held to.

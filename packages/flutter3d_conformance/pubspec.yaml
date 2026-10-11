@@ -52,6 +52,10 @@ dependencies:
   # What a world is made of: its properties, the materials and the constants.
   flutter3d_matter: ^1.0.0-rc.1
 
+  # The render checks (`plugin_render.dart`): the renderer a plugin's points
+  # in the frame are drawn through. Plain Dart, so the package stays flat.
+  flutter3d_core: ^1.0.0-rc.1
+
 dev_dependencies:
   flutter_lints: ^6.0.0
 
