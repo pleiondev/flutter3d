@@ -78,6 +78,7 @@ export 'src/engine/assets/packed_maps.dart';
 export 'src/engine/assets/pointer_targets.dart';
 export 'src/engine/assets/resource_cache.dart';
 export 'src/engine/assets/texture_upload.dart';
+export 'src/engine/assets/web_decode_worker.dart' show WebDecodeWorker;
 // `device_mesh.dart` holds the two types that have met a device —
 // `DeviceMesh` and its buffers — and named `flutter3d_hardware` already, so
 // nothing about it is more Flutter-shaped for living here than the render

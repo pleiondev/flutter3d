@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **`createPipelineAsync` links on the driver's threads where the browser
+  offers `KHR_parallel_shader_compile`.** The program is linked and its
+  status read only once `COMPLETION_STATUS_KHR` says, without waiting, that
+  the driver is done; a `createPipeline` of the same pair meanwhile finishes
+  that program instead of linking a second, and a pair the linker refuses
+  is reported to `pipelineRefusals` as `createPipeline` reports it.
+  `WebGlDevice.supportsParallelShaderCompile` says whether the context
+  has it.
 - **`releasePipeline` deletes the program.** A pipeline's `dispose` gives
   its GL program back once no other handle shares it (two layouts over one
   pair, or one pair asked for twice, are one program), and the next

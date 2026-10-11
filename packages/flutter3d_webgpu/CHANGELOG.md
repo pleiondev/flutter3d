@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A draw in a new state does not stall the frame once the canvas shows
+  one.** The draw path builds a pipeline it has not met through
+  `createRenderPipelineAsync` and skips the draw until it arrives; a draw a
+  frame later that still finds it out builds it in place, so a draw is
+  missing from one frame at most. `WebGpuDevice.deferPipelineBuilds` (null
+  by default: defer once `copyToCanvas` has run, so a frame drawn once and
+  read back is whole) and `defersPipelineBuilds` say when; a build the
+  browser refuses is a refused pipeline (`link`), as one on the error scope
+  is.
 - **`releasePipeline` lets go of what was built for the pipeline.** With
   the last handle over a stage pair and vertex layout, every
   `GPURenderPipeline` the draws built for them leaves the cache, and with
