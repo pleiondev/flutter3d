@@ -232,6 +232,46 @@ compute Copy {
       expect(wgsl, contains('f3d_exact(b_values[l_i] * b_factor[0i])'));
       expect(wgsl, contains('f3d_zero = f3d_id.z >> 31u;'));
     });
+
+    test('the barrier survives being applied twice', () {
+      // Dawn compiles under Metal's relaxed math, which folds `0.0 + x` to
+      // `x`; a sum that starts at zero then wraps one barrier straight in
+      // another, and an exclusive or twice with one value is no or at all.
+      // The product beneath came out bare and fused into the next sum: the
+      // skinning kernel an ulp off in 26 values of 512 on Chrome. An
+      // inclusive or with zero survives a second one. Mutation: go back to
+      // `^`, and this fails here and on Chrome's conformance run.
+      final wgsl = ComputeKernel.parse(_scale).toWgsl().code;
+      expect(wgsl, contains('bitcast<u32>(x) | f3d_zero'));
+      expect(wgsl, isNot(contains('^')));
+    });
+
+    test('an image store is rounded to its level, ties to even', () {
+      // A level halfway between two was stored half up on Chrome, where the
+      // Dart kernel and wgpu round it to even: the blur kernel one level off
+      // in 12 texels of 256. The store is handed the level's own value, which
+      // every conversion reads back as that level. Mutation: store the sum
+      // as it is.
+      final wgsl = ComputeKernel.parse('''
+compute Copy {
+  workgroup 2, 2;
+  texture source: rgba8;
+  image target: rgba8;
+  kernel {
+    store(target, i32(id.x), i32(id.y), load(source, i32(id.x), i32(id.y)));
+  }
+}
+''').toWgsl().code;
+      expect(wgsl, contains('textureStore(b_target, '));
+      expect(wgsl, contains(', f3d_unorm8(textureLoad('));
+      expect(
+        wgsl,
+        contains(
+          'return round(clamp(v, vec4<f32>(0.0f), vec4<f32>(1.0f)) * '
+          '255.0f) / 255.0f;',
+        ),
+      );
+    });
   });
 
   group('bundles', () {

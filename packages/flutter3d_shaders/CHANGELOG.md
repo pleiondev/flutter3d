@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **A kernel's WGSL gives the Dart kernel's bytes on Dawn too.** Chrome
+  compiles under Metal's relaxed math, which folds `0.0 + x`; a sum
+  starting at zero then wrapped one `f3d_exact` straight in another, and
+  two exclusive ors with one zero cancel, so a product fused into the next
+  sum (the skinning kernel an ulp off in 26 values of 512). The barrier is
+  an inclusive or, which a second one leaves standing. An image store is
+  handed its level over 255, rounded ties to even by `f3d_unorm8`, where
+  Dawn and wgpu stored a sum halfway between two levels half up (the blur
+  kernel a level off in 12 channels of 1024).
+- **The debug-line stage writes `gl_PointSize`** under `impellerc` and in
+  a WebGL2 compile, where a point's size was undefined; the road to WGSL
+  sees neither.
 - **`dielectricF0`: a dielectric's F0, written once.** 0.04, the
   reflectance head-on of an index of 1.5. The GLSL reads it as
   `kDielectricF0` from `shaders/lib/shading_constants.glsl`, which
