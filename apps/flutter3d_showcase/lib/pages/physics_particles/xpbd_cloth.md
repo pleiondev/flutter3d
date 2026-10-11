@@ -27,7 +27,9 @@ are solved against that prediction, and particles are pushed back outside
 every obstacle before the result is folded into velocity and position. Here
 it runs live, a step a frame: the sheet falls into place from lying flat, and
 then a ball swings through it and a gust of wind, which `WindSettings` applies
-per triangle as drag along its own normal, rises and falls. **Wind** sets how
+per triangle as drag along its own normal, rises and falls. The gust is the
+world's wind: `ClothSettings.inWorld` gives the sheet its world's gravity,
+wind and air, so the same drag pushes less in thinner air. **Wind** sets how
 hard the gust blows; **Swing the ball** stops the ball where it is.
 
 {{code live}}

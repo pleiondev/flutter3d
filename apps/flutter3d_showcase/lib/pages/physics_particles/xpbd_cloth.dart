@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_matter/flutter3d_matter.dart' show WorldProperties;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show usePhysics;
@@ -154,9 +155,12 @@ final class XpbdClothDemo extends ShowcaseDemo {
     // A gust that rises and falls, blowing the sheet towards the viewer.
     final double gust = wind * (0.5 + 0.5 * math.sin(_clock * 0.7));
     _simulation!.step(
-      // Drag 4, not 0.3: until 0.7.4 the wind was added as a velocity, which
-      // made 0.3 several hundred times stronger than its value.
-      ClothSettings(wind: WindSettings(velocityZ: gust, drag: 4.0)),
+      // The sheet hangs in a world: its gravity, and its wind blowing in its
+      // air. Drag 4, not 0.3: until 0.7.4 the wind was added as a velocity,
+      // which made 0.3 several hundred times stronger than its value.
+      const ClothSettings(
+        wind: WindSettings(drag: 4.0),
+      ).inWorld(WorldProperties(wind: Vector3(0.0, 0.0, gust))),
       _step,
       obstacles: <ClothObstacle>[_obstacle],
     );
