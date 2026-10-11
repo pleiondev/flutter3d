@@ -5555,6 +5555,13 @@ final class VolumetricFogSettings
   final double heightFalloff
   final int steps
 
+abstract final class WebDecodeWorker
+  static String? get inPlaceReason
+  static Uri? get script
+  static int get decoded
+  static void stop()
+  static void use(Uri script)
+
 final class WorldRay
   LocalRay relativeTo(WorldPosition from)
   String toString()

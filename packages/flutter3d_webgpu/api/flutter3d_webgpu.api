@@ -60,8 +60,12 @@ final class WebGpuDevice extends GraphicsDevice with WgslModuleCompiler, Encoded
   TextureHandle createTexture(TextureDescriptor descriptor)
   TextureHandle createTextureFromPixels({required int width, required int height, required TextureFormat format, required ByteData pixels, List<ByteData>? mipLevels})
   TransferEncoder beginTransferPass({String? label})
+  bool get defersPipelineBuilds
   bool get isLost
+  bool? deferPipelineBuilds
   int get debugBindGroupCount
+  int get debugDeferredBuilds
+  int get debugDeferredDraws
   int get debugSamplerCount
   int get debugTrackedResourceCount
   int get debugWarmRefused
