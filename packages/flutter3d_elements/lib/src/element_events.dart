@@ -247,7 +247,7 @@ void declareElementEvents(EventRegistry events) {
   );
   step<ElementBurnerOut>(
     ElementBurnerOut.eventName,
-    'A burner went out under a liquid.',
+    'A burner went out, under a liquid or out of the fuel it was fed.',
     ElementBodyEvent.codecOf(ElementBurnerOut.new),
   );
   step<ElementExploded>(
@@ -345,7 +345,8 @@ final class ElementWetted extends ElementBodyEvent {
   String get name => eventName;
 }
 
-/// A burner went out under a liquid: [ElementsListener.burnerOut].
+/// A burner went out, under a liquid or out of the fuel it was fed
+/// (`Fires.setBurner`'s `fuel`): [ElementsListener.burnerOut].
 final class ElementBurnerOut extends ElementBodyEvent {
   const ElementBurnerOut(super.body, super.made);
 

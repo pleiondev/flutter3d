@@ -1,5 +1,25 @@
 ## 1.0.0-rc.1
 
+- **The wrecks are drawn from what they publish.** `BurningWrecks` is the
+  simulation's half alone: made over an `ElementsSimulation`, with no
+  device, it places, lights and lets go the wrecks and publishes each as a
+  `BurningWreck` (its body, whether it is oil, where it lies, how it is
+  turned, whether it burns; `toJson`, `fromJson` and a `ComponentCodec`).
+  `WreckLooks(scene, device).show(published)` draws the slicks from those
+  rows, so the wrecks draw the same wherever the elements are stepped.
+- **Which crash breaks a car's tank, by its standard.** `FuelCell` says
+  whether a crash that took so much speed out of a car breaks its fuel
+  cell: `FuelCell.racing` stands the FIA's 15 m/s frontal impact test of a
+  Formula One chassis, `FuelCell.road` FMVSS No. 301's 48 km/h barrier. What
+  the tank spills burns on a burner fed that much fuel and goes out when it
+  is burnt (`Fires.setBurner`'s `fuel`).
+- **A body wading is heard.** `ElementSounds.wade(scene, waders, dt)` plays
+  a splash as each `Wader` goes into water fast enough, as loud as it goes
+  and not again for a moment, and holds a wash to each one ploughing
+  through, apart from the falls; `ElementCues` gains `wash` (the falls'
+  unless given) and `wading` (`WadingHearing.standard`, a walker;
+  `WadingHearing.car`), and `ElementCues.circuit` is the racing demo's
+  cues, so its own copy of them can go.
 - **The Quaternius profile names each joint's group.** Its spine, neck,
   shoulders, elbows, hips and knees are of `JointGroup.spine` and the
   rest, so `JointTissue.human` holds each at the end of its range with the

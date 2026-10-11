@@ -30,6 +30,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_elements/flutter3d_elements.dart'
+    show ElementBody, ElementFields, NativeElementFields;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart'
     show GameSimulation, ShotFired, ShotLanded, ShooterPhases;
@@ -41,7 +43,6 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
     show
         Actor,
         Brush,
-        CollisionLayers,
         EntityDef,
         Fixture,
         GameAction,
@@ -336,27 +337,6 @@ abstract final class CryptHarm {
 
   /// An ordinary walk on dry floor, m/s (Mohler et al. 2007).
   static const double _dryWalk = 1.4;
-
-  /// The heat a fire sends a body [far] m from the middle of its flame,
-  /// W/m².
-  ///
-  /// **Modak's point source** (Combustion and Flame 29, 1977; the SFPE
-  /// Handbook's): the radiant share of the power the fire gives off, χ_r·Q,
-  /// spread over a sphere about the middle of its flame, χ_rQ/4πR². Close
-  /// in the point source overstates without bound, and nothing is heated
-  /// past what the flame's own soot radiates, σT⁴ at the [sootTemperature]
-  /// the core reports: in the flame, that is the flux. The same law the
-  /// platformer and the strategy game burn by: [FireExposure.flux].
-  static double flux({
-    required double power,
-    required double radiantShare,
-    required double sootTemperature,
-    required double far,
-  }) => FireExposure.flux(
-    radiant: radiantShare * power,
-    sootTemperature: sootTemperature,
-    distanceSquared: far * far,
-  );
 
   /// The share of the player's health a second at [flux] W/m² of radiant
   /// heat costs.
@@ -1096,41 +1076,15 @@ final class CryptWorld {
   /// take for the subjects of the wading law (Moody, 2012).
   static const double _walkerMass = 84.0;
 
-  /// What the fires send the player this step, W/m² from each, summed.
+  /// What the fires send the player this step, W/m²: the radiant heat on
+  /// the body standing in for them in the crypt's world, read from the
+  /// field ([ElementFields.radiantFluxOn]) — each flame's on the side of
+  /// them it sees, and nothing through the walls and the wood between.
+  /// Nought before the player has a body there.
   double heatOnPlayer() {
-    final body = _sim.player.body;
-    final center = body.position;
-    final half = body.halfExtents;
-    var total = 0.0;
-    for (final fire in world.fires()) {
-      final middle = fire.at + fire.axis * (fire.reach / 2.0);
-      // The nearest of the player's body to the flame's middle: a standing
-      // column from their feet to the top of their head.
-      final y = middle.y.clamp(center.y - half.y, center.y + half.y);
-      final nearest = Vector3(center.x, y, center.z);
-      final along = nearest - middle;
-      final apart = along.length;
-      final far = math.max(0.0, apart - half.x);
-      // A wall between them takes it all.
-      if (apart > 1e-6 &&
-          _collision.raycast(
-            middle,
-            along / apart,
-            apart,
-            _hit,
-            mask: CollisionLayers.world,
-          ) &&
-          _hit.collider?.kind == ColliderKind.static) {
-        continue;
-      }
-      total += CryptHarm.flux(
-        power: fire.power,
-        radiantShare: fire.radiantShare,
-        sootTemperature: fire.sootTemperature,
-        far: far,
-      );
-    }
-    return total;
+    final walker = _player;
+    if (walker == null || !world.contains(walker)) return 0.0;
+    return NativeElementFields(world).radiantFluxOn(ElementBody.of(walker));
   }
 
   /// The heat the fires send the player, as harm: the share of what

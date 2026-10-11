@@ -36,6 +36,10 @@ dependencies:
   # nothing here draws.
   flutter3d_physics_native: ^1.0.0-rc.1
 
+  # What the elements answer over that world: the heat on the crypt's
+  # player from the field, the strategy map's brands and its aimed throws.
+  flutter3d_elements: ^1.0.0-rc.1
+
   # The reference human body a wading crowd weighs (`referenceBodyMass`), and
   # the world's properties.
   flutter3d_physics: ^1.0.0-rc.1

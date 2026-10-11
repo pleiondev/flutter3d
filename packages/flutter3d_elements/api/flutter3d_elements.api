@@ -4,6 +4,9 @@
 
 library package:flutter3d_elements/flutter3d_elements.dart
 
+abstract final class Ballistics
+  static Vector3 aim(NativeWorld world, Solid solid, {required Vector3 from, required Vector3 to, required double elevation, double step = 1.0 / 60.0})
+
 final class Bed
   const Bed({required this.roughness})
   final double roughness
@@ -78,6 +81,7 @@ abstract base class ElementFields
   const ElementFields()
   double get airDensity
   double get airTemperature
+  double radiantFluxOn(ElementBody body)
   double surfaceTemperatureOf(ElementBody body)
   double temperatureOf(ElementBody body)
   double waterOf(ElementBody body)
@@ -254,6 +258,7 @@ final class FieldQuantity extends Capability
   final Unit unit
   int get hashCode
   static const FieldQuantity heat = FieldQuantity('heat', Unit.joule)
+  static const FieldQuantity radiantFlux = FieldQuantity('radiantFlux', Unit('W/m²', Dimension(<String, int>{'kg': 1, 's': -3})))
   static const FieldQuantity surfaceTemperature = FieldQuantity('surfaceTemperature', Unit.kelvin)
   static const FieldQuantity temperature = FieldQuantity('temperature', Unit.kelvin)
   static const FieldQuantity water = FieldQuantity('water', Unit.kilogram)
@@ -269,11 +274,25 @@ final class FireSteps
   static const FireSteps all = FireSteps()
   static const FireSteps none = FireSteps(flames: false, smoke: false, embers: false, firelight: false, charring: false)
 
+final class Firebrands
+  Firebrands(this.world, {required this.brand, required this.share, this.most = 8})
+  List<NativeBody> get brands
+  Object? save()
+  bool remove(NativeBody body)
+  final NativeWorld world
+  final Solid brand
+  final double share
+  final int most
+  int get skipped
+  void restore(Object? saved)
+  void step(double dt)
+
 final class Fires
+  double? fuelLeft(TrackedBody body)
   int explode(Vector3 at, NativeExplosion explosion)
   void douse(TrackedBody body, double kilograms)
   void ignite(TrackedBody body, {required Igniter by, Vector3? at})
-  void setBurner(TrackedBody body, NativeBurner? burner)
+  void setBurner(TrackedBody body, NativeBurner? burner, {double? fuel})
 
 final class Follower
   final NativeBody native
@@ -312,6 +331,7 @@ final class NativeElementFields extends ElementFields
   const NativeElementFields(this.world)
   double get airDensity
   double get airTemperature
+  double radiantFluxOn(ElementBody body)
   double surfaceTemperatureOf(ElementBody body)
   double temperatureOf(ElementBody body)
   double waterOf(ElementBody body)
@@ -333,6 +353,7 @@ abstract final class SmokePlume
   static double virtualOrigin(double kw, double base)
 
 final class Solid
+  Solid at(double kelvin)
   Solid rounded(double radius)
   Solid.box(Vector3 half, {required NativeMaterial material, required double density})
   Solid.capsule(double radius, double halfLength, {required NativeMaterial material, required double density})
@@ -340,12 +361,14 @@ final class Solid
   Solid.sphere(double radius, {required NativeMaterial material, required double density})
   double get mass
   factory Solid.compound(List<NativeCompoundPart> parts, {required NativeMaterial material, required double density})
+  factory Solid.of(NativeShape shape, PhysicalMaterial material, {MaterialState? state, double? wall})
   final List<NativeCompoundPart>? parts
   final NativeMaterial material
   final NativeShape shape
   final double density
   final double rounding
   final double volume
+  final double? temperature
 
 final class TrackedBody
   final NativeBody native

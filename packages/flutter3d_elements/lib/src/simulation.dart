@@ -9,6 +9,8 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show MaterialState, PhysicalMaterial;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -94,7 +96,7 @@ final class ElementsListener {
   /// A body went into a liquid: a splash.
   final void Function(NativeBody body, TrackedBody? made)? wetted;
 
-  /// A burner went out, under a liquid.
+  /// A burner went out, under a liquid or out of the fuel it was fed.
   final void Function(NativeBody body, TrackedBody? made)? burnerOut;
 
   /// A charge went off at a point, pushing as many bodies.
@@ -207,7 +209,94 @@ final class Solid {
     this.density, {
     this.parts,
     this.rounding = 0.0,
+    this.temperature,
   });
+
+  /// [shape] made of [material] from the catalogue: as heat and fire see it
+  /// ([NativeMaterial.of]) and as dense as the catalogue has it, so its
+  /// mass is the material's and no game's guess. At [state] when given —
+  /// its laws read there — and at the material's reference state when not.
+  ///
+  /// **Hollow, with a [wall] that thick**, when given: cast, blown or
+  /// turned — a bell, a bronze head, a pot. It displaces all of [shape]
+  /// ([volume]) and weighs only its shell, so [density] is the mean of the
+  /// two, the material's times the shell's share of the whole. A wall as
+  /// thick as the shape is a solid one.
+  ///
+  /// Throws an [ArgumentError] for a material with no density, and for a
+  /// shape this does not measure — a point, a hull, a mesh.
+  factory Solid.of(
+    NativeShape shape,
+    PhysicalMaterial material, {
+    MaterialState? state,
+    double? wall,
+  }) {
+    final law = material.mechanical?.density;
+    if (law == null) {
+      throw ArgumentError.value(
+        material.id,
+        'material',
+        'the catalogue gives it no density',
+      );
+    }
+    final rho = state == null ? law.value : law.at(state);
+    final volume = _volumeOf(shape);
+    if (!(volume > 0.0)) {
+      throw ArgumentError.value(shape, 'shape', 'not measured');
+    }
+    final shell = wall == null ? volume : volume - _hollowOf(shape, wall);
+    return Solid._(
+      shape,
+      volume,
+      NativeMaterial.of(material, state: state),
+      rho * shell / volume,
+    );
+  }
+
+  /// m³ inside [shape] once a wall [wall] thick is taken off it all round;
+  /// nought where the wall fills it.
+  static double _hollowOf(NativeShape shape, double wall) {
+    if (!(wall >= 0.0)) throw ArgumentError.value(wall, 'wall');
+    final a = shape.first - wall, b = shape.second - wall;
+    final c = shape.third - wall;
+    if (a <= 0.0) return 0.0;
+    final box = NativeShape.box(Vector3(1, 1, 1)).kind;
+    return switch (shape.kind) {
+      _ when shape.kind == box =>
+        b <= 0.0 || c <= 0.0
+            ? 0.0
+            : _volumeOf(NativeShape.box(Vector3(a, b, c))),
+      _ when shape.kind == const NativeShape.sphere(1).kind => _volumeOf(
+        NativeShape.sphere(a),
+      ),
+      _ when shape.kind == const NativeShape.cylinder(1, 1).kind =>
+        b <= 0.0 ? 0.0 : _volumeOf(NativeShape.cylinder(a, b)),
+      // A capsule's wall runs round its caps: the same length between them.
+      _ when shape.kind == const NativeShape.capsule(1, 1).kind => _volumeOf(
+        NativeShape.capsule(a, shape.second),
+      ),
+      _ => throw ArgumentError.value(shape, 'shape', 'not measured hollow'),
+    };
+  }
+
+  /// This solid put in the world at [kelvin], not at the air's temperature:
+  /// a bomb torn from its melt, a brand out of a flame, a casting from the
+  /// mould. [ElementsSimulation.addBody] sets it.
+  Solid at(double kelvin) {
+    if (!(kelvin > 0.0)) throw ArgumentError.value(kelvin, 'kelvin');
+    return Solid._(
+      shape,
+      volume,
+      material,
+      density,
+      parts: parts,
+      rounding: rounding,
+      temperature: kelvin,
+    );
+  }
+
+  /// K it is put in the world at; null for the air's.
+  final double? temperature;
 
   /// Several shapes as one body — a raft of logs, a cart, a beam cut in
   /// parts that each burn: its volume theirs summed. Parts that are hulls
@@ -330,6 +419,7 @@ final class Solid {
       density,
       parts: parts,
       rounding: radius,
+      temperature: temperature,
     );
   }
 
@@ -637,8 +727,51 @@ final class Fires {
       ));
 
   /// [burner] burning on [body]; null puts it out.
-  void setBurner(TrackedBody body, NativeBurner? burner) =>
-      _elements.world.setBurner(body.native, burner);
+  ///
+  /// **Fed [fuel] kg and no more**, when given: a spill, a tank's worth, a
+  /// torch's pitch. The burner burns its rate until that is gone — to within
+  /// a step's burning — then goes out by itself, told as a burner's going
+  /// out ([ElementsListener.burnerOut], an [ElementBurnerOut] on the bus);
+  /// what is left ([fuelLeft]) is kept in a snapshot. Without [fuel] it is
+  /// fed for as long as the game keeps it lit.
+  void setBurner(TrackedBody body, NativeBurner? burner, {double? fuel}) {
+    _elements.world.setBurner(body.native, burner);
+    if (burner == null || fuel == null) {
+      _fed.remove(body.native);
+    } else {
+      _fed[body.native] = (rate: burner.rate, left: fuel);
+    }
+  }
+
+  /// Kilograms of fuel [body]'s burner has left; null for a burner fed for
+  /// ever, or none.
+  double? fuelLeft(TrackedBody body) => _fed[body.native]?.left;
+
+  /// The burners fed a measure of fuel, by the kg/s each burns and the kg
+  /// each has left, in the order they were lit.
+  final Map<NativeBody, ({double rate, double left})> _fed =
+      <NativeBody, ({double rate, double left})>{};
+
+  /// The burners fed this step: one with nothing left goes out and says so,
+  /// and each other burns its rate from what it has.
+  void _feed(ElementStep step) {
+    final world = _elements.world;
+    for (final MapEntry(key: body, value: fed) in _fed.entries.toList()) {
+      if (!world.contains(body)) {
+        _fed.remove(body);
+      } else if (fed.left <= 0.0) {
+        _fed.remove(body);
+        world.setBurner(body, null);
+        step.publish(NativeEventKind.burnerOut, ElementBody.of(body));
+        _elements.listener?.burnerOut?.call(body, _elements._madeOf(body));
+      } else {
+        _fed[body] = (rate: fed.rate, left: fed.left - fed.rate * step.dt);
+      }
+    }
+  }
+
+  /// A burner the world put out — under water — is fed no longer.
+  void _wentOut(NativeBody body) => _fed.remove(body);
 
   /// A charge going off at [at]; how many bodies it reached.
   int explode(Vector3 at, NativeExplosion explosion) {
@@ -672,25 +805,66 @@ final class Fires {
   }
 
   /// The flames still held, as a value JSON can hold: the fire element's
-  /// part of a snapshot. Null when none is.
-  Object? _save() => _held.isEmpty
-      ? null
-      : <Object?>[
-          for (final h in _held)
-            <String, Object?>{
-              'body': h.body.raw,
-              'at': <double>[h.at.x, h.at.y, h.at.z],
-              'flux': h.by.flux,
-              'area': h.by.area,
-              'temperature': h.by.temperature,
-              'seconds': h.by.seconds,
-              'left': h.left,
-            },
-        ];
+  /// part of a snapshot. Null when none is. With a burner fed a measure of
+  /// fuel, the flames under `held` and the burners under `fed`, each with
+  /// its rate and what it has left.
+  Object? _save() {
+    if (_held.isEmpty && _fed.isEmpty) return null;
+    final held = <Object?>[
+      for (final h in _held)
+        <String, Object?>{
+          'body': h.body.raw,
+          'at': <double>[h.at.x, h.at.y, h.at.z],
+          'flux': h.by.flux,
+          'area': h.by.area,
+          'temperature': h.by.temperature,
+          'seconds': h.by.seconds,
+          'left': h.left,
+        },
+    ];
+    if (_fed.isEmpty) return held;
+    return <String, Object?>{
+      'held': held,
+      'fed': <Object?>[
+        for (final MapEntry(key: body, value: fed) in _fed.entries)
+          <String, Object?>{
+            'body': body.raw,
+            'rate': fed.rate,
+            'left': fed.left,
+          },
+      ],
+    };
+  }
 
-  /// The flames [_save] gave held again; anything else holds none.
+  /// The flames and the fed burners [_save] gave held again; anything else
+  /// holds none. A fed burner itself is the world's to put back, as its
+  /// snapshot holds it; only what is left to it is here.
   void _restore(Object? saved) {
     _held.clear();
+    _fed.clear();
+    final held = switch (saved) {
+      {'held': final Object? held, 'fed': final List<Object?> fed} => () {
+        _restoreFed(fed);
+        return held;
+      }(),
+      _ => saved,
+    };
+    _restoreHeld(held);
+  }
+
+  void _restoreFed(List<Object?> fed) {
+    for (final f in fed) {
+      if (f case {
+        'body': final int raw,
+        'rate': final num rate,
+        'left': final num left,
+      }) {
+        _fed[NativeBody(raw)] = (rate: rate.toDouble(), left: left.toDouble());
+      }
+    }
+  }
+
+  void _restoreHeld(Object? saved) {
     if (saved is! List<Object?>) return;
     for (final h in saved) {
       if (h case {
@@ -729,7 +903,9 @@ final class _FireStep extends ElementHook {
   String get id => 'fire';
 
   @override
-  void step(ElementStep step) => _simulation.fires._hold(step.dt);
+  void step(ElementStep step) => _simulation.fires
+    .._hold(step.dt)
+    .._feed(step);
 
   @override
   Object? save() => _simulation.fires._save();
@@ -891,6 +1067,9 @@ final class ElementsSimulation {
       world.setShape(native, solid.shape);
     }
     world.setMaterial(native, solid.material);
+    if (solid.temperature case final kelvin?) {
+      world.setTemperature(native, kelvin);
+    }
     if (solid.rounding > 0) world.setRounding(native, solid.rounding);
     if (turn != null) world.setOrientation(native, turn);
     if (velocity != null) world.setVelocity(native, velocity);
@@ -1042,6 +1221,9 @@ final class ElementsSimulation {
     }
     if (steps) world.step(dt);
     this.events = events ?? world.readEvents();
+    for (final e in this.events) {
+      if (e.kind == NativeEventKind.burnerOut) fires._wentOut(e.body);
+    }
     final bus = _bus;
     if (bus != null) {
       for (final e in this.events) {

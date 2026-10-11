@@ -5,6 +5,7 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show
         Capability,
+        Dimension,
         Quantity,
         Unit,
         UnitMismatchException,
@@ -110,6 +111,12 @@ abstract base class ElementFields {
   void addWater(ElementBody body, double kilograms) =>
       throw _refuse('addWater');
 
+  /// The radiant heat falling on [body] from every fire, W/m²: each fire's
+  /// on the point of [body] its flame sees, summed, and nothing from a fire
+  /// something else stands between. What a character standing in the world
+  /// is burnt by ([FieldQuantity.radiantFlux]).
+  double radiantFluxOn(ElementBody body) => throw _refuse('radiantFluxOn');
+
   // Forces.
 
   /// A force on [body] over the next step, N.
@@ -136,15 +143,17 @@ abstract base class ElementFields {
   /// [quantity] of [body], in the quantity's unit.
   ///
   /// By default [FieldQuantity.temperature] is [temperatureOf],
-  /// [FieldQuantity.surfaceTemperature] [surfaceTemperatureOf] and
-  /// [FieldQuantity.water] [waterOf]; anything else is refused with an
-  /// [UnsupportedCapabilityException] naming it. A backend with more fields answers
-  /// them here and hands the rest to `super`.
+  /// [FieldQuantity.surfaceTemperature] [surfaceTemperatureOf],
+  /// [FieldQuantity.water] [waterOf] and [FieldQuantity.radiantFlux]
+  /// [radiantFluxOn]; anything else is refused with an
+  /// [UnsupportedCapabilityException] naming it. A backend with more fields
+  /// answers them here and hands the rest to `super`.
   Quantity quantityOf(ElementBody body, FieldQuantity quantity) =>
       Quantity(switch (quantity) {
         FieldQuantity.temperature => temperatureOf(body),
         FieldQuantity.surfaceTemperature => surfaceTemperatureOf(body),
         FieldQuantity.water => waterOf(body),
+        FieldQuantity.radiantFlux => radiantFluxOn(body),
         _ => throw UnsupportedCapabilityException(
           quantity,
           backend: '$runtimeType',
@@ -197,6 +206,13 @@ final class FieldQuantity extends Capability {
 
   /// Water on a body, in kilograms.
   static const FieldQuantity water = FieldQuantity('water', Unit.kilogram);
+
+  /// The radiant heat falling on a body, in watts a square metre: read, not
+  /// added ([ElementFields.radiantFluxOn]).
+  static const FieldQuantity radiantFlux = FieldQuantity(
+    'radiantFlux',
+    Unit('W/m²', Dimension(<String, int>{'kg': 1, 's': -3})),
+  );
 
   /// The field's word in a file and a refusal.
   @override
@@ -279,6 +295,35 @@ final class NativeElementFields extends ElementFields {
   @override
   void addWater(ElementBody body, double kilograms) =>
       world.addWater(body.native, kilograms);
+
+  /// Each fire's radiant heat, Modak's point source at the middle of its
+  /// flame ([FireExposure.fluxFrom]), on the first point of [body] a ray
+  /// from there toward [body]'s middle meets; nothing from a fire whose ray
+  /// meets another body first — a wall, a crate, a cart between — save the
+  /// burning body itself. A body the ray misses altogether is taken at its
+  /// middle.
+  @override
+  double radiantFluxOn(ElementBody body) {
+    final target = body.native;
+    final middle = world.localPositionOf(target);
+    var total = 0.0;
+    for (final fire in world.fires()) {
+      if (fire.body == target) continue;
+      final from = FireExposure.middleOf(fire);
+      final toward = middle - from;
+      final far = toward.length;
+      if (far <= 0.0) {
+        total += FireExposure.fluxFrom(fire, 0.0);
+        continue;
+      }
+      toward.scale(1.0 / far);
+      final hit = world.rayCast(from, toward, far, ignore: fire.body);
+      if (hit != null && hit.body != target) continue;
+      final at = hit?.at ?? far;
+      total += FireExposure.fluxFrom(fire, at * at);
+    }
+    return total;
+  }
 
   /// [water] at [at], or null off its grid (absent).
   NativeShallowSample? waterAt(NativeShallowLiquid water, WorldPosition at) {
