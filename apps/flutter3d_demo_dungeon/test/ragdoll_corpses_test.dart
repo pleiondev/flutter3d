@@ -228,4 +228,93 @@ void main() {
       }
     }
   });
+
+  test('a runner struck low in the back, at the root of its chest bone, '
+      'ends lying, not propped on its elbows', () async {
+    // The blow where the chest bone starts, the small of the back, below the
+    // centre of mass: it knocks the hips out from under the body. On its
+    // tissue alone the runner sat propped on its elbows, its head 0.6 m up;
+    // its muscles' tone takes the blow with the body as one, and it goes
+    // limp lying. Mutation: `RagdollCorpses(tone: null)` — the head ends
+    // 0.57 m up.
+    final run = DungeonRun(
+      firstLevel: 'assets/levels/crypt.json',
+      registry: sampleRegistry(extra: const <EntityKind>[WidgetSurfaceKind()]),
+      input: InputState(),
+      inventory: startingInventory(),
+      saves: SaveFile(appName: 'dungeon', storage: _Storage()),
+      device: CpuDevice(
+        width: 16,
+        height: 9,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      ),
+    );
+    final level = await run.loadLevel('assets/levels/crypt.json');
+    addTearDown(() => run.disposeLevel(level));
+    final visuals = level.actorVisuals;
+    await visuals.settled;
+    final corpses = visuals.corpses! as RagdollCorpses;
+    final strides = level.staged.actors.strides!;
+    void animate() {
+      for (final actor in level.staged.actors.actors) {
+        strides.strideOf(actor, Vector3.zero(), 1.0 / 60.0);
+      }
+      visuals.animate(1.0 / 60.0);
+    }
+
+    for (var i = 0; i < 10; i++) {
+      animate();
+      visuals.sync();
+    }
+    final runners = <Actor>[
+      for (final actor in level.staged.actors.actors)
+        if (_modelOf(actor)?.contains('runner') ?? false) actor,
+    ];
+    expect(runners, isNotEmpty);
+    corpses.blowAt = 0.0;
+    for (final actor in runners) {
+      level.staged.actors.hurt(actor, 1e6);
+    }
+    animate();
+    final player = level.staged.player.body.position.clone();
+    final floors = <Actor, double>{};
+    final standing = <Actor, double>{};
+    final clear = <Actor, bool>{};
+    for (final actor in runners) {
+      final ragdoll = corpses.ragdollOf(actor)!;
+      final pelvis = _joint(ragdoll, 'Body');
+      final away = Vector3(pelvis.x - player.x, 0.0, pelvis.z - player.z)
+        ..normalize();
+      clear[actor] = !level.loaded.collision.raycast(
+        pelvis,
+        away,
+        1.5,
+        RayHit(),
+        mask: CollisionLayers.world,
+      );
+      floors[actor] = _joint(ragdoll, 'Foot.L').y;
+      standing[actor] = _joint(ragdoll, 'Head').y - floors[actor]!;
+    }
+    expect(clear.values.where((c) => c), isNotEmpty, reason: 'a clear fall');
+    var frames = 0;
+    while (!runners.every((a) => corpses.ragdollOf(a)!.ragdoll.isAsleep) &&
+        frames < 900) {
+      animate();
+      visuals.sync();
+      frames++;
+    }
+    for (final actor in runners.where((a) => clear[a]!)) {
+      final ragdoll = corpses.ragdollOf(actor)!;
+      final head = _joint(ragdoll, 'Head').y - floors[actor]!;
+      // Its head from 1.3 m standing to within a body's thickness or two
+      // of the floor, and not above its elbows by an upper arm's length.
+      expect(standing[actor], greaterThan(1.0), reason: 'standing');
+      expect(head, lessThan(0.35), reason: 'lying');
+      final elbows = <double>[
+        for (final side in <String>['L', 'R'])
+          _joint(ragdoll, 'LowerArm.$side').y - floors[actor]!,
+      ];
+      expect(head - elbows.reduce((a, b) => a < b ? a : b), lessThan(0.2));
+    }
+  });
 }

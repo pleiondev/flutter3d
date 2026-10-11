@@ -736,6 +736,39 @@ final class JointLimitStiffness {
   final double toSide, fromSide;
 }
 
+/// A drive on a ball joint or a hinge — `f3d_joint_set_drive`, through
+/// [NativeWorld.setJointDrive]: the second body pulled towards [target], its
+/// turn against the first body's (the first's orientation undone, then the
+/// second's), with [stiffness] N·m/rad and held back with [damping]
+/// N·m·s/rad, the two together never more than [maxTorque] N·m. A hinge is
+/// pulled about its axis alone.
+///
+/// An active torque, bounded: a muscle's tone holding a posture, which
+/// gives way to a load beyond what it can do rather than holding anything
+/// as a joint's limits do. Solved implicitly, and never stiffer than the
+/// substep holds steadily.
+final class JointDrive {
+  const JointDrive({
+    required this.target,
+    required this.stiffness,
+    this.damping = 0.0,
+    required this.maxTorque,
+  });
+
+  /// The turn of the second body against the first it pulls towards; need
+  /// not be unit.
+  final Quaternion target;
+
+  /// N·m/rad, nought or more.
+  final double stiffness;
+
+  /// N·m·s/rad, nought or more.
+  final double damping;
+
+  /// N·m, nought or more.
+  final double maxTorque;
+}
+
 /// What kind of joint — `F3dJointType`.
 ///
 /// **Closed, and it stays closed.** These four are solved inside the core's
@@ -2150,6 +2183,48 @@ final class NativeWorld {
     ),
     joint,
   );
+
+  /// A drive on a ball joint or a hinge ([JointDrive]): its second body
+  /// pulled towards [JointDrive.target] against its first and held back as
+  /// it turns, with never more than [JointDrive.maxTorque] — what a
+  /// muscle's tone does. Set again while on, the drive keeps its level
+  /// ([jointDriveLevel]); null takes it off.
+  void setJointDrive(NativeJoint joint, JointDrive? drive) => _checkJoint(
+    c.f3d_joint_set_drive(
+      _live,
+      joint.raw,
+      drive == null ? 0 : 1,
+      drive?.target.x ?? 0.0,
+      drive?.target.y ?? 0.0,
+      drive?.target.z ?? 0.0,
+      drive?.target.w ?? 1.0,
+      drive?.stiffness ?? 0.0,
+      drive?.damping ?? 0.0,
+      drive?.maxTorque ?? 0.0,
+    ),
+    joint,
+  );
+
+  /// How [joint]'s drive's level goes from where it is to [floor], nought
+  /// or more, as e^(−t / [seconds]): a body knocked out, its tone falling to
+  /// what a corpse keeps, or coming round, its tone rising back to 1.
+  /// [seconds] nought holds the level where it is. While the level is on its
+  /// way, the joint's bodies do not sleep. Throws for a joint with no drive.
+  void setJointDriveFade(
+    NativeJoint joint, {
+    required double floor,
+    required double seconds,
+  }) => _checkJoint(
+    c.f3d_joint_set_drive_fade(_live, joint.raw, floor, seconds),
+    joint,
+  );
+
+  /// [joint]'s drive's level now, which scales its stiffness, damping and
+  /// most torque: 1 when it was set, nought for a joint with no drive.
+  double jointDriveLevel(NativeJoint joint) {
+    _checkJoint(c.f3d_joint_get_drive_level(_live, joint.raw, _out), joint);
+    return _out[0];
+  }
 
   /// A motor driving a hinge or slider at [speed] with at most [maxForce];
   /// null takes it off.

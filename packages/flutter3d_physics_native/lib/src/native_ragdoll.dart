@@ -25,6 +25,16 @@
 /// was slow enough, and a body that came down on its arms stayed propped on
 /// them.
 ///
+/// ## Tone, fading
+///
+/// What holds a body as the blow lands is its muscles ([MuscleTone]): at
+/// each joint a drive pulls it towards the posture it had when it went
+/// limp, as stiff as a muscle's tone and never stronger than the muscle,
+/// and fades over a few tenths of a second to what a corpse keeps. With
+/// tissue alone a relaxed spine struck hard bent a third of a radian past
+/// its range, and a runner struck low in the back sat propped on its
+/// elbows; with tone the body takes the blow as one and then goes limp.
+///
 /// A bone's frame and its capsule differ — a capsule lies along y from the
 /// bone's head to its tail, the bone's own axes are whatever the rig chose —
 /// so each bone keeps the offset between the two, taken at rest, and is read
@@ -311,6 +321,168 @@ final class JointTissue {
   );
 }
 
+/// How strongly one [group]'s muscles hold it while their tone is up: a
+/// drive's [stiffness], N·m/rad, [damping], N·m·s/rad, and the most torque
+/// they put out, [maxTorque], N·m.
+final class JointGroupTone {
+  const JointGroupTone(
+    this.group, {
+    required this.stiffness,
+    required this.damping,
+    required this.maxTorque,
+  });
+
+  final JointGroup group;
+
+  /// N·m/rad, nought or more.
+  final double stiffness;
+
+  /// N·m·s/rad, nought or more.
+  final double damping;
+
+  /// N·m, nought or more.
+  final double maxTorque;
+}
+
+/// A ragdoll's muscle tone: an active torque at each joint that pulls it
+/// towards the posture the body had when it went limp — a stiffness and a
+/// damping, never more than a most torque — and fades, from all of it to
+/// [floor] of it as e^(−t / [fade]), so a body knocked out goes limp, but
+/// not at once.
+///
+/// What holds a living body against a blow is not stiffer tissue but its
+/// muscles' tone and co-contraction: a relaxed spine struck hard gives a
+/// third of a radian past its range on its tissue alone, where a body with
+/// its tone up gives little. A joint of a group [groups] does not name
+/// takes [stiffness], [damping] and [maxTorque].
+final class MuscleTone {
+  const MuscleTone({
+    required this.stiffness,
+    required this.damping,
+    required this.maxTorque,
+    this.groups = const <JointGroupTone>[],
+    this.floor = 0.0,
+    this.fade = 0.0,
+  });
+
+  /// N·m/rad, for a joint of no group [groups] names.
+  final double stiffness;
+
+  /// N·m·s/rad, for a joint of no group [groups] names.
+  final double damping;
+
+  /// N·m, for a joint of no group [groups] names.
+  final double maxTorque;
+
+  final List<JointGroupTone> groups;
+
+  /// What share of its tone the body keeps once faded, nought or more.
+  final double floor;
+
+  /// The time constant of the fade, seconds; nought keeps the tone up.
+  final double fade;
+
+  /// [group]'s tone: its own where [groups] names it, else this one's.
+  JointGroupTone toneOf(JointGroup? group) {
+    for (final tone in groups) {
+      if (tone.group == group) return tone;
+    }
+    return JointGroupTone(
+      group ?? const JointGroup('other'),
+      stiffness: stiffness,
+      damping: damping,
+      maxTorque: maxTorque,
+    );
+  }
+
+  /// An adult killed or knocked out: tone up at the blow, gone within a
+  /// second.
+  ///
+  /// - **Stiffness**, N·m/rad, of muscles at a low level of effort:
+  ///   - Spine 300: between the trunk's intrinsic stiffness in flexion,
+  ///     109 on average (Brown and McGill, "The intrinsic stiffness of the
+  ///     in vivo lumbar spine in response to quick releases", J.
+  ///     Electromyogr. Kinesiol. 19, 2009, p. 727), and 143 to 573 at 20 to
+  ///     40 % of the greatest effort (Gardner-Morse and Stokes, "Trunk
+  ///     stiffness increases with steady-state effort", J. Biomech. 34,
+  ///     2001, p. 457, 14.5 and 19.8 N/mm over a lever of 0.1 to 0.2 m, as
+  ///     they convert it); reflexes included it is about 1200 (Cholewicki,
+  ///     Simons and Radebold, J. Biomech. 33, 2000, p. 1377). The number in
+  ///     that range is **an estimate**.
+  ///   - Neck 50: the low end of 46 to 199 measured at 30 and 50 % of the
+  ///     greatest effort in flexion (Portero et al., PLoS One 10, 2015,
+  ///     e0139333), where stiffness grows as 4.1 times the torque.
+  ///   - Elbow 25: during slow movement (Xu and Hollerbach, IEEE Trans.
+  ///     Biomed. Eng. 46, 1999, p. 409).
+  ///   - Shoulder 30, hip 100, knee 50 and any other joint 50: **estimates**,
+  ///     no measurement found.
+  /// - **Damping**, N·m·s/rad: the spine's 11, one trial of Brown and
+  ///   McGill's (the fit was nought in most); the elbow's 0.8 from a
+  ///   damping ratio of 0.3 (Xu and Hollerbach) over a forearm and hand of
+  ///   about 0.08 kg·m², an inference; the rest **estimates** of the same
+  ///   order.
+  /// - **Most torque**, N·m: the greatest voluntary isometric torque of
+  ///   adult men, the weaker way of each joint: the neck's 30 in flexion
+  ///   (Vasavada, Li and Delp, Spine 26, 2001, p. 1904); the shoulder's 74
+  ///   in abduction and the elbow's 60 in extension (Holzbaur et al., J.
+  ///   Biomech. 40, 2007, p. 2442); the hip's 141 in flexion and the knee's
+  ///   109 in flexion (Anderson, Madigan and Nussbaum, J. Biomech. 40, 2007,
+  ///   p. 3105, their peak normalised by body weight and height, taken at
+  ///   72.8 kg and 1.748 m). The spine's 200 and any other joint's 60 are
+  ///   **estimates**: no table of the trunk's was found.
+  /// - **Fade 0.2 s to 5 %**: **estimates**. Muscle relaxes within tens of
+  ///   milliseconds of its drive stopping; what a body does over the second
+  ///   after is gravity's, not the fade's. What is left, 5 %, is about the
+  ///   trunk's passive stiffness, 7 to 18 N·m/rad (McGill, Seguin and
+  ///   Bennett, Spine 19, 1994, as Gardner-Morse and Stokes quote it), over
+  ///   its active.
+  static const MuscleTone human = MuscleTone(
+    stiffness: 50.0,
+    damping: 1.0,
+    maxTorque: 60.0,
+    floor: 0.05,
+    fade: 0.2,
+    groups: <JointGroupTone>[
+      JointGroupTone(
+        JointGroup.spine,
+        stiffness: 300.0,
+        damping: 11.0,
+        maxTorque: 200.0,
+      ),
+      JointGroupTone(
+        JointGroup.neck,
+        stiffness: 50.0,
+        damping: 1.0,
+        maxTorque: 30.0,
+      ),
+      JointGroupTone(
+        JointGroup.shoulder,
+        stiffness: 30.0,
+        damping: 1.0,
+        maxTorque: 74.0,
+      ),
+      JointGroupTone(
+        JointGroup.elbow,
+        stiffness: 25.0,
+        damping: 0.8,
+        maxTorque: 60.0,
+      ),
+      JointGroupTone(
+        JointGroup.hip,
+        stiffness: 100.0,
+        damping: 2.0,
+        maxTorque: 141.0,
+      ),
+      JointGroupTone(
+        JointGroup.knee,
+        stiffness: 50.0,
+        damping: 1.0,
+        maxTorque: 109.0,
+      ),
+    ],
+  );
+}
+
 /// A hinge about [axis], in the bone's own frame, from [lower] to [upper]
 /// radians from rest. A knee, an elbow.
 ///
@@ -381,7 +553,10 @@ final class NativeRagdoll {
   /// Made in [world] from [rest], the bones at rest, then moved to [pose],
   /// one pose a bone, moving as [velocity] and [spin] say when they are
   /// given. Every joint is made of [tissue]: it damps the joint's turning
-  /// and softens its limits, or the ragdoll never comes to rest.
+  /// and softens its limits, or the ragdoll never comes to rest. [tone] is
+  /// how its muscles hold it at the posture of [pose], or of [rest] without
+  /// one, fading from the moment it is made; null for a body limp from the
+  /// start, which steps as one made before tone did.
   ///
   /// [forward] and [up] are the skeleton's, in the world, as it stands at
   /// rest — which way its chest faces and which way its head is from its
@@ -401,6 +576,7 @@ final class NativeRagdoll {
     List<Vector3>? velocity,
     List<Vector3>? spin,
     JointTissue tissue = JointTissue.human,
+    MuscleTone? tone = MuscleTone.human,
     Vector3? forward,
     Vector3? up,
     NativeDynamics? dynamics,
@@ -504,6 +680,45 @@ final class NativeRagdoll {
       _jointOf[i] = joint;
     }
     if (pose != null) place(pose, velocity: velocity, spin: spin);
+    if (tone != null) _toneUp(tone);
+  }
+
+  /// Every jointed bone's drive, of [tone]'s group's strength, pulling it
+  /// towards the posture the bodies have now, fading at once.
+  void _toneUp(MuscleTone tone) {
+    for (final MapEntry(key: i, value: joint) in _jointOf.entries) {
+      final held = _held[i];
+      if (held == null) continue;
+      final strength = tone.toneOf(held.group ?? bones[i].joint?.group);
+      if (!(strength.maxTorque > 0.0) ||
+          !(strength.stiffness > 0.0 || strength.damping > 0.0)) {
+        continue;
+      }
+      final a = world.orientationOf(_bodies[bones[i].parent]);
+      final b = world.orientationOf(_bodies[i]);
+      world
+        ..setJointDrive(
+          joint,
+          JointDrive(
+            target: a.conjugated() * b,
+            stiffness: strength.stiffness,
+            damping: strength.damping,
+            maxTorque: strength.maxTorque,
+          ),
+        )
+        ..setJointDriveFade(joint, floor: tone.floor, seconds: tone.fade);
+    }
+  }
+
+  /// How much of its tone the ragdoll still has, a fraction from 1 down to
+  /// [MuscleTone.floor]: the level of its joints' drives, the first jointed
+  /// bone's; nought for a ragdoll made without tone.
+  double get toneLevel {
+    for (final joint in _jointOf.values) {
+      final level = world.jointDriveLevel(joint);
+      if (level > 0.0) return level;
+    }
+    return 0.0;
   }
 
   final NativeWorld world;

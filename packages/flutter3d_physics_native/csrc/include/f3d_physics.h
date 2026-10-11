@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 39u
+#define F3D_ABI_VERSION 40u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -1134,6 +1134,37 @@ F3D_API int f3d_joint_set_limit_stiffness(F3dWorld *world, F3dJoint joint,
                                           f3d_real lower, f3d_real upper,
                                           f3d_real ahead, f3d_real behind,
                                           f3d_real side, f3d_real other_side);
+
+/* A drive on a spherical or revolute joint: B pulled towards a turn
+ * against A — (qx, qy, qz, qw), A's orientation undone and then B's, as
+ * the joint's own starting turn is; it need not be unit, and is made so —
+ * with [stiffness], N m per radian it is turned from there, and held back
+ * with [damping], N m s per radian, as fast as it turns, the two together
+ * at most [max_torque] N m, each nought or more. A hinge is pulled about
+ * its axis alone. What a muscle's tone does: an active torque, bounded,
+ * holding a posture; solved implicitly, so no stiffness is too much for
+ * the step, and before the limits, which have the last word. All three
+ * are scaled by the drive's level, which a drive turned on starts at 1 and
+ * f3d_joint_set_drive_fade lets fall; set again while on, the drive keeps
+ * its level. [enabled] nought takes it off. */
+F3D_API int f3d_joint_set_drive(F3dWorld *world, F3dJoint joint, int enabled,
+                                f3d_real qx, f3d_real qy, f3d_real qz,
+                                f3d_real qw, f3d_real stiffness,
+                                f3d_real damping, f3d_real max_torque);
+
+/* How a drive's level goes from where it is now to [floor], nought or more,
+ * as exp(−t / [fade]), [fade] in seconds: a body knocked out, its tone
+ * falling over a few tenths of a second to what a corpse keeps, or one
+ * coming round, its tone rising back to 1. [fade] nought holds the level
+ * where it is. While the level is still on its way, the joint's bodies do
+ * not sleep. 0 for a joint with no drive. */
+F3D_API int f3d_joint_set_drive_fade(F3dWorld *world, F3dJoint joint,
+                                     f3d_real floor, f3d_real fade);
+
+/* A drive's level now, into out: 1 when it was turned on, nought for a
+ * joint with no drive. */
+F3D_API int f3d_joint_get_drive_level(const F3dWorld *world, F3dJoint joint,
+                                      f3d_real *out);
 
 /* A motor driving a revolute or prismatic joint at [speed], rad/s or m/s,
  * with at most [max_force], N m or N. */

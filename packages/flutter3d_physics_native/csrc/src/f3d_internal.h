@@ -706,7 +706,8 @@ typedef struct F3dJointSlot {
   uint8_t live;
   uint8_t type;
   uint8_t flags;
-  uint8_t reserved;
+  /* Whether it has a drive: the flags have no bit left. */
+  uint8_t driven;
   F3dBody a, b;
   /* Where it holds each body, in that body's frame. */
   F3dVec3 local_a, local_b;
@@ -759,6 +760,13 @@ typedef struct F3dJointSlot {
    * swing's ahead, behind, side and other side. */
   f3d_real limit_growth;
   f3d_real limit_at[6];
+  /* A drive: the turn of B against A it pulls towards, unit; its
+   * stiffness, N m per radian, damping, N m s per radian, and most torque,
+   * N m, each scaled by its level; and the floor the level goes to with
+   * time constant drive_fade, seconds, nought for staying where it is. */
+  F3dQuat drive_target;
+  f3d_real drive_stiffness, drive_damping, drive_torque;
+  f3d_real drive_level, drive_floor, drive_fade;
 } F3dJointSlot;
 
 /* Everything in a world that is not behind a pointer. A snapshot writes it

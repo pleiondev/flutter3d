@@ -106,6 +106,24 @@ void main() {
     expect(corpses.count, 0);
   });
 
+  test('a body dies with its tone up, fading, unless told otherwise', () async {
+    // Mutation: leave the tone out of the ragdoll — the level is nought.
+    final world = _floor();
+    final toned = RagdollCorpses(world);
+    final limp = RagdollCorpses(world, tone: null);
+    addTearDown(toned.dispose);
+    addTearDown(limp.dispose);
+    final a = _actor(world), b = _actor(world);
+    toned.begin(a, await _hero());
+    limp.begin(b, await _hero());
+    expect(toned.ragdollOf(a)!.ragdoll.toneLevel, 1.0);
+    expect(limp.ragdollOf(b)!.ragdoll.toneLevel, 0.0);
+    for (var i = 0; i < 60; i++) {
+      toned.step(1.0 / 60.0);
+    }
+    expect(toned.ragdollOf(a)!.ragdoll.toneLevel, lessThan(0.1));
+  });
+
   test('a skeleton is taken over, falls and lies down', () async {
     final world = _floor();
     final corpses = RagdollCorpses(world);

@@ -1791,6 +1791,85 @@ int f3d_joint_set_limit_stiffness(
   otherSide,
 );
 
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint64,
+    Int32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_joint_set_drive', isLeaf: true)
+external int _f3d_joint_set_drive(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double stiffness,
+  double damping,
+  double maxTorque,
+);
+int f3d_joint_set_drive(
+  int world,
+  int joint,
+  int enabled,
+  double qx,
+  double qy,
+  double qz,
+  double qw,
+  double stiffness,
+  double damping,
+  double maxTorque,
+) => _f3d_joint_set_drive(
+  Pointer.fromAddress(world),
+  joint,
+  enabled,
+  qx,
+  qy,
+  qz,
+  qw,
+  stiffness,
+  damping,
+  maxTorque,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Float, Float)>(
+  symbol: 'f3d_joint_set_drive_fade',
+  isLeaf: true,
+)
+external int _f3d_joint_set_drive_fade(
+  Pointer<Void> world,
+  int joint,
+  double floor,
+  double fade,
+);
+int f3d_joint_set_drive_fade(int world, int joint, double floor, double fade) =>
+    _f3d_joint_set_drive_fade(Pointer.fromAddress(world), joint, floor, fade);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>)>(
+  symbol: 'f3d_joint_get_drive_level',
+  isLeaf: true,
+)
+external int _f3d_joint_get_drive_level(
+  Pointer<Void> world,
+  int joint,
+  Pointer<Void> out,
+);
+int f3d_joint_get_drive_level(int world, int joint, int out) =>
+    _f3d_joint_get_drive_level(
+      Pointer.fromAddress(world),
+      joint,
+      Pointer.fromAddress(out),
+    );
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float, Float)>(
   symbol: 'f3d_joint_set_motor',
   isLeaf: true,
