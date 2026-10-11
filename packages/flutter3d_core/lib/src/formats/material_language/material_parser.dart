@@ -321,6 +321,13 @@ const Set<String> _vertexReservedNames = <String>{
   'SkinMatrix',
 };
 
+/// Every uniform block one of the engine's own shaders declares. A
+/// material's block cannot take one of these names: [uniformBlocks] is keyed
+/// by shader, so the names are gathered from every shader's table.
+final Set<String> _engineBlockNames = <String>{
+  for (final blocks in uniformBlocks.values) ...blocks.keys,
+};
+
 /// Names a version 2 stage declares besides [_reservedNames]: the blocks and
 /// samplers a full-screen stage, a compute kernel and the scene's depth are
 /// read through.
@@ -953,7 +960,7 @@ final class _Parser {
           named,
         );
       }
-      if (uniformBlocks.containsKey(named.text) ||
+      if (_engineBlockNames.contains(named.text) ||
           !RegExp(r'^[A-Z][A-Za-z0-9]*$').hasMatch(named.text)) {
         fail(
           '"${named.text}" cannot name a material\'s block: a block is named '

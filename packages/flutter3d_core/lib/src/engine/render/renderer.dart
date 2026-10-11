@@ -494,6 +494,11 @@ final class Renderer with RenderServices {
       _retiredViews[from] = true;
       _viewStates[view] = carried;
       frameHistory.carryView(from, view);
+      // The view-projection it drew through moves with the rest of its
+      // past, so `FrameContext.previousViewProjection` of a view made
+      // afresh each frame is last frame's and not this one's.
+      _previousViewProjections[view] = _previousViewProjections[from];
+      _previousViewProjections[from] = null;
       return _remember(view, carried);
     }
     final state = _ViewState();
@@ -526,6 +531,7 @@ final class Renderer with RenderServices {
         if (identical(_viewStates[view], state)) _viewStates[view] = null;
         _retiredViews[view] = true;
         frameHistory.forgetView(view);
+        _previousViewProjections[view] = null;
       }
       _releaseViewState(state);
     }

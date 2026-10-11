@@ -145,14 +145,24 @@ void main() {
     expect(compiled.created, hasLength(2));
 
     // The maker switched off: nothing is described, and the composite that
-    // needed its outputs starves.
+    // needed its outputs starves. Switched off, it still declares what it
+    // makes: a name no node declares is a misspelling, not a starved read.
     final off = _graph(<FrameGraphNode>[
       nodes[0],
-      _Declaring('two outputs', (b) => b.create(_glowDesc), isActive: false),
+      _Declaring('two outputs', (b) {
+        b
+          ..create(_glowDesc)
+          ..create(_maskDesc);
+      }, isActive: false),
       nodes[2],
     ]).compile(outputs: const <ResourceId>[_frame]);
     expect(off.created, isEmpty);
     expect(off.descriptorOf(_glow), isNull);
+    expect(off.descriptorOf(_mask), isNull);
+    expect(
+      off.skipped.map((s) => (s.name, s.reason)),
+      contains(('composite', PassSkip.starved)),
+    );
   });
 
   test('the frame makes a created resource at its declared size', () {

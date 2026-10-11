@@ -21,7 +21,10 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 
 ({Renderer renderer, FakeBackend device, ModelDecoders decoders}) _engine() {
-  final device = FakeBackend();
+  // The decal pass reads the surface and albedo buffers the opaque pass
+  // writes beside the colour, so it runs only on a device that can attach
+  // more than two targets; the fake's default of two culls it.
+  final device = FakeBackend(maxColorAttachments: 4);
   return (
     renderer: Renderer.create(device: device),
     device: device,
@@ -129,7 +132,12 @@ void main() {
       ]),
     );
     expect(smear.frames.single.views, hasLength(1));
-    expect(device.linkedPipelines, contains(endsWith('+acme_sample_Hair')));
+    // An opaque mesh draws through the model's opaque variant where the
+    // bundle has one, as the built-in models do.
+    expect(
+      device.linkedPipelines,
+      contains(matches(r'\+acme_sample_Hair(Opaque)?$')),
+    );
     expect(device.linkedPipelines, contains(endsWith('+acme_sample_Decal')));
   });
 

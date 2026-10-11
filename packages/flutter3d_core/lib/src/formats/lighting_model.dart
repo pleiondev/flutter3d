@@ -541,8 +541,11 @@ final class VertexStageVariant {
 /// plugin's model by name then warns and falls back as for any unknown
 /// name, and one that describes the model as an object reads anywhere.
 ///
-/// **Names are compared exactly.** `Pbr` is the physical model and `pbr` is
-/// no model: a name matched in any case could not tell two plugins' apart.
+/// **A plugin's name is compared exactly; a built-in one in any case.** A
+/// name matched in any case could not tell two plugins' apart, so
+/// `acme_ink_Ink` is not `acme_ink_ink`. The built-in models are a fixed set
+/// with names that differ in more than case, and material files have always
+/// named them so (`"lighting": "pbr"`), so `pbr` still reads as `Pbr`.
 ///
 /// **A plugin's model is in its namespace.** A shader's entry point cannot
 /// carry a dot, so a plugin's [LightingModel.shaderName] begins with its
@@ -580,11 +583,12 @@ final class LightingModels extends PluginRegistry {
           if (!LightingModel.builtIn.contains(entry.model)) entry.model,
       ]);
 
-  /// The model whose [LightingModel.shaderName] is exactly [shaderName],
-  /// built in or registered, or null.
+  /// The model whose [LightingModel.shaderName] is [shaderName], or null: a
+  /// built-in one matched in any case, a registered one exactly.
   LightingModel? named(String shaderName) {
+    final lower = shaderName.toLowerCase();
     for (final model in LightingModel.builtIn) {
-      if (model.shaderName == shaderName) return model;
+      if (model.shaderName.toLowerCase() == lower) return model;
     }
     return _store.registered[shaderName]?.model;
   }

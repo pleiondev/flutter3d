@@ -208,8 +208,9 @@ void main() {
         ..applyPending(1);
       // Built in for 1.x, so withdrawing the addon leaves the name.
       expect(models.named('Toon'), same(toonLighting));
-      // Names compare exactly.
-      expect(models.named('toon'), isNull);
+      // A built-in name reads in any case, as material files have always
+      // written it.
+      expect(models.named('toon'), same(toonLighting));
     });
 
     test("a plugin's model is named while it is on, and not after", () {
@@ -218,6 +219,8 @@ void main() {
       expect(models.named('acme_ink_Ink'), isNull);
       final host = stage.install(const <LightingModelAddon>[InkAddon()]);
       expect(models.named('acme_ink_Ink'), same(ink));
+      // A plugin's name compares exactly, so two plugins stay apart.
+      expect(models.named('acme_ink_ink'), isNull);
       expect(models.all.last, same(ink));
       // Another engine in the same process never heard of it.
       expect(

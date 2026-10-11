@@ -154,6 +154,7 @@ double _apply(
   BlendOperation.reverseSubtract => d - s,
   BlendOperation.min => rawS < rawD ? rawS : rawD,
   BlendOperation.max => rawS > rawD ? rawS : rawD,
+  _ => throw UnimplementedError('$operation'),
 };
 
 void main() {
