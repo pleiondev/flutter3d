@@ -72,6 +72,7 @@ export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
 export 'src/input/input_tape.dart';
 export 'src/input/tunables.dart';
+export 'src/input/xr_input.dart';
 export 'src/level/breaches.dart';
 export 'src/level/brush_geometry.dart';
 export 'src/level/cutscene_kind.dart';
