@@ -14,7 +14,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What [sharedSceneSnapshot]'s bytes hash to.
-const String sharedSceneHash = '82597602';
+const String sharedSceneHash = '5ee93c65';
 
 /// A floor, a heap of boxes, balls, capsules and a hull, a hinged pair,
 /// materials and wind, stepped two seconds on [threads]; its snapshot —
@@ -82,9 +82,16 @@ Uint8List sharedSceneSnapshot({int threads = 1}) {
 
 /// FNV-1a over [bytes] in 32 bits, as hex: written with nothing past 2⁵³,
 /// so dart2js works it out as the VM does.
+///
+/// Bytes 8 to 11, the header's ABI stamp, go in as zero: they name the
+/// build of the core that wrote the snapshot rather than the world in it,
+/// and a bump of the ABI that steps the same bits leaves the number alone.
+/// `StateDigest` in flutter3d_sim reads a snapshot inside a save the same
+/// way, and says why at length.
 String hashOf(Uint8List bytes) {
   var h = 0x811c9dc5;
-  for (final byte in bytes) {
+  for (var i = 0; i < bytes.length; i++) {
+    final byte = i >= 8 && i < 12 ? 0 : bytes[i];
     h = (h ^ byte) & 0xffffffff;
     h = (((h << 24) & 0xffffffff) + h * 403) & 0xffffffff;
   }
