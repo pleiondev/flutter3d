@@ -224,15 +224,26 @@ typedef ConformanceCheck = ({
 /// nothing may be reported green. A [ConformanceDeclinedException] thrown while the
 /// device is being made skips the check with the sentence it carries, and
 /// every other exception is still a failure.
+///
+/// **[checks] is the tier a backend has reached**, [conformanceChecks] when
+/// left out. A backend from outside this repository passes the checks that
+/// need no shader first — clears, uploads, readback, the capability report
+/// and every refusal — and adds [shaderChecks] once it draws; the null
+/// backend in `examples/flutter3d_backend_null` runs
+/// `conformanceChecks.where((c) => !shaderChecks.contains(c))`. The loaded
+/// bundle's check is added to [checks] when [ownShaders] is given.
 void runDeviceConformance({
   required String backend,
   required DeviceFactory makeDevice,
   Future<OwnShaderSection?> Function()? ownShaders,
+  List<ConformanceCheck>? checks,
 }) {
-  final checks = ownShaders == null
-      ? conformanceChecks
-      : conformanceChecksWith(ownShaders);
-  for (final check in checks) {
+  final run = <ConformanceCheck>[
+    ...?checks,
+    if (checks == null) ...conformanceChecks,
+    if (ownShaders != null) ...loadedBundleChecks(ownShaders),
+  ];
+  for (final check in run) {
     test('$backend: ${check.name}', () async {
       final GraphicsDevice device;
       try {
