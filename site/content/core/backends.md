@@ -1,212 +1,143 @@
 ---
-description: How to implement flutter3d_hardware for a new graphics API: the full contract, the semantics no signature can express, the conformance suite, and the shader bundle you cannot avoid writing.
+description: How to write a flutter3d graphics backend for another API, outside the engine's repository: the reference backend to start from, the device contract, the semantics no signature can express, the conformance suite, the material compiler and the shader contract.
 ---
 
 # Writing a HAL backend
 
-`flutter3d_hardware` is a hardware abstraction layer with no implementation in it. Four packages implement it, and this page is what you need to write the fifth.
+`flutter3d_hardware` is a hardware abstraction layer with no implementation in it. Four packages implement it (Impeller through Flutter GPU, WebGL2, WebGPU and a software rasteriser), and this page is what you need to write the fifth: Vulkan or Metal through FFI, Direct3D, a headless server renderer.
 
-The claim it makes is that a backend can be written **without reading the engine**. That claim has been half-tested and half-confirmed: `flutter3d_cpu` is a software rasteriser with no GPU, no driver and no shading language under it, and `GraphicsDevice` was implementable straight from the contract: `Renderer` started against it unmodified and the `plain` parity fixture came out within a mean of 0.56 of Impeller's. Nothing in the engine turned out to assume a GPU.
+**You write it in your own package, against published libraries, without a fork.** That is a promise the engine's own repository proves on every run: `examples/flutter3d_backend_null` is a backend written as you would write yours, depending on each engine package by path, importing nothing from another package's `src/`, and passing the conformance suite in CI. A structure rule refuses it the first private import.
 
-What could **not** be written from the contract is the shaders. That limit is real, it was named in advance, and it is [the last section on this page](#the-one-thing-the-hal-cannot-abstract).
-
-<div class="note">
-<p><strong>The fourth backend is the freshest evidence about this page.</strong> <code>flutter3d_webgpu</code> was written against the contract, in the order suggested at the bottom, and the two things it found were both in the shader half. Its declared capabilities are also the cleanest example of what "answer honestly" buys: two of them say no (the blend constant and wireframe), and the conformance suite reports each as a <em>decline</em>, so it comes back 41 of 41 with nothing hidden. Three it got wrong are worth more than the two it got right, because they are the ways a refusal fails. <code>createCubeRenderTarget</code> returned null while <code>supportsCubeTextures</code> said true, and the suite failed it rather than declining it, because that capability is read as a promise that a pass can name a face: a gap wearing a refusal's clothes. Then <code>supportsRenderToMip</code> went on saying no beside the cube it had been paired with, long after there was anything left to build: a refusal that outlived its reason, which is worse, because nobody goes looking behind one. It is true now and reflection probes draw here; what it cost was a line, and what it had been hiding was two conformance checks declining themselves from the inside, unreported, at an unchanged 41 of 41. The third is the same shape once more: <code>supportsTextureFormat</code> answered false for every block-compressed format because the device requested no compression family, which described the request and not the API, and the check behind that false was skipping all three of its candidates without drawing anything. The device asks its adapter now and requests the intersection, because a feature the adapter lacks rejects the device rather than downgrading it, and the capability answers from what was granted rather than from what was wanted.</p>
-</div>
+What could **not** be written from the device contract alone is the shaders. That limit is real, and since 1.0 it has a contract of its own: [the last section on this page](#the-shader-contract).
 
 <div class="goal">
 <ul>
-<li>What <code>GraphicsDevice</code>, <code>CommandEncoder</code> and <code>PassEncoder</code> require of you</li>
+<li>Where to start: the null backend, and <code>flutter3d create plugin --kind backend</code></li>
+<li>What <code>GraphicsDevice</code>, <code>PassEncoder</code> and <code>CommandEncoder</code> require, and what they give you with a body</li>
 <li>The semantics that are part of the contract and appear in no signature</li>
-<li>What the 0.8 members ask, compute among them, and which backend answers yes</li>
-<li>The conformance suite, and how to run it before you have a single shader</li>
-<li>The 105 shader entry points your bundle must answer to</li>
+<li>The conformance suite, in tiers, and how a check declines</li>
+<li>The engine's frames on your device, from a test</li>
+<li>The material compiler, and the shader contract a bundle answers to</li>
 </ul>
 </div>
 
-## What you are implementing
+## Start from the null backend {#start}
+
+```bash
+dart run flutter3d_build:flutter3d create plugin --kind backend --name flutter3d_vulkan
+```
+
+writes the null backend under your package's name: `VulkanDevice`, `VulkanPass`, `registerVulkanBackend`, `VulkanMaterialCompiler`, and two tests. As written it has no GPU. It keeps textures in memory, clears, uploads, overwrites, copies and reads them back, and refuses every pipeline at its first draw, so the engine's renderer runs on it and each pipeline a frame draws with is reported refused, once. It passes every conformance check but the shader tier on the day it is created, and you grow it into your backend one capability at a time, with the suite telling you which answer is still wrong.
+
+The template is the example, file for file: a test in `flutter3d_build` compares them, so the backend you start from is the one CI holds to conformance.
 
 ```mermaid
 flowchart TB
-  engine["flutter3d<br>the renderer"] --> hal
+  engine["flutter3d_core<br>the renderer"] --> hal
 
-  subgraph hal["flutter3d_hardware — the HAL"]
+  subgraph hal["flutter3d_hardware"]
     direction TB
-    device["GraphicsDevice<br>capabilities<br>resources · frames"]
-    enc["CommandEncoder<br>extends PassEncoder<br>state · bindings · draws"]
-    desc["RenderPassDescriptor<br>ColorTarget<br>DepthTarget"]
-    handles["TextureHandle<br>GeometryBuffer<br>ShaderHandle<br>PipelineHandle"]
-    vocab["20 enums<br>SamplerOptions<br>RenderTargetSpec<br>TextureAllocator"]
-    device ~~~ enc ~~~ desc ~~~ handles ~~~ vocab
+    device["GraphicsDevice<br>features · limits<br>resources · frames"]
+    enc["PassEncoder + CommandEncoder<br>TransferEncoder · ComputeEncoder"]
+    backend["backend.dart<br>wrapTexture · wrapPipeline<br>wrapGeometry · wrapShader"]
+    registry["DeviceRegistry<br>addBackend · addPresenter"]
+    device ~~~ enc ~~~ backend ~~~ registry
   end
 
   hal --> yours["your backend"]
+  shaders["flutter3d_shaders/backend.dart<br>MaterialCompiler · stageBindings<br>uniformBlocks · checkStageAgreement"] --> yours
   conf["flutter3d_conformance"] -.->|"runs against"| yours
-  shaders["flutter3d_shaders<br>kRequiredShaders<br>the GLSL"] -.->|"your bundle<br>answers to"| yours
+  testing["flutter3d_testing<br>renderFrame(device:)"] -.->|"draws the engine's<br>frames on"| yours
 ```
 
-Everything in that box is promised. Changing any of it breaks a backend, and that is the bar for changing it.
+## One way to open a device {#open}
 
-## Start with the capabilities
-
-These are questions, not constants, and the engine asks every one of them rather than assuming. **Answer honestly**, a backend that claims something it cannot do produces a correct-looking frame with the wrong content and no error anywhere.
+Every backend opens the same way: asynchronously, at the size of the surface it starts with.
 
 ```dart
-final class MyDevice extends GraphicsDevice {
-  @override
-  TextureFormat get defaultColorFormat => TextureFormat.r8g8b8a8UNormInt;
-
-  @override
-  TextureFormat get defaultDepthStencilFormat => TextureFormat.d32FloatS8UInt;
-
-  /// The engine renders linear HDR and tone maps at the end, so it needs a
-  /// color target with range above one.
-  @override
-  TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
-
-  /// Where row zero of a render target is. A shader sampling a texture the
-  /// engine drew has to be told.
-  @override
-  FramebufferOrigin get framebufferOrigin => FramebufferOrigin.topLeft;
-
-  /// The engine builds projections for zeroToOne and corrects at the boundary
-  /// for a backend that says otherwise.
-  @override
-  DepthRange get depthRange => DepthRange.zeroToOne;
-
-  @override
-  int get preferredSampleCount => 4;
-
-  @override
-  bool get supportsOffscreenMsaa => true;
-
-  @override
-  bool get supportsMipmaps => true;
-
-  @override
-  bool get supportsWireframe => true;
-
-  @override
-  bool get supportsStencil => true;
-
-  @override
-  bool get supportsCubeTextures => true;
-
-  /// A color attachment below the base level. flutter_gpu gives it on Metal
-  /// and Vulkan and not elsewhere, so this is the one that splits a single
-  /// backend by platform.
-  @override
-  bool get supportsRenderToMip => true;
-
-  /// Per format rather than per family, because that is how every API below
-  /// answers it. A no leaves the texture out with a warning naming the format.
-  @override
-  bool supportsTextureFormat(TextureFormat format) => true;
-
-  /// Taps a sampler may take along a foreshortened axis; 1 for none. A
-  /// request above this is clamped by the backend, never refused.
-  @override
-  int get maxAnisotropy => 16;
-
-  /// Colour attachments one pass may open. One is an honest answer and the
-  /// engine handles it: every pass that reads the surface buffer is left out
-  /// of the frame and reported as `PassSkip.unsupported`. Unlike the
-  /// anisotropy above, a request past this is **refused** rather than
-  /// clamped — call `descriptor.checkAttachmentLimit` on the way into
-  /// `beginRenderPass`, as every backend here does.
-  @override
-  int get maxColorAttachments => 4;
-
-  /// Whether the blend constant reaches the blend. No is an honest answer:
-  /// the conformance check reports it as a decline.
-  @override
-  bool get supportsBlendColor => true;
-
-  // The 0.8 members, below. False or empty is a complete answer.
-  @override
-  bool get supportsCompute => false;
-
-  @override
-  bool get supportsGpuTimestamps => false;
-
-  @override
-  bool get supportsFloat32Filtering => false;
-
-  @override
-  bool get supportsIndependentBlend => false;
-
-  @override
-  List<TextureFormat> get hdrOutputFormats => const <TextureFormat>[];
+final class VulkanDevice extends GraphicsDevice {
+  static Future<VulkanDevice> open({required int width, required int height}) async {
+    // ... create the instance, the device, the queue
+  }
 }
 ```
 
-That is the whole of the capability half; the rest of this page is resources and frames. `GraphicsDevice` is an `abstract base class`: what a feature gates has a body that throws `UnsupportedCapabilityException`, so you override what your backend has and list it in `features`, and the members with no body will not compile until they are all there, which is the one part of the contract that needs no reading at all.
+That shape is `BackendOpener`, and it is the only one the engine knows. `DeviceRegistry.addBackend` takes it, `flutter3d_testing`'s `renderFrame(device:)` and `testReplay(device:)` take it, and `runDeviceConformance(makeDevice:)` takes it. A backend that sizes its targets per frame takes the size and is not held to it; one that cannot (a canvas, a swapchain) draws at it.
 
-| Query | What answering wrong costs you |
+Your package adds itself to an engine's registry with a function of its own, which an application calls:
+
+```dart
+Registration registerVulkanBackend(
+  DeviceRegistry<Object> registry, {
+  MaterialCompilerRegistry? compilers,
+}) {
+  final backend = registry.addBackend('Vulkan', VulkanDevice.open);
+  final compiler = compilers?.register(const VulkanMaterialCompiler());
+  return Registration(() {
+    compiler?.cancel();
+    backend.cancel();
+  });
+}
+```
+
+Last added, first tried: an application that registers yours after the engine's own makes it the preferred backend, without editing `flutter3d_app`. The registry is the engine's, not a global, so two engines in one isolate choose backends of their own. A backend that shows its frames in a widget adds a presenter for its device type with `registry.addPresenter<VulkanDevice>(…)`, in `flutter3d_app`'s `FramePresenter` shape; a headless one adds none.
+
+## The device: what has a body and what does not {#device}
+
+`GraphicsDevice` is an `abstract base class`, implementable outside this repository and promised to stay so through 1.x. Its members split in two, and the split is the point of the 1.0 contract:
+
+- **The members without a body** are the ones every backend has: the formats (`defaultColorFormat`, `defaultDepthStencilFormat`, `hdrColorFormat`), `framebufferOrigin`, `depthRange`, `preferredSampleCount`, `features`, `limits`, `textureFormatSupport`, `shaders` and `loadShaders`, the texture, geometry and pipeline creators, `beginFrame`, `onFrameComplete`, `beginRenderPass`, `readback`, the releases and `dispose`. They will not compile until they are all there, which is the one part of the contract that needs no reading.
+- **Every feature-gated member has a body** that refuses with the feature named: compute, storage buffers, queries, transfers, render bundles, shared textures and fences, mapped buffers, multiview. You override a member when you implement it and add its feature to `features`; until then the default is your answer. **A new member arrives in a minor with a body**, so a backend written against 1.0.0 keeps compiling against every 1.x.
+
+`PassEncoder`, `TransferEncoder` and `ComputeEncoder` follow the same rule. A pass implements the state setters, the binds, `clearBindings`, `draw` and `submit` (from the `CommandEncoder` mixin); the indirect draws, storage bindings, the blend constant, uniform bytes, debug groups and the rest have default bodies. The null backend's pass is the whole of what you must write.
+
+### Capabilities are a set {#features}
+
+`features` is a `DeviceFeatures` set of `DeviceFeature` constants, and `limits` a `DeviceLimits`. There are no `supportsX` getters: the engine asks `features.has(DeviceFeature.stencil)`, and a call that needs one you lack throws `UnsupportedCapabilityException` naming it. `DeviceFeature` is an open class, not an enum, so a minor that adds a feature breaks no `switch` of yours.
+
+**Answer honestly, in both directions.** The conformance suite walks every feature: one you report must work when its probe calls it, and one you do not report must be refused *by that feature's name*, not by another one and not by doing it anyway. A device that can do something and does not say so is reported as dishonest too, because the engine will take the slower path for nothing. Inside your device, `refuse(feature)` builds the refusal; inside a pass, `device.features.require(feature, backend: name)` throws it.
+
+| Answer | What answering wrong costs |
 |---|---|
-| `hdrColorFormat` | An **incomplete framebuffer**: every draw silently discarded, no error raised, a frame of transparent black, every counter reporting success. WebGL2 accepts `RGBA16F` as a texture format and refuses to render to it until `EXT_color_buffer_float` is asked for, a thing only a backend can know to do |
+| `hdrColorFormat` | An **incomplete framebuffer**: every draw silently discarded, a frame of transparent black, every counter reporting success. WebGL2 accepts `RGBA16F` as a texture and refuses to render to it until `EXT_color_buffer_float` is asked for |
 | `framebufferOrigin` | Maps the lighting pass looks into are flipped. The *picture* is fine, which is what makes it hard to find |
 | `depthRange` | Geometry clipped against the near plane, or half of it gone |
-| `supportsMipmaps` | Not a slower texture, a **black** one. On OpenGL ES 2 without `GL_APPLE_texture_max_level`, a hand-built chain samples as black |
-| `supportsWireframe` | OpenGL ES has no `glPolygonMode`. Filling the triangles instead looks exactly like the wireframe setting having no effect |
+| `DeviceFeature.manualMipmaps` | Not a slower texture, a **black** one: on OpenGL ES 2 without `GL_APPLE_texture_max_level`, a hand-built chain samples as black |
+| `DeviceFeature.wireframe` | OpenGL ES has no `glPolygonMode`. Filling the triangles instead looks exactly like the wireframe setting having no effect |
 | `preferredSampleCount` | One number instead of a boolean, because "does MSAA work" and "how much" are different questions |
-| `maxAnisotropy` | The one query whose overshoot is *clamped* rather than refused: `SamplerDescriptor.anisotropy` above it is lowered to it. Forward it unclamped to WebGL2 and every bind above the ceiling is `INVALID_VALUE`, silently, and the floor is merely blurrier than asked for |
-| `supportsStencil` | The x-ray stage draws nothing where it is false, which is the intended answer. Claim it and leave the test unimplemented and the mask reads as "keep everything": the silhouette is drawn over the geometry it was meant to be clipped by |
-| `supportsCubeTextures` | No reflection probe and no cube sky, again as intended. Claim it without a cube sampler and the face a direction points at is whichever face the sampler happened to bind |
-| `supportsRenderToMip` | The probe chain. This is the one that splits a single backend by platform: flutter_gpu attaches a mip below the base on Metal and Vulkan and nowhere else, so it is a runtime answer, not a compile-time one |
-| `supportsTextureFormat` | A compressed texture the driver cannot sample. Answer yes and the upload succeeds and the surface is noise; answer no and the format is left out with a warning that names it |
+| `limits.maxSamplerAnisotropy` | The one limit whose overshoot is *clamped* rather than refused: forward it unclamped to WebGL2 and every bind above the ceiling is `INVALID_VALUE`, silently |
+| `limits.maxColorAttachments` | A pass past it is **refused**, not clamped: call `descriptor.checkAttachmentLimit` and `descriptor.checkFeatures` on the way into `beginRenderPass`, as every backend does |
+| `DeviceFeature.stencil` | The x-ray stage draws nothing where it is absent, which is the intended answer. Claim it and leave the test unimplemented and the silhouette is drawn over the geometry it was meant to be clipped by |
+| `DeviceFeature.renderToMipLevel` | The probe chain. flutter_gpu attaches a mip below the base on Metal and Vulkan and nowhere else, so it is a runtime answer, not a compile-time one |
+| `textureFormatSupport` | A compressed texture the driver cannot sample. Answer yes and the upload succeeds and the surface is noise; answer no and the format is left out with a warning that names it. A family's feature (`textureCompressionBC`) must agree with the per-format table, which the suite checks |
 
 <div class="warn">
 <p><strong>Refuse loudly rather than substituting something similar.</strong> Every silent substitution on this list has cost somebody a day, because the failure mode is a plausible picture.</p>
 </div>
 
-### The 0.8 members {#the-0-8-members}
+### Handles come from `backend.dart` {#handles}
 
-`flutter3d_hardware` 0.8.0 added eleven members at once: five capabilities, `onGpuTimings`, and the five that create and run compute (`createStorageBuffer`, `createComputePipeline`, `beginComputePass`, `readBuffer`, `releaseStorageBuffer`). They are the whole of the 0.8 line's contract, declared together because every backend is its own package on a caret range of this one: a member added in 0.8.1 would stop every backend published before it from compiling. A backend written outside this repository has to answer all eleven before it builds again, and false or empty from the capabilities with an `UnsupportedError` from each creator is a complete answer. Code that only calls a device is unaffected.
+A handle's constructor is private since 1.0, so code that draws cannot make a texture or a pipeline that no device made. Your device wraps its own objects with the constructors in `package:flutter3d_hardware/backend.dart` (`wrapTexture`, `wrapGeometry`, `wrapPipeline`, `wrapShader`, `wrapStorageBuffer`, `wrapQuerySet`, `wrapFence`), naming itself as the owner so that a handle's `dispose` comes back to your `release…`, and calls `debugCheckLive` before handing a handle it was given to its API. That library is part of the package's snapshot and follows the same strict semver: a constructor there gains only optional parameters within a major.
 
-| Member | Impeller | WebGL2 | WebGPU | Software |
-|---|---|---|---|---|
-| `supportsCompute` | false | false | true | true |
-| `supportsGpuTimestamps` | false | false | where the adapter grants `timestamp-query` | false |
-| `supportsFloat32Filtering` | on Metal on a Mac | where `OES_texture_float_linear` was granted | where `float32-filterable` was granted | true |
-| `supportsIndependentBlend` | true | where the context offers `OES_draw_buffers_indexed` | true | true for its first two attachments, unless the constructor says otherwise |
-| `hdrOutputFormats` | empty | empty | `rgba16float` on a display the browser reports as high dynamic range | empty, unless the constructor is handed formats |
+**A handle is disposed exactly once.** A second dispose, and a handle used after its owner gave it back, fail in debug builds with the operation named; `DeviceLoss` on `lost` is how a backend tells the engine every handle is spent.
 
-**Compute runs on WebGPU and the software rasteriser only.** Impeller and WebGL2 answer `supportsCompute` false and their creators throw, so a caller asks first. The shape follows the render pass: a `StorageBuffer`, a `ComputePipelineHandle` built from a compute stage of the device's own library, and a `ComputeEncoder` with `bindPipeline`, `bindStorageBuffer`, `bindUniformBlock`, `dispatch` and `submit`. A binding the stage does not declare answers false, and `bindPipeline` forgets every binding, as it does in a render pass. `readBuffer` reads back a buffer created with `hostReadable: true`, once every pass submitted before the call has written it. WebGPU packs its compute stages from their own manifest through the same glslang and naga road as the rest; the software rasteriser hands a Dart mirror a whole workgroup at a time and finishes a dispatch before it returns. `PrefixSum`, a scan of 1024 integers in one workgroup, is the first stage and the one the conformance suite runs.
-
-**GPU timings are a frame or two late by nature.** `RenderPassDescriptor.label` names a pass, and a device whose `supportsGpuTimestamps` is true calls the `onGpuTimings` listener with a `GpuFrameTimings`: the frame's number and a `GpuPassTiming` per labelled pass, in microseconds. A timestamp can only be read once the GPU has written it, which is after the frame was encoded. On WebGPU the next `beginFrame` resolves them, and up to 64 passes a frame are timed while the rest draw untimed. A backend with nowhere to put a label ignores it, and the listener is never called on a device that answered false.
-
-The other three are questions the renderer asks before one feature each. The exponential shadow filter needs `supportsFloat32Filtering`, and falls back to the fixed kernel where it is false. Weighted blended transparency needs `supportsIndependentBlend`, because its two targets blend differently in one draw; without it the list is drawn once per target. `OutputTransform.extendedSrgb` draws in the first of `hdrOutputFormats`, and draws the ordinary frame byte for byte where the list is empty. Where `supportsIndependentBlend` is false, `setBlend`'s attachment index is ignored and attachment zero's state applies to all, so a caller that sets attachment zero first and the others after draws the same pass on all four backends.
-
-## Resources
+## Resources, frames and passes
 
 ```dart
-/// Expensive — it compiles and links. Callers cache, keyed on the *pair*
-/// and on the layout: two layouts over one stage pair are two different
-/// pipelines, and handing back the first for the second draws a picture
-/// while reading instance data as vertices.
-///
-/// A null [layout] means: work it out from the shader. Passing one is how a
-/// pipeline gets a second buffer stepping per instance, because no reflection
-/// can tell you which of two buffers that is.
+/// Expensive: it compiles and links. Callers cache, keyed on the pair and on
+/// the layout. A null [layout] means: work it out from the shader.
 PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment,
     {VertexLayoutDescriptor? layout});
 
 /// Geometry that outlives the frame. [usage] is required and cannot be
-/// defaulted — see the semantics below.
+/// defaulted: see the semantics below.
 GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage);
 
-/// One call rather than create-then-write, because that is what every caller
-/// means. Null when [pixels] is not the size the device wants, which is how a
-/// decoder that disagreed about the dimensions degrades to "no texture"
-/// rather than taking the whole model down.
-///
-/// [mipLevels] are supplied, not generated. WebGL2 has `glGenerateMipmap` and
-/// Impeller does not, so letting each backend build its own chain is two
-/// backends agreeing by accident and a third answering differently, at a
-/// scale nobody would attribute to the filter. `MipChain.build` makes them
-/// once, above the seam.
-TextureHandle? createTextureFromPixels({
+/// One call rather than create-then-write. Refused with a
+/// `DeviceResourceException` when [pixels] is not the size the format says,
+/// and [mipLevels] are supplied, never generated: `MipChain.build` makes
+/// them once, above the seam, so every backend samples the same chain.
+TextureHandle createTextureFromPixels({
   required int width,
   required int height,
   required TextureFormat format,
@@ -214,82 +145,27 @@ TextureHandle? createTextureFromPixels({
   List<ByteData>? mipLevels,
 });
 
-/// From TextureAllocator, so RenderTargetPool takes the device directly and
-/// every texture in the engine is created by one rule.
-TextureHandle createTexture(RenderTargetDescriptor spec);
-```
+/// From TextureAllocator, so RenderTargetPool takes the device directly.
+TextureHandle createTexture(TextureDescriptor descriptor);
 
-<div class="note">
-<p>A <code>GraphicsDevice</code> is <strong>a value, never a global</strong>. flutter_gpu's own device is a singleton and reaching it from a top-level function was how the renderer used to make textures; nothing above the backend does that now. Two things depend on it: a backend cannot be a separate package while the core reaches into it, and a <em>fake</em> backend, the only way a pass's drawing is testable off a device, cannot displace a singleton.</p>
-</div>
-
-## Frames and passes
-
-```dart
-/// The one member about time rather than resources. Every backend has
-/// *something* that rotates: on flutter_gpu it is the ring of per-frame
-/// uniform allocators, which cannot be reset in place because `submit` is
-/// asynchronous. A backend with nothing to rotate implements this as nothing.
 void beginFrame();
-
-/// Opens a pass. The returned encoder must be submitted.
 CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
-```
-
-`PassEncoder` is the recording half; `CommandEncoder` adds `submit()`. The split is deliberate, a contributor drawing into somebody else's pass is handed a `PassEncoder`, so passing it an already-submitted pass is a type error rather than a comment warning about one.
-
-```dart
-abstract interface class PassEncoder {
-  void setViewport(ScreenRect rect);
-  void setScissor(ScreenRect rect);
-  void setPrimitiveType(PrimitiveType type);
-  void setPolygonMode(PolygonMode mode);
-  void setCullMode(CullMode mode);
-  void setWindingOrder(WindingOrder order);
-  void setDepthWrite(bool enabled);
-  void setDepthCompare(CompareFunction compare);
-  void setBlend(BlendState? state, {int attachment = 0});
-
-  void bindPipeline(PipelineHandle pipeline);
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount, {int slot = 0});
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0});
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount);
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount);
-  bool bindUniformBlock(...);
-  bool bindTexture(...);
-  void clearBindings();
-
-  void draw({int instanceCount = 1});
-}
-```
-
-The `*Data` variants are for geometry that lives one frame; `uploadGeometry` is for everything else.
-
-`bindTexture` answers a bool as `bindUniformBlock` does, and changed to it in 0.8.0: false for a sampler the stage does not declare, and it never throws. The question goes to the stage, so a sampler that only the program's other stage declares answers false too. Before that every backend answered a missing slot its own way, from a throw to a silent bind. A backend with no reflection answers true. `bindPipeline` forgets every binding (uniform blocks, textures, vertex slots and the index buffer), even when the same pipeline is bound again; the contract used to say a backend was free to keep them, and the one that did hid a missing bind behind the previous draw's.
-
-## Presenting, and reading back {#presenting}
-
-```dart
-Widget present(TextureHandle frame, {BoxFit fit, FilterQuality quality});
-Future<ByteData?> readPixels(TextureHandle texture);
 Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
 ```
 
-<div class="why">
-<p><code>GraphicsDevice.present</code> used to be <code>ui.Image imageOf(...)</code>, and that was an Impeller shape wearing a neutral name. On flutter_gpu a texture becomes a <code>ui.Image</code> for free. A WebGL2 backend has no such path: the only route is <code>readPixels</code> into CPU memory and <code>decodeImageFromPixels</code> back onto the GPU. Timed once by hand in a browser at the golden suite's own 480×360: <strong>17.7 ms for the round trip against a 16.7 ms budget for the whole frame</strong>, of which <code>readPixels</code> was 347 µs. The cost is putting the pixels <em>back</em>. <code>present</code> itself has since moved out of the interface (mcp-01n): a backend registers its own presenter with <code>flutter3d_hardware</code>'s device registry, and <code>presentFrame</code> in <code>flutter3d_app</code> is a lookup into it and not a member of <code>GraphicsDevice</code>. The argument below is why it asked for a widget in the first place, and that answer travelled with it.</p>
-<p>Nothing in this repository recomputes those figures, because a measurement that needs a browser and a GPU has no harness here. Read them as an order of magnitude, not a budget, unlike the surface-probe numbers three paragraphs down, which come from a script anybody can re-run. The argument does not rest on the exact figure: a full-frame download and re-upload every frame is the wrong order of magnitude for a frame whatever it turns out to be, which is why the number was stated once and is not maintained.</p>
-<p>So the contract asks for a widget: flutter_gpu wraps its image, a WebGL2 backend hands over the canvas it drew into, and the browser composites it. The cost of that honesty, stated once: on a backend that presents a platform view, the frame cannot be arbitrarily transformed or layered by the widget tree. <code>fit</code> is the part every caller actually used, and both can honour it.</p>
-</div>
+`PassEncoder` is the recording half and `CommandEncoder` adds `submit()`. The split is deliberate: a contributor drawing into somebody else's pass is handed a `PassEncoder`, so passing it an already-submitted pass is a type error rather than a comment warning about one.
 
-`readPixels` is a different question with a different cost: it runs when something wants to *look* at what a pass wrote, and returns null for a `deviceTransient` texture, which lives in tile memory and has nothing left to read once the pass has ended.
+`bindTexture` and `bindUniformBlock` answer a bool: false for a slot or block the stage does not declare, and they never throw for one. A backend with no reflection answers true. `bindPipeline` forgets every binding (uniform blocks, textures, vertex slots and the index buffer), even when the same pipeline is bound again.
 
-`readback` is the same bytes asked a third way: **as the passes submitted before the call left them, and without waiting for the GPU.** A pass submitted afterwards, drawing into the same texture, does not reach the answer; and the caller is not held up by a frame the GPU is still on, because the future resolves when the queue reports the copy done, which is a frame or two later. That is what an exposure meter reading a luminance target every frame needs, and what an editor reading the id under the cursor needs. On flutter_gpu the copy is texture to texture into a pooled staging texture, since `DeviceBuffer` has no read path back to Dart; on WebGL2 it is `readPixels` into a pixel-pack buffer behind a fence, polled rather than blocked on; the software rasteriser has nothing in flight and answers at once. What cannot be read (tile memory, a multisampled target, a cube, a region past the edge, any format but the two linear eight-bit RGBA layouts) is refused with an `ArgumentError` by `readbackRegionOf`, once, for every backend, and the handle carries every fact needed to ask first. The format is refused rather than converted because the bytes are promised to be the same bytes everywhere, and a half-float target was three answers on three backends: on WebGL2, a `readPixels` the context rejects and a future that completes successfully with a picture of zeros. A float texture is read through `readPixels`, or drawn into an eight-bit target first, which is what the luminance pass is. The sRGB twins of the two layouts are refused as well, and were admitted at first on the grounds of being eight bits per channel: that is the wrong test, because the disagreement is over the encoding, not the width: one backend reads an sRGB texture as the bytes it stores and another is entitled to decode them to linear on the way out.
+A `GraphicsDevice` is **a value, never a global**. A backend cannot be a separate package while the core reaches into it, and a fake, the only way a pass's drawing is testable off a device, cannot displace a singleton.
 
-flutter_gpu 3.47 also offers a `GpuImageSurface`: a pool of presentable textures that Flutter draws as a `ui.Image`, deciding for itself when one may be drawn into again. `presentFrame` does not use it, and the reason is measured rather than assumed. `packages/flutter3d_impeller/tool/surface_probe.sh` runs the same clear-only pass through the renderer's ring of finished frames and through a surface, 240 frames each at 1280×800 with Flutter drawing every one, and prints what each costs.
+## Presenting, and reading back {#presenting}
 
-<div class="why">
-<p>Same UI-thread cost: 95 to 105 µs a frame on every path, 125 to 160 µs at the 95th percentile, and a spread between runs wider than the gap between paths. The same 8.3 ms between frames, and no copy on either path: the image is a wrapper over the texture in both. Memory is two points on a scale rather than one number. At four megabytes of short-lived allocation a frame (the probe's churn path) the pool peaks at five textures, some twenty megabytes; with no allocation whatever the same surface reaches forty-seven. Nothing in between was run, and this engine is written to keep a frame from allocating at all, so where a real frame would land is a range and not a figure. Against that, a ring that holds the presented frame back one frame (the surface's own guarantee, and the only version of the ring comparable with it) costs two, and nothing in it waits for a collector to say so. The forty-seven is what shows the mechanism: a texture counts as free only once nothing but the surface's own records reference it, and the native halves of the Dart <code>Texture</code>, <code>RenderPass</code> and <code>CommandBuffer</code> a frame makes are references until the collector frees them. The pool is paced by the garbage collector, not the display. <code>resize</code> refuses while a frame is out, and <code>present</code> works through a trailing empty command buffer, so the shape would have fit this backend, at the price of a contract change and at least three more textures for no faster frame. <code>GpuPresentStatus</code> is not among the findings: <code>present</code> returns a constant in the Dart wrapper, so there is nothing there to measure. The probe stays so the numbers can be taken again on a flutter_gpu that counts references some other way; the verdict is ARCHITECTURE §15.</p>
-</div>
+A device does not present. A backend registers a presenter for its device type with the engine's `DeviceRegistry`, and `presentFrame` in `flutter3d_app` looks it up: flutter_gpu wraps its texture as a `ui.Image`, WebGL2 hands over the canvas it drew into, and a headless backend registers nothing. The contract used to ask the device for a `ui.Image`, which was an Impeller shape wearing a neutral name: on WebGL2 the only route is `readPixels` into CPU memory and back onto the GPU, timed once at 17.7 ms against a 16.7 ms budget for the whole frame.
+
+`readback` is how anything reads what a pass wrote: **as the passes submitted before the call left it, and without waiting for the GPU.** A pass submitted afterwards does not reach the answer, and the caller is not held up by a frame the GPU is still on. Rows come back from the top on every backend. What cannot be read (tile memory, a multisampled target, a cube, a region past the edge, a region of any format but the two eight-bit RGBA layouts, an sRGB twin of them) is refused with an `ArgumentError` by `readbackRegionOf`, once, for every backend; a whole texture in another format is converted, which `readbackConverts` decides. A backend asks those two helpers rather than deciding for itself, so which requests convert is the interface's decision. A backend that can read a buffer in the calling turn mixes in `SynchronousBufferReadback`; a caller reaches it through `testing.dart`, since the main library offers no stall.
+
+flutter_gpu 3.47 also offers a `GpuImageSurface`, and `presentFrame` does not use it for a measured reason: `packages/flutter3d_impeller/tool/surface_probe.sh` runs the same clear through the renderer's ring of finished frames and through a surface, and the two cost the same UI-thread time (95 to 105 µs a frame) while the surface's pool is paced by the garbage collector, peaking at forty-seven textures where the ring holds two. The verdict is ARCHITECTURE §15.
 
 ## The semantics no signature can express {#semantics}
 
@@ -299,178 +175,155 @@ Half of what a backend must *do* is in no signature. These were prose once, whic
 |---|---|
 | **A clear covers the whole attachment**, whatever the viewport or scissor say | The point-light atlas clears once and then draws tile by tile. GL does not give this for free: `clearBufferfv` respects `SCISSOR_TEST` |
 | **Rectangles are stated from the top left**, matching where row zero of a render target is | A backend whose framebuffer origin is at the bottom must flip them. The engine will not |
-| **`readPixels` returns rows from the top**, independently of the above | A caller cannot tell which way round it was handed pixels, and a golden compared against a mirrored frame fails as though rendering broke |
+| **`readback` returns rows from the top**, independently of the above | A caller cannot tell which way round it was handed pixels, and a golden compared against a mirrored frame fails as though rendering broke |
 | **`readback` returns the frame before**: the texture as the passes submitted before the call left it, without stalling | A copy made when the driver gets round to it hands an exposure meter the frame *after*; the check clears red, asks, clears blue, and has to get red |
 | **A sampler a shader declares must be bound** | Leaving one unbound is a native crash with no Dart frame on at least one backend, which is why the engine binds a stand-in rather than nothing |
-| **`bindUniformBlock` returns false for a block the shader does not have** | That case is ordinary, a compiler drops a block nothing reads. A block that exists *without a member the caller named* is an error, because then the two ends disagree about its shape and zeros are a plausible-looking value for most of what goes through there |
-| **A null `sampler` means `SamplerDescriptor.linearRepeat`**, not the constructor's own defaults, which are nearest and clamp | See below. This one cost two percent of every textured golden |
+| **`bindUniformBlock` returns false for a block the shader does not have** | That case is ordinary: a compiler drops a block nothing reads. A block that exists *without a member the caller named* is an error, because then the two ends disagree about its shape |
+| **A null `sampler` means `SamplerDescriptor.linearRepeat`**, not the constructor's own defaults, which are nearest and clamp | The two hardware backends agreed on this without anybody writing it down; the third took the constructor defaults and drew hard seams on two percent of every textured golden |
 | **`GeometryUsage` is not a hint** | WebGL binds a buffer to its target for life. A buffer uploaded as vertices can never be bound as indices: `INVALID_OPERATION`, the draw is dropped, and the frame comes back the clear colour with nothing logged |
-| **`setDepthWrite(false)` means depth writes are off** | See below |
+| **`setDepthWrite(false)` means depth writes are off** | flutter_gpu's setter ignored its argument until SDK 3.47, and additive particles occluded each other. The software backend mirrored the bug while it stood, because comparable beats correct when two backends are held to one golden set |
 | **Unset `PassState` fields mean *emit nothing*** | What an omitted call means differs per backend, and the omissions in a pass's sequence are load-bearing |
 | **`bindPipeline` forgets every binding** | A draw that missed a bind reads the previous draw's and draws a plausible picture, on the one backend that kept it, while the others fail |
-| **A pipeline your API will not build is reported, never thrown from a draw**: `device.pipelineRefusals.report(handle, PipelineRefusedException(...))`, skip the draw, build again at the next use while `report` answers true, and skip every draw once `isRefused` says so, whoever reported it | A lazily linking GLES driver refused one pair at its first draw, the throw went through the renderer, and that one pair failed every frame of the application. The record has a default body, so a backend that never reports still compiles and reads as "every pipeline built" |
-| **Ask before requesting what a backend may not have** | `supportsWireframe`, `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`, `preferredSampleCount`, and the 0.8 members: `supportsCompute`, `supportsGpuTimestamps`, `supportsFloat32Filtering`, `supportsIndependentBlend`, `hdrOutputFormats` |
+| **A pipeline your API will not build is reported, never thrown from a draw**: `device.pipelineRefusals.report(handle, PipelineRefusedException(...))`, skip the draw, build again at the next use while `report` answers true, and skip every draw once `isRefused` says so | A lazily linking GLES driver refused one pair at its first draw, the throw went through the renderer, and that one pair failed every frame of the application. A refusal no rebuild can change passes `retry: false`; the null backend reports every pipeline that way |
+| **Enum and constant names are load-bearing** | The Impeller backend's translation asserts that each value maps to the flutter_gpu value of the same name, which is what catches a mapping that swapped two entries |
 
 ### Which way Y points {#y-axis}
 
-**WebGL2 counts rows from the bottom; Impeller (Metal), WebGPU and the software rasteriser count them from the top.** A backend says which it is through `framebufferOrigin`: `bottomLeft` for WebGL2, `topLeft` for the other three. The picture comes out upright on every one of them. What differs is where row zero of a render target sits, and so what `gl_FragCoord.y`, a texture's `v` and a velocity's green mean.
+**WebGL2 counts rows from the bottom; Impeller (Metal), WebGPU and the software rasteriser count them from the top.** A backend says which it is through `framebufferOrigin`. The picture comes out upright on every one of them; what differs is where row zero of a render target sits, and so what `gl_FragCoord.y`, a texture's `v` and a velocity's green mean.
 
 | Where it shows | Top-left backends | WebGL2 (bottom-left) | Rule |
 |---|---|---|---|
-| `gl_FragCoord.y` | 0 at the top of the picture | 0 at the bottom | A **screen-space pattern** (Bayer dither, grain, the jitter a ray march starts from, a shadow kernel's rotation) reads `FragCoordFromTop(rows)` from `lib/frag_coord.glsl`, with `rows` the target's height on a bottom-left backend and 0 on the others, so the pattern lands on the same pixels everywhere |
-| Reading back a texture the same backend drew at this pixel (the surface buffer's depth, the scene colour copy) | `gl_FragCoord` | `gl_FragCoord` | **Never flip.** The backend drew that texture into the same rows it is shading now. Flipping reads the row mirrored about the middle: the velocity pass did this until 0.8.0 and discarded nearly every fragment on WebGL2 |
-| Velocity, stored as a difference of texture coordinates | green positive for motion down the picture | green positive for motion up it | Consumers (motion blur, the temporal resolve) read it in the same backend's coordinates and agree. Only the raw `showVelocity` view looks different, and the WebGL2 reference for `velocity-shapes` is recorded that way on purpose |
-| Viewport and scissor rectangles | as given | the backend flips them | **Stated from the top left** in the contract; the engine never flips them for you |
-| A cube face or an offscreen target sampled through a matrix | as is | y negated in the projection | The engine does this per origin (see the reflection probe capture); a backend only has to answer `framebufferOrigin` truthfully |
-| `readPixels` | rows from the top | rows from the top (the backend flips them) | The contract promises top-first on every backend |
+| `gl_FragCoord.y` | 0 at the top of the picture | 0 at the bottom | A **screen-space pattern** (Bayer dither, grain, a ray march's jitter, a shadow kernel's rotation) reads `FragCoordFromTop(rows)` from `lib/frag_coord.glsl`, so the pattern lands on the same pixels everywhere |
+| Reading back a texture the same backend drew at this pixel | `gl_FragCoord` | `gl_FragCoord` | **Never flip.** The backend drew that texture into the same rows it is shading now |
+| Velocity, stored as a difference of texture coordinates | green positive for motion down the picture | green positive for motion up it | Consumers read it in the same backend's coordinates and agree |
+| Viewport and scissor rectangles | as given | the backend flips them | **Stated from the top left** in the contract |
+| A cube face or an offscreen target sampled through a matrix | as is | y negated in the projection | The engine does this per origin; a backend only answers `framebufferOrigin` truthfully |
+| `readback` | rows from the top | rows from the top (the backend flips them) | Top-first on every backend |
 
-The rule that matters most when writing a shader: **flip for patterns, never for lookups.** A pattern has to be the same on every screen. A lookup has to find the texel this backend just wrote at this pixel.
+**Flip for patterns, never for lookups.** A pattern has to be the same on every screen; a lookup has to find the texel this backend just wrote at this pixel.
 
-### The sampler default, and why it is written down
+## Run the conformance suite {#conformance}
 
-The two hardware backends had each chosen `linearRepeat` for a null sampler and therefore agreed **without anybody writing it down**. The third read the contract, took the `SamplerDescriptor` constructor defaults, and drew hard seams everywhere the others drew soft ones, two percent of every textured golden, looking exactly like a filtering bug in the new backend rather than like a question the contract had never answered.
-
-### `setDepthWrite`, and comparability beating correctness
-
-`flutter_gpu`'s native setter ignored its argument and assigned `true` until SDK 3.47, so on Impeller depth writes could be switched on and never off, and additive particles, which ask for it precisely so they do not occlude each other, occluded each other.
-
-**The software backend mirrored the bug on purpose**, argument and default alike, because an honest implementation put the particle scenes five to ten percent away from the hardware one and a gap that size is loud enough to hide a real regression behind.
-
-<div class="why">
-<p>Where a backend has to choose between being <em>right</em> and being <em>comparable</em>, comparable wins, and the choice earns a test that fails the day it stops being necessary. <code>flutter3d_cpu/test/depth_write_test.dart</code> was that test. It was not deleted when the SDK was fixed; one expectation was flipped, so it now proves the opposite of what it used to. Four particle goldens moved on the upgrade and twenty-four other scenes did not, which is how the fix was confirmed to have landed and nothing else with it.</p>
-</div>
-
-### Enum value names are load-bearing
-
-The Impeller backend's translation asserts that each enum value maps to the `flutter_gpu` value of the **same name**, which is what catches a mapping that swapped two entries.
-
-## Run the conformance suite first
-
-`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: 33 shader checks against eight that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle: 33 of the 58 link stages and draw. Among the thirty-three: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a pipeline the device's record leaves refused draws nothing while the rest of its pass draws, and is told once, that a draw of a window of the index buffer draws that window and refuses one past its end, that a block missing a member the caller named is refused, that a pass renders into a cube face and a mip, that a blend constant reaches the blend or is refused rather than drawn as zero, that a multisample resolve resolves, that an object id survives the draw and the readback, that a geometry overwrite draws what a fresh upload draws and leaves its neighbours untouched, and that wireframe and every primitive type are each drawn as themselves or refused, never substituted without a word. The lists are the authority (`coreChecks` and `shaderChecks` in `flutter3d_conformance.dart`), and the counts in this paragraph are held to them by `tool/structure.dart`, because the last time they were not, this page said fifteen.
-
-**A check a backend cannot be asked is reported as a decline, not as a pass.** Multisampling ends that way on the software rasteriser, which answers `supportsOffscreenMsaa` false and does not multisample at all; the blend constant ends that way on Impeller, where flutter_gpu exposes no setter, and on WebGPU, where the API has `"constant"` and `"one-minus-constant"` and no colour/alpha split to form `BlendFactor.blendAlpha` with; and the uniform-member rule is one only a backend that reflects its shaders can keep. WebGPU declines two in all, the blend constant and wireframe, which is how its run reads 41 of 41 without claiming anything it cannot do. It used to decline two more, rendering into a mip and the block-compressed formats, and the first of those is the caution this paragraph needs beside it: two checks read `supportsRenderToMip` and, finding it false, went on to ask a *smaller* question instead of skipping: one allocated a single mip level instead of two, the other returned before it drew. Neither showed up in the tally, because a check that answers half of itself still passes. The capability is true now and both ask the whole question, at exactly the same 41 of 41. The runner's tally line says `N passed, M failed, K declined` for exactly this reason: "the suite is green" and "the suite is green, and here is what it never asked" are different sentences, and a third party reading this page to decide what conformance buys them needs the second one.
-
-`runDeviceConformance` runs both.
-
-<div class="why">
-<p>The library said it was shader-free as a whole for some time after it stopped being true: five of the twelve checks linked stages and drew. A backend written against that promise would have met five failures it could do nothing about yet, which is the opposite of what a conformance suite is for. The suite has grown since. Seven checks need nothing but clears, uploads and readback, and the rest need the bundle, and the split is a property of the two lists rather than a sentence anybody has to keep true.</p>
-</div>
+`flutter3d_conformance` turns those semantics into executable checks, and a backend is finished when they pass, not when it compiles.
 
 ```dart
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
 
-void main() {
-  runDeviceConformance(
-    backend: 'my_backend',
-    makeDevice: ({required int width, required int height}) =>
-        MyDevice(width: width, height: height),
-  );
-}
+void main() => runDeviceConformance(
+  backend: 'vulkan',
+  makeDevice: VulkanDevice.open,
+  // While the backend draws nothing yet: every check but the shader tier.
+  checks: conformanceChecks.where((c) => !shaderChecks.contains(c)).toList(),
+);
 ```
 
-| Check | What it catches |
-|---|---|
-| answers every capability query | A getter that throws, or lies |
-| the HDR format it names is renderable | The incomplete-framebuffer trap |
-| a clear covers the whole attachment | `clearBufferfv` honouring the scissor |
-| uploaded pixels keep their row order | Origin confusion, in both directions |
-| a buffer is uploaded for its declared use | Treating `GeometryUsage` as a hint |
-| the bundle answers to every name the engine asks for | A missing entry point, before it becomes an empty frame |
-| a stage pair the engine links does link | A layout the backend cannot honour |
-| an instanced draw draws every instance | A second buffer that did not step per instance |
+**The checks come in tiers, and `checks:` is the tier you have reached.** `coreChecks` works with clears, uploads and readback alone. The capability report, compute, multiview, sharing, field residence and the headset's views each have a list of their own, and each passes or declines on a device that does not draw. `shaderChecks` needs the bundle and a rasteriser: 33 shader checks against eight that ask for none, and one more for a backend that can pack its own shaders as a loadable bundle (`ownShaders:`), so 33 of the 58 link stages and draw. Among them: that a pass starts covering its own attachment and nothing else, that its initial viewport covers the *level* rather than the base, that it inherits no clipping from the pass before it and starts with the stencil test off, that a binding made for one pipeline does not follow the next, that a refused pipeline draws nothing while the rest of its pass draws and is told once, that a block missing a member the caller named is refused, that a blend constant reaches the blend or is refused rather than drawn as zero, that an object id survives the draw and the readback, and that wireframe and every primitive type are each drawn as themselves or refused. Leave `checks:` out and every check runs. The lists are the authority, and the counts in this paragraph are held to them by `tool/structure.dart`.
 
-The device factory is called **fresh for each check**, because a backend that leaves state behind should fail on its own account instead of on the previous test's.
+**A check a device cannot be asked declines, and a decline is never a pass.** Every check refuses to answer through one function, `decline(device, why)`, which throws `ConformanceDeclinedException` with your device's type at the front of the sentence; the runner reports it as skipped with that sentence. Multisampling declines on the software rasteriser, the blend constant on Impeller and WebGPU, the uniform-member rule on a backend that does not reflect its shaders. A check that once returned early on a missing feature was counted as a pass, which is the lie this rule exists to end: "the suite is green" and "the suite is green, and here is what it never asked" are different sentences.
 
-<div class="note">
-<p>The suite uses its own <code>require</code> rather than <code>expect</code>. <code>flutter_test</code>'s matchers throw <code>OutsideTestException</code> when there is no test running, and one of the two backends cannot run tests at all: Flutter GPU needs Impeller, which a headless <code>flutter test</code> does not enable, so its harness is an application. Written with <code>expect</code>, three of these checks reported a failure that was the harness rather than the backend, and reported it only on the backend that could not use the harness in the first place. <code>conformanceChecks</code> is exposed as plain functions for exactly that case.</p>
-</div>
+**`makeDevice` may decline too.** A machine with no device for your backend at all (headless Chrome on a CI runner has `navigator.gpu` and hands out no adapter) throws `ConformanceDeclinedException` from the factory, and every check is skipped with its reason rather than failed.
 
-Then run `flutter3d_conformance`'s cross-backend comparison, which has per-scene budgets instead of one global tolerance.
+The device factory is called **fresh for each check** and the device disposed after it, because a backend that leaves state behind should fail on its own account instead of on the previous test's. The suite uses its own `require` rather than `expect`, so the same list runs from an application where a backend has no test runner (Flutter GPU needs Impeller, which a headless `flutter test` does not enable): `conformanceChecks` is exposed as plain functions for that case.
 
-## The one thing the HAL cannot abstract {#the-one-thing-the-hal-cannot-abstract}
+## The engine's frames on your device {#testing}
 
-**Shader names.** The engine asks for entry points (`MeshVertex`, `Pbr`, `Composite`), and for uniform blocks and members by name. Nothing in any signature says which names, so an implementation written from the interface alone compiles and draws nothing.
+`flutter3d_testing` draws the engine's frames on the software rasteriser by default, and on any device you name:
 
 ```dart
-import 'package:flutter3d_shaders/flutter3d_shaders.dart';
+final frame = await renderFrame(
+  width: 320,
+  height: 180,
+  device: VulkanDevice.open,
+  build: (request) => buildScene(request.device),
+);
+await expectMatchesGolden(frame, 'test/goldens/vulkan/crypt.png');
+```
 
-for (final RequiredShader shader in requiredShaders) {
-  // shader.name, shader.fragment
+`renderFrame(device:)` opens the device at the frame's size, draws, reads the pixels and disposes it. `testReplay(device:)` and `expectReplayMatches(device:)` replay a tape and draw each golden on one device opened for the run. `drawOnce` is the layer under both for a test that keeps its own device and `Renderer`. A golden set drawn on your backend is your backend's: keep it in a directory of its own, because the same scene differs by a fraction of a percent between a rasteriser and a driver, and one shared set would need a tolerance.
+
+## The material compiler {#materials}
+
+A plugin's material is a `.f3dmat` source, and each backend turns it into its own section of a shader bundle. A backend says how by registering a `MaterialCompiler` (`package:flutter3d_shaders/backend.dart`) with the engine's `MaterialCompilerRegistry`; the build hook and `RuntimeShaders` both consult it by backend, so a fifth backend gets materials without a change to either.
+
+```dart
+final class VulkanMaterialCompiler extends MaterialCompiler {
+  const VulkanMaterialCompiler();
+
+  @override
+  String get backend => 'vulkan';
+
+  /// Your section of the bundle; no two backends may write the same one.
+  @override
+  String get bundleSection => 'vulkan';
+
+  @override
+  MaterialCompileResult compile(MaterialCompileRequest request) {
+    // request.stages: the material as GLSL, one stage per entry point.
+    // Compile each (compileStage below) and pack them as your device reads them.
+  }
 }
 ```
 
-105 entry points. `requiredShaders` and the bundle manifest are kept in step with each other by `flutter3d_shaders/test/manifest_test.dart`, and this table is kept in step with both by the `the site names every shader a bundle must answer to` rule. It was eleven names short for as long as nothing compared it with anything, and a missing name is not a degraded picture: `Renderer.create` throws on the first one it cannot find.
+`compilesAtRunTime` says whether `compile` can run while a game runs, with no toolchain beside it; it is false by default, and what needs glslang or naga runs in the build only. `isSectionWrittenByBuild` says the build writes your section with a tool of its own rather than through `compile`, as Impeller's `impellerc` does. Your device's `loadShaders` reads the section back when it loads a bundle. The null backend's compiler writes the stage names and its device answers them, which is the whole round trip with the compiling taken out.
+
+## The shader contract {#the-shader-contract}
+
+**Shader names are the one thing the device contract cannot abstract.** The engine asks for entry points (`MeshVertex`, `Pbr`, `Composite`) and for uniform blocks and members by name, and nothing in any signature says which. An implementation written from the interface alone compiles and draws nothing: `Renderer.create` throws on the first name it cannot find. Since 1.0 that half has a contract of its own, in code and in CONTRACTS ("The shader ABI"):
+
+- **`package:flutter3d_shaders/backend.dart`**: `stageBindings`, the uniform blocks and samplers each of the engine's stages keeps once compiled, which a draw must bind and may bind; `uniformBlocks`, every block's members, offsets and sizes as std140 laid them out; `MaterialCompiler` and `MaterialCompilerRegistry`; `StageInterface` and `checkStageAgreement`, the varyings, attributes and blocks two stages of a pipeline must agree on, checked before a bundle is written rather than discovered on one backend.
+- **`package:flutter3d_shaders/compile.dart`**: `compileStage(glsl, name:, fragment:, target:)` compiles a stage to SPIR-V with glslang and, through naga, to a `ShaderTarget` (`spirv`, `wgsl`, `msl`, `hlsl`, `glsl`). It needs both tools on the machine.
+- **CONTRACTS**: the entry points in full, and the `F3D_*` defines the engine's GLSL is compiled with, each set by the stage that includes the shared headers and never by a backend.
+
+`requiredShaders` in `package:flutter3d_shaders/flutter3d_shaders.dart` is the list, kept in step with the bundle manifest by a test, and this table is kept in step with both by the `the site names every shader a bundle must answer to` rule:
 
 | Stage | Names |
 |---|---|
-| Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `PolylineVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex`, `ImpostorVertex`, `VelocityVertex`, `VelocitySkinnedVertex`, `VelocityInstancedVertex` |
-| Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals`, `PbrLayered`, `Impostor`, `PlanarReflection`, `UnlitOpaque`, `LambertOpaque`, `BlinnPhongOpaque`, `PbrOpaque`, `PbrLayeredOpaque`, `ToonOpaque`, `DepthPredraw` |
 | Vertex | `MeshVertex`, `MeshSkinnedVertex`, `MeshInstancedVertex`, `MeshLightmappedVertex`, `FullscreenVertex`, `DebugLineVertex`, `ParticleVertex`, `ParticleMeshVertex`, `PolylineVertex`, `ShadowTileResetVertex`, `SkyVertex`, `SkyCubeVertex`, `SkyPhysicalVertex`, `ImpostorVertex`, `VelocityVertex`, `VelocitySkinnedVertex`, `VelocityInstancedVertex` |
-| Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals`, `PbrLayered`, `Impostor` |
+| Lighting | `Unlit`, `Lambert`, `BlinnPhong`, `Pbr`, `Toon`, `Normals`, `PbrLayered`, `Impostor`, `PlanarReflection`, `UnlitOpaque`, `LambertOpaque`, `BlinnPhongOpaque`, `PbrOpaque`, `PbrLayeredOpaque`, `ToonOpaque`, `DepthPredraw` |
 | Shadows | `ShadowDepth`, `ShadowDistance`, `ShadowDepthMasked`, `ShadowDistanceMasked`, `ShadowTileReset`, `EvsmFilter`, `ShadowCopy`, `ShadowTransmittance`, `CausticSurface`, `CausticPhotonVertex`, `CausticPhoton` |
-| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `SmaaEdges`, `SmaaWeights`, `SmaaBlend`, `LensFlare`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `ContactShadowResolve`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `OutlineMask`, `HighContrast`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve`, `DofTileMax`, `Decal` |
-| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `ContactShadowResolve`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve`, `DofTileMax`, `RenderTextureEncode` |
+| Post | `BloomThreshold`, `BloomDownsample`, `BloomUpsample`, `Composite`, `Fxaa`, `SmaaEdges`, `SmaaWeights`, `SmaaBlend`, `LensFlare`, `Reflections`, `Ssao`, `SsaoBlur`, `ContactShadow`, `ContactShadowResolve`, `Splat`, `LightShafts`, `DepthOfField`, `ViewportShade`, `OutlineMask`, `HighContrast`, `Luminance`, `ProbePrefilter`, `CameraVelocity`, `Velocity`, `VelocityTileMax`, `VelocityNeighborMax`, `MotionBlur`, `TemporalResolve`, `TemporalAccumulate`, `Reactive`, `Easu`, `LocalExposure`, `LocalExposureBlur`, `VolumetricFog`, `VolumetricFogUpsample`, `DepthPyramid`, `SceneColourCopy`, `WboitResolve`, `DofTileMax`, `Decal`, `RenderTextureEncode` |
 | Particles | `Particle`, `ParticleTextured`, `ParticleMesh`, `ParticleSixWay`, `ReactiveSprite`, `SplatHashed`, `ParticleSoft`, `ParticleTexturedSoft`, `ParticleSixWaySoft` |
 | Sky | `Sky`, `SkyCube`, `SkyPhysical` |
 | Debug | `DebugLine`, `MrtProbe`, `ObjectId`, `Xray` |
 | Probes | `VertexTextureProbeVertex`, `VertexTextureProbe`, `IrradianceConvolve`, `FieldDecay` |
 
-The probe pair draws nothing a game ever sees. It asks whether a **vertex** stage can sample a texture, because the answer decides how morph targets reach the GPU: the vertex layout here is structural, so morphing needs either a second layout, with a second vertex shader per lighting model, or the deltas in a texture read by vertex id, which needs exactly this. Every backend answered yes, Impeller included, which is the answer that was not knowable from a header. `MrtProbe` is in the table above it for the same reason and predates it.
-
-`flutter3d_shaders` holds the GLSL every backend comes from: Impeller into a bundle, WebGL by translation, WebGPU by a second translation into WGSL, the CPU backend as Dart transcriptions, so that is one list instead of four. **But a backend cannot satisfy the contract without reading the shaders themselves.**
+105 shader entry points. A backend that computes answers to `computeShaders` too. The names are stable within a major: a minor may add one, never rename or drop one, and `stageBindings` and `uniformBlocks` follow the shaders, so a backend that binds by them follows a minor without a code change.
 
 ### If your API does not speak GLSL
 
-WebGPU does not, and no browser takes SPIR-V, so `flutter3d_webgpu` is the worked example of the longer road: the same manifest through `glslangValidator -V --auto-map-locations` and then `naga --keep-coordinate-space`, with only the *declarations* of each stage edited. Three things about that road cost a day each, and all three are the kind that produce a picture rather than an error.
+WebGPU does not, and no browser takes SPIR-V, so `flutter3d_webgpu` is the worked example of the longer road: the same manifest through glslang and naga, with only the *declarations* of each stage edited. Three things about that road cost a day each, and all three produce a picture rather than an error.
 
-- **naga turns a vertex stage over unless told not to.** Without `--keep-coordinate-space` it appends `gl_Position.y = -(gl_Position.y)` to every vertex entry point. Nothing fails; every scene comes back upside down.
+- **naga turns a vertex stage over unless told not to.** Without `--keep-coordinate-space` it appends `gl_Position.y = -(gl_Position.y)` to every vertex entry point, and every scene comes back upside down. `compileStage` passes it.
 - **naga will not read a combined sampler.** `uniform sampler2D tex` compiles to SPIR-V that `spirv-val` accepts and naga refuses with `invalid id %14`, naming neither a file nor a construct. Splitting the declaration into a `texture2D`, a `sampler` and a `#define` leaves every call site untouched.
-- **WGSL requires uniform control flow for `textureSample`, and a browser reports one error per module.** Six of this engine's fragment stages sampled under a branch a quad need not take together (a light facing away, a cascade that misses, a ray off the frame, a degenerate tangent), which naga accepts and a browser does not. It arrived as `invalid due to a previous error` at the first pipeline built from one, naming no line, and only ever one at a time: `getCompilationInfo` stops at the first fault in a module, so fixing one stage reveals the next rather than shortening a list.
+- **WGSL requires uniform control flow for `textureSample`, and a browser reports one error per module.** Six of the engine's fragment stages sampled under a branch a quad need not take together, which naga accepts and a browser does not.
 
-There is also no link step, which moves two decisions that GLSL leaves to the linker. Reflection has to be **written by the packer**, because a `GPUShaderModule` cannot be asked what it declares and a pipeline layout has to state it. And a **varying's location has to be decided across the manifest** rather than inside a file, because two modules are compiled apart and joined by location alone. A shader that declared a varying of its own before its include would shift one side of a pair and not the other and draw the wrong picture with nothing to say so.
-
-<div class="warn">
-<p>The uniformity fix edited GLSL that <em>all four</em> backends read, which is the widest blast radius any change on this list has. Only a backend whose shaders are compiled or translated from that text can witness such an edit. The software rasteriser's Dart transcriptions cannot, however byte-identical its set comes back.</p>
-</div>
+There is also no link step, which moves two decisions GLSL leaves to the linker. Reflection has to be **written by the packer**, because a module cannot be asked what it declares and a pipeline layout has to state it; that is what `stageBindings` is. And a **varying's location has to be decided across the manifest** rather than inside a file, because two modules compiled apart are joined by location alone; `checkStageAgreement` holds every pipeline's pair to it.
 
 <div class="warn">
-<p>Member names are the sharp edge, and they fail silently in <em>both</em> directions. A shader that asks for a member nobody wrote gets zeros; a caller that names a member the block does not have is an error, because then the two ends disagree about its shape.</p>
-<p><code>flutter3d_cpu</code> hit the first of those on its first run. Its shaders were written from a plausible memory of what a renderer's uniforms are called, and they drew an <strong>unlit scene</strong>: <code>light_count</code> does not exist, and <code>material</code> is metallic and roughness rather than the colour. Nothing anywhere reported a problem.</p>
+<p>Member names fail silently in <em>both</em> directions. A shader that asks for a member nobody wrote gets zeros; a caller that names a member the block does not have is an error. <code>flutter3d_cpu</code> hit the first on its first run: its shaders were written from a plausible memory of what a renderer's uniforms are called, and they drew an unlit scene with nothing anywhere reporting a problem. Bind by <code>uniformBlocks</code>, not by memory.</p>
 </div>
-
-This is also the limit on extensions. An application that builds its own bundle can add a lighting model today, because `LightingModel` is a value class instead of an enum. An extension that does not control the bundle cannot.
 
 ## What is outside the promise
 
 Not because it is unstable, but because nothing outside `flutter3d_hardware` should depend on it.
 
-- Everything in `flutter3d`'s `src/` beyond what `flutter3d.dart` exports.
+- Everything under another package's `src/`, and `flutter3d_shaders/internal.dart`. The structure rule that holds the null backend to published libraries holds yours to the same, if you copy it.
 - `FrameResources` internals. Its rules (versions, `keeps`, release by identity) are engine machinery, and a backend never sees them.
-- `RenderServices.encodeScene`. Nine parameters and a caller that must remember to ask the frame for its shadows; the shape that survives is handing it the `NodeFrame`, and that is a change worth making rather than freezing.
-- The compiled shader bundle's format and location. It is one backend's build output.
+- The compiled shader bundle's sections other than yours. Each is one backend's build output.
 
-## `PassState`, and the backend nobody has written yet
-
-`PassState` and its `setState` extension are promised, with one thing worth saying: **no backend implements anything for them.** `setState` is an extension over `PassEncoder`, statically dispatched, built only from types already in the contract, so a backend gets it for free and cannot get it wrong.
-
-They live in the HAL rather than in the engine for the backend nobody has written yet: a Vulkan-shaped one has to accumulate rasteriser state and look a pipeline up at `draw()`, and that needs something hashable to accumulate into.
-
-## Two handles worth a second look
-
-- **`TextureHandle` deliberately has no `==`.** The pool lends by identity and the frame releases by identity, and value equality would break both without an error anywhere.
-- **A handle from one device means nothing to another.** `ShaderLibrary` lives on the device instead of on `RenderServices`, because it is a property of the backend.
+`PassState` and its `setState` extension are promised, and no backend implements anything for them: `setState` is an extension over `PassEncoder` built only from types already in the contract, so a backend gets it for free. They live in the HAL for the backend that accumulates rasteriser state and looks a pipeline up at `draw()`, which needs something hashable to accumulate into. `TextureHandle` deliberately has no `==`: the pool lends by identity and the frame releases by identity.
 
 ## A suggested order
 
-1. Capabilities, honestly. Run the conformance suite; the first two checks pass or fail on these alone.
-2. Textures, geometry upload, and `createTexture`. Now the row-order and geometry-usage checks pass.
-3. Pass descriptors, clears and `readPixels`. The clear-covers-all check is next.
-4. `beginFrame`, the encoder, state and bindings, `draw`. The engine will now run against you and produce a black frame.
-5. Read the GLSL in `flutter3d_shaders`. Translate the bundle. Check every entry point in `requiredShaders` and every uniform member name against the source, not against memory.
-6. A presenter widget for the new backend, and a `register…Backend(DeviceRegistry registry)` function that adds the backend (`registry.addBackend`) and its presenter (`registry.addPresenter<MyDevice>`) to the engine's registry, in whatever way your platform actually composites.
-7. The parity fixtures, then the golden set with per-scene budgets.
+1. `flutter3d create plugin --kind backend`. Run its tests: every check but the shader tier passes on the day it is created.
+2. Replace the null device's memory with your API's resources: textures, geometry, `readback`. The core checks keep passing, now against your API.
+3. Report each feature as you implement it. The capability check fails on one reported and not done, and on one done and not reported.
+4. Compile the engine's stages for your API with `compileStage`, answer them from `shaders`, bind by `stageBindings`, and stop refusing pipelines in `draw`. Add `shaderChecks` to the conformance run.
+5. Write your stages into your section in your `MaterialCompiler`, so a plugin's material reaches your device.
+6. A presenter, if your backend shows frames in a widget, added in your `register…Backend`.
+7. A golden set of your own through `renderFrame(device:)` and `testReplay(device:)`.
 
-The third backend went through this in that order and confirmed the interesting half of the claim: `GraphicsDevice` was implementable straight from the contract, and step 5 is where the contract stops helping. The fourth went through it again and said the same thing more sharply: its step 5 was a whole second toolchain and three traps, and steps 1 to 4 were ordinary work.
+The third and fourth backends in this repository went through steps 2 to 6 by hand and said the same thing: the device is ordinary work, and the shaders are where the contract used to stop helping. Since 1.0 the shader half is a contract too.
 
 ## Next
 
