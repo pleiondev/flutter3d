@@ -661,9 +661,10 @@ final class ExpressionBytecode {
               (flags & 2 != 0 || width == 1) &&
                   exponent != null &&
                   exponent == exponent.truncateToDouble() &&
+                  exponent.abs() <= expressionPowerLimit &&
                   out == base.scaled(exponent.toInt()),
               'raises a quantity to a power that is not a constant whole '
-              'number',
+              'number from -$expressionPowerLimit to $expressionPowerLimit',
             );
           }
         case ExpressionOp.sqrt:

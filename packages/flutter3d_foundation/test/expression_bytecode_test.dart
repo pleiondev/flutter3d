@@ -10,6 +10,8 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_foundation/src/expressions/expression_ast.dart'
+    show expressionPowerLimit;
 import 'package:flutter3d_foundation/src/expressions/expression_bytecode.dart';
 import 'package:test/test.dart';
 
@@ -93,6 +95,60 @@ void main() {
           (e) => e.message,
           'message',
           contains('adds two units'),
+        ),
+      ),
+    );
+  });
+
+  // Mutation: drop the limit from `verify`'s `pow`, and the program raised
+  // to the seventeenth loads.
+  test('a power past the limit is refused by the parser and the loader', () {
+    final scope = ExpressionScope.quantities(<String, Unit>{'x': Unit.meter});
+    expect(
+      parseExpression('pow(x, 16.0)', scope: scope).type.dimension,
+      Dimension.length.pow(expressionPowerLimit),
+    );
+    expect(
+      () => parseExpression('pow(x, 17.0)', scope: scope),
+      throwsA(isA<ExpressionSyntaxException>()),
+    );
+    expect(
+      () => parseExpression('pow(x, -17.0)', scope: scope),
+      throwsA(isA<ExpressionSyntaxException>()),
+    );
+
+    // The same program written by hand: `pow(x, 16.0)` with its exponent
+    // and the dimension it writes both turned to the seventeenth, so the
+    // units still agree and only the limit stands in the way.
+    final bytes = Uint8List.fromList(
+      ExpressionBytecode.compile(
+        parseExpression('pow(x, 16.0)', scope: scope),
+      ).encode(),
+    );
+    final data = ByteData.sublistView(bytes);
+    final constants = data.getUint16(10, Endian.little);
+    final dimensions = data.getUint16(12, Endian.little);
+    const header = 24;
+    expect(data.getFloat64(header, Endian.little), 16.0);
+    data.setFloat64(header, 17.0, Endian.little);
+    final stride = Dimension.bases.length + 1;
+    final meter = Dimension.bases.indexOf('m');
+    var raised = 0;
+    for (var d = 0; d < dimensions; d++) {
+      final at = header + constants * 8 + d * stride + meter;
+      if (data.getInt8(at) == expressionPowerLimit) {
+        data.setInt8(at, expressionPowerLimit + 1);
+        raised++;
+      }
+    }
+    expect(raised, 1);
+    expect(
+      () => ExpressionBytecode.decode(bytes),
+      throwsA(
+        isA<ExpressionBytecodeException>().having(
+          (e) => e.message,
+          'message',
+          contains('not a constant whole number from -16 to 16'),
         ),
       ),
     );

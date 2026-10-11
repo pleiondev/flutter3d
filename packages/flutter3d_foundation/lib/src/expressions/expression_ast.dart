@@ -750,6 +750,12 @@ Dimension? _sqrtDimension(List<Expression> a) {
   });
 }
 
+/// The largest whole power, either way, `pow` raises a quantity to: `m^16`
+/// is a dimension, `m^17` is refused. The parser holds `pow` to it, and the
+/// bytecode verifier holds a loaded program to the same, so neither reads a
+/// dimension whose exponents the other would not.
+const int expressionPowerLimit = 16;
+
 Dimension? _powDimension(List<Expression> a) {
   final base = a[0].type.dimension;
   final exponent = a[1];
@@ -758,7 +764,7 @@ Dimension? _powDimension(List<Expression> a) {
   if (exponent case ExpressionConstant(:final value)
       when value.length == 1 &&
           value.single == value.single.truncateToDouble() &&
-          value.single.abs() <= 16) {
+          value.single.abs() <= expressionPowerLimit) {
     return base.pow(value.single.toInt());
   }
   return null;
