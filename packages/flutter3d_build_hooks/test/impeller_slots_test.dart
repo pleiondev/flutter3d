@@ -1,14 +1,17 @@
 /// A plugin's lit model with a block and a texture of its own, compiled by
-/// the real impellerc: this backend binds both by name (D21), so the names
-/// the slot table gives have to be the names the bundle carries.
+/// the real impellerc: Impeller binds both by name (D21), so the names the
+/// slot table gives have to be the names the bundle carries.
 ///
-///     flutter test test/material_slots_test.dart
+///     dart test test/impeller_slots_test.dart
 ///
-/// `GpuPassEncoder.bindUniformBlock` asks flutter_gpu's reflection for the
-/// block by its name and `bindTexture` for the sampler by its name, which
-/// needs a GPU context no test has; what a test can hold is the half before
-/// it, that impellerc compiled the stage with the block `Strands` and the
-/// sampler `material_fur` in it, under those names.
+/// `flutter3d_impeller`'s `GpuPassEncoder.bindUniformBlock` asks flutter_gpu's
+/// reflection for the block by its name and `bindTexture` for the sampler by
+/// its name, which needs a GPU context no test has; what a test can hold is
+/// the half before it, that impellerc compiled the stage with the block
+/// `Strands` and the sampler `material_fur` in it, under those names. Here
+/// rather than beside the encoder because this is the package that runs
+/// impellerc, and the backend does not depend on it.
+@TestOn('mac-os || linux')
 library;
 
 import 'dart:convert';
@@ -17,7 +20,7 @@ import 'dart:io';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart';
 import 'package:flutter3d_shaders/compile.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
 
 const String _hair = '''
 f3dmat 2
