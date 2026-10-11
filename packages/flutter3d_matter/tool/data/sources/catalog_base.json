@@ -8,13 +8,15 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 998.2,
-        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), \"Properties of water in the range 0–100 °C\", at 20 °C"
+        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), \"Properties of water in the range 0–100 °C\", at 20 °C",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 0.001002,
         "surfaceTension": 0.0728,
         "bulkModulus": 2180000000.0,
-        "source": "CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa"
+        "source": "CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 4182.0,
@@ -24,7 +26,8 @@
         "boilingPoint": 373.15,
         "latentHeatOfFusion": 334000.0,
         "latentHeatOfVaporization": 2257000.0,
-        "source": "CRC Handbook (2016), at 20 °C: specific heat 4.182 kJ/(kg·K), conductivity 0.598 W/(m·K), expansion 2.07e-4 1/K; melting and boiling at one atmosphere, and the latent heats there (IAPWS-95, as the Handbook tabulates it)"
+        "source": "CRC Handbook (2016), at 20 °C: specific heat 4.182 kJ/(kg·K), conductivity 0.598 W/(m·K), expansion 2.07e-4 1/K; melting and boiling at one atmosphere, and the latent heats there (IAPWS-95, as the Handbook tabulates it)",
+        "confidence": "handbook"
       },
       "acoustic": {
         "absorption": [
@@ -36,7 +39,8 @@
           0.025
         ],
         "speedOfSound": 1482.3,
-        "source": "speed at 20 °C: Del Grosso and Mader, J. Acoust. Soc. Am. 52 (1972); absorption of a still water surface (a swimming pool): Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients"
+        "source": "speed at 20 °C: Del Grosso and Mader, J. Acoust. Soc. Am. 52 (1972); absorption of a still water surface (a swimming pool): Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.333,
@@ -45,7 +49,8 @@
           0.0565,
           0.0092
         ],
-        "source": "n_D at 20 °C: CRC Handbook (2016); absorption of pure water at 650, 550 and 450 nm: Pope and Fry, Applied Optics 36 (1997)"
+        "source": "n_D at 20 °C: CRC Handbook (2016); absorption of pure water at 650, 550 and 450 nm: Pope and Fry, Applied Optics 36 (1997)",
+        "confidence": "handbook"
       }
     },
     {
@@ -56,26 +61,31 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 1025.0,
-        "source": "TEOS-10 (IOC, SCOR and IAPSO, 2010) at an absolute salinity of 35 g/kg and 20 °C, 1024.8 kg/m³, to four figures"
+        "source": "TEOS-10 (IOC, SCOR and IAPSO, 2010) at an absolute salinity of 35 g/kg and 20 °C, 1024.8 kg/m³, to four figures",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 0.00108,
         "surfaceTension": 0.073,
-        "source": "Sharqawy, Lienhard and Zubair, \"Thermophysical properties of seawater\", Desalination and Water Treatment 16 (2010), at 35 g/kg and 20 °C, surface tension to two figures"
+        "source": "Sharqawy, Lienhard and Zubair, \"Thermophysical properties of seawater\", Desalination and Water Treatment 16 (2010), at 35 g/kg and 20 °C, surface tension to two figures",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 3993.0,
         "conductivity": 0.596,
         "meltingPoint": 271.24,
-        "source": "Sharqawy, Lienhard and Zubair (2010), at 35 g/kg and 20 °C; its freezing point at 35 g/kg, −1.91 °C (TEOS-10)"
+        "source": "Sharqawy, Lienhard and Zubair (2010), at 35 g/kg and 20 °C; its freezing point at 35 g/kg, −1.91 °C (TEOS-10)",
+        "confidence": "handbook"
       },
       "acoustic": {
         "speedOfSound": 1521.5,
-        "source": "Mackenzie, J. Acoust. Soc. Am. 70 (1981), at the surface, 35 parts per thousand and 20 °C"
+        "source": "Mackenzie, J. Acoust. Soc. Am. 70 (1981), at the surface, 35 parts per thousand and 20 °C",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.339,
-        "source": "Quan and Fry, Applied Optics 34 (1995), at 35 ‰ and 20 °C"
+        "source": "Quan and Fry, Applied Optics 34 (1995), at 35 ‰ and 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -86,23 +96,27 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 1261.0,
-        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C"
+        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 1.412,
         "surfaceTension": 0.0634,
-        "source": "viscosity: Segur and Oberstar, Ind. Eng. Chem. 43 (1951), pure glycerol at 20 °C; surface tension: CRC Handbook (2016)"
+        "source": "viscosity: Segur and Oberstar, Ind. Eng. Chem. 43 (1951), pure glycerol at 20 °C; surface tension: CRC Handbook (2016)",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 2380.0,
         "conductivity": 0.285,
         "meltingPoint": 291.3,
         "boilingPoint": 563.0,
-        "source": "CRC Handbook (2016): heat capacity 218.9 J/(mol·K) over 92.09 g/mol, conductivity, melting and boiling points"
+        "source": "CRC Handbook (2016): heat capacity 218.9 J/(mol·K) over 92.09 g/mol, conductivity, melting and boiling points",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.4746,
-        "source": "CRC Handbook (2016), n_D at 20 °C"
+        "source": "CRC Handbook (2016), n_D at 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -113,12 +127,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 789.3,
-        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C"
+        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 0.0012,
         "surfaceTension": 0.0223,
-        "source": "CRC Handbook (2016), 20 °C"
+        "source": "CRC Handbook (2016), 20 °C",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 2440.0,
@@ -127,11 +143,13 @@
         "meltingPoint": 159.0,
         "boilingPoint": 351.44,
         "latentHeatOfVaporization": 837000.0,
-        "source": "CRC Handbook (2016): heat capacity 112.3 J/(mol·K) over 46.07 g/mol, conductivity and expansion near 20 °C, the enthalpy of vaporization at the boiling point, 38.56 kJ/mol"
+        "source": "CRC Handbook (2016): heat capacity 112.3 J/(mol·K) over 46.07 g/mol, conductivity and expansion near 20 °C, the enthalpy of vaporization at the boiling point, 38.56 kJ/mol",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.3611,
-        "source": "CRC Handbook (2016), n_D at 20 °C"
+        "source": "CRC Handbook (2016), n_D at 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -142,12 +160,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 911.0,
-        "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), olive oil at 20 °C"
+        "source": "Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), olive oil at 20 °C",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 0.084,
         "surfaceTension": 0.032,
-        "source": "Kaye and Laby (1995), olive oil at 20 °C: viscosity 84 mPa·s, surface tension 32 mN/m"
+        "source": "Kaye and Laby (1995), olive oil at 20 °C: viscosity 84 mPa·s, surface tension 32 mN/m",
+        "confidence": "handbook"
       }
     },
     {
@@ -158,12 +178,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 1420.0,
-        "source": "a honey of about 17 % water at 20 °C (Codex Alimentarius standard for honey, 12-1981, and Yanniotis, Skaltsi and Karaburnioti, J. Food Eng. 72, 2006)"
+        "source": "a honey of about 17 % water at 20 °C (Codex Alimentarius standard for honey, 12-1981, and Yanniotis, Skaltsi and Karaburnioti, J. Food Eng. 72, 2006)",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 10.0,
         "surfaceTension": 0.05,
-        "source": "viscosity: Yanniotis, Skaltsi and Karaburnioti (2006), 5 to 20 Pa·s at 20 °C across the honeys measured, the middle; surface tension: an estimate, no measurement having been read"
+        "source": "viscosity: Yanniotis, Skaltsi and Karaburnioti (2006), 5 to 20 Pa·s at 20 °C across the honeys measured, the middle; surface tension: an estimate, no measurement having been read",
+        "confidence": "estimate"
       }
     },
     {
@@ -174,12 +196,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 13546.0,
-        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C"
+        "source": "CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 0.00155,
         "surfaceTension": 0.4865,
-        "source": "CRC Handbook (2016), 20 °C"
+        "source": "CRC Handbook (2016), 20 °C",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 139.5,
@@ -189,15 +213,18 @@
         "boilingPoint": 629.88,
         "latentHeatOfFusion": 11400.0,
         "latentHeatOfVaporization": 295000.0,
-        "source": "CRC Handbook (2016), near 20 °C and at its transitions"
+        "source": "CRC Handbook (2016), near 20 °C and at its transitions",
+        "confidence": "handbook"
       },
       "acoustic": {
         "speedOfSound": 1451.0,
-        "source": "CRC Handbook (2016), \"Speed of sound in various liquids\", 20 °C"
+        "source": "CRC Handbook (2016), \"Speed of sound in various liquids\", 20 °C",
+        "confidence": "handbook"
       },
       "electrical": {
         "resistivity": 9.58e-7,
-        "source": "CRC Handbook (2016), 20 °C"
+        "source": "CRC Handbook (2016), 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -208,12 +235,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 2700.0,
-        "source": "Lesher and Spera, \"Thermodynamic and transport properties of silicate melts and magma\", The Encyclopedia of Volcanoes, 2nd ed. (2015): a basaltic melt near 1200 °C"
+        "source": "Lesher and Spera, \"Thermodynamic and transport properties of silicate melts and magma\", The Encyclopedia of Volcanoes, 2nd ed. (2015): a basaltic melt near 1200 °C",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 100.0,
         "surfaceTension": 0.35,
-        "source": "Lesher and Spera (2015): a basaltic melt's 10 to 1000 Pa·s as it flows, the middle in the logarithm, and a silicate melt's surface tension, about 0.35 N/m"
+        "source": "Lesher and Spera (2015): a basaltic melt's 10 to 1000 Pa·s as it flows, the middle in the logarithm, and a silicate melt's surface tension, about 0.35 N/m",
+        "confidence": "handbook"
       }
     },
     {
@@ -224,24 +253,29 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 1.204,
-        "source": "the ideal gas at 20 °C and 101 325 Pa (standard_world.dart)"
+        "source": "the ideal gas at 20 °C and 101 325 Pa (standard_world.dart)",
+        "confidence": "handbook"
       },
       "fluid": {
         "viscosity": 0.0000181,
-        "source": "Kadoya, Matsunaga and Nagashima, J. Phys. Chem. Ref. Data 14 (1985), dry air at 20 °C"
+        "source": "Kadoya, Matsunaga and Nagashima, J. Phys. Chem. Ref. Data 14 (1985), dry air at 20 °C",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1005.0,
         "conductivity": 0.0257,
-        "source": "specific heat: Lemmon and colleagues, J. Phys. Chem. Ref. Data 29 (2000); conductivity: Kadoya, Matsunaga and Nagashima (1985); dry air at 20 °C"
+        "source": "specific heat: Lemmon and colleagues, J. Phys. Chem. Ref. Data 29 (2000); conductivity: Kadoya, Matsunaga and Nagashima (1985); dry air at 20 °C",
+        "confidence": "handbook"
       },
       "acoustic": {
         "speedOfSound": 343.0,
-        "source": "an ideal diatomic gas at 20 °C (standard_world.dart)"
+        "source": "an ideal diatomic gas at 20 °C (standard_world.dart)",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.000293,
-        "source": "CRC Handbook (2016), dry air at 0 °C, 589 nm"
+        "source": "CRC Handbook (2016), dry air at 0 °C, 589 nm",
+        "confidence": "handbook"
       }
     },
     {
@@ -258,17 +292,20 @@
         "tensileStrength": 400000000.0,
         "staticFriction": 0.74,
         "kineticFriction": 0.57,
-        "source": "density: Incropera and colleagues, Fundamentals of Heat and Mass Transfer, 6th ed. (2007), table A.1, plain carbon steel; modulus, Poisson's ratio and ASTM A36's least yield and tensile strength: Callister, Materials Science and Engineering, appendix B; mild steel on mild steel, dry: Serway and Jewett, Physics for Scientists and Engineers, table 5.1"
+        "source": "density: Incropera and colleagues, Fundamentals of Heat and Mass Transfer, 6th ed. (2007), table A.1, plain carbon steel; modulus, Poisson's ratio and ASTM A36's least yield and tensile strength: Callister, Materials Science and Engineering, appendix B; mild steel on mild steel, dry: Serway and Jewett, Physics for Scientists and Engineers, table 5.1",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 434.0,
         "conductivity": 60.5,
         "emissivity": 0.6,
-        "source": "Incropera and colleagues (2007), table A.1, plain carbon steel at 300 K; emissivity a weathered surface's, between the polished and the heavily oxidised steels of table A.11"
+        "source": "Incropera and colleagues (2007), table A.1, plain carbon steel at 300 K; emissivity a weathered surface's, between the polished and the heavily oxidised steels of table A.11",
+        "confidence": "handbook"
       },
       "acoustic": {
         "speedOfSound": 5940.0,
-        "source": "Kinsler, Frey, Coppens and Sanders, Fundamentals of Acoustics, 4th ed. (2000), table A10, steel, bulk longitudinal"
+        "source": "Kinsler, Frey, Coppens and Sanders, Fundamentals of Acoustics, 4th ed. (2000), table A10, steel, bulk longitudinal",
+        "confidence": "handbook"
       },
       "optical": {
         "metalReflectance": [
@@ -276,7 +313,8 @@
           0.565,
           0.578
         ],
-        "source": "iron: Akenine-Möller and colleagues, Real-Time Rendering, 4th ed. (2018), table 9.2, after Hoffman"
+        "source": "iron: Akenine-Möller and colleagues, Real-Time Rendering, 4th ed. (2018), table 9.2, after Hoffman",
+        "confidence": "handbook"
       }
     },
     {
@@ -289,18 +327,21 @@
         "density": 2702.0,
         "youngsModulus": 70000000000.0,
         "poissonRatio": 0.33,
-        "source": "density: Incropera and colleagues (2007), table A.1, pure aluminium; modulus and Poisson's ratio: CRC Handbook (2016), \"Elastic constants of metals\""
+        "source": "density: Incropera and colleagues (2007), table A.1, pure aluminium; modulus and Poisson's ratio: CRC Handbook (2016), \"Elastic constants of metals\"",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 903.0,
         "conductivity": 237.0,
         "meltingPoint": 933.47,
         "latentHeatOfFusion": 397000.0,
-        "source": "Incropera and colleagues (2007), table A.1, pure aluminium at 300 K; melting point and heat of fusion: CRC Handbook (2016)"
+        "source": "Incropera and colleagues (2007), table A.1, pure aluminium at 300 K; melting point and heat of fusion: CRC Handbook (2016)",
+        "confidence": "handbook"
       },
       "acoustic": {
         "speedOfSound": 6420.0,
-        "source": "Kinsler and colleagues (2000), table A10, bulk longitudinal"
+        "source": "Kinsler and colleagues (2000), table A10, bulk longitudinal",
+        "confidence": "handbook"
       },
       "optical": {
         "metalReflectance": [
@@ -308,11 +349,13 @@
           0.922,
           0.924
         ],
-        "source": "Real-Time Rendering, 4th ed. (2018), table 9.2"
+        "source": "Real-Time Rendering, 4th ed. (2018), table 9.2",
+        "confidence": "handbook"
       },
       "electrical": {
         "resistivity": 2.65e-8,
-        "source": "CRC Handbook (2016), 20 °C"
+        "source": "CRC Handbook (2016), 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -325,17 +368,20 @@
         "density": 8933.0,
         "youngsModulus": 130000000000.0,
         "poissonRatio": 0.34,
-        "source": "density: Incropera and colleagues (2007), table A.1, pure copper; modulus and Poisson's ratio: CRC Handbook (2016), \"Elastic constants of metals\""
+        "source": "density: Incropera and colleagues (2007), table A.1, pure copper; modulus and Poisson's ratio: CRC Handbook (2016), \"Elastic constants of metals\"",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 385.0,
         "conductivity": 401.0,
         "meltingPoint": 1357.77,
-        "source": "Incropera and colleagues (2007), table A.1, pure copper at 300 K; melting point: CRC Handbook (2016)"
+        "source": "Incropera and colleagues (2007), table A.1, pure copper at 300 K; melting point: CRC Handbook (2016)",
+        "confidence": "handbook"
       },
       "acoustic": {
         "speedOfSound": 4760.0,
-        "source": "Kinsler and colleagues (2000), table A10, bulk longitudinal"
+        "source": "Kinsler and colleagues (2000), table A10, bulk longitudinal",
+        "confidence": "handbook"
       },
       "optical": {
         "metalReflectance": [
@@ -343,11 +389,13 @@
           0.638,
           0.538
         ],
-        "source": "Real-Time Rendering, 4th ed. (2018), table 9.2"
+        "source": "Real-Time Rendering, 4th ed. (2018), table 9.2",
+        "confidence": "handbook"
       },
       "electrical": {
         "resistivity": 1.68e-8,
-        "source": "CRC Handbook (2016), 20 °C"
+        "source": "CRC Handbook (2016), 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -360,13 +408,15 @@
         "density": 19300.0,
         "youngsModulus": 79000000000.0,
         "poissonRatio": 0.42,
-        "source": "density: Incropera and colleagues (2007), table A.1, gold; modulus and Poisson's ratio: CRC Handbook (2016), \"Elastic constants of metals\""
+        "source": "density: Incropera and colleagues (2007), table A.1, gold; modulus and Poisson's ratio: CRC Handbook (2016), \"Elastic constants of metals\"",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 129.0,
         "conductivity": 317.0,
         "meltingPoint": 1337.33,
-        "source": "Incropera and colleagues (2007), table A.1, gold at 300 K; melting point: CRC Handbook (2016)"
+        "source": "Incropera and colleagues (2007), table A.1, gold at 300 K; melting point: CRC Handbook (2016)",
+        "confidence": "handbook"
       },
       "optical": {
         "metalReflectance": [
@@ -374,11 +424,13 @@
           0.766,
           0.336
         ],
-        "source": "Real-Time Rendering, 4th ed. (2018), table 9.2"
+        "source": "Real-Time Rendering, 4th ed. (2018), table 9.2",
+        "confidence": "handbook"
       },
       "electrical": {
         "resistivity": 2.44e-8,
-        "source": "CRC Handbook (2016), 20 °C"
+        "source": "CRC Handbook (2016), 20 °C",
+        "confidence": "handbook"
       }
     },
     {
@@ -393,13 +445,15 @@
         "poissonRatio": 0.22,
         "staticFriction": 0.94,
         "kineticFriction": 0.4,
-        "source": "density: Incropera and colleagues (2007), table A.3, plate glass (soda lime); modulus and Poisson's ratio of soda-lime glass: Shelby, Introduction to Glass Science and Technology, 2nd ed. (2005); glass on glass, dry: Serway and Jewett, table 5.1"
+        "source": "density: Incropera and colleagues (2007), table A.3, plate glass (soda lime); modulus and Poisson's ratio of soda-lime glass: Shelby, Introduction to Glass Science and Technology, 2nd ed. (2005); glass on glass, dry: Serway and Jewett, table 5.1",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 750.0,
         "conductivity": 1.4,
         "emissivity": 0.92,
-        "source": "Incropera and colleagues (2007), table A.3, plate glass at 300 K; emissivity of smooth glass, 0.90–0.94, table A.11"
+        "source": "Incropera and colleagues (2007), table A.3, plate glass at 300 K; emissivity of smooth glass, 0.90–0.94, table A.11",
+        "confidence": "handbook"
       },
       "acoustic": {
         "absorption": [
@@ -410,11 +464,13 @@
           0.07,
           0.04
         ],
-        "source": "an ordinary window: Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients"
+        "source": "an ordinary window: Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.52,
-        "source": "Shelby (2005), soda-lime silica glass, n_D"
+        "source": "Shelby (2005), soda-lime silica glass, n_D",
+        "confidence": "handbook"
       }
     },
     {
@@ -427,13 +483,15 @@
         "density": 2300.0,
         "youngsModulus": 30000000000.0,
         "poissonRatio": 0.2,
-        "source": "density: Incropera and colleagues (2007), table A.3, concrete (stone mix); modulus and Poisson's ratio of normal-weight concrete near 30 MPa: ACI 318-19, §19.2.2"
+        "source": "density: Incropera and colleagues (2007), table A.3, concrete (stone mix); modulus and Poisson's ratio of normal-weight concrete near 30 MPa: ACI 318-19, §19.2.2",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 880.0,
         "conductivity": 1.4,
         "emissivity": 0.9,
-        "source": "Incropera and colleagues (2007), table A.3, concrete (stone mix) at 300 K; emissivity 0.88–0.93, table A.11"
+        "source": "Incropera and colleagues (2007), table A.3, concrete (stone mix) at 300 K; emissivity 0.88–0.93, table A.11",
+        "confidence": "handbook"
       },
       "acoustic": {
         "absorption": [
@@ -444,7 +502,8 @@
           0.02,
           0.02
         ],
-        "source": "a concrete floor: Everest and Pohlmann (2009), table of absorption coefficients"
+        "source": "a concrete floor: Everest and Pohlmann (2009), table of absorption coefficients",
+        "confidence": "handbook"
       }
     },
     {
@@ -455,13 +514,15 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 1920.0,
-        "source": "Incropera and colleagues (2007), table A.3, common brick"
+        "source": "Incropera and colleagues (2007), table A.3, common brick",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 835.0,
         "conductivity": 0.72,
         "emissivity": 0.93,
-        "source": "Incropera and colleagues (2007), table A.3, common brick at 300 K; red brick's emissivity, 0.93–0.96, table A.11"
+        "source": "Incropera and colleagues (2007), table A.3, common brick at 300 K; red brick's emissivity, 0.93–0.96, table A.11",
+        "confidence": "handbook"
       },
       "acoustic": {
         "absorption": [
@@ -472,7 +533,8 @@
           0.05,
           0.07
         ],
-        "source": "unglazed brick: Everest and Pohlmann (2009), table of absorption coefficients"
+        "source": "unglazed brick: Everest and Pohlmann (2009), table of absorption coefficients",
+        "confidence": "handbook"
       }
     },
     {
@@ -485,13 +547,15 @@
         "density": 2630.0,
         "youngsModulus": 50000000000.0,
         "poissonRatio": 0.25,
-        "source": "density: Incropera and colleagues (2007), table A.3, Barre granite; modulus and Poisson's ratio of granite, 40–70 GPa and 0.2–0.3: Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), chart 1"
+        "source": "density: Incropera and colleagues (2007), table A.3, Barre granite; modulus and Poisson's ratio of granite, 40–70 GPa and 0.2–0.3: Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), chart 1",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 775.0,
         "conductivity": 2.79,
         "emissivity": 0.93,
-        "source": "Incropera and colleagues (2007), table A.3, Barre granite at 300 K; emissivity a rough stone surface's, of the 0.90–0.96 emissivity tables give for unpolished rock"
+        "source": "Incropera and colleagues (2007), table A.3, Barre granite at 300 K; emissivity a rough stone surface's, of the 0.90–0.96 emissivity tables give for unpolished rock",
+        "confidence": "handbook"
       }
     },
     {
@@ -502,12 +566,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 2680.0,
-        "source": "Incropera and colleagues (2007), table A.3, Halston marble"
+        "source": "Incropera and colleagues (2007), table A.3, Halston marble",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 830.0,
         "conductivity": 2.8,
-        "source": "Incropera and colleagues (2007), table A.3, Halston marble at 300 K"
+        "source": "Incropera and colleagues (2007), table A.3, Halston marble at 300 K",
+        "confidence": "handbook"
       },
       "acoustic": {
         "absorption": [
@@ -518,7 +584,8 @@
           0.02,
           0.02
         ],
-        "source": "marble or glazed tile: Everest and Pohlmann (2009), table of absorption coefficients"
+        "source": "marble or glazed tile: Everest and Pohlmann (2009), table of absorption coefficients",
+        "confidence": "handbook"
       }
     },
     {
@@ -531,18 +598,21 @@
         "density": 920.0,
         "staticFriction": 0.1,
         "kineticFriction": 0.03,
-        "source": "density: Incropera and colleagues (2007), table A.3, ice at 273 K; ice on ice: Serway and Jewett, table 5.1"
+        "source": "density: Incropera and colleagues (2007), table A.3, ice at 273 K; ice on ice: Serway and Jewett, table 5.1",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 2040.0,
         "conductivity": 1.88,
         "meltingPoint": 273.15,
         "latentHeatOfFusion": 334000.0,
-        "source": "Incropera and colleagues (2007), table A.3, ice at 273 K; the latent heat of fusion: CRC Handbook (2016)"
+        "source": "Incropera and colleagues (2007), table A.3, ice at 273 K; the latent heat of fusion: CRC Handbook (2016)",
+        "confidence": "handbook"
       },
       "optical": {
         "refractiveIndex": 1.309,
-        "source": "CRC Handbook (2016), ice, n_D"
+        "source": "CRC Handbook (2016), ice, n_D",
+        "confidence": "handbook"
       }
     },
     {
@@ -555,7 +625,8 @@
         "density": 545.0,
         "youngsModulus": 910000000.0,
         "poissonRatio": 0.29,
-        "source": "density: Incropera and colleagues (2007), table A.3, plywood; modulus across the grain, what a contact presses, 0.068 of Douglas fir's 13.4 GPa along it, and Poisson's ratio (Wood Handbook, FPL-GTR-190, tables 5-1 and 5-2)"
+        "source": "density: Incropera and colleagues (2007), table A.3, plywood; modulus across the grain, what a contact presses, 0.068 of Douglas fir's 13.4 GPa along it, and Poisson's ratio (Wood Handbook, FPL-GTR-190, tables 5-1 and 5-2)",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1700.0,
@@ -564,7 +635,8 @@
         "ignitionTemperature": 663.15,
         "heatOfCombustion": 15000000.0,
         "radiantFraction": 0.3,
-        "source": "piloted ignition at 390 °C: Quintiere and Harkleroad, NBSIR 84-2943, table 2, plywood 1.27 cm; specific heat, conductivity and about fifteen megajoules a kilogram, a wood's in general; a wood fire's radiant share, 0.30 ± 0.03 (dry Douglas-fir trees, NIST TN 2327r1, table 10)"
+        "source": "piloted ignition at 390 °C: Quintiere and Harkleroad, NBSIR 84-2943, table 2, plywood 1.27 cm; specific heat, conductivity and about fifteen megajoules a kilogram, a wood's in general; a wood fire's radiant share, 0.30 ± 0.03 (dry Douglas-fir trees, NIST TN 2327r1, table 10)",
+        "confidence": "handbook"
       }
     },
     {
@@ -577,7 +649,8 @@
         "density": 545.0,
         "youngsModulus": 910000000.0,
         "poissonRatio": 0.29,
-        "source": "density: Incropera and colleagues (2007), table A.3, oak across the grain; modulus and Poisson's ratio across the grain as f3d.wood's, no open measurement of oak's having been read"
+        "source": "density: Incropera and colleagues (2007), table A.3, oak across the grain; modulus and Poisson's ratio across the grain as f3d.wood's, no open measurement of oak's having been read",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1730.0,
@@ -586,7 +659,8 @@
         "ignitionTemperature": 588.15,
         "heatOfCombustion": 12400000.0,
         "radiantFraction": 0.3,
-        "source": "specific heat: Parker's wood, Fire Safety Science 2 (1989), eq. 6, from the room to where it catches; conductivity of northern red oak oven-dry: Wood Handbook, FPL-GTR-190, table 4-7; a surface thermocouple at 315 °C and 12.4 MJ/kg burnt: Tran and White, Fire and Materials 16 (1992), tables 3 to 5; emissivity: Wood Handbook, table 18-2; radiant share as f3d.wood's"
+        "source": "specific heat: Parker's wood, Fire Safety Science 2 (1989), eq. 6, from the room to where it catches; conductivity of northern red oak oven-dry: Wood Handbook, FPL-GTR-190, table 4-7; a surface thermocouple at 315 °C and 12.4 MJ/kg burnt: Tran and White, Fire and Materials 16 (1992), tables 3 to 5; emissivity: Wood Handbook, table 18-2; radiant share as f3d.wood's",
+        "confidence": "handbook"
       }
     },
     {
@@ -599,7 +673,8 @@
         "density": 640.0,
         "youngsModulus": 910000000.0,
         "poissonRatio": 0.29,
-        "source": "density: Incropera and colleagues (2007), table A.3, yellow pine across the grain; modulus and Poisson's ratio as f3d.wood's"
+        "source": "density: Incropera and colleagues (2007), table A.3, yellow pine across the grain; modulus and Poisson's ratio as f3d.wood's",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1739.0,
@@ -608,7 +683,8 @@
         "ignitionTemperature": 593.15,
         "heatOfCombustion": 13900000.0,
         "radiantFraction": 0.3,
-        "source": "specific heat: Parker's (1989); loblolly pine's conductivity oven-dry: Wood Handbook, table 4-7; a surface thermocouple at 320 °C and 13.9 MJ/kg burnt: Tran and White (1992), tables 3 to 5; emissivity: Wood Handbook, table 18-2; radiant share as f3d.wood's"
+        "source": "specific heat: Parker's (1989); loblolly pine's conductivity oven-dry: Wood Handbook, table 4-7; a surface thermocouple at 320 °C and 13.9 MJ/kg burnt: Tran and White (1992), tables 3 to 5; emissivity: Wood Handbook, table 18-2; radiant share as f3d.wood's",
+        "confidence": "handbook"
       }
     },
     {
@@ -621,7 +697,8 @@
         "density": 930.0,
         "youngsModulus": 2000000000.0,
         "poissonRatio": 0.3,
-        "source": "density: Incropera and colleagues (2007), table A.3, paper; a sheet's modulus in its plane, 2–8 GPa, the low end (Mark and Borch, Handbook of Physical Testing of Paper)"
+        "source": "density: Incropera and colleagues (2007), table A.3, paper; a sheet's modulus in its plane, 2–8 GPa, the low end (Mark and Borch, Handbook of Physical Testing of Paper)",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1340.0,
@@ -630,7 +707,11 @@
         "ignitionTemperature": 506.15,
         "heatOfCombustion": 16000000.0,
         "radiantFraction": 0.3,
-        "source": "specific heat: Incropera and colleagues (2007), table A.3; conductivity a stack's across its sheets with the air between them, the engine's choice (a solid sheet's is 0.18); it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel's in general"
+        "source": "specific heat: Incropera and colleagues (2007), table A.3; conductivity a stack's across its sheets with the air between them, the engine's choice (a solid sheet's is 0.18); it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel's in general",
+        "confidence": "estimate",
+        "confidenceOf": {
+          "specificHeat": "handbook"
+        }
       }
     },
     {
@@ -642,7 +723,8 @@
       "mechanical": {
         "youngsModulus": 2000000000.0,
         "poissonRatio": 0.3,
-        "source": "a sheet's modulus in its plane, as f3d.paper's"
+        "source": "a sheet's modulus in its plane, as f3d.paper's",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1800.0,
@@ -651,7 +733,8 @@
         "ignitionTemperature": 623.15,
         "heatOfCombustion": 14030000.0,
         "radiantFraction": 0.24,
-        "source": "specific heat, conductivity and emissivity of its virgin layers: Semmes and colleagues, Fire Safety Science 11 (2014), table 2; it catches at 350 °C, what its 8.5 kW/m² critical flux gives a black surface (Khan, de Ris and Ogden, Fire Safety Science 9, 2008); 14.03 MJ/kg burnt (UL FSRI, Corrugated Cardboard); a radiant share of 0.20 to 0.28 (Zeng and colleagues, Fire Safety Science 11, 2014)"
+        "source": "specific heat, conductivity and emissivity of its virgin layers: Semmes and colleagues, Fire Safety Science 11 (2014), table 2; it catches at 350 °C, what its 8.5 kW/m² critical flux gives a black surface (Khan, de Ris and Ogden, Fire Safety Science 9, 2008); 14.03 MJ/kg burnt (UL FSRI, Corrugated Cardboard); a radiant share of 0.20 to 0.28 (Zeng and colleagues, Fire Safety Science 11, 2014)",
+        "confidence": "handbook"
       }
     },
     {
@@ -662,7 +745,8 @@
       "pressure": 101325.0,
       "mechanical": {
         "poissonRatio": 0.29,
-        "source": "no measurement of a straw bed's stiffness was found: its modulus is left to the core's default"
+        "source": "no measurement of a straw bed's stiffness was found: its modulus is left to the core's default",
+        "confidence": "estimate"
       },
       "thermal": {
         "specificHeat": 1938.0,
@@ -671,7 +755,8 @@
         "ignitionTemperature": 593.15,
         "heatOfCombustion": 10100000.0,
         "radiantFraction": 0.3,
-        "source": "Rossa, Davim and Fernandes, Fire 9, 94 (2026), table 1; the heat to 320 °C, 581 kJ/kg (Rothermel, USDA INT-115, 1972, eq. 12); 10.1 MJ/kg and an emissivity of 0.846 (UL FSRI, Straw); a straw bale's conductivity at 15 kg/m³ (Costes and colleagues, Buildings 7, 11, 2017); radiant share as f3d.wood's"
+        "source": "Rossa, Davim and Fernandes, Fire 9, 94 (2026), table 1; the heat to 320 °C, 581 kJ/kg (Rothermel, USDA INT-115, 1972, eq. 12); 10.1 MJ/kg and an emissivity of 0.846 (UL FSRI, Straw); a straw bale's conductivity at 15 kg/m³ (Costes and colleagues, Buildings 7, 11, 2017); radiant share as f3d.wood's",
+        "confidence": "handbook"
       }
     },
     {
@@ -682,7 +767,8 @@
       "pressure": 101325.0,
       "mechanical": {
         "poissonRatio": 0.29,
-        "source": "no open measurement of charcoal's stiffness was found: its modulus is left to the core's default"
+        "source": "no open measurement of charcoal's stiffness was found: its modulus is left to the core's default",
+        "confidence": "estimate"
       },
       "thermal": {
         "specificHeat": 1017.0,
@@ -691,7 +777,8 @@
         "ignitionTemperature": 860.8,
         "heatOfCombustion": 30000000.0,
         "radiantFraction": 0.88,
-        "source": "Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it catches where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)"
+        "source": "Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it catches where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)",
+        "confidence": "handbook"
       }
     },
     {
@@ -703,7 +790,11 @@
       "mechanical": {
         "density": 900.0,
         "poissonRatio": 0.29,
-        "source": "density: Incropera and colleagues (2007), table A.3, paraffin; its stiffness was not found openly and is left to the core's default"
+        "source": "density: Incropera and colleagues (2007), table A.3, paraffin; its stiffness was not found openly and is left to the core's default",
+        "confidence": "estimate",
+        "confidenceOf": {
+          "density": "handbook"
+        }
       },
       "thermal": {
         "specificHeat": 2604.0,
@@ -712,7 +803,11 @@
         "ignitionTemperature": 472.15,
         "heatOfCombustion": 43800000.0,
         "radiantFraction": 0.17,
-        "source": "Hamins, Bundy and Dillon, J. Fire Protection Eng. 15 (2005): a candle's 43.8 MJ/kg, 0.17 radiated, the solid's specific heat and conductivity; it flashes at 199 °C (NOAA CAMEO Chemicals); its surface's emissivity not found openly, the 0.9 every preset starts from"
+        "source": "Hamins, Bundy and Dillon, J. Fire Protection Eng. 15 (2005): a candle's 43.8 MJ/kg, 0.17 radiated, the solid's specific heat and conductivity; it flashes at 199 °C (NOAA CAMEO Chemicals); its surface's emissivity not found openly, the 0.9 every preset starts from",
+        "confidence": "handbook",
+        "confidenceOf": {
+          "emissivity": "estimate"
+        }
       }
     },
     {
@@ -725,7 +820,8 @@
         "density": 1100.0,
         "youngsModulus": 2000000.0,
         "poissonRatio": 0.49,
-        "source": "density: Incropera and colleagues (2007), table A.3, soft vulcanized rubber; soft and all but incompressible, a few megapascals (Gent, Engineering with Rubber, ch. 1)"
+        "source": "density: Incropera and colleagues (2007), table A.3, soft vulcanized rubber; soft and all but incompressible, a few megapascals (Gent, Engineering with Rubber, ch. 1)",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 2010.0,
@@ -734,7 +830,12 @@
         "ignitionTemperature": 623.15,
         "heatOfCombustion": 32000000.0,
         "radiantFraction": 0.45,
-        "source": "specific heat of soft and conductivity of hard vulcanized rubber: Incropera and colleagues (2007), table A.3; its emissivity, ignition, heat of combustion and a sooty flame's radiant share are the engine's, of the order a tyre fire is measured at"
+        "source": "specific heat of soft and conductivity of hard vulcanized rubber: Incropera and colleagues (2007), table A.3; its emissivity, ignition, heat of combustion and a sooty flame's radiant share are the engine's, of the order a tyre fire is measured at",
+        "confidence": "estimate",
+        "confidenceOf": {
+          "specificHeat": "handbook",
+          "conductivity": "handbook"
+        }
       }
     },
     {
@@ -748,12 +849,14 @@
         "youngsModulus": 2300000000.0,
         "poissonRatio": 0.35,
         "tensileStrength": 40000000.0,
-        "source": "Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, ABS: typical values within its ranges"
+        "source": "Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, ABS: typical values within its ranges",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1400.0,
         "conductivity": 0.17,
-        "source": "Ashby (2011), appendix C, ABS"
+        "source": "Ashby (2011), appendix C, ABS",
+        "confidence": "handbook"
       }
     },
     {
@@ -766,12 +869,14 @@
         "density": 950.0,
         "youngsModulus": 800000000.0,
         "poissonRatio": 0.42,
-        "source": "Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, high-density polyethylene: typical values within its ranges"
+        "source": "Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, high-density polyethylene: typical values within its ranges",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1900.0,
         "conductivity": 0.45,
-        "source": "Ashby (2011), appendix C, high-density polyethylene"
+        "source": "Ashby (2011), appendix C, high-density polyethylene",
+        "confidence": "handbook"
       }
     },
     {
@@ -782,12 +887,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 1515.0,
-        "source": "Incropera and colleagues (2007), table A.3, sand"
+        "source": "Incropera and colleagues (2007), table A.3, sand",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 800.0,
         "conductivity": 0.27,
-        "source": "Incropera and colleagues (2007), table A.3, sand at 300 K"
+        "source": "Incropera and colleagues (2007), table A.3, sand at 300 K",
+        "confidence": "handbook"
       }
     },
     {
@@ -798,12 +905,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 2050.0,
-        "source": "Incropera and colleagues (2007), table A.3, soil"
+        "source": "Incropera and colleagues (2007), table A.3, soil",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1840.0,
         "conductivity": 0.52,
-        "source": "Incropera and colleagues (2007), table A.3, soil at 300 K"
+        "source": "Incropera and colleagues (2007), table A.3, soil at 300 K",
+        "confidence": "handbook"
       }
     },
     {
@@ -814,12 +923,14 @@
       "pressure": 101325.0,
       "mechanical": {
         "density": 80.0,
-        "source": "Incropera and colleagues (2007), table A.3, cotton"
+        "source": "Incropera and colleagues (2007), table A.3, cotton",
+        "confidence": "handbook"
       },
       "thermal": {
         "specificHeat": 1300.0,
         "conductivity": 0.06,
-        "source": "Incropera and colleagues (2007), table A.3, cotton at 300 K"
+        "source": "Incropera and colleagues (2007), table A.3, cotton at 300 K",
+        "confidence": "handbook"
       }
     }
   ],
@@ -828,37 +939,43 @@
       "first": "f3d.rubber",
       "second": "f3d.concrete",
       "friction": 0.8,
-      "source": "rubber on dry concrete, μ_s 1.0 and μ_k 0.8: Serway and Jewett, Physics for Scientists and Engineers, table 5.1 — the kinetic, the engine's one μ"
+      "source": "rubber on dry concrete, μ_s 1.0 and μ_k 0.8: Serway and Jewett, Physics for Scientists and Engineers, table 5.1 — the kinetic, the engine's one μ",
+      "confidence": "handbook"
     },
     {
       "first": "f3d.water",
       "second": "f3d.glass",
       "contactAngle": 0.35,
-      "source": "about 20°: laboratory glass as it is used, not freshly cleaned — a freshly cleaned glass wets completely (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X)"
+      "source": "about 20°: laboratory glass as it is used, not freshly cleaned — a freshly cleaned glass wets completely (Adamson and Gast, Physical Chemistry of Surfaces, 6th ed., 1997, ch. X)",
+      "confidence": "handbook"
     },
     {
       "first": "f3d.glycerol",
       "second": "f3d.glass",
       "contactAngle": 0.45,
-      "source": "about 26°: the engine's, of the order glycerol on laboratory glass is measured at"
+      "source": "about 26°: the engine's, of the order glycerol on laboratory glass is measured at",
+      "confidence": "estimate"
     },
     {
       "first": "f3d.oliveOil",
       "second": "f3d.glass",
       "contactAngle": 0.2,
-      "source": "about 11°: the engine's; an oil wets glass all but completely"
+      "source": "about 11°: the engine's; an oil wets glass all but completely",
+      "confidence": "estimate"
     },
     {
       "first": "f3d.ethanol",
       "second": "f3d.glass",
       "contactAngle": 0.0,
-      "source": "ethanol wets clean glass completely (Adamson and Gast, 1997)"
+      "source": "ethanol wets clean glass completely (Adamson and Gast, 1997)",
+      "confidence": "handbook"
     },
     {
       "first": "f3d.mercury",
       "second": "f3d.glass",
       "contactAngle": 2.44,
-      "source": "about 140°: Adamson and Gast (1997), mercury on glass, 128–148°"
+      "source": "about 140°: Adamson and Gast (1997), mercury on glass, 128–148°",
+      "confidence": "handbook"
     }
   ]
 }

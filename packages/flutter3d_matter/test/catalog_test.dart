@@ -93,6 +93,50 @@ void main() {
     expect(granite.source, contains("Byerlee's rule"));
   });
 
+  test("a family's median is of measured frictions, never of estimates", () {
+    final byId = <String, PhysicalMaterial>{
+      for (final m in Materials.all) m.id: m,
+    };
+    var medians = 0;
+    for (final material in Materials.all) {
+      final friction = material.mechanical?.staticFriction;
+      final source = friction?.source;
+      if (source == null || !source.contains('the median')) continue;
+      medians++;
+      final named = RegExp(
+        r'f3d\.\w+',
+      ).allMatches(source).map((m) => m[0]!).toList();
+      expect(named, isNotEmpty, reason: material.id);
+      // Mutation: let an estimate made earlier in the loop into a later
+      // one's median, and a neighbour named here is an estimate itself.
+      for (final id in named) {
+        final theirs = byId[id]!.mechanical!.staticFriction!;
+        expect(
+          byId[id]!.confidenceOf(theirs),
+          isNot(Confidence.estimate),
+          reason: '${material.id} takes $id',
+        );
+      }
+    }
+    expect(medians, greaterThan(0));
+  });
+
+  test('a law scaled onto the quoted value says by how much', () {
+    var scaled = 0;
+    for (final material in Materials.all) {
+      for (final group in material.groups) {
+        for (final law in group.laws.values) {
+          if (law is! FormulaLaw) continue;
+          final source = law.source ?? '';
+          if (!source.contains('as published gives')) continue;
+          scaled++;
+          expect(source, matches(RegExp(r'scaled by [0-9.e-]+ onto')));
+        }
+      }
+    }
+    expect(scaled, greaterThan(0));
+  });
+
   test('a material is found by the id another system knows it by', () {
     final catalog = MaterialCatalog.builtIn();
     expect(

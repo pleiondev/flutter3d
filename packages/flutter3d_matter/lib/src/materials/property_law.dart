@@ -14,6 +14,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
         UnitFormatException,
         UnitMismatchException;
 
+import '../physical_constants.dart';
 import '../standard_world.dart';
 import 'material_json.dart';
 import 'material_state.dart';
@@ -427,12 +428,13 @@ final class ConstantLaw extends PropertyLaw {
 /// A value tabulated against one quantity of the state, read between the
 /// points on a straight line.
 ///
-/// **One formula, so every core gives the same bits.** With the input `x`
-/// held to the table's ends, the segment is the last `i` with
-/// `xs[i] <= x`, and the value is `ys[i] + (ys[i + 1] - ys[i]) * ((x -
-/// xs[i]) / (xs[i + 1] - xs[i]))`, in that order of operations, in double
-/// precision: at a point the value is that point's exactly. The C core's
-/// interpolator of the generated header computes the same expression.
+/// **One formula, written down.** With the input `x` held to the table's
+/// ends, the segment is the last `i` with `xs[i] <= x`, and the value is
+/// `ys[i] + (ys[i + 1] - ys[i]) * ((x - xs[i]) / (xs[i + 1] - xs[i]))`, in
+/// that order of operations, in double precision: at a point the value is
+/// that point's exactly. The C core does not evaluate laws: it takes each
+/// property's value at the reference state ([value]) from its generated
+/// header, whatever a body's state.
 final class TableLaw extends PropertyLaw {
   const TableLaw(
     super.value, {
@@ -622,7 +624,7 @@ final class FormulaLaw extends PropertyLaw {
     value,
     expression:
         '${_n(y0)} [$unit] * exp(${_n(activation)} [J/mol] / '
-        '(8.314462618 [J/(mol·K)] * T))',
+        '(${_n(molarGasConstant)} [J/(mol·K)] * T))',
     inputs: <String, LawInput>{'T': input},
     confidence: confidence,
     source: source,

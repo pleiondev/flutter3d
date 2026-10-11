@@ -2154,19 +2154,19 @@
         },
         "ignitionTemperature": {
           "value": 472.15,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
           "verification": "catalog"
         },
         "heatOfCombustion": {
           "value": 43800000.0,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
           "verification": "catalog"
         },
         "radiantFraction": {
           "value": 0.17,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
           "verification": "catalog"
         }
@@ -2209,7 +2209,7 @@
         },
         "conductivity": {
           "value": 0.16,
-          "confidence": "estimate",
+          "confidence": "handbook",
           "law": "constant",
           "verification": "catalog"
         },
@@ -12010,7 +12010,7 @@
           "verification": "recalled"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12266,7 +12266,7 @@
           "verification": "recalled"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12374,7 +12374,7 @@
           "verification": "fetched"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12449,7 +12449,7 @@
           "verification": "recalled"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12619,7 +12619,7 @@
           "verification": "fetched"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12679,7 +12679,7 @@
           "verification": "recalled"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12727,7 +12727,7 @@
           "verification": "recalled"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -12797,7 +12797,7 @@
           "verification": "recalled"
         },
         "staticFriction": {
-          "value": 0.945,
+          "value": 0.2,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -14294,7 +14294,7 @@
           "verification": "fetched"
         },
         "staticFriction": {
-          "value": 0.375,
+          "value": 0.6,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -15873,7 +15873,7 @@
           "verification": "fetched"
         },
         "staticFriction": {
-          "value": 0.375,
+          "value": 0.6,
           "confidence": "estimate",
           "law": "constant"
         }
@@ -15950,11 +15950,11 @@
     },
     "f3d.glass|f3d.glycerol": {
       "contactAngle": 0.45,
-      "confidence": "handbook"
+      "confidence": "estimate"
     },
     "f3d.glass|f3d.oliveOil": {
       "contactAngle": 0.2,
-      "confidence": "handbook"
+      "confidence": "estimate"
     },
     "f3d.ethanol|f3d.glass": {
       "contactAngle": 0.0,

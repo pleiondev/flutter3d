@@ -47,8 +47,20 @@ const String dartPath = 'lib/src/materials/materials.g.dart';
 const String verifiedPath = 'tool/data/catalog.verified.json';
 
 /// How far a law's shape may be off the quoted value at the reference state
-/// before the law is left out: 10 %.
+/// before the law is left out: 10 %. A law kept within it is scaled onto the
+/// quoted value, and its source says by how much.
 const double _lawTolerance = 0.10;
+
+/// How close the research's number and a base entry's must be to count as
+/// the same number: half a percent, the last figure of a handbook's three
+/// or four rounded either way (998.2 and 998 kg/m³ are one density; 0.0728
+/// and 0.072 N/m are one surface tension). Closer, the research's confidence
+/// and law are the base entry's; further, the base entry keeps its own
+/// number, which every recorded run and the C core's header are made of.
+const double _agreement = 0.005;
+
+/// What a base entry's group holds beside its values.
+const Set<String> _baseKeys = <String>{'source', 'confidence', 'confidenceOf'};
 
 const Map<String, List<String>> _groupProperties = <String, List<String>>{
   'mechanical': <String>[
@@ -289,6 +301,10 @@ final class _Value {
   /// The law's Dart, once made: `ConstantLaw(…)`, `TableLaw(…)`, ….
   String? lawDart;
   String lawKind = 'constant';
+
+  /// What was done to the law to make it give the quoted value at the
+  /// reference state, for its source; null when nothing was.
+  String? anchor;
 }
 
 /// One entry as the generator holds it.
@@ -298,8 +314,8 @@ final class _Entry {
   final String id;
   final String name;
   final String phase;
-  double temperature = 293.15;
-  double pressure = 101325.0;
+  double temperature = standardAirTemperature;
+  double pressure = standardAtmosphere;
   String? description;
   final Map<String, String> externalIds = <String, String>{};
   final Map<String, Map<String, _Value>> groups =
@@ -311,6 +327,11 @@ final class _Entry {
 
   /// Whether it is one of the 33 the catalogue had before.
   bool base = false;
+
+  /// For a base entry, each group's values' confidence as its data says it,
+  /// by property.
+  final Map<String, Map<String, String>> baseConfidences =
+      <String, Map<String, String>>{};
 
   String get field => id.substring('f3d.'.length);
 }
@@ -343,12 +364,27 @@ final class _Catalogue {
         final g = body[group] as Map<String, Object?>?;
         if (g == null) continue;
         entry.groupSources[group] = g['source']! as String;
+        // How the group's values were come by, as the data says: the
+        // group's word, and a word of a value's own where it differs.
+        final said = switch (g['confidence']) {
+          final String word when Confidence.values.any((c) => c.name == word) =>
+            word,
+          final other => throw StateError(
+            '${entry.id} $group: the base data names a confidence '
+            '(measured, handbook or estimate), not $other',
+          ),
+        };
+        final own = (g['confidenceOf'] as Map<String, Object?>?) ?? const {};
+        entry.baseConfidences[group] = <String, String>{
+          for (final key in g.keys)
+            if (!_baseKeys.contains(key)) key: (own[key] as String?) ?? said,
+        };
         final values = entry.groups.putIfAbsent(
           group,
           () => <String, _Value>{},
         );
         for (final MapEntry(:key, :value) in g.entries) {
-          if (key == 'source' || value == null) continue;
+          if (_baseKeys.contains(key) || value == null) continue;
           values[key] = _Value(
             value is num
                 ? value.toDouble()
@@ -364,16 +400,17 @@ final class _Catalogue {
     // A liquid metal shares its research id with the solid (`lead`): the
     // liquid is the melt, as `basaltMelt` is.
     final solidIds = <String>{
-      for (final raw in (solids['entries']! as List).cast<Map<String, Object?>>())
+      for (final raw
+          in (solids['entries']! as List).cast<Map<String, Object?>>())
         raw['id']! as String,
     };
     for (final data in <Map<String, Object?>>[fluids, solids]) {
       for (final raw
           in (data['entries']! as List).cast<Map<String, Object?>>()) {
-        final melt =
-            identical(data, fluids) && solidIds.contains(raw['id']) ? 'Melt' : '';
-        final id =
-            (raw['catalogId'] as String?) ?? 'f3d.${raw['id']}$melt';
+        final melt = identical(data, fluids) && solidIds.contains(raw['id'])
+            ? 'Melt'
+            : '';
+        final id = (raw['catalogId'] as String?) ?? 'f3d.${raw['id']}$melt';
         final entry = entries.putIfAbsent(
           id,
           () => _Entry(id, raw['name']! as String, raw['phase']! as String),
@@ -416,7 +453,11 @@ final class _Catalogue {
               _law(entry, group, name, research, p, dropped);
             } else if (held.value is double &&
                 research.value is double &&
-                _close(held.value as double, research.value as double, 0.005)) {
+                _close(
+                  held.value as double,
+                  research.value as double,
+                  _agreement,
+                )) {
               // The research agrees with the catalogue: its confidence and
               // its law, anchored on the catalogue's own number.
               final agreed = _Value(
@@ -620,7 +661,7 @@ final class _Catalogue {
       final celsius = _celsius(law);
       final xs = <double>[], ys = <double>[];
       for (final point in points.cast<List>()) {
-        xs.add((point[0] as num).toDouble() + (celsius ? 273.15 : 0.0));
+        xs.add((point[0] as num).toDouble() + (celsius ? zeroCelsius : 0.0));
         ys.add((point[1] as num).toDouble() * (factor ? v : 1.0));
       }
       final table = TableLaw(0, xs: xs, ys: ys);
@@ -630,7 +671,11 @@ final class _Catalogue {
       }
       final shape = table.at(reference);
       if (!_close(shape, v, _lawTolerance)) {
-        _drop(dropped, where, 'table gives $shape at the reference state, quoted $v');
+        _drop(
+          dropped,
+          where,
+          'table gives $shape at the reference state, quoted $v',
+        );
         continue;
       }
       // The quoted value as a point of its own.
@@ -645,6 +690,11 @@ final class _Catalogue {
         xs.insert(at, t);
         ys.insert(at, v);
       }
+      if (shape != v) {
+        value.anchor =
+            'the table alone gives ${_d(shape)} at the reference state; its '
+            'point there is the quoted ${_d(v)}, ${_d(v / shape)} times it';
+      }
       value
         ..lawKind = 'table'
         ..lawDart =
@@ -655,8 +705,12 @@ final class _Catalogue {
     for (final law in laws) {
       final shape = _shape(law);
       if (shape == null) {
-        _drop(dropped, where, 'a ${law['kind']} law in ${law['variable'] ?? law['x'] ?? 'T'} '
-            'the expression language is not given');
+        _drop(
+          dropped,
+          where,
+          'a ${law['kind']} law in ${law['variable'] ?? law['x'] ?? 'T'} '
+          'the expression language is not given',
+        );
         continue;
       }
       final range = (law['validRange'] as List?)?.cast<num>();
@@ -683,8 +737,12 @@ final class _Catalogue {
       // state only when its fit is good there.
       final scale = _scaleOf(law, v);
       if (!c.isFinite || c == 0 || !_close(c * scale, v, _lawTolerance)) {
-        _drop(dropped, where, '${law['kind']} gives ${c * scale} at the reference state, '
-            'quoted $v');
+        _drop(
+          dropped,
+          where,
+          '${law['kind']} gives ${c * scale} at the reference state, '
+          'quoted $v',
+        );
         continue;
       }
       final unit = propertyUnits['$group.$name']!.symbol;
@@ -703,6 +761,13 @@ final class _Catalogue {
       if (anchored.dimension != propertyUnits['$group.$name']!.dimension) {
         _drop(dropped, where, 'the formula measures ${anchored.dimension}');
         continue;
+      }
+      final published = c * scale;
+      if (published != v) {
+        value.anchor =
+            'the ${law['kind']} law as published gives ${_d(published)} at '
+            'the reference state; it is scaled by ${_d(v / published)} onto '
+            'the quoted ${_d(v)}';
       }
       value
         ..lawKind = 'formula'
@@ -749,7 +814,7 @@ final class _Catalogue {
   /// is not one the generator writes.
   static String? _shape(Map<String, Object?> law) {
     const t = '(T / 1 [K])';
-    const theta = '(T / 1 [K] - 273.15)';
+    const theta = '(T / 1 [K] - $zeroCelsius)';
     double? n(String key) => (law[key] as num?)?.toDouble();
     switch (law['kind']) {
       case 'andrade':
@@ -759,7 +824,7 @@ final class _Catalogue {
       case 'arrhenius':
         final ea = n('Ea'), b = n('B');
         if (ea != null) {
-          final r = n('R') ?? 8.314462618;
+          final r = n('R') ?? molarGasConstant;
           return 'exp(${_e(ea)} / (${_e(r)} * $t))';
         }
         if (b != null) return 'exp(${_e(b)} / $t)';
@@ -784,7 +849,7 @@ final class _Catalogue {
         }
         return null;
       case 'linear':
-        // `x(T) = x20 * (1 + alpha * (T - 293.15))`, alpha named or written.
+        // `x(T) = x20 * (1 + alpha * (T - T0))`, alpha named or written.
         final form = '${law['form'] ?? ''}';
         final written = RegExp(
           r'\(1 \+ ([0-9.eE+-]+|alpha) \*? ?\(T - [0-9.]+\)\)',
@@ -847,30 +912,47 @@ final class _Catalogue {
       value.isNegative ? '(${_d(value)})' : _d(value);
 
   /// Every solid that says no friction of its own takes an estimate.
+  ///
+  /// **A family's median is of what was read, not of what was guessed**:
+  /// the self-frictions it is taken over are the ones the data gives, before
+  /// any estimate is made, and none the data marks as an estimate itself —
+  /// so an estimate is never made of another, and the catalogue is the same
+  /// whatever order its entries come in.
   static void _friction(List<_Entry> entries) {
-    final byField = <String, _Entry>{for (final e in entries) e.field: e};
-    double? measured(_Entry e) {
+    double? said(_Entry e) {
       final m = e.groups['mechanical'];
       final v = (m?['kineticFriction'] ?? m?['staticFriction'])?.value;
       return v is double ? v : null;
     }
 
-    for (final entry in entries) {
-      if (entry.phase != 'solid' && entry.phase != 'granular') continue;
-      if (measured(entry) != null) continue;
+    final read = <String, double>{
+      for (final e in entries)
+        if (e.groups['mechanical']?['staticFriction'] case final v?
+            when v.value is double && v.confidence != 'estimate')
+          e.field: v.value as double,
+    };
+    final needing = <_Entry>[
+      for (final e in entries)
+        if ((e.phase == 'solid' || e.phase == 'granular') && said(e) == null) e,
+    ];
+    for (final entry in needing) {
       final family = _families.entries
           .where((f) => f.value.contains(entry.field))
           .firstOrNull;
+      // A family none of whose self-frictions was read gives no median: its
+      // member takes the engine's default, as a solid of no family does.
+      final known = family == null
+          ? const <(String, double)>[]
+          : (<(String, double)>[
+              for (final field in family.value)
+                if (field != entry.field)
+                  if (read[field] case final v?) (field, v),
+            ]..sort(
+              (a, b) =>
+                  a.$2 != b.$2 ? a.$2.compareTo(b.$2) : a.$1.compareTo(b.$1),
+            ));
       final _Value estimate;
-      if (family != null) {
-        final known = <(String, double)>[
-          for (final field in family.value)
-            if (byField[field] case final e? when e != entry)
-              if (byField[field]!.groups['mechanical']?['staticFriction']?.value
-                  case final double v)
-                (field, v),
-        ]..sort((a, b) => a.$2.compareTo(b.$2));
-        if (known.isEmpty) continue;
+      if (family != null && known.isNotEmpty) {
         final mid = known.length ~/ 2;
         final median = known.length.isOdd
             ? known[mid].$2
@@ -926,7 +1008,6 @@ final class _Catalogue {
 
   /// Group sources, every value's law, and the entry's confidence.
   static void _finish(_Entry entry) {
-    final counts = <String, int>{};
     for (final MapEntry(key: group, value: values) in entry.groups.entries) {
       // The group's source: the one most of its values give.
       final sources = <String, int>{};
@@ -942,26 +1023,41 @@ final class _Catalogue {
       entry.groupSources[group] ??= common ?? 'see each value';
       for (final value in values.values) {
         if (value.source == entry.groupSources[group]) value.source = null;
-        if (value.confidence case final c?) counts[c] = (counts[c] ?? 0) + 1;
+        // A law scaled onto the quoted value says so, after where the value
+        // is from.
+        if (value.anchor case final anchor?) {
+          value.source =
+              '${value.source ?? entry.groupSources[group]}; '
+              '$anchor';
+        }
       }
     }
-    // The base entries' values the research did not speak to: a handbook's
-    // unless their source says the number is the engine's own.
+    // The base entries' values the research did not speak to: the
+    // confidence their data gives. Every other value names its own.
+    final counts = <String, int>{};
     for (final MapEntry(key: group, value: values) in entry.groups.entries) {
-      final source = entry.groupSources[group]!;
-      final own = RegExp(
-        r"engine's|estimate|no measurement|not found|left to",
-      ).hasMatch(source);
       for (final MapEntry(:key, :value) in values.entries) {
-        if (value.confidence != null || value.value is! double) continue;
-        values[key] = _Value(
-          value.value,
-          confidence: own ? 'estimate' : 'handbook',
-          source: value.source,
-          interval: value.interval,
-          verification: entry.base ? 'catalog' : value.verification,
-        )..lawDart = value.lawDart
-          ..lawKind = value.lawKind;
+        if (value.value is! double) continue;
+        if (value.confidence == null) {
+          final said = entry.baseConfidences[group]?[key];
+          if (!entry.base || said == null) {
+            throw StateError(
+              '${entry.id} $group.$key has no confidence in its data',
+            );
+          }
+          values[key] =
+              _Value(
+                  value.value,
+                  confidence: said,
+                  source: value.source,
+                  interval: value.interval,
+                  verification: 'catalog',
+                )
+                ..lawDart = value.lawDart
+                ..lawKind = value.lawKind;
+        }
+        final c = values[key]!.confidence!;
+        counts[c] = (counts[c] ?? 0) + 1;
       }
     }
     entry.confidence =
@@ -981,9 +1077,13 @@ final class _Catalogue {
       pairs[MaterialPair.keyOf(
         pair['first']! as String,
         pair['second']! as String,
-      )] = <String, Object?>{
-        ...pair,
-        'confidence': 'handbook',
+      )] = switch (pair['confidence']) {
+        final String word when Confidence.values.any((c) => c.name == word) =>
+          pair,
+        final other => throw StateError(
+          'the base pair of ${pair['first']} and ${pair['second']} names a '
+          'confidence (measured, handbook or estimate), not $other',
+        ),
       };
     }
     for (final raw in (solids['pairs']! as List).cast<Map<String, Object?>>()) {
@@ -1040,10 +1140,10 @@ final class _Catalogue {
         ..writeln("    id: '${entry.id}',")
         ..writeln('    name: ${_s(entry.name)},')
         ..writeln('    phase: ${_phase(entry.phase)},');
-      if (entry.temperature != 293.15) {
+      if (entry.temperature != standardAirTemperature) {
         out.writeln('    temperature: ${_d(entry.temperature)},');
       }
-      if (entry.pressure != 101325.0) {
+      if (entry.pressure != standardAtmosphere) {
         out.writeln('    pressure: ${_d(entry.pressure)},');
       }
       out.writeln('    confidence: Confidence.${entry.confidence},');
@@ -1214,7 +1314,8 @@ final class _Catalogue {
       for (final entry in entries)
         entry.id: <String, Object?>{
           'confidence': entry.confidence,
-          if (entry.temperature != 293.15) 'temperature': entry.temperature,
+          if (entry.temperature != standardAirTemperature)
+            'temperature': entry.temperature,
           for (final group in _groupProperties.keys)
             if (entry.groups[group] case final values? when values.isNotEmpty)
               group: <String, Object?>{

@@ -33,6 +33,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), "Properties of water in the range 0–100 °C", at 20 °C; the polynomial law as published gives 997.7228156533284 at the reference state; it is scaled by 1.0004782734635163 onto the quoted 998.2',
       ),
       source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), "Properties of water in the range 0–100 °C", at 20 °C',
     ),
@@ -70,6 +71,7 @@ abstract final class Materials {
           0.00028453,
         ],
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa; the table alone gives 0.0010078063111111121 at the reference state; its point there is the quoted 0.001002, 0.9942386636726748 times it',
       ),
       surfaceTension: TableLaw(
         0.0728,
@@ -102,6 +104,7 @@ abstract final class Materials {
           0.058965,
         ],
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa; the table alone gives 0.07273575581628561 at the reference state; its point there is the quoted 0.0728, 1.0008832545010828 times it',
       ),
       bulkModulus: ConstantLaw(2180000000.0, confidence: Confidence.handbook),
       source: 'CRC Handbook (2016), at 20 °C: viscosity 1.002 mPa·s, surface tension 72.8 mN/m, and the bulk modulus from the isothermal compressibility, 4.59e-10 1/Pa',
@@ -112,6 +115,7 @@ abstract final class Materials {
         xs: <double>[273.16, 291.16, 293.15, 309.16, 327.16, 345.16, 363.16],
         ys: <double>[4219.4, 4185.6, 4182.0, 4179.2, 4182.6, 4191.3, 4205.2],
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), at 20 °C: specific heat 4.182 kJ/(kg·K), conductivity 0.598 W/(m·K), expansion 2.07e-4 1/K; melting and boiling at one atmosphere, and the latent heats there (IAPWS-95, as the Handbook tabulates it); the table alone gives 4184.892444444445 at the reference state; its point there is the quoted 4182.0, 0.9993088366110139 times it',
       ),
       conductivity: TableLaw(
         0.598,
@@ -126,6 +130,7 @@ abstract final class Materials {
           0.67279,
         ],
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), at 20 °C: specific heat 4.182 kJ/(kg·K), conductivity 0.598 W/(m·K), expansion 2.07e-4 1/K; melting and boiling at one atmosphere, and the latent heats there (IAPWS-95, as the Handbook tabulates it); the table alone gives 0.5976096277777777 at the reference state; its point there is the quoted 0.598, 1.000653222779683 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000207,
@@ -150,6 +155,7 @@ abstract final class Materials {
         xs: <double>[273.16, 291.16, 293.15, 309.16, 327.16, 345.16, 363.16],
         ys: <double>[1402.4, 1476.1, 1482.3, 1521.8, 1546.5, 1555.0, 1550.5],
         confidence: Confidence.handbook,
+        source: 'speed at 20 °C: Del Grosso and Mader, J. Acoust. Soc. Am. 52 (1972); absorption of a still water surface (a swimming pool): Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients; the table alone gives 1481.1523888888887 at the reference state; its point there is the quoted 1482.3, 1.0007748096142708 times it',
       ),
       source: 'speed at 20 °C: Del Grosso and Mader, J. Acoust. Soc. Am. 52 (1972); absorption of a still water surface (a swimming pool): Everest and Pohlmann, Master Handbook of Acoustics, 5th ed. (2009), table of absorption coefficients',
     ),
@@ -235,6 +241,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C; the polynomial law as published gives 1261.2001524079649 at the reference state; it is scaled by 0.9998413000445784 onto the quoted 1261.0',
       ),
       source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C',
     ),
@@ -251,6 +258,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'viscosity: Segur and Oberstar, Ind. Eng. Chem. 43 (1951), pure glycerol at 20 °C; surface tension: CRC Handbook (2016); the vft law as published gives 1.4124085035126235 at the reference state; it is scaled by 0.9997107752384614 onto the quoted 1.412',
       ),
       surfaceTension: ConstantLaw(0.0634, confidence: Confidence.handbook),
       bulkModulus: ConstantLaw(
@@ -298,6 +306,7 @@ abstract final class Materials {
         expression: '1930.0 [m/s] * (((2486.48 + (T / 1 [K]) * (-1.9))) / 1929.4950000000001)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 "Properties of sound in liquids" (NPL online edition, web.archive.org snapshot 2007-01-17); Kaye & Laby give 1920 m/s at 25 °C and dc/dt = -1.9 m/(s*K); carried to 20 °C with that slope; the polynomial law as published gives 1929.4950000000001 at the reference state; it is scaled by 1.0002617265139324 onto the quoted 1930.0',
       ),
       impedance: ConstantLaw(
         2434000.0,
@@ -332,6 +341,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C; the polynomial law as published gives 790.207271784775 at the reference state; it is scaled by 0.9988518559406244 onto the quoted 789.3',
       ),
       source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C',
     ),
@@ -348,6 +358,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), 20 °C; the andrade law as published gives 0.0011706594649976841 at the reference state; it is scaled by 1.0250632535588595 onto the quoted 0.0012',
       ),
       surfaceTension: FormulaLaw(
         0.0223,
@@ -361,6 +372,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), 20 °C; the polynomial law as published gives 0.022386020000000003 at the reference state; it is scaled by 0.996157423248974 onto the quoted 0.0223',
       ),
       bulkModulus: ConstantLaw(
         1065000000.0,
@@ -406,6 +418,7 @@ abstract final class Materials {
             '1162.0 [m/s] * (((2128.89 + (T / 1 [K]) * (-3.3))) / 1161.495)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 "Properties of sound in liquids" (NPL online edition, web.archive.org snapshot 2007-01-17); Kaye & Laby give 1145 m/s at 25 °C and dc/dt = -3.3 m/(s*K); carried to 20 °C with that slope; the polynomial law as published gives 1161.495 at the reference state; it is scaled by 1.0004347844803465 onto the quoted 1162.0',
       ),
       impedance: ConstantLaw(
         917200.0,
@@ -440,6 +453,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), olive oil at 20 °C; the polynomial law as published gives 914.89589 at the reference state; it is scaled by 0.9957417122072764 onto the quoted 911.0',
       ),
       source: 'Kaye and Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), olive oil at 20 °C',
     ),
@@ -500,7 +514,7 @@ abstract final class Materials {
           0.1594,
         ],
         confidence: Confidence.handbook,
-        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent',
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OOL (oils, edible: olive), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OOL.pdf; English units converted by this agent; the table alone gives 0.16545971223021583 at the reference state; its point there is the quoted 0.1655, 1.000243489906039 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00109,
@@ -572,6 +586,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C; the polynomial law as published gives 13546.05483 at the reference state; it is scaled by 0.999995952327029 onto the quoted 13546.0',
       ),
       source: 'CRC Handbook of Chemistry and Physics, 97th ed. (2016), 20 °C',
     ),
@@ -588,6 +603,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook (2016), 20 °C; the andrade law as published gives 0.0015673628324101207 at the reference state; it is scaled by 0.988922263530122 onto the quoted 0.00155',
       ),
       surfaceTension: ConstantLaw(0.4865, confidence: Confidence.handbook),
       bulkModulus: ConstantLaw(
@@ -647,6 +663,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Lesher and Spera (2015): a basaltic melt\'s 10 to 1000 Pa·s as it flows, the middle in the logarithm, and a silicate melt\'s surface tension, about 0.35 N/m; the vft law as published gives 91.30555676528013 at the reference state; it is scaled by 1.0952235936425068 onto the quoted 100.0',
       ),
       surfaceTension: ConstantLaw(0.35, confidence: Confidence.handbook),
       source: 'Lesher and Spera (2015): a basaltic melt\'s 10 to 1000 Pa·s as it flows, the middle in the logarithm, and a silicate melt\'s surface tension, about 0.35 N/m',
@@ -723,6 +740,7 @@ abstract final class Materials {
           0.35288,
         ],
         confidence: Confidence.handbook,
+        source: 'the ideal gas at 20 °C and 101 325 Pa (standard_world.dart); the table alone gives 1.2046 at the reference state; its point there is the quoted 1.204, 0.9995019093475013 times it',
       ),
       source: 'the ideal gas at 20 °C and 101 325 Pa (standard_world.dart)',
     ),
@@ -756,6 +774,7 @@ abstract final class Materials {
           0.00004328,
         ],
         confidence: Confidence.handbook,
+        source: 'Kadoya, Matsunaga and Nagashima, J. Phys. Chem. Ref. Data 14 (1985), dry air at 20 °C; the table alone gives 0.000018206 at the reference state; its point there is the quoted 0.0000181, 0.9941777436010105 times it',
       ),
       bulkModulus: ConstantLaw(
         142000.0,
@@ -794,6 +813,7 @@ abstract final class Materials {
           1141.0,
         ],
         confidence: Confidence.handbook,
+        source: 'specific heat: Lemmon and colleagues, J. Phys. Chem. Ref. Data 29 (2000); conductivity: Kadoya, Matsunaga and Nagashima (1985); dry air at 20 °C; the table alone gives 1006.1 at the reference state; its point there is the quoted 1005.0, 0.9989066693171653 times it',
       ),
       conductivity: TableLaw(
         0.0257,
@@ -824,6 +844,7 @@ abstract final class Materials {
           0.067677,
         ],
         confidence: Confidence.handbook,
+        source: 'specific heat: Lemmon and colleagues, J. Phys. Chem. Ref. Data 29 (2000); conductivity: Kadoya, Matsunaga and Nagashima (1985); dry air at 20 °C; the table alone gives 0.025874 at the reference state; its point there is the quoted 0.0257, 0.9932751024194172 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003421,
@@ -862,6 +883,7 @@ abstract final class Materials {
           619.52,
         ],
         confidence: Confidence.handbook,
+        source: 'an ideal diatomic gas at 20 °C (standard_world.dart); the table alone gives 343.34 at the reference state; its point there is the quoted 343.0, 0.9990097279664474 times it',
       ),
       impedance: ConstantLaw(
         413.6,
@@ -1052,6 +1074,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0],
         ys: <double>[482.0, 798.0, 903.0, 903.0, 949.0, 1033.0, 1146.0],
         confidence: Confidence.handbook,
+        source: 'Incropera and colleagues (2007), table A.1, pure aluminium at 300 K; melting point and heat of fusion: CRC Handbook (2016); the table alone gives 895.8075 at the reference state; its point there is the quoted 903.0, 1.0080290687452382 times it',
       ),
       conductivity: TableLaw(
         237.0,
@@ -1147,12 +1170,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[252.0, 356.0, 385.0, 385.0, 397.0, 417.0, 433.0, 451.0],
         confidence: Confidence.handbook,
+        source: 'Incropera and colleagues (2007), table A.1, pure copper at 300 K; melting point: CRC Handbook (2016); the table alone gives 383.0135 at the reference state; its point there is the quoted 385.0, 1.005186501259094 times it',
       ),
       conductivity: TableLaw(
         401.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[482.0, 413.0, 401.0, 401.0, 393.0, 379.0, 366.0, 352.0],
         confidence: Confidence.handbook,
+        source: 'Incropera and colleagues (2007), table A.1, pure copper at 300 K; melting point: CRC Handbook (2016); the table alone gives 401.822 at the reference state; its point there is the quoted 401.0, 0.9979543180811404 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000495,
@@ -1246,7 +1271,7 @@ abstract final class Materials {
       staticFriction: ConstantLaw(
         1.0,
         confidence: Confidence.estimate,
-        source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+        source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
         interval: PropertyInterval(0.41, 1.6),
       ),
       source: 'density: Incropera and colleagues (2007), table A.1, gold; modulus and Poisson\'s ratio: CRC Handbook (2016), "Elastic constants of metals"',
@@ -1257,12 +1282,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[109.0, 124.0, 129.0, 129.0, 131.0, 135.0, 140.0, 145.0],
         confidence: Confidence.handbook,
+        source: 'Incropera and colleagues (2007), table A.1, gold at 300 K; melting point: CRC Handbook (2016); the table alone gives 128.6575 at the reference state; its point there is the quoted 129.0, 1.0026621067563104 times it',
       ),
       conductivity: TableLaw(
         317.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[327.0, 323.0, 317.0, 317.0, 311.0, 298.0, 284.0, 270.0],
         confidence: Confidence.handbook,
+        source: 'Incropera and colleagues (2007), table A.1, gold at 300 K; melting point: CRC Handbook (2016); the table alone gives 317.411 at the reference state; its point there is the quoted 317.0, 0.998705148844873 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000426,
@@ -1995,12 +2022,12 @@ abstract final class Materials {
       specificHeat: ConstantLaw(2604.0, confidence: Confidence.handbook),
       conductivity: ConstantLaw(0.23, confidence: Confidence.handbook),
       emissivity: ConstantLaw(0.9, confidence: Confidence.estimate),
-      ignitionTemperature: ConstantLaw(472.15, confidence: Confidence.estimate),
+      ignitionTemperature: ConstantLaw(472.15, confidence: Confidence.handbook),
       heatOfCombustion: ConstantLaw(
         43800000.0,
-        confidence: Confidence.estimate,
+        confidence: Confidence.handbook,
       ),
-      radiantFraction: ConstantLaw(0.17, confidence: Confidence.estimate),
+      radiantFraction: ConstantLaw(0.17, confidence: Confidence.handbook),
       source: 'Hamins, Bundy and Dillon, J. Fire Protection Eng. 15 (2005): a candle\'s 43.8 MJ/kg, 0.17 radiated, the solid\'s specific heat and conductivity; it flashes at 199 °C (NOAA CAMEO Chemicals); its surface\'s emissivity not found openly, the 0.9 every preset starts from',
     ),
   );
@@ -2028,7 +2055,7 @@ abstract final class Materials {
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(2010.0, confidence: Confidence.handbook),
-      conductivity: ConstantLaw(0.16, confidence: Confidence.estimate),
+      conductivity: ConstantLaw(0.16, confidence: Confidence.handbook),
       volumetricExpansion: ConstantLaw(
         0.0002025,
         confidence: Confidence.estimate,
@@ -2094,7 +2121,7 @@ abstract final class Materials {
       staticFriction: ConstantLaw(
         0.2,
         confidence: Confidence.estimate,
-        source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.nylon66, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+        source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
         interval: PropertyInterval(0.04, 0.8),
       ),
       source: 'Ashby, Materials Selection in Mechanical Design, 4th ed. (2011), appendix C, ABS: typical values within its ranges',
@@ -2314,6 +2341,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 1104.8997236156365 at the reference state; it is scaled by 1.0003984763277183 onto the quoted 1105.34',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -2367,6 +2395,7 @@ abstract final class Materials {
           0.00032937,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0012473190000000006 at the reference state; its point there is the quoted 0.0012468, 0.9995839075649448 times it',
       ),
       surfaceTension: TableLaw(
         0.0726061,
@@ -2399,7 +2428,7 @@ abstract final class Materials {
           0.059548,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.07260048299171391 at the reference state; its point there is the quoted 0.0726061, 1.0000773687454219 times it',
       ),
       bulkModulus: ConstantLaw(
         2117000000.0,
@@ -2438,6 +2467,7 @@ abstract final class Materials {
           4162.8,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 4200.7755 at the reference state; its point there is the quoted 4199.6, 0.9997201707160976 times it',
       ),
       conductivity: TableLaw(
         0.5886,
@@ -2468,7 +2498,7 @@ abstract final class Materials {
           0.63569,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.5883547 at the reference state; its point there is the quoted 0.5886, 1.0004169253683195 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0001267,
@@ -2522,6 +2552,7 @@ abstract final class Materials {
           1454.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1382.88 at the reference state; its point there is the quoted 1384.0, 1.0008099039685294 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7789200; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7789200&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -2551,6 +2582,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 790.6670881276219 at the reference state; it is scaled by 1.0004362289483868 onto the quoted 791.012',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -2598,6 +2630,7 @@ abstract final class Materials {
           0.00032614,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0005875669500000002 at the reference state; its point there is the quoted 0.000585303, 0.9961469071737269 times it',
       ),
       surfaceTension: TableLaw(
         0.0225667,
@@ -2630,7 +2663,7 @@ abstract final class Materials {
           0.019079,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.02256891098111528 at the reference state; its point there is the quoted 0.0225667, 0.9999020342134748 times it',
       ),
       bulkModulus: ConstantLaw(
         985600000.0,
@@ -2667,6 +2700,7 @@ abstract final class Materials {
           2825.7,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2507.3305 at the reference state; its point there is the quoted 2504.6, 0.9989109931857806 times it',
       ),
       conductivity: TableLaw(
         0.2012,
@@ -2695,7 +2729,7 @@ abstract final class Materials {
           0.19263,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.201158425 at the reference state; its point there is the quoted 0.2012, 1.0002066778957928 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001184,
@@ -2762,6 +2796,7 @@ abstract final class Materials {
           976.91,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1116.60475 at the reference state; its point there is the quoted 1116.2, 0.999637517214574 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C67561; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C67561&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -2791,6 +2826,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 626.2843978606652 at the reference state; it is scaled by 0.9998556600468189 onto the quoted 626.194',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -2846,6 +2882,7 @@ abstract final class Materials {
           0.0002071,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.00023070125000000004 at the reference state; its point there is the quoted 0.000230489, 0.9990799789771402 times it',
       ),
       surfaceTension: TableLaw(
         0.0160063,
@@ -2878,7 +2915,7 @@ abstract final class Materials {
           0.014408,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.016007903991171604 at the reference state; its point there is the quoted 0.0160063, 0.9998998000504946 times it',
       ),
       bulkModulus: ConstantLaw(
         663600000.0,
@@ -2919,6 +2956,7 @@ abstract final class Materials {
           2348.2,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2294.2825 at the reference state; its point there is the quoted 2293.7, 0.9997461079880093 times it',
       ),
       conductivity: TableLaw(
         0.1138,
@@ -2951,7 +2989,7 @@ abstract final class Materials {
           0.10943,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.1138293125 at the reference state; its point there is the quoted 0.1138, 0.9997424872437843 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001583,
@@ -3022,6 +3060,7 @@ abstract final class Materials {
           971.64,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1029.52725 at the reference state; its point there is the quoted 1029.5, 0.9999735315408115 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C109660; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C109660&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3051,6 +3090,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 620.5863280788958 at the reference state; it is scaled by 0.9991567199352975 onto the quoted 620.063',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3108,6 +3148,7 @@ abstract final class Materials {
           0.0002135,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.00023146955555555562 at the reference state; its point there is the quoted 0.000231353, 0.9994964540573128 times it',
       ),
       surfaceTension: TableLaw(
         0.0149896,
@@ -3140,7 +3181,7 @@ abstract final class Materials {
           0.014269,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.014994994823123383 at the reference state; its point there is the quoted 0.0149896, 0.9996402250759658 times it',
       ),
       bulkModulus: ConstantLaw(
         601100000.0,
@@ -3181,6 +3222,7 @@ abstract final class Materials {
           2252.3,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2248.0641666666666 at the reference state; its point there is the quoted 2247.9, 0.9999269742078093 times it',
       ),
       conductivity: TableLaw(
         0.1032,
@@ -3213,7 +3255,7 @@ abstract final class Materials {
           0.10297,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.10323633333333335 at the reference state; its point there is the quoted 0.1032, 0.9996480567242152 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001629,
@@ -3284,6 +3326,7 @@ abstract final class Materials {
           980.49,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 984.5988055555557 at the reference state; its point there is the quoted 984.58, 0.9999809002860357 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C78784; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C78784&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3313,6 +3356,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 659.0754993061671 at the reference state; it is scaled by 1.000468080962132 onto the quoted 659.384',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3362,6 +3406,7 @@ abstract final class Materials {
           0.00020001,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.00031372615000000006 at the reference state; its point there is the quoted 0.000313173, 0.9982368380831497 times it',
       ),
       surfaceTension: TableLaw(
         0.0184051,
@@ -3394,7 +3439,7 @@ abstract final class Materials {
           0.013706,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.018406681547432444 at the reference state; its point there is the quoted 0.0184051, 0.9999140775360095 times it',
       ),
       bulkModulus: ConstantLaw(
         798900000.0,
@@ -3431,6 +3476,7 @@ abstract final class Materials {
           2457.6,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2252.8754999999996 at the reference state; its point there is the quoted 2252.0, 0.9996113855381713 times it',
       ),
       conductivity: TableLaw(
         0.1216,
@@ -3459,7 +3505,7 @@ abstract final class Materials {
           0.10842,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.12161445000000001 at the reference state; its point there is the quoted 0.1216, 0.9998811818825805 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001369,
@@ -3526,6 +3572,7 @@ abstract final class Materials {
           895.26,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1100.92225 at the reference state; its point there is the quoted 1100.8, 0.9998889567360455 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110543; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110543&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3555,6 +3602,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 778.6934320168465 at the reference state; it is scaled by 0.9999788979639858 onto the quoted 778.677',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3571,6 +3619,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the andrade law as published gives 0.0009732451541052555 at the reference state; it is scaled by 0.9992477187251668 onto the quoted 0.000972513',
       ),
       surfaceTension: TableLaw(
         0.0250215,
@@ -3603,7 +3652,7 @@ abstract final class Materials {
           0.017906,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.025021988219178087 at the reference state; its point there is the quoted 0.0250215, 0.9999804883938953 times it',
       ),
       bulkModulus: ConstantLaw(
         1277000000.0,
@@ -3642,6 +3691,7 @@ abstract final class Materials {
           2123.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1835.5493749999998 at the reference state; its point there is the quoted 1835.5, 0.9999731006963516 times it',
       ),
       conductivity: TableLaw(
         0.1197,
@@ -3672,7 +3722,7 @@ abstract final class Materials {
           0.10532,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.11970312500000001 at the reference state; its point there is the quoted 0.1197, 0.9999738937475525 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001207,
@@ -3736,6 +3786,7 @@ abstract final class Materials {
           997.94,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1280.4575000000002 at the reference state; its point there is the quoted 1280.4, 0.9999550941753239 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C110827; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C110827&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3765,6 +3816,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 683.6291179052769 at the reference state; it is scaled by 1.0003172511074245 onto the quoted 683.846',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -3822,6 +3874,7 @@ abstract final class Materials {
           0.00019655,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.00041263066666666673 at the reference state; its point there is the quoted 0.000412293, 0.9991816733608423 times it',
       ),
       surfaceTension: TableLaw(
         0.0202353,
@@ -3854,7 +3907,7 @@ abstract final class Materials {
           0.012967,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.020236566372639212 at the reference state; its point there is the quoted 0.0202353, 0.9999374215656999 times it',
       ),
       bulkModulus: ConstantLaw(
         910800000.0,
@@ -3895,6 +3948,7 @@ abstract final class Materials {
           2523.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2227.9083333333333 at the reference state; its point there is the quoted 2227.8, 0.9999513744207011 times it',
       ),
       conductivity: TableLaw(
         0.1237,
@@ -3927,7 +3981,7 @@ abstract final class Materials {
           0.10305,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.12372244444444445 at the reference state; its point there is the quoted 0.1237, 0.9998185903572692 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001237,
@@ -3998,6 +4052,7 @@ abstract final class Materials {
           854.91,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1154.1166666666668 at the reference state; its point there is the quoted 1154.1, 0.9999855589411814 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C142825; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C142825&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4027,6 +4082,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 702.7931908788714 at the reference state; it is scaled by 0.999739338853522 onto the quoted 702.61',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4082,6 +4138,7 @@ abstract final class Materials {
           0.00020184,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0005453425000000002 at the reference state; its point there is the quoted 0.000544094, 0.997710613055098 times it',
       ),
       surfaceTension: TableLaw(
         0.0216329,
@@ -4114,7 +4171,7 @@ abstract final class Materials {
           0.012381,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.021637743784765583 at the reference state; its point there is the quoted 0.0216329, 0.9997761418744133 times it',
       ),
       bulkModulus: ConstantLaw(
         1000000000.0,
@@ -4155,6 +4212,7 @@ abstract final class Materials {
           2643.8,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2210.175 at the reference state; its point there is the quoted 2209.8, 0.9998303301774746 times it',
       ),
       conductivity: TableLaw(
         0.1262,
@@ -4187,7 +4245,7 @@ abstract final class Materials {
           0.09674,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.1262135 at the reference state; its point there is the quoted 0.1262, 0.9998930383833742 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001146,
@@ -4258,6 +4316,7 @@ abstract final class Materials {
           778.49,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1193.0925000000002 at the reference state; its point there is the quoted 1193.0, 0.9999224703868307 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111659; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111659&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4287,6 +4346,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 718.3829100450802 at the reference state; it is scaled by 0.9995087438187275 onto the quoted 718.03',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4342,6 +4402,7 @@ abstract final class Materials {
           0.00021336,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0007000442000000002 at the reference state; its point there is the quoted 0.000698325, 0.9975441550690652 times it',
       ),
       surfaceTension: TableLaw(
         0.0228602,
@@ -4374,7 +4435,7 @@ abstract final class Materials {
           0.011402,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.02286386074429772 at the reference state; its point there is the quoted 0.0228602, 0.9998398894946632 times it',
       ),
       bulkModulus: ConstantLaw(
         1079000000.0,
@@ -4415,6 +4476,7 @@ abstract final class Materials {
           2719.7,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2190.27175 at the reference state; its point there is the quoted 2189.5, 0.9996476464621342 times it',
       ),
       conductivity: TableLaw(
         0.1281,
@@ -4447,7 +4509,7 @@ abstract final class Materials {
           0.098187,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.12818220000000002 at the reference state; its point there is the quoted 0.1281, 0.999358725314435 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001096,
@@ -4518,6 +4580,7 @@ abstract final class Materials {
           762.2,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1226.0215 at the reference state; its point there is the quoted 1225.6, 0.9996562050502376 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C111842; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C111842&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4547,6 +4610,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 730.8278497687455 at the reference state; it is scaled by 0.9994282514426923 onto the quoted 730.41',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4602,6 +4666,7 @@ abstract final class Materials {
           0.00020577,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0009161766500000003 at the reference state; its point there is the quoted 0.000913499, 0.9970773649383006 times it',
       ),
       surfaceTension: TableLaw(
         0.0238603,
@@ -4634,7 +4699,7 @@ abstract final class Materials {
           0.010627,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.023864155734829886 at the reference state; its point there is the quoted 0.0238603, 0.9998384298664186 times it',
       ),
       bulkModulus: ConstantLaw(
         1148000000.0,
@@ -4675,6 +4740,7 @@ abstract final class Materials {
           2801.8,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2174.729 at the reference state; its point there is the quoted 2174.2, 0.9997567513009668 times it',
       ),
       conductivity: TableLaw(
         0.1308,
@@ -4707,7 +4773,7 @@ abstract final class Materials {
           0.095387,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.130816925 at the reference state; its point there is the quoted 0.1308, 0.9998706207167001 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001064,
@@ -4778,6 +4844,7 @@ abstract final class Materials {
           711.36,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1253.9555 at the reference state; its point there is the quoted 1253.4, 0.99955700182343 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124185; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124185&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4807,6 +4874,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 749.6375013550714 at the reference state; it is scaled by 0.9997325355859212 onto the quoted 749.437',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -4862,6 +4930,7 @@ abstract final class Materials {
           0.00020125,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.001501121818181819 at the reference state; its point there is the quoted 0.00148853, 0.9916117279561826 times it',
       ),
       surfaceTension: TableLaw(
         0.0253896,
@@ -4894,7 +4963,7 @@ abstract final class Materials {
           0.0098792,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.025397895996421383 at the reference state; its point there is the quoted 0.0253896, 0.9996733589104171 times it',
       ),
       bulkModulus: ConstantLaw(
         1269000000.0,
@@ -4935,6 +5004,7 @@ abstract final class Materials {
           2945.2,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2197.219772727273 at the reference state; its point there is the quoted 2196.4, 0.9996269045375215 times it',
       ),
       conductivity: TableLaw(
         0.1365,
@@ -4967,7 +5037,7 @@ abstract final class Materials {
           0.095953,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.13654120454545454 at the reference state; its point there is the quoted 0.1365, 0.9996982262929955 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0009901,
@@ -5038,6 +5108,7 @@ abstract final class Materials {
           648.23,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1301.7322727272729 at the reference state; its point there is the quoted 1301.2, 0.9995911043012266 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C112403; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C112403&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5067,6 +5138,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 878.9430198394515 at the reference state; it is scaled by 0.9999703964433824 onto the quoted 878.917',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5083,6 +5155,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the andrade law as published gives 0.0006486184312841307 at the reference state; it is scaled by 0.9980968297775831 onto the quoted 0.000647384',
       ),
       surfaceTension: TableLaw(
         0.0288714,
@@ -5115,7 +5188,7 @@ abstract final class Materials {
           0.021375,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.028871962732919254 at the reference state; its point there is the quoted 0.0288714, 0.9999805093638953 times it',
       ),
       bulkModulus: ConstantLaw(
         1542000000.0,
@@ -5154,6 +5227,7 @@ abstract final class Materials {
           1901.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1720.525625 at the reference state; its point there is the quoted 1720.3, 0.9998688627494287 times it',
       ),
       conductivity: TableLaw(
         0.143,
@@ -5184,7 +5258,7 @@ abstract final class Materials {
           0.12414,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.14296968750000003 at the reference state; its point there is the quoted 0.143, 1.000212020467625 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001194,
@@ -5253,6 +5327,7 @@ abstract final class Materials {
           1056.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1324.7731250000002 at the reference state; its point there is the quoted 1324.8, 1.0000202864924512 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C71432; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C71432&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5282,6 +5357,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 866.6886337833957 at the reference state; it is scaled by 1.0002346473793207 onto the quoted 866.892',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5337,6 +5413,7 @@ abstract final class Materials {
           0.00025575,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0005886902000000002 at the reference state; its point there is the quoted 0.000587142, 0.9973700938116514 times it',
       ),
       surfaceTension: TableLaw(
         0.0285214,
@@ -5369,7 +5446,7 @@ abstract final class Materials {
           0.018372,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.028526430693069312 at the reference state; its point there is the quoted 0.0285214, 0.9998236480012714 times it',
       ),
       bulkModulus: ConstantLaw(
         1520000000.0,
@@ -5410,6 +5487,7 @@ abstract final class Materials {
           1988.8,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1685.902 at the reference state; its point there is the quoted 1685.4, 0.9997022365475574 times it',
       ),
       conductivity: TableLaw(
         0.1318,
@@ -5442,7 +5520,7 @@ abstract final class Materials {
           0.1082,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.13177375000000002 at the reference state; its point there is the quoted 0.1318, 1.0001992050768835 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001072,
@@ -5513,6 +5591,7 @@ abstract final class Materials {
           974.19,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1324.69475 at the reference state; its point there is the quoted 1324.3, 0.9997020068208166 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C108883; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C108883&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5542,6 +5621,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 1488.5158658878943 at the reference state; it is scaled by 0.9997273351952803 onto the quoted 1488.11',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5595,6 +5675,7 @@ abstract final class Materials {
           0.00040722,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0004199147142857144 at the reference state; its point there is the quoted 0.000419512, 0.9990409617190971 times it',
       ),
       surfaceTension: TableLaw(
         0.0184502,
@@ -5627,7 +5708,7 @@ abstract final class Materials {
           0.017973,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.018452932285821178 at the reference state; its point there is the quoted 0.0184502, 0.9998519321602195 times it',
       ),
       bulkModulus: ConstantLaw(
         834100000.0,
@@ -5666,6 +5747,7 @@ abstract final class Materials {
           876.0,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 872.19 at the reference state; its point there is the quoted 876.0, 1.004368314243456 times it',
       ),
       conductivity: TableLaw(
         0.08818,
@@ -5696,7 +5778,7 @@ abstract final class Materials {
           0.08818,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.089386 at the reference state; its point there is the quoted 0.08818, 0.9865079542657686 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001586,
@@ -5755,6 +5837,7 @@ abstract final class Materials {
           748.67,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 762.7 at the reference state; its point there is the quoted 748.67, 0.9816048249639437 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75694; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75694&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5784,6 +5867,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 1574.981360792356 at the reference state; it is scaled by 1.0000816766539886 onto the quoted 1575.11',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -5800,6 +5884,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the andrade law as published gives 0.0006967904997218938 at the reference state; it is scaled by 0.9992171252017478 onto the quoted 0.000696245',
       ),
       surfaceTension: TableLaw(
         0.0177561,
@@ -5832,7 +5917,7 @@ abstract final class Materials {
           0.015089,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.01775659538228615 at the reference state; its point there is the quoted 0.0177561, 0.9999721015050754 times it',
       ),
       bulkModulus: ConstantLaw(
         807300000.0,
@@ -5873,6 +5958,7 @@ abstract final class Materials {
           937.49,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 913.0875625 at the reference state; its point there is the quoted 913.07, 0.9999807658096318 times it',
       ),
       conductivity: TableLaw(
         0.07337,
@@ -5905,7 +5991,7 @@ abstract final class Materials {
           0.068067,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0733688125 at the reference state; its point there is the quoted 0.07337, 1.0000161853512348 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001505,
@@ -5971,6 +6057,7 @@ abstract final class Materials {
           634.48,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 715.9349375000002 at the reference state; its point there is the quoted 715.91, 0.9999651679242149 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C76131; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C76131&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6000,6 +6087,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 1476.725791451478 at the reference state; it is scaled by 0.9999689912292837 onto the quoted 1476.68',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6016,6 +6104,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the andrade law as published gives 0.00045006345605453474 at the reference state; it is scaled by 0.9837612764239869 onto the quoted 0.000442755',
       ),
       surfaceTension: TableLaw(
         0.0157794,
@@ -6048,7 +6137,7 @@ abstract final class Materials {
           0.015337,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.015782616566057926 at the reference state; its point there is the quoted 0.0157794, 0.9997961956406618 times it',
       ),
       bulkModulus: ConstantLaw(
         771300000.0,
@@ -6089,6 +6178,7 @@ abstract final class Materials {
           1023.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1013.529837577702 at the reference state; its point there is the quoted 1013.5, 0.9999705607308284 times it',
       ),
       conductivity: TableLaw(
         0.07788,
@@ -6121,7 +6211,7 @@ abstract final class Materials {
           0.075686,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.07788635291758574 at the reference state; its point there is the quoted 0.07788, 0.999918433495115 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001717,
@@ -6172,6 +6262,7 @@ abstract final class Materials {
           692.67,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 722.7454120713857 at the reference state; its point there is the quoted 722.7, 0.9999371672643961 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C306832; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C306832&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6201,6 +6292,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the polynomial law as published gives 1243.5720433352242 at the reference state; it is scaled by 0.9999420674213365 onto the quoted 1243.5',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6254,6 +6346,7 @@ abstract final class Materials {
           0.00038223,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0004331510000000001 at the reference state; its point there is the quoted 0.000432658, 0.9988618287848807 times it',
       ),
       surfaceTension: TableLaw(
         0.0188143,
@@ -6286,7 +6379,7 @@ abstract final class Materials {
           0.017464,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=SatP&TLow=293.15&THigh=294.15&TInc=1); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.018816227303396056 at the reference state; its point there is the quoted 0.0188143, 0.9998975722728589 times it',
       ),
       bulkModulus: ConstantLaw(
         876300000.0,
@@ -6325,6 +6418,7 @@ abstract final class Materials {
           1152.3,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1147.5974999999999 at the reference state; its point there is the quoted 1147.3, 0.9997407627674338 times it',
       ),
       conductivity: TableLaw(
         0.09204,
@@ -6355,7 +6449,7 @@ abstract final class Materials {
           0.090959,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.09205075 at the reference state; its point there is the quoted 0.09204, 0.9998832165951934 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.001548,
@@ -6414,6 +6508,7 @@ abstract final class Materials {
           825.05,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 839.537 at the reference state; its point there is the quoted 839.45, 0.9998963714523601 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1717006; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1717006&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6474,6 +6569,7 @@ abstract final class Materials {
           0.56873,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.1666412000000002 at the reference state; its point there is the quoted 1.16483, 0.9984475089684813 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6521,6 +6617,7 @@ abstract final class Materials {
           0.000029577,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000017568597999999998 at the reference state; its point there is the quoted 0.0000175729, 1.0002448687140546 times it',
       ),
       bulkModulus: ConstantLaw(
         142000.0,
@@ -6573,6 +6670,7 @@ abstract final class Materials {
           1075.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1041.4 at the reference state; its point there is the quoted 1041.3, 0.9999039754177068 times it',
       ),
       conductivity: TableLaw(
         0.02547,
@@ -6617,7 +6715,7 @@ abstract final class Materials {
           0.04484,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.025468579999999998 at the reference state; its point there is the quoted 0.02547, 1.000055754973383 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003421,
@@ -6685,6 +6783,7 @@ abstract final class Materials {
           496.27,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 349.0363 at the reference state; its point there is the quoted 349.1, 1.000182502507619 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6741,6 +6840,7 @@ abstract final class Materials {
           0.64977,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.3332238 at the reference state; its point there is the quoted 1.33118, 0.9984670240660269 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -6788,6 +6888,7 @@ abstract final class Materials {
           0.000034727,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000020267578 at the reference state; its point there is the quoted 0.0000202727, 1.0002527188991206 times it',
       ),
       bulkModulus: ConstantLaw(
         141500.0,
@@ -6840,6 +6941,7 @@ abstract final class Materials {
           1003.3,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 919.068 at the reference state; its point there is the quoted 918.95, 0.9998716090648353 times it',
       ),
       conductivity: TableLaw(
         0.02595,
@@ -6884,7 +6986,7 @@ abstract final class Materials {
           0.04766,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.025944739999999997 at the reference state; its point there is the quoted 0.02595, 1.0002027385897876 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003426,
@@ -6952,6 +7054,7 @@ abstract final class Materials {
           458.88,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 325.9251 at the reference state; its point there is the quoted 326.0, 1.0002298074005347 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7008,6 +7111,7 @@ abstract final class Materials {
           0.040931,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.08387873800000001 at the reference state; its point there is the quoted 0.0837523, 0.9984926096527584 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7055,6 +7159,7 @@ abstract final class Materials {
           0.000014467,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0000087953898 at the reference state; its point there is the quoted 0.00000879677, 1.000156923118973 times it',
       ),
       bulkModulus: ConstantLaw(
         142600.0,
@@ -7107,6 +7212,7 @@ abstract final class Materials {
           14549.0,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 14283.956 at the reference state; its point there is the quoted 14288.0, 1.0002831148457751 times it',
       ),
       conductivity: TableLaw(
         0.1834,
@@ -7151,7 +7257,7 @@ abstract final class Materials {
           0.309,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.1833298 at the reference state; its point there is the quoted 0.1834, 1.0003829164707538 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00341,
@@ -7224,6 +7330,7 @@ abstract final class Materials {
           1859.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1304.4766 at the reference state; its point there is the quoted 1304.7, 1.0001712564257574 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C1333740; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C1333740&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7280,6 +7387,7 @@ abstract final class Materials {
           0.081279,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.16656424 at the reference state; its point there is the quoted 0.166311, 0.9984796256387325 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7327,6 +7435,7 @@ abstract final class Materials {
           0.000032215,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000019615174 at the reference state; its point there is the quoted 0.0000196176, 1.0001236797593536 times it',
       ),
       bulkModulus: ConstantLaw(
         168900.0,
@@ -7423,7 +7532,7 @@ abstract final class Materials {
           0.2524,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.1535066 at the reference state; its point there is the quoted 0.1535, 0.9999570051059694 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003409,
@@ -7486,6 +7595,7 @@ abstract final class Materials {
           1441.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1007.71662 at the reference state; its point there is the quoted 1007.9, 1.000181975762194 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7542,6 +7652,7 @@ abstract final class Materials {
           0.40974,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.83973204 at the reference state; its point there is the quoted 0.838467, 0.9984935194326989 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7589,6 +7700,7 @@ abstract final class Materials {
           0.000050103,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000031349978 at the reference state; its point there is the quoted 0.0000313569, 1.0002207976031114 times it',
       ),
       bulkModulus: ConstantLaw(
         169000.0,
@@ -7685,7 +7797,7 @@ abstract final class Materials {
           0.07742,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.048448279999999996 at the reference state; its point there is the quoted 0.04846, 1.0002419074526485 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00341,
@@ -7753,6 +7865,7 @@ abstract final class Materials {
           642.08,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 448.84632 at the reference state; its point there is the quoted 448.93, 1.0001864335213888 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440019; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440019&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7809,6 +7922,7 @@ abstract final class Materials {
           0.81118,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.6643794 at the reference state; its point there is the quoted 1.66182, 0.9984622496529337 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -7856,6 +7970,7 @@ abstract final class Materials {
           0.000038997,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000022301504 at the reference state; its point there is the quoted 0.0000223065, 1.000224020765595 times it',
       ),
       bulkModulus: ConstantLaw(
         169100.0,
@@ -7908,6 +8023,7 @@ abstract final class Materials {
           520.57,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 521.61672 at the reference state; its point there is the quoted 521.61, 0.9999871169773853 times it',
       ),
       conductivity: TableLaw(
         0.0175,
@@ -7952,7 +8068,7 @@ abstract final class Materials {
           0.03057,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.01749476 at the reference state; its point there is the quoted 0.0175, 1.000299518255752 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003424,
@@ -8020,6 +8136,7 @@ abstract final class Materials {
           456.4,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 318.89702 at the reference state; its point there is the quoted 318.96, 1.0001974932221065 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440371; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440371&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8076,6 +8193,7 @@ abstract final class Materials {
           1.7019,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 3.4966250000000003 at the reference state; its point there is the quoted 3.49124, 0.9984599435169627 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8123,6 +8241,7 @@ abstract final class Materials {
           0.000044741,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000024953823999999997 at the reference state; its point there is the quoted 0.00002496, 1.0002474971371123 times it',
       ),
       bulkModulus: ConstantLaw(
         169100.0,
@@ -8175,6 +8294,7 @@ abstract final class Materials {
           248.27,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 249.26946 at the reference state; its point there is the quoted 249.26, 0.9999620491014021 times it',
       ),
       conductivity: TableLaw(
         0.009298,
@@ -8219,7 +8339,7 @@ abstract final class Materials {
           0.01665,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.009295816 at the reference state; its point there is the quoted 0.009298, 1.000234944409399 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003437,
@@ -8287,6 +8407,7 @@ abstract final class Materials {
           315.11,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 220.0333 at the reference state; its point there is the quoted 220.07, 1.000166792935433 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7439909; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7439909&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8343,6 +8464,7 @@ abstract final class Materials {
           2.6678,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 5.497186200000001 at the reference state; its point there is the quoted 5.48852, 0.9984235207459409 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8390,6 +8512,7 @@ abstract final class Materials {
           0.000043295,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000022668371999999998 at the reference state; its point there is the quoted 0.0000226714, 1.0001335781855 times it',
       ),
       bulkModulus: ConstantLaw(
         169000.0,
@@ -8442,6 +8565,7 @@ abstract final class Materials {
           158.59,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 160.20344 at the reference state; its point there is the quoted 160.19, 0.9999161066703686 times it',
       ),
       conductivity: TableLaw(
         0.005396,
@@ -8486,7 +8610,7 @@ abstract final class Materials {
           0.01029,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.005395056 at the reference state; its point there is the quoted 0.005396, 1.000174975014161 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003467,
@@ -8554,6 +8678,7 @@ abstract final class Materials {
           251.71,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 175.4602 at the reference state; its point there is the quoted 175.5, 1.0002268320678993 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440633; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440633&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8572,6 +8697,7 @@ abstract final class Materials {
         xs: <double>[200.0, 225.0, 250.0, 275.0, 293.15, 300.0],
         ys: <double>[2.3203, 2.061, 1.854, 1.6849, 1.58029, 1.5441],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.5826792 at the reference state; its point there is the quoted 1.58029, 0.9984904079108388 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8588,6 +8714,7 @@ abstract final class Materials {
           0.000022865,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000022447149999999997 at the reference state; its point there is the quoted 0.000022453, 1.0002606121489812 times it',
       ),
       bulkModulus: ConstantLaw(
         138200.0,
@@ -8602,13 +8729,14 @@ abstract final class Materials {
         xs: <double>[200.0, 225.0, 250.0, 275.0, 293.15, 300.0],
         ys: <double>[784.38, 792.7, 802.86, 814.02, 822.39, 825.56],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 822.3980399999999 at the reference state; its point there is the quoted 822.39, 0.9999902237121091 times it',
       ),
       conductivity: TableLaw(
         0.02504,
         xs: <double>[200.0, 225.0, 250.0, 275.0, 293.15, 300.0],
         ys: <double>[0.01752, 0.01958, 0.0216, 0.0236, 0.02504, 0.02557],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.02503022 at the reference state; its point there is the quoted 0.02504, 1.0003907276883703 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00342,
@@ -8638,6 +8766,7 @@ abstract final class Materials {
         xs: <double>[200.0, 225.0, 250.0, 275.0, 293.15, 300.0],
         ys: <double>[246.33, 260.79, 274.27, 286.95, 295.73, 298.96],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 295.66925999999995 at the reference state; its point there is the quoted 295.73, 1.000205432245476 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782414; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782414&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8690,6 +8819,7 @@ abstract final class Materials {
           0.68244,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.1666686000000002 at the reference state; its point there is the quoted 1.16489, 0.9984754882406194 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8729,6 +8859,7 @@ abstract final class Materials {
           0.000025949,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000017532694 at the reference state; its point there is the quoted 0.0000175371, 1.0002513019391086 times it',
       ),
       bulkModulus: ConstantLaw(
         141900.0,
@@ -8773,6 +8904,7 @@ abstract final class Materials {
           1064.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1042.1452 at the reference state; its point there is the quoted 1042.1, 0.9999566279247843 times it',
       ),
       conductivity: TableLaw(
         0.02454,
@@ -8809,7 +8941,7 @@ abstract final class Materials {
           0.03787,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.02453406 at the reference state; its point there is the quoted 0.02454, 1.0002421123939536 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003421,
@@ -8879,6 +9011,7 @@ abstract final class Materials {
           454.0,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 348.99904 at the reference state; its point there is the quoted 349.07, 1.0002033243415225 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C630080; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C630080&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8933,6 +9066,7 @@ abstract final class Materials {
           0.90685,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.840157944 at the reference state; its point there is the quoted 1.83934, 0.9995555033725952 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -8978,6 +9112,7 @@ abstract final class Materials {
           0.000027555,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.00001467434776 at the reference state; its point there is the quoted 0.0000146748, 1.0000308184055193 times it',
       ),
       bulkModulus: ConstantLaw(
         130700.0,
@@ -9028,6 +9163,7 @@ abstract final class Materials {
           1071.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 846.0444623999999 at the reference state; its point there is the quoted 846.05, 1.0000065452824836 times it',
       ),
       conductivity: TableLaw(
         0.01625,
@@ -9070,7 +9206,7 @@ abstract final class Materials {
           0.04029,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.016250277599999998 at the reference state; its point there is the quoted 0.01625, 0.9999829172149036 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003471,
@@ -9126,6 +9262,7 @@ abstract final class Materials {
           368.39,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 266.54441760000003 at the reference state; its point there is the quoted 266.56, 1.0000584608004184 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C124389; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C124389&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9176,6 +9313,7 @@ abstract final class Materials {
           1.0224,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.8432032000000003 at the reference state; its point there is the quoted 1.84028, 0.9984140652533587 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9217,6 +9355,7 @@ abstract final class Materials {
           0.000024537,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000014602007999999999 at the reference state; its point there is the quoted 0.0000146047, 1.000184358206077 times it',
       ),
       bulkModulus: ConstantLaw(
         129200.0,
@@ -9263,6 +9402,7 @@ abstract final class Materials {
           1059.4,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 878.21632 at the reference state; its point there is the quoted 878.31, 1.0001066707573825 times it',
       ),
       conductivity: TableLaw(
         0.017,
@@ -9301,7 +9441,7 @@ abstract final class Materials {
           0.03658,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.017006519999999997 at the reference state; its point there is the quoted 0.017, 0.9996166176266517 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003472,
@@ -9358,6 +9498,7 @@ abstract final class Materials {
           347.38,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 264.94381999999996 at the reference state; its point there is the quoted 264.99, 1.0001743011027773 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C10024972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C10024972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9418,6 +9559,7 @@ abstract final class Materials {
           0.32579,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.66918246 at the reference state; its point there is the quoted 0.66816, 0.9984720759118522 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9465,6 +9607,7 @@ abstract final class Materials {
           0.000019395,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000010911594 at the reference state; its point there is the quoted 0.0000109138, 1.0002021702786963 times it',
       ),
       bulkModulus: ConstantLaw(
         132300.0,
@@ -9517,6 +9660,7 @@ abstract final class Materials {
           3273.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2221.7616000000003 at the reference state; its point there is the quoted 2220.6, 0.9994771716281349 times it',
       ),
       conductivity: TableLaw(
         0.03327,
@@ -9561,7 +9705,7 @@ abstract final class Materials {
           0.08874,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.033286619999999996 at the reference state; its point there is the quoted 0.03327, 0.9995007002813745 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003434,
@@ -9639,6 +9783,7 @@ abstract final class Materials {
           608.04,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 444.88746 at the reference state; its point there is the quoted 445.01, 1.000275440445096 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9695,6 +9840,7 @@ abstract final class Materials {
           0.61105,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.26211 at the reference state; its point there is the quoted 1.2601, 0.9984074288294997 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9742,6 +9888,7 @@ abstract final class Materials {
           0.000017259,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0000090850454 at the reference state; its point there is the quoted 0.00000908599, 1.0001039730632497 times it',
       ),
       bulkModulus: ConstantLaw(
         120300.0,
@@ -9794,6 +9941,7 @@ abstract final class Materials {
           2967.4,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1738.5892 at the reference state; its point there is the quoted 1737.8, 0.9995460687320501 times it',
       ),
       conductivity: TableLaw(
         0.02011,
@@ -9838,7 +9986,7 @@ abstract final class Materials {
           0.07388,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.020139779999999996 at the reference state; its point there is the quoted 0.02011, 0.9985213343939211 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003496,
@@ -9921,6 +10069,7 @@ abstract final class Materials {
           427.63,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 308.90007999999995 at the reference state; its point there is the quoted 308.97, 1.0002263515114664 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74840; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74840&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -9965,6 +10114,7 @@ abstract final class Materials {
           0.76079,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.1752262 at the reference state; its point there is the quoted 1.17333, 0.9983865233773719 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10000,6 +10150,7 @@ abstract final class Materials {
           0.000015092,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000010148593199999999 at the reference state; its point there is the quoted 0.0000101494, 1.0000794987033277 times it',
       ),
       bulkModulus: ConstantLaw(
         125900.0,
@@ -10040,6 +10191,7 @@ abstract final class Materials {
           2065.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1521.754 at the reference state; its point there is the quoted 1521.1, 0.9995702327708683 times it',
       ),
       conductivity: TableLaw(
         0.0202,
@@ -10072,7 +10224,7 @@ abstract final class Materials {
           0.04541,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.02023512 at the reference state; its point there is the quoted 0.0202, 0.9982644036704502 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003477,
@@ -10143,6 +10295,7 @@ abstract final class Materials {
           394.34,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 327.45076 at the reference state; its point there is the quoted 327.52, 1.0002114516393243 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74851; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74851&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10197,6 +10350,7 @@ abstract final class Materials {
           0.87922,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74986; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74986&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.867817 at the reference state; its point there is the quoted 1.86499, 0.9984864684281168 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74986; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74986&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10251,6 +10405,7 @@ abstract final class Materials {
           2952.6,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74986; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74986&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1664.5824 at the reference state; its point there is the quoted 1664.0, 0.99965012245714 times it',
       ),
       conductivity: ConstantLaw(
         0.01776,
@@ -10336,6 +10491,7 @@ abstract final class Materials {
           350.75,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74986; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74986&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 246.52689999999998 at the reference state; its point there is the quoted 246.59, 1.0002559558409245 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74986; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74986&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10386,6 +10542,7 @@ abstract final class Materials {
           0.92399,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.7800746 at the reference state; its point there is the quoted 1.77629, 0.9978739093294179 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10427,6 +10584,7 @@ abstract final class Materials {
           0.000015479,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0000084112176 at the reference state; its point there is the quoted 0.00000841257, 1.0001607852827394 times it',
       ),
       bulkModulus: ConstantLaw(
         115700.0,
@@ -10473,6 +10631,7 @@ abstract final class Materials {
           2440.2,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1534.7697999999998 at the reference state; its point there is the quoted 1534.1, 0.9995635827600987 times it',
       ),
       conductivity: TableLaw(
         0.01694,
@@ -10511,7 +10670,7 @@ abstract final class Materials {
           0.05069,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.01695958 at the reference state; its point there is the quoted 0.01694, 0.9988454902774716 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00358,
@@ -10588,6 +10747,7 @@ abstract final class Materials {
           345.28,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 255.10356000000002 at the reference state; its point there is the quoted 255.18, 1.000299643015566 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C115071; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C115071&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10634,6 +10794,7 @@ abstract final class Materials {
           1.2853,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 2.5020178000000004 at the reference state; its point there is the quoted 2.49575, 0.9974949019147664 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10671,6 +10832,7 @@ abstract final class Materials {
           0.000013434,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0000072483434 at the reference state; its point there is the quoted 0.00000724995, 1.0002216506464083 times it',
       ),
       bulkModulus: ConstantLaw(
         108500.0,
@@ -10713,6 +10875,7 @@ abstract final class Materials {
           2756.6,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1714.3308 at the reference state; its point there is the quoted 1712.8, 0.999107056817739 times it',
       ),
       conductivity: TableLaw(
         0.01607,
@@ -10747,7 +10910,7 @@ abstract final class Materials {
           0.05207,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.016096519999999996 at the reference state; its point there is the quoted 0.01607, 0.9983524389122621 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003804,
@@ -10815,6 +10978,7 @@ abstract final class Materials {
           288.0,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 208.42182 at the reference state; its point there is the quoted 208.53, 1.0005190435435216 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C106978; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C106978&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10865,6 +11029,7 @@ abstract final class Materials {
           1.2354,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 2.4908930000000002 at the reference state; its point there is the quoted 2.48582, 0.9979633810043225 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -10906,6 +11071,7 @@ abstract final class Materials {
           0.000013832,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000007373218599999999 at the reference state; its point there is the quoted 0.0000073744, 1.0001602285330318 times it',
       ),
       bulkModulus: ConstantLaw(
         109000.0,
@@ -10952,6 +11118,7 @@ abstract final class Materials {
           2849.1,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1672.0328 at the reference state; its point there is the quoted 1671.1, 0.9994421162072897 times it',
       ),
       conductivity: TableLaw(
         0.01637,
@@ -10990,7 +11157,7 @@ abstract final class Materials {
           0.05569,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.016381299999999998 at the reference state; its point there is the quoted 0.01637, 0.9993101890570346 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003739,
@@ -11067,6 +11234,7 @@ abstract final class Materials {
           293.56,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 209.30849999999998 at the reference state; its point there is the quoted 209.39, 1.0003893774022556 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75285; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75285&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11119,6 +11287,7 @@ abstract final class Materials {
           0.34908,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.71652594 at the reference state; its point there is the quoted 0.716059, 0.9993483278497914 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11162,6 +11331,7 @@ abstract final class Materials {
           0.00002125,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.0000099089286 at the reference state; its point there is the quoted 0.00000990795, 0.9999012405841737 times it',
       ),
       bulkModulus: ConstantLaw(
         132100.0,
@@ -11210,6 +11380,7 @@ abstract final class Materials {
           2639.2,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 2164.5948 at the reference state; its point there is the quoted 2163.3, 0.9994018280003262 times it',
       ),
       conductivity: TableLaw(
         0.02465,
@@ -11250,7 +11421,7 @@ abstract final class Materials {
           0.06773,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.02465204 at the reference state; its point there is the quoted 0.02465, 0.9999172482277328 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003571,
@@ -11324,6 +11495,7 @@ abstract final class Materials {
           596.87,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 429.45732 at the reference state; its point there is the quoted 429.51, 1.000122666438658 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7664417; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7664417&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11368,6 +11540,7 @@ abstract final class Materials {
           1.5077,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 2.7131160000000003 at the reference state; its point there is the quoted 2.71216, 0.9996476376240454 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11403,6 +11576,7 @@ abstract final class Materials {
           0.000022401,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000012632477999999998 at the reference state; its point there is the quoted 0.0000126322, 0.9999779932329985 times it',
       ),
       bulkModulus: ConstantLaw(
         127700.0,
@@ -11443,6 +11617,7 @@ abstract final class Materials {
           737.09,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 648.81266 at the reference state; its point there is the quoted 648.73, 0.9998725980470232 times it',
       ),
       conductivity: TableLaw(
         0.009422,
@@ -11475,7 +11650,7 @@ abstract final class Materials {
           0.02063,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.009422756 at the reference state; its point there is the quoted 0.009422, 0.9999197686961225 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003656,
@@ -11531,6 +11706,7 @@ abstract final class Materials {
           285.66,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 217.01292 at the reference state; its point there is the quoted 217.03, 1.0000787049913895 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7446095; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7446095&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11585,6 +11761,7 @@ abstract final class Materials {
           0.7009,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 1.4284112000000002 at the reference state; its point there is the quoted 1.42831, 0.9999291520536941 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11630,6 +11807,7 @@ abstract final class Materials {
           0.000025126,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000012168563999999999 at the reference state; its point there is the quoted 0.0000121685, 0.9999947405462142 times it',
       ),
       bulkModulus: ConstantLaw(
         133900.0,
@@ -11680,6 +11858,7 @@ abstract final class Materials {
           1142.4,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1013.23 at the reference state; its point there is the quoted 1013.2, 0.9999703917175765 times it',
       ),
       conductivity: TableLaw(
         0.01385,
@@ -11722,7 +11901,7 @@ abstract final class Materials {
           0.0334,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.013848819999999998 at the reference state; its point there is the quoted 0.01385, 1.0000852058153693 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003497,
@@ -11793,6 +11972,7 @@ abstract final class Materials {
           428.86,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 306.15626 at the reference state; its point there is the quoted 306.16, 1.0000122159840863 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7783064; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7783064&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11847,6 +12027,7 @@ abstract final class Materials {
           2.9755,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 6.154352820000001 at the reference state; its point there is the quoted 6.14532, 0.9985322875915326 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -11892,6 +12073,7 @@ abstract final class Materials {
           0.000027547,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000014990802399999997 at the reference state; its point there is the quoted 0.0000149919, 1.0000732182287988 times it',
       ),
       bulkModulus: ConstantLaw(
         110100.0,
@@ -11942,6 +12124,7 @@ abstract final class Materials {
           931.83,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 660.7441799999999 at the reference state; its point there is the quoted 661.05, 1.0004628417612396 times it',
       ),
       conductivity: TableLaw(
         0.01262,
@@ -11984,7 +12167,7 @@ abstract final class Materials {
           0.03404,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.012617867999999997 at the reference state; its point there is the quoted 0.01262, 1.0001689667382796 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003547,
@@ -12040,6 +12223,7 @@ abstract final class Materials {
           190.43,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 133.82684999999998 at the reference state; its point there is the quoted 133.85, 1.0001729847186869 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C2551624; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C2551624&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12090,6 +12274,7 @@ abstract final class Materials {
           2.8201,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 5.138732200000001 at the reference state; its point there is the quoted 5.13003, 0.9983065472841723 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12127,6 +12312,7 @@ abstract final class Materials {
           0.000020332,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000011597469999999998 at the reference state; its point there is the quoted 0.0000115989, 1.000123302754825 times it',
       ),
       bulkModulus: ConstantLaw(
         113200.0,
@@ -12169,6 +12355,7 @@ abstract final class Materials {
           754.21,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 607.86262 at the reference state; its point there is the quoted 607.89, 1.0000450430723968 times it',
       ),
       conductivity: TableLaw(
         0.009702,
@@ -12203,7 +12390,7 @@ abstract final class Materials {
           0.02109,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.00970452 at the reference state; its point there is the quoted 0.009702, 0.9997403271877435 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003638,
@@ -12261,6 +12448,7 @@ abstract final class Materials {
           198.71,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 148.52688 at the reference state; its point there is the quoted 148.57, 1.0002903178199123 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75718; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75718&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12317,6 +12505,7 @@ abstract final class Materials {
           1.7865,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 3.6789036000000004 at the reference state; its point there is the quoted 3.67309, 0.9984197465788448 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12364,6 +12553,7 @@ abstract final class Materials {
           0.000030051,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000016988472 at the reference state; its point there is the quoted 0.0000169931, 1.0002724200269455 times it',
       ),
       bulkModulus: ConstantLaw(
         117300.0,
@@ -12416,6 +12606,7 @@ abstract final class Materials {
           989.21,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 689.0173199999999 at the reference state; its point there is the quoted 689.22, 1.000294158062674 times it',
       ),
       conductivity: TableLaw(
         0.01561,
@@ -12460,7 +12651,7 @@ abstract final class Materials {
           0.04032,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.015614739999999998 at the reference state; its point there is the quoted 0.01561, 0.9996964406708022 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00346,
@@ -12528,6 +12719,7 @@ abstract final class Materials {
           250.53,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 178.70556 at the reference state; its point there is the quoted 178.73, 1.000136761273684 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75730; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75730&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12576,6 +12768,7 @@ abstract final class Materials {
           1.962,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 3.6561310000000002 at the reference state; its point there is the quoted 3.65125, 0.9986649821901895 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12615,6 +12808,7 @@ abstract final class Materials {
           0.000022073,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000012410716 at the reference state; its point there is the quoted 0.0000124124, 1.0001356891898905 times it',
       ),
       bulkModulus: ConstantLaw(
         118400.0,
@@ -12659,6 +12853,7 @@ abstract final class Materials {
           880.71,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 657.10944 at the reference state; its point there is the quoted 657.01, 0.9998486705654389 times it',
       ),
       conductivity: TableLaw(
         0.01028,
@@ -12695,7 +12890,7 @@ abstract final class Materials {
           0.02849,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.010293763999999999 at the reference state; its point there is the quoted 0.01028, 0.9986628797784757 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003599,
@@ -12760,6 +12955,7 @@ abstract final class Materials {
           240.74,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 180.05028 at the reference state; its point there is the quoted 180.09, 1.0002206050443243 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75456; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75456&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12806,6 +13002,7 @@ abstract final class Materials {
           1.7986,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 2.9394786 at the reference state; its point there is the quoted 2.93461, 0.9983437198692312 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -12843,6 +13040,7 @@ abstract final class Materials {
           0.000022637,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000014669912 at the reference state; its point there is the quoted 0.0000146711, 1.000080982080874 times it',
       ),
       bulkModulus: ConstantLaw(
         121000.0,
@@ -12885,6 +13083,7 @@ abstract final class Materials {
           963.57,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 730.1408799999999 at the reference state; its point there is the quoted 729.96, 0.9997522669871602 times it',
       ),
       conductivity: TableLaw(
         0.01335,
@@ -12919,7 +13118,7 @@ abstract final class Materials {
           0.02308,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.013367359999999998 at the reference state; its point there is the quoted 0.01335, 0.9987013142460442 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003508,
@@ -12982,6 +13181,7 @@ abstract final class Materials {
           253.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 202.99608 at the reference state; its point there is the quoted 203.04, 1.000216358857767 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75467; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75467&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13022,6 +13222,7 @@ abstract final class Materials {
           1.4897,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 2.196085 at the reference state; its point there is the quoted 2.19165, 0.997980497111906 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13053,6 +13254,7 @@ abstract final class Materials {
           0.000017909,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000012396326 at the reference state; its point there is the quoted 0.0000123977, 1.0001108392922227 times it',
       ),
       bulkModulus: ConstantLaw(
         125500.0,
@@ -13089,6 +13291,7 @@ abstract final class Materials {
           1035.0,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 843.4629399999999 at the reference state; its point there is the quoted 842.34, 0.9986686551990063 times it',
       ),
       conductivity: TableLaw(
         0.01219,
@@ -13117,7 +13320,7 @@ abstract final class Materials {
           0.02462,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.012217139999999998 at the reference state; its point there is the quoted 0.01219, 0.9977785308181786 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003584,
@@ -13164,6 +13367,7 @@ abstract final class Materials {
           283.62,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 239.2539 at the reference state; its point there is the quoted 239.34, 1.0003598687419517 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75105; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75105&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13208,6 +13412,7 @@ abstract final class Materials {
           3.049,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 5.0826092 at the reference state; its point there is the quoted 5.07153, 0.9978201747244309 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13243,6 +13448,7 @@ abstract final class Materials {
           0.000020031,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000012743477999999999 at the reference state; its point there is the quoted 0.0000127477, 1.0003313067280377 times it',
       ),
       bulkModulus: ConstantLaw(
         110100.0,
@@ -13283,6 +13489,7 @@ abstract final class Materials {
           1031.2,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 789.29666 at the reference state; its point there is the quoted 789.27, 0.9999662230928482 times it',
       ),
       conductivity: TableLaw(
         0.01364,
@@ -13315,7 +13522,7 @@ abstract final class Materials {
           0.02918,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.013648819999999997 at the reference state; its point there is the quoted 0.01364, 0.999353790291029 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003611,
@@ -13371,6 +13578,7 @@ abstract final class Materials {
           188.61,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 147.31928 at the reference state; its point there is the quoted 147.37, 1.0003442862332752 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C354336; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C354336&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13411,6 +13619,7 @@ abstract final class Materials {
           2.7569,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 4.346473400000001 at the reference state; its point there is the quoted 4.3364, 0.9976823969519748 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13442,6 +13651,7 @@ abstract final class Materials {
           0.000017689,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000011620909999999998 at the reference state; its point there is the quoted 0.0000116226, 1.0001454275095496 times it',
       ),
       bulkModulus: ConstantLaw(
         111100.0,
@@ -13478,6 +13688,7 @@ abstract final class Materials {
           1090.6,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 844.2481 at the reference state; its point there is the quoted 843.79, 0.999457386993231 times it',
       ),
       conductivity: TableLaw(
         0.01299,
@@ -13506,7 +13717,7 @@ abstract final class Materials {
           0.02578,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.012991999999999998 at the reference state; its point there is the quoted 0.01299, 0.9998460591133006 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003698,
@@ -13558,6 +13769,7 @@ abstract final class Materials {
           199.07,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 160.02349999999998 at the reference state; its point there is the quoted 160.09, 1.0004155639640429 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C811972; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C811972&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13612,6 +13824,7 @@ abstract final class Materials {
           1.6917,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C420462; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C420462&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 3.5659818000000003 at the reference state; its point there is the quoted 3.55797, 0.9977532695203323 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C420462; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C420462&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13666,6 +13879,7 @@ abstract final class Materials {
           1409.5,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C420462; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C420462&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 937.98016 at the reference state; its point there is the quoted 937.61, 0.9996053647872467 times it',
       ),
       conductivity: ConstantLaw(
         0.01437,
@@ -13736,6 +13950,7 @@ abstract final class Materials {
           253.78,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C420462; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C420462&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 177.74733999999998 at the reference state; its point there is the quoted 177.81, 1.0003525228563197 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C420462; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C420462&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13778,6 +13993,7 @@ abstract final class Materials {
           1.6833,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 2.8168672 at the reference state; its point there is the quoted 2.8101, 0.9975976148254344 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13811,6 +14027,7 @@ abstract final class Materials {
           0.000016272,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000009903699599999998 at the reference state; its point there is the quoted 0.00000990444, 1.0000747599412245 times it',
       ),
       bulkModulus: ConstantLaw(
         114600.0,
@@ -13849,6 +14066,7 @@ abstract final class Materials {
           1427.6,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 1042.3752 at the reference state; its point there is the quoted 1041.6, 0.9992563138493701 times it',
       ),
       conductivity: TableLaw(
         0.01367,
@@ -13879,7 +14097,7 @@ abstract final class Materials {
           0.03182,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.013672919999999998 at the reference state; its point there is the quoted 0.01367, 0.9997864391805117 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003712,
@@ -13933,6 +14151,7 @@ abstract final class Materials {
           256.72,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 201.86406 at the reference state; its point there is the quoted 201.94, 1.0003761937612867 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C75376; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C75376&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -13973,6 +14192,7 @@ abstract final class Materials {
           4.51,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 7.2946534000000005 at the reference state; its point there is the quoted 7.28148, 0.9981941019980469 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -14004,6 +14224,7 @@ abstract final class Materials {
           0.000017727,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000011387999999999998 at the reference state; its point there is the quoted 0.0000113898, 1.0001580611169654 times it',
       ),
       bulkModulus: ConstantLaw(
         105800.0,
@@ -14040,6 +14261,7 @@ abstract final class Materials {
           1021.7,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 806.4454 at the reference state; its point there is the quoted 806.31, 0.9998321027065192 times it',
       ),
       conductivity: TableLaw(
         0.01297,
@@ -14068,7 +14290,7 @@ abstract final class Materials {
           0.026,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.012980179999999997 at the reference state; its point there is the quoted 0.01297, 0.999215727362795 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003799,
@@ -14120,6 +14342,7 @@ abstract final class Materials {
           153.31,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 120.46941999999999 at the reference state; its point there is the quoted 120.52, 1.0004198575870957 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C431890; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C431890&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -14138,6 +14361,7 @@ abstract final class Materials {
         xs: <double>[293.15, 294.0, 319.0, 344.0, 369.0, 394.0, 419.0],
         ys: <double>[5.80131, 5.7818, 5.269, 4.8503, 4.4991, 4.1987, 3.9379],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 5.7818 at the reference state; its point there is the quoted 5.80131, 1.0033743816804457 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -14155,6 +14379,7 @@ abstract final class Materials {
           0.000014347,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.000010254 at the reference state; its point there is the quoted 0.0000102228, 0.996957284961966 times it',
       ),
       bulkModulus: ConstantLaw(
         106600.0,
@@ -14169,6 +14394,7 @@ abstract final class Materials {
         xs: <double>[293.15, 294.0, 319.0, 344.0, 369.0, 394.0, 419.0],
         ys: <double>[880.99, 882.21, 919.15, 957.57, 996.64, 1035.8, 1074.7],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); isobaric, cp; the table alone gives 882.21 at the reference state; its point there is the quoted 880.99, 0.9986171093050408 times it',
       ),
       conductivity: TableLaw(
         0.01217,
@@ -14183,7 +14409,7 @@ abstract final class Materials {
           0.02362,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 0.01225 at the reference state; its point there is the quoted 0.01217, 0.9934693877551021 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.003981,
@@ -14208,6 +14434,7 @@ abstract final class Materials {
         xs: <double>[293.15, 294.0, 319.0, 344.0, 369.0, 394.0, 419.0],
         ys: <double>[135.53, 135.77, 142.4, 148.48, 154.17, 159.56, 164.69],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1); the table alone gives 135.77 at the reference state; its point there is the quoted 135.53, 0.9982323046328349 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C460731; isobar 0.101325 MPa at 293.15 K (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C460731&Type=IsoBar&P=0.101325&TLow=292.15&THigh=294.15&TInc=1)',
     ),
@@ -14320,6 +14547,7 @@ abstract final class Materials {
           806.084,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 806.17 at the reference state; its point there is the quoted 806.084, 0.9998933227483037 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325)',
     ),
@@ -14361,6 +14589,7 @@ abstract final class Materials {
           0.000160661,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 0.00016079 at the reference state; its point there is the quoted 0.000160661, 0.999197711300454 times it',
       ),
       surfaceTension: TableLaw(
         0.00887961,
@@ -14399,7 +14628,7 @@ abstract final class Materials {
           0.00887961,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7727379; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7727379&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.0088841 at the reference state; its point there is the quoted 0.00887961, 0.9994946027172138 times it',
       ),
       bulkModulus: ConstantLaw(
         584300000.0,
@@ -14487,6 +14716,7 @@ abstract final class Materials {
           1141.17,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 1147.4 at the reference state; its point there is the quoted 1141.17, 0.9945703329266167 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325)',
     ),
@@ -14526,6 +14756,7 @@ abstract final class Materials {
           0.000194672,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 0.00020129 at the reference state; its point there is the quoted 0.000194672, 0.9671220626956134 times it',
       ),
       surfaceTension: TableLaw(
         0.0131457,
@@ -14562,7 +14793,7 @@ abstract final class Materials {
           0.0131457,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7782447; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7782447&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.013459 at the reference state; its point there is the quoted 0.0131457, 0.9767218961289843 times it',
       ),
       bulkModulus: ConstantLaw(
         933300000.0,
@@ -14709,6 +14940,7 @@ abstract final class Materials {
           70.8281,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID B5000001; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=B5000001&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 71.395 at the reference state; its point there is the quoted 70.8281, 0.9920596680439808 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID B5000001; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=B5000001&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325)',
     ),
@@ -14746,6 +14978,7 @@ abstract final class Materials {
           0.0000134962,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID B5000001; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=B5000001&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 0.000014078 at the reference state; its point there is the quoted 0.0000134962, 0.9586731069754226 times it',
       ),
       surfaceTension: TableLaw(
         0.00192969,
@@ -14780,7 +15013,7 @@ abstract final class Materials {
           0.00192969,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID B5000001; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=B5000001&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID B5000001; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=B5000001&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.0020112 at the reference state; its point there is the quoted 0.00192969, 0.9594719570405729 times it',
       ),
       bulkModulus: ConstantLaw(
         87450000.0,
@@ -14864,6 +15097,7 @@ abstract final class Materials {
           124.56,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 124.6635521777258 at the reference state; its point there is the quoted 124.669, 1.0000437002008928 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325)',
     ),
@@ -14903,6 +15137,7 @@ abstract final class Materials {
           0.0000031525,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 0.0000031553981584332063 at the reference state; its point there is the quoted 0.00000315549, 1.0000291061736688 times it',
       ),
       surfaceTension: TableLaw(
         0.0000883982,
@@ -14939,7 +15174,7 @@ abstract final class Materials {
           0.000087839,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C7440597; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C7440597&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.00008840205682548958 at the reference state; its point there is the quoted 0.0000883982, 0.9999563717674896 times it',
       ),
       bulkModulus: ConstantLaw(
         3978000.0,
@@ -15018,6 +15253,7 @@ abstract final class Materials {
           422.356,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 423.08 at the reference state; its point there is the quoted 422.356, 0.9982887397182566 times it',
       ),
       source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325)',
     ),
@@ -15057,6 +15293,7 @@ abstract final class Materials {
           0.000116769,
         ],
         confidence: Confidence.handbook,
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; saturation state at 0.101325 MPa (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); the table alone gives 0.00011799 at the reference state; its point there is the quoted 0.000116769, 0.9896516653953725 times it',
       ),
       surfaceTension: TableLaw(
         0.0129205,
@@ -15093,7 +15330,7 @@ abstract final class Materials {
           0.0129205,
         ],
         confidence: Confidence.handbook,
-        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids',
+        source: 'NIST Chemistry WebBook, SRD 69, "Thermophysical Properties of Fluid Systems" (Lemmon, McLinden, Friend; reference EOS and transport correlations as REFPROP), fluid ID C74828; surface-tension correlation, saturated liquid (https://webbook.nist.gov/cgi/fluid.cgi?Action=Data&Wide=on&Digits=6&RefState=DEF&TUnit=K&PUnit=MPa&DUnit=kg%2Fm3&HUnit=kJ%2Fkg&WUnit=m%2Fs&VisUnit=Pa*s&STUnit=N%2Fm&ID=C74828&Type=SatT&PLow=0.101325&PHigh=0.20265&PInc=0.101325); against its own saturated vapour, which differs from the value against air by well under 1 % for these fluids; the table alone gives 0.013018 at the reference state; its point there is the quoted 0.0129205, 0.9925103702565679 times it',
       ),
       bulkModulus: ConstantLaw(
         756200000.0,
@@ -15167,6 +15404,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 786.386035224325 at the reference state; it is scaled by 0.9999541761644906 onto the quoted 786.35',
       ),
       source: 'VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
     ),
@@ -15183,6 +15421,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 91st ed. p. 6-230: 2.038 mPa*s at 25 °C (HSDB); correlation gives 2.049 there; the andrade law as published gives 0.002370706251881616 at the reference state; it is scaled by 1.0043420597175268 onto the quoted 0.002381',
       ),
       surfaceTension: FormulaLaw(
         0.02132,
@@ -15196,7 +15435,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.021321965000000002 at the reference state; it is scaled by 0.999907841514607 onto the quoted 0.02132',
       ),
       bulkModulus: ConstantLaw(
         1053000000.0,
@@ -15255,6 +15494,7 @@ abstract final class Materials {
         xs: <double>[253.15, 273.15, 293.15, 313.15, 333.15, 353.15],
         ys: <double>[1300.97, 1227.88, 1157.4, 1087.16, 1015.96, 940.5],
         confidence: Confidence.measured,
+        source: 'J. Chem. Thermodyn. (2016), doi:10.1016/j.jct.2016.06.001, at 293.15 K and 0.1 MPa (tabulated in the Chemeo datasheet for 2-propanol, chemeo.com/cid/24-809-7); the table alone gives 1157.36 at the reference state; its point there is the quoted 1157.4, 1.0000345614156358 times it',
       ),
       impedance: ConstantLaw(
         910100.0,
@@ -15289,6 +15529,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-78: 0.8098 at 20 °C/4 °C;  Correlation gives 809.8 at 293.15 K.; the polynomial law as published gives 809.87305765077 at the reference state; it is scaled by 0.9999097912319964 onto the quoted 809.8',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/263) citing CRC Handbook of Chemistry and Physics, 94th ed. (2013), p. 3-78: 0.8098 at 20 °C/4 °C;  Correlation gives 809.8 at 293.15 K.',
     ),
@@ -15305,6 +15546,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 94th ed. p. 6-233 (HSDB): 5.186 mPa*s at 0 °C, 2.544 at 25 °C, 0.533 at 100 °C; the correlation gives 2.546 at 25 °C; the andrade law as published gives 0.002878085780817401 at the reference state; it is scaled by 1.007266711549042 onto the quoted 0.002899',
       ),
       surfaceTension: FormulaLaw(
         0.02538,
@@ -15318,7 +15560,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.025384030000000005 at the reference state; it is scaled by 0.9998412387631118 onto the quoted 0.02538',
       ),
       bulkModulus: ConstantLaw(
         1284000000.0,
@@ -15412,6 +15654,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 791.120301634695 at the reference state; it is scaled by 1.0000501799349895 onto the quoted 791.16',
       ),
       source: 'VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
     ),
@@ -15428,6 +15671,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Kirk-Othmer (via HSDB): 0.32 cP at 20 °C, 0.27 at 40 °C; the correlation gives 0.307 mPa*s at 25 °C; the andrade law as published gives 0.0003226123755154771 at the reference state; it is scaled by 0.998411792124656 onto the quoted 0.0003221',
       ),
       surfaceTension: FormulaLaw(
         0.0237,
@@ -15441,7 +15685,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing Kirk-Othmer Encyclopedia of Chemical Technology, "Acetone" (2011): 23.7 mN/m at 20 °C; Jasper (1972) linear law gives 24.0 mN/m at 20 °C',
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/180) citing Kirk-Othmer Encyclopedia of Chemical Technology, "Acetone" (2011): 23.7 mN/m at 20 °C; Jasper (1972) linear law gives 24.0 mN/m at 20 °C; the polynomial law as published gives 0.024020000000000007 at the reference state; it is scaled by 0.9866777685262278 onto the quoted 0.0237',
       ),
       bulkModulus: ConstantLaw(
         1125000000.0,
@@ -15500,6 +15744,7 @@ abstract final class Materials {
         expression: '1192.0 [m/s] * (((2511.68 + (T / 1 [K]) * (-4.5))) / 1192.5049999999999)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 "Properties of sound in liquids" (NPL online edition, web.archive.org snapshot 2007-01-17); Kaye & Laby give 1170 m/s at 25 °C and dc/dt = -4.5 m/(s*K); carried to 20 °C with that slope; the polynomial law as published gives 1192.5049999999999 at the reference state; it is scaled by 0.999576521691733 onto the quoted 1192.0',
       ),
       impedance: ConstantLaw(
         943100.0,
@@ -15534,6 +15779,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-232: 1.1135 g/cm3 at 20 °C;  Correlation gives 1113.5 at 293.15 K.; the polynomial law as published gives 1113.5371915387177 at the reference state; it is scaled by 0.9999666005419484 onto the quoted 1113.5',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/174) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-232: 1.1135 g/cm3 at 20 °C;  Correlation gives 1113.5 at 293.15 K.',
     ),
@@ -15550,6 +15796,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 91st ed. p. 6-230 (HSDB): 16.1 mPa*s at 25 °C, 6.554 at 50, 3.340 at 75, 1.975 at 100; correlation gives 16.7 at 25 °C (+4 %). ICSC: 21 mPa*s at 20 °C. Andrade misses by 14 % over 0-100 °C, so VFT.; the vft law as published gives 0.020743357891109294 at the reference state; it is scaled by 0.9998381221050652 onto the quoted 0.02074',
       ),
       surfaceTension: FormulaLaw(
         0.04843,
@@ -15563,7 +15810,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.04842995 at the reference state; it is scaled by 1.0000010324189887 onto the quoted 0.04843',
       ),
       bulkModulus: ConstantLaw(
         3107000000.0,
@@ -15622,6 +15869,7 @@ abstract final class Materials {
         expression: '1670.0 [m/s] * (((2286.11 + (T / 1 [K]) * (-2.1))) / 1670.4950000000001)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 "Properties of sound in liquids" (NPL online edition, web.archive.org snapshot 2007-01-17); Kaye & Laby give 1660 m/s at 25 °C and dc/dt = -2.1 m/(s*K); carried to 20 °C with that slope; the polynomial law as published gives 1670.4950000000001 at the reference state; it is scaled by 0.999703680645557 onto the quoted 1670.0',
       ),
       impedance: ConstantLaw(
         1860000.0,
@@ -15656,6 +15904,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-444: 1.0361 g/cm3 at 20 °C;  Correlation gives 1036.3 at 293.15 K.; the polynomial law as published gives 1036.3923422954126 at the reference state; it is scaled by 0.9997179231421517 onto the quoted 1036.1',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/1030) citing CRC Handbook of Chemistry and Physics, 88th ed. (2007), p. 3-444: 1.0361 g/cm3 at 20 °C;  Correlation gives 1036.3 at 293.15 K.',
     ),
@@ -15672,6 +15921,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Hawley\'s (via HSDB) gives 0.581 cP at 20 °C, which is wrong by two orders. The correlation gives 42.5 mPa*s at 25 °C. Andrade misses by 30 % over 0-100 °C, so VFT.; the vft law as published gives 0.05702195860601148 at the reference state; it is scaled by 1.010312542893371 onto the quoted 0.05761',
       ),
       surfaceTension: ConstantLaw(
         0.0401,
@@ -15730,6 +15980,7 @@ abstract final class Materials {
         xs: <double>[293.15, 303.15, 313.15, 333.15, 353.15],
         ys: <double>[1523.0, 1494.43, 1465.86, 1408.86, 1350.89],
         confidence: Confidence.estimate,
+        source: 'J. Chem. Thermodyn. (2016), doi:10.1016/j.jct.2016.06.001, via the Chemeo datasheet for propylene glycol; measured 1494.4 m/s at 303.15 K and 1465.9 at 313.15 K (0.1 MPa); 20 °C is a 10 K linear extrapolation, hence estimate; the table alone gives 1494.43 at the reference state; its point there is the quoted 1523.0, 1.019117656899286 times it',
       ),
       impedance: ConstantLaw(
         1578000.0,
@@ -15764,6 +16015,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing The Merck Index, 13th ed. (2001): 0.7134 at 20 °C/4 °C;  Correlation gives 714.2 at 293.15 K.; the polynomial law as published gives 714.1640316956425 at the reference state; it is scaled by 0.9989301733751159 onto the quoted 713.4',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/3283) citing The Merck Index, 13th ed. (2001): 0.7134 at 20 °C/4 °C;  Correlation gives 714.2 at 293.15 K.',
     ),
@@ -15780,6 +16032,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Merck 13th ed. (via HSDB): 0.2448 cP at 20 °C (correlation 3 % lower); the andrade law as published gives 0.00023845016285246233 at the reference state; it is scaled by 0.9947571314797723 onto the quoted 0.0002372',
       ),
       surfaceTension: FormulaLaw(
         0.0171,
@@ -15793,7 +16046,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.01710398 at the reference state; it is scaled by 0.9997673056212647 onto the quoted 0.0171',
       ),
       source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Merck 13th ed. (via HSDB): 0.2448 cP at 20 °C (correlation 3 % lower)',
     ),
@@ -15867,6 +16120,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 1047.7028318044524 at the reference state; it is scaled by 1.0000927440421061 onto the quoted 1047.8',
       ),
       source: 'VDI Heat Atlas, 2nd ed. (2010), D3.1, saturated-liquid density (PPDS), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
     ),
@@ -15883,6 +16137,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 94th ed. p. 6-232 (HSDB): 1.056 mPa*s at 25 °C; the correlation gives 1.115 there (+5.6 %), so the 20 °C value is likely ~5 % high; the andrade law as published gives 0.0012041829816280183 at the reference state; it is scaled by 0.9981871678463127 onto the quoted 0.001202',
       ),
       surfaceTension: FormulaLaw(
         0.02759,
@@ -15896,7 +16151,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.02759199 at the reference state; it is scaled by 0.9999278776195555 onto the quoted 0.02759',
       ),
       bulkModulus: ConstantLaw(
         1442000000.0,
@@ -15984,6 +16239,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6212) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-520: 1.4788 g/cm3 at 25 °C; CRC 25 °C value carried to 20 °C with the VDI expansion coefficient. Merck: 1.484 at 20/20 °C (1481 kg/m3); spread ~0.5 %. Correlation gives 1492.6 at 293.15 K.; the polynomial law as published gives 1492.5484189429003 at the reference state; it is scaled by 0.9968855824816776 onto the quoted 1487.9',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6212) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-520: 1.4788 g/cm3 at 25 °C; CRC 25 °C value carried to 20 °C with the VDI expansion coefficient. Merck: 1.484 at 20/20 °C (1481 kg/m3); spread ~0.5 %. Correlation gives 1492.6 at 293.15 K.',
     ),
@@ -16000,6 +16256,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Prager (1995, via HSDB): 5.63 mP (0.563 mPa*s) at 20 °C, 0.510 at 30 °C; the andrade law as published gives 0.0005679424398400063 at the reference state; it is scaled by 0.9979884584072848 onto the quoted 0.0005668',
       ),
       surfaceTension: FormulaLaw(
         0.02732,
@@ -16013,7 +16270,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.027319975000000003 at the reference state; it is scaled by 1.0000009150813645 onto the quoted 0.02732',
       ),
       bulkModulus: ConstantLaw(
         1492000000.0,
@@ -16062,6 +16319,7 @@ abstract final class Materials {
         expression: '1002.0 [m/s] * (((2027.52 + (T / 1 [K]) * (-3.5))) / 1001.4950000000001)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 "Properties of sound in liquids" (NPL online edition, web.archive.org snapshot 2007-01-17); Kaye & Laby give 984 m/s at 25 °C and dc/dt = -3.5 m/(s*K); carried to 20 °C with that slope; the polynomial law as published gives 1001.4950000000001 at the reference state; it is scaled by 1.0005042461520026 onto the quoted 1002.0',
       ),
       impedance: ConstantLaw(
         1491000.0,
@@ -16096,6 +16354,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing The Merck Index, 15th ed. (2013), p. 1124: 1.3255 at 20 °C/4 °C;  Correlation gives 1326.7 at 293.15 K.; the polynomial law as published gives 1326.6812706702751 at the reference state; it is scaled by 0.9991096047736633 onto the quoted 1325.5',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/6344) citing The Merck Index, 15th ed. (2013), p. 1124: 1.3255 at 20 °C/4 °C;  Correlation gives 1326.7 at 293.15 K.',
     ),
@@ -16112,6 +16371,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Ullmann, "Chloromethanes" (via HSDB): 0.437 mPa*s at 20 °C; the andrade law as published gives 0.00043336844684463004 at the reference state; it is scaled by 1.0000728090741255 onto the quoted 0.0004334',
       ),
       surfaceTension: FormulaLaw(
         0.02784,
@@ -16125,7 +16385,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.02784204 at the reference state; it is scaled by 0.9999267295068897 onto the quoted 0.02784',
       ),
       source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Ullmann, "Chloromethanes" (via HSDB): 0.437 mPa*s at 20 °C',
     ),
@@ -16194,6 +16454,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/5943) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-496: 1.5940 g/cm3 at 20 °C;  Correlation gives 1592.9 at 293.15 K.; the polynomial law as published gives 1592.8763872131 at the reference state; it is scaled by 1.000705398608404 onto the quoted 1594.0',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/5943) citing CRC Handbook of Chemistry and Physics, 95th ed. (2014), p. 3-496: 1.5940 g/cm3 at 20 °C;  Correlation gives 1592.9 at 293.15 K.',
     ),
@@ -16210,6 +16471,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); the correlation gives 0.906 mPa*s at 25 °C; Daubert and Danner (via HSDB): 2.03 mPa*s at 250 K; the andrade law as published gives 0.0009719317186595272 at the reference state; it is scaled by 1.0020251230643933 onto the quoted 0.0009739',
       ),
       surfaceTension: FormulaLaw(
         0.02704,
@@ -16223,7 +16485,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.027042040000000003 at the reference state; it is scaled by 0.9999245619043533 onto the quoted 0.02704',
       ),
       bulkModulus: ConstantLaw(
         1396000000.0,
@@ -16272,6 +16534,7 @@ abstract final class Materials {
         expression: '936.0 [m/s] * (((1815.45 + (T / 1 [K]) * (-3.0))) / 936.0000000000001)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye & Laby, Tables of Physical and Chemical Constants, 16th ed. (1995), 2.4.1 "Properties of sound in liquids" (NPL online edition, web.archive.org snapshot 2007-01-17); Kaye & Laby give 921 m/s at 25 °C and dc/dt = -3.0 m/(s*K); carried to 20 °C with that slope; the polynomial law as published gives 936.0000000000001 at the reference state; it is scaled by 0.9999999999999999 onto the quoted 936.0',
       ),
       impedance: ConstantLaw(
         1492000.0,
@@ -16306,6 +16569,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing The Merck Index, 15th ed. (2013), p. 593: 1.100 at 20 °C/4 °C;  Correlation gives 1101.1 at 293.15 K.; the polynomial law as published gives 1101.0474250801976 at the reference state; it is scaled by 0.9990487012127371 onto the quoted 1100.0',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/679) citing The Merck Index, 15th ed. (2013), p. 593: 1.100 at 20 °C/4 °C;  Correlation gives 1101.1 at 293.15 K.',
     ),
@@ -16322,6 +16586,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); Merck (via HSDB) gives 2.47 cP at 20 °C, 13 % above the correlation; DIPPR is preferred here (it gives 1.98 mPa*s at 25 °C, the commonly tabulated value); the andrade law as published gives 0.002148759695392125 at the reference state; it is scaled by 1.0177964547128648 onto the quoted 0.002187',
       ),
       surfaceTension: ConstantLaw(
         0.0421,
@@ -16400,6 +16665,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing The Merck Index, 15th ed. (2013), p. 1876: 0.86104 at 20 °C/4 °C;  Correlation gives 860.7 at 293.15 K.; the polynomial law as published gives 860.7214833430626 at the reference state; it is scaled by 1.0003235851112438 onto the quoted 861.0',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/7809) citing The Merck Index, 15th ed. (2013), p. 1876: 0.86104 at 20 °C/4 °C;  Correlation gives 860.7 at 293.15 K.',
     ),
@@ -16416,6 +16682,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 95th ed. p. 6-234 (HSDB): 0.603 mPa*s at 25 °C; correlation gives 0.606 there; the andrade law as published gives 0.0006454780462647591 at the reference state; it is scaled by 0.9983298482868668 onto the quoted 0.0006444',
       ),
       surfaceTension: FormulaLaw(
         0.02854,
@@ -16429,7 +16696,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.028541990000000003 at the reference state; it is scaled by 0.9999302781621042 onto the quoted 0.02854',
       ),
       source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 95th ed. p. 6-234 (HSDB): 0.603 mPa*s at 25 °C; correlation gives 0.606 there',
     ),
@@ -16503,6 +16770,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-262: 1.220 at 20 °C/4 °C;  Correlation gives 1219.9 at 293.15 K.; the polynomial law as published gives 1219.889905077325 at the reference state; it is scaled by 1.0000902498842041 onto the quoted 1220.0',
       ),
       source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/284) citing CRC Handbook of Chemistry and Physics, 91st ed. (2010), p. 3-262: 1.220 at 20 °C/4 °C;  Correlation gives 1219.9 at 293.15 K.',
     ),
@@ -16519,6 +16787,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 91st ed. p. 6-229 (HSDB): 1.607 mPa*s at 25 °C; correlation gives 1.610 there; the andrade law as published gives 0.0017687574269271247 at the reference state; it is scaled by 1.0091830416232335 onto the quoted 0.001785',
       ),
       surfaceTension: FormulaLaw(
         0.03767,
@@ -16532,7 +16801,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K',
+        source: 'Jasper, J. Phys. Chem. Ref. Data 1, 841 (1972), linear fit sigma = a - b*t(°C) in mN/m, coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); value is the law at 293.15 K; the polynomial law as published gives 0.037674030000000004 at the reference state; it is scaled by 0.9998930297608193 onto the quoted 0.03767',
       ),
       source: 'Perry\'s Chemical Engineers\' Handbook, 8th ed. (2008), Table 2-313 (DIPPR eq. 101), coefficients as distributed in the open-source `chemicals` 1.5.2 data files (github.com/CalebBell/chemicals); CRC 91st ed. p. 6-229 (HSDB): 1.607 mPa*s at 25 °C; correlation gives 1.610 there',
     ),
@@ -16651,6 +16920,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'PubChem HSDB record (https://pubchem.ncbi.nlm.nih.gov/compound/784) citing Ullmann, "Hydrogen Peroxide" (2017): 1.819 cP at 0 °C, 1.249 cP at 20 °C; the andrade law as published gives 0.0012491059099073573 at the reference state; it is scaled by 0.9999152114272157 onto the quoted 0.001249',
       ),
       surfaceTension: ConstantLaw(
         0.0804,
@@ -16708,6 +16978,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5; the polynomial law as published gives 1064.6617520165 at the reference state; it is scaled by 1.000223778099522 onto the quoted 1064.9',
       ),
       source: 'Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5',
     ),
@@ -16724,6 +16995,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5; Andrade over 253-373 K misses by 22.2 % (A=-14.4729, B=2636.2); VFT given as the law; the vft law as published gives 0.0037621757588219115 at the reference state; it is scaled by 0.9816128317079016 onto the quoted 0.003693',
       ),
       source: 'Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5; Andrade over 253-373 K misses by 22.2 % (A=-14.4729, B=2636.2); VFT given as the law',
     ),
@@ -16740,6 +17012,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5; the polynomial law as published gives 3313.4721273874998 at the reference state; it is scaled by 0.9995557145704255 onto the quoted 3312.0',
       ),
       conductivity: FormulaLaw(
         0.389,
@@ -16753,6 +17026,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Melinder, Properties of Secondary Working Fluids for Indirect Systems (IIR, 2010), aqueous ethylene glycol correlations as implemented in CoolProp 8.0.0, incompressible fluid INCOMP::MEG at mass fraction 0.5; the polynomial law as published gives 0.38930740926116 at the reference state; it is scaled by 0.9992103688400296 onto the quoted 0.389',
       ),
       volumetricExpansion: ConstantLaw(
         0.0005,
@@ -16788,6 +17062,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.20, interpolated at 68 °F; specific gravity 0.7321 at 20 °C (9.7), via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent; Grade spread: ICSC 1400 gives 700-800 kg/m3, NIOSH 0.72-0.76 at 60 °F, Babrauskas (via NBSIR 85-3195) 740, Engineering ToolBox 751 at 20 °C.; the polynomial law as published gives 730.284605 at the reference state; it is scaled by 1.000705745399083 onto the quoted 730.8',
       ),
       source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.20, interpolated at 68 °F; specific gravity 0.7321 at 20 °C (9.7), via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent; Grade spread: ICSC 1400 gives 700-800 kg/m3, NIOSH 0.72-0.76 at 60 °F, Babrauskas (via NBSIR 85-3195) 740, Engineering ToolBox 751 at 20 °C.',
     ),
@@ -16909,6 +17184,7 @@ abstract final class Materials {
           2135.3,
         ],
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.21 liquid heat capacity, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent; Cross-checks: Engineering ToolBox 2060 J/(kg*K) at 20 °C; Cragoe\'s correlation (NBS MP 97) gives 2031 at d = 0.745 (just below its 0.75 range).; the table alone gives 2050.7089928057553 at the reference state; its point there is the quoted 2051.0, 1.0001419056508094 times it',
       ),
       conductivity: TableLaw(
         0.1276,
@@ -16951,7 +17227,7 @@ abstract final class Materials {
           0.1119,
         ],
         confidence: Confidence.handbook,
-        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.22 liquid thermal conductivity, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent; Engineering ToolBox gives 0.1164 W/(m*K) at 20 °C; the two differ by 9 %. Cragoe\'s correlation is outside its density range here.',
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet GAT (gasolines: automotive), table 9.22 liquid thermal conductivity, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/GAT.pdf; English units converted by this agent; Engineering ToolBox gives 0.1164 W/(m*K) at 20 °C; the two differ by 9 %. Cragoe\'s correlation is outside its density range here.; the table alone gives 0.12762 at the reference state; its point there is the quoted 0.1276, 0.9998432847516062 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00126,
@@ -17002,6 +17278,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Automotive diesel from a Spanish petrol station (EN 590 grade); EN 590 allows 820-845 kg/m3 at 15 °C and 2.0-4.5 mm2/s at 40 °C.; the polynomial law as published gives 830.7608700000001 at the reference state; it is scaled by 1.000047101399949 onto the quoted 830.8',
       ),
       source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Automotive diesel from a Spanish petrol station (EN 590 grade); EN 590 allows 820-845 kg/m3 at 15 °C and 2.0-4.5 mm2/s at 40 °C.',
     ),
@@ -17099,7 +17376,7 @@ abstract final class Materials {
           1988.7,
         ],
         confidence: Confidence.handbook,
-        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.21, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent; Cragoe\'s correlation at this sample\'s specific gravity (0.835 at 60 °F, from the Esteban density table) gives 1918 J/(kg*K); CHRIS OTD (No. 2-D) 1871.',
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.21, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent; Cragoe\'s correlation at this sample\'s specific gravity (0.835 at 60 °F, from the Esteban density table) gives 1918 J/(kg*K); CHRIS OTD (No. 2-D) 1871.; the table alone gives 1914.2460431654674 at the reference state; its point there is the quoted 1914.0, 0.9998714673245135 times it',
       ),
       conductivity: TableLaw(
         0.1381,
@@ -17152,7 +17429,7 @@ abstract final class Materials {
           0.1356,
         ],
         confidence: Confidence.handbook,
-        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent; Cragoe\'s correlation at the sample\'s gravity: 0.139 W/(m*K), within 1 %.',
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet ODS (oils: diesel), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/ODS.pdf; English units converted by this agent; Cragoe\'s correlation at the sample\'s gravity: 0.139 W/(m*K), within 1 %.; the table alone gives 0.13807985611510792 at the reference state; its point there is the quoted 0.1381, 1.0001458857610286 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000807,
@@ -17192,6 +17469,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.20, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent; Jet A-1: DEF STAN 91-091 allows 775-840 kg/m3 at 15 °C; typical 804 at 15 °C (Air BP Handbook of Products); Babrauskas uses 820.; the polynomial law as published gives 794.9402749999999 at the reference state; it is scaled by 1.0000751314304714 onto the quoted 795.0',
       ),
       source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.20, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent; Jet A-1: DEF STAN 91-091 allows 775-840 kg/m3 at 15 °C; typical 804 at 15 °C (Air BP Handbook of Products); Babrauskas uses 820.',
     ),
@@ -17249,6 +17527,7 @@ abstract final class Materials {
           0.001152,
         ],
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.23, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent; A light kerosene (fuel oil No. 1 / JP-1). CHRIS JPV (JP-5, heavier) gives 2.06e-3 Pa*s at 20 °C; Jet A-1 is limited to 8.0 mm2/s at -20 °C.; the table alone gives 0.0011843417266187057 at the reference state; its point there is the quoted 0.001184, 0.9997114628227434 times it',
       ),
       surfaceTension: ConstantLaw(
         0.0275,
@@ -17311,6 +17590,7 @@ abstract final class Materials {
           2256.7,
         ],
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.21, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent; Cragoe\'s correlation at d = 0.805 gives 1954 J/(kg*K).; the table alone gives 1959.4199999999998 at the reference state; its point there is the quoted 1959.0, 0.9997856508558656 times it',
       ),
       conductivity: TableLaw(
         0.1315,
@@ -17365,7 +17645,7 @@ abstract final class Materials {
           0.1274,
         ],
         confidence: Confidence.handbook,
-        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent; Cragoe\'s correlation at d = 0.805 gives 0.144 W/(m*K) (its stated accuracy is about 10 %).',
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet KRS (kerosene), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/KRS.pdf; English units converted by this agent; Cragoe\'s correlation at d = 0.805 gives 0.144 W/(m*K) (its stated accuracy is about 10 %).; the table alone gives 0.13146 at the reference state; its point there is the quoted 0.1315, 1.0003042750646585 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00126,
@@ -17411,6 +17691,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Commercial pure biodiesel BD100 (FAME, EN 14214 grade: 860-900 kg/m3 at 15 °C, 3.5-5.0 mm2/s at 40 °C).; the polynomial law as published gives 879.4267950000001 at the reference state; it is scaled by 1.00042437301447 onto the quoted 879.8',
       ),
       source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Commercial pure biodiesel BD100 (FAME, EN 14214 grade: 860-900 kg/m3 at 15 °C, 3.5-5.0 mm2/s at 40 °C).',
     ),
@@ -17487,6 +17768,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Refined rapeseed oil bought retail.; the polynomial law as published gives 914.9526149999999 at the reference state; it is scaled by 0.9995053131795247 onto the quoted 914.5',
       ),
       source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Refined rapeseed oil bought retail.',
     ),
@@ -17568,6 +17850,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Refined sunflower oil bought retail.; the polynomial law as published gives 918.140165 at the reference state; it is scaled by 0.9986492639715854 onto the quoted 916.9',
       ),
       source: 'Esteban, Riba, Baquero, Rius and Puig, "Temperature dependence of density and viscosity of vegetable oils", Biomass and Bioenergy 42 (2012) 164-171, doi:10.1016/j.biombioe.2012.03.007, Tables 3 and 5 (full text: https://upcommons.upc.edu/handle/2117/16423), Table 3, 20 °C; Refined sunflower oil bought retail.',
     ),
@@ -17649,6 +17932,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.20, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent; ICSC 1452: relative density 0.96; CHRIS 9.7: 0.96 at 25 °C; Engineering ToolBox 952 at 25 °C.; the polynomial law as published gives 964.9286250000001 at the reference state; it is scaled by 1.0000739692016078 onto the quoted 965.0',
       ),
       source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OCA (oils, edible: castor), table 9.20, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OCA.pdf; English units converted by this agent; ICSC 1452: relative density 0.96; CHRIS 9.7: 0.96 at 25 °C; Engineering ToolBox 952 at 25 °C.',
     ),
@@ -17696,6 +17980,7 @@ abstract final class Materials {
         expression: '1505.5 [m/s] * (((2414.26 + (T / 1 [K]) * (-3.1))) / 1505.4950000000003)',
         inputs: <String, LawInput>{'T': LawInput.temperature},
         confidence: Confidence.handbook,
+        source: 'Kaye and Laby, 16th ed., section 2.4.1 \'The speed and attenuation of sound\', liquids table (NPL archive .../general_physics/2_4/2_4_1.html); 1490 m/s at 25 °C with dc/dT = -3.1 m/(s*K); the 20 °C value by that slope (derived by this agent).; the polynomial law as published gives 1505.4950000000003 at the reference state; it is scaled by 1.000003321166792 onto the quoted 1505.5',
       ),
       source: 'Kaye and Laby, 16th ed., section 2.4.1 \'The speed and attenuation of sound\', liquids table (NPL archive .../general_physics/2_4/2_4_1.html); 1490 m/s at 25 °C with dc/dT = -3.1 m/(s*K); the 20 °C value by that slope (derived by this agent).',
     ),
@@ -17772,6 +18057,7 @@ abstract final class Materials {
           0.00117,
         ],
         confidence: Confidence.handbook,
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet TPT (turpentine), table 9.23, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/TPT.pdf; English units converted by this agent; the table alone gives 0.0014910000000000001 at the reference state; its point there is the quoted 0.001491, 0.9999999999999999 times it',
       ),
       bulkModulus: ConstantLaw(
         1280000000.0,
@@ -17948,7 +18234,7 @@ abstract final class Materials {
           0.123,
         ],
         confidence: Confidence.handbook,
-        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent',
+        source: 'U.S. Coast Guard CHRIS Hazardous Chemical Data Manual, sheet OMN (oils, miscellaneous: mineral), table 9.22, interpolated at 68 °F, via NOAA CAMEO Chemicals https://cameochemicals.noaa.gov/chris/OMN.pdf; English units converted by this agent; the table alone gives 0.13061978417266187 at the reference state; its point there is the quoted 0.1306, 0.9998485361709393 times it',
       ),
       autoignitionTemperature: ConstantLaw(
         588.65,
@@ -18121,6 +18407,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 2 / Eq. (1); the polynomial law as published gives 6076.85535 at the reference state; it is scaled by 1.0000073475502425 onto the quoted 6076.9',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 2 / Eq. (1)',
     ),
@@ -18137,6 +18424,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 5; the andrade law as published gives 0.001677453480325432 at the reference state; it is scaled by 1.0044987952053992 onto the quoted 0.001685',
       ),
       surfaceTension: FormulaLaw(
         0.724,
@@ -18150,7 +18438,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Keene, "Review of data for the surface tension of pure metals", Int. Mater. Rev. 38, 157-192 (1993), p. 174, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; oxide-free gallium; Iida and Guthrie (2015) give 724 - 0.07 (T - Tm) mN/m',
+        source: 'Keene, "Review of data for the surface tension of pure metals", Int. Mater. Rev. 38, 157-192 (1993), p. 174, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; oxide-free gallium; Iida and Guthrie (2015) give 724 - 0.07 (T - Tm) mN/m; the polynomial law as published gives 0.7240002 at the reference state; it is scaled by 0.9999997237569824 onto the quoted 0.724',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Cadmium, Cobalt, Gallium, Indium, Mercury, Silicon, Thallium, and Zinc", J. Phys. Chem. Ref. Data 41, 033101 (2012), doi:10.1063/1.4729873 (full text: https://elib.dlr.de/76579/1/Metal-Pub.pdf), Table 5',
     ),
@@ -18172,7 +18460,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, "Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Yu et al. (2020) quote 30.54 at 29.8 °C; Iida and Guthrie (2015) fit gives 26.0',
+        source: 'Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, "Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Yu et al. (2020) quote 30.54 at 29.8 °C; Iida and Guthrie (2015) fit gives 26.0; the polynomial law as published gives 28.4199724 at the reference state; it is scaled by 1.0000009711480227 onto the quoted 28.42',
       ),
       meltingPoint: ConstantLaw(302.92, confidence: Confidence.handbook),
       boilingPoint: ConstantLaw(
@@ -18209,6 +18497,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 537 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Yu et al. (2020) quote 27.2e-8 at 29.8 °C; the polynomial law as published gives 2.592483871e-7 at the reference state; it is scaled by 0.9998133562158621 onto the quoted 2.592e-7',
       ),
       source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 537 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Yu et al. (2020) quote 27.2e-8 at 29.8 °C',
     ),
@@ -18233,6 +18522,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, "Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml; the 293 K point itself is 6360 kg/m3; Yu et al. (2020) quote 6440; the polynomial law as published gives 6352.520949999999 at the reference state; it is scaled by 1.0000754110067123 onto the quoted 6353.0',
       ),
       source: 'Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, "Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml; the 293 K point itself is 6360 kg/m3; Yu et al. (2020) quote 6440',
     ),
@@ -18249,6 +18539,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, "Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml; 20 °C is 6 K below the first data point (299 K, 2.09e-3 Pa*s); the value is the fit extrapolated. The often-quoted 2.4e-3 Pa*s is a manufacturer figure not traced here; the andrade law as published gives 0.002088131388073863 at the reference state; it is scaled by 1.0296286968719943 onto the quoted 0.00215',
       ),
       surfaceTension: ConstantLaw(
         0.585,
@@ -18271,6 +18562,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, "Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml; the polynomial law as published gives 24.629804 at the reference state; it is scaled by 0.9987899213489478 onto the quoted 24.6',
       ),
       meltingPoint: ConstantLaw(
         283.85,
@@ -18292,6 +18584,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, "Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml (electrical conductivity); the polynomial law as published gives 3.07274345e-7 at the reference state; it is scaled by 0.9991071659431898 onto the quoted 3.07e-7',
       ),
       source: 'Plevachuk, Sklyarchuk, Eckert, Gerbeth, Novakovic, "Thermophysical Properties of the Liquid Ga-In-Sn Eutectic Alloy", J. Chem. Eng. Data 59, 757-763 (2014), doi:10.1021/je400882q; data read from NIST TRC ThermoML, https://trc.nist.gov/ThermoML/10.1021/je400882q.xml (electrical conductivity)',
     ),
@@ -18341,6 +18634,7 @@ abstract final class Materials {
           633.81,
         ],
         confidence: Confidence.handbook,
+        source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.3-1 (919 kg/m3 at 400 K); the table alone gives 919.242 at the reference state; its point there is the quoted 919.3, 1.0000630954634362 times it',
       ),
       source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.3-1 (919 kg/m3 at 400 K)',
     ),
@@ -18380,6 +18674,7 @@ abstract final class Materials {
           0.00012353,
         ],
         confidence: Confidence.handbook,
+        source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 2.2-1 (5.99e-4 at 400 K); the table alone gives 0.0006207232000000001 at the reference state; its point there is the quoted 0.0005992, 0.9653256072916236 times it',
       ),
       surfaceTension: TableLaw(
         0.1977,
@@ -18416,7 +18711,7 @@ abstract final class Materials {
           0.079112,
         ],
         confidence: Confidence.handbook,
-        source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.6-1 (197.7 mN/m at 400 K)',
+        source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 1.6-1 (197.7 mN/m at 400 K); the table alone gives 0.1976976 at the reference state; its point there is the quoted 0.1977, 1.0000121397528345 times it',
       ),
       bulkModulus: ConstantLaw(
         5714000000.0,
@@ -18444,7 +18739,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 2.1-1 (87.22 at 400 K)',
+        source: 'Fink and Leibowitz, "Thermodynamic and Transport Properties of Sodium Liquid and Vapor", Argonne National Laboratory ANL/RE-95/2 (1995), OSTI 94649 (https://digital.library.unt.edu/ark:/67531/metadc793620/m2/1/high_res_d/94649.pdf), Table 2.1-1 (87.22 at 400 K); the polynomial law as published gives 87.224272 at the reference state; it is scaled by 0.9999510228070462 onto the quoted 87.22',
       ),
       volumetricExpansion: ConstantLaw(
         0.000241,
@@ -18490,6 +18785,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 541 Tab. 17.11, quadratic fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 1.0750014000000001e-7 at the reference state; it is scaled by 0.9999986976761146 onto the quoted 1.075e-7',
       ),
       source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 541 Tab. 17.11, quadratic fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
     ),
@@ -18516,6 +18812,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2008); the polynomial law as published gives 10609.325 at the reference state; it is scaled by 0.9999693665713888 onto the quoted 10609.0',
       ),
       source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2008)',
     ),
@@ -18532,6 +18829,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); the arrhenius law as published gives 0.002356453005266413 at the reference state; it is scaled by 0.9998077596856799 onto the quoted 0.002356',
       ),
       surfaceTension: FormulaLaw(
         0.4525,
@@ -18546,7 +18844,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Jauch 1986)',
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Jauch 1986); the polynomial law as published gives 0.45245 at the reference state; it is scaled by 1.0001105094485578 onto the quoted 0.4525',
       ),
       bulkModulus: ConstantLaw(
         34110000000.0,
@@ -18591,7 +18889,7 @@ abstract final class Materials {
           137.15,
         ],
         confidence: Confidence.handbook,
-        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)',
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); the table alone gives 147.0908 at the reference state; its point there is the quoted 147.1, 1.0000625463999107 times it',
       ),
       conductivity: FormulaLaw(
         16.35,
@@ -18605,6 +18903,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); the polynomial law as published gives 16.349999999999998 at the reference state; it is scaled by 1.0000000000000002 onto the quoted 16.35',
       ),
       volumetricExpansion: ConstantLaw(
         0.0001206,
@@ -18638,6 +18937,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); the polynomial law as published gives 1793.1 at the reference state; it is scaled by 0.9999442306619821 onto the quoted 1793.0',
       ),
       source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011)',
     ),
@@ -18654,6 +18954,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); the polynomial law as published gives 9.7615e-7 at the reference state; it is scaled by 1.0000512216360191 onto the quoted 9.762e-7',
       ),
       source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py)',
     ),
@@ -18679,6 +18980,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); cross-checks: Assael et al. (2012) 10922 - 1.096 T gives 10403; Chusov et al. (2020) 11000 - 1.223 T gives 10421; the polynomial law as published gives 10453.21705 at the reference state; it is scaled by 0.9999792360572863 onto the quoted 10453.0',
       ),
       source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); cross-checks: Assael et al. (2012) 10922 - 1.096 T gives 10403; Chusov et al. (2020) 11000 - 1.223 T gives 10421',
     ),
@@ -18695,6 +18997,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); Assael et al. (2012) log10(mu/mPa s) = -0.3173 + 346.95/T gives 2.606e-03 Pa*s (14.2 %, 2 sigma); the arrhenius law as published gives 0.0024316415491111836 at the reference state; it is scaled by 1.0001474110725521 onto the quoted 0.002432',
       ),
       surfaceTension: FormulaLaw(
         0.4107,
@@ -18708,7 +19011,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); Chusov et al. (2020): (441.1 - 0.0711 T) mN/m = 0.4075',
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); Chusov et al. (2020): (441.1 - 0.0711 T) mN/m = 0.4075; the polynomial law as published gives 0.410695315 at the reference state; it is scaled by 1.0000114074834285 onto the quoted 0.4107',
       ),
       bulkModulus: ConstantLaw(
         32180000000.0,
@@ -18753,7 +19056,7 @@ abstract final class Materials {
           133.58,
         ],
         confidence: Confidence.handbook,
-        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); Chusov et al. (2020) recommend a constant 147.0',
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); Chusov et al. (2020) recommend a constant 147.0; the table alone gives 146.880615 at the reference state; its point there is the quoted 146.9, 1.0001319779332352 times it',
       ),
       conductivity: FormulaLaw(
         10.42,
@@ -18767,6 +19070,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); the polynomial law as published gives 10.4188130236375 at the reference state; it is scaled by 1.0001139262562644 onto the quoted 10.42',
       ),
       volumetricExpansion: ConstantLaw(
         0.0001237,
@@ -18796,6 +19100,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); Chusov et al. (2020): 1855 - 0.257 T = 1733; the polynomial law as published gives 1754.6922 at the reference state; it is scaled by 1.0001754153805438 onto the quoted 1755.0',
       ),
       source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py) (Sobolev 2011); Chusov et al. (2020): 1855 - 0.257 T = 1733',
     ),
@@ -18812,6 +19117,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); Chusov et al. (2020): (88.71 + 0.052 T) 1e-8 = 1.1331e-06; the polynomial law as published gives 0.000001136112 at the reference state; it is scaled by 0.9999014181700396 onto the quoted 0.000001136',
       ),
       source: 'OECD/NEA, "Handbook on Lead-bismuth Eutectic Alloy and Lead Properties, Materials Compatibility, Thermal-hydraulics and Technologies", 2015 ed., NEA No. 7268, ch. 2 recommended correlations; transcribed from the lbh15 library that implements them (newcleo, https://github.com/newcleo-dev-team/lbh15, lbh15/properties/{lead,lbe}_properties.py and _commons.py); Chusov et al. (2020): (88.71 + 0.052 T) 1e-8 = 1.1331e-06',
     ),
@@ -18839,6 +19145,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, as quoted in Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (1); the polynomial law as published gives 6949.71 at the reference state; it is scaled by 0.9999985610910384 onto the quoted 6949.7',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, as quoted in Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (1)',
     ),
@@ -18855,6 +19162,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, as quoted in Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (16); the arrhenius law as published gives 0.0016455538341068356 at the reference state; it is scaled by 1.0002711341822532 onto the quoted 0.001646',
       ),
       surfaceTension: FormulaLaw(
         0.5559,
@@ -18868,7 +19176,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (15) (Kasama et al. 1976)',
+        source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (15) (Kasama et al. 1976); the polynomial law as published gives 0.5559499999999999 at the reference state; it is scaled by 0.9999100638546632 onto the quoted 0.5559',
       ),
       bulkModulus: ConstantLaw(
         42160000000.0,
@@ -18913,6 +19221,7 @@ abstract final class Materials {
           265.18,
         ],
         confidence: Confidence.handbook,
+        source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (2) (Hultgren); the table alone gives 247.70170767004342 at the reference state; its point there is the quoted 247.1, 0.9975708376187501 times it',
       ),
       conductivity: FormulaLaw(
         29.67,
@@ -18927,7 +19236,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (14)',
+        source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (14); the polynomial law as published gives 29.674 at the reference state; it is scaled by 0.9998652018602144 onto the quoted 29.67',
       ),
       meltingPoint: ConstantLaw(
         505.08,
@@ -18965,6 +19274,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (4); the polynomial law as published gives 2463.1 at the reference state; it is scaled by 0.999959400755146 onto the quoted 2463.0',
       ),
       source: 'Humrickhouse, "An Equation of State and Compendium of Thermophysical Properties of Liquid Tin", INL/CON-17-41428 (2017), https://inldigitallibrary.inl.gov/sites/sti/sti/8059219.pdf, Eq. (4)',
     ),
@@ -18981,6 +19291,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 542 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 4.8479685e-7 at the reference state; it is scaled by 1.0000064975669705 onto the quoted 4.848e-7',
       ),
       source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 542 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
     ),
@@ -19007,6 +19318,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, as adopted in Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618; the polynomial law as published gives 2364.66035 at the reference state; it is scaled by 1.0001436358502818 onto the quoted 2365.0',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, as adopted in Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618',
     ),
@@ -19023,6 +19335,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380; the andrade law as published gives 0.0012395284719467973 at the reference state; it is scaled by 1.000380409215177 onto the quoted 0.00124',
       ),
       surfaceTension: FormulaLaw(
         0.8602,
@@ -19036,7 +19349,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Brillo and Kolland 2016), oxygen-saturated surface; an oxide-free surface is about 1.05 N/m at the melting point',
+        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Brillo and Kolland 2016), oxygen-saturated surface; an oxide-free surface is about 1.05 N/m at the melting point; the polynomial law as published gives 0.8602101 at the reference state; it is scaled by 0.9999882586823847 onto the quoted 0.8602',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380',
     ),
@@ -19077,7 +19390,7 @@ abstract final class Materials {
           114.03,
         ],
         confidence: Confidence.handbook,
-        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Ho, Powell and Liley 1974)',
+        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Ho, Powell and Liley 1974); the table alone gives 92.10863906390638 at the reference state; its point there is the quoted 92.13, 1.0002319102345958 times it',
       ),
       meltingPoint: ConstantLaw(
         933.47,
@@ -19112,7 +19425,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Totten and MacKenzie, Handbook of Aluminum, 2003); two data points (973 and 1273 K); oxide-sensitive',
+        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Totten and MacKenzie, Handbook of Aluminum, 2003); two data points (973 and 1273 K); oxide-sensitive; the polynomial law as published gives 0.12031605 at the reference state; it is scaled by 0.99737316841768 onto the quoted 0.12',
       ),
       source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (NIST-JANAF 4th ed.): 31.751 J/(mol K), constant in the liquid',
     ),
@@ -19152,6 +19465,7 @@ abstract final class Materials {
           3.9308e-7,
         ],
         confidence: Confidence.handbook,
+        source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Desai, James and Ho 1984); the table alone gives 2.5455004500450046e-7 at the reference state; its point there is the quoted 2.546e-7, 1.000196248228904 times it',
       ),
       source: 'Tolias, Ratynskaia, Paschalidis, "Analytical expressions for thermophysical properties of solid and liquid aluminum relevant for fusion applications", MEMENTO material library, Zenodo doi:10.5281/zenodo.7520618 (Desai, James and Ho 1984)',
     ),
@@ -19178,6 +19492,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, p. 289 Eq. (2), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 7023.713100000001 at the reference state; it is scaled by 1.0000408473404188 onto the quoted 7024.0',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, p. 289 Eq. (2), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
     ),
@@ -19194,6 +19509,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Aluminum and Liquid Iron", J. Phys. Chem. Ref. Data 35, 285 (2006), doi:10.1063/1.2149380, p. 295 Eq. (20), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the andrade law as published gives 0.005718504539613351 at the reference state; it is scaled by 1.0000866416006522 onto the quoted 0.005719',
       ),
       surfaceTension: FormulaLaw(
         1.899,
@@ -19208,7 +19524,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Keene, "Review of data for the surface tension of pure metals", Int. Mater. Rev. 38, 157-192 (1993), p. 176, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Brillo and Egry (2005): 1.92 - 3.97e-4 (T - 1811) N/m; oxygen and sulphur lower it sharply',
+        source: 'Keene, "Review of data for the surface tension of pure metals", Int. Mater. Rev. 38, 157-192 (1993), p. 176, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Brillo and Egry (2005): 1.92 - 3.97e-4 (T - 1811) N/m; oxygen and sulphur lower it sharply; the polynomial law as published gives 1.898602 at the reference state; it is scaled by 1.000209627926232 onto the quoted 1.899',
       ),
       bulkModulus: ConstantLaw(
         110500000000.0,
@@ -19231,7 +19547,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, "Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
+        source: 'Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, "Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 36.465979205 at the reference state; it is scaled by 1.0001102615393214 onto the quoted 36.47',
       ),
       meltingPoint: ConstantLaw(
         1811.0,
@@ -19269,6 +19585,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Blairs, "Review of data for velocity of sound in pure liquid metals and metalloids", Int. Mater. Rev. 52, 321-344 (2007), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 3966.24815 at the reference state; it is scaled by 0.9999374345752925 onto the quoted 3966.0',
       ),
       source: 'Blairs, "Review of data for velocity of sound in pure liquid metals and metalloids", Int. Mater. Rev. 52, 321-344 (2007), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
     ),
@@ -19300,6 +19617,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, p. 033105-4 Eq. (1), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; CRC 85th ed. gives 8020 - 0.609 (T - 1357.77); the polynomial law as published gives 7962.41 at the reference state; it is scaled by 0.9999485080522104 onto the quoted 7962.0',
       ),
       source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, p. 033105-4 Eq. (1), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; CRC 85th ed. gives 8020 - 0.609 (T - 1357.77)',
     ),
@@ -19316,6 +19634,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Assael et al., "Reference Data for the Density and Viscosity of Liquid Copper and Liquid Tin", J. Phys. Chem. Ref. Data 39, 033105 (2010), doi:10.1063/1.3467496, Eq. (3), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the andrade law as published gives 0.00374354809575666 at the reference state; it is scaled by 1.0001207154901661 onto the quoted 0.003744',
       ),
       surfaceTension: FormulaLaw(
         1.363,
@@ -19329,7 +19648,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Keene, "Review of data for the surface tension of pure metals", Int. Mater. Rev. 38, 157-192 (1993), p. 173, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Iida and Guthrie (2015) and Mills and Su (2006): 1320 - 0.28 (T - Tm) mN/m',
+        source: 'Keene, "Review of data for the surface tension of pure metals", Int. Mater. Rev. 38, 157-192 (1993), p. 173, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Iida and Guthrie (2015) and Mills and Su (2006): 1320 - 0.28 (T - Tm) mN/m; the polynomial law as published gives 1.3631199999999999 at the reference state; it is scaled by 0.9999119666647105 onto the quoted 1.363',
       ),
       bulkModulus: ConstantLaw(
         95410000000.0,
@@ -19353,7 +19672,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, "Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
+        source: 'Assael, Chatzimichailidis, Antoniadis, Wakeham, Huber, Fukuyama, "Reference correlations for the thermal conductivity of liquid copper, gallium, indium, iron, lead, nickel and tin", High Temp. High Press. 46, 391-416 (2017), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 153.463 at the reference state; it is scaled by 1.0002411004606975 onto the quoted 153.5',
       ),
       meltingPoint: ConstantLaw(
         1357.77,
@@ -19391,6 +19710,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Blairs, "Review of data for velocity of sound in pure liquid metals and metalloids", Int. Mater. Rev. 52, 321-344 (2007), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 3461.6 at the reference state; it is scaled by 1.0001155535012711 onto the quoted 3462.0',
       ),
       source: 'Blairs, "Review of data for velocity of sound in pure liquid metals and metalloids", Int. Mater. Rev. 52, 321-344 (2007), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
     ),
@@ -19407,6 +19727,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 536 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 2.0463629999999998e-7 at the reference state; it is scaled by 0.999822612117205 onto the quoted 2.046e-7',
       ),
       source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 536 Tab. 17.11, linear fit by yamdb, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table',
     ),
@@ -19450,6 +19771,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Hirai (1992) as tabulated in Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II Tab. 17.9a, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Davison (1968) log10(mu/Pa s) = -3.080 + 57.63/T - 5.172e-4 T gives 5.979e-04 (his stated scatter is 19 %); the arrhenius law as published gives 0.0005230355489855049 at the reference state; it is scaled by 0.9999320333281861 onto the quoted 0.000523',
       ),
       surfaceTension: FormulaLaw(
         0.392,
@@ -19463,7 +19785,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 528 Tab. 17.8, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Davison (1968) 0.447 - 1.07e-4 T - 1.351e-8 T^2 gives 0.3901 (the 1.07e-4 read from a poor scan, checked against his tabulated 0.396 and 0.240 at the melting and boiling points)',
+        source: 'Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II p. 528 Tab. 17.8, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Davison (1968) 0.447 - 1.07e-4 T - 1.351e-8 T^2 gives 0.3901 (the 1.07e-4 read from a poor scan, checked against his tabulated 0.396 and 0.240 at the melting and boiling points); the polynomial law as published gives 0.392048 at the reference state; it is scaled by 0.999877566012325 onto the quoted 0.392',
       ),
       source: 'Hirai (1992) as tabulated in Iida and Guthrie, The Thermophysical Properties of Metallic Liquids, Oxford University Press (2015), vol. II Tab. 17.9a, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Davison (1968) log10(mu/Pa s) = -3.080 + 57.63/T - 5.172e-4 T gives 5.979e-04 (his stated scatter is 19 %)',
     ),
@@ -19481,7 +19803,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Davison, "Compilation of thermophysical properties of liquid lithium", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, polynomial approximation of Eq. (8)',
+        source: 'Davison, "Compilation of thermophysical properties of liquid lithium", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, polynomial approximation of Eq. (8); the polynomial law as published gives 45.420249999999996 at the reference state; it is scaled by 0.9999944958471167 onto the quoted 45.42',
       ),
       meltingPoint: ConstantLaw(
         453.69,
@@ -19522,6 +19844,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Davison, "Compilation of thermophysical properties of liquid lithium", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, Eq. (2) (micro-ohm cm); Iida and Guthrie (2015) linear fit gives 2.741e-07; the polynomial law as published gives 2.6691e-7 at the reference state; it is scaled by 0.9999625341875538 onto the quoted 2.669e-7',
       ),
       source: 'Davison, "Compilation of thermophysical properties of liquid lithium", NASA TN D-4650 (1968), https://ntrs.nasa.gov/citations/19680018893, Eq. (2) (micro-ohm cm); Iida and Guthrie (2015) linear fit gives 2.741e-07',
     ),
@@ -19555,6 +19878,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C), eq. 1.59 in cal/(g °C), converted with 4.184; MOOSE converts with 4200 and gets 0.4 % more; the polynomial law as published gives 937.21598 at the reference state; it is scaled by 0.9999829495011385 onto the quoted 937.2',
       ),
       conductivity: FormulaLaw(
         23.25,
@@ -19568,7 +19892,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C), eq. 1.53 (W/(cm °C)); stated range 150-680 °C, so 100 °C is extrapolated; very sensitive to composition',
+        source: 'Foust (ed.), Sodium-NaK Engineering Handbook, vol. 1, Gordon and Breach (1972), eqs. 1.5, 1.8, 1.9, 1.18-1.19, 1.53, 1.59, as implemented in MOOSE NaKFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/NaKFluidProperties.C), eq. 1.53 (W/(cm °C)); stated range 150-680 °C, so 100 °C is extrapolated; very sensitive to composition; the polynomial law as published gives 24.009999999999998 at the reference state; it is scaled by 0.9683465222823824 onto the quoted 23.25',
       ),
       meltingPoint: ConstantLaw(
         260.55,
@@ -19599,6 +19923,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py); the polynomial law as published gives 1899.1965999999998 at the reference state; it is scaled by 0.9998964825442507 onto the quoted 1899.0',
       ),
       source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)',
     ),
@@ -19615,6 +19940,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py); the polynomial law as published gives 0.003263200000000001 at the reference state; it is scaled by 0.9999387104682517 onto the quoted 0.003263',
       ),
       source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)',
     ),
@@ -19631,6 +19957,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py); the polynomial law as published gives 1494.6018 at the reference state; it is scaled by 1.0002664254786795 onto the quoted 1495.0',
       ),
       conductivity: FormulaLaw(
         0.5,
@@ -19644,6 +19971,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py); the polynomial law as published gives 0.4999995 at the reference state; it is scaled by 1.000001000001 onto the quoted 0.5',
       ),
       source: 'Zavoico, "Solar Power Tower Design Basis Document", Sandia SAND2001-2100 (2001), 60 NaNO3 / 40 KNO3 by mass, T in °C; coefficients as implemented in the DISPATCHES project (https://github.com/gmlc-dispatches/dispatches, dispatches/properties/solarsalt_properties.py)',
     ),
@@ -19670,6 +19998,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Richard, Wang, Scarlat, Peterson et al., "Implementation of liquid salt working fluids into TRACE", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C); stated uncertainty 0.05 %; the polynomial law as published gives 1973.44 at the reference state; it is scaled by 0.9997770390789686 onto the quoted 1973.0',
       ),
       source: 'Richard, Wang, Scarlat, Peterson et al., "Implementation of liquid salt working fluids into TRACE", ICAPP 2014, as implemented in MOOSE FlibeFluidProperties (https://github.com/idaholab/moose, modules/fluid_properties/src/fluidproperties/FlibeFluidProperties.C); stated uncertainty 0.05 %',
     ),
@@ -19709,6 +20038,7 @@ abstract final class Materials {
           0.0010006,
         ],
         confidence: Confidence.handbook,
+        source: 'Tasidou, Magnusson, Munro, Assael, "Reference correlations for the viscosity of molten LiF-NaF-KF, LiF-BeF2, and Li2CO3-Na2CO3-K2CO3", J. Phys. Chem. Ref. Data 48 (2019), Eq. (1) and Tab. 2, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Richard et al. (2014): 1.16e-4 exp(3755/T) gives 7.524e-03 (20 %); viscosity is very sensitive to the LiF/BeF2 ratio; the table alone gives 0.0074141 at the reference state; its point there is the quoted 0.007282, 0.9821825980226866 times it',
       ),
       bulkModulus: ConstantLaw(
         11400000000.0,
@@ -19768,6 +20098,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'CRC Handbook, 85th ed. (2005), p. 4-126, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Janz NSRDS-NBS 15 Tab.: 2.1393 - 0.5430e-3 T g/cm3 gives 1542; the polynomial law as published gives 1541.7999999999997 at the reference state; it is scaled by 1.0001297185108318 onto the quoted 1542.0',
       ),
       source: 'CRC Handbook, 85th ed. (2005), p. 4-126, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Janz NSRDS-NBS 15 Tab.: 2.1393 - 0.5430e-3 T g/cm3 gives 1542',
     ),
@@ -19784,6 +20115,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Tasidou, Chliatzou, Assael, Antoniadis, Mylona, Huber, Wakeham, "Reference correlations for the viscosity of 13 inorganic molten salts", J. Phys. Chem. Ref. Data 48, 013101 (2019), Tab. 5, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Janz (1968): 1.860e-2 exp(9308/RT) cP (R in cal) gives 1.315e-03 Pa*s, 30 % higher; the 2019 reference correlation (2.4 %) is preferred; the arrhenius law as published gives 0.0009890974959498398 at the reference state; it is scaled by 1.0000025316515009 onto the quoted 0.0009891',
       ),
       surfaceTension: FormulaLaw(
         0.1136,
@@ -19797,7 +20129,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
-        source: 'Chesser, Termini, Birri, "Molten halide salt surface tension: methods and correlations", Int. J. Thermophys. 47, 80 (2026), Tab. 7, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Sato et al., J. Phys. Chem. 94 (1990): 189.45 - 0.0702 T mN/m gives 0.1122',
+        source: 'Chesser, Termini, Birri, "Molten halide salt surface tension: methods and correlations", Int. J. Thermophys. 47, 80 (2026), Tab. 7, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Sato et al., J. Phys. Chem. 94 (1990): 189.45 - 0.0702 T mN/m gives 0.1122; the polynomial law as published gives 0.11358 at the reference state; it is scaled by 1.0001760873393204 onto the quoted 0.1136',
       ),
       source: 'Tasidou, Chliatzou, Assael, Antoniadis, Mylona, Huber, Wakeham, "Reference correlations for the viscosity of 13 inorganic molten salts", J. Phys. Chem. Ref. Data 48, 013101 (2019), Tab. 5, via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; Janz (1968): 1.860e-2 exp(9308/RT) cP (R in cal) gives 1.315e-03 Pa*s, 30 % higher; the 2019 reference correlation (2.4 %) is preferred',
     ),
@@ -19814,6 +20146,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Janz et al., "Physical properties data compilations relevant to energy storage. II. Molten salts", NSRDS-NBS 61 pt. II (1979), p. 54: 25.24 - 7.52e-3 T cal/(mol K), via yamdb liquid-metal and molten-salt property database (Weier, Nash, Personnettaz, Weber, J. Open Research Software, 2025; https://codebase.helmholtz.cloud/prosa/yamdb, data/metals.yml and data/salts.yml), which transcribes the original with page and table; the polynomial law as published gives 1214.7585 at the reference state; it is scaled by 1.0001988049476502 onto the quoted 1215.0',
       ),
       conductivity: ConstantLaw(
         0.4721,
@@ -20039,6 +20372,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.measured,
+        source: 'Ngadi and Yu, \'Rheological properties of Canadian maple syrup\', Canadian Biosystems Engineering 46, 3.15 (2004) (https://library.csbe-scgab.ca/docs/journal/46/c0235.pdf), eq. 2 for Clear, Medium and Amber grades evaluated at 20 °C; Newtonian (power-law index 0.98-1.015). Measured power-law K at 15/25 °C: 0.335/0.157 (Clear), 0.299/0.149 (Medium), 0.313/0.154 (Amber) Pa*s; Very Clear eq. 1 gives 0.202 and Dark eq. 3 0.227 Pa*s at 20 °C; the arrhenius law as published gives 0.21460247452904396 at the reference state; it is scaled by 1.0018523806485848 onto the quoted 0.215',
       ),
       source: 'Ngadi and Yu, \'Rheological properties of Canadian maple syrup\', Canadian Biosystems Engineering 46, 3.15 (2004) (https://library.csbe-scgab.ca/docs/journal/46/c0235.pdf), eq. 2 for Clear, Medium and Amber grades evaluated at 20 °C; Newtonian (power-law index 0.98-1.015). Measured power-law K at 15/25 °C: 0.335/0.157 (Clear), 0.299/0.149 (Medium), 0.313/0.154 (Amber) Pa*s; Very Clear eq. 1 gives 0.202 and Dark eq. 3 0.227 Pa*s at 20 °C',
     ),
@@ -20120,13 +20454,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[216.0, 384.0, 447.0, 447.0, 490.0, 574.0, 680.0, 975.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; 300 K; the table alone gives 442.68449999999996 at the reference state; its point there is the quoted 447.0, 1.0097484777533436 times it',
       ),
       conductivity: TableLaw(
         80.2,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[134.0, 94.0, 80.2, 80.2, 69.5, 54.7, 43.3, 32.8],
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; 300 K; Armco iron 72.7',
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; 300 K; Armco iron 72.7; the table alone gives 81.1453 at the reference state; its point there is the quoted 80.2, 0.988350526771113 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000036,
@@ -20239,12 +20574,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[187.0, 225.0, 235.0, 235.0, 239.0, 250.0, 262.0, 277.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 234.315 at the reference state; its point there is the quoted 235.0, 1.0029234150609223 times it',
       ),
       conductivity: TableLaw(
         429.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[444.0, 430.0, 429.0, 429.0, 425.0, 412.0, 396.0, 379.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 429.0685 at the reference state; its point there is the quoted 429.0, 0.9998403518319336 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000057,
@@ -20336,7 +20673,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -20344,12 +20681,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[118.0, 125.0, 129.0, 129.0, 132.0, 142.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 128.726 at the reference state; its point there is the quoted 129.0, 1.002128552118453 times it',
       ),
       conductivity: TableLaw(
         35.3,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[39.7, 36.7, 35.3, 35.3, 34.0, 31.4],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 35.3959 at the reference state; its point there is the quoted 35.3, 0.9972906466568162 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000087,
@@ -20453,12 +20792,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[232.0, 383.0, 444.0, 444.0, 485.0, 592.0, 530.0, 562.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 439.8215 at the reference state; its point there is the quoted 444.0, 1.0095004450669192 times it',
       ),
       conductivity: TableLaw(
         90.7,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[164.0, 107.0, 90.7, 90.7, 80.2, 65.6, 67.6, 71.8],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 91.81655 at the reference state; its point there is the quoted 90.7, 0.9878393383327951 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000039,
@@ -20568,12 +20909,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[297.0, 367.0, 389.0, 389.0, 402.0, 436.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 387.493 at the reference state; its point there is the quoted 389.0, 1.0038891025128196 times it',
       ),
       conductivity: TableLaw(
         116.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[117.0, 118.0, 116.0, 116.0, 111.0, 103.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 116.137 at the reference state; its point there is the quoted 116.0, 0.9988203587142771 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000906,
@@ -20660,7 +21003,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -20668,12 +21011,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0],
         ys: <double>[188.0, 215.0, 227.0, 227.0, 243.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 226.178 at the reference state; its point there is the quoted 227.0, 1.0036343057238104 times it',
       ),
       conductivity: TableLaw(
         66.6,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0],
         ys: <double>[85.2, 73.3, 66.6, 66.6, 62.2],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 67.05895 at the reference state; its point there is the quoted 66.6, 0.9931560216794327 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000066,
@@ -20764,7 +21109,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -20772,12 +21117,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[300.0, 465.0, 522.0, 522.0, 551.0, 591.0, 633.0, 675.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 518.0955 at the reference state; its point there is the quoted 522.0, 1.0075362553814886 times it',
       ),
       conductivity: TableLaw(
         21.9,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[30.5, 24.5, 21.9, 21.9, 20.4, 19.4, 19.7, 20.7],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 22.0781 at the reference state; its point there is the quoted 21.9, 0.9919331826561162 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000258,
@@ -20863,7 +21210,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -20871,12 +21218,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[87.0, 122.0, 132.0, 132.0, 137.0, 142.0, 146.0, 148.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 131.315 at the reference state; its point there is the quoted 132.0, 1.0052164642272399 times it',
       ),
       conductivity: TableLaw(
         174.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[208.0, 186.0, 174.0, 174.0, 159.0, 137.0, 125.0, 118.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 174.822 at the reference state; its point there is the quoted 174.0, 0.995298074613035 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000135,
@@ -20965,12 +21314,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0],
         ys: <double>[649.0, 934.0, 1024.0, 1024.0, 1074.0, 1170.0, 1267.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 1017.835 at the reference state; its point there is the quoted 1024.0, 1.0060569738710106 times it',
       ),
       conductivity: TableLaw(
         156.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0],
         ys: <double>[169.0, 159.0, 156.0, 156.0, 153.0, 149.0, 146.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 156.2055 at the reference state; its point there is the quoted 156.0, 0.9986844253243323 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000075,
@@ -21051,12 +21402,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[100.0, 125.0, 133.0, 133.0, 136.0, 141.0, 146.0, 152.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 132.452 at the reference state; its point there is the quoted 133.0, 1.0041373478694169 times it',
       ),
       conductivity: TableLaw(
         71.6,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[77.5, 72.6, 71.6, 71.6, 71.8, 73.2, 75.6, 78.7],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 71.6685 at the reference state; its point there is the quoted 71.6, 0.9990442104969408 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000027,
@@ -21148,12 +21501,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[192.0, 384.0, 449.0, 449.0, 484.0, 542.0, 581.0, 616.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 444.5475 at the reference state; its point there is the quoted 449.0, 1.0100158025857755 times it',
       ),
       conductivity: TableLaw(
         93.7,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[159.0, 111.0, 93.7, 93.7, 90.9, 80.7, 71.3, 65.4],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 94.88505 at the reference state; its point there is the quoted 93.7, 0.9875106773933301 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000195,
@@ -21224,7 +21579,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21232,12 +21587,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[141.0, 224.0, 251.0, 251.0, 261.0, 275.0, 285.0, 295.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 249.1505 at the reference state; its point there is the quoted 251.0, 1.0074232241155447 times it',
       ),
       conductivity: TableLaw(
         138.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[179.0, 143.0, 138.0, 138.0, 134.0, 126.0, 118.0, 112.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 138.3425 at the reference state; its point there is the quoted 138.0, 0.9975242604405732 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000015,
@@ -21311,7 +21668,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21319,12 +21676,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[272.0, 402.0, 477.0, 477.0, 515.0, 557.0, 582.0, 611.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 471.86249999999995 at the reference state; its point there is the quoted 477.0, 1.0108877056345864 times it',
       ),
       conductivity: TableLaw(
         14.9,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[9.2, 12.6, 14.9, 14.9, 16.6, 19.8, 22.6, 25.4],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 14.74245 at the reference state; its point there is the quoted 14.9, 1.010686826138125 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000519,
@@ -21398,7 +21757,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21545,7 +21904,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(526.3, confidence: Confidence.handbook),
@@ -21640,7 +21999,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: FormulaLaw(
@@ -21655,6 +22014,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'ASM Aerospace Specification Metals datasheets (asm.matweb.com) for the named temper; typical values; https://asm.matweb.com/; the polynomial law as published gives 911.2 at the reference state; it is scaled by 0.9833187006145742 onto the quoted 896.0',
       ),
       conductivity: ConstantLaw(167.0, confidence: Confidence.handbook),
       volumetricExpansion: ConstantLaw(
@@ -21742,7 +22102,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(960.0, confidence: Confidence.handbook),
@@ -21824,7 +22184,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21832,6 +22192,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[473.0, 787.0, 875.0, 875.0, 925.0, 1042.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; 2024-T6; the table alone gives 868.972 at the reference state; its point there is the quoted 875.0, 1.0069369323752664 times it',
       ),
       conductivity: ConstantLaw(
         121.0,
@@ -21919,7 +22280,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -21927,12 +22288,14 @@ abstract final class Materials {
         xs: <double>[200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[360.0, 380.0, 380.0, 395.0, 425.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 378.63 at the reference state; its point there is the quoted 380.0, 1.0036183081108205 times it',
       ),
       conductivity: TableLaw(
         110.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[75.0, 95.0, 110.0, 110.0, 137.0, 149.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 108.9725 at the reference state; its point there is the quoted 110.0, 1.0094289843767923 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000555,
@@ -22010,7 +22373,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.brass, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(355.0, confidence: Confidence.handbook),
@@ -22019,6 +22382,7 @@ abstract final class Materials {
         xs: <double>[200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[41.0, 54.0, 54.0, 65.0, 74.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 53.1095 at the reference state; its point there is the quoted 54.0, 1.0167672450314915 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000501,
@@ -22056,7 +22420,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.brass, f3d.phosphorBronze, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(420.0, confidence: Confidence.handbook),
@@ -22065,6 +22429,7 @@ abstract final class Materials {
         xs: <double>[200.0, 293.15, 300.0, 400.0, 600.0],
         ys: <double>[42.0, 52.0, 52.0, 52.0, 59.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 51.315 at the reference state; its point there is the quoted 52.0, 1.013348923316769 times it',
       ),
       meltingPoint: ConstantLaw(1293.0, confidence: Confidence.handbook),
       source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
@@ -22089,7 +22454,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.brass, f3d.phosphorBronze, f3d.aluminumBronze, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22097,12 +22462,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0],
         ys: <double>[237.0, 362.0, 384.0, 384.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 382.493 at the reference state; its point there is the quoted 384.0, 1.0039399413845482 times it',
       ),
       conductivity: TableLaw(
         23.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0],
         ys: <double>[17.0, 19.0, 23.0, 23.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 22.726 at the reference state; its point there is the quoted 23.0, 1.0120566751738098 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000051,
@@ -22138,7 +22505,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.brass, f3d.phosphorBronze, f3d.aluminumBronze, f3d.constantan, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22197,7 +22564,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.brass, f3d.phosphorBronze, f3d.aluminumBronze, f3d.constantan, f3d.nichrome, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22205,12 +22572,14 @@ abstract final class Materials {
         xs: <double>[200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[372.0, 439.0, 439.0, 473.0, 510.0, 546.0, 626.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 434.41049999999996 at the reference state; its point there is the quoted 439.0, 1.0105648919627865 times it',
       ),
       conductivity: TableLaw(
         11.7,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[8.7, 10.3, 11.7, 11.7, 13.5, 17.0, 20.5, 24.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 11.604099999999999 at the reference state; its point there is the quoted 11.7, 1.0082643203695245 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000036,
@@ -22267,7 +22636,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.41, 1.6),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.zinc, f3d.magnesium, f3d.steel, f3d.nickel, f3d.iron, f3d.gold, f3d.lead, f3d.tin, f3d.titanium, f3d.tungsten, f3d.molybdenum, f3d.stainlessSteel304, f3d.stainlessSteel316, f3d.titaniumTi6Al4V, f3d.aluminum6061T6, f3d.aluminum7075T6, f3d.aluminum2024T3, f3d.brass, f3d.phosphorBronze, f3d.aluminumBronze, f3d.constantan, f3d.nichrome, f3d.inconelX750, f3d.castIron, f3d.aluminum, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the metals in this catalogue (f3d.chromium, f3d.magnesium, f3d.zinc, f3d.steel, f3d.iron, f3d.castIron, f3d.platinum, f3d.silver, f3d.copper), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(477.0, confidence: Confidence.handbook),
@@ -22396,11 +22765,11 @@ abstract final class Materials {
         source: 'Heraeus / Corning 7980 fused silica datasheets; Malitson, J. Opt. Soc. Am. 55 (1965) for n_D',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22414,6 +22783,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[0.69, 1.14, 1.38, 1.38, 1.51, 1.75, 2.17, 2.87],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 1.3635599999999999 at the reference state; its point there is the quoted 1.38, 1.0120566751738098 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.00000165,
@@ -22576,11 +22946,11 @@ abstract final class Materials {
         source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22594,6 +22964,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[133.0, 55.0, 36.0, 36.0, 26.4, 15.8, 10.4, 7.85],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 37.301500000000004 at the reference state; its point there is the quoted 36.0, 0.9651086417436295 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000243,
@@ -22640,6 +23011,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[450.0, 82.0, 46.0, 46.0, 32.4, 18.9, 13.0, 10.5],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 48.46600000000001 at the reference state; its point there is the quoted 46.0, 0.9491189699995872 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.0000159,
@@ -22674,11 +23046,11 @@ abstract final class Materials {
         source: 'Cengel & Ghajar (2015), table A-8, properties of miscellaneous materials at 300 K (compiled from various sources, largely Incropera table A.3); https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; physicallybased.info 2400',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.alumina, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       conductivity: ConstantLaw(1.5, confidence: Confidence.handbook),
@@ -22728,11 +23100,11 @@ abstract final class Materials {
         source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values)',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.alumina, f3d.porcelain, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22794,12 +23166,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0],
         ys: <double>[21.0, 194.0, 509.0, 509.0, 853.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 487.4224999999999 at the reference state; its point there is the quoted 509.0, 1.0442685760300359 times it',
       ),
       conductivity: TableLaw(
         2300.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0],
         ys: <double>[10000.0, 4000.0, 2300.0, 2300.0, 1540.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 2416.4500000000003 at the reference state; its point there is the quoted 2300.0, 0.951809472573403 times it',
       ),
       source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
     ),
@@ -22848,6 +23222,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[136.0, 411.0, 709.0, 709.0, 992.0, 1406.0, 1650.0, 1793.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 688.587 at the reference state; its point there is the quoted 709.0, 1.0296447652947267 times it',
       ),
       conductivity: TableLaw(
         1950.0,
@@ -22863,7 +23238,7 @@ abstract final class Materials {
           534.0,
         ],
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; parallel to the layers; across them 5.70',
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; parallel to the layers; across them 5.70; the table alone gives 2037.6800000000003 at the reference state; its point there is the quoted 1950.0, 0.9569706725295433 times it',
       ),
       meltingPoint: ConstantLaw(
         2273.0,
@@ -22904,11 +23279,11 @@ abstract final class Materials {
         source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; physicallybased.info 2600',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.alumina, f3d.porcelain, f3d.siliconCarbide, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22922,7 +23297,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0],
         ys: <double>[39.0, 16.4, 10.4, 10.4, 7.6, 5.0, 4.2],
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; parallel to the c axis; across it 6.21',
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; parallel to the c axis; across it 6.21; the table alone gives 10.811000000000002 at the reference state; its point there is the quoted 10.4, 0.9619831652946073 times it',
       ),
       volumetricExpansion: ConstantLaw(
         0.000033,
@@ -22956,11 +23331,11 @@ abstract final class Materials {
         source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); Callister glass-ceramic (Pyroceram)',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.alumina, f3d.porcelain, f3d.siliconCarbide, f3d.quartz, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -22974,6 +23349,7 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[5.25, 4.78, 3.98, 3.98, 3.64, 3.28, 3.08, 2.96],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 4.034800000000001 at the reference state; its point there is the quoted 3.98, 0.9864181619906809 times it',
       ),
       meltingPoint: ConstantLaw(1623.0, confidence: Confidence.handbook),
       emissivity: TableLaw(
@@ -23009,11 +23385,11 @@ abstract final class Materials {
         source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); anisotropic: 130-185 GPa by direction (Engineering ToolBox)',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.alumina, f3d.porcelain, f3d.siliconCarbide, f3d.quartz, f3d.glassCeramic, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -23021,12 +23397,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[259.0, 556.0, 712.0, 712.0, 790.0, 867.0, 913.0, 946.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 701.314 at the reference state; its point there is the quoted 712.0, 1.0152371120496668 times it',
       ),
       conductivity: TableLaw(
         148.0,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0, 600.0, 800.0, 1000.0],
         ys: <double>[884.0, 264.0, 148.0, 148.0, 98.9, 61.9, 42.4, 31.2],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; the table alone gives 155.94600000000003 at the reference state; its point there is the quoted 148.0, 0.9490464648019185 times it',
       ),
       meltingPoint: ConstantLaw(1685.0, confidence: Confidence.handbook),
       source: 'Incropera & DeWitt, Fundamentals of Heat and Mass Transfer, 3rd ed. (1990), table A.1 (metallic solids, 300 K and 100-1000 K), as reproduced in Cengel & Ghajar, Heat and Mass Transfer, 5th ed. (2015), appendix 1, table A-3; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
@@ -23064,11 +23442,11 @@ abstract final class Materials {
         source: 'Callister & Rethwisch, Materials Science and Engineering, 9th ed. (2014), appendix B (tables B.1-B.9, typical values); hot pressed',
       ),
       staticFriction: ConstantLaw(
-        0.945,
+        0.2,
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.1, 1.0),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.fusedSilica, f3d.alumina, f3d.porcelain, f3d.siliconCarbide, f3d.quartz, f3d.glassCeramic, f3d.silicon, f3d.borosilicateGlass, f3d.crownGlassBK7, f3d.flintGlassF2, f3d.mica), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the glasses and ceramics in this catalogue (f3d.diamond, f3d.graphite, f3d.sapphire, f3d.glass, f3d.mica), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -23725,6 +24103,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice; ice at 273 K per kilogram of snow, from the law; the polynomial law as published gives 2097.8742999999995 at the reference state; it is scaled by 0.9995832448111884 onto the quoted 2097.0',
       ),
       conductivity: ConstantLaw(
         0.0464,
@@ -23789,6 +24168,7 @@ abstract final class Materials {
           ),
         },
         confidence: Confidence.handbook,
+        source: 'Cuffey & Paterson, The Physics of Glaciers, 4th ed. (2010), section 9.2, eqs. for the conductivity and specific heat of ice; ice at 273 K per kilogram of snow, from the law; the polynomial law as published gives 2097.8742999999995 at the reference state; it is scaled by 0.9995832448111884 onto the quoted 2097.0',
       ),
       conductivity: ConstantLaw(
         0.2139,
@@ -24445,12 +24825,8 @@ abstract final class Materials {
         confidence: Confidence.handbook,
         source: 'Cremer & Heckl, Structure-Borne Sound (Springer 1988), tables of static and dynamic properties and of building materials (loss factors), as reproduced in T. Irvine, Damping Properties of Materials, rev. D (2010), tables 1, 2 and 7; http://vibrationdata.com/tutorials_alt/damping.pdf',
       ),
-      staticFriction: ConstantLaw(
-        0.375,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(0.375, 0.375),
-      ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the woods in this catalogue (f3d.oak, f3d.pine, f3d.pineEasternWhite, f3d.birch, f3d.maple, f3d.douglasFir, f3d.spruce, f3d.balsa, f3d.wood, f3d.hardwoodGeneric, f3d.softwoodGeneric, f3d.hardboard, f3d.particleboard), the spread their least and greatest',
+      staticFriction: ConstantLaw(0.6, confidence: Confidence.estimate),
+      source: 'estimate: no measurement of it on itself was read; the engine\'s default coefficient (MaterialCatalog.defaultFriction)',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1800.0, confidence: Confidence.handbook),
@@ -24597,7 +24973,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.abs, f3d.nylon66, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1925.0, confidence: Confidence.handbook),
@@ -24677,7 +25053,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.abs, f3d.nylon66, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(840.0, confidence: Confidence.handbook),
@@ -24841,7 +25217,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.nylon66, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(
@@ -25184,7 +25560,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1170.0, confidence: Confidence.handbook),
@@ -25249,7 +25625,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       volumetricExpansion: ConstantLaw(
@@ -25301,7 +25677,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.pom, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       volumetricExpansion: ConstantLaw(
@@ -25349,7 +25725,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.pom, f3d.epoxy, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       meltingPoint: ConstantLaw(616.0, confidence: Confidence.estimate),
@@ -25455,7 +25831,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(1.16, 1.16),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.rubber, f3d.naturalRubber), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.naturalRubber, f3d.rubber), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       conductivity: ConstantLaw(0.27, confidence: Confidence.handbook),
@@ -25491,7 +25867,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(1.16, 1.16),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.rubber, f3d.naturalRubber, f3d.siliconeRubber), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.naturalRubber, f3d.rubber), the spread their least and greatest',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(1600.0, confidence: Confidence.handbook),
@@ -25525,7 +25901,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(1.16, 1.16),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.rubber, f3d.naturalRubber, f3d.siliconeRubber, f3d.neoprene), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.naturalRubber, f3d.rubber), the spread their least and greatest',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(1830.0, confidence: Confidence.handbook),
@@ -25551,7 +25927,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(1.16, 1.16),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.rubber, f3d.naturalRubber, f3d.siliconeRubber, f3d.neoprene, f3d.butylRubber), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the rubbers in this catalogue (f3d.naturalRubber, f3d.rubber), the spread their least and greatest',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(1610.0, confidence: Confidence.handbook),
@@ -25582,7 +25958,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.pom, f3d.epoxy, f3d.peek, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: TableLaw(
@@ -25590,13 +25966,14 @@ abstract final class Materials {
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0],
         ys: <double>[337.0, 642.0, 935.0, 935.0, 1216.0],
         confidence: Confidence.handbook,
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; graphite-fibre epoxy, Vf 0.25; the table alone gives 914.9295 at the reference state; its point there is the quoted 935.0, 1.0219366628794897 times it',
       ),
       conductivity: TableLaw(
         0.87,
         xs: <double>[100.0, 200.0, 293.15, 300.0, 400.0],
         ys: <double>[0.46, 0.68, 0.87, 0.87, 1.1],
         confidence: Confidence.handbook,
-        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; across the fibres, Vf 0.25; along them 11.1',
+        source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; across the fibres, Vf 0.25; along them 11.1; the table alone gives 0.856985 at the reference state; its point there is the quoted 0.87, 1.0151869635991295 times it',
       ),
       source: 'Incropera & DeWitt (1990), table A.2 (nonmetallic solids), as reproduced in Cengel & Ghajar (2015), table A-4; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf; graphite-fibre epoxy, Vf 0.25',
     ),
@@ -25629,7 +26006,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.pom, f3d.epoxy, f3d.peek, f3d.carbonFiberComposite, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     acoustic: AcousticProperties(
       speedOfSound: ConstantLaw(2740.0, confidence: Confidence.handbook),
@@ -25737,7 +26114,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.pom, f3d.epoxy, f3d.peek, f3d.carbonFiberComposite, f3d.fiberglassComposite, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(
@@ -25771,7 +26148,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         interval: PropertyInterval(0.04, 0.8),
       ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polypropylene, f3d.pvc, f3d.abs, f3d.polycarbonate, f3d.nylon66, f3d.pet, f3d.pom, f3d.epoxy, f3d.peek, f3d.linoleum, f3d.carbonFiberComposite, f3d.fiberglassComposite, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
+      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the plastics in this catalogue (f3d.ptfe, f3d.polyethylene, f3d.polyethyleneLD, f3d.polystyrene, f3d.pmma), the spread their least and greatest',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1465.0, confidence: Confidence.handbook),
@@ -25840,12 +26217,8 @@ abstract final class Materials {
         source: 'ASHRAE Handbook of Fundamentals (1993), ch. 22 table 4, as reproduced in Cengel & Ghajar (2015), tables A-5 (building materials) and A-6 (insulation), mean temperature 24 C; https://highered.mheducation.com/sites/dl/free/0073398187/1016975/Appendix1.pdf',
         interval: PropertyInterval(128.0, 240.0),
       ),
-      staticFriction: ConstantLaw(
-        0.375,
-        confidence: Confidence.estimate,
-        interval: PropertyInterval(0.375, 0.375),
-      ),
-      source: 'estimate: no measurement of it on itself was read; the median of the clean, dry self-friction of the woods in this catalogue (f3d.oak, f3d.pine, f3d.pineEasternWhite, f3d.birch, f3d.maple, f3d.douglasFir, f3d.spruce, f3d.balsa, f3d.wood, f3d.hardwoodGeneric, f3d.softwoodGeneric, f3d.hardboard, f3d.particleboard, f3d.cork), the spread their least and greatest',
+      staticFriction: ConstantLaw(0.6, confidence: Confidence.estimate),
+      source: 'estimate: no measurement of it on itself was read; the engine\'s default coefficient (MaterialCatalog.defaultFriction)',
     ),
     thermal: ThermalProperties(
       specificHeat: ConstantLaw(1380.0, confidence: Confidence.handbook),
@@ -26153,14 +26526,14 @@ abstract final class Materials {
       'f3d.glycerol',
       'f3d.glass',
       contactAngle: 0.45,
-      confidence: Confidence.handbook,
+      confidence: Confidence.estimate,
       source: 'about 26°: the engine\'s, of the order glycerol on laboratory glass is measured at',
     ),
     MaterialPair(
       'f3d.oliveOil',
       'f3d.glass',
       contactAngle: 0.2,
-      confidence: Confidence.handbook,
+      confidence: Confidence.estimate,
       source: 'about 11°: the engine\'s; an oil wets glass all but completely',
     ),
     MaterialPair(
