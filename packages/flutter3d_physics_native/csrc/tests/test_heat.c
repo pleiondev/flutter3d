@@ -35,7 +35,7 @@ static void test_materials(void) {
   F3dMaterial m;
   /* Every preset is one a body takes. Mutation: charcoal's glow set below
    * where it catches. */
-  for (int kind = F3D_MATERIAL_INERT; kind <= F3D_MATERIAL_PARAFFIN; kind++) {
+  for (int kind = F3D_MATERIAL_INERT; kind <= F3D_MATERIAL_PAPER_STACK; kind++) {
     CHECK(f3d_material_preset((F3dMaterialKind)kind, &m) == 1);
     CHECK(m.specific_heat > 0 && m.emissivity > 0 && m.emissivity <= 1);
     CHECK(m.fuel_fraction < 1);

@@ -69,10 +69,15 @@ void main() {
       if (heat.emissivity?.value case final e?) {
         expect(preset.emissivity, _f32(e), reason: material.id);
       }
-      if (heat.ignitionTemperature?.value case final t?) {
+      // Where the fire model holds a patch alight and what a kilogram gives
+      // it: the glow temperature and the effective heat where the entry
+      // has them.
+      if ((heat.glowTemperature ?? heat.ignitionTemperature)?.value
+          case final t?) {
         expect(preset.ignitionTemperature, _f32(t), reason: material.id);
       }
-      if (heat.heatOfCombustion?.value case final h?) {
+      if ((heat.effectiveHeatOfCombustion ?? heat.heatOfCombustion)?.value
+          case final h?) {
         expect(preset.heatOfCombustion, _f32(h), reason: material.id);
       }
       if (heat.radiantFraction?.value case final r?) {
@@ -91,6 +96,7 @@ void main() {
     same(NativeMaterial.oak(), Materials.oak);
     same(NativeMaterial.pine(), Materials.pine);
     same(NativeMaterial.paper(), Materials.paper);
+    same(NativeMaterial.paperStack(), Materials.paperStack);
     same(NativeMaterial.cardboard(), Materials.cardboard);
     same(NativeMaterial.thatch(), Materials.thatch);
     same(NativeMaterial.charcoal(), Materials.charcoal);
@@ -103,6 +109,43 @@ void main() {
       NativeMaterial.wood().flameTemperature,
       NativeMaterial.oak().flameTemperature,
     );
+  });
+
+  test('the fire model reads the glow, the effective heat and the stack', () {
+    // Mutation: the charcoal preset reading its ignition temperature, the
+    // rubber one its gross heat, or the stack conducting as a sheet.
+    final charcoal = Materials.charcoal.thermal!;
+    expect(charcoal.ignitionTemperature!.value, 610.15);
+    expect(charcoal.glowTemperature!.value, 860.8);
+    expect(charcoal.glowTemperature!.confidence, Confidence.estimate);
+    expect(NativeMaterial.charcoal().ignitionTemperature, _f32(860.8));
+    final rubber = Materials.rubber.thermal!;
+    expect(
+      rubber.effectiveHeatOfCombustion!.value,
+      lessThan(rubber.heatOfCombustion!.value),
+    );
+    expect(NativeMaterial.rubber().heatOfCombustion, _f32(27e6));
+    expect(Materials.paper.thermal!.conductivity!.value, 0.18);
+    expect(Materials.paperStack.thermal!.conductivity!.value, 0.05);
+    expect(NativeMaterial.paper().conductivity, _f32(0.18));
+    expect(NativeMaterial.paperStack().conductivity, _f32(0.05));
+    // A plugin's material with both numbers is read the same way.
+    const coke = PhysicalMaterial(
+      id: 'forge.coke',
+      name: 'coke',
+      phase: MaterialPhase.solid,
+      thermal: ThermalProperties(
+        specificHeat: ConstantLaw(800.0),
+        conductivity: ConstantLaw(0.2),
+        ignitionTemperature: ConstantLaw(700.0),
+        glowTemperature: ConstantLaw(900.0),
+        heatOfCombustion: ConstantLaw(3.0e7),
+        effectiveHeatOfCombustion: ConstantLaw(2.5e7),
+        source: 'a test',
+      ),
+    );
+    expect(NativeMaterial.of(coke).ignitionTemperature, _f32(900.0));
+    expect(NativeMaterial.of(coke).heatOfCombustion, _f32(2.5e7));
   });
 
   test("a plugin's material reaches the core through its view", () {

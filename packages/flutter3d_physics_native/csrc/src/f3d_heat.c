@@ -149,9 +149,14 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
       m.emissivity = F3D_MAT_WOOD_EMISSIVITY;
       break;
     case F3D_MATERIAL_PAPER:
-      /* It catches at 451 °F. */
+    case F3D_MATERIAL_PAPER_STACK:
+      /* It catches at 451 °F. A sheet conducts as the solid it is, a stack
+       * across its sheets with the air between them: f3d.paperStack's,
+       * whose sheets are f3d.paper's in everything else. */
       m.specific_heat = F3D_MAT_PAPER_SPECIFIC_HEAT;
-      m.conductivity = F3D_MAT_PAPER_CONDUCTIVITY;
+      m.conductivity = kind == F3D_MATERIAL_PAPER_STACK
+                           ? F3D_MAT_PAPER_STACK_CONDUCTIVITY
+                           : F3D_MAT_PAPER_CONDUCTIVITY;
       m.ignition_temperature = F3D_MAT_PAPER_IGNITION_TEMPERATURE;
       m.heat_of_combustion = F3D_MAT_PAPER_HEAT_OF_COMBUSTION;
       m.burn_rate = F3D_R(0.02);
@@ -181,11 +186,15 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
       m.emissivity = F3D_MAT_PAPER_EMISSIVITY;
       break;
     case F3D_MATERIAL_RUBBER:
+      /* What a tyre fire gives off a kilogram burnt, its effective heat
+       * of combustion: below the gross heat a bomb measures
+       * (F3D_MAT_RUBBER_HEAT_OF_COMBUSTION) by what a sooty flame leaves
+       * unburnt. */
       m.specific_heat = F3D_MAT_RUBBER_SPECIFIC_HEAT;
       m.conductivity = F3D_MAT_RUBBER_CONDUCTIVITY;
       m.emissivity = F3D_MAT_RUBBER_EMISSIVITY;
       m.ignition_temperature = F3D_MAT_RUBBER_IGNITION_TEMPERATURE;
-      m.heat_of_combustion = F3D_MAT_RUBBER_HEAT_OF_COMBUSTION;
+      m.heat_of_combustion = F3D_MAT_RUBBER_EFFECTIVE_HEAT_OF_COMBUSTION;
       m.burn_rate = F3D_R(0.03);
       m.fuel_fraction = F3D_R(0.9);
       m.flame_feedback = F3D_R(0.3);
@@ -379,15 +388,18 @@ int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
        * 29.5 to 30.5). It has no flame: it glows at 931 °C (Kim and
        * Sunderland, Fire Safety Journal 106, 2019), its light that
        * surface's and 0.88 of its heat radiated. It burns at the rate
-       * oxygen reaches it, and catches no cooler than where that rate's
-       * heat holds a lump on its own: 861 K; its heat of gasification and
-       * least burning as doc/derivations/charcoal_glow.md derives them, so
-       * a coal glows on in a flame as hot as a glowing heap and goes out
-       * out of one. No soot. */
+       * oxygen reaches it, and the core holds a patch alight no cooler than
+       * where that rate's heat holds a lump on its own, its glow
+       * temperature, 861 K — not the 610 K it is measured to catch at with
+       * a pilot (F3D_MAT_CHARCOAL_IGNITION_TEMPERATURE), below which a lump
+       * left alone goes out; its heat of gasification and least burning as
+       * doc/derivations/charcoal_glow.md derives them, so a coal glows on
+       * in a flame as hot as a glowing heap and goes out out of one. No
+       * soot. */
       m.specific_heat = F3D_MAT_CHARCOAL_SPECIFIC_HEAT;
       m.conductivity = F3D_MAT_CHARCOAL_CONDUCTIVITY;
       m.emissivity = F3D_MAT_CHARCOAL_EMISSIVITY;
-      m.ignition_temperature = F3D_MAT_CHARCOAL_IGNITION_TEMPERATURE;
+      m.ignition_temperature = F3D_MAT_CHARCOAL_GLOW_TEMPERATURE;
       m.heat_of_combustion = F3D_MAT_CHARCOAL_HEAT_OF_COMBUSTION;
       m.burn_rate = F3D_R(1.02e-3);
       m.fuel_fraction = F3D_R(0.9725);

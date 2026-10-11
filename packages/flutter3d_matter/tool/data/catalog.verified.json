@@ -2004,6 +2004,54 @@
         }
       }
     },
+    "f3d.paperStack": {
+      "confidence": "handbook",
+      "mechanical": {
+        "staticFriction": {
+          "value": 0.6,
+          "confidence": "estimate",
+          "law": "constant"
+        }
+      },
+      "thermal": {
+        "specificHeat": {
+          "value": 1340.0,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "catalog"
+        },
+        "conductivity": {
+          "value": 0.05,
+          "confidence": "estimate",
+          "law": "constant",
+          "verification": "catalog"
+        },
+        "emissivity": {
+          "value": 0.9,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "catalog"
+        },
+        "ignitionTemperature": {
+          "value": 506.15,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "catalog"
+        },
+        "heatOfCombustion": {
+          "value": 16000000.0,
+          "confidence": "handbook",
+          "law": "constant",
+          "verification": "catalog"
+        },
+        "radiantFraction": {
+          "value": 0.3,
+          "confidence": "estimate",
+          "law": "constant",
+          "verification": "catalog"
+        }
+      }
+    },
     "f3d.thatch": {
       "confidence": "estimate",
       "mechanical": {
@@ -2097,6 +2145,12 @@
           "confidence": "handbook",
           "law": "constant",
           "verification": "ambiguous"
+        },
+        "glowTemperature": {
+          "value": 860.8,
+          "confidence": "estimate",
+          "law": "constant",
+          "verification": "catalog"
         },
         "heatOfCombustion": {
           "value": 29450000.0,
@@ -2235,6 +2289,12 @@
           "confidence": "measured",
           "law": "constant",
           "verification": "ambiguous"
+        },
+        "effectiveHeatOfCombustion": {
+          "value": 27000000.0,
+          "confidence": "measured",
+          "law": "constant",
+          "verification": "catalog"
         },
         "radiantFraction": {
           "value": 0.45,

@@ -324,7 +324,9 @@ final class ThermalProperties extends PropertyGroup {
     this.emissivity,
     this.ignitionTemperature,
     this.autoignitionTemperature,
+    this.glowTemperature,
     this.heatOfCombustion,
+    this.effectiveHeatOfCombustion,
     this.radiantFraction,
     required super.source,
     super.unknown,
@@ -363,10 +365,25 @@ final class ThermalProperties extends PropertyGroup {
   /// The temperature it catches at on its own, with no flame, K.
   final PropertyLaw? autoignitionTemperature;
 
-  /// The heat a kilogram of it gives burning, J/kg: the effective heat of
-  /// combustion a fire test measures, not the bomb calorimeter's gross one,
-  /// where the source says so.
+  /// The coolest surface it glows on at by itself, with no flame, K: for a
+  /// solid that burns at its surface rather than in a flame over it — a
+  /// charcoal, a smouldering char — where the heat of the rate oxygen
+  /// reaches it pays for what the surface loses. Null for a material whose
+  /// fire is a flame, where [ignitionTemperature] says where it catches. A
+  /// fire model reads this before [ignitionTemperature] when both are known.
+  final PropertyLaw? glowTemperature;
+
+  /// The heat a kilogram of it gives burning, J/kg, as its source gives it:
+  /// a bomb calorimeter's gross heat, or the effective heat a fire test
+  /// measures, the source and its description say which.
   final PropertyLaw? heatOfCombustion;
+
+  /// The heat a kilogram of it gives in a fire, J/kg: what a fire test
+  /// measures (a cone calorimeter, a furniture or pile calorimeter), below
+  /// [heatOfCombustion] by the share a sooty flame leaves unburnt. Given
+  /// where the catalogue's [heatOfCombustion] is the gross one; a fire model
+  /// reads it before [heatOfCombustion] when both are known.
+  final PropertyLaw? effectiveHeatOfCombustion;
 
   /// The share of its flame's heat given off as radiation. No unit, nought to
   /// one.
@@ -387,7 +404,9 @@ final class ThermalProperties extends PropertyGroup {
     'emissivity': ?emissivity,
     'ignitionTemperature': ?ignitionTemperature,
     'autoignitionTemperature': ?autoignitionTemperature,
+    'glowTemperature': ?glowTemperature,
     'heatOfCombustion': ?heatOfCombustion,
+    'effectiveHeatOfCombustion': ?effectiveHeatOfCombustion,
     'radiantFraction': ?radiantFraction,
   };
 
@@ -409,7 +428,9 @@ final class ThermalProperties extends PropertyGroup {
       emissivity: read.law('emissivity'),
       ignitionTemperature: read.law('ignitionTemperature'),
       autoignitionTemperature: read.law('autoignitionTemperature'),
+      glowTemperature: read.law('glowTemperature'),
       heatOfCombustion: read.law('heatOfCombustion'),
+      effectiveHeatOfCombustion: read.law('effectiveHeatOfCombustion'),
       radiantFraction: read.law('radiantFraction'),
       source: read.source,
       unknown: read.unknown,
@@ -427,7 +448,9 @@ final class ThermalProperties extends PropertyGroup {
     'emissivity',
     'ignitionTemperature',
     'autoignitionTemperature',
+    'glowTemperature',
     'heatOfCombustion',
+    'effectiveHeatOfCombustion',
     'radiantFraction',
   };
 }

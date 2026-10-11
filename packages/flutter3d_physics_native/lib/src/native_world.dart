@@ -764,14 +764,32 @@ final class NativeMaterial {
   /// holds no fuel of its own, as wax melts and runs off.
   static NativeMaterial paraffin() => _preset(c.MaterialKind.paraffin);
 
+  /// A stack of paper sheets with air between them — a pile of newspaper,
+  /// a ream, a heap of documents: [paper]'s sheets, conducting across them
+  /// as `f3d.paperStack` does rather than as one solid sheet.
+  static NativeMaterial paperStack() => _preset(c.MaterialKind.paperStack);
+
   /// [material] as heat and fire see it: the core's preset its id names —
-  /// `f3d.wood`, `f3d.oak`, `f3d.pine`, `f3d.paper`, `f3d.cardboard`,
-  /// `f3d.thatch`, `f3d.charcoal`, `f3d.paraffin`, `f3d.rubber`,
-  /// `f3d.steel`, `f3d.granite` (the core's stone) — or [inert] for any
-  /// other, with what [material]'s thermal and mechanical groups say written
-  /// over it: specific heat, conductivity, emissivity, where it catches, its
-  /// heat of combustion, its flame's radiant share, its modulus and its
-  /// Poisson's ratio.
+  /// `f3d.wood`, `f3d.oak`, `f3d.pine`, `f3d.paper`, `f3d.paperStack`,
+  /// `f3d.cardboard`, `f3d.thatch`, `f3d.charcoal`, `f3d.paraffin`,
+  /// `f3d.rubber`, `f3d.steel`, `f3d.granite` (the core's stone) — or
+  /// [inert] for any other, with what [material]'s thermal and mechanical
+  /// groups say written over it: specific heat, conductivity, emissivity,
+  /// where it catches, its heat of combustion, its flame's radiant share,
+  /// its modulus and its Poisson's ratio.
+  ///
+  /// **What the fire model reads where a material has two numbers.** Where
+  /// it catches is the glow temperature where the material has one
+  /// (`ThermalProperties.glowTemperature`, charcoal's, where a surface that
+  /// burns without a flame holds alight by itself), else its ignition
+  /// temperature; the heat a kilogram gives in a fire is its effective heat
+  /// of combustion where it has one (`effectiveHeatOfCombustion`, a tyre
+  /// fire's), else its heat of combustion.
+  ///
+  /// **At a state.** Given [state], each value is its law at that state
+  /// (`PropertyLaw.at`) — the body's temperature, a plugin's quantity —
+  /// rather than its value at the reference state: what the Dart side
+  /// evaluates and passes to the core as numbers.
   ///
   /// **How a plugin's material reaches the core.** The core holds the
   /// built-ins' numbers in its generated header; a plugin's are passed here,
@@ -780,12 +798,13 @@ final class NativeMaterial {
   /// it. For a built-in this is its preset to the bit. What only the fire
   /// model reads — how a flame creeps, how a char grows — is the preset's,
   /// and a plugin sets it with [copyWith].
-  static NativeMaterial of(PhysicalMaterial material) {
+  static NativeMaterial of(PhysicalMaterial material, {MaterialState? state}) {
     final base = switch (material.id) {
       'f3d.wood' => wood(),
       'f3d.oak' => oak(),
       'f3d.pine' => pine(),
       'f3d.paper' => paper(),
+      'f3d.paperStack' => paperStack(),
       'f3d.cardboard' => cardboard(),
       'f3d.thatch' => thatch(),
       'f3d.charcoal' => charcoal(),
@@ -799,17 +818,25 @@ final class NativeMaterial {
     final stiffness = material.mechanical;
     // Through f32, as the core holds them: a built-in's view is its preset
     // to the bit.
-    double? f32(double? value) =>
-        value == null ? null : (Float32List(1)..[0] = value)[0];
+    double? f32(PropertyLaw? law) {
+      if (law == null) return null;
+      final value = state == null ? law.value : law.at(state);
+      return (Float32List(1)..[0] = value)[0];
+    }
+
     return base.copyWith(
-      specificHeat: f32(heat?.specificHeat?.value),
-      conductivity: f32(heat?.conductivity?.value),
-      emissivity: f32(heat?.emissivity?.value),
-      ignitionTemperature: f32(heat?.ignitionTemperature?.value),
-      heatOfCombustion: f32(heat?.heatOfCombustion?.value),
-      flameRadiant: f32(heat?.radiantFraction?.value),
-      modulus: f32(stiffness?.youngsModulus?.value),
-      poissonRatio: f32(stiffness?.poissonRatio?.value),
+      specificHeat: f32(heat?.specificHeat),
+      conductivity: f32(heat?.conductivity),
+      emissivity: f32(heat?.emissivity),
+      ignitionTemperature: f32(
+        heat?.glowTemperature ?? heat?.ignitionTemperature,
+      ),
+      heatOfCombustion: f32(
+        heat?.effectiveHeatOfCombustion ?? heat?.heatOfCombustion,
+      ),
+      flameRadiant: f32(heat?.radiantFraction),
+      modulus: f32(stiffness?.youngsModulus),
+      poissonRatio: f32(stiffness?.poissonRatio),
     );
   }
 

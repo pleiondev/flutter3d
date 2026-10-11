@@ -276,6 +276,9 @@ typedef enum F3dMaterialKind {
   F3D_MATERIAL_CHARCOAL = 10,
   /* Paraffin wax: a candle's, as a burner's fuel. */
   F3D_MATERIAL_PARAFFIN = 11,
+  /* A stack of paper sheets with air between them: a pile of newspaper, a
+   * ream, a heap of documents. PAPER is a sheet's. */
+  F3D_MATERIAL_PAPER_STACK = 12,
 } F3dMaterialKind;
 
 /* What a step can say happened to a body. */

@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **Three fire values get names of their own instead of overriding the
+  measured ones.** `ThermalProperties.glowTemperature` is the coolest a
+  surface that burns without a flame glows on at by itself: charcoal keeps
+  its measured 610 K ignition and gains 860.8 K, derived and marked an
+  estimate, with its derivation as its source.
+  `ThermalProperties.effectiveHeatOfCombustion` is what a fire test
+  measures a kilogram gives: rubber keeps the gross 37.9 MJ/kg of a bomb
+  calorimeter and gains 27 MJ/kg from SP's tyre pile fires. `f3d.paper` is
+  a sheet (0.18 W/(m·K)); `f3d.paperStack`, new, is a stack with air
+  between its sheets (0.05, an estimate within the 0.039 to 0.093 that
+  loose milled paper and pressed copy-paper stacks are measured at). A
+  base entry of the data may give a value its own source and spread
+  (`sourceOf`, `intervalOf`), and `PhysicalMaterial.problems` refuses an
+  effective heat above the gross one.
 - **Every value that was recalled or carried over is checked against a
   source that was read** (`tool/data/sources/verification.json`): 274
   confirmed keep their number and name the page that confirms it; 21

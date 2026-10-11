@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **The fire model reads charcoal's glow, a tyre's effective heat and a
+  stack of paper.** `F3D_MATERIAL_CHARCOAL` holds a patch alight down to
+  its glow temperature, 861 K (`F3D_MAT_CHARCOAL_GLOW_TEMPERATURE`), while
+  the catalogue keeps the 610 K charcoal is measured to catch at;
+  `F3D_MATERIAL_RUBBER` gives off the 27 MJ/kg a tyre fire is measured to
+  give (`F3D_MAT_RUBBER_EFFECTIVE_HEAT_OF_COMBUSTION`) rather than a bomb
+  calorimeter's 37.9; `F3D_MATERIAL_PAPER_STACK` and
+  `NativeMaterial.paperStack` are new, a sheet's paper conducting across a
+  stack at 0.05 W/(m·K). `NativeMaterial.of` reads `glowTemperature` and
+  `effectiveHeatOfCombustion` before `ignitionTemperature` and
+  `heatOfCombustion`, and takes an optional `MaterialState` to read each
+  law at. The shared scene's hash does not move; the WebAssembly modules
+  follow.
 - **The presets follow the verified catalogue.** The header is written
   from `flutter3d_matter`'s checked values, so the heat and fire presets
   take theirs: wood burns at the 11.1 MJ/kg measured of it rather than 15
