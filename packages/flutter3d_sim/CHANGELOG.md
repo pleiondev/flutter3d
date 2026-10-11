@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Fields and subsystems on the loop.** `EngineLoop.fields` and
+  `EngineLoop.subsystems` implement `flutter3d_fields`' `FieldRegistry` and
+  `SubsystemRegistry`, and a plugin reaches them through its host. A host
+  field's values are made when it is declared, join the snapshots once a
+  running subsystem writes them, and are copied for the view after every
+  step. A subsystem runs in its phase only under a profile it is switched on
+  by, and `simulationVersion` is composed from the ones that run, so a
+  solver registered and left off moves no version and no digest of the
+  default simulation.
 - **A loop runs under a profile.** `EngineLoop(profile:)`, carried by
   `simulationVersion`, handed to plugins and, through `stageWorld`, to a
   physics world's properties; a `DeterminismCheck` runs only where the

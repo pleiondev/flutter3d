@@ -1,3 +1,4 @@
+import 'package:flutter3d_fields/flutter3d_fields.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -23,6 +24,7 @@ import 'sim_queries.dart';
 import 'time_source.dart';
 
 part 'event_bus.dart';
+part 'subsystems.dart';
 
 /// The engine's frame: input, the fixed steps phase by phase, the
 /// post-step, then the frame's phases — animate, audio, camera, render, ui.
@@ -175,6 +177,8 @@ final class EngineLoop extends LoopRegistry {
         queries,
         publishedWorlds,
         probeSamplers,
+        _fields,
+        _subsystems,
         if (!registries.contains(this.materials)) this.materials,
       ],
       backend: backend,
@@ -226,11 +230,31 @@ final class EngineLoop extends LoopRegistry {
   final SimulationVersion simulationBase;
 
   /// The simulation this loop runs: [simulationBase] with every enabled
-  /// simulation plugin's own number, under [profile]. What a run file and a
-  /// network hello carry.
+  /// simulation plugin's own number and every running subsystem's, under
+  /// [profile]. What a run file and a network hello carry.
+  ///
+  /// **Composed from the subsystems that run**, so a solver registered with
+  /// [subsystems] and switched on by a profile this loop does not run is in
+  /// none of it: the default simulation's version, and every tape and match
+  /// recorded on it, are the same with the solver registered as without.
   SimulationVersion get simulationVersion => simulationBase
       .withPlugins(plugins.simulationVersions)
+      .withSubsystems(_subsystems.versions)
       .withProfile(profile);
+
+  late final _LoopFields _fields = _LoopFields(this);
+  late final _LoopSubsystems _subsystems = _LoopSubsystems(this);
+
+  /// The fields this simulation knows: grids of a quantity declared by the
+  /// application and its plugins, a host field's values made here and kept
+  /// in [snapshots] when a subsystem writes it. Plugins reach it as
+  /// `host.registry<FieldRegistry>()`.
+  FieldRegistry get fields => _fields;
+
+  /// The solvers registered with what they read and write: each runs in its
+  /// phase when it runs under [profile], and [simulationVersion] names the
+  /// ones that do. Plugins reach it as `host.registry<SubsystemRegistry>()`.
+  SubsystemRegistry get subsystems => _subsystems;
 
   /// What this simulation promises about its numbers:
   /// [SimulationProfile.deterministic], bit for bit on every platform,
@@ -884,6 +908,7 @@ final class EngineLoop extends LoopRegistry {
     );
     _keepIfDue();
     _publish();
+    _fields._publishAfterStep();
     for (final observer in List.of(_stepObservers)) {
       observer(summary);
     }

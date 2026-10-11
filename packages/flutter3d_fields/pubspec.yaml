@@ -1,0 +1,46 @@
+name: flutter3d_fields
+description: >-
+  The contract for a 3D grid of quantities that the simulation, the renderer
+  and audio share, and for a solver that declares what it reads and writes.
+  Plain Dart over the plugin contract.
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - simulation
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **The plugin contract and the foundation, and nothing that draws.** A
+# field's unit is the foundation's `Unit`, a registry is a `PluginRegistry`
+# a plugin reaches through its host, and a solver runs in a `LoopPhase`.
+# The simulation implements these and may import nothing that draws, so the
+# graphics vocabulary stays out: a field the frame holds on a device is the
+# renderer's core's to make, and the feature a device lacks reaches a
+# refusal here as the foundation's `Capability`.
+#
+# **Its own version**, as the plugin contract and the hardware vocabulary
+# have: the seam grows by additions faster than the engine does.
+dependencies:
+  flutter3d_foundation: ^1.0.0-rc.1
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

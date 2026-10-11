@@ -40,9 +40,11 @@ const Map<String, int> packageLayers = <String, int>{
   'flutter3d_plugin_api': 1,
   'flutter3d_hardware': 1,
   'flutter3d_hub': 1,
-  // L2: what a world is made of, and the shaders' text.
+  // L2: what a world is made of, the shaders' text, and the fields and
+  // subsystems the simulation, the renderer and audio share.
   'flutter3d_matter': 2,
   'flutter3d_shaders': 2,
+  'flutter3d_fields': 2,
   // L3: the physics, the audio's mix, the renderer's core and the backends.
   'flutter3d_physics': 3,
   'flutter3d_audio_core': 3,
@@ -210,6 +212,10 @@ const Map<String, String> loopPhaseSharesAPackageName = <String, String>{
   'camera':
       'every genre places its own camera here, `flutter3d_camera`\'s '
       'virtual cameras among them',
+  'fields':
+      'the world\'s fields spread here (heat, water, wind, fire): the '
+      'elements\' and every subsystem `flutter3d_fields` registers, a '
+      'plugin\'s among them',
 };
 
 /// The types [apiText] (a package's `api/<package>.api`) declares in its

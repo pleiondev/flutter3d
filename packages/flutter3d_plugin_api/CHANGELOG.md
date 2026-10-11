@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A simulation names the subsystems that run in it.**
+  `SimulationVersion.subsystems` holds every running solver's id at its
+  own number (`withSubsystems`), written only when there is one, so the
+  default simulation's run files and hellos read as before; a run recorded
+  with a subsystem running is refused where it is not, and the other way
+  round, with the subsystem named.
 - **Scene bindings, as data.** `SceneBindingSpec` says how a component of
   the simulation is shown: the kind of node (an open name), the material,
   which fields drive which material parameters, `BindingInterpolation` and

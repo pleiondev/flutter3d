@@ -107,6 +107,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flutter3d_education` | android, ios, linux, macos, web, windows |
 | `flutter3d_effects` | android, ios, linux, macos, web, windows |
 | `flutter3d_elements` | android, ios, linux, macos, web, windows |
+| `flutter3d_fields` | android, ios, linux, macos, web, windows |
 | `flutter3d_foundation` | android, ios, linux, macos, web, windows |
 | `flutter3d_game` | android, ios, linux, macos, web, windows |
 | `flutter3d_game_kit` | android, ios, linux, macos, web, windows |

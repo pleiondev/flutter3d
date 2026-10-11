@@ -723,6 +723,7 @@ abstract base class EduDataSource
 
 final class EngineLoop extends LoopRegistry
   EngineLoop({required this.input, EcsWorld? world, WorldTiming timing = const WorldTiming(), this.simulationBase = SimulationVersion.engineOnly, this.catchUp = const CatchUp.announce(), this.drainLook, this.longestFrame = 0.25, Iterable<Flutter3dPlugin> plugins = const <Flutter3dPlugin>[], Iterable<PluginRegistry> registries = const <PluginRegistry>[], MaterialCatalog? materials, String? backend, int reconcileWindow = 600, int stepEventLimit = 4096, this.determinismCheck, this.profile = SimulationProfile.deterministic})
+  FieldRegistry get fields
   FrameCadence? cadence
   InputTapePlayback? playback
   List<LoopChange> get journal
@@ -743,6 +744,7 @@ final class EngineLoop extends LoopRegistry
   Registration shiftsPhysics(CollisionWorld world)
   SimulationVersion get simulationVersion
   Snapshot capture()
+  SubsystemRegistry get subsystems
   TimeSource time
   WorldPosition get origin
   WorldTiming get timing

@@ -25,8 +25,9 @@ import 'simulation_profile.dart';
 ///   replays on 1.2.7.
 /// * **A minor that changes the simulation bumps the number** that owns the
 ///   change — [engine] for the step, the physics and the input, [genre]'s for
-///   a genre's rules (and [otherGenres]' for the genres beside it), a plugin's own in [plugins]. A minor that leaves them
-///   alone keeps them.
+///   a genre's rules (and [otherGenres]' for the genres beside it), a
+///   plugin's own in [plugins], a running solver's in [subsystems]. A minor
+///   that leaves them alone keeps them.
 /// * The numbers start at 1 with 1.0.0 and only grow.
 ///
 /// **Here, in the plugin API**, because a simulation plugin owns a number of
@@ -40,6 +41,7 @@ final class SimulationVersion {
     this.otherGenres = const <String, int>{},
     this.plugins = const <String, int>{},
     this.profile = SimulationProfile.deterministic,
+    this.subsystems = const <String, int>{},
   });
 
   /// The engine's simulation: the fixed step, the input, the physics and
@@ -96,6 +98,17 @@ final class SimulationVersion {
   /// profile.
   final SimulationProfile profile;
 
+  /// Every subsystem that was running, by id, with its own simulation
+  /// number: the solvers registered with the loop's `SubsystemRegistry`
+  /// (`flutter3d_fields`) that run under its profile. The simulation is
+  /// composed from them, so a solver a minor adds and switches on through a
+  /// profile is named here only where it runs.
+  ///
+  /// Empty for the default simulation, and written only when it is not
+  /// ([toJson]), so a run and a hello of it read as they did before there
+  /// were subsystems.
+  final Map<String, int> subsystems;
+
   /// What a file written before simulations had numbers is read as: version
   /// 1 of the engine and of whatever genre is [running] — the simulation
   /// 1.0.0 shipped, which is the only one such a file can come from.
@@ -116,6 +129,7 @@ final class SimulationVersion {
     otherGenres: otherGenres,
     plugins: Map<String, int>.unmodifiable(plugins),
     profile: profile,
+    subsystems: subsystems,
   );
 
   /// This version run under [profile] instead of its own.
@@ -126,7 +140,20 @@ final class SimulationVersion {
     otherGenres: otherGenres,
     plugins: plugins,
     profile: profile,
+    subsystems: subsystems,
   );
+
+  /// This version with [subsystems] in place of its own.
+  SimulationVersion withSubsystems(Map<String, int> subsystems) =>
+      SimulationVersion(
+        engine: engine,
+        genre: genre,
+        genreVersion: genreVersion,
+        otherGenres: otherGenres,
+        plugins: plugins,
+        profile: profile,
+        subsystems: Map<String, int>.unmodifiable(subsystems),
+      );
 
   /// This version with [name] at [version] played beside [genre] — or as
   /// [genre] itself when there is none yet.
@@ -141,6 +168,7 @@ final class SimulationVersion {
           genreVersion: version,
           plugins: plugins,
           profile: profile,
+          subsystems: subsystems,
         )
       : SimulationVersion(
           engine: engine,
@@ -152,6 +180,7 @@ final class SimulationVersion {
           }),
           plugins: plugins,
           profile: profile,
+          subsystems: subsystems,
         );
 
   /// "engine 1, platformer 2, fire 3" — the words a refusal uses, and
@@ -164,6 +193,8 @@ final class SimulationVersion {
     for (final name in (otherGenres.keys.toList()..sort()))
       '$name ${otherGenres[name]}',
     for (final id in (plugins.keys.toList()..sort())) '$id ${plugins[id]}',
+    for (final id in (subsystems.keys.toList()..sort()))
+      '$id ${subsystems[id]}',
     if (profile != SimulationProfile.deterministic) '${profile.name} profile',
   ].join(', ');
 
@@ -181,6 +212,10 @@ final class SimulationVersion {
         for (final id in (plugins.keys.toList()..sort())) id: plugins[id],
       },
     if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
+    if (subsystems.isNotEmpty)
+      'subsystems': <String, Object?>{
+        for (final id in (subsystems.keys.toList()..sort())) id: subsystems[id],
+      },
   };
 
   /// Reads what [toJson] wrote. A number that is not one is refused with a
@@ -192,6 +227,7 @@ final class SimulationVersion {
     final genreVersion = json['genreVersion'] ?? 1;
     final plugins = json['plugins'] ?? const <String, Object?>{};
     final others = json['otherGenres'] ?? const <String, Object?>{};
+    final solvers = json['subsystems'] ?? const <String, Object?>{};
     if (engine is! int || engine < 1) {
       throw PluginFormatException('the simulation names engine $engine', json);
     }
@@ -236,6 +272,22 @@ final class SimulationVersion {
       }
       alongside[key] = value;
     }
+    if (solvers is! Map) {
+      throw PluginFormatException(
+        'the simulation\'s subsystems are not a map of numbers',
+        json,
+      );
+    }
+    final running = <String, int>{};
+    for (final MapEntry(:key, :value) in solvers.entries) {
+      if (key is! String || key.isEmpty || value is! int || value < 1) {
+        throw PluginFormatException(
+          'the simulation names subsystem $key at version $value',
+          json,
+        );
+      }
+      running[key] = value;
+    }
     final SimulationProfile profile;
     try {
       profile = switch (json['profile']) {
@@ -255,6 +307,7 @@ final class SimulationVersion {
       otherGenres: Map<String, int>.unmodifiable(alongside),
       plugins: Map<String, int>.unmodifiable(read),
       profile: profile,
+      subsystems: Map<String, int>.unmodifiable(running),
     );
   }
 
@@ -308,14 +361,9 @@ final class SimulationVersion {
         final was = plugins[id]!;
         final now = running.plugins[id]!;
         if (was == now) continue;
-        return was > now
-            ? 'the run was recorded on $id $was, newer than this build\'s '
-                  '$now — update $id to replay it'
-            : 'the run was recorded on $id $was, and this build runs $id '
-                  '$now; the same input plays out differently here, so it is '
-                  'not replayed';
+        return _numberRefusal(id, was, now);
       }
-      return null;
+      return _subsystemRefusal(running);
     }
     final newer =
         engine > running.engine ||
@@ -332,6 +380,43 @@ final class SimulationVersion {
               'differently here, so it is not replayed';
   }
 
+  /// Why a subsystem's number differs between this run and [running], or
+  /// null when every one agrees.
+  String? _subsystemRefusal(SimulationVersion running) {
+    final missing = <String>[
+      for (final id in subsystems.keys)
+        if (!running.subsystems.containsKey(id)) id,
+    ]..sort();
+    final extra = <String>[
+      for (final id in running.subsystems.keys)
+        if (!subsystems.containsKey(id)) id,
+    ]..sort();
+    if (missing.isNotEmpty) {
+      return 'the run was recorded with the subsystem'
+          '${missing.length == 1 ? '' : 's'} ${missing.join(', ')} running, '
+          'which ${missing.length == 1 ? 'is' : 'are'} not running here';
+    }
+    if (extra.isNotEmpty) {
+      return 'the subsystem${extra.length == 1 ? '' : 's'} '
+          '${extra.join(', ')} ${extra.length == 1 ? 'is' : 'are'} running '
+          'here and ${extra.length == 1 ? 'was' : 'were'} not when the run '
+          'was recorded';
+    }
+    for (final id in subsystems.keys.toList()..sort()) {
+      final was = subsystems[id]!;
+      final now = running.subsystems[id]!;
+      if (was != now) return _numberRefusal(id, was, now);
+    }
+    return null;
+  }
+
+  static String _numberRefusal(String id, int was, int now) => was > now
+      ? 'the run was recorded on $id $was, newer than this build\'s '
+            '$now — update $id to replay it'
+      : 'the run was recorded on $id $was, and this build runs $id '
+            '$now; the same input plays out differently here, so it is '
+            'not replayed';
+
   @override
   bool operator ==(Object other) =>
       other is SimulationVersion &&
@@ -340,7 +425,8 @@ final class SimulationVersion {
       other.genre == genre &&
       (genre == null || other.genreVersion == genreVersion) &&
       _samePlugins(other.otherGenres, otherGenres) &&
-      _samePlugins(other.plugins, plugins);
+      _samePlugins(other.plugins, plugins) &&
+      _samePlugins(other.subsystems, subsystems);
 
   static bool _sameNames(Map<String, int> a, Map<String, int> b) =>
       a.length == b.length && a.keys.every(b.containsKey);
@@ -361,6 +447,10 @@ final class SimulationVersion {
     ]),
     Object.hashAllUnordered(<Object>[
       for (final entry in plugins.entries) Object.hash(entry.key, entry.value),
+    ]),
+    Object.hashAllUnordered(<Object>[
+      for (final entry in subsystems.entries)
+        Object.hash(entry.key, entry.value),
     ]),
   );
 

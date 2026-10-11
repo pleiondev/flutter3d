@@ -29,6 +29,7 @@ workspace:
   - packages/flutter3d_conformance
   - packages/flutter3d_conformance_render
   - packages/flutter3d_hub
+  - packages/flutter3d_fields
   - packages/flutter3d_cpu
   - packages/flutter3d_particles
   - packages/flutter3d_elements

@@ -49,6 +49,11 @@ dependencies:
   # What a world is made of: its properties, the materials and the constants.
   flutter3d_matter: ^1.0.0-rc.1
 
+  # The fields and the subsystems the loop implements: a solver registered
+  # with what it reads and writes, and the grids it steps. Plain Dart over
+  # the plugin contract, with nothing that draws.
+  flutter3d_fields: ^1.0.0-rc.1
+
 dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
