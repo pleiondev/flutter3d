@@ -1,0 +1,58 @@
+name: flutter3d_plugin_runtime_example_gpu
+description: "The sample plugin's render checks on the GPU backends: WebGL2 and WebGPU in a browser test, Impeller in a macOS application, with the plugin's stages compiled into a bundle for each."
+publish_to: 'none'
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+  flutter: '>=3.44.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The plugin whose points are drawn, and the checks that draw them.
+  flutter3d_plugin_runtime_example:
+    path: ../
+  flutter3d_conformance_render:
+    path: ../../../flutter3d_conformance_render
+  flutter3d_conformance:
+    path: ../../../flutter3d_conformance
+
+  # The renderer and the device contract.
+  flutter3d_core:
+    path: ../../../flutter3d_core
+  flutter3d_hardware:
+    path: ../../../flutter3d_hardware
+
+  # The three backends the checks run on here. Impeller in the application
+  # (`lib/main.dart`), which is the only place Flutter GPU draws; the two
+  # browser backends in `test/`.
+  flutter3d_impeller:
+    path: ../../../flutter3d_impeller
+  flutter3d_webgl:
+    path: ../../../flutter3d_webgl
+  flutter3d_webgpu:
+    path: ../../../flutter3d_webgpu
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # The browser test fetches the bundle from the test server, which serves
+  # `test/` and not the application's assets.
+  web: ^1.1.0
+
+  # `tool/build_bundle.dart`: the plugin's material compiled into the
+  # three GPU sections the way a game's build hook compiles one.
+  flutter3d_build_hooks:
+    path: ../../../flutter3d_build_hooks
+  flutter3d_shaders:
+    path: ../../../flutter3d_shaders
+
+flutter:
+  assets:
+    # The sample plugin's stages for Impeller, WebGL2 and WebGPU, written by
+    # tool/build_bundle.dart and not committed.
+    - assets/acme_sample.f3dshaders
