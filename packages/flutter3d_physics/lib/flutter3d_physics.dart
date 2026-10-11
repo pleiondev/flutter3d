@@ -49,7 +49,7 @@ export 'src/cloth/cloth_collision.dart';
 export 'src/cloth/cloth_mesh.dart';
 export 'src/cloth/cloth_settings.dart';
 export 'src/cloth/cloth_simulation.dart';
-export 'src/cloth/xpbd_solver.dart';
+export 'src/cloth/xpbd_solver.dart' hide ClothSelfCollision, widestTriangles;
 export 'src/collider.dart' hide fileColliderInWorld;
 export 'src/collision_shape.dart';
 export 'src/collision_world.dart';

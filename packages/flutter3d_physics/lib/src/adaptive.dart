@@ -27,7 +27,7 @@ final class DormandPrince {
   DormandPrince({
     this.relative = defaultRelative,
     this.absolute = defaultAbsolute,
-    this.maxSteps = 1000000,
+    this.maxSteps = 100000,
   });
 
   /// The relative tolerance the accurate profile holds a state to.

@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -74,5 +76,72 @@ void main() {
       );
     }
     expect(other.positions, sheet.positions);
+  });
+
+  test("the wind's drag goes with the density of the world's air", () {
+    // Mutation: leave the air density out of `inWorld`, or out of the
+    // solver's drag, and the thin air leans the sheet as far as the
+    // standard air does.
+    final thin = WorldProperties(
+      wind: Vector3(0.0, 0.0, 6.0),
+      airDensity: 0.5 * standardAirDensity,
+    );
+    final settings = const ClothSettings().inWorld(thin);
+    expect(settings.wind.airDensity, thin.airDensity);
+    expect(settings.wind.effectiveDrag, 0.5 * const WindSettings().drag);
+    expect(const WindSettings().effectiveDrag, const WindSettings().drag);
+    final standard = _meanZ(
+      const ClothSettings().inWorld(
+        WorldProperties(wind: Vector3(0.0, 0.0, 6.0)),
+      ),
+    );
+    // Small leans are linear in the load: half the air, half the lean.
+    expect(_meanZ(settings), closeTo(0.5 * standard, 0.05 * standard));
+  });
+
+  test("a sheet of a material slides by the material's friction", () {
+    final settings = const ClothSettings().inWorld(
+      WorldProperties.standard,
+      material: Materials.cotton,
+    );
+    expect(settings.friction, Materials.cotton.mechanical!.friction!.value);
+    // A material that says none keeps the friction the settings had.
+    expect(
+      const ClothSettings(
+        friction: 0.25,
+      ).inWorld(WorldProperties.standard, material: Materials.air).friction,
+      0.25,
+    );
+    // And inWorld twice is the last world's, not both.
+    final thin = WorldProperties(airDensity: 0.5);
+    expect(
+      const ClothSettings()
+          .inWorld(thin)
+          .inWorld(WorldProperties.standard)
+          .wind
+          .effectiveDrag,
+      const WindSettings().drag,
+    );
+  });
+
+  test("a grid's particles weigh the material's density", () {
+    final mass = ClothMesh.particleMassOf(
+      Materials.cotton,
+      thickness: 5e-4,
+      spacing: 0.1,
+    );
+    expect(mass, closeTo(80.0 * 5e-4 * 0.01, 1e-15));
+  });
+
+  test('under the accurate profile the wind leans a sheet as it does on the '
+      'fixed step', () {
+    // The same statics either way: the profile changes how the swing is
+    // followed, not where the sheet comes to rest.
+    final windy = WorldProperties(wind: Vector3(0.0, 0.0, 6.0));
+    final fixed = _meanZ(const ClothSettings().inWorld(windy));
+    final accurate = _meanZ(
+      const ClothSettings(profile: SimulationProfile.accurate).inWorld(windy),
+    );
+    expect(accurate, closeTo(fixed, 0.1 * fixed));
   });
 }
