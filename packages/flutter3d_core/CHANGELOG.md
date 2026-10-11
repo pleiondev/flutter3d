@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **The sun is 0.2666° in radius.** `ShadowSettings.sunAngularRadius` is
+  0.004653 rad, the value its documentation always gave; it read 0.00465,
+  which is 0.2664°. The sky's disc and a soft shadow's penumbra read it,
+  so both grow by about 0.06 %.
+- **`Photometric.luminousEfficacy`: 683 lm/W, written once.** The
+  candela's defining constant, what a spectrum weighted by the eye's
+  luminosity function is multiplied by to come out in lumens; the fire's
+  blackbody light reads it.
 - **`FramePassNames`: the passes code outside the renderer names.**
   `decals`, `cameraVelocity` and `objectVelocity`, the strings
   `FrameResult.passes` reports, spelled once: the nodes, their

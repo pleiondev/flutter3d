@@ -170,8 +170,9 @@ final class ShadowSettings {
   /// asked for by name and [directionalLightRadius] is left at zero, since a
   /// light of no size casts no penumbra to search for; and the size of the
   /// sky's disc by default (`SkySettings.sunAngularRadius`), so the disc and
-  /// the penumbra are the same sun.
-  static const double sunAngularRadius = 0.00465;
+  /// the penumbra are the same sun. 0.004653 rad; the 0.00465 written here
+  /// before 1.0 was 0.2664°.
+  static const double sunAngularRadius = 0.004653;
 
   /// The filter the directional map is drawn with: [filter], or what
   /// [directionalLightRadius] implies when that is null.

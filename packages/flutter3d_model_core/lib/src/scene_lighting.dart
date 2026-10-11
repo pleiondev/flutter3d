@@ -15,6 +15,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_core/flutter3d_core.dart' show RenderSettings;
 import 'package:vector_math/vector_math.dart';
 
 /// Which kind of light a [ProjectLight] is.
@@ -188,7 +189,7 @@ final class SceneLighting {
     this.environment = SceneEnvironmentPreset.none,
     this.ambientIntensity = 0.3,
     this.shadows = false,
-    this.exposure = 1.6,
+    this.exposure = RenderSettings.defaultExposure,
     this.post = const ScenePostSettings(),
     this.panorama,
   });
@@ -207,8 +208,9 @@ final class SceneLighting {
   /// having to walk the list.
   final bool shadows;
 
-  /// Matches `RenderSettings.exposure`'s own default, so a project that has
-  /// never touched this field draws exactly what it always drew.
+  /// [RenderSettings.defaultExposure] by default, read from there rather
+  /// than copied, so a project that has never touched this field draws
+  /// exactly what any frame draws.
   /// A unitless linear multiplier applied before tone mapping.
   final double exposure;
 

@@ -4,6 +4,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_core/flutter3d_core.dart' show Photometric;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColor;
 import 'package:flutter3d_matter/flutter3d_matter.dart';
@@ -37,7 +38,8 @@ final class FireLights {
 /// observer, by temperature: what a flame's soot, nearly a blackbody, looks
 /// like.
 abstract final class Blackbody {
-  /// Lumens a watt radiated at [kelvin] is worth: 683 lm/W times the share
+  /// Lumens a watt radiated at [kelvin] is worth: 683 lm/W
+  /// (`Photometric.luminousEfficacy`) times the share
   /// of Planck's spectrum the photopic eye sees, ∫V(λ)B(λ,T)dλ / ∫B dλ —
   /// about 16 at a tungsten filament's 2856 K, a thousandth of that near
   /// 1300 K, and a nineteen-thousandth at 1100 K, where a hot stone has only
@@ -69,7 +71,9 @@ abstract final class Blackbody {
         final bl = 0.0557 * x - 0.2040 * y + 1.0570 * z;
         final most = math.max(r, math.max(g, bl));
         return (
-          efficacy: radiance > 0 ? 683.0 * y / radiance : 0.0,
+          efficacy: radiance > 0
+              ? Photometric.luminousEfficacy * y / radiance
+              : 0.0,
           color: most > 0
               ? LinearColor(
                   math.max(r, 0.0) / most,

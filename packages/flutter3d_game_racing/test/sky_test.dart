@@ -9,6 +9,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d/flutter3d.dart' show RenderSettings;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -265,5 +266,11 @@ void main() {
     });
 
     expect(preset.zenith, const LinearColor(0.1, 0.2, 0.3));
+  });
+
+  test('the default morning is exposed as any frame is by default', () {
+    // Mutation: write the engine's 1.6 here again, and a change to the
+    // engine's default leaves the racing morning behind.
+    expect(SkyPresets.morning.exposure, RenderSettings.defaultExposure);
   });
 }

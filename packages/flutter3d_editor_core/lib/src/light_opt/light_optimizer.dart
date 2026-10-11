@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/flutter3d_core.dart' show RenderSettings;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show LinearColor;
@@ -368,7 +369,7 @@ final class LightOptimizer {
 
   /// The exposure the previews and the difference are judged at: the one a
   /// frame gets when nothing says otherwise.
-  static const double _exposure = 1.6;
+  static const double _exposure = RenderSettings.defaultExposure;
 }
 
 /// One set of lights the level is also seen under, besides its own — the

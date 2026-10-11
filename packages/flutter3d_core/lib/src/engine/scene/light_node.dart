@@ -324,6 +324,14 @@ abstract final class Photometric {
   /// the engine's exchange rate for `Photometric.fromLux` before 1.0.
   static const double bulbAtOneMeter = 63.66197723675813;
 
+  /// The luminous efficacy of monochromatic light at 540 THz (about
+  /// 555 nm), lm/W: 683, exact, because the SI defines the candela by it
+  /// (CGPM 1979, kept in the 2019 redefinition as K_cd). What a radiant
+  /// watt is worth to the photopic eye at its most sensitive, and so what
+  /// a spectrum weighted by the CIE luminosity function V(λ) is multiplied
+  /// by to come out in lumens.
+  static const double luminousEfficacy = 683.0;
+
   /// What [LightNode.intensity] holds for [lumens] of luminous flux, for a
   /// light of [type]: candela for a point, spot or area light, spread over
   /// the solid angle it covers — the whole sphere for a point lamp, the cone
