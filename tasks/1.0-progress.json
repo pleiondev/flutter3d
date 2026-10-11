@@ -38,10 +38,14 @@
     "3.0/3E0": "done",
     "3.1/3A": "done",
     "3.1/3K": "done",
-    "3.2/3B": "active",
-    "3.2/3C": "active",
-    "3.2/3D": "active",
-    "3.2/3F": "active"
+    "3.2/3B": "done",
+    "3.2/3C": "done",
+    "3.2/3D": "done",
+    "3.2/3F": "done",
+    "3.2/3E": "done",
+    "3.2/3G": "done",
+    "3.2/3H": "done",
+    "3.2/3R": "active"
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
@@ -56,7 +60,14 @@
     "2.2/2X3": "in 1.0.0; plugin checks drawn on CPU, on the other three backends still to run on the Mac",
     "3.0/3E0": "in 1.0.0; language, closure evaluator, internal bytecode, .f3dmat v3 with versions and updates; .f3d version to 3D, lift in the loader to 3G",
     "3.1/3A": "in 1.0.0; laws, MaterialState, 238 materials verified against sources (recalled 245 -> 3), restitution for 34 pairs",
-    "3.1/3K": "in 1.0.0; ContactEvent published by every loop; Dart and C contact events identical step for step"
+    "3.1/3K": "in 1.0.0; ContactEvent published by every loop; Dart and C contact events identical step for step",
+    "3.2/3B": "in 1.0.0; C bytecode interpreter bit for bit with Dart; thermal laws per body state (off by default); charcoal glow, rubber effective heat, paper stack",
+    "3.2/3C": "in 1.0.0; accurate profile: pendulum 1.7e-9 over 100 periods, projectile, orbit; cloth and liquids read the world and laws",
+    "3.2/3D": "in 1.0.0; dielectricF0, sun radius, 683 lm/W from one place; .f3d sections 36 and 37; 77 CPU goldens bit-identical, 20 to compare",
+    "3.2/3E": "in 1.0.0; speed of sound from the world; occlusion from the obstacle material",
+    "3.2/3F": "in 1.0.0; probes, external input, profile on the loop, observer path, GeoOrigin",
+    "3.2/3G": "in 1.0.0; view time from TimeSource, ProbeBuilder, Binding3D, materials by id, lift on load",
+    "3.2/3H": "in 1.0.0; asset identity, hub reference format, protocol snapshot and rule; 60 packages"
   },
   "goals": {
     "P1": "todo",
