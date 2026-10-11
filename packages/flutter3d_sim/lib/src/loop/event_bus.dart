@@ -129,6 +129,7 @@ final class EventBus extends EventRegistry {
     PluginScope? scope,
   ) {
     final by = scope?.manifest.id ?? 'app';
+    _refuseOutside(scope, name, 'the event');
     for (final d in _declared) {
       if (d.declaration.name == name) {
         throw ArgumentError.value(

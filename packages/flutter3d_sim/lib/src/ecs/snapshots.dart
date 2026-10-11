@@ -60,6 +60,13 @@ final class Snapshots extends SnapshotRegistry {
 
   @override
   Registration add(SnapshotPart part) {
+    // A part is filed under its plugin's id, or a name in its namespace.
+    if (_scope?.manifest case final manifest? when part.id != manifest.id) {
+      if (manifest.nameProblem(part.id, what: 'the snapshot part')
+          case final problem?) {
+        throw PluginException(problem);
+      }
+    }
     for (final existing in _parts) {
       if (existing.id == part.id) {
         throw ArgumentError.value(

@@ -323,6 +323,11 @@ final class ProbeSamplers extends PluginRegistry {
   /// Reads [quantity] with [sampler] from now on. Throws an [ArgumentError]
   /// for a quantity another sampler already reads.
   Registration add(String quantity, ProbeSampler sampler) {
+    // A plugin reads the quantities it owns, which are in its namespace.
+    if (_scope?.manifest.nameProblem(quantity, what: 'the probe quantity')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     if (_byQuantity.containsKey(quantity)) {
       throw ArgumentError.value(
         quantity,

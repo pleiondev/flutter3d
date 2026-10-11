@@ -85,6 +85,25 @@ final class EntityKinds extends EntityKindRegistry {
   Registration replaceAll(Iterable<EntityKind> kinds) =>
       _replaceAll(kinds, null);
 
+  /// The level format's own words ([EntityTypes]), which a plugin may bring a
+  /// kind for without a namespace: they are the engine's, not taken ones.
+  static const Set<String> _formatWords = <String>{
+    EntityTypes.playerSpawn,
+    EntityTypes.key,
+    EntityTypes.door,
+    EntityTypes.lift,
+    EntityTypes.platform,
+    EntityTypes.button,
+    EntityTypes.trigger,
+    EntityTypes.exit,
+    EntityTypes.reflectionProbe,
+    EntityTypes.cutscene,
+    EntityTypes.prefab,
+    EntityTypes.decal,
+    EntityTypes.reflector,
+    EntityTypes.cameraScreen,
+  };
+
   _Added? _at(String type) =>
       _kinds.where((k) => k.kind.type == type).firstOrNull;
 
@@ -103,6 +122,14 @@ final class EntityKinds extends EntityKindRegistry {
   Registration _add(EntityKind kind, PluginScope? scope) {
     final owner = scope?.manifest.id ?? 'app';
     final existing = _at(kind.type);
+    // A new word a plugin brings is in its namespace (D23); the format's own
+    // words, and a word already here, are shared or replaced instead.
+    if (existing == null && !_formatWords.contains(kind.type)) {
+      if (scope?.manifest.nameProblem(kind.type, what: 'the entity type')
+          case final problem?) {
+        throw PluginException(problem);
+      }
+    }
     if (existing != null) {
       if (existing.kind != kind) {
         throw ArgumentError.value(

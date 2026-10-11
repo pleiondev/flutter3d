@@ -43,7 +43,7 @@ final class _Writes extends Flutter3dPlugin {
 
   @override
   void install(PluginHost host) {
-    host.loop.addSystem(id, phase, (c) => log.add('${c.step}:$id'));
+    host.loop.addSystem('$id.write', phase, (c) => log.add('${c.step}:$id'));
   }
 }
 

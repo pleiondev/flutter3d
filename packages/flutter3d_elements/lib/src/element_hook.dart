@@ -561,7 +561,11 @@ final class ElementPlugin extends Flutter3dPlugin {
 
   @override
   PluginManifest get manifest => PluginManifest(
-    id: _id ?? 'element.${hook.id}',
+    // Filed under the elements' own namespace by default, where its phase
+    // (`elements.<id>`) and its switch are: the elements keep one element
+    // per id, so two hooks cannot meet there. A plugin given an id of its
+    // own names its hook's phase in that id's namespace.
+    id: _id ?? 'flutter3d_elements.${hook.id}',
     apiVersion: PluginApiVersion.current,
     dependsOn: dependsOn ?? const <String>[],
     description: 'the ${hook.id} element, stepped over the world\'s fields',
@@ -603,6 +607,10 @@ final class ElementSwitches extends PluginRegistry {
 
   Registration _declare(ElementSwitch declared, PluginScope? scope) {
     final owner = scope?.manifest.id ?? 'app';
+    if (scope?.manifest.nameProblem(declared.id, what: 'the element switch')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     for (final existing in _switches) {
       if (existing.declared.id == declared.id) {
         throw ArgumentError.value(

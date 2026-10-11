@@ -696,7 +696,7 @@ final class ElementsViewPlugin extends Flutter3dPlugin {
     this.elements, {
     required this.eye,
     this.camera,
-    this.id = 'elements.view',
+    this.id = 'flutter3d_effects.elements',
   });
 
   final Elements elements;

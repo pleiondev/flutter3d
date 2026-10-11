@@ -26,6 +26,10 @@ final class SimQueries extends SimulationQueryRegistry {
 
   @override
   Registration add(String name, SimulationAnswer answer) {
+    if (_scope?.manifest.nameProblem(name, what: 'the question')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     if (answerFor(name) != null) {
       throw ArgumentError.value(
         name,

@@ -490,6 +490,12 @@ final class _Components extends ComponentRegistry {
     bool published = false,
   }) {
     final name = codec.id;
+    // A codec's id is the component's key in every save file, so two
+    // plugins' bare `health` would read each other's data (D23).
+    if (_scope?.manifest.nameProblem(name, what: 'the component')
+        case final problem?) {
+      throw PluginException(problem);
+    }
     final existing = _world._byName[name];
     if (existing != null && existing != T) {
       throw ArgumentError.value(
