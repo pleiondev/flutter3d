@@ -44,6 +44,10 @@ List<Rule> get allRules => <Rule>[
     name: "no package reaches into another package's src",
     run: _noForeignSrcImports,
   ),
+  (
+    name: 'an outside example reaches only the published API',
+    run: _outsideExamplesReachOnlyTheApi,
+  ),
   (name: 'each assembly has one home per application', run: _oneAssembly),
   (name: 'no test builds its own world', run: _noHarnessAssembly),
   (name: 'the repository lists agree with the workspace', run: _listsAgree),
@@ -785,6 +789,74 @@ List<Finding> _noForeignSrcImports() {
             "imports $other's src/, which is outside its API: publish what "
                 'is needed as a library of $other (as '
                 "flutter3d_shaders' internal.dart does) and import that",
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+/// An example under `examples/` is written as a project outside the
+/// repository would be: it reaches no package's `src/` and no file of the
+/// repository by a relative path, it is not published, and it depends on
+/// each package of this repository by `path: ../../packages/<name>`, the
+/// override an outside project makes.
+///
+/// **What the outside sample plugin proves rests on this.** It adds a
+/// quantity to a body's material state, hears the contact event, writes a
+/// field and registers a subsystem; that it does so through the published
+/// libraries alone is the claim that anybody's plugin can, and without
+/// this rule one `src/` import would make the claim false with every test
+/// still green.
+///
+/// Mutation: import `package:flutter3d_sim/src/loop/engine_loop.dart` in
+/// `examples/outside_plugin/lib/outside_plugin.dart`, and this names it.
+List<Finding> _outsideExamplesReachOnlyTheApi() {
+  final root = Directory('${repositoryRoot.path}/examples');
+  final examples = root.existsSync()
+      ? <Directory>[
+          for (final dir in root.listSync().whereType<Directory>())
+            if (File('${dir.path}/pubspec.yaml').existsSync()) dir,
+        ]
+      : const <Directory>[];
+  if (!examples.any((dir) => dir.path.endsWith('outside_plugin'))) {
+    return <Finding>[
+      const Finding(
+        'examples/outside_plugin',
+        'is not there: the outside sample plugin is what this rule holds to '
+            'the published API',
+      ),
+    ];
+  }
+  final repository = packages.keys.toSet();
+  final found = <Finding>[];
+  for (final dir in examples) {
+    final name = dir.path.split(Platform.pathSeparator).last;
+    final pubspec = File('${dir.path}/pubspec.yaml').readAsStringSync();
+    final own =
+        RegExp(
+          r'^name:\s*(\S+)',
+          multiLine: true,
+        ).firstMatch(pubspec)?.group(1) ??
+        name;
+    for (final problem in outsideExamplePubspecProblems(pubspec, repository)) {
+      found.add(Finding('examples/$name/pubspec.yaml', problem));
+    }
+    for (final file in dartFilesIn(dir)) {
+      final path = relative(file, dir);
+      final depth = path.split('/').length - 1;
+      for (final reached in outsideExampleReaches(
+        file.readAsStringSync(),
+        own: own,
+        depth: depth,
+      )) {
+        found.add(
+          Finding(
+            'examples/$name/$path',
+            'reaches $reached, which a project outside this repository '
+                'cannot: an outside example uses the published libraries '
+                'alone, every engine package by path',
           ),
         );
       }

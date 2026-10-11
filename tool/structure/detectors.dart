@@ -1021,6 +1021,68 @@ Set<String> foreignSrcImports(String source, String own) => <String>{
     if (match.group(1) != own) match.group(1)!,
 };
 
+/// What [source], a file [depth] directories below the root of an example
+/// written as from outside the repository (`examples/<name>/`), reaches
+/// that a project outside the repository could not: another package's
+/// `src/`, and a relative path out of the example (into `packages/`, say).
+/// [own] is the example's own package name.
+Set<String> outsideExampleReaches(
+  String source, {
+  required String own,
+  required int depth,
+}) => <String>{
+  for (final package in foreignSrcImports(source, own)) 'package:$package/src/',
+  for (final match in RegExp(
+    r'''^\s*(?:import|export|part)\s+['"]([^'":]+)['"]''',
+    multiLine: true,
+  ).allMatches(source))
+    if (_climbs(match.group(1)!) > depth) match.group(1)!,
+};
+
+/// How far [path] climbs above where it starts, at its highest.
+int _climbs(String path) {
+  var at = 0;
+  var highest = 0;
+  for (final part in path.split('/')) {
+    if (part == '..') {
+      at -= 1;
+      if (-at > highest) highest = -at;
+    } else if (part.isNotEmpty && part != '.') {
+      at += 1;
+    }
+  }
+  return highest;
+}
+
+/// Why [pubspec], an outside example's, is not one a project outside the
+/// repository could write: it may be published, or one of [repositoryPackages]
+/// it depends on is reached some other way than by path to
+/// `../../packages/<name>`, which is the override an outside project makes.
+List<String> outsideExamplePubspecProblems(
+  String pubspec,
+  Set<String> repositoryPackages,
+) {
+  final lines = pubspec.split('\n');
+  return <String>[
+    if (!RegExp(
+      r'''^publish_to:\s*['"]?none['"]?\s*$''',
+      multiLine: true,
+    ).hasMatch(pubspec))
+      'it does not say `publish_to: none`: an example is not a package',
+    for (var i = 0; i < lines.length; i++)
+      if (RegExp(r'^\s+([a-z0-9_]+):\s*(\S*)\s*$').firstMatch(lines[i])
+          case final match?
+          when repositoryPackages.contains(match.group(1)) &&
+              !RegExp(
+                '^\\s+path:\\s*\\.\\./\\.\\./packages/${match.group(1)}\\s*\$',
+              ).hasMatch(i + 1 < lines.length ? lines[i + 1] : ''))
+        _notByPath(match.group(1)!),
+  ];
+}
+
+String _notByPath(String package) =>
+    '$package is not reached by `path: ../../packages/$package`';
+
 // ---------------------------------------------------- the published boundary
 
 /// A top-level `enum Name` declaration, by name.
@@ -1819,6 +1881,68 @@ List<Finding> proveDetectorsWork() {
     ).isEmpty,
     'a published library, and a src/ path in a comment',
     'a comment imports nothing',
+  );
+
+  // An example written as from outside: what such a project could not
+  // reach, and the pubspec it could not write.
+  fires(
+    'outside example',
+    outsideExampleReaches(
+      "import 'package:flutter3d_sim/src/loop/engine_loop.dart';\n",
+      own: 'outside_plugin',
+      depth: 1,
+    ).contains('package:flutter3d_sim/src/'),
+    "an engine package's src/",
+  );
+  fires(
+    'outside example',
+    outsideExampleReaches(
+      "import '../../../packages/flutter3d_sim/lib/flutter3d_sim.dart';\n",
+      own: 'outside_plugin',
+      depth: 1,
+    ).isNotEmpty,
+    'a relative path out of the example into packages/',
+  );
+  quiet(
+    'outside example',
+    outsideExampleReaches(
+      "import 'package:outside_plugin/src/warming.dart';\n"
+      "import 'scene.dart';\n"
+      "import '../lib/outside_plugin.dart';\n",
+      own: 'outside_plugin',
+      depth: 1,
+    ).isEmpty,
+    "the example's own src/, a sibling, and its own lib/ from test/",
+    'an example arranges its own files as it likes',
+  );
+  fires(
+    'outside example',
+    outsideExamplePubspecProblems(
+      'name: x\npublish_to: none\ndependencies:\n'
+      '  flutter3d_sim:\n    git: https://example.com/flutter3d\n',
+      const <String>{'flutter3d_sim'},
+    ).isNotEmpty,
+    'an engine package reached by git',
+  );
+  fires(
+    'outside example',
+    outsideExamplePubspecProblems(
+      'name: x\ndependencies:\n'
+      '  flutter3d_sim:\n    path: ../../packages/flutter3d_sim\n',
+      const <String>{'flutter3d_sim'},
+    ).isNotEmpty,
+    'an example that may be published',
+  );
+  quiet(
+    'outside example',
+    outsideExamplePubspecProblems(
+      "name: x\npublish_to: 'none'\ndependencies:\n"
+      '  flutter3d_sim:\n    path: ../../packages/flutter3d_sim\n'
+      '  vector_math: ^2.2.0\n',
+      const <String>{'flutter3d_sim'},
+    ).isEmpty,
+    'every engine package by path, and a package from pub.dev',
+    'the override an outside project makes, and what it takes from pub.dev',
   );
 
   // The published-enum boundary. `qa-06`'s own row: a skeleton with an enum,
