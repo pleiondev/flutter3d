@@ -9,6 +9,8 @@
 /// last test finds no `_Lights`.
 library;
 
+import 'dart:io';
+
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:test/test.dart';
 
@@ -157,6 +159,110 @@ void main() {
     final sky = _manifest('flutter3d_addon_atmosphere.sky');
     expect(sky.isEngine, isTrue);
     expect(sky.nameProblem('sky', what: 'a render step'), isNull);
+  });
+
+  test('a package named like the engine\'s is a plugin from outside', () {
+    // Mutation: decide engine-ness by the `flutter3d_` prefix again. pub.dev
+    // reserves no prefix, so `flutter3d_fake` registers bare names that a
+    // name the engine adds later collides with.
+    for (final id in <String>['flutter3d_fake', 'flutter3d_fake.frost']) {
+      final fake = _manifest(id);
+      expect(fake.isEngine, isFalse, reason: id);
+      expect(fake.nameProblem('frost', what: 'a render step'), isNotNull);
+    }
+    expect(_manifest('flame_flutter3d_fake').isEngine, isFalse);
+    expect(_manifest('flutter3d_core').isEngine, isTrue);
+  });
+
+  test('the engine\'s namespaces are the packages it publishes and '
+      'published', () {
+    // Mutation: leave a package out of the list — its plugin is refused its
+    // own bare names; add one that is not the engine's — somebody else's
+    // package is let through.
+    final published = <String>{
+      for (final file in Directory('../../packages').listSync())
+        if (file is Directory)
+          for (final api in file.listSync())
+            if (api is Directory && api.path.endsWith('/api'))
+              for (final snapshot in api.listSync())
+                if (snapshot.path.endsWith('.api'))
+                  snapshot.uri.pathSegments.last.replaceAll('.api', ''),
+    };
+    final table = File(
+      '../../packages/flutter3d_build/lib/migrations/0.8_to_1.0.yaml',
+    ).readAsLinesSync();
+    final renamed = <String>{
+      for (final line
+          in table
+              .skipWhile((l) => l != '  renamed:')
+              .skip(1)
+              .takeWhile((l) => l.startsWith('    ')))
+        line.trim().split(':').first,
+    };
+    expect(published, isNotEmpty);
+    expect(renamed, contains('flutter3d_addon_camera'));
+    expect(
+      PluginManifest.engineNamespaces,
+      unorderedEquals(<String>{...published, ...renamed}),
+    );
+  });
+
+  test('a plugin may not take an area of the engine as its namespace', () {
+    // Mutation: drop the reserved check from `idProblem` — a plugin called
+    // `light` loses its MCP tools to the editor's when a minor adds one.
+    for (final id in <String>['light', 'render.glow', 'physics']) {
+      expect(_manifest(id).idProblem, contains('"${id.split('.').first}"'));
+    }
+    expect(_manifest('lighting').idProblem, isNull);
+    expect(_manifest('acme_light').idProblem, isNull);
+  });
+
+  test('the reserved areas hold every area the engine names', () {
+    // Mutation: add a tool area to a server and not to the list — a plugin
+    // of that name is shadowed. Read from the snapshots and the sources.
+    final areas = <String>{};
+    final files = <FileSystemEntity>[
+      for (final package in Directory('../../packages').listSync())
+        for (final part in <String>['api', 'lib'])
+          if (Directory('${package.path}/$part') case final dir
+              when dir.existsSync())
+            ...dir.listSync(recursive: true),
+    ];
+    for (final file in files) {
+      final path = file.path;
+      if (file is! File) continue;
+      if (path.endsWith('.mcp')) {
+        for (final line in file.readAsLinesSync()) {
+          final words = line.trim().split(' ');
+          if (words.first != 'tool' && words.first != 'alias') continue;
+          areas.addAll(<String>[
+            for (final name in <String>[
+              words[1],
+              if (words.length > 3) words[3],
+            ])
+              if (name.contains('.')) name.split('.').first,
+          ]);
+        }
+      } else if (path.endsWith('.vm')) {
+        for (final match in RegExp(
+          r'ext\.flutter3d\.([A-Za-z_]+)\.',
+        ).allMatches(file.readAsStringSync())) {
+          areas.add(match[1]!);
+        }
+      } else if (path.endsWith('.dart')) {
+        for (final match in RegExp(
+          r"eventName = '([A-Za-z_]+)\.",
+        ).allMatches(file.readAsStringSync())) {
+          areas.add(match[1]!);
+        }
+      }
+    }
+    // The engine's own servers answer `flutter3d.schema`, under a package's
+    // namespace, which no plugin from outside has.
+    areas.remove('flutter3d');
+    expect(areas, contains('light'));
+    expect(areas, contains('physics'));
+    expect(areas.difference(PluginManifest.reservedAreas), isEmpty);
   });
 
   test('no plugin from outside takes the engine\'s namespace', () {
