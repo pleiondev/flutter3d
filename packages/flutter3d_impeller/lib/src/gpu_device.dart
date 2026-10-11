@@ -1323,8 +1323,15 @@ final class GpuRenderBackend extends GraphicsDevice {
     if (usage.contains(BufferUsage.storage)) {
       // TODO(impeller): no storage binding and no compute in flutter_gpu —
       // unblocked by flutter/flutter#188480.
+      //
+      // Either feature would take one, so the refusal names the one the
+      // buffer was shaped for: the copy usages of `standardStorage` are a
+      // compute pass's buffer (what `createStorageBuffer` made before 1.0),
+      // a bare storage usage a render stage's.
       throw UnsupportedCapabilityException(
-        DeviceFeature.renderStageStorage,
+        usage.contains(BufferUsage.standardStorage)
+            ? DeviceFeature.compute
+            : DeviceFeature.renderStageStorage,
         backend: impellerBackendName,
         reason:
             'a storage buffer needs compute or render-stage storage, and '

@@ -1066,10 +1066,19 @@ final class WebGlDevice extends GraphicsDevice
     if (descriptor.usage.contains(BufferUsage.storage)) {
       // TODO(webgl): storage buffers — WebGL2 has no shader storage blocks
       // (OpenGL ES 3.1) and no compute; the WebGPU backend has both.
+      //
+      // Either feature would take one, so the refusal names the one the
+      // buffer was shaped for: the copy usages of `standardStorage` are a
+      // compute pass's buffer (what `createStorageBuffer` made before 1.0),
+      // a bare storage usage a render stage's.
+      final forCompute = descriptor.usage.contains(BufferUsage.standardStorage);
       throw UnsupportedCapabilityException(
-        DeviceFeature.renderStageStorage,
+        forCompute ? DeviceFeature.compute : DeviceFeature.renderStageStorage,
         backend: webglBackendName,
-        reason: 'WebGL2 has no shader storage buffers; that is OpenGL ES 3.1',
+        reason: forCompute
+            ? 'WebGL2 has no compute and no shader storage buffers; both are '
+                  'OpenGL ES 3.1'
+            : 'WebGL2 has no shader storage buffers; that is OpenGL ES 3.1',
       );
     }
     if (descriptor.usage.contains(BufferUsage.indirect)) {
