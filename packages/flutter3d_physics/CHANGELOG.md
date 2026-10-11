@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **`Dynamics` catches a contact the step the native core does.** A pair
+  is looked for as far as its bodies move in the step (the core's
+  speculative reach, held to ten metres), the solver lets the gap close
+  and no more, and a pair it stopped short that was closing fast enough
+  bounces as it would have. A body nothing pushed on falls as the core's
+  four substeps have it fall, three eighths of a step of gravity times the
+  step less than added whole, and once it has moved a pair still apart
+  that would cross in a quarter step is slowed to close it then, as the
+  core's last substep does. The two report a contact's beginning on the
+  same step. Every run on the reference moves: recorded digests of it are
+  recorded again.
 - **A step says what it touched.** `RigidDynamics.contacts` (empty by
   default) lists the last step's contacts as `StepContact`s: the two
   colliders and their world ids, the face, where they met, the normal, the

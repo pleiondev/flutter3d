@@ -78,7 +78,10 @@ void main() {
     expect(begun.normal.y, closeTo(-1.0, 1e-9));
     expect(begun.relativeVelocity.y, inInclusiveRange(3.0, 4.2));
     expect(begun.impulse, greaterThan(0.0));
-    expect(begun.point.y, closeTo(0.0, 0.02));
+    // Caught by the speculative contact up to a step's fall short of the
+    // floor, so halfway across that gap at most: under four centimetres at
+    // the speed it fell at.
+    expect(begun.point.y, inInclusiveRange(-0.005, 0.04));
     // At rest, the floor holds the ball's weight over the step — or nothing,
     // asleep, the pair held as it was.
     final last = dynamics.contacts.single;

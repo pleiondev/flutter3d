@@ -5,19 +5,14 @@
 // passing the same momentum; and each core, restored from a save mid-scene,
 // telling exactly the contacts it told the first time.
 //
-// **A step either way, and no more: the one thing not yet exact.** The
-// core's speculative contact reaches as far as a body moves in a step, so
-// it can catch a falling ball the step before the reference's two
-// centimetres of margin do. Both say the impact happened, at the speed it
-// fell at; telling it on the same step on both would take a speculative
-// contact in the reference's solver, which moves every run recorded on it,
-// and is not done here.
+// **On the same step.** Both solvers look for a contact as far as a body
+// moves in the step and let the gap close and no more, so both catch a
+// falling ball on the step it would reach the floor and say so then.
 //
-// Every other tolerance below is the least the two cores' arithmetic
+// Every tolerance below is the least the two cores' arithmetic
 // allows, with its reason beside it: the core steps in floats with
 // substeps, the reference in doubles with one step, and each solver leaves
 // a resting body at an overlap of its own inside [contactSlop].
-import 'package:flutter3d_matter/flutter3d_matter.dart' show standardGravity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -42,12 +37,9 @@ const double _acrossTolerance = 1e-6;
 double _alongTolerance(ContactScene scene) =>
     contactSlop * (scene.stacked + 0.5);
 
-/// The speed a contact begins at, on the same step: the same fall on both,
-/// the core's in floats, a float's rounding of a few metres a second.
+/// The speed a contact begins at: the same fall on both, the core's in
+/// floats, a float's rounding of a few metres a second.
 const double _speedTolerance = 1e-5;
-
-/// A step apart, the speeds are a step of gravity apart.
-const double _stepOfGravity = standardGravity / 60.0;
 
 void main() {
   for (final scene in contactScenes) {
@@ -113,8 +105,9 @@ void _holdTo(ContactHistory n, ContactHistory r, ContactScene scene) {
     for (var i = 0; i < rs.length; i++) {
       final a = rs[i], b = ns[i];
       final why = '$pair: ${a.order} against ${b.order}';
-      final apart = (b.step - a.step).abs();
-      expect(apart, lessThanOrEqualTo(1), reason: why);
+      // Mutation: look for a contact no further than the margin in the
+      // reference, and a fall is caught a step after the core catches it.
+      expect(b.step, a.step, reason: why);
       expect(
         b.normal.distanceTo(a.normal),
         lessThan(_normalTolerance),
@@ -123,7 +116,7 @@ void _holdTo(ContactHistory n, ContactHistory r, ContactScene scene) {
       if (a.contact.phase == ContactPhase.begin) {
         expect(
           (b.relativeVelocity - a.relativeVelocity).length,
-          lessThanOrEqualTo(_speedTolerance + apart * _stepOfGravity),
+          lessThanOrEqualTo(_speedTolerance),
           reason: why,
         );
       }

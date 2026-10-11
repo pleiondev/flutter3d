@@ -24,12 +24,12 @@
 ///
 /// No contact that turns a body — a body built with `canRotate` spins from the
 /// impulses a game gives it and keeps its angular momentum, but the solver
-/// below pushes only along the normal, through the centre. No joints, no
-/// continuous collision. A body moving fast enough
-/// to cross a wall between two steps will cross it; the sweep that stops that
-/// happening for the character controller is not applied here, and stage two is
-/// where it belongs. Stated rather than discovered, and the numbers are in
-/// `ARCHITECTURE.md` §10.
+/// below pushes only along the normal, through the centre. No joints, and
+/// no continuous collision beyond the speculative contact: a pair is looked
+/// for as far as its bodies move in the step, so a body stops at a wall it
+/// would reach this step, as the native core's does; the sweep the
+/// character controller makes is not applied here. Stated rather than
+/// discovered, and the numbers are in `ARCHITECTURE.md` §10.
 library;
 
 import 'dart:math' as math;
@@ -261,19 +261,34 @@ final class Dynamics extends RigidDynamics {
     }
 
     _collect(gravity, dt);
-    _solveVelocities(dt);
-    _report();
+    _solveVelocities(dt, gravity);
 
+    _pushed.clear();
+    for (final pair in _pairs) {
+      if (pair.normalImpulse <= 0.0) continue;
+      _pushed.add(pair.a);
+      if (pair.b case final b?) _pushed.add(b);
+    }
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
       _scratch
         ..setFrom(body.velocity)
         ..scale(dt);
+      // A body nothing pushed on falls as the native core's four substeps
+      // have it fall, gravity added a quarter of the step at a time: three
+      // eighths of a step of gravity less than the whole of it at once. So
+      // the two cores reach a floor on the same step, and catch it there.
+      if (_fell.contains(body) && !_pushed.contains(body)) {
+        _scratch.addScaled(gravity, -_fallShortfall * dt * dt);
+      }
+      (_moved[body] ??= Vector3.zero()).setFrom(_scratch);
       body.collider.moveTo(body.position + _scratch);
       // After the solve, like the position: the spin this step ends with is
       // the one the body turns by. Nothing for a body that cannot turn.
       body.integrateOrientation(dt);
     }
+    _lookAhead(dt);
+    _report();
 
     _separate();
 
@@ -423,6 +438,7 @@ final class Dynamics extends RigidDynamics {
       // below is not, because a sleeping crate is what the crate above it is
       // standing on. Skipping the whole body was the first version, and the
       // upper crate fell straight through the lower one the instant it slept.
+      final reach = _reach(body, gravity, dt);
       if (!body.isAsleep) {
         // Against the level and anything else that moves but is not a body.
         // **Queried with an inflated box, not with the body's own shape.** The
@@ -432,7 +448,7 @@ final class Dynamics extends RigidDynamics {
         // third of a metre a second once every sixteen steps. Measured: the
         // margin has to reach the broadphase, not only the narrow test.
         world.overlap(
-          _inflated(body.collider.shape),
+          _inflated(body.collider.shape, reach),
           body.position,
           _nearby,
           mask: body.collider.mask,
@@ -449,6 +465,7 @@ final class Dynamics extends RigidDynamics {
             other.shape,
             other.position,
             _contact,
+            margin: margin + reach,
           );
           if (!_contact.isTouching) continue;
           final pair = _Pair(body, null)
@@ -491,7 +508,7 @@ final class Dynamics extends RigidDynamics {
           other.collider.shape,
           other.position,
           _contact,
-          margin: margin,
+          margin: margin + reach + _reach(other, gravity, dt),
         );
         if (!_contact.isTouching) continue;
         // Something actually *moving* wakes what it hits, or a crate shoved
@@ -588,13 +605,84 @@ final class Dynamics extends RigidDynamics {
     return false;
   }
 
-  /// The body's bounds grown by the contact margin, for the broadphase.
-  CollisionShape _inflated(CollisionShape shape) {
+  /// The body's bounds grown by the contact margin and [reach], for the
+  /// broadphase.
+  CollisionShape _inflated(CollisionShape shape, double reach) {
     final half = shape.boundsHalfExtents;
-    return CollisionBox(
-      Vector3(half.x + margin, half.y + margin, half.z + margin),
-    );
+    final grow = margin + reach;
+    return CollisionBox(Vector3(half.x + grow, half.y + grow, half.z + grow));
   }
+
+  /// How much further than [margin] a contact of [body] is looked for this
+  /// step: as far as it moves in the step, at the speed it had before this
+  /// step's gravity and turning at its bounds' corners — the native core's
+  /// speculative reach, held to ten metres as it is.
+  ///
+  /// **A speculative contact.** The solver lets a gap close and no more, so
+  /// a pair found a step's travel apart stops where they touch: a falling
+  /// ball is caught on the step it would reach the floor, the step the core
+  /// catches it, and the two say the impact on the same step. Nothing for a
+  /// body that sleeps or does not move.
+  double _reach(RigidBody body, Vector3 gravity, double dt) {
+    if (body.isAsleep || !body.isMovable) return 0.0;
+    _before.setFrom(body.velocity);
+    if (_fell.contains(body)) _before.addScaled(gravity, -dt);
+    final reach =
+        _before.length * dt +
+        body.angularVelocity.length *
+            dt *
+            body.collider.shape.boundsHalfExtents.length;
+    return math.min(reach, 10.0);
+  }
+
+  final Vector3 _before = Vector3.zero();
+
+  /// How far each body moved this step, kept between steps.
+  final Map<RigidBody, Vector3> _moved = <RigidBody, Vector3>{};
+
+  /// The step's last look ahead, as the native core's last substep has it:
+  /// a pair still apart once the bodies have moved, closing faster than it
+  /// can in a quarter of a step without meeting, is slowed to the speed
+  /// that just closes the gap in that quarter. Pushed on, it is in contact
+  /// this step — the step the core says so.
+  void _lookAhead(double dt) {
+    final h = dt / 4.0;
+    for (final pair in _pairs) {
+      if (pair.depth >= 0.0) continue;
+      final a = pair.a;
+      final b = pair.b;
+      final invA = a.isAsleep ? 0.0 : a.inverseMass;
+      final invB = b == null || b.isAsleep ? 0.0 : b.inverseMass;
+      final inverseSum = invA + invB;
+      if (inverseSum <= 0.0) continue;
+      var gap = -pair.depth;
+      if (!a.isAsleep && a.isMovable) {
+        gap += _moved[a]?.dot(pair.normal) ?? 0.0;
+      }
+      if (b != null && !b.isAsleep && b.isMovable) {
+        gap -= _moved[b]?.dot(pair.normal) ?? 0.0;
+      }
+      if (gap <= 0.0) continue;
+      var vn = a.velocity.dot(pair.normal);
+      if (b != null) vn -= b.velocity.dot(pair.normal);
+      final target = -gap / h;
+      if (vn >= target) continue;
+      final lambda = (target - vn) / inverseSum;
+      pair.normalImpulse += lambda;
+      _scratch
+        ..setFrom(pair.normal)
+        ..scale(lambda);
+      a.velocity.addScaled(_scratch, invA);
+      b?.velocity.addScaled(_scratch, -invB);
+    }
+  }
+
+  /// The bodies a contact pushed on this step.
+  final Set<RigidBody> _pushed = <RigidBody>{};
+
+  /// How much less of a step's gravity, times the step squared, a body
+  /// falls in the core's four substeps than added whole: (n − 1) / 2n.
+  static const double _fallShortfall = 3.0 / 8.0;
 
   /// Names a contact so the next step can recognise it.
   ///
@@ -618,7 +706,7 @@ final class Dynamics extends RigidDynamics {
     return lo * 0x100000000 + (hi & 0xFFFFFFFF);
   }
 
-  void _solveVelocities(double dt) {
+  void _solveVelocities(double dt, Vector3 gravity) {
     // Start where the last step finished. The impulse that held a crate up a
     // sixtieth of a second ago is very nearly the one that holds it up now.
     for (final pair in _pairs) {
@@ -664,8 +752,15 @@ final class Dynamics extends RigidDynamics {
         // but only down to the speed that just closes the distance in one
         // step — so nothing is frozen in mid-air and nothing gets a free step
         // of gravity because the corrector had pushed it clear.
+        // Unpushed, a pair closes by less than its speed times the step —
+        // the fall the core's substeps take ([_fallShortfall]) — and the
+        // speed allowed is the one that closes the gap by that reckoning.
         final separation = -pair.depth;
-        final target = separation > 0.0 ? -separation / dt : pair.bounce;
+        var falls = _fell.contains(a) ? gravity.dot(pair.normal) : 0.0;
+        if (b != null && _fell.contains(b)) falls -= gravity.dot(pair.normal);
+        final target = separation > 0.0
+            ? -separation / dt + _fallShortfall * dt * falls
+            : pair.bounce;
         var lambda = (target - vn) / inverseSum;
 
         // Clamp the *total*, not the increment.
@@ -699,6 +794,33 @@ final class Dynamics extends RigidDynamics {
         a.velocity.addScaled(_scratch, invA);
         b?.velocity.addScaled(_scratch, -invB);
       }
+    }
+
+    // Restitution for a pair caught a gap short: the solver stopped it
+    // where the two touch, and a pair that was closing fast enough to bounce
+    // and was pushed on gets its bounce now, as the native core gives it —
+    // or a ball caught a step early would land dead.
+    for (final pair in _pairs) {
+      if (pair.depth >= 0.0 || pair.bounce <= 0.0) continue;
+      if (pair.normalImpulse <= 0.0) continue;
+      final a = pair.a;
+      final b = pair.b;
+      final invA = a.isAsleep ? 0.0 : a.inverseMass;
+      final invB = b == null || b.isAsleep ? 0.0 : b.inverseMass;
+      final inverseSum = invA + invB;
+      if (inverseSum <= 0.0) continue;
+      var vn = a.velocity.dot(pair.normal);
+      if (b != null) vn -= b.velocity.dot(pair.normal);
+      final before = pair.normalImpulse;
+      pair.normalImpulse = math.max(
+        0.0,
+        before + (pair.bounce - vn) / inverseSum,
+      );
+      _scratch
+        ..setFrom(pair.normal)
+        ..scale(pair.normalImpulse - before);
+      a.velocity.addScaled(_scratch, invA);
+      b?.velocity.addScaled(_scratch, -invB);
     }
 
     for (final pair in _pairs) {
