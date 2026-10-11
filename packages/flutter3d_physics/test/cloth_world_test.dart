@@ -43,6 +43,22 @@ void main() {
     expect(settings.wind.drag, const WindSettings().drag);
   });
 
+  test("a sheet runs under its world's simulation profile", () {
+    // Mutation: drop `profile: world.profile` from `inWorld`, and a sheet in
+    // an accurate world is stepped by XPBD as if it were a deterministic one.
+    final precise = WorldProperties(profile: SimulationProfile.accurate);
+    expect(
+      const ClothSettings().inWorld(precise).profile,
+      SimulationProfile.accurate,
+    );
+    expect(
+      const ClothSettings(
+        profile: SimulationProfile.accurate,
+      ).inWorld(WorldProperties()).profile,
+      SimulationProfile.deterministic,
+    );
+  });
+
   test("the world's wind blows the sheet", () {
     // Mutation: drop the wind from `inWorld` and the two sheets hang alike.
     final still = _meanZ(

@@ -69,7 +69,8 @@ final class ClothSettings {
   /// given: the world's gravity, its wind blowing through the sheet in its
   /// air ([WindSettings.airDensity]), and the material's friction against
   /// what the sheet lies on, at [state] — what a cloth hung in that world
-  /// falls, flaps and slides by. Everything else is kept, and calling it
+  /// falls, flaps and slides by, and the world's simulation profile.
+  /// Everything else is kept, and calling it
   /// again with another world gives that world's, not both.
   ///
   /// **How a game gives a sheet its world**: `settings.inWorld(
@@ -98,6 +99,7 @@ final class ClothSettings {
         airDensity: world.airDensity,
       ),
       friction: mu,
+      profile: world.profile,
     );
   }
 
