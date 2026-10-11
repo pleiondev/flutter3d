@@ -20132,3 +20132,20 @@ entries:
       `switch` over `FrameFraction` and `AbsolutePixels` ends with a wildcard,
       or reads them through `accept` and a `ResourceSizeVisitor`, whose
       `visitUnknown` answers for a kind it predates. `resolve` is unchanged.
+
+  # One entrance for an application's stages: Impeller's extra bundles are
+  # the package's own.
+
+  - id: 2x-impeller-GpuRenderBackend-extraBundles
+    package: flutter3d_impeller
+    symbol: GpuRenderBackend.create
+    kind: parameters
+    wave: 2
+    changes:
+      - remove: extraBundles
+    guidance: >-
+      An application's own stages reach the renderer one way on every
+      backend: load the bundle with `device.loadShaders(bytes)` and hand the
+      library to `renderer.renderSteps.addMaterials`, which takes it out
+      again when its registration is cancelled. `GpuRenderBackend.open` no
+      longer takes `extraBundles`.

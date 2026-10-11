@@ -220,7 +220,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1723 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 118 `migrate`, 361 by hand, 318 nothing to do, 455 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1724 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 118 `migrate`, 361 by hand, 318 nothing to do, 456 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -1285,6 +1285,7 @@ carried out:
 - <a id="f2-impeller-GpuRenderBackend"></a>**`GpuRenderBackend`** (by hand). What `GpuRenderBackend` inherits from `GraphicsDevice` changed: the texture creators answer a non-null handle and throw where they answered null, `readPixels` is `readback`, and the deprecated `supportsX`, `maxAnisotropy` and `maxColorAttachments` are `features.has(...)` and `limits`. The entries for `GraphicsDevice` say each.
 - <a id="4a-impeller-GpuRenderBackend-create"></a>**`GpuRenderBackend.create`** (`dart fix`). `GpuRenderBackend.create` is `open`. Creation and teardown verbs follow one convention in 1.0: create (synchronous), open (a device or a session), load (an asset), decode (bytes), parse (text), dispose (teardown), close (a connection or a stream), and drain for a read that empties what it reads. The behaviour is the same under the new name.
 - <a id="2a-impeller-GpuRenderBackend-create-size"></a>**`GpuRenderBackend.create`** (`dart fix`). Every backend opens in one shape, `await X.open(width:, height:)`. Impeller sizes each target as it is drawn and does not hold the size, so any surface's size will do; pass the one you draw at.
+- <a id="2x-impeller-GpuRenderBackend-extraBundles"></a>**`GpuRenderBackend.create`** (`dart fix`). An application's own stages reach the renderer one way on every backend: load the bundle with `device.loadShaders(bytes)` and hand the library to `renderer.renderSteps.addMaterials`, which takes it out again when its registration is cancelled. `GpuRenderBackend.open` no longer takes `extraBundles`.
 - <a id="4a-impeller-GpuRenderBackend-createPipeline"></a>**`GpuRenderBackend.createPipeline`** (nothing to do). Only a type or a positional parameter it names was renamed; no call names a positional parameter, and a type's rename carries its own fix.
 - <a id="2a-impeller-GpuRenderBackend-createStorageBuffer"></a>**`GpuRenderBackend.createStorageBuffer`** (`migrate`). `GpuRenderBackend.createStorageBuffer` becomes `x.createBuffer(BufferDescriptor(lengthInBytes: {0}.lengthInBytes, usage: BufferUsage.standardStorage), contents: {0})`. One call makes every buffer: a storage buffer is `createBuffer` with `BufferUsage.standardStorage`. Impeller refuses a storage usage either way, as it refused this call.
 - <a id="4a-impeller-GpuRenderBackend-createTexture"></a>**`GpuRenderBackend.createTexture`** (nothing to do). Only a type or a positional parameter it names was renamed; no call names a positional parameter, and a type's rename carries its own fix.

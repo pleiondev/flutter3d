@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `GpuRenderBackend.open` takes no `extraBundles`.** An
+  application's own stages reach the renderer one way on every backend: a
+  bundle loaded with `loadShaders` and handed to
+  `RendererSteps.addMaterials`. `dart fix` removes the argument.
+- **Registers its material compiler beside the device.**
+  `registerGpuBackend(compilers:)` adds `ImpellerSectionCompiler` to a
+  `MaterialCompilerRegistry`: it names the `impeller` section and compiles
+  nothing while a game runs, so `RuntimeShaders` refuses a data plugin's
+  material on Impeller by the registry's sentence.
 - **A pipeline flutter_gpu will not link skips its draws.** A link refused
   at `createPipeline`, or at the first draw where OpenGL ES links lazily
   (`Failed to append drawIndexed`), is reported to

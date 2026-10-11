@@ -172,15 +172,26 @@ final class GpuRenderBackend extends GraphicsDevice {
   /// **A static method rather than a factory constructor**, because loading the
   /// bundle became asynchronous in flutter_gpu 3.47 and a factory constructor
   /// cannot be.
-  /// [extraBundles] are the application's own compiled bundles, searched before
-  /// the engine's — see [GpuShaderLibrary]. Each is loaded the same way and
-  /// each has to exist: a bundle named and not found is a stage that will come
-  /// back null at the first draw, which on this backend is a pipeline built
-  /// from nothing.
+  ///
+  /// **An application's own stages arrive through one entrance, since 1.0**
+  /// (D43): a bundle loaded with [loadShaders] and handed to the renderer's
+  /// `addMaterials`, as on every other backend. The extra bundles this took
+  /// before are the package's own business now.
   static Future<GpuRenderBackend> open({
     required int width,
     required int height,
     String bundleAsset = defaultBundleAsset,
+  }) => _open(width: width, height: height, bundleAsset: bundleAsset);
+
+  /// [open], with [extraBundles] — compiled bundles searched before the
+  /// engine's, see [GpuShaderLibrary]. Each is loaded the same way and each
+  /// has to exist: a bundle named and not found is a stage that will come
+  /// back null at the first draw, which on this backend is a pipeline built
+  /// from nothing. Reached through [GpuRenderBackendInternals.openWith].
+  static Future<GpuRenderBackend> _open({
+    required int width,
+    required int height,
+    required String bundleAsset,
     List<String> extraBundles = const <String>[],
   }) async {
     if (width < 1 || height < 1) {
@@ -1506,6 +1517,21 @@ final class GpuRenderBackend extends GraphicsDevice {
 /// `gpu.BufferView` in the public API made flutter_gpu's types part of this
 /// package's semver, and the counters are a debugging aid, not a promise.
 extension GpuRenderBackendInternals on GpuRenderBackend {
+  /// [GpuRenderBackend.open] with [extraBundles] searched before the
+  /// engine's bundle: the package's own, and its tests', since the one
+  /// public entrance for an application's stages is `addMaterials`.
+  static Future<GpuRenderBackend> openWith({
+    required int width,
+    required int height,
+    String bundleAsset = GpuRenderBackend.defaultBundleAsset,
+    List<String> extraBundles = const <String>[],
+  }) => GpuRenderBackend._open(
+    width: width,
+    height: height,
+    bundleAsset: bundleAsset,
+    extraBundles: extraBundles,
+  );
+
   /// See [GpuRenderBackend._emplace].
   gpu.BufferView emplace(ByteData bytes) => _emplace(bytes);
 

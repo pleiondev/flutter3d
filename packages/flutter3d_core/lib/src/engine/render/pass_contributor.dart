@@ -345,11 +345,10 @@ abstract base mixin class RenderServices {
   ///    to `CpuShaderLibrary` alongside `builtinCpuShaders()`;
   ///  * WebGL compiles GLSL at runtime — put the source in the `ShaderSources`
   ///    handed to `WebGlDevice.open`;
-  ///  * Impeller compiles ahead of time, so an application ships its own bundle
-  ///    and names it in `GpuRenderBackend.open(width:, height:,
-  ///    extraBundles: [...])`. Those
-  ///    are searched before the engine's, so a stage sharing a name with one of
-  ///    the engine's replaces it.
+  ///  * Impeller compiles ahead of time, so an application ships its own bundle,
+  ///    loads it with `GraphicsDevice.loadShaders` and hands the library to
+  ///    `RendererSteps.addMaterials` — the one entrance for a stage of its own
+  ///    on every backend.
   void drawFullscreen(FullscreenDraw draw);
 }
 
