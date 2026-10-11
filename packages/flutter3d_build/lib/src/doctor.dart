@@ -6,9 +6,15 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/compile.dart' show engineRevisionAt;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
+
 import 'cli_contract.dart';
 import 'convert/external.dart';
 import 'migrate/data.dart' show dataFilesBehind;
+import 'plugin_discovery.dart';
 
 /// The Dart every pubspec's floor names (SUPPORT.md, "The Flutter and Dart
 /// SDKs"). A structure test reads that section and holds these to it.
@@ -126,6 +132,7 @@ List<DoctorCheck> runDoctorChecks({
     const <String>['--version', '--machine'],
   );
   String? flutterRoot;
+  String? flutterDart;
   if (machine == null) {
     checks.add(
       const DoctorCheck(
@@ -155,6 +162,7 @@ List<DoctorCheck> runDoctorChecks({
       ),
     );
     if (map['dartSdkVersion'] case final String bundled) {
+      flutterDart = bundled.split(' ').first;
       checks.add(
         _versionCheck(
           "Flutter's Dart",
@@ -221,6 +229,15 @@ List<DoctorCheck> runDoctorChecks({
   }
 
   if (project != null && File('${project.path}/pubspec.yaml').existsSync()) {
+    checks.addAll(
+      projectShaderChecks(
+        project,
+        dart: flutterDart ?? dart,
+        engineRevision: flutterRoot == null
+            ? null
+            : engineRevisionAt(flutterRoot),
+      ),
+    );
     final behind = dataFilesBehind(project);
     checks.add(
       behind.isEmpty
@@ -239,6 +256,195 @@ List<DoctorCheck> runDoctorChecks({
     );
   }
   return checks;
+}
+
+/// What `doctor` says about a project's shaders (D15, D19): whether its
+/// hook is there to write the engine's bundle, whether its pubspec ships
+/// what the hook writes, whether the bundle there was compiled on the SDK
+/// that builds it now — [dart] and [engineRevision], when known — and
+/// whether every installed plugin's material was compiled in.
+///
+/// A project no GPU backend is a dependency of gets no line; neither does a
+/// project whose packages cannot be resolved, which `flutter pub get` is the
+/// answer to before anything here is.
+List<DoctorCheck> projectShaderChecks(
+  Directory project, {
+  String? dart,
+  String? engineRevision,
+}) {
+  final PluginDiscovery discovery;
+  try {
+    discovery = discoverPlugins(project);
+  } on PluginDiscoveryException {
+    return const <DoctorCheck>[];
+  }
+  const backends = <String>{
+    'flutter3d_impeller',
+    'flutter3d_webgl',
+    'flutter3d_webgpu',
+  };
+  if (!discovery.dependencies.any(backends.contains)) {
+    return const <DoctorCheck>[];
+  }
+  final checks = <DoctorCheck>[];
+
+  final hook = File('${project.path}/hook/build.dart');
+  final hooked =
+      hook.existsSync() &&
+      RegExp(r'buildAssets').hasMatch(hook.readAsStringSync());
+  checks.add(
+    hooked
+        ? const DoctorCheck(
+            'Shader hook',
+            DoctorStatus.ok,
+            'hook/build.dart runs buildAssets, which writes the engine\'s '
+                'bundle for this SDK',
+          )
+        : const DoctorCheck(
+            'Shader hook',
+            DoctorStatus.note,
+            'no hook/build.dart calling buildAssets: the application loads '
+                'the bundle flutter3d_impeller ships, which carries every '
+                'stage and holds only on the SDK it was published with',
+            fix:
+                'run `flutter3d init`, which writes the hook, or add it by '
+                'hand (see the quickstart)',
+          ),
+  );
+
+  final pubspec = File('${project.path}/pubspec.yaml').readAsStringSync();
+  final listed = RegExp(
+    r'^\s*-\s*flutter3d_generated/shaders/\s*$',
+    multiLine: true,
+  ).hasMatch(pubspec);
+  if (hooked) {
+    checks.add(
+      listed
+          ? const DoctorCheck(
+              'Shader assets',
+              DoctorStatus.ok,
+              'pubspec.yaml ships flutter3d_generated/shaders/',
+            )
+          : const DoctorCheck(
+              'Shader assets',
+              DoctorStatus.problem,
+              'pubspec.yaml does not list flutter3d_generated/shaders/, so '
+                  'the bundle the hook writes is not in the application',
+              fix:
+                  'add `- flutter3d_generated/shaders/` under flutter: assets: '
+                  '(Flutter does not bundle a directory\'s subdirectories)',
+            ),
+    );
+  }
+
+  final bundle = File('${project.path}/${EngineBundleStamp.projectAsset}');
+  if (hooked && !bundle.existsSync()) {
+    checks.add(
+      const DoctorCheck(
+        'Shader bundle',
+        DoctorStatus.note,
+        'not built yet',
+        fix:
+            'build once (`flutter build` or `flutter run`); the hook writes it',
+      ),
+    );
+  } else if (bundle.existsSync()) {
+    checks.add(
+      _bundleCheck(bundle, dart: dart, engineRevision: engineRevision),
+    );
+  }
+
+  final missing = <String>[
+    for (final package in discovery.packages)
+      for (final source in _materialSources(package))
+        if (!_compiledFor(project, source)) '${package.name}: ${source.path}',
+  ];
+  if (hooked && missing.isNotEmpty) {
+    checks.add(
+      DoctorCheck(
+        'Plugin materials',
+        DoctorStatus.note,
+        '${missing.length} not compiled into the project yet: '
+            '${missing.take(3).join(', ')}${missing.length > 3 ? ', …' : ''}',
+        fix:
+            'build once; the hook compiles every installed plugin\'s materials',
+      ),
+    );
+  }
+  return checks;
+}
+
+DoctorCheck _bundleCheck(
+  File bundle, {
+  required String? dart,
+  required String? engineRevision,
+}) {
+  final ShaderBundle decoded;
+  try {
+    decoded = ShaderBundle.decode(bundle.readAsBytesSync().buffer.asByteData());
+  } on ShaderBundleException catch (refused) {
+    return DoctorCheck(
+      'Shader bundle',
+      DoctorStatus.problem,
+      '${EngineBundleStamp.projectAsset} is refused: ${refused.reason}',
+      fix: 'build again; the hook writes it afresh',
+    );
+  }
+  final stamp = EngineBundleStamp.decode(
+    decoded.section(EngineBundleStamp.section),
+  );
+  final size = '${(bundle.lengthSync() / (1024 * 1024)).toStringAsFixed(1)} MB';
+  final stale = <String>[
+    if (dart != null && decoded.sdk != dart) 'Dart ${decoded.sdk}, not $dart',
+    if (engineRevision != null &&
+        engineRevision.isNotEmpty &&
+        stamp != null &&
+        stamp.engine.isNotEmpty &&
+        stamp.engine != engineRevision)
+      'engine ${stamp.engine}, not $engineRevision',
+  ];
+  if (stale.isNotEmpty) {
+    return DoctorCheck(
+      'Shader bundle',
+      DoctorStatus.problem,
+      'built on another SDK (${stale.join('; ')}): Impeller refuses it',
+      fix: 'build again; the hook compiles it for the SDK that runs it',
+    );
+  }
+  return DoctorCheck(
+    'Shader bundle',
+    DoctorStatus.ok,
+    '$size, ${stamp?.stages ?? decoded.stages.length} stages'
+        '${stamp == null
+            ? ''
+            : stamp.full
+            ? ' (every one)'
+            : stamp.needs.isEmpty
+            ? ''
+            : ' for ${stamp.needs.join(', ')}'}',
+  );
+}
+
+List<File> _materialSources(PluginPackage package) {
+  final root = Directory('${package.root}/assets_src');
+  if (!root.existsSync()) return const <File>[];
+  return <File>[
+    for (final file in root.listSync(recursive: true).whereType<File>())
+      if (file.path.endsWith('.f3dmat')) file,
+  ];
+}
+
+/// Whether [source]'s material has a bundle in [project], by the name its
+/// first `material` line gives it.
+bool _compiledFor(Directory project, File source) {
+  final name = RegExp(
+    r'^\s*material\s+([A-Za-z_][A-Za-z0-9_.]*)',
+    multiLine: true,
+  ).firstMatch(source.readAsStringSync())?.group(1);
+  return name != null &&
+      File(
+        '${project.path}/${EngineBundleStamp.projectMaterialAsset(name)}',
+      ).existsSync();
 }
 
 Object? _tryJson(String text) {

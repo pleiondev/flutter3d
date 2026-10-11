@@ -17,6 +17,8 @@ import 'package:flutter3d_shaders/backend.dart'
         MaterialCompileRequest,
         MaterialCompilerRegistry,
         MaterialStageSource;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp, MissingShaderStageException;
 import 'package:flutter3d_shaders/translate.dart'
     show
         GlslTranslateException,
@@ -436,6 +438,14 @@ final class RuntimeRenderStep {
 /// plugin installs. Compiling and loading are asynchronous; a material is
 /// in the renderer, and a step draws, from the frame after its library
 /// arrives. [settled] completes when nothing is pending.
+///
+/// **On Impeller a material is found, not compiled** (D19). `impellerc`
+/// ships with the Flutter SDK and not with a game, so `flutter3d_build`'s
+/// hook compiles every installed plugin's materials into the project for the
+/// SDK that builds it; [prebuilt] hands back that bundle for a material's
+/// name (`EngineBundleStamp.projectMaterialAsset`). A material it has no
+/// bundle for is off with a [MissingShaderStageException] in [refusals]
+/// naming the stage and the plugin.
 final class RuntimeShaders extends PluginRegistry {
   RuntimeShaders({
     required String? backend,
@@ -445,6 +455,7 @@ final class RuntimeShaders extends PluginRegistry {
     PackedStage? webGpuHost,
     int? webGpuFullscreenUvLocation,
     MaterialCompilerRegistry? compilers,
+    Future<ByteData?> Function(String material)? prebuilt,
   }) : _store = _ShaderStore(
          RuntimeBackends.normalize(backend),
          loadShaders,
@@ -453,6 +464,7 @@ final class RuntimeShaders extends PluginRegistry {
          webGpuHost,
          webGpuFullscreenUvLocation,
          compilers,
+         prebuilt,
        ),
        _scope = null;
 
@@ -469,6 +481,12 @@ final class RuntimeShaders extends PluginRegistry {
   /// one that is on or still loading.
   Map<String, String?> get statuses =>
       Map<String, String?>.unmodifiable(_store.statuses);
+
+  /// The typed reason a material or a step is off, by name, where there is
+  /// one to throw: a stage the build did not compile for Impeller is a
+  /// [MissingShaderStageException]. Its message is the one in [statuses].
+  Map<String, Flutter3dException> get refusals =>
+      Map<String, Flutter3dException>.unmodifiable(_store.refusals);
 
   /// The lighting model a material added here is drawn with, once it is
   /// loaded: `RenderMaterial(lighting: shaders.lighting('RimGlow'))`. Null before
@@ -503,6 +521,9 @@ final class RuntimeShaders extends PluginRegistry {
         '$from:${error.line}:${error.column}: ${error.message}',
       );
     }
+    if (_store.backend == RuntimeBackends.impeller) {
+      return _prebuiltMaterial(source, name);
+    }
     try {
       bundle = runtimeMaterialBundle(
         source,
@@ -533,6 +554,64 @@ final class RuntimeShaders extends PluginRegistry {
         added?.cancel();
         _store.lighting.remove(name);
         _store.statuses.remove(name);
+      }),
+    );
+  }
+
+  /// [name] on Impeller: the project's compiled bundle of it, from
+  /// [_ShaderStore.prebuilt], added once loaded, or the typed refusal when
+  /// there is none.
+  Registration _prebuiltMaterial(String source, String name) {
+    final missing = MissingShaderStageException(
+      name,
+      need: _scope?.manifest.id,
+      backend: 'Impeller',
+      detail:
+          'Impeller runs what impellerc compiled ahead of time, and '
+          'flutter3d_build\'s hook compiles every installed plugin\'s '
+          'materials into ${EngineBundleStamp.projectMaterialAsset(name)} '
+          'for the SDK the application is built with; '
+          '${_store.prebuilt == null ? 'this engine was given no way to read it' : 'the build did not write it'}.',
+    );
+    Registration? added;
+    var cancelled = false;
+    void refuse(Flutter3dException refusal) {
+      _store.statuses[name] = refusal.message;
+      _store.refusals[name] = refusal;
+    }
+
+    final find = _store.prebuilt;
+    if (find == null) {
+      refuse(missing);
+    } else {
+      _store.statuses[name] = null;
+      late final Future<void> done;
+      done = find(name)
+          .then((bytes) async {
+            if (cancelled) return;
+            if (bytes == null) return refuse(missing);
+            final library = await _store.loadShaders(bytes);
+            if (cancelled) return;
+            if (library[name] == null) return refuse(missing);
+            added = _store.addMaterials(library);
+            _store.lighting[name] = describeMaterial(
+              parseMaterial(source),
+            ).lightingModel(label: name, shaderName: name);
+          })
+          .catchError((Object error) {
+            _store.statuses[name] = 'the device refused it: $error';
+            if (error is Flutter3dException) _store.refusals[name] = error;
+          })
+          .whenComplete(() => _store.pending.remove(done));
+      _store.pending.add(done);
+    }
+    return _tracked(
+      Registration(() {
+        cancelled = true;
+        added?.cancel();
+        _store.lighting.remove(name);
+        _store.statuses.remove(name);
+        _store.refusals.remove(name);
       }),
     );
   }
@@ -715,9 +794,13 @@ final class _ShaderStore {
     this.webGpuHost,
     this.webGpuFullscreenUvLocation,
     this.compilers,
+    this.prebuilt,
   );
 
   final String? backend;
+  final Future<ByteData?> Function(String material)? prebuilt;
+  final Map<String, Flutter3dException> refusals =
+      <String, Flutter3dException>{};
   final Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders;
   final Registration Function(ShaderLibrary library) addMaterials;
   final Map<String, String>? engineSources;
