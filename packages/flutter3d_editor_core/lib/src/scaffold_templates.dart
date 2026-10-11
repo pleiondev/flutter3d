@@ -156,6 +156,13 @@ installing one in place of the seed's own is the next thing to do: each is a
 `GenrePlugin` handed to the view's `plugins`, with the run it steps set when a
 level is up.
 
+**Not every project is a game, and the view is the same one.** A digital twin
+hands it a scaled clock and feeds its source's readings into the loop's input,
+so they are on the tape a timeline scrubs; a laboratory builds its loop on the
+accurate profile and steps it by hand. The examples of `flutter3d_app`
+(`lib/twin_main.dart`) and `flutter3d_education` (`lib/pendulum_main.dart`)
+are those two, each one `Flutter3dView`.
+
 ## What is wired, and what is only available
 
 The `pubspec.yaml` brings `flutter3d_app`, which is the assembly layer: the
