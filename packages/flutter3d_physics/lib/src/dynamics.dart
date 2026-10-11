@@ -43,6 +43,13 @@
 /// fixed step. A body in contact is solved as above and carried on in
 /// doubles; the contacts themselves, and a body's turning, are not held to
 /// analytic tests under either profile.
+///
+/// The contacts read the *world's* profile (`WorldProperties.profile`, the
+/// one a loop binds): in a world that is not bit-exact a contact bounces
+/// with no more than the lossier side's material lets come back
+/// (`InelasticProperties.lossFactor`, [restitutionOfLossFactor]), as the
+/// native core's contacts do; in a bit-exact one the loss factor is not
+/// read, and a run's tapes are what they were.
 library;
 
 import 'dart:math' as math;
@@ -59,6 +66,7 @@ import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
 import 'contact.dart';
+import 'impact_loss.dart';
 import 'push.dart';
 import 'rigid_body.dart';
 import 'rigid_dynamics.dart';
@@ -698,6 +706,7 @@ final class Dynamics extends RigidDynamics {
   void _collect(Vector3 gravity, double dt) {
     _pairs.clear();
     _heldNext.clear();
+    _readsLoss = contactsReadLoss(world.properties);
     for (var i = 0; i < bodies.length; i++) {
       final body = bodies[i];
       if (!body.isMovable) continue;
@@ -761,7 +770,12 @@ final class Dynamics extends RigidDynamics {
             pair
               ..key = _keyOf(body.collider, other)
               ..bounce = _bounceFor(
-                _pairOf(body.collider, other)?.restitution ?? body.restitution,
+                _lossy(
+                  _pairOf(body.collider, other)?.restitution ??
+                      body.restitution,
+                  body.collider,
+                  other,
+                ),
                 body.velocity.dot(_contact.normal),
               )
               ..friction =
@@ -817,8 +831,12 @@ final class Dynamics extends RigidDynamics {
           pair
             ..key = _keyOf(body.collider, other.collider)
             ..bounce = _bounceFor(
-              _pairOf(body.collider, other.collider)?.restitution ??
-                  math.max(body.restitution, other.restitution),
+              _lossy(
+                _pairOf(body.collider, other.collider)?.restitution ??
+                    math.max(body.restitution, other.restitution),
+                body.collider,
+                other.collider,
+              ),
               approach,
             )
             ..friction =
@@ -838,6 +856,21 @@ final class Dynamics extends RigidDynamics {
   /// restitution, and the solver combines them by the catalogue's rule
   /// (`MaterialCatalog.contact`: the geometric mean of μ, the larger e), so
   /// a number a game set on the body itself still counts.
+  /// Whether this step's contacts read their materials' loss factors: in a
+  /// world whose profile is not bit-exact, set once a step.
+  bool _readsLoss = false;
+
+  /// [restitution], the pair's, held to what the lossier of [a]'s and
+  /// [b]'s materials lets come back (`restitutionOfLossFactor`), in a world
+  /// that reads loss factors; [restitution] itself in one that does not, so
+  /// a deterministic run steps to the bits it always did.
+  double _lossy(double restitution, Collider a, Collider b) {
+    if (!_readsLoss) return restitution;
+    final eta = math.max(lossFactorOf(a.material), lossFactorOf(b.material));
+    if (eta <= 0.0) return restitution;
+    return math.min(restitution, restitutionOfLossFactor(eta));
+  }
+
   MaterialPair? _pairOf(Collider a, Collider b) {
     final ma = a.material, mb = b.material;
     if (ma == null || mb == null) return null;

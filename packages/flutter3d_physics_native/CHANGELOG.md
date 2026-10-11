@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **A contact damps by what its bodies are made of.** A body takes a loss
+  factor (`f3d_body_set_loss_factor`, `NativeWorld.setLossFactor`), and a
+  contact bounces with no more of its approach than a spring and dashpot
+  of damping ratio η/2 gives back, exp(−πζ/√(1 − ζ²)), the lossier side's
+  η taken: it only ever takes from a restitution. Set up, as a law is: not
+  in a snapshot and kept across a restore, so a world that sets none steps
+  to the same bits, the C digests and the shared scene's bytes unmoved.
+  `NativeDynamics` gives the core each body's and collider's
+  `InelasticProperties.lossFactor` in a world whose profile is not
+  bit-exact and none under the deterministic one, as the reference
+  `Dynamics` reads it. F3D_ABI_VERSION is 41.
 - **A ragdoll holds itself with its muscles' tone, then goes limp.** A
   joint takes a drive (`f3d_joint_set_drive`, `NativeWorld.setJointDrive`,
   `JointDrive`): a ball joint or a hinge pulled towards a turn with a

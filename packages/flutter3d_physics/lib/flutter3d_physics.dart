@@ -69,6 +69,7 @@ export 'src/fluid/particle_fluid.dart' hide moveParticlesInDart;
 export 'src/fluid/pipe.dart' hide flowPipesInDart;
 export 'src/fluid/vessel_shape.dart';
 export 'src/human_body.dart';
+export 'src/impact_loss.dart' show restitutionOfLossFactor;
 export 'src/inertia.dart';
 export 'src/physics_backend.dart';
 export 'src/push.dart';

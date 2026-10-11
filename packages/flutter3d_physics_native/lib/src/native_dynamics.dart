@@ -45,6 +45,12 @@
 /// and the laws and expressions the core evaluates (`NativeLaw`,
 /// `NativeExpression`) run in binary64, rounded to f32 once where a body's
 /// material holds the answer.
+///
+/// One thing follows the world's profile (`WorldProperties.profile`) here as
+/// in the reference: in a world that is not bit-exact a contact damps by
+/// the loss factor of what its bodies and colliders are made of
+/// (`InelasticProperties.lossFactor`, `restitutionOfLossFactor`), and in a
+/// bit-exact one the core is given none and steps as it always did.
 library;
 
 import 'dart:convert';
@@ -118,8 +124,44 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
     final now = world.properties;
     if (now == _pushed) return;
     native.applyProperties(now, previous: _pushed);
+    final before = _pushed;
     _pushed = now;
+    if (before != null && before.profile.isBitExact != now.profile.isBitExact) {
+      _giveLossToAll();
+    }
   }
+
+  /// [_giveLoss] for every body and every standing collider.
+  void _giveLossToAll() {
+    for (final MapEntry(key: body, value: mirror) in _mirrors.entries) {
+      _giveLoss(mirror.handle, body.collider);
+    }
+    for (final MapEntry(key: collider, value: standing) in _standing.entries) {
+      _giveLoss(standing.handle, collider);
+    }
+  }
+
+  /// Gives the core [collider]'s material's loss factor for [handle]
+  /// (`NativeWorld.setLossFactor`), in a world whose profile is not
+  /// bit-exact, and takes it away in one that is.
+  ///
+  /// **What the reference does too.** A contact damps by the lossier side's
+  /// η as `restitutionOfLossFactor` says, in both cores, and only where the
+  /// profile does not promise bits: under the deterministic one the core is
+  /// given none, and steps to the bits, the digests and the snapshots it
+  /// always did.
+  void _giveLoss(NativeBody handle, Collider collider) {
+    final eta = world.properties.profile.isBitExact
+        ? 0.0
+        : collider.material?.inelastic?.lossFactor?.value ?? 0.0;
+    // Nought for a body the core holds none of changes nothing, so until
+    // one was given a deterministic world makes no call at all.
+    if (eta > 0.0 || _lossGiven) native.setLossFactor(handle, eta);
+    if (eta > 0.0) _lossGiven = true;
+  }
+
+  /// Whether the core was ever given a loss factor.
+  bool _lossGiven = false;
 
   /// The core's world: joints, bullets, the air, the fast mode.
   final NativeWorld native = NativeWorld();
@@ -279,6 +321,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
         mask: body.collider.mask & Layers.all,
       );
     _owners[handle] = body.collider;
+    _giveLoss(handle, body.collider);
     return _Mirror(handle, offset)..take(body);
   }
 
@@ -582,6 +625,9 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
         _mirrors[body] = _mirrorFor(body);
       }
     }
+    // The loss factors are set up, not state, so a snapshot holds none: a
+    // core restored into from another world's save is given them again.
+    if (!now.profile.isBitExact) _giveLossToAll();
     final named = <NativeBody>{
       for (final mirror in _mirrors.values) mirror.handle,
       for (final standing in _standing.values) standing.handle,
@@ -728,6 +774,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
     );
     shape(handle);
     _owners[handle] = collider;
+    _giveLoss(handle, collider);
     return _Standing(handle, offset, collider.shape)..placed(native, collider);
   }
 

@@ -77,6 +77,7 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->swept);
   f3d_pool_destroy(world->pool);
   f3d_clear_laws(world);
+  f3d_clear_losses(world);
   for (uint32_t i = 0; i < F3D_MAX_THREADS; i++) f3d_free(world->lanes[i].items);
   f3d_free(world);
 }

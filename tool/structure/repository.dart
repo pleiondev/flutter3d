@@ -1347,6 +1347,7 @@ const Map<String, String> propertyReaders = <String, String>{
   'PhysicalMaterial.optical': 'flutter3d_level_scene/lib/src/level_scene.dart',
   'PhysicalMaterial.electrical':
       'flutter3d_physics_native/lib/src/native_world.dart',
+  'PhysicalMaterial.inelastic': 'flutter3d_physics/lib/src/impact_loss.dart',
 };
 
 /// Properties with no reader yet, with what would read one.
@@ -1355,13 +1356,7 @@ const Map<String, String> propertyReaders = <String, String>{
 /// rule passes these while no library reads them and fails on an entry once
 /// one is named in [propertyReaders], so the list only shrinks. A property
 /// added from now on is not added here; it comes with its reader.
-const Map<String, String> propertyReadersPending = <String, String>{
-  'PhysicalMaterial.inelastic':
-      'the loss factor and the constitutive models are what a soft contact '
-      'or a joint\'s tissue damps by; both cores\' contacts are rigid, and '
-      'the ragdoll\'s tissue is its own (the catalogue has no tissue), so '
-      'nothing reads a body\'s material damping yet',
-};
+const Map<String, String> propertyReadersPending = <String, String>{};
 
 /// The packages and applications that promise WCAG 2.2 at level AA, with
 /// what the promise covers (decision 34 of the readiness review).

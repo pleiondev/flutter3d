@@ -980,6 +980,8 @@ bool readVector(Object? value, Vector3 out)
 
 const double referenceBodyMass = 73.0
 
+double restitutionOfLossFactor(double lossFactor)
+
 const double sharpEdgeDischarge = 0.62
 
 double sphereDrag(double re)

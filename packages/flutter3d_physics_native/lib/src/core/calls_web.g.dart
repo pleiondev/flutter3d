@@ -1273,6 +1273,13 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyHigh,
     JSNumber restitution,
   );
+  @JS('f3d_body_set_loss_factor__w')
+  external JSNumber f3d_body_set_loss_factor(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber lossFactor,
+  );
   @JS('f3d_body_set_collision_filter__w')
   external JSNumber f3d_body_set_collision_filter(
     JSNumber world,
@@ -3122,6 +3129,14 @@ int f3d_body_set_restitution(int world, int body, double restitution) => _x
       lowHalf(body).toJS,
       highHalf(body).toJS,
       restitution.toJS,
+    )
+    .toDartInt;
+int f3d_body_set_loss_factor(int world, int body, double lossFactor) => _x
+    .f3d_body_set_loss_factor(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      lossFactor.toJS,
     )
     .toDartInt;
 int f3d_body_set_collision_filter(int world, int body, int layer, int mask) =>

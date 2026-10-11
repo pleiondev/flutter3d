@@ -4027,6 +4027,21 @@ final class NativeWorld {
     restitution,
   );
 
+  /// The loss factor η of what [body] is made of
+  /// (`InelasticProperties.lossFactor`), nought up; nought, a new body's,
+  /// for none. A contact then damps as a spring and dashpot of damping ratio
+  /// η/2 and gives back at most `restitutionOfLossFactor(η)` of its
+  /// approach: the larger η of a pair takes from the restitution it would
+  /// bounce with, and never adds to it.
+  ///
+  /// **Set up, not state**, as a law is: not in a [snapshot], kept across a
+  /// [restore], and a world that sets none steps to the bits it did before.
+  void setLossFactor(NativeBody body, double lossFactor) => _check(
+    c.f3d_body_set_loss_factor(_live, body.raw, lossFactor),
+    body,
+    lossFactor,
+  );
+
   /// Whether [body] sleeps. Bodies sleep and wake by islands: those joined
   /// by their contacts sleep when all have been still for the sleep time,
   /// and wake together when any of them moves.

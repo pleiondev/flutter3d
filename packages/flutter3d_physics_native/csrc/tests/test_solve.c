@@ -4,8 +4,9 @@
  * stands, a ball bounces back with its restitution's share, a crate slides
  * down a slope at g(sin θ − μ cos θ) and holds on a steeper μ, a ball rolls
  * down it at 5/7 g sin θ without slipping, a collision keeps its momentum,
- * a crate stood on its edge falls flat, and one spawned inside the floor is
- * pushed out no faster than the push limit.
+ * a crate stood on its edge falls flat, one spawned inside the floor is
+ * pushed out no faster than the push limit, and a material's loss factor
+ * takes from a bounce what a damped spring's restitution says it does.
  */
 #include <math.h>
 #include <stdlib.h>
@@ -344,6 +345,106 @@ static void test_friction_and_restitution_refused(void) {
   f3d_world_destroy(w);
 }
 
+/* What a ball of restitution [e] dropped from two metres leaves the floor
+ * at, over what it arrived at, with [ball_loss] on it and [floor_loss] on
+ * the floor (nought for none). */
+static double rebound(f3d_real e, f3d_real ball_loss, f3d_real floor_loss) {
+  F3dBody floor;
+  F3dWorld *w = with_floor(identity, &floor);
+  const F3dBody ball = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, F3D_R(2.25), 0, 1);
+  f3d_body_set_shape(w, ball, F3D_SHAPE_SPHERE, F3D_R(0.25), 0, 0);
+  f3d_body_set_restitution(w, ball, e);
+  CHECK(f3d_body_set_loss_factor(w, ball, ball_loss) == 1);
+  CHECK(f3d_body_set_loss_factor(w, floor, floor_loss) == 1);
+  double fastest_down = 0, fastest_up = 0;
+  for (int i = 0; i < 120; i++) {
+    f3d_world_step(w, F3D_R(1.0 / 60.0));
+    f3d_real v[3];
+    f3d_body_get_velocity(w, ball, v);
+    if (v[1] < -fastest_down) fastest_down = -v[1];
+    if (v[1] > fastest_up) fastest_up = v[1];
+  }
+  f3d_world_destroy(w);
+  return fastest_up / fastest_down;
+}
+
+/* The restitution of a linear spring and dashpot of damping ratio ζ = η/2:
+ * exp(−π ζ / √(1 − ζ²)), nought from critical on. */
+static double damped_restitution(double loss) {
+  const double zeta = loss / 2;
+  return zeta >= 1 ? 0 : exp(-M_PI * zeta / sqrt(1 - zeta * zeta));
+}
+
+static void test_loss_factor_damps_the_bounce(void) {
+  /* A ball of restitution 0.9 on a rubber of η = 0.4 comes back at the
+   * damped spring's 0.527 of its speed, whichever of the two the rubber
+   * is; a steel's η of 1e-4 takes nothing from a restitution of a half,
+   * since the loss factor only ever takes away; and past critical, η ≥ 2,
+   * nothing comes back. */
+  CHECK_NEAR(damped_restitution(0.4), 0.5266, 1e-4);
+  CHECK_NEAR(rebound(F3D_R(0.9), F3D_R(0.4), 0), damped_restitution(0.4), 0.02);
+  CHECK_NEAR(rebound(F3D_R(0.9), 0, F3D_R(0.4)), damped_restitution(0.4), 0.02);
+  CHECK_NEAR(rebound(F3D_R(0.9), F3D_R(0.1), F3D_R(0.4)), damped_restitution(0.4),
+             0.02);
+  CHECK_NEAR(rebound(F3D_R(0.5), F3D_R(1e-4), 0), 0.5, 0.02);
+  CHECK_NEAR(rebound(F3D_R(0.9), 0, 0), 0.9, 0.02);
+  CHECK(rebound(F3D_R(0.9), F3D_R(2.5), 0) < 0.01);
+}
+
+static void test_loss_factor_is_set_up_not_state(void) {
+  /* A world that sets no loss factor steps to the bits it did: a loss
+   * factor of nought is none. And none is in the snapshot, as a law is
+   * not: the same world with one and without is the same bytes, and a
+   * restore keeps the one set. */
+  F3dBody floor[2];
+  F3dWorld *w[2];
+  F3dBody ball[2];
+  for (int k = 0; k < 2; k++) {
+    w[k] = with_floor(identity, &floor[k]);
+    ball[k] = f3d_body_create(w[k], F3D_BODY_DYNAMIC, 0, F3D_R(2.25), 0, 1);
+    f3d_body_set_shape(w[k], ball[k], F3D_SHAPE_SPHERE, F3D_R(0.25), 0, 0);
+    f3d_body_set_restitution(w[k], ball[k], F3D_R(0.9));
+  }
+  CHECK(f3d_body_set_loss_factor(w[1], ball[1], F3D_R(0.4)) == 1);
+  CHECK(f3d_body_set_loss_factor(w[0], ball[0], F3D_R(0.4)) == 1);
+  CHECK(f3d_body_set_loss_factor(w[0], ball[0], 0) == 1);
+  const uint32_t size = f3d_world_snapshot_size(w[0]);
+  CHECK(size == f3d_world_snapshot_size(w[1]));
+  uint8_t *bytes[2] = {malloc(size), malloc(size)};
+  f3d_world_snapshot_write(w[0], bytes[0], size);
+  f3d_world_snapshot_write(w[1], bytes[1], size);
+  CHECK(memcmp(bytes[0], bytes[1], size) == 0);
+  /* Undamped, w[0] bounces at its 0.9; w[1], restored from w[0]'s bytes,
+   * keeps its own loss factor and bounces at the damped share. */
+  CHECK(f3d_world_restore(w[1], bytes[0], size) == 1);
+  double up[2] = {0, 0};
+  for (int i = 0; i < 120; i++) {
+    for (int k = 0; k < 2; k++) {
+      f3d_world_step(w[k], F3D_R(1.0 / 60.0));
+      f3d_real v[3];
+      f3d_body_get_velocity(w[k], ball[k], v);
+      if (v[1] > up[k]) up[k] = v[1];
+    }
+  }
+  const double down = sqrt(2 * STANDARD_G * 2);
+  CHECK_NEAR(up[0] / down, 0.9, 0.02);
+  CHECK_NEAR(up[1] / down, damped_restitution(0.4), 0.02);
+  for (int k = 0; k < 2; k++) {
+    free(bytes[k]);
+    f3d_world_destroy(w[k]);
+  }
+}
+
+static void test_loss_factor_refused(void) {
+  F3dWorld *w = f3d_world_create();
+  const F3dBody b = f3d_body_create(w, F3D_BODY_DYNAMIC, 0, 0, 0, 1);
+  CHECK(f3d_body_set_loss_factor(w, b, -1) == 0);
+  CHECK(f3d_body_set_loss_factor(w, b, nan_value()) == 0);
+  CHECK(f3d_body_set_loss_factor(w, 0, F3D_R(0.1)) == 0);
+  CHECK(f3d_body_set_loss_factor(w, b, F3D_R(0.1)) == 1);
+  f3d_world_destroy(w);
+}
+
 int main(void) {
   test_crate_comes_to_rest();
   test_stack_stands();
@@ -356,5 +457,8 @@ int main(void) {
   test_tips_over();
   test_pushed_out_gently();
   test_friction_and_restitution_refused();
+  test_loss_factor_damps_the_bounce();
+  test_loss_factor_is_set_up_not_state();
+  test_loss_factor_refused();
   return finish();
 }

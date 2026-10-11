@@ -3484,6 +3484,18 @@ external int _f3d_body_set_restitution(
 int f3d_body_set_restitution(int world, int body, double restitution) =>
     _f3d_body_set_restitution(Pointer.fromAddress(world), body, restitution);
 
+@Native<Int32 Function(Pointer<Void>, Uint64, Float)>(
+  symbol: 'f3d_body_set_loss_factor',
+  isLeaf: true,
+)
+external int _f3d_body_set_loss_factor(
+  Pointer<Void> world,
+  int body,
+  double lossFactor,
+);
+int f3d_body_set_loss_factor(int world, int body, double lossFactor) =>
+    _f3d_body_set_loss_factor(Pointer.fromAddress(world), body, lossFactor);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Uint32, Uint32)>(
   symbol: 'f3d_body_set_collision_filter',
   isLeaf: true,

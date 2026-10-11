@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A material's loss factor is impact damping.** In a world whose profile
+  is not bit-exact (`WorldProperties.profile`), `Dynamics` bounces a
+  contact with no more than `restitutionOfLossFactor` of the lossier
+  side's `InelasticProperties.lossFactor`: η = 2ζ, and a spring and
+  dashpot of damping ratio ζ gives back exp(−πζ/√(1 − ζ²)) of its
+  approach. It only takes from a restitution, never adds to one. Under the
+  deterministic profile the loss factor is not read and every step is the
+  bits it was.
 - **The accurate profile, in the Dart engine.** `Dynamics`, `ClothSettings`
   and `FluidWorld` take a `SimulationProfile` (deterministic by default, its
   steps and saves unchanged), and `RigidDynamics.profile` says which one a

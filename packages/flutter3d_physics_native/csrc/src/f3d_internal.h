@@ -899,6 +899,13 @@ typedef struct F3dLawBinding {
   F3dProgram *program;
 } F3dLawBinding;
 
+/* A body's loss factor as its contacts read it: the most share of the
+ * approach speed a contact of it gives back (f3d_solve.c). */
+typedef struct F3dBodyLoss {
+  F3dBody body;
+  f3d_real bounce_most;
+} F3dBodyLoss;
+
 struct F3dWorld {
   F3dWorldState s;
   F3dSlot *slots;
@@ -1013,7 +1020,17 @@ struct F3dWorld {
   F3dLawBinding *laws;
   uint32_t law_count;
   uint32_t law_capacity;
+  /* The bodies given a loss factor (f3d_body_set_loss_factor), each with
+   * the most of its approach a contact of it gives back. Set up, as the
+   * laws are, and not in a snapshot; none in a world that set none, whose
+   * contacts are solved as they always were. */
+  F3dBodyLoss *losses;
+  uint32_t loss_count;
+  uint32_t loss_capacity;
 };
+
+/* Frees every loss factor the world holds (f3d_solve.c). */
+void f3d_clear_losses(F3dWorld *world);
 
 /* Writes every law's value at its body's temperature into that body's
  * material, and at its liquid's into that liquid (f3d_expr.c). */
@@ -1178,6 +1195,9 @@ typedef struct F3dSolverBody {
   int32_t bullet;
   f3d_real inverse_mass;
   F3dSym3 inverse_inertia;
+  /* The most share of its approach a contact of it gives back, from its
+   * loss factor: read only in a world that set one. */
+  f3d_real bounce_most;
 } F3dSolverBody;
 
 /* The joints' part of the solver, in each substep: warm-started, then

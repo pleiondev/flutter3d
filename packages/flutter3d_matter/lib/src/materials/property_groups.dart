@@ -824,6 +824,12 @@ final class InelasticProperties extends PropertyGroup {
 
   /// The loss factor η, twice the damping ratio: the share of a cycle's
   /// elastic energy lost to heat, over 2π. No unit.
+  ///
+  /// What a contact damps by: in a world whose profile is not bit-exact,
+  /// both physics cores bounce a contact with no more of its approach than
+  /// a spring and dashpot of damping ratio η/2 gives back
+  /// (`restitutionOfLossFactor` in `flutter3d_physics`), and a ragdoll's
+  /// joints damp their give by it.
   final PropertyLaw? lossFactor;
 
   /// Its large elastic strains: a [ConstitutiveModel.ogden], say.

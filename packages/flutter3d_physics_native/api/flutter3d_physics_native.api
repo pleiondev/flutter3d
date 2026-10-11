@@ -817,6 +817,7 @@ final class NativeWorld
   void setLinkLimits(NativeMultibody multibody, int link, {double? lower, double? upper})
   void setLinkMotor(NativeMultibody multibody, int link, {double? speed, double force = 0.0})
   void setLinkServo(NativeMultibody multibody, int link, {double? stiffness, double target = 0.0, double damping = 1.0})
+  void setLossFactor(NativeBody body, double lossFactor)
   void setMaterial(NativeBody body, NativeMaterial material)
   void setMesh(NativeBody body, NativeMesh mesh)
   void setOrientation(NativeBody body, Quaternion value)

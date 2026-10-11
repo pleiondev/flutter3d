@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 40u
+#define F3D_ABI_VERSION 41u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -1954,6 +1954,18 @@ F3D_API int f3d_body_set_friction(F3dWorld *world, F3dBody body,
  * that met slower than a metre a second. */
 F3D_API int f3d_body_set_restitution(F3dWorld *world, F3dBody body,
                                      f3d_real restitution);
+
+/* The loss factor η of what [body] is made of, nought up; nought, the
+ * default, for none. A contact damps as a spring and dashpot of damping
+ * ratio ζ = η / 2 does, and comes back with at most
+ * exp(−π ζ / √(1 − ζ²)) of its approach, nought from ζ = 1 on: the larger
+ * η of a pair takes from the restitution it would bounce with, and never
+ * adds to it. Set up rather than state, as a law is: not in a snapshot,
+ * kept across a restore, and a world that sets none steps to the bits it
+ * did before. 1, or 0 for a stale handle or a value not finite or below
+ * nought. */
+F3D_API int f3d_body_set_loss_factor(F3dWorld *world, F3dBody body,
+                                     f3d_real loss_factor);
 
 /* What the body is, [layer], and what it meets, [mask]: two bodies collide
  * when each one's layer has a bit in the other's mask. Defaults 1 and every

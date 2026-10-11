@@ -263,6 +263,10 @@ F3D_API int f3d_body_set_restitution__w(void * world, uint32_t body_low, uint32_
   return f3d_body_set_restitution((void *)world, ((uint64_t)body_high << 32) | body_low, restitution);
 }
 
+F3D_API int f3d_body_set_loss_factor__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real loss_factor) {
+  return f3d_body_set_loss_factor((void *)world, ((uint64_t)body_high << 32) | body_low, loss_factor);
+}
+
 F3D_API int f3d_body_set_collision_filter__w(void * world, uint32_t body_low, uint32_t body_high, uint32_t layer, uint32_t mask) {
   return f3d_body_set_collision_filter((void *)world, ((uint64_t)body_high << 32) | body_low, layer, mask);
 }

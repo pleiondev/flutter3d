@@ -52,6 +52,85 @@ int f3d_body_set_restitution(F3dWorld *world, F3dBody body,
   return 1;
 }
 
+/* exp(−y) for y of nought up, by the core's own series: y cut to r in
+ * [0, ln 2) and k halvings, e^−y = 2^−k e^−r, so it is the same bits on
+ * every platform. */
+static f3d_real decayed(f3d_real y) {
+  const f3d_real ln2 = F3D_R(0.69314718055994531);
+  int k = 0;
+  while (y >= ln2) {
+    y -= ln2;
+    k++;
+  }
+  f3d_real term = F3D_R(1.0), sum = F3D_R(1.0);
+  for (int n = 1; n < 16; n++) {
+    term *= -y / (f3d_real)n;
+    sum += term;
+  }
+  for (; k > 0; k--) sum *= F3D_R(0.5);
+  return sum;
+}
+
+/* The most share of its approach a contact of a material of loss factor η
+ * gives back. A contact is a spring and a dashpot in parallel (Kelvin and
+ * Voigt), and the material's loss factor, the energy a cycle loses to heat
+ * over 2π times what it stores, is twice the damping ratio of such a
+ * spring at its resonance: η = 2ζ (Nashif, Jones and Henderson, Vibration
+ * Damping, Wiley, 1985). The spring and dashpot let go of a mass after half
+ * a damped period with exp(−π ζ / √(1 − ζ²)) of the speed it met them at,
+ * and an overdamped one, ζ ≥ 1, with none: the linear dashpot's coefficient
+ * of restitution (Schwager and Pöschel, Phys. Rev. E 78, 051304, 2008). */
+static f3d_real bounce_most_of(f3d_real loss_factor) {
+  const f3d_real zeta = loss_factor * F3D_R(0.5);
+  if (zeta >= F3D_R(1.0)) return F3D_R(0.0);
+  const f3d_real y =
+      F3D_R(3.14159265358979324) * zeta / f3d_sqrt(F3D_R(1.0) - zeta * zeta);
+  return y >= F3D_R(40.0) ? F3D_R(0.0) : decayed(y);
+}
+
+int f3d_body_set_loss_factor(F3dWorld *world, F3dBody body,
+                             f3d_real loss_factor) {
+  if (f3d_slot_of(world, body) == NULL ||
+      !(f3d_finite(loss_factor) && loss_factor >= F3D_R(0.0))) {
+    return 0;
+  }
+  for (uint32_t i = 0; i < world->loss_count; i++) {
+    F3dBodyLoss *loss = &world->losses[i];
+    if (loss->body != body) continue;
+    if (loss_factor > F3D_R(0.0)) {
+      loss->bounce_most = bounce_most_of(loss_factor);
+    } else {
+      /* Taken off, the rest keep their order. */
+      for (uint32_t j = i + 1; j < world->loss_count; j++) {
+        world->losses[j - 1] = world->losses[j];
+      }
+      world->loss_count--;
+    }
+    return 1;
+  }
+  if (!(loss_factor > F3D_R(0.0))) return 1;
+  if (world->loss_count == world->loss_capacity) {
+    const uint32_t capacity =
+        world->loss_capacity > 0 ? world->loss_capacity * 2u : 8u;
+    F3dBodyLoss *grown = (F3dBodyLoss *)f3d_realloc(
+        world->losses, sizeof(F3dBodyLoss) * capacity);
+    if (grown == NULL) return 0;
+    world->losses = grown;
+    world->loss_capacity = capacity;
+  }
+  F3dBodyLoss *loss = &world->losses[world->loss_count++];
+  loss->body = body;
+  loss->bounce_most = bounce_most_of(loss_factor);
+  return 1;
+}
+
+void f3d_clear_losses(F3dWorld *world) {
+  f3d_free(world->losses);
+  world->losses = NULL;
+  world->loss_count = 0;
+  world->loss_capacity = 0;
+}
+
 typedef struct SolverPoint {
   /* From each centre to the point at the step's start, in the world. */
   F3dVec3 ra, rb;
@@ -1005,6 +1084,15 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
               : s->inverse_mass;
       sb->inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
     }
+    sb->bounce_most = F3D_R(1.0);
+  }
+  /* Each body's loss factor where it set one; a body gone since names no
+   * slot and is passed over. */
+  const int lossy = world->loss_count > 0;
+  for (uint32_t i = 0; i < world->loss_count; i++) {
+    const F3dBodyLoss *loss = &world->losses[i];
+    if (f3d_slot_of(world, loss->body) == NULL) continue;
+    bodies[(uint32_t)(loss->body & 0xffffffffu)].bounce_most = loss->bounce_most;
   }
   /* Room for what the reports read, every manifold's nought until the
    * solver says otherwise; without it the step is solved as ever and the
@@ -1031,6 +1119,12 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
      * restitution the larger, so either can make it bounce. */
     sc->friction = f3d_sqrt(sa->friction * sb->friction);
     sc->restitution = f3d_max(sa->restitution, sb->restitution);
+    /* And no more than the lossier of the two lets come back: a loss
+     * factor only ever takes from a bounce. */
+    if (lossy) {
+      sc->restitution = f3d_min(
+          sc->restitution, f3d_min(bodies[a].bounce_most, bodies[b].bounce_most));
+    }
     for (uint32_t k = 0; k < m->count; k++) {
       SolverPoint *p = &sc->p[k];
       const F3dContactPoint *mp = &m->points[k];
