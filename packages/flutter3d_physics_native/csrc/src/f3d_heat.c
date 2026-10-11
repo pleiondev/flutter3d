@@ -598,6 +598,13 @@ int f3d_body_set_material(F3dWorld *world, F3dBody body,
   return 1;
 }
 
+int f3d_body_get_material(const F3dWorld *world, F3dBody body, F3dMaterial *out) {
+  const F3dSlot *s = f3d_slot_of(world, body);
+  if (s == NULL || out == NULL) return 0;
+  *out = s->material;
+  return 1;
+}
+
 int f3d_body_set_burner(F3dWorld *world, F3dBody body, f3d_real kg_per_second,
                         const F3dMaterial *fuel) {
   F3dSlot *s = f3d_slot_of(world, body);

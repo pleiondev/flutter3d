@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **The core evaluates laws and expressions itself.** A C port of the
+  expression language's bytecode interpreter (`f3d_program_*`,
+  `csrc/src/f3d_expr.c`) runs in binary64 on flutter3d_foundation's
+  portable maths, whatever `f3d_real` is, so it answers what the Dart
+  interpreter answers to the bit; `test/law_parity_test.dart` holds it to
+  that on every expression fixture, every law of the catalogue and some
+  thousands of numbers that round, through the library and through the
+  core built in f32 and in f64. `NativeExpression` runs any expression in
+  the core (a probe's `derived:` quantity); `NativeLaw.of` writes a
+  `PropertyLaw` — constant, table or formula — as an expression of a
+  body's temperature; `NativeWorld.setLaw` and `setMaterialLaws` give a
+  body its material's specific heat, conductivity and emissivity as laws
+  the core reads at the body's temperature each step (`f3d_body_set_law`,
+  `NativeLawProperty`, an open class); `NativeMaterialTracker` evaluates a
+  material at a state the core does not hold (a plugin's quantity) in Dart
+  and passes the numbers when they move past a threshold; and
+  `NativeWorld.materialOf` (`f3d_body_get_material`) reads what a body is
+  made of now. A world given no law steps as before, to the bit: the
+  shared scene's hash does not move.
 - **The fire model reads charcoal's glow, a tyre's effective heat and a
   stack of paper.** `F3D_MATERIAL_CHARCOAL` holds a patch alight down to
   its glow temperature, 861 K (`F3D_MAT_CHARCOAL_GLOW_TEMPERATURE`), while

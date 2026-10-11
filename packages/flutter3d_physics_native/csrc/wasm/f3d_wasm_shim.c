@@ -251,6 +251,14 @@ F3D_API int f3d_body_set_material__w(void * world, uint32_t body_low, uint32_t b
   return f3d_body_set_material((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)material);
 }
 
+F3D_API int f3d_body_get_material__w(void * world, uint32_t body_low, uint32_t body_high, void * out) {
+  return f3d_body_get_material((void *)world, ((uint64_t)body_high << 32) | body_low, (void *)out);
+}
+
+F3D_API int f3d_body_set_law__w(void * world, uint32_t body_low, uint32_t body_high, int property, void * bytes, uint32_t length) {
+  return f3d_body_set_law((void *)world, ((uint64_t)body_high << 32) | body_low, property, (void *)bytes, length);
+}
+
 F3D_API int f3d_body_set_temperature__w(void * world, uint32_t body_low, uint32_t body_high, f3d_real kelvin) {
   return f3d_body_set_temperature((void *)world, ((uint64_t)body_high << 32) | body_low, kelvin);
 }

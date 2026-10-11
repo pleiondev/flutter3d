@@ -1894,6 +1894,62 @@ F3D_API int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out);
 F3D_API int f3d_body_set_material(F3dWorld *world, F3dBody body,
                                   const F3dMaterial *material);
 
+/* What the body is made of now, into [out]: as set, with what its laws
+ * (f3d_body_set_law) last wrote over it. */
+F3D_API int f3d_body_get_material(const F3dWorld *world, F3dBody body,
+                                  F3dMaterial *out);
+
+/* ---------------------------------------------------------------- laws */
+
+/* An expression of flutter3d's expression language — a material's law, a
+ * probe's derived quantity — as the internal bytecode the Dart side
+ * compiles it to (flutter3d_foundation's expression_bytecode.dart, 'F3DX',
+ * version 1). Runs in binary64 whatever f3d_real is, on the same portable
+ * maths as the Dart interpreter, so the two answer the same bits. Internal
+ * in 1.0, as the bytecode is: its format may grow in a minor. */
+typedef struct F3dProgram F3dProgram;
+
+/* The program [bytes] hold, checked: every lane it reads in range and
+ * written before it is read. Null for bytes that are not one, a version
+ * this build does not read, or no memory. */
+F3D_API F3dProgram *f3d_program_load(const uint8_t *bytes, uint32_t length);
+
+F3D_API void f3d_program_free(F3dProgram *program);
+
+/* How many inputs it reads, how many numbers input [input] is, and how
+ * many numbers its answer is (one to four). */
+F3D_API uint32_t f3d_program_input_count(const F3dProgram *program);
+F3D_API uint32_t f3d_program_input_width(const F3dProgram *program,
+                                         uint32_t input);
+F3D_API uint32_t f3d_program_result_width(const F3dProgram *program);
+
+/* Runs it on [inputs], each input's numbers in its order, in the coherent
+ * SI unit of its dimension, and writes the answer to [out]: returns how
+ * many numbers it wrote, 0 for a null program. */
+F3D_API uint32_t f3d_program_run(F3dProgram *program, const double *inputs,
+                                 double *out);
+
+/* Which value of a body's material a law gives. */
+typedef enum F3dLawProperty {
+  F3D_LAW_SPECIFIC_HEAT = 0,
+  F3D_LAW_CONDUCTIVITY = 1,
+  F3D_LAW_EMISSIVITY = 2,
+} F3dLawProperty;
+
+/* Reads [property] of [body]'s material through the law [bytes] hold, a
+ * program of one input, the body's temperature in K, or of none, and one
+ * answer in the property's SI unit. Every step begins by writing its value at the
+ * temperature the body starts the step at into the material, in the order
+ * the laws were set; a value out of the property's range (a specific heat
+ * or conductivity not above nought, an emissivity outside nought to one,
+ * anything not finite) leaves the one before. Null [bytes] takes the law
+ * off, leaving the value last written. 0 for a stale body, a property
+ * there is none of, a program that is not one of one input and one
+ * answer, or no memory. A world nobody gave a law steps as before. */
+F3D_API int f3d_body_set_law(F3dWorld *world, F3dBody body,
+                             F3dLawProperty property, const uint8_t *bytes,
+                             uint32_t length);
+
 /* Kelvin: the body's mean, what the heat in it says. Set, the body is that
  * temperature all through, and it does not light a fire or put one out
  * until the step says so. */

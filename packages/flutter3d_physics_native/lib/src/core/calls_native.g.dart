@@ -3297,6 +3297,99 @@ int f3d_body_set_material(int world, int body, int material) =>
       Pointer.fromAddress(material),
     );
 
+@Native<Int32 Function(Pointer<Void>, Uint64, Pointer<Void>)>(
+  symbol: 'f3d_body_get_material',
+  isLeaf: true,
+)
+external int _f3d_body_get_material(
+  Pointer<Void> world,
+  int body,
+  Pointer<Void> out,
+);
+int f3d_body_get_material(int world, int body, int out) =>
+    _f3d_body_get_material(
+      Pointer.fromAddress(world),
+      body,
+      Pointer.fromAddress(out),
+    );
+
+@Native<Pointer<Void> Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_program_load',
+  isLeaf: true,
+)
+external Pointer<Void> _f3d_program_load(Pointer<Void> bytes, int length);
+int f3d_program_load(int bytes, int length) =>
+    _f3d_program_load(Pointer.fromAddress(bytes), length).address;
+
+@Native<Void Function(Pointer<Void>)>(symbol: 'f3d_program_free', isLeaf: true)
+external void _f3d_program_free(Pointer<Void> program);
+void f3d_program_free(int program) =>
+    _f3d_program_free(Pointer.fromAddress(program));
+
+@Native<Uint32 Function(Pointer<Void>)>(
+  symbol: 'f3d_program_input_count',
+  isLeaf: true,
+)
+external int _f3d_program_input_count(Pointer<Void> program);
+int f3d_program_input_count(int program) =>
+    _f3d_program_input_count(Pointer.fromAddress(program));
+
+@Native<Uint32 Function(Pointer<Void>, Uint32)>(
+  symbol: 'f3d_program_input_width',
+  isLeaf: true,
+)
+external int _f3d_program_input_width(Pointer<Void> program, int input);
+int f3d_program_input_width(int program, int input) =>
+    _f3d_program_input_width(Pointer.fromAddress(program), input);
+
+@Native<Uint32 Function(Pointer<Void>)>(
+  symbol: 'f3d_program_result_width',
+  isLeaf: true,
+)
+external int _f3d_program_result_width(Pointer<Void> program);
+int f3d_program_result_width(int program) =>
+    _f3d_program_result_width(Pointer.fromAddress(program));
+
+@Native<Uint32 Function(Pointer<Void>, Pointer<Void>, Pointer<Void>)>(
+  symbol: 'f3d_program_run',
+  isLeaf: true,
+)
+external int _f3d_program_run(
+  Pointer<Void> program,
+  Pointer<Void> inputs,
+  Pointer<Void> out,
+);
+int f3d_program_run(int program, int inputs, int out) => _f3d_program_run(
+  Pointer.fromAddress(program),
+  Pointer.fromAddress(inputs),
+  Pointer.fromAddress(out),
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint64, Int32, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_body_set_law',
+  isLeaf: true,
+)
+external int _f3d_body_set_law(
+  Pointer<Void> world,
+  int body,
+  int property,
+  Pointer<Void> bytes,
+  int length,
+);
+int f3d_body_set_law(
+  int world,
+  int body,
+  int property,
+  int bytes,
+  int length,
+) => _f3d_body_set_law(
+  Pointer.fromAddress(world),
+  body,
+  property,
+  Pointer.fromAddress(bytes),
+  length,
+);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Float)>(
   symbol: 'f3d_body_set_temperature',
   isLeaf: true,

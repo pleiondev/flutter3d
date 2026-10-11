@@ -16,10 +16,11 @@
 /// a built-in becomes `F3D_MAT_<NAME>_<FIELD>`, its law's value at the
 /// entry's reference state (`PropertyLaw.value`), the name and field in
 /// upper snake case (`f3d.oliveOil`'s viscosity is
-/// `F3D_MAT_OLIVE_OIL_VISCOSITY`). The core evaluates no law: a property
-/// that changes with temperature in Dart is this one number in C, whatever
-/// a body's temperature, until the core has an evaluator of its own. Lists
-/// and colours stay in Dart. A plugin's material is not here: the core has
+/// `F3D_MAT_OLIVE_OIL_VISCOSITY`). A law itself is not written here: a body
+/// whose material should follow its temperature is given the law as
+/// bytecode (`NativeWorld.setMaterialLaws`), which the core evaluates with
+/// an interpreter of its own, and without one the header's number is what
+/// it reads, whatever a body's temperature. Lists and colours stay in Dart. A plugin's material is not here: the core has
 /// it from the view that is made of it (`NativeLiquidProperties.of`,
 /// `NativeMaterial.of`) when the thing that needs it is made.
 ///
@@ -87,7 +88,9 @@ String generateMaterialsHeader() {
     ..writeln(' * F3dMaterial preset starts from (tool/gen_materials.dart). */')
     ..writeln(_define('F3D_DEFAULT_FRICTION', defaultFriction))
     ..writeln()
-    ..writeln('/* How near counts as touching, and the overlap the solver leaves')
+    ..writeln(
+      '/* How near counts as touching, and the overlap the solver leaves',
+    )
     ..writeln(' * alone, m: flutter3d_physics\' contactSlop, so the two cores')
     ..writeln(' * say "in contact" of the same pairs. */')
     ..writeln(_define('F3D_LINEAR_SLOP', contactSlop));

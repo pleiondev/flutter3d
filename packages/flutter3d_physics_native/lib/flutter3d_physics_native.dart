@@ -29,6 +29,7 @@ export 'src/native_debris.dart'
 export 'src/native_dynamics.dart';
 export 'src/native_fluid.dart' hide packFluidParticles, writeFluidSettings;
 export 'src/native_force_fields.dart';
+export 'src/native_law.dart' hide lawExpression;
 export 'src/native_liquid.dart' hide liquidWalls;
 export 'src/native_particles.dart' hide packParticles, writeParticleForces;
 export 'src/native_physics.dart';

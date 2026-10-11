@@ -9,6 +9,10 @@
 @TestOn('browser')
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show CompiledExpression, ExpressionScope, ExpressionType, parseExpression;
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show MaterialState, Materials;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -252,5 +256,37 @@ void main() {
 
   test('the shared scene steps to the native library\'s bytes', () {
     expect(hashOf(sharedSceneSnapshot()), sharedSceneHash);
+  });
+
+  test('the module evaluates a law and an expression as Dart does', () {
+    // The browser's Dart and the module's C on one bytecode: the same
+    // doubles, which law_parity_test.dart holds bit for bit natively.
+    final viscosity = Materials.water.fluid!.viscosity!;
+    final law = NativeLaw.of(viscosity)!;
+    final core = NativeExpression(law.expression);
+    addTearDown(core.dispose);
+    for (var t = 250.0; t < 400; t += 7.5) {
+      final answer = core.run(<List<double>>[
+        <double>[t],
+      ]);
+      expect(answer.single, law.at(t));
+      expect(law.at(t), viscosity.at(MaterialState.at(temperature: t)));
+    }
+    final wave = NativeExpression(
+      parseExpression(
+        'sin(a) * exp(-a / 3.0) + pow(abs(a), 1.7)',
+        scope: const ExpressionScope(
+          variables: <String, ExpressionType>{'a': ExpressionType.float},
+        ),
+      ),
+    );
+    addTearDown(wave.dispose);
+    final dart = CompiledExpression(wave.expression);
+    for (var a = -5.0; a < 5; a += 0.37) {
+      final value = <List<double>>[
+        <double>[a],
+      ];
+      expect(wave.run(value), dart.evaluate(value));
+    }
   });
 }
