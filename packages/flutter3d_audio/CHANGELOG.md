@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **`openSpeakers(world:)`**: the air the scene's sounds travel in, which
+  its Doppler shift is reckoned against (`AudioScene.world`). The standard
+  world unless given.
+- **`Speakers.pause` says what it holds and what it leaves to the mix**:
+  the voices playing and the ones started under it are held, the scene
+  goes on mixing, and the device stays open.
+
 - **Breaking: `Issue` and `IssueSink` are not re-exported.** They are
   `flutter3d_foundation`'s, where they are declared; the plugin API is no
   longer a dependency. The audio model is still this package's, re-exported

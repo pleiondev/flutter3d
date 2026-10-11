@@ -32,7 +32,7 @@ final class Speakers
   void pause()
   void resume()
 
-Future<Speakers> openSpeakers({required SoundBank bank, Mixer? mixer, int maxVoices = 24, double Function(Vector3 from, Vector3 to)? occlusion, IssueSink? onIssue, SpatialRenderer spatial = const EqualPowerPanner()})
+Future<Speakers> openSpeakers({required SoundBank bank, Mixer? mixer, int maxVoices = 24, double Function(Vector3 from, Vector3 to)? occlusion, IssueSink? onIssue, SpatialRenderer spatial = const EqualPowerPanner(), WorldProperties? world})
 
 export package:flutter3d_audio_core/flutter3d_audio_core.dart show Attenuation, AudioBackend, AudioBus, AudioEmitter, AudioListener, AudioPlugin, AudioScene, BlendedLoop, BusEffect, DirectionalBackend, DuckRule, EqualPowerPanner, ExponentialRolloff, Heard, Held, HeldVoices, InverseRolloff, LinearRolloff, LoopBand, LowPassEffect, MixSnapshot, Mixer, MixingBackend, NoAttenuation, PoseSource, ReverbEffect, SilentBackend, SilentVoice, SoundBank, SoundDef, SpatialQuery, SpatialRenderer, SpatialResult, VoiceId, decibelsToGain, gainToDecibels, silenceDecibels, speedOfSoundInAir
   Attenuation

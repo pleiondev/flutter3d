@@ -1,3 +1,7 @@
+import 'dart:math' as math;
+
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show MaterialState, PropertyLaw;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -19,11 +23,38 @@ import 'package:vector_math/vector_math.dart';
 /// the same positions against the same walls give the same figure, on every
 /// platform, so a replay sounds the way the run did.
 ///
+/// ## What a wall is made of
+///
+/// An obstacle whose collider has a material with an acoustic group
+/// (`Collider.material`, `PhysicalMaterial.acoustic`) lets through what its
+/// surface does not reflect, and no more: the share of the sound's energy
+/// that is absorbed or passes on is the most that can reach the far side.
+///
+/// - **A measured absorption** (`AcousticProperties.absorption`) is read as
+///   the mean over the 250, 500, 1 000 and 2 000 Hz bands, the speech range
+///   the noise reduction coefficient averages (unrounded here): concrete
+///   0.016 of the energy, gypsum board 0.065, mineral wool 0.78.
+/// - **Without one, its impedance against the air's**: at normal incidence
+///   `4·Z·Z₀ / (Z + Z₀)²` of the energy is not reflected, with Z its
+///   characteristic impedance (`AcousticProperties.impedance`, or its
+///   density times its speed of sound) and Z₀ the air's of the collision
+///   world (`WorldProperties.airDensity` times `speedOfSound`). A dense
+///   solid reflects nearly all of it: a steel wall leaves 0.004 %, and the
+///   [floor] is what is heard.
+///
+/// Each law is read at the obstacle's state when [stateOf] knows it, and at
+/// the material's reference state otherwise. The energy share becomes a
+/// gain as its square root, as the units of the mix are amplitudes. An
+/// obstacle with no material, or none of these numbers, lets through
+/// [perObstacle].
+///
 /// What it does not do: bend round corners. Sound in a real dungeon reaches
 /// you down the corridor whether or not a wall is in the straight line, and
 /// a game that wanted that would route the sound along the navigation grid
 /// and measure the path. This is the straight-line answer, which is the one
-/// a player reads as "behind a wall".
+/// a player reads as "behind a wall". Nor does it weigh a wall's thickness
+/// or the bands apart: the share is one number per obstacle, and the
+/// dulling the scene hands a backend follows from it.
 final class SoundOcclusion {
   SoundOcclusion(
     this.world, {
@@ -31,17 +62,28 @@ final class SoundOcclusion {
     this.maxObstacles = 4,
     this.floor = 0.06,
     this.mask = CollisionLayers.world,
+    this.stateOf,
   }) : assert(perObstacle > 0.0 && perObstacle < 1.0),
        assert(maxObstacles >= 1),
        assert(floor >= 0.0 && floor <= 1.0);
 
   final CollisionWorld world;
 
-  /// What one wall lets through, as a share of the gain: half, −6 dB, which
-  /// reads as "muffled" rather than "gone". A closed door costs nearer ten
-  /// decibels, about 0.32; this is gentler, because a game wall stands for
-  /// whatever is between, and two of them already make a quarter.
+  /// What one wall of nothing in particular lets through, as a share of the
+  /// gain: half, −6 dB, which reads as "muffled" rather than "gone". For an
+  /// obstacle with no material or no acoustic numbers; one made of
+  /// something lets through what its material says.
+  ///
+  /// A closed door costs nearer ten decibels, about 0.32; this is gentler,
+  /// because a game wall stands for whatever is between, and two of them
+  /// already make a quarter.
   final double perObstacle;
+
+  /// The state an obstacle's material is in now — warm, wet — or null when
+  /// it is not known, for the laws of its acoustic group to be read at.
+  /// Null, the default, reads every obstacle at its material's reference
+  /// state.
+  final MaterialState? Function(Collider obstacle)? stateOf;
 
   /// How many walls are counted before the ray gives up. Four walls is
   /// [floor] anyway, and every raycast past that is spent on silence.
@@ -86,11 +128,38 @@ final class SoundOcclusion {
         break;
       }
       _lastObstacles++;
-      factor *= perObstacle;
+      factor *= _through(_hit.collider);
       final advance = _hit.distance + step;
       _origin.addScaled(_direction, advance);
       remaining -= advance;
     }
     return factor < floor ? floor : factor;
+  }
+
+  /// The share of a sound's gain [obstacle] lets through: see the class.
+  double _through(Collider? obstacle) {
+    final material = obstacle?.material;
+    final acoustic = material?.acoustic;
+    if (material == null || acoustic == null) return perObstacle;
+    final absorption = acoustic.absorption;
+    if (absorption != null) {
+      // 250, 500, 1 000 and 2 000 Hz of `AcousticProperties.bands`.
+      final speech =
+          (absorption[1] + absorption[2] + absorption[3] + absorption[4]) / 4.0;
+      return math.sqrt(speech);
+    }
+    final state = stateOf?.call(obstacle!) ?? material.referenceState;
+    final impedance =
+        acoustic.impedance?.at(state) ??
+        switch ((material.mechanical?.density, acoustic.speedOfSound)) {
+          (final PropertyLaw density, final PropertyLaw speed) =>
+            density.at(state) * speed.at(state),
+          _ => null,
+        };
+    if (impedance == null) return perObstacle;
+    final air = world.properties;
+    final z0 = air.airDensity * air.speedOfSound;
+    final sum = impedance + z0;
+    return math.sqrt(4.0 * impedance * z0 / (sum * sum));
   }
 }

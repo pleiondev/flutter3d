@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A scene mixes in a world: `AudioScene.world`.** The constructor takes
+  `world:`, the field is settable for a level that brings its own air, and
+  the standard world is the default. `SpatialQuery.world` hands it to the
+  renderer each mix.
+- **The default panner reckons Doppler against the scene's world.**
+  `EqualPowerPanner.speedOfSound` is null unless the panner was pinned to a
+  world (`EqualPowerPanner.inWorld`) or given a speed, and
+  `speedOfSoundIn(world)` says which speed a shift is reckoned against. In
+  the standard world it is `speedOfSoundInAir` to the bit, so nothing a
+  room's game hears has changed; a cold world's sounds shift further.
 - **`MixingBackend` and `DirectionalBackend` are `base mixin class`es with
   bodies that do nothing.** A backend opts in with `extends AudioBackend
   with MixingBackend`, not `implements`, and a member added in a minor

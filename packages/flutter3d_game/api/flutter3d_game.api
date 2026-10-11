@@ -871,9 +871,10 @@ abstract final class SlotActions
   static int? indexOf(GameAction action)
 
 final class SoundOcclusion
-  SoundOcclusion(this.world, {this.perObstacle = 0.5, this.maxObstacles = 4, this.floor = 0.06, this.mask = CollisionLayers.world})
+  SoundOcclusion(this.world, {this.perObstacle = 0.5, this.maxObstacles = 4, this.floor = 0.06, this.mask = CollisionLayers.world, this.stateOf})
   double between(Vector3 from, Vector3 to)
   final CollisionWorld world
+  final MaterialState? Function(Collider obstacle)? stateOf
   final double floor
   final double perObstacle
   final int mask
