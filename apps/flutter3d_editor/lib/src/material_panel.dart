@@ -204,9 +204,15 @@ final class MaterialPanel extends StatefulWidget {
     this.onMaterialWritten,
     this.onLive,
     this.offers = nothingToOffer,
+    this.pieces,
   });
 
   final Editing editing;
+
+  /// What the installed plugins brought: a material whose lit model is a
+  /// plugin's gets that plugin's hints for the parameters its file does not
+  /// hint. Null shows the file's and the engine's hints alone.
+  final EditorPieces? pieces;
 
   /// Called with a material's name and [liveMaterialFields] for every value
   /// a slider passes through and every value written, for a running game to
@@ -365,7 +371,7 @@ class _MaterialPanelState extends State<MaterialPanel> {
           key: ValueKey<String>('file:$key'),
           name: key,
           value: fields[key],
-          hint: materialDocumentHint(document, key),
+          hint: materialDocumentHint(document, key, pieces: widget.pieces),
           offers: widget.offers,
           onWrite: (Object? value) => _writeFile(name, document, key, value),
         ),
@@ -381,7 +387,7 @@ class _MaterialPanelState extends State<MaterialPanel> {
               [final double only] => only,
               final Float32List many => many.toList(),
             },
-            hint: document.hints[key],
+            hint: materialDocumentHint(document, key, pieces: widget.pieces),
             offers: widget.offers,
             onPreview: (Object? value) =>
                 _live(name, liveParameterFields(key, value)),
@@ -420,7 +426,7 @@ class _MaterialPanelState extends State<MaterialPanel> {
       document,
       key,
       value,
-      hint: materialDocumentHint(document, key),
+      hint: materialDocumentHint(document, key, pieces: widget.pieces),
     );
     if (next == null) return false;
     widget.onMaterialWritten?.call(name, next);

@@ -656,13 +656,13 @@ final class EntityKindHints {
 /// The parameters of one lit model a plugin brings, as a material panel
 /// shows them for a material that names it.
 ///
-/// **Keyed by [model], the lighting model's name** (`acme.velvet`): what a
-/// material file's `shader` names and a plugin registers with the
-/// renderer's `LightingModels`.
+/// **Keyed by [model], the lighting model's stage name** (`acme_Velvet`, or
+/// `acme.velvet`): what a material file's `shader` names, the model's
+/// `shaderName`.
 final class MaterialHints {
   const MaterialHints({required this.model, this.fields = const <FieldHint>[]});
 
-  /// The lighting model's name.
+  /// The lighting model's stage name.
   final String model;
 
   /// Its parameters, by uniform name.
@@ -707,10 +707,12 @@ final class MaterialHints {
 /// registry, so a plugin asks with `maybeRegistry` and skips the hints when
 /// the answer is null; an editor's `EditorPieces` brings one along.
 ///
-/// **Namespaced as every registration is**: through a plugin's view a
-/// component id and a lit model's name are `<pluginId>.<name>`, given whole
-/// or given bare and prefixed for it; one under another plugin's id is
-/// refused. An entity type is the level format's word and is not.
+/// **Namespaced as every registration is** (`PluginManifest.namespace`):
+/// through a plugin's view a component id and a lit model's name are
+/// `<namespace>.<name>`, given whole or given bare and prefixed for it, and a
+/// lit model may be `<namespace>_<name>`, the stage name a shader has; a
+/// name in another namespace is refused. An entity type is the level
+/// format's word and is not.
 ///
 /// Extended by the editor, called by plugins: `base`, so a member added in
 /// a minor arrives with a default.

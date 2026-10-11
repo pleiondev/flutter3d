@@ -84,6 +84,7 @@ List<DockPanel> editorPanels({
         editing: state.editing,
         onChanged: onChanged,
         onLive: onLive,
+        pieces: pieces,
       ),
     ),
   ),

@@ -37,25 +37,26 @@ final class EditorHints extends EditorHintRegistry {
   String get _owner =>
       _scope == null ? 'the application' : 'plugin "${_scope.manifest.id}"';
 
-  /// [name] as this view publishes it: `<pluginId>.<name>` for a bare name
-  /// through a plugin's view, the name itself when it is already under the
-  /// plugin's id or comes through the root.
+  /// [name] as this view publishes it: `<namespace>.<name>` for a bare name
+  /// through a plugin's view (the namespace every registry holds a plugin
+  /// to, `PluginManifest.namespace`), the name itself when it is already in
+  /// that namespace or comes through the root. A lit model's name may also
+  /// be the stage name a shader has, `<namespace>_<name>`, since a stage
+  /// name cannot hold a dot.
   ///
-  /// Throws an [ArgumentError] for an empty name, and for a dotted one under
-  /// another id than the plugin's.
-  String _published(String name, String what) {
+  /// Throws an [ArgumentError] for an empty name, and for one in another
+  /// namespace than the plugin's.
+  String _published(String name, String what, {bool stage = false}) {
     if (name.isEmpty) throw ArgumentError.value(name, what, 'needs a name');
     final scope = _scope;
-    if (scope == null) return name;
-    final id = scope.manifest.id;
-    if (!name.contains('.')) return '$id.$name';
-    if (name.startsWith('$id.')) return name;
-    throw ArgumentError.value(
-      name,
-      what,
-      'is under another namespace than plugin "$id"\'s: a plugin\'s '
-      '${what}s are `$id.<name>`',
-    );
+    if (scope == null || scope.manifest.isEngine) return name;
+    final namespace = scope.manifest.namespace;
+    if (stage && name.startsWith('${namespace}_')) return name;
+    if (!name.contains('.')) return '$namespace.$name';
+    if (scope.manifest.nameProblem(name, what: what) case final String no) {
+      throw ArgumentError.value(name, what, no);
+    }
+    return name;
   }
 
   Registration _add<T>(
@@ -118,7 +119,7 @@ final class EditorHints extends EditorHintRegistry {
 
   @override
   Registration addMaterial(MaterialHints hints) {
-    final model = _published(hints.model, 'model');
+    final model = _published(hints.model, 'model', stage: true);
     return _add(
       _store.materials,
       model == hints.model

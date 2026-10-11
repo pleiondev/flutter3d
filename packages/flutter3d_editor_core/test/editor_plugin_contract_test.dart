@@ -12,7 +12,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart'
-    show ColorHint, EnumHint, RangeHint, TextureHint;
+    show
+        ColorHint,
+        EnumHint,
+        LightingModel,
+        MaterialDocument,
+        RangeHint,
+        TextureHint,
+        readFmat;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_plugin_api/editor.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -329,6 +336,43 @@ void main() {
             .extensions,
         <String>['.png'],
       );
+    });
+
+    test('a material file naming a plugin\'s stage gets its hints', () {
+      final pieces = EditorPieces();
+      // A stage name cannot hold a dot, so `<namespace>_<name>` is taken.
+      pieces
+          .forPlugin(_Scope('acme', 0))
+          .hints
+          .addMaterial(
+            const MaterialHints(
+              model: 'acme_Velvet',
+              fields: <FieldHint>[FieldHint.number('sheen', min: 0, max: 1)],
+            ),
+          );
+      expect(pieces.hints.materials.single.model, 'acme_Velvet');
+      final file = readFmat(
+        Uint8List.fromList(utf8.encode('{"fmat": 1, "name": "cloth"}')),
+      );
+      final velvet = MaterialDocument(
+        surface: file.surface,
+        lighting: const LightingModel('Velvet', 'acme_Velvet'),
+      );
+      // Mutation: look the plugin up by the model's label.
+      expect(
+        materialDocumentHint(velvet, 'sheen', pieces: pieces)?.kind,
+        isA<RangeHint>(),
+      );
+      expect(materialDocumentHint(velvet, 'sheen'), isNull);
+      expect(
+        () => pieces
+            .forPlugin(_Scope('acme', 0))
+            .hints
+            .addMaterial(const MaterialHints(model: 'other_Velvet')),
+        returnsNormally,
+        reason: 'a bare name is prefixed, not refused',
+      );
+      expect(pieces.hints.materials.last.model, 'acme.other_Velvet');
     });
   });
 
