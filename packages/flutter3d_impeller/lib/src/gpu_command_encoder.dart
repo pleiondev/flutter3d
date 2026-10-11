@@ -20,6 +20,7 @@ import 'gpu_formats.dart';
 import 'gpu_frame.dart';
 import 'gpu_pipeline.dart';
 import 'gpu_texture.dart';
+import 'gpu_vertex_index.dart' show pipelineIndexStreams;
 
 /// [CommandEncoder] over one flutter_gpu command buffer with its one open
 /// pass — see the library comment on why the two are fused. [submit] is the
@@ -310,11 +311,37 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
     GeometryBuffer buffer,
     int vertexCount, {
     int slot = 0,
-  }) => _pass.bindVertexBuffer(_view(buffer), slot: slot);
+  }) {
+    if (slot == 0) _vertexCount = vertexCount;
+    _pass.bindVertexBuffer(_view(buffer), slot: slot);
+  }
 
   @override
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
-      _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
+    if (slot == 0) _vertexCount = vertexCount;
+    _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
+  }
+
+  /// How many vertices slot 0 holds: how much of the index buffer a draw on
+  /// OpenGL ES binds (D56).
+  int _vertexCount = 0;
+
+  /// The index buffers the bound pipeline reads on OpenGL ES, bound before
+  /// each draw for [vertices] and [instances] — see `gpu_vertex_index.dart`.
+  /// Nothing on a pipeline linked without them, which is every pipeline on
+  /// Metal and Vulkan.
+  void _bindIndexStreams(int vertices, int instances) {
+    final pipeline = _pipeline;
+    if (pipeline == null) return;
+    final slots = pipelineIndexStreams[pipeline.backend];
+    if (slots == null) return;
+    if (slots.vertex case final slot?) {
+      _pass.bindVertexBuffer(_backend.indexView(vertices), slot: slot);
+    }
+    if (slots.instance case final slot?) {
+      _pass.bindVertexBuffer(_backend.indexView(instances), slot: slot);
+    }
+  }
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
@@ -487,6 +514,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       );
       _boundFirstIndex = window.first;
     }
+    _bindIndexStreams(_vertexCount, instanceCount);
     _drawOrRefuse(
       () => _pass.drawIndexed(window.count, instanceCount: instanceCount),
     );
@@ -746,6 +774,7 @@ final class GpuCommandEncoder extends PassEncoder with CommandEncoder {
       );
     }
     if (vertexCount == 0 || instanceCount == 0 || _pipelineRefused) return;
+    _bindIndexStreams(vertexCount, instanceCount);
     _drawOrRefuse(() => _pass.draw(vertexCount, instanceCount: instanceCount));
   }
 

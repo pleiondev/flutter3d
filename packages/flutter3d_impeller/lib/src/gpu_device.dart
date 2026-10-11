@@ -33,6 +33,7 @@ import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'gpu_transfer_encoder.dart';
 import 'gpu_uniform_layout.dart';
+import 'gpu_vertex_index.dart';
 import 'host_buffer_grid.dart';
 
 export 'gpu_capabilities.dart' show impellerBackendName;
@@ -275,6 +276,31 @@ final class GpuRenderBackend extends GraphicsDevice {
   /// Where each allocator's cursor is, mirrored so a write that would not fit
   /// in what is left of a block can be pushed onto the next one. See
   /// `host_buffer_grid.dart`.
+  /// D56: whether this device's stages declare the index attributes, learnt
+  /// at the first pipeline over a stage that reads one.
+  final IndexStreamsAnswer _indexStreams = IndexStreamsAnswer();
+
+  /// The buffer of 0, 1, 2 … the index attributes read, grown when a draw
+  /// needs more of it. Null until a draw on OpenGL ES first asks.
+  gpu.DeviceBuffer? _indexBuffer;
+  int _indexBufferCapacity = 0;
+
+  /// [count] entries of the index buffer, from its start.
+  gpu.BufferView _indexView(int count) {
+    var buffer = _indexBuffer;
+    if (buffer == null || _indexBufferCapacity < count) {
+      buffer = _indexBuffer = gpu.gpuContext.createDeviceBufferWithCopy(
+        indexBufferBytes(count),
+      );
+      _indexBufferCapacity = indexBufferCapacity(count);
+    }
+    return gpu.BufferView(
+      buffer,
+      offsetInBytes: 0,
+      lengthInBytes: _indexBufferCapacity * 4,
+    );
+  }
+
   late final List<BlockCursor> _cursors = List<BlockCursor>.generate(
     _kFramesInFlight,
     (_) =>
@@ -548,13 +574,35 @@ final class GpuRenderBackend extends GraphicsDevice {
     // as well would be a second answer to the question the reflection
     // already answers.
     final vertexLayout = layout?.toGpu();
-    final pipeline = GpuPipeline<gpu.RenderPipeline>(
+    // D56: on OpenGL ES the stage reads its index from a buffer of its own,
+    // which only a layout naming it feeds — see `gpu_vertex_index.dart`.
+    final use = indexUseOf(vertex.name);
+    final indexed = withIndexStreams(layout, vertex.name, use);
+    late final GpuPipeline<gpu.RenderPipeline> pipeline;
+    pipeline = GpuPipeline<gpu.RenderPipeline>(
       '${vertex.name}+${fragment.name}',
-      () => gpu.gpuContext.createRenderPipeline(
-        vertexStage,
-        fragmentStage,
-        vertexLayout: vertexLayout,
-      ),
+      () {
+        if (indexed != null && _indexStreams.shouldTry(use)) {
+          try {
+            final linked = gpu.gpuContext.createRenderPipeline(
+              vertexStage,
+              fragmentStage,
+              vertexLayout: indexed.layout.toGpu(),
+            );
+            _indexStreams.linked(vertex.name);
+            pipelineIndexStreams[pipeline] = indexed.slots;
+            return linked;
+          } on Exception {
+            _indexStreams.refused(vertex.name);
+          }
+        }
+        pipelineIndexStreams[pipeline] = null;
+        return gpu.gpuContext.createRenderPipeline(
+          vertexStage,
+          fragmentStage,
+          vertexLayout: vertexLayout,
+        );
+      },
     );
     final handle = wrapPipeline(
       owner: this,
@@ -1542,6 +1590,9 @@ extension GpuRenderBackendInternals on GpuRenderBackend {
   /// See [GpuRenderBackend._uniformScratchFor].
   Float32List uniformScratchFor(GpuUniformLayout layout) =>
       _uniformScratchFor(layout);
+
+  /// See [GpuRenderBackend._indexView].
+  gpu.BufferView indexView(int count) => _indexView(count);
 
   /// See [GpuRenderBackend._noteRejectedSubmission].
   void noteRejectedSubmission() => _noteRejectedSubmission();

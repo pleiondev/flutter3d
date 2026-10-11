@@ -37,6 +37,10 @@ precision highp float;
 /// One corner of the photon's quad, from −1 to 1 on each axis.
 in vec2 corner;
 
+// The instance index, which is the photon's texel: an attribute on the one
+// target with no built-in for it — see `lib/instance_index.glsl`.
+#include <lib/instance_index.glsl>
+
 /// What the photon carries, already divided by the area it covers, in rgb.
 /// The particles' names for the particles' pair, which is what a photon is:
 /// the varyings are numbered once across every stage, and two new names
@@ -171,7 +175,7 @@ void main() {
   gl_Position = vec4(4.0, 4.0, 0.5, 1.0);
 
   float n = caustic_info.grid.x;
-  float id = float(gl_InstanceIndex);
+  float id = float(F3dInstanceIndex());
   float column = mod(id, n);
   float row = floor(id / n);
   vec2 uv = vec2((column + 0.5) / n, (row + 0.5) / n);
