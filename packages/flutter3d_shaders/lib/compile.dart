@@ -9,6 +9,7 @@
 library;
 
 export 'src/bundle_varyings.dart';
+export 'src/flutter_sdk.dart';
 export 'src/shader_target.dart';
 export 'src/source_package.dart';
 export 'src/wgsl_compiler.dart';

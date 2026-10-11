@@ -21,6 +21,7 @@ library;
 
 import 'src/stage_need.dart';
 
+export 'src/engine_bundle.dart' show EngineBundleStamp;
 export 'src/shading_constants.dart' show dielectricF0;
 export 'src/stage_need.dart' show MissingShaderStageException, ShaderStageNeed;
 

@@ -201,13 +201,9 @@ final class GpuRenderBackend extends GraphicsDevice {
         'are at least one pixel',
       );
     }
-    final library = await gpu.ShaderLibrary.fromAsset(bundleAsset);
-    if (library == null) {
-      throw DeviceUnavailableException(
-        'Failed to load the shader bundle: $bundleAsset',
-        backend: impellerBackendName,
-      );
-    }
+    // The project's bundle, compiled for this SDK by flutter3d_build's hook,
+    // and the shipped one as a fallback held to the same SDK (amendment 4).
+    final library = await loadEngineShaderLibrary(bundleAsset);
     final extra = <gpu.ShaderLibrary>[];
     for (final asset in extraBundles) {
       final loaded = await gpu.ShaderLibrary.fromAsset(asset);

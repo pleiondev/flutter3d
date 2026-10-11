@@ -13,8 +13,12 @@ library;
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 /// The SDK this process runs on, as the token a bundle's header carries.
@@ -66,6 +70,128 @@ ByteData impellerSectionOf(ShaderBundle bundle, {required String running}) {
     );
   }
   return section;
+}
+
+/// The engine's own stages for a device that opens, as flutter_gpu takes
+/// them: the project's bundle when `flutter3d_build`'s hook wrote one
+/// ([EngineBundleStamp.projectAsset]), and [shippedAsset] — the one this
+/// package carries — when it did not. Each is held to [running] (amendment
+/// 4): a bundle compiled on another SDK is a [ShaderBundleException] with
+/// `stale` set and the asset and what to do named, never a library that parses
+/// and draws something else.
+///
+/// [load] reads an asset or answers null for one that is not there; the
+/// application's asset bundle outside a test.
+Future<gpu.ShaderLibrary> loadEngineShaderLibrary(
+  String shippedAsset, {
+  Future<ByteData?> Function(String key)? load,
+  String? running,
+}) async {
+  final read = load ?? _loadAsset;
+  final sdk = running ?? runningSdk;
+  final project = await read(EngineBundleStamp.projectAsset);
+  final asset = project == null ? shippedAsset : EngineBundleStamp.projectAsset;
+  final bytes = project ?? await read(shippedAsset);
+  if (bytes == null) {
+    throw ShaderBundleException(
+      name: '',
+      asset: shippedAsset,
+      reason:
+          'neither it nor ${EngineBundleStamp.projectAsset} is in the '
+          "application's assets",
+      advice:
+          'Run the build through flutter3d_build\'s hook, which writes '
+          'the project\'s bundle',
+    );
+  }
+  final section = engineSectionOf(
+    bytes,
+    asset: asset,
+    running: sdk,
+    fromProject: project != null,
+  );
+  final library = await gpu.ShaderLibrary.fromBytes(section);
+  if (library == null) {
+    throw ShaderBundleException(
+      name: 'flutter3d',
+      asset: asset,
+      reason: 'flutter_gpu returned no library for its compiled section',
+    );
+  }
+  return library;
+}
+
+Future<ByteData?> _loadAsset(String key) async {
+  try {
+    return await rootBundle.load(key);
+  } on FlutterError {
+    return null;
+  } on Exception {
+    return null;
+  }
+}
+
+/// The compiled section of the engine bundle [bytes], loaded from [asset]:
+/// out of the engine's container, held to [running], or the bytes as they are
+/// when they are `impellerc`'s own output — what `tool/build_shaders.sh`
+/// writes in a checkout, which carries no SDK to check.
+///
+/// Pure, and public so the refusals are tested without a device.
+/// [fromProject] says which advice the stale refusal gives: a project's
+/// bundle is rebuilt by building again, the shipped one is replaced by the
+/// hook writing the project's own.
+ByteData engineSectionOf(
+  ByteData bytes, {
+  required String asset,
+  required String running,
+  required bool fromProject,
+}) {
+  if (!_isContainer(bytes)) return bytes;
+  final ShaderBundle bundle;
+  try {
+    bundle = ShaderBundle.decode(bytes);
+  } on ShaderBundleException catch (refused) {
+    throw ShaderBundleException(
+      name: refused.name,
+      reason: refused.reason,
+      stale: refused.stale,
+      asset: asset,
+    );
+  }
+  try {
+    return impellerSectionOf(bundle, running: running);
+  } on ShaderBundleException catch (refused) {
+    final stamp = EngineBundleStamp.decode(
+      bundle.section(EngineBundleStamp.section),
+    );
+    throw ShaderBundleException(
+      name: refused.name,
+      reason: stamp == null
+          ? refused.reason
+          : '${refused.reason} It was built with $stamp.',
+      stale: refused.stale,
+      asset: asset,
+      advice: !refused.stale
+          ? null
+          : fromProject
+          ? 'Build the application again: flutter3d_build\'s hook compiles '
+                'the bundle for the SDK that runs it'
+          : 'Add flutter3d_build\'s hook to the application '
+                '(hook/build.dart calling buildAssets), which compiles the '
+                'engine\'s bundle for the SDK the application is built with',
+    );
+  }
+}
+
+/// Whether [bytes] start with the engine container's magic rather than
+/// being `impellerc`'s flatbuffer.
+bool _isContainer(ByteData bytes) {
+  const magic = ShaderBundle.magic;
+  if (bytes.lengthInBytes < magic.length) return false;
+  for (var i = 0; i < magic.length; i++) {
+    if (bytes.getUint8(i) != magic.codeUnitAt(i)) return false;
+  }
+  return true;
 }
 
 /// A [LoadedShaderLibrary] over a `gpu.ShaderLibrary` built from bytes.
