@@ -65,7 +65,7 @@ It is how 96 golden scenes are checkable with no GPU in the room, and it is a de
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
 
-Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: 33 of the 53 link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet. The phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
+Two tiers, and the split is a correction. The library said it was shader-free as a whole, and that stopped being true the day a check needed a pipeline: 33 of the 55 link stages and draw. `coreChecks` is what runs on clears, uploads and readback alone, so a backend can ask it before compiling a single shader; `shaderChecks` is the rest. A backend that believed the old promise would have met every one of those failures with nothing it could do about them yet. The phrasing here is the one `tool/structure.dart` holds to the lists themselves, so the sentence cannot go stale again without the scan saying so.
 
 A plugin has a suite here too: `package:flutter3d_conformance/plugins.dart` checks its manifest, its switch at a step boundary, its determinism, every backend it declares and the budget it declares, and says whether it earns the conformance badge.
 
@@ -133,9 +133,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-79 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+80 rules, no device, and all but two read source text in under a second with no `pub get`. The two that do not are the snapshots of the API and of the tools for agents, which parse every published package with the analyzer and so wait for a resolved workspace. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 79 green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting 80 green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 

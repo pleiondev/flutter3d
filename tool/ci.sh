@@ -427,6 +427,14 @@ for example in packages/*/example/; do
   step "test $(basename "$(dirname "$example")") example" in_dir "$example" flutter test
 done
 
+# The examples written as from outside the repository: the outside sample
+# plugin, which holds the default simulation to a racing tape recorded
+# before fields and subsystems, and earns the plugin suite's badge.
+for example in examples/*/; do
+  [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
+  step "test $(basename "$example")" in_dir "$example" flutter test
+done
+
 # **The `golden` tag runs in its own CI job, not here.**
 #
 # What the tag covers is in apps/flutter3d_modeler/dart_test.yaml: not only a
