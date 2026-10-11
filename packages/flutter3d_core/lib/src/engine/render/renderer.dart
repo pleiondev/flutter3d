@@ -305,6 +305,7 @@ final class Renderer with RenderServices {
   }
 
   void _relayerShaders() {
+    _forgetPendingLinks();
     _releasePipelinesAfterFrame(<PipelineHandle>[
       ..._predrawPipelines.values,
       ..._pipelineCache.values,
@@ -770,6 +771,7 @@ final class Renderer with RenderServices {
     // waiting in the ring.
     _releasePipelines(_heldPipelines.toList());
     _pendingPipelines.forEach(_releasePipelines);
+    _forgetPendingLinks();
     _pipelineCache.clear();
     _fullscreenPipelines.clear();
     _fragmentShaders.clear();
@@ -1327,6 +1329,18 @@ final class Renderer with RenderServices {
   /// two meshes of one material start one link between them.
   final Map<String, Future<void>> _linking = <String, Future<void>>{};
 
+  /// Moved on whenever the stages a pipeline links may have changed — a
+  /// shader reload, the added materials changing, [dispose] — so a link
+  /// [_pipelineForAsync] began before then is not cached after it.
+  int _stageGeneration = 0;
+
+  /// Forgets the links still out: they are of the stages of before, and are
+  /// given back when they complete.
+  void _forgetPendingLinks() {
+    _stageGeneration++;
+    _linking.clear();
+  }
+
   /// Pipelines the renderer has built so far.
   ///
   /// Reported per frame because it is the number that has to stay put: light
@@ -1374,6 +1388,7 @@ final class Renderer with RenderServices {
       contributor.relinkShaders();
     }
     _releasePipelinesAfterFrame(_heldPipelines);
+    _forgetPendingLinks();
     _transmittanceShadowPipeline = null;
     _skinnedTransmittanceShadowPipeline = null;
     _instancedTransmittanceShadowPipeline = null;

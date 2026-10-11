@@ -195,6 +195,32 @@ final class RecordingDevice extends GraphicsDevice
     return pipeline;
   }
 
+  /// The inner device's own asynchronous link, so a device that compiles
+  /// off the thread still does under the recorder; the pipeline is written
+  /// into the trace when the link completes, as [createPipeline] writes it.
+  /// A refused link is not recorded: there is no pipeline to name.
+  @override
+  Future<PipelineHandle> createPipelineAsync(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+  }) async {
+    final pipeline = await inner.createPipelineAsync(
+      vertex,
+      fragment,
+      layout: layout,
+    );
+    events.add(
+      TraceCreatePipeline(
+        id: _name(_pipelineIds, pipeline),
+        vertex: vertex.name,
+        fragment: fragment.name,
+        layout: layout,
+      ),
+    );
+    return pipeline;
+  }
+
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
     final buffer = inner.uploadGeometry(bytes, usage);
@@ -431,6 +457,22 @@ final class RecordingDevice extends GraphicsDevice
   @override
   ComputePipelineHandle createComputePipeline(ShaderHandle shader) {
     final pipeline = inner.createComputePipeline(shader);
+    events.add(
+      TraceCreateComputePipeline(
+        _name(_computePipelineIds, pipeline),
+        shader.name,
+      ),
+    );
+    return pipeline;
+  }
+
+  /// The inner device's own, recorded when it completes; see
+  /// [createPipelineAsync].
+  @override
+  Future<ComputePipelineHandle> createComputePipelineAsync(
+    ShaderHandle shader,
+  ) async {
+    final pipeline = await inner.createComputePipelineAsync(shader);
     events.add(
       TraceCreateComputePipeline(
         _name(_computePipelineIds, pipeline),
