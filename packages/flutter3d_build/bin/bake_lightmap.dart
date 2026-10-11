@@ -1,9 +1,9 @@
 /// Bakes a lightmap beside each level named on the command line.
 ///
-///     dart run flutter3d_sim:bake_lightmap assets/levels/crypt.json ...
-///     dart run flutter3d_sim:bake_lightmap --density 4 --bounces 2 \
+///     dart run flutter3d_build:bake_lightmap assets/levels/crypt.json ...
+///     dart run flutter3d_build:bake_lightmap --density 4 --bounces 2 \
 ///         --samples 64 assets/levels/*.json
-///     dart run flutter3d_sim:bake_lightmap --direct assets/levels/box.json
+///     dart run flutter3d_build:bake_lightmap --direct assets/levels/box.json
 ///
 /// Writes `<level>.lightmap.bin` next to each document, the sidecar
 /// `LevelLoader` reads and `Lightmap` explains. Deterministic, so CI can
@@ -14,17 +14,13 @@
 /// `--direct` bakes the direct light and its shadows in as well, for looking
 /// at the unwrap with the dynamic lights turned off; a shipped map does not
 /// want it, since the renderer draws that light itself.
-///
-/// Imports the level layer directly rather than the package barrel, because
-/// the barrel reaches Flutter through the input widgets and this has to run
-/// on the plain Dart VM.
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_sim/src/level/level.dart';
-import 'package:flutter3d_sim/src/level/lightmap_baker.dart';
+import 'package:flutter3d_build/lightmap.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show Level;
 
 void main(List<String> arguments) {
   var density = 4.0;

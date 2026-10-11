@@ -1081,8 +1081,6 @@ portableStepExempt = <String, Map<String, String>>{
   'flutter3d_sim': <String, String>{
     'lib/src/world/light_fixture.dart':
         'how bright a lamp looks on a frame, which nothing steps on',
-    'lib/src/level/lightmap_baker.dart':
-        'runs once, before a level ships, and its output is committed',
     'lib/src/loop/pace.dart':
         'a dropped-frame meter, measured against the wall clock — it is '
         'already a thing no two machines agree about',

@@ -58,6 +58,10 @@ dependencies:
   flutter3d_editor_core: ^1.0.0-rc.1
   flutter3d_sim: ^1.0.0-rc.1
 
+  # The collision world the lightmap baker casts its rays through, the same
+  # boxes a body walks into.
+  flutter3d_physics: ^1.0.0-rc.1
+
   # `migrate --data` and `doctor`: the packages that own a data format a
   # project keeps (effects, data plugins, physical materials, voxel worlds),
   # for their `FormatSpec`s. All plain Dart; the formats of the packages

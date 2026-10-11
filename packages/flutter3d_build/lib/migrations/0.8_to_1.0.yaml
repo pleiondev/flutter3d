@@ -20306,3 +20306,15 @@ entries:
       much as an editor, and a viewer does not depend on an editor, so it is
       `flutter3d_education`'s `lesson.dart` now. The function is the same;
       the import and the dependency on `flutter3d_education` change.
+
+  - id: 4e-sim-LightmapBaker
+    package: flutter3d_sim
+    symbol: LightmapBaker
+    kind: moved
+    to: package:flutter3d_build/lightmap.dart
+    wave: 4
+    guidance: >-
+      A lightmap is baked once, before a level ships, and no step reads the
+      baker, so it is a build step: `flutter3d_build`'s `lightmap.dart`, and
+      `dart run flutter3d_build:bake_lightmap` for the command. `Lightmap`
+      and `LightmapLayout`, which the loader reads, stay in `flutter3d_sim`.

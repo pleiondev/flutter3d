@@ -53,6 +53,10 @@ dependencies:
     path: ../../packages/flutter3d_samples
   flutter3d_sim:
     path: ../../packages/flutter3d_sim
+  # `LightmapBaker`, which the lightmap page runs on a small room as it is
+  # shown; `lightmap.dart` alone, which has no `dart:io` behind it.
+  flutter3d_build:
+    path: ../../packages/flutter3d_build
   flutter3d_stereo:
     path: ../../packages/flutter3d_stereo
   flutter3d_voxel:

@@ -113,3 +113,7 @@ dev_dependencies:
   # the software backend draw one. Not a real dependency: nothing in `lib/`
   # reaches it.
   flutter3d_testing: ^1.0.0-rc.1
+
+  # `LightmapBaker`, for `level_loader_test.dart`'s maps: the baker is a
+  # build step, and nothing in `lib/` bakes.
+  flutter3d_build: ^1.0.0-rc.1

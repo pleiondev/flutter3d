@@ -224,7 +224,7 @@ final class LevelLoader {
   /// The lightmap beside a level, or null when there is none — and a word
   /// when there is one that will not read.
   ///
-  /// `<level>.lightmap.bin`, baked by `dart run flutter3d_sim:bake_lightmap`.
+  /// `<level>.lightmap.bin`, baked by `dart run flutter3d_build:bake_lightmap`.
   /// The same contract as the visibility sidecar: absent is a level without
   /// one, unreadable is said out loud and the level plays without it.
   static Future<(Lightmap?, LevelIssue?)> _sidecarLightmap(

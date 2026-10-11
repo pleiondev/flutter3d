@@ -105,7 +105,7 @@ void main() {
       expect(
         map.isStaleFor(step.level),
         isFalse,
-        reason: '$side: run dart run flutter3d_sim:bake_lightmap',
+        reason: '$side: run dart run flutter3d_build:bake_lightmap',
       );
       final layout = LightmapLayout.plan(
         step.level,

@@ -29,7 +29,7 @@ How a game feels is a few dozen numbers, and this page says where each of them i
 | How much a wall muffles a sound | `SoundOcclusion(perObstacle:, floor:)` | `flutter3d_game` |
 | How far the automap reveals around the player | `Automap(revealRadius:)` | `flutter3d_sim` |
 | How coarse the visibility table is | `bake_visibility --cell` | `flutter3d_sim` |
-| How fine, how many bounces and how many rays a lightmap gets | `bake_lightmap --density --bounces --samples` | `flutter3d_sim` |
+| How fine, how many bounces and how many rays a lightmap gets | `bake_lightmap --density --bounces --samples` | `flutter3d_build` |
 | How far an enemy jumps | `JumpReach.of(tuning)` | `flutter3d_sim` |
 
 ## Movement

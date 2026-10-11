@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **New: the lightmap baker** (`lightmap.dart`, `LightmapBaker`) and
+  `dart run flutter3d_build:bake_lightmap`, moved from `flutter3d_sim`: a
+  bake is a build step. The library has no `dart:io` behind it, so a page
+  that bakes a small room as it is shown still compiles for the web.
 - **A conversion's report carries the model's author, licence and
   copyright.** `ConvertReport.author`, `license` and `copyright`, read from
   the document, and the same three keys, when present, in `--json` and
