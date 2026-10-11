@@ -96,7 +96,7 @@ final class ToolFailedException extends ResourceException
 
 const ExternalTool blender = …
 
-const List<String> cliCommands = <String>['convert', 'create', 'init', 'plugins', 'shaders', 'migrate', 'lights', 'doctor', 'help']
+const List<String> cliCommands = <String>['convert', 'create', 'init', 'plugins', 'shaders', 'migrate', 'lights', 'lightmap', 'doctor', 'help']
 
 Map<String, Object?> cliJson(String command, Map<String, Object?> body)
 
@@ -145,6 +145,8 @@ const String helpUsage = ''' Usage: flutter3d help [<command>] flutter3d help --
 const String initUsage = …
 
 bool isPackageName(String name)
+
+const String lightmapUsage = …
 
 const String lightsUsage = …
 
@@ -661,3 +663,15 @@ const Set<String> splatExtensions = <String>{'.ply', '.spz'}
 (ModelDocument, int) splitLargeMeshes(ModelDocument document, {int threshold = defaultChunkThreshold})
 
 PluginsFileReport writeDiscoveredPlugins(Directory appRoot, {bool always = false})
+
+library package:flutter3d_build/lightmap.dart
+
+final class LightmapBaker
+  Lightmap bake(Level authored, {LightmapLayout? layout, void Function(String message)? log})
+  const LightmapBaker({this.texelsPerMeter = 4.0, this.bounces = 2, this.samples = 64, this.seed = 1, this.includeDirect = false, this.texturedAlbedo = 0.5})
+  final bool includeDirect
+  final double texelsPerMeter
+  final double texturedAlbedo
+  final int bounces
+  final int samples
+  final int seed
