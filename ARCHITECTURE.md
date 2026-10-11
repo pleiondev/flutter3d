@@ -209,7 +209,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-59 packages and 17 applications in one pub workspace, with the
+60 packages and 17 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -385,7 +385,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 78 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 79 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -3664,8 +3664,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14147 tests** across 59 packages and 17 applications |
-| Structure rules | 78, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **14173 tests** across 60 packages and 17 applications |
+| Structure rules | 79, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
@@ -4751,7 +4751,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  59 packages, the unpublished ones included — `pub publish
+  60 packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
