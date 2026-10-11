@@ -18,6 +18,8 @@
 # Kinds, and what each becomes:
 #
 #   rename            `to: NewName` (or `to: Type.newMember`)      dart fix
+#                     (and flutter3d_lints, for a class named in a
+#                     `const` creation, which `dart fix` misses)
 #   moved             `to: <library uri>`, optional `name:`        dart fix
 #                     (and `migrate` adds the dependency it needs)
 #   parameters        `changes:` — a list of `rename:`/`to:`,       dart fix
@@ -40,6 +42,15 @@
 #   nullToThrow       a call that answered null and now throws:     flutter3d_lints
 #                     `exception:` the type; a null check right
 #                     beside a call becomes `try … on` with a TODO
+#   argument          a parameter or a field that changed name,     flutter3d_lints
+#                     type or unit: `arguments:` the names, `to:`
+#                     a new name, `template:` the value written,
+#                     with `{value}` for the old one and
+#                     `{components}` for a vector's; `types:` the
+#                     old types it rewrites, `on:` the class's 1.0
+#                     name where it was renamed. A value it cannot
+#                     write once, and a read used as the old type,
+#                     keep the TODO
 #   internal          a name public at `from` that is the owning    flutter3d_lints
 #                     package's own now, with nothing to replace it;
 #                     optional `instead:`. One diagnostic per import
@@ -3278,7 +3289,13 @@ entries:
   - id: game-DesktopInput
     package: flutter3d_game
     symbol: DesktopInput
-    kind: manual
+    kind: argument
+    arguments: [bindings]
+    to: actions
+    template: 'ActionMap(actions: ActionSet.common, buttons: {value})'
+    imports:
+      - package:flutter3d_game/flutter3d_game.dart
+      - package:flutter3d_sim/flutter3d_sim.dart show ActionSet
     wave: 3
     guidance: >-
       `DesktopInput` reads an `ActionMap`: pass `actions:` where `bindings:`
@@ -4195,7 +4212,7 @@ entries:
     package: flutter3d_core
     symbol: LightNode
     kind: manual
-    members: [color, intensity]
+    members: [intensity]
     wave: 3
     guidance: >-
       `intensity` is in photometric units since 1.0: lux for a directional
@@ -9989,8 +10006,11 @@ entries:
   - id: core-RenderView-clearColor
     package: flutter3d_core
     symbol: RenderView.clearColor
-    kind: manual
-    members: [clearColor]
+    kind: argument
+    arguments: [clearColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 3
     guidance: >-
       The clear colour is a `LinearColor`, linear like every other colour,
@@ -10022,8 +10042,11 @@ entries:
   - id: core-SkySettings
     package: flutter3d_core
     symbol: SkySettings
-    kind: manual
-    members: [zenith, horizon, nadir, sunColor, tint, resolvedZenith, resolvedHorizon, resolvedNadir, resolvedSunColor, resolvedTint, copyWith]
+    kind: argument
+    arguments: [zenith, horizon, nadir, sunColor, tint]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 3
     guidance: >-
       The sky's colours are `LinearColor`s: `zenith`, `horizon`, `nadir`,
@@ -16250,7 +16273,11 @@ entries:
   - id: f2-app-Scene3D-clearColor
     package: flutter3d_app
     symbol: Scene3D.clearColor
-    kind: manual
+    kind: argument
+    arguments: [clearColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `Scene3D(clearColor:)` takes a `LinearColor`, in linear light, and
       encodes it to sRGB for the view. The `Vector4` it took was handed to
@@ -16586,8 +16613,11 @@ entries:
   - id: f2-core-RenderMaterial-baseColor
     package: flutter3d_core
     symbol: RenderMaterial.baseColor
-    kind: manual
-    members: [baseColor]
+    kind: argument
+    arguments: [baseColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `RenderMaterial.baseColor` is a `LinearColor`, linear, and assigned
       whole. It was a `Vector4` holding the sRGB-encoded colour and changed in
@@ -16600,8 +16630,11 @@ entries:
   - id: f2-core-RenderMaterial-emissive
     package: flutter3d_core
     symbol: RenderMaterial.emissive
-    kind: manual
-    members: [emissive]
+    kind: argument
+    arguments: [emissive]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `RenderMaterial.emissive` is a linear `LinearColor`, assigned whole:
       `emissive: Vector3(r, g, b)` is `emissive: LinearColor(r, g, b)`, and
@@ -16623,8 +16656,11 @@ entries:
   - id: f2-core-SurfaceMaterial-colours
     package: flutter3d_core
     symbol: SurfaceMaterial
-    kind: manual
-    members: [baseColor, emissive]
+    kind: argument
+    arguments: [baseColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `SurfaceMaterial.baseColor` and `emissive` are linear `LinearColor`s.
       `baseColor` held the authored sRGB-encoded tint as a `Vector4`; it is
@@ -16634,8 +16670,11 @@ entries:
   - id: f2-core-MaterialExtensions-colours
     package: flutter3d_core
     symbol: MaterialExtensions
-    kind: manual
-    members: [specularColor, sheenColor, attenuationColor]
+    kind: argument
+    arguments: [specularColor, sheenColor, attenuationColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `specularColor`, `sheenColor` and `attenuationColor` are linear
       `LinearColor`s with `const` defaults: `Vector3(r, g, b)` is
@@ -16644,8 +16683,11 @@ entries:
   - id: f2-core-ModelLight-color
     package: flutter3d_core
     symbol: ModelLight.color
-    kind: manual
-    members: [color]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `ModelLight.color` is a linear `LinearColor`; `Vector3(r, g, b)` is
       `LinearColor(r, g, b)`, and it goes onto a `LightNode.color` as it is.
@@ -16653,8 +16695,11 @@ entries:
   - id: f2-core-MeshNode-tint
     package: flutter3d_core
     symbol: MeshNode.tint
-    kind: manual
-    members: [tint]
+    kind: argument
+    arguments: [tint]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `MeshNode.tint` is a `LinearColor` assigned whole:
       `node.tint.setValues(1, 0.3, 0.3, 1)` is
@@ -16663,8 +16708,11 @@ entries:
   - id: f2-core-MeshNode-outlineColor
     package: flutter3d_core
     symbol: MeshNode.outlineColor
-    kind: manual
-    members: [outlineColor]
+    kind: argument
+    arguments: [outlineColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `MeshNode.outlineColor` is a linear `LinearColor`. It held the
       display-referred channels a `Color` gives; say those as
@@ -16674,8 +16722,11 @@ entries:
   - id: f2-core-HighContrastSettings-outlineColor
     package: flutter3d_core
     symbol: HighContrastSettings
-    kind: manual
-    members: [outlineColor, copyWith]
+    kind: argument
+    arguments: [outlineColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `HighContrastSettings.outlineColor` is a linear `LinearColor`, encoded
       to the display where the line is drawn: a display colour is
@@ -16684,8 +16735,11 @@ entries:
   - id: f2-core-settings-colours
     package: flutter3d_core
     symbol: FogSettings
-    kind: manual
-    members: [color, resolvedColor, copyWith]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       The colours of `FogSettings`, `LightShaftSettings`,
       `VolumetricFogSettings` (`color`, `ambient`) and `XraySettings` are
@@ -16696,16 +16750,22 @@ entries:
   - id: f2-core-LightShaftSettings-color
     package: flutter3d_core
     symbol: LightShaftSettings
-    kind: manual
-    members: [color, copyWith]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`; see `f2-core-settings-colours`.
 
   - id: f2-core-VolumetricFogSettings-colours
     package: flutter3d_core
     symbol: VolumetricFogSettings
-    kind: manual
-    members: [color, ambient, copyWith]
+    kind: argument
+    arguments: [color, ambient]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` and `ambient` are linear `LinearColor`s; see
       `f2-core-settings-colours`.
@@ -16713,16 +16773,22 @@ entries:
   - id: f2-core-XraySettings-color
     package: flutter3d_core
     symbol: XraySettings
-    kind: manual
-    members: [color, resolvedColor, copyWith]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`; see `f2-core-settings-colours`.
 
   - id: f2-core-DecalNode-colours
     package: flutter3d_core
     symbol: DecalNode
-    kind: manual
-    members: [color, emissive]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `DecalNode.color` is a linear `LinearColor` with the opacity in its
       alpha (it was an sRGB `Vector4`: `LinearColor.fromSrgb(r, g, b, a)`
@@ -16733,8 +16799,11 @@ entries:
   - id: f2-core-PlanarReflectorNode-tint
     package: flutter3d_core
     symbol: PlanarReflectorNode.tint
-    kind: manual
-    members: [tint]
+    kind: argument
+    arguments: [tint]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `tint` is a linear `LinearColor`, settable now:
       `tint: Vector3(r, g, b)` is `tint: LinearColor(r, g, b)`.
@@ -16742,16 +16811,22 @@ entries:
   - id: f2-core-LineStripNode-color
     package: flutter3d_core
     symbol: LineStripNode
-    kind: manual
-    members: [color]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `LineStripNode(color:)` and `color` are a linear `LinearColor`.
 
   - id: f2-core-InstancedMeshNode-colours
     package: flutter3d_core
     symbol: InstancedMeshNode
-    kind: manual
-    members: [addInstance, acquire, setColor]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       An instance's colour is a linear `LinearColor`:
       `addInstance(m, color: Vector4(r, g, b, a))` is
@@ -16761,15 +16836,22 @@ entries:
   - id: f2-core-InstanceHandle-setColor
     package: flutter3d_core
     symbol: InstanceHandle.setColor
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       Takes a linear `LinearColor`; `vector.toLinearColor()` converts.
 
   - id: f2-core-SkyGradient-colours
     package: flutter3d_core
     symbol: SkyGradient
-    kind: manual
-    members: [zenith, horizon, nadir, sunColor, color]
+    kind: argument
+    arguments: [zenith, horizon, nadir, sunColor, color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `SkyGradient`'s stops and `sunColor` are linear `LinearColor`s, and the
       `SkyColor` it hands out returns a `LinearColor`.
@@ -16785,7 +16867,11 @@ entries:
   - id: f2-core-gather-sky
     package: flutter3d_core
     symbol: gather
-    kind: manual
+    kind: argument
+    arguments: [sky]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `gather(..., sky:)` and `gatherProbe(..., sky:)` take a linear
       `LinearColor`, black by default: `sky: Vector3(r, g, b)` is
@@ -16794,7 +16880,11 @@ entries:
   - id: f2-core-gatherProbe-sky
     package: flutter3d_core
     symbol: gatherProbe
-    kind: manual
+    kind: argument
+    arguments: [sky]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `sky:` is a linear `LinearColor`; see `f2-core-gather-sky`.
 
@@ -16872,8 +16962,11 @@ entries:
   - id: f2-app-Decal3D-colours
     package: flutter3d_app
     symbol: Decal3D
-    kind: manual
-    members: [color, emissive]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` and `emissive` are linear `LinearColor`s; the old `color` drew
       as sRGB, so `LinearColor.fromSrgb(r, g, b, a)` keeps the picture.
@@ -16881,7 +16974,11 @@ entries:
   - id: f2-app-Mirror3D-tint
     package: flutter3d_app
     symbol: Mirror3D.tint
-    kind: manual
+    kind: argument
+    arguments: [tint]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `tint` is a linear `LinearColor`: `Vector3(r, g, b)` is
       `LinearColor(r, g, b)`.
@@ -16889,7 +16986,11 @@ entries:
   - id: f2-app-Light3D-color
     package: flutter3d_app
     symbol: Light3D.color
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `color` is a linear `LinearColor`: `Vector3(r, g, b)` is
       `LinearColor(r, g, b)`.
@@ -16959,8 +17060,11 @@ entries:
   - id: f2-core-ModelLight
     package: flutter3d_core
     symbol: ModelLight
-    kind: manual
-    members: [ModelLight, color]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       `ModelLight(color:)` and `ModelLight.color` are a `LinearColor`, in
       linear light, where they were a `Vector3`: write
@@ -17030,8 +17134,11 @@ entries:
   - id: rc-flame-HasFlutter3d-clearColor
     package: flame_flutter3d
     symbol: HasFlutter3d
-    kind: manual
-    members: [clearColor]
+    kind: argument
+    arguments: [clearColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `HasFlutter3d.clearColor` is a `LinearColor`, linear, assigned whole,
@@ -17044,8 +17151,11 @@ entries:
   - id: rc-flame-Flutter3dFlameWidget-clearColor
     package: flame_flutter3d
     symbol: Flutter3dFlameWidget
-    kind: manual
-    members: [clearColor]
+    kind: argument
+    arguments: [clearColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `Flutter3dFlameWidget(clearColor:)` takes a `LinearColor`, encoded to
@@ -17076,8 +17186,11 @@ entries:
   - id: rc-flame-Node3dComponent-tint
     package: flame_flutter3d
     symbol: Node3dComponent
-    kind: manual
-    members: [tint]
+    kind: argument
+    arguments: [tint]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `tint` is a linear `LinearColor` assigned whole:
@@ -17089,8 +17202,11 @@ entries:
   - id: rc-flame-Object3dComponent-tint
     package: flame_flutter3d
     symbol: Object3dComponent
-    kind: manual
-    members: [tint]
+    kind: argument
+    arguments: [tint]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `tint` is a linear `LinearColor` assigned whole; see
@@ -17099,8 +17215,11 @@ entries:
   - id: rc-flame-InstancedObject3dComponent-colours
     package: flame_flutter3d
     symbol: InstancedObject3dComponent
-    kind: manual
-    members: [tint, color]
+    kind: argument
+    arguments: [tint, color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `color` (the constructor's and the field) and `tint` are linear
@@ -17110,7 +17229,11 @@ entries:
   - id: rc-flame-TintEffect
     package: flame_flutter3d
     symbol: TintEffect.TintEffect
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `TintEffect(color, controller)` takes a linear `LinearColor`:
@@ -17120,8 +17243,11 @@ entries:
   - id: rc-flame-TrailComponent-color
     package: flame_flutter3d
     symbol: TrailComponent
-    kind: manual
-    members: [TrailComponent, color]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `TrailComponent(color:)` and `color` are a linear `LinearColor`,
@@ -17130,8 +17256,11 @@ entries:
   - id: rc-flame-CellGridComponent-color
     package: flame_flutter3d
     symbol: CellGridComponent
-    kind: manual
-    members: [CellGridComponent, color]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `CellGridComponent(color:)` is a vertex colour, a linear
@@ -17151,8 +17280,11 @@ entries:
   - id: rc-core-DebugDraw-colours
     package: flutter3d_core
     symbol: DebugDraw
-    kind: manual
-    members: [addLine, addLineXyz]
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       A line's colour is a linear `LinearColor`, which the overlay encodes for
@@ -17165,7 +17297,12 @@ entries:
   - id: rc-core-DebugDrawGizmos-colours
     package: flutter3d_core
     symbol: DebugDrawGizmos
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    on: DebugDraw
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       Every gizmo's colour (`addBox`, `addTransformedBox`, `addFrustum`,
@@ -17190,7 +17327,11 @@ entries:
   - id: rc-core-OverlayBatch-vertex
     package: flutter3d_core
     symbol: OverlayBatch.vertex
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `vertex(at, color)` takes the linear `LinearColor` it writes:
@@ -17199,7 +17340,11 @@ entries:
   - id: rc-core-MeshBuilder-addVertex
     package: flutter3d_core
     symbol: MeshBuilder.addVertex
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `addVertex(color:)` takes a linear `LinearColor`, as a vertex colour
@@ -17209,7 +17354,11 @@ entries:
   - id: rc-core-MeshData-withColor
     package: flutter3d_core
     symbol: MeshData.withColor
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `withColor` takes a linear `LinearColor`: `withColor(Vector4(r, g, b,
@@ -17230,7 +17379,11 @@ entries:
   - id: rc-core-CellGrid-mesh
     package: flutter3d_core
     symbol: CellGrid.mesh
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `mesh(color:)` takes a linear `LinearColor`: `Vector4(r, g, b, a)` is
@@ -17249,7 +17402,11 @@ entries:
   - id: rc-core-SolidColorTexture
     package: flutter3d_core
     symbol: SolidColorTexture
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `SolidColorTexture(color)` takes a linear `LinearColor` and stores it
@@ -17263,8 +17420,11 @@ entries:
   - id: rc-core-LookSettings-grade
     package: flutter3d_core
     symbol: LookSettings
-    kind: manual
-    members: [lift, gamma, gain, copyWith]
+    kind: argument
+    arguments: [lift, gamma, gain]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `lift`, `gamma` and `gain` are `LinearColor`s, one value per channel in
@@ -17275,8 +17435,11 @@ entries:
   - id: rc-core-PhotoFilter-grade
     package: flutter3d_core
     symbol: PhotoFilter
-    kind: manual
-    members: [lift, gain]
+    kind: argument
+    arguments: [lift, gain]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `lift` and `gain` are `LinearColor`s, as `LookSettings`' are:
@@ -17294,8 +17457,11 @@ entries:
   - id: rc-sim-LevelMaterial-baseColor
     package: flutter3d_sim
     symbol: LevelMaterial
-    kind: manual
-    members: [baseColor, LevelMaterial]
+    kind: argument
+    arguments: [baseColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       `LevelMaterial.baseColor` is a linear `LinearColor`. The `Vector4` held
@@ -17307,8 +17473,12 @@ entries:
   - id: rc-mesh-CornerAttributes-color
     package: flutter3d_mesh
     symbol: CornerAttributes
-    kind: manual
-    members: [CornerAttributes, colour, color]
+    kind: argument
+    arguments: [colour]
+    types: [Vector3, Vector4]
+    to: color
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       A corner's colour is a linear `LinearColor`, as a vertex colour is:
@@ -17319,8 +17489,11 @@ entries:
   - id: rc-model_core-RenderPreset-clearColorSrgb
     package: flutter3d_model_core
     symbol: RenderPreset.clearColor
-    kind: manual
-    members: [clearColor]
+    kind: argument
+    arguments: [clearColor]
+    types: [Vector3, Vector4]
+    template: 'LinearColor.fromSrgb({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 5
     guidance: >-
       The background is a linear `LinearColor`, as `RenderView.clearColor`
@@ -18352,7 +18525,11 @@ entries:
   - id: particles-ParticleEffect-color
     package: flutter3d_particles
     symbol: ParticleEffect.color
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       `color` is a `LinearColor`, the engine's one colour type, so an effect
@@ -18364,7 +18541,11 @@ entries:
   - id: particles-GradientKey-color
     package: flutter3d_particles
     symbol: GradientKey
-    kind: manual
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       A key's colour is a `LinearColor`: `GradientKey(0.5, Vector4(r, g, b,
@@ -18374,8 +18555,11 @@ entries:
   - id: particles-ParticleGradient-color
     package: flutter3d_particles
     symbol: ParticleGradient
-    kind: manual
-    members: [constant, linear]
+    kind: argument
+    arguments: [color, from, to]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       `ParticleGradient.constant` and `.linear` take `LinearColor`s; see
@@ -18385,7 +18569,11 @@ entries:
   - id: particles-ParticleColorOverLife-color
     package: flutter3d_particles
     symbol: ParticleColorOverLife
-    kind: manual
+    kind: argument
+    arguments: [_from, _to]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       Its two colours are `LinearColor`s, and it can be `const`:
@@ -18776,7 +18964,11 @@ entries:
   - id: 2f-game_racing-SkyPreset-colors
     package: flutter3d_game_racing
     symbol: SkyPreset
-    kind: manual
+    kind: argument
+    arguments: [sunColor, zenith, horizon, belowHorizon]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     wave: 2
     guidance: >-
       A sky preset's colours are `LinearColor`s: `sunColor`, `zenith`,
@@ -20338,3 +20530,128 @@ entries:
     reason: >-
       It returns the same box under its new name, `FittedCuboid`; the
       rename of the type carries the fix, and a call needs none.
+
+  - id: rc-core-LightNode-color
+    package: flutter3d_core
+    symbol: LightNode.color
+    kind: argument
+    arguments: [color]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `color` is a linear `LinearColor`, assigned whole: `color: Vector3(r, g,
+      b)` is `color: LinearColor(r, g, b)`, the same numbers, and
+      `light.color.setValues(r, g, b)` is `light.color = LinearColor(r, g, b)`.
+
+  - id: rc-core-SurfaceMaterial-emissive
+    package: flutter3d_core
+    symbol: SurfaceMaterial.emissive
+    kind: argument
+    arguments: [emissive]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `emissive` is a linear `LinearColor`: `Vector3(r, g, b)` is
+      `LinearColor(r, g, b)`, the same numbers.
+
+  - id: rc-core-DecalNode-emissive
+    package: flutter3d_core
+    symbol: DecalNode.emissive
+    kind: argument
+    arguments: [emissive]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `emissive` is a linear `LinearColor`, assigned whole: `Vector3(r, g, b)`
+      is `LinearColor(r, g, b)`, the same numbers.
+
+  - id: rc-app-Decal3D-emissive
+    package: flutter3d_app
+    symbol: Decal3D.emissive
+    kind: argument
+    arguments: [emissive]
+    types: [Vector3, Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
+    guidance: >-
+      `emissive` is a linear `LinearColor`: `Vector3(r, g, b)` is
+      `LinearColor(r, g, b)`, the same numbers.
+
+  - id: rc-game_shooter-ArmourGift-name
+    package: flutter3d_game_shooter
+    symbol: ArmourGift
+    kind: rename
+    to: ArmorGift
+    guidance: >-
+      Public names are spelled the American way; the gift is the same under
+      its new name.
+
+  - id: rc-game_shooter-MeleeBehaviour-arcDegrees
+    package: flutter3d_game_shooter
+    symbol: MeleeBehaviour.arcDegrees
+    kind: argument
+    arguments: [arcDegrees]
+    to: arc
+    on: MeleeBehavior
+    template: '{value} * pi / 180'
+    imports: ['dart:math show pi']
+    guidance: >-
+      A swing's width is `arc`, in radians like every angle the engine
+      takes: `arcDegrees: 100` is `arc: 100 * pi / 180`, and a read of
+      `arcDegrees` is `arc * 180 / pi`.
+
+  - id: rc-game-DesktopInput-bindings-read
+    package: flutter3d_game
+    symbol: DesktopInput.bindings
+    kind: rewrite
+    template: '{target}.actions.buttons'
+    guidance: >-
+      The table a `DesktopInput` reads is its map's buttons.
+
+  - id: rc-game-DesktopInput-defaultBindings
+    package: flutter3d_game
+    symbol: DesktopInput.defaultBindings
+    kind: rewrite
+    template: '{target}.addDefaultsTo(ActionMap(actions: ActionSet.common)).buttons'
+    imports:
+      - package:flutter3d_game/flutter3d_game.dart
+      - package:flutter3d_sim/flutter3d_sim.dart show ActionSet
+    guidance: >-
+      The keyboard's defaults are added to a map, whose buttons are the table
+      `defaultBindings()` returned.
+
+  - id: rc-game-PadInput-bindings
+    package: flutter3d_game
+    symbol: PadInput.bindings
+    kind: argument
+    arguments: [bindings]
+    to: actions
+    template: 'ActionMap(actions: ActionSet.common, buttons: {value})'
+    imports:
+      - package:flutter3d_game/flutter3d_game.dart
+      - package:flutter3d_sim/flutter3d_sim.dart show ActionSet
+    guidance: >-
+      A `PadInput` reads an `ActionMap`: an old table goes in as its buttons.
+
+  - id: rc-game-PadInput-bindings-read
+    package: flutter3d_game
+    symbol: PadInput.bindings
+    kind: rewrite
+    template: '{target}.actions.buttons'
+    guidance: >-
+      The table a `PadInput` reads is its map's buttons.
+
+  - id: rc-game-PadInput-defaultBindings
+    package: flutter3d_game
+    symbol: PadInput.defaultBindings
+    kind: rewrite
+    template: '{target}.addDefaultsTo(ActionMap(actions: ActionSet.common)).buttons'
+    imports:
+      - package:flutter3d_game/flutter3d_game.dart
+      - package:flutter3d_sim/flutter3d_sim.dart show ActionSet
+    guidance: >-
+      The pad's defaults are added to a map, whose buttons are the table
+      `defaultBindings()` returned.
