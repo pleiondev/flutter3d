@@ -123,13 +123,15 @@ final class LevelMaterial {
   /// `material Name version N`. Null for a level that predates material
   /// versions, which is read as version 1.
   ///
-  /// **The level keeps the version, and the loader lifts the values.** A
+  /// **The level keeps the version; nothing lifts the values yet.** A
   /// material that renamed or rescaled a parameter since says how, in its
-  /// `updates` block; the loader, which reads both the level and the
-  /// material, carries [parameters] from this version to the material's
-  /// own with `MaterialProgram.lift` and writes the new version back when
-  /// the level is saved. This package does not read materials, so it keeps
-  /// the number exactly as the document said it.
+  /// `updates` block, and `MaterialProgram.lift` carries values from an
+  /// older version to the material's own. No loader calls it today:
+  /// [parameters] reach the material as the document wrote them, under the
+  /// names of this version. Lifting on load belongs to the level loader,
+  /// which reads both the level and the material, and arrives with it.
+  /// This package does not read materials, so it keeps the number exactly
+  /// as the document said it.
   final int? materialVersion;
 
   /// [baseColor] as the document stores it: sRGB-encoded, in single
