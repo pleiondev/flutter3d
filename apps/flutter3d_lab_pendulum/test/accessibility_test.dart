@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_lab_pendulum/src/lab_loading_screen.dart';
+import 'package:flutter3d_lab_pendulum/src/lab_theme.dart';
 import 'package:flutter3d_lab_pendulum/src/pendulum_lab_controls.dart';
 import 'package:flutter3d_lab_pendulum/src/pendulum_lab_panel.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +28,7 @@ final class _Lab {
               textScaler: TextScaler.linear(textScale),
             ),
             child: Scaffold(
-              backgroundColor: const Color(0xFF14161A),
+              backgroundColor: LabTheme.background,
               body: PendulumLabControls(
                 lengthMeters: length,
                 onChangeLength: (value) => length.value = value,
