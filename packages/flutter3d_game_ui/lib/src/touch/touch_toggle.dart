@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 
 import '../theme/game_ui_theme.dart';
+import 'touch_face.dart';
 
 /// A round button that is **set** rather than held: tapped once it is on,
 /// tapped again it is off.
@@ -64,17 +65,14 @@ class TouchToggle extends StatelessWidget {
           child: SizedBox(
             width: radius * 2,
             height: radius * 2,
-            child: Center(
-              child: Text(
+            child: Padding(
+              padding: EdgeInsets.all(radius * 0.25),
+              child: TouchFace(
                 label,
-                textAlign: TextAlign.center,
-                textDirection: TextDirection.ltr,
-                style: TextStyle(
-                  color: on
-                      ? GameUiTheme.of(context).touchOnGlyph
-                      : GameUiTheme.of(context).touchGlyph,
-                  fontSize: math.min(14.0, radius * 0.5),
-                ),
+                color: on
+                    ? GameUiTheme.of(context).touchOnGlyph
+                    : GameUiTheme.of(context).touchGlyph,
+                fontSize: math.min(14.0, radius * 0.5),
               ),
             ),
           ),
@@ -106,12 +104,15 @@ class _TogglePainter extends CustomPainter {
         radius,
         Paint()..color = on ? theme.touchOn : theme.touchFill,
       )
+      // The rim in the colour that stands out where the face does not: light
+      // round a dark face that is off, dark round a light face that is on.
       ..drawCircle(
         center,
         radius,
         Paint()
           ..style = PaintingStyle.stroke
-          ..color = theme.touchKnob,
+          ..strokeWidth = 1.5
+          ..color = on ? theme.touchOnGlyph : theme.touchOutline,
       );
   }
 

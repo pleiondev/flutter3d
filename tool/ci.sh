@@ -234,6 +234,20 @@ step "publish check" bash tool/publish_check.sh
 # a tutorial step a reader cannot follow.
 step "modeller screenshots" dart run tool/publish_modeler_screenshots.dart --check
 
+# **WCAG 2.2 at level AA, wherever it is promised.** The widgets around a
+# game, the lesson viewer and the pendulum lab each carry
+# `test/accessibility_test.dart`, which mounts their screens at a large text
+# size and asks Flutter's guidelines for labelled targets, target size and
+# text contrast. Found by that path, one name everywhere. Each suite runs
+# again in the loops below; this step is here so a broken promise is named
+# as one, "accessibility flutter3d_game_ui", rather than as one red line
+# among a package's two hundred tests. The structure rule `a package that
+# promises WCAG AA keeps it` holds the list and checks this step is here.
+for dir in packages/*/ apps/*/; do
+  [ -f "$dir/test/accessibility_test.dart" ] || continue
+  step "accessibility $(basename "$dir")" in_dir "$dir" flutter test test/accessibility_test.dart
+done
+
 # **Which packages are plain Dart is not this script's knowledge.** It named
 # four of them here and `tool/structure/repository.dart` named the same four,
 # and the two lists were free to disagree: a fifth plain package added there

@@ -141,10 +141,7 @@ class CreditsSection extends StatelessWidget {
           if (credit.licenseUrl != null)
             Text(
               credit.licenseUrl!,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.55),
-                fontSize: 11,
-              ),
+              style: TextStyle(color: theme.faint, fontSize: 11),
             ),
           const SizedBox(height: 6),
         ],

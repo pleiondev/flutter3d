@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
+import '../access/text_scale.dart';
 import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
 import 'settings_sections.dart';
@@ -33,63 +34,73 @@ class SettingsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final words = Flutter3dGameLocalizations.of(context);
     final theme = GameUiTheme.of(context);
-    // Rebuilt on every change, so a slider follows the value it set.
-    return ValueListenableBuilder<SettingsState>(
-      valueListenable: settings,
-      builder: (BuildContext context, SettingsState state, Widget? _) =>
-          ColoredBox(
-            color: theme.scrim,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        words.settings,
-                        style: TextStyle(
-                          color: theme.text,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      for (final (index, section)
-                          in sections.indexed) ...<Widget>[
-                        if (index > 0) const SizedBox(height: 12),
-                        section.build(context, settings, state),
-                      ],
-                      const SizedBox(height: 20),
-                      // A write fails when a browser's quota has run out or a
-                      // disk has filled; a player who moved every slider on a
-                      // full disk is told, rather than losing them silently.
-                      if (state.lastWriteFailed)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Text(
-                            words.settingsNotSaved,
-                            style: TextStyle(color: theme.warning),
+    // Rebuilt on every change, so a slider follows the value it set. Flutter's
+    // own controls take the dark scheme the scrim needs, whatever the app's
+    // theme is (`GameUiTheme.controlsTheme`).
+    return Theme(
+      data: theme.controlsTheme(Theme.of(context)),
+      child: ValueListenableBuilder<SettingsState>(
+        valueListenable: settings,
+        builder: (BuildContext context, SettingsState state, Widget? _) =>
+            ColoredBox(
+              color: theme.scrim,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: textScaledWidth(context, 460),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          words.settings,
+                          style: TextStyle(
+                            color: theme.text,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          // Cancelling a waiting rebind is the controller's,
-                          // because a panel closed any other way has to do
-                          // the same thing.
-                          onPressed: settings.hide,
-                          child: Text(words.backToTheGame),
+                        const SizedBox(height: 18),
+                        for (final (index, section)
+                            in sections.indexed) ...<Widget>[
+                          if (index > 0) const SizedBox(height: 12),
+                          section.build(context, settings, state),
+                        ],
+                        const SizedBox(height: 20),
+                        // A write fails when a browser's quota has run out or a
+                        // disk has filled; a player who moved every slider on a
+                        // full disk is told, rather than losing them silently.
+                        if (state.lastWriteFailed)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12.0),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                words.settingsNotSaved,
+                                style: TextStyle(color: theme.warning),
+                              ),
+                            ),
+                          ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            // Cancelling a waiting rebind is the controller's,
+                            // because a panel closed any other way has to do
+                            // the same thing.
+                            onPressed: settings.hide,
+                            child: Text(words.backToTheGame),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
+      ),
     );
   }
 }

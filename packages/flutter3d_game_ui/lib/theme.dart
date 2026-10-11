@@ -6,10 +6,14 @@
 /// * [Flutter3dGameLocalizations]: every default string a widget here would
 ///   otherwise have typed in English, with English and Russian shipped and
 ///   a delegate an app lists beside Flutter's own.
+/// * [Wcag] and [ContrastPair]: the numbers WCAG 2.2 at level AA asks of
+///   these widgets, and the pairs of colours the theme holds to them over
+///   any frame ([GameUiTheme.contrastPairs]).
 ///
 /// Both were `flutter3d_game`'s until 1.0.0-rc.1, when the widgets that read
 /// them moved here.
 library;
 
 export 'src/l10n/game_localizations.dart';
+export 'src/theme/contrast.dart';
 export 'src/theme/game_ui_theme.dart';

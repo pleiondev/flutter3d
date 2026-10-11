@@ -9,6 +9,8 @@
 ///   the roles seen together stay apart for the player's deficiency.
 /// - [SpokenEvents]: a view plugin that says the events of a table aloud
 ///   through Flutter's semantics, once each, rate-limited by step.
+/// - [FlashLimit]: a full-screen brightness held to three flashes in any
+///   second, the gate a fade, a hit or lightning goes through.
 ///
 /// The correction of the whole picture (`ColorVisionLook`), the role table
 /// (`ColorRoles`) and the settings a player picks them in are
@@ -16,6 +18,7 @@
 /// them.
 library;
 
+export 'src/access/flash_limit.dart';
 export 'src/access/role_rings.dart';
 export 'src/access/roles_apart.dart';
 export 'src/access/spoken_events.dart';

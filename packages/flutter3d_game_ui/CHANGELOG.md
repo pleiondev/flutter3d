@@ -1,5 +1,49 @@
 ## 1.0.0-rc.1
 
+- **Every widget here keeps WCAG 2.2 at level AA**, and
+  `test/accessibility_test.dart` (tag `accessibility`) holds each screen to
+  it at the platform text size and at twice it, over a white frame and a
+  black one: labelled targets of 24 pixels or more, text contrast measured
+  from the pixels, every line on the platform's `textScaler` and none cut
+  off.
+- **`Wcag` and `ContrastPair` are new** (`theme.dart`): the numbers AA asks
+  for, the WCAG contrast ratio, and a pair of colours with the ratio it
+  keeps over every grey frame from black to white, a control counted by
+  the better of its face and its rim. `GameUiTheme.contrastPairs` names
+  every pair the widgets draw.
+- **`GameUiTheme`'s defaults are the ones that pass.** The touch controls
+  are dark faces with a light rim, where they were a third of white over
+  the picture; `panel` is darker, `error` and `hudLabel` lighter, the maps'
+  colours moved to keep three to one. Two tokens are new: `sheet` (what a
+  title or an ending puts over the game) and `notice` (the amber line on
+  it). `GameUiTheme.controlsTheme` gives Flutter's own controls on these
+  dark panels a dark scheme seeded from `accent`, so a light app theme no
+  longer puts a purple button on the settings scrim.
+- **No colour is typed into a widget any more.** `HudTallyStyle.color`,
+  `HudBanner.color`, `EndingSheet.titleColor` and `MiniMapPainter`'s three
+  colours are nullable and fall back to the theme; `EndingSheet.backdrop`
+  is the opacity of `GameUiTheme.sheet`. A tally, a banner, a cutscene's
+  subtitle and its skip button sit on `panel`, and the settings gear has a
+  panel behind it.
+- **The text grows with the player's text size and is never cut.** The
+  heads-up label column, the settings columns and the share strip grow
+  with the `textScaler`; a touch control's label grows up to what its face
+  holds and is scaled back into it rather than clipped.
+- **`FlashLimit` is new** (`access.dart`): a full-screen brightness held to
+  three flashes in any second (WCAG 2.3.1). `CutsceneOverlay` sends its
+  fade through one, so a sequence that strobes is drawn at the limit, and
+  is a `StatefulWidget` for it.
+- **The camera-motion slider shows the system's answer** until the player
+  gives one, as the high-contrast switch does: with reduce-motion on it
+  reads nought, which is what the game keeps.
+- **A screen reader can name and use every control.** `TouchStick` and
+  `SteeringBand` take a `label` (default `Flutter3dGameLocalizations.stick`
+  and `steering`, new, in English and Russian); `TitleSheet` and
+  `TapToRestart` are buttons a reader's double tap begins or restarts; a
+  volume slider carries its bus's name; a banner, a cutscene's subtitle,
+  the photo bar's last sentence, the share strip's answer and the unsaved
+  settings line are live regions.
+
 - **`RoleRings.of` answers a `LinearColor`**, the colour
   `ActorVisuals.outlineOf` and `FixtureVisuals.outlineOf` take now.
 

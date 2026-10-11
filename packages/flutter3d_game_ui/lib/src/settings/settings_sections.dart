@@ -78,13 +78,22 @@ final class VolumesSection extends SettingsSection {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        for (final bus in buses) ...<Widget>[
-          SettingsHeading(words.volume(bus.name)),
-          Slider(
-            value: settings.settings.volumeOf(bus),
-            onChanged: (double value) => settings.setVolume(bus, value),
+        // Heading and slider merged into one node, so a reader names the
+        // slider it is on rather than reading a heading and then a value.
+        for (final bus in buses)
+          MergeSemantics(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SettingsHeading(words.volume(bus.name)),
+                Slider(
+                  value: settings.settings.volumeOf(bus),
+                  onChanged: (double value) => settings.setVolume(bus, value),
+                ),
+              ],
+            ),
           ),
-        ],
       ],
     );
   }
@@ -167,7 +176,14 @@ final class AccessibilitySection extends SettingsSection {
         const SizedBox(height: 8),
         SettingsValueSlider(
           label: words.cameraMotion,
-          value: current.valueOf(GameSettingKeys.cameraMotion),
+          // The system's answer until the player gives one of their own, as
+          // the high-contrast switch below: with reduce-motion on, the game
+          // keeps none of the camera's flinch (`Accommodations.cameraMotion`),
+          // and a slider that showed all of it would be the panel disagreeing
+          // with the screen behind it.
+          value:
+              current.chosenValueOf(GameSettingKeys.cameraMotion) ??
+              Accommodations.of(context).cameraMotion,
           max: 1.0,
           // A camera that flinches on every landing is what makes some
           // players ill, and the following is the game. This turns down the

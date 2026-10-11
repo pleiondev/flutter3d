@@ -179,6 +179,7 @@ List<Rule> get allRules => <Rule>[
     name: 'every world property and material group has a reader',
     run: _everyPropertyHasAReader,
   ),
+  (name: 'a package that promises WCAG AA keeps it', run: _accessibleUis),
   (
     name: 'every published API is the snapshot its package commits',
     run: _apiSnapshotsCurrent,
@@ -4233,6 +4234,164 @@ List<Finding> _particlesInTheirWorld() {
         );
       }
     }
+  }
+  return found;
+}
+
+// --------------------------------------------------- an accessible UI
+
+/// A package or application that promises WCAG 2.2 at level AA keeps what
+/// can be read off its source, and carries the test that holds the rest.
+///
+/// **Half of the promise is a test and half is a scan**, and neither is
+/// enough alone. The test mounts every screen at twice the text size, over a
+/// white frame and a black one, and asks Flutter's guidelines; but it sees
+/// only the screens it mounts. The scan sees every library, and asks of each
+/// what a new widget would most likely get wrong: a colour typed in where a
+/// token would be held to its ratio ([typedColorsIn]), a pinned text size
+/// ([fixedTextScalesIn]), a `TextPainter` that does not scale
+/// ([unscaledTextPaintersIn]), a widget that takes the pointer with nothing
+/// to name it to a screen reader ([unnamedPointerWidgetsIn]), an animation
+/// in a library that never asks whether the player wants less motion
+/// ([motionWithoutReductionIn]). The test itself is
+/// `test/accessibility_test.dart`, which is how `tool/ci.sh` finds it, and
+/// asks what the promise asks ([accessibilityTestGapsIn]).
+///
+/// The list is [accessibleUis]; [accessibleUisPending] holds those whose
+/// promise is not kept yet, and fails on one that already carries the test.
+///
+/// Mutation: type `Colors.white` into a HUD widget, or wrap a control in a
+/// bare `Listener`, and this names the line.
+List<Finding> _accessibleUis() {
+  final found = <Finding>[];
+  final all = <String, Directory>{...packages, ...apps};
+
+  for (final path in accessibleColorsAllowed.keys) {
+    final package = path.split('/').first;
+    final dir = all[package];
+    if (dir == null ||
+        !File(
+          '${dir.path}/${path.substring(package.length + 1)}',
+        ).existsSync()) {
+      found.add(
+        Finding(
+          'accessibleColorsAllowed → $path',
+          'names a file that is not there',
+        ),
+      );
+    }
+  }
+
+  // The test is found by its path, `test/accessibility_test.dart`, which is
+  // also how tool/ci.sh finds it: one name in every package and application.
+  List<File> accessibilityTests(Directory dir) => <File>[
+    if (File('${dir.path}/test/accessibility_test.dart') case final f
+        when f.existsSync())
+      f,
+  ];
+
+  for (final name in accessibleUisPending.keys) {
+    final dir = all[name];
+    if (dir == null) {
+      found.add(Finding('accessibleUisPending → $name', 'is not there'));
+      continue;
+    }
+    if (accessibilityTests(dir).isNotEmpty) {
+      found.add(
+        Finding(
+          'accessibleUisPending → $name',
+          'carries test/accessibility_test.dart now; move it to '
+              '`accessibleUis`, where the rule holds it',
+        ),
+      );
+    }
+  }
+
+  for (final entry in accessibleUis.keys) {
+    final dir = all[entry];
+    if (dir == null) {
+      found.add(Finding('accessibleUis → $entry', 'is not there'));
+      continue;
+    }
+    for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
+      final where = '$entry/${relative(file, dir)}';
+      final source = file.readAsStringSync();
+      if (!accessibleColorsAllowed.containsKey(where)) {
+        for (final line in typedColorsIn(source)) {
+          found.add(
+            Finding(
+              '$where:$line',
+              'types a colour in: take it from the theme\'s tokens, which '
+                  'are held to their contrast over any frame',
+            ),
+          );
+        }
+      }
+      for (final line in fixedTextScalesIn(source)) {
+        found.add(
+          Finding(
+            '$where:$line',
+            'pins the text size: take the platform\'s '
+                '(`MediaQuery.textScalerOf`)',
+          ),
+        );
+      }
+      for (final line in unscaledTextPaintersIn(source)) {
+        found.add(
+          Finding(
+            '$where:$line',
+            'makes a TextPainter without a textScaler, so its text stays '
+                'small when the player asks for large',
+          ),
+        );
+      }
+      for (final line in unnamedPointerWidgetsIn(source)) {
+        found.add(
+          Finding(
+            '$where:$line',
+            'takes the pointer with no Semantics in the $semanticsReach '
+                'lines above it: name the control for a screen reader',
+          ),
+        );
+      }
+      for (final line in motionWithoutReductionIn(source)) {
+        found.add(
+          Finding(
+            '$where:$line',
+            'animates in a library that never reads whether the player '
+                'asked for less motion (`MediaQuery.disableAnimationsOf`, '
+                '`Accommodations.reduceMotion`)',
+          ),
+        );
+      }
+    }
+
+    final tests = accessibilityTests(dir);
+    if (tests.isEmpty) {
+      found.add(
+        Finding(
+          '$entry/test',
+          'has no test/accessibility_test.dart, which is what tool/ci.sh runs '
+              'and what holds the screens to the guidelines',
+        ),
+      );
+    }
+    for (final test in tests) {
+      for (final gap in accessibilityTestGapsIn(test.readAsStringSync())) {
+        found.add(Finding('$entry/${relative(test, dir)}', gap));
+      }
+    }
+  }
+
+  final ci = File('${repositoryRoot.path}/tool/ci.sh');
+  if (!ci.existsSync() ||
+      !ci.readAsStringSync().contains('test/accessibility_test.dart')) {
+    found.add(
+      Finding(
+        'tool/ci.sh',
+        'does not run test/accessibility_test.dart where it is',
+      ),
+    );
   }
   return found;
 }

@@ -6,6 +6,13 @@ library package:flutter3d_game_ui/access.dart
 
 typedef Announce = void Function(String sentence);
 
+final class FlashLimit
+  FlashLimit({this.flashesPerSecond = Wcag.flashesPerSecond, this.threshold = Wcag.flashLuminanceChange})
+  double limit(double wanted, {required Duration at})
+  final double threshold
+  final int flashesPerSecond
+  void reset()
+
 final class RoleRings
   LinearColor of(String role, {required Color fallback})
   bool has(String role)
@@ -144,6 +151,18 @@ final class ConsentsSection extends SettingsSection
   const ConsentsSection(this.consents)
   final Consents consents
 
+final class ContrastPair
+  String toString()
+  bool get isMet
+  const ContrastPair(this.name, {required this.foreground, this.background = const Color(0x00000000), this.minimum = Wcag.textContrast, this.edge})
+  double get worstRatio
+  double ratioOver(Color frame)
+  final Color background
+  final Color foreground
+  final Color? edge
+  final String name
+  final double minimum
+
 final class ControlsSection extends SettingsSection
   Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
   const ControlsSection({required this.defaults, this.showsTuning = false, this.actionLabel})
@@ -179,8 +198,8 @@ class CreditsSection extends StatelessWidget
   final String? footnote
   final String? heading
 
-final class CutsceneOverlay extends StatelessWidget
-  Widget build(BuildContext context)
+final class CutsceneOverlay extends StatefulWidget
+  State<CutsceneOverlay> createState()
   const CutsceneOverlay({super.key, required this.fade, required this.subtitle, required this.skipHint, required this.onSkip})
   final String skipHint
   final String? subtitle
@@ -189,8 +208,8 @@ final class CutsceneOverlay extends StatelessWidget
 
 class EndingSheet extends StatelessWidget
   Widget build(BuildContext context)
-  const EndingSheet({super.key, required this.title, required this.tallies, required this.credits, required this.again, this.creditsHeading, this.creditsFootnote, this.titleColor = Colors.white, this.backdrop = 0.86, this.valueStyle = defaultValueStyle, this.aside, this.trailing = const <Widget>[]})
-  final Color titleColor
+  const EndingSheet({super.key, required this.title, required this.tallies, required this.credits, required this.again, this.creditsHeading, this.creditsFootnote, this.titleColor, this.backdrop = 0.86, this.valueStyle = defaultValueStyle, this.aside, this.trailing = const <Widget>[]})
+  final Color? titleColor
   final List<Credit> credits
   final List<EndingTally> tallies
   final List<Widget> trailing
@@ -201,12 +220,19 @@ class EndingSheet extends StatelessWidget
   final String? creditsHeading
   final TextStyle valueStyle
   final double backdrop
-  static const TextStyle defaultValueStyle = TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600)
+  static const TextStyle defaultValueStyle = TextStyle(fontSize: 30, fontWeight: FontWeight.w600)
 
 final class EndingTally
   const EndingTally(this.label, this.value)
   final String label
   final String value
+
+final class FlashLimit
+  FlashLimit({this.flashesPerSecond = Wcag.flashesPerSecond, this.threshold = Wcag.flashLuminanceChange})
+  double limit(double wanted, {required Duration at})
+  final double threshold
+  final int flashesPerSecond
+  void reset()
 
 base class Flutter3dGameLocalizations
   List<String> get colorVisionChoices
@@ -256,6 +282,8 @@ base class Flutter3dGameLocalizations
   String get settings
   String get settingsNotSaved
   String get shareThisRun
+  String get steering
+  String get stick
   String get takingThePicture
   String get tapToPlayAgain
   String get theClouds
@@ -283,9 +311,11 @@ base class Flutter3dGameLocalizations
   static const LocalizationsDelegate<Flutter3dGameLocalizations> delegate = _Delegate()
 
 @immutable final class GameUiTheme extends ThemeExtension<GameUiTheme>
-  GameUiTheme copyWith({Color? text, Color? label, Color? heading, Color? faint, Color? scrim, Color? panel, Color? waiting, Color? warning, Color? error, Color? accent, Color? hudLabel, double? hudLabelWidth, Color? mapFloor, Color? mapWall, Color? mapPlayer, Color? mapBackdrop, Color? miniMapTrack, Color? miniMapPlayer, Color? miniMapOthers, Color? miniMapBackdrop, Color? touchTrack, Color? touchFill, Color? touchUnavailable, Color? touchOutline, Color? touchHeld, Color? touchPressed, Color? touchKnob, Color? touchGlyph, Color? touchOn, Color? touchOnGlyph})
+  GameUiTheme copyWith({Color? text, Color? label, Color? heading, Color? faint, Color? scrim, Color? panel, Color? sheet, Color? waiting, Color? warning, Color? error, Color? accent, Color? notice, Color? hudLabel, double? hudLabelWidth, Color? mapFloor, Color? mapWall, Color? mapPlayer, Color? mapBackdrop, Color? miniMapTrack, Color? miniMapPlayer, Color? miniMapOthers, Color? miniMapBackdrop, Color? touchTrack, Color? touchFill, Color? touchUnavailable, Color? touchOutline, Color? touchHeld, Color? touchPressed, Color? touchKnob, Color? touchGlyph, Color? touchOn, Color? touchOnGlyph})
   GameUiTheme lerp(covariant GameUiTheme? other, double t)
-  const GameUiTheme({this.text = const Color(0xFFFFFFFF), this.label = const Color(0xD9FFFFFF), this.heading = const Color(0xBFFFFFFF), this.faint = const Color(0x99FFFFFF), this.scrim = const Color(0xB8000000), this.panel = const Color(0x73000000), this.waiting = const Color(0xFFFFC107), this.warning = const Color(0xFFFFCC80), this.error = const Color(0xFFFF8A80), this.accent = const Color(0xFFFFD166), this.hudLabel = const Color(0xFF9AA4B2), this.hudLabelWidth = 72.0, this.mapFloor = const Color(0xFF9A9284), this.mapWall = const Color(0xFF2B2622), this.mapPlayer = const Color(0xFFF2D133), this.mapBackdrop = const Color(0xA0000000), this.miniMapTrack = const Color(0xFF7E8794), this.miniMapPlayer = const Color(0xFFFFFFFF), this.miniMapOthers = const Color(0xFFE0553F), this.miniMapBackdrop = const Color(0x66000000), this.touchTrack = const Color(0x22FFFFFF), this.touchFill = const Color(0x33FFFFFF), this.touchUnavailable = const Color(0x14FFFFFF), this.touchOutline = const Color(0x55FFFFFF), this.touchHeld = const Color(0x66FFFFFF), this.touchPressed = const Color(0x99FFFFFF), this.touchKnob = const Color(0x88FFFFFF), this.touchGlyph = const Color(0xCCFFFFFF), this.touchOn = const Color(0xE6FFFFFF), this.touchOnGlyph = const Color(0xFF101010)})
+  List<ContrastPair> get contrastPairs
+  ThemeData controlsTheme(ThemeData base)
+  const GameUiTheme({this.text = const Color(0xFFFFFFFF), this.label = const Color(0xD9FFFFFF), this.heading = const Color(0xBFFFFFFF), this.faint = const Color(0x99FFFFFF), this.scrim = const Color(0xB8000000), this.panel = const Color(0xB8000000), this.sheet = const Color(0xC7000000), this.waiting = const Color(0xFFFFC107), this.warning = const Color(0xFFFFCC80), this.error = const Color(0xFFFFA8A0), this.accent = const Color(0xFFFFD166), this.notice = const Color(0xD9FFC107), this.hudLabel = const Color(0xFFB8C2CF), this.hudLabelWidth = 72.0, this.mapFloor = const Color(0xFF8A8274), this.mapWall = const Color(0xFF231F1C), this.mapPlayer = const Color(0xFFFFE680), this.mapBackdrop = const Color(0xD9000000), this.miniMapTrack = const Color(0xFF9AA3AF), this.miniMapPlayer = const Color(0xFFFFFFFF), this.miniMapOthers = const Color(0xFFFF6A50), this.miniMapBackdrop = const Color(0xB8000000), this.touchTrack = const Color(0x99000000), this.touchFill = const Color(0x99000000), this.touchUnavailable = const Color(0x40000000), this.touchOutline = const Color(0xF2FFFFFF), this.touchHeld = const Color(0xD9333333), this.touchPressed = const Color(0xD9333333), this.touchKnob = const Color(0xE6FFFFFF), this.touchGlyph = const Color(0xFFFFFFFF), this.touchOn = const Color(0xF2FFFFFF), this.touchOnGlyph = const Color(0xFF101010)})
   final Color accent
   final Color error
   final Color faint
@@ -300,8 +330,10 @@ base class Flutter3dGameLocalizations
   final Color miniMapOthers
   final Color miniMapPlayer
   final Color miniMapTrack
+  final Color notice
   final Color panel
   final Color scrim
+  final Color sheet
   final Color text
   final Color touchFill
   final Color touchGlyph
@@ -327,8 +359,8 @@ final class GamepadSection extends SettingsSection
 
 class HudBanner extends StatelessWidget
   Widget build(BuildContext context)
-  const HudBanner(this.text, {super.key, this.color = Colors.white, this.fontSize = 18})
-  final Color color
+  const HudBanner(this.text, {super.key, this.color, this.fontSize = 18})
+  final Color? color
   final String text
   final double fontSize
 
@@ -353,8 +385,8 @@ class HudTally extends StatelessWidget
   final String value
 
 final class HudTallyStyle
-  const HudTallyStyle({this.color = Colors.white, this.valueSize = 30, this.labelSize = 12, this.tabular = false})
-  final Color color
+  const HudTallyStyle({this.color, this.valueSize = 30, this.labelSize = 12, this.tabular = false})
+  final Color? color
   final bool tabular
   final double labelSize
   final double valueSize
@@ -401,10 +433,10 @@ class MiniMap extends StatelessWidget
 class MiniMapPainter extends CustomPainter
   Offset? place(Vector2 point, Size size)
   bool shouldRepaint(MiniMapPainter old)
-  const MiniMapPainter({required this.outline, required this.markers, this.playerColor = const Color(0xFFFFFFFF), this.othersColor = const Color(0xFFE0553F), this.trackColor = const Color(0xFF7E8794)})
-  final Color othersColor
-  final Color playerColor
-  final Color trackColor
+  const MiniMapPainter({required this.outline, required this.markers, this.playerColor, this.othersColor, this.trackColor})
+  final Color? othersColor
+  final Color? playerColor
+  final Color? trackColor
   final List<Vector2> markers
   final List<Vector2> outline
   void paint(Canvas canvas, Size size)
@@ -554,11 +586,12 @@ final class SpokenEvents extends Flutter3dPlugin
 
 class SteeringBand extends StatefulWidget
   State<SteeringBand> createState()
-  const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis})
+  const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis, this.label})
   final AxisAction? axis
   final GameAction left
   final GameAction right
   final InputState state
+  final String? label
   final double height
   final double width
 
@@ -654,9 +687,10 @@ class TouchSlots extends StatelessWidget
 
 class TouchStick extends StatefulWidget
   State<TouchStick> createState()
-  const TouchStick({super.key, required this.state, this.radius = 64.0, this.action = DualAxisAction.move})
+  const TouchStick({super.key, required this.state, this.radius = 64.0, this.action = DualAxisAction.move, this.label})
   final DualAxisAction action
   final InputState state
+  final String? label
   final double radius
 
 class TouchToggle extends StatelessWidget
@@ -679,6 +713,18 @@ final class VolumesSection extends SettingsSection
   Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
   const VolumesSection({this.buses = settableBuses})
   final List<AudioBus> buses
+
+abstract final class Wcag
+  static Color over(Color top, Color under)
+  static const double flashLuminanceChange = 0.1
+  static const double largeTextContrast = 3.0
+  static const double nonTextContrast = 3.0
+  static const double targetSize = 24.0
+  static const double textContrast = 4.5
+  static const double textScale = 2.0
+  static const int flashesPerSecond = 3
+  static double contrast(Color a, Color b)
+  static double luminance(Color color)
 
 final class WidgetSection extends SettingsSection
   Widget build(BuildContext context, GameSettingsController settings, SettingsState state)
@@ -737,8 +783,8 @@ class AutomapView extends StatelessWidget
 
 class HudBanner extends StatelessWidget
   Widget build(BuildContext context)
-  const HudBanner(this.text, {super.key, this.color = Colors.white, this.fontSize = 18})
-  final Color color
+  const HudBanner(this.text, {super.key, this.color, this.fontSize = 18})
+  final Color? color
   final String text
   final double fontSize
 
@@ -763,8 +809,8 @@ class HudTally extends StatelessWidget
   final String value
 
 final class HudTallyStyle
-  const HudTallyStyle({this.color = Colors.white, this.valueSize = 30, this.labelSize = 12, this.tabular = false})
-  final Color color
+  const HudTallyStyle({this.color, this.valueSize = 30, this.labelSize = 12, this.tabular = false})
+  final Color? color
   final bool tabular
   final double labelSize
   final double valueSize
@@ -781,10 +827,10 @@ class MiniMap extends StatelessWidget
 class MiniMapPainter extends CustomPainter
   Offset? place(Vector2 point, Size size)
   bool shouldRepaint(MiniMapPainter old)
-  const MiniMapPainter({required this.outline, required this.markers, this.playerColor = const Color(0xFFFFFFFF), this.othersColor = const Color(0xFFE0553F), this.trackColor = const Color(0xFF7E8794)})
-  final Color othersColor
-  final Color playerColor
-  final Color trackColor
+  const MiniMapPainter({required this.outline, required this.markers, this.playerColor, this.othersColor, this.trackColor})
+  final Color? othersColor
+  final Color? playerColor
+  final Color? trackColor
   final List<Vector2> markers
   final List<Vector2> outline
   void paint(Canvas canvas, Size size)
@@ -901,8 +947,8 @@ class CreditsSection extends StatelessWidget
   final String? footnote
   final String? heading
 
-final class CutsceneOverlay extends StatelessWidget
-  Widget build(BuildContext context)
+final class CutsceneOverlay extends StatefulWidget
+  State<CutsceneOverlay> createState()
   const CutsceneOverlay({super.key, required this.fade, required this.subtitle, required this.skipHint, required this.onSkip})
   final String skipHint
   final String? subtitle
@@ -911,8 +957,8 @@ final class CutsceneOverlay extends StatelessWidget
 
 class EndingSheet extends StatelessWidget
   Widget build(BuildContext context)
-  const EndingSheet({super.key, required this.title, required this.tallies, required this.credits, required this.again, this.creditsHeading, this.creditsFootnote, this.titleColor = Colors.white, this.backdrop = 0.86, this.valueStyle = defaultValueStyle, this.aside, this.trailing = const <Widget>[]})
-  final Color titleColor
+  const EndingSheet({super.key, required this.title, required this.tallies, required this.credits, required this.again, this.creditsHeading, this.creditsFootnote, this.titleColor, this.backdrop = 0.86, this.valueStyle = defaultValueStyle, this.aside, this.trailing = const <Widget>[]})
+  final Color? titleColor
   final List<Credit> credits
   final List<EndingTally> tallies
   final List<Widget> trailing
@@ -923,7 +969,7 @@ class EndingSheet extends StatelessWidget
   final String? creditsHeading
   final TextStyle valueStyle
   final double backdrop
-  static const TextStyle defaultValueStyle = TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w600)
+  static const TextStyle defaultValueStyle = TextStyle(fontSize: 30, fontWeight: FontWeight.w600)
 
 final class EndingTally
   const EndingTally(this.label, this.value)
@@ -1080,6 +1126,18 @@ Future<String?> syncBeforeBegin(BuildContext context, SaveSync? sync)
 
 library package:flutter3d_game_ui/theme.dart
 
+final class ContrastPair
+  String toString()
+  bool get isMet
+  const ContrastPair(this.name, {required this.foreground, this.background = const Color(0x00000000), this.minimum = Wcag.textContrast, this.edge})
+  double get worstRatio
+  double ratioOver(Color frame)
+  final Color background
+  final Color foreground
+  final Color? edge
+  final String name
+  final double minimum
+
 base class Flutter3dGameLocalizations
   List<String> get colorVisionChoices
   String actionLabel(String id)
@@ -1128,6 +1186,8 @@ base class Flutter3dGameLocalizations
   String get settings
   String get settingsNotSaved
   String get shareThisRun
+  String get steering
+  String get stick
   String get takingThePicture
   String get tapToPlayAgain
   String get theClouds
@@ -1155,9 +1215,11 @@ base class Flutter3dGameLocalizations
   static const LocalizationsDelegate<Flutter3dGameLocalizations> delegate = _Delegate()
 
 @immutable final class GameUiTheme extends ThemeExtension<GameUiTheme>
-  GameUiTheme copyWith({Color? text, Color? label, Color? heading, Color? faint, Color? scrim, Color? panel, Color? waiting, Color? warning, Color? error, Color? accent, Color? hudLabel, double? hudLabelWidth, Color? mapFloor, Color? mapWall, Color? mapPlayer, Color? mapBackdrop, Color? miniMapTrack, Color? miniMapPlayer, Color? miniMapOthers, Color? miniMapBackdrop, Color? touchTrack, Color? touchFill, Color? touchUnavailable, Color? touchOutline, Color? touchHeld, Color? touchPressed, Color? touchKnob, Color? touchGlyph, Color? touchOn, Color? touchOnGlyph})
+  GameUiTheme copyWith({Color? text, Color? label, Color? heading, Color? faint, Color? scrim, Color? panel, Color? sheet, Color? waiting, Color? warning, Color? error, Color? accent, Color? notice, Color? hudLabel, double? hudLabelWidth, Color? mapFloor, Color? mapWall, Color? mapPlayer, Color? mapBackdrop, Color? miniMapTrack, Color? miniMapPlayer, Color? miniMapOthers, Color? miniMapBackdrop, Color? touchTrack, Color? touchFill, Color? touchUnavailable, Color? touchOutline, Color? touchHeld, Color? touchPressed, Color? touchKnob, Color? touchGlyph, Color? touchOn, Color? touchOnGlyph})
   GameUiTheme lerp(covariant GameUiTheme? other, double t)
-  const GameUiTheme({this.text = const Color(0xFFFFFFFF), this.label = const Color(0xD9FFFFFF), this.heading = const Color(0xBFFFFFFF), this.faint = const Color(0x99FFFFFF), this.scrim = const Color(0xB8000000), this.panel = const Color(0x73000000), this.waiting = const Color(0xFFFFC107), this.warning = const Color(0xFFFFCC80), this.error = const Color(0xFFFF8A80), this.accent = const Color(0xFFFFD166), this.hudLabel = const Color(0xFF9AA4B2), this.hudLabelWidth = 72.0, this.mapFloor = const Color(0xFF9A9284), this.mapWall = const Color(0xFF2B2622), this.mapPlayer = const Color(0xFFF2D133), this.mapBackdrop = const Color(0xA0000000), this.miniMapTrack = const Color(0xFF7E8794), this.miniMapPlayer = const Color(0xFFFFFFFF), this.miniMapOthers = const Color(0xFFE0553F), this.miniMapBackdrop = const Color(0x66000000), this.touchTrack = const Color(0x22FFFFFF), this.touchFill = const Color(0x33FFFFFF), this.touchUnavailable = const Color(0x14FFFFFF), this.touchOutline = const Color(0x55FFFFFF), this.touchHeld = const Color(0x66FFFFFF), this.touchPressed = const Color(0x99FFFFFF), this.touchKnob = const Color(0x88FFFFFF), this.touchGlyph = const Color(0xCCFFFFFF), this.touchOn = const Color(0xE6FFFFFF), this.touchOnGlyph = const Color(0xFF101010)})
+  List<ContrastPair> get contrastPairs
+  ThemeData controlsTheme(ThemeData base)
+  const GameUiTheme({this.text = const Color(0xFFFFFFFF), this.label = const Color(0xD9FFFFFF), this.heading = const Color(0xBFFFFFFF), this.faint = const Color(0x99FFFFFF), this.scrim = const Color(0xB8000000), this.panel = const Color(0xB8000000), this.sheet = const Color(0xC7000000), this.waiting = const Color(0xFFFFC107), this.warning = const Color(0xFFFFCC80), this.error = const Color(0xFFFFA8A0), this.accent = const Color(0xFFFFD166), this.notice = const Color(0xD9FFC107), this.hudLabel = const Color(0xFFB8C2CF), this.hudLabelWidth = 72.0, this.mapFloor = const Color(0xFF8A8274), this.mapWall = const Color(0xFF231F1C), this.mapPlayer = const Color(0xFFFFE680), this.mapBackdrop = const Color(0xD9000000), this.miniMapTrack = const Color(0xFF9AA3AF), this.miniMapPlayer = const Color(0xFFFFFFFF), this.miniMapOthers = const Color(0xFFFF6A50), this.miniMapBackdrop = const Color(0xB8000000), this.touchTrack = const Color(0x99000000), this.touchFill = const Color(0x99000000), this.touchUnavailable = const Color(0x40000000), this.touchOutline = const Color(0xF2FFFFFF), this.touchHeld = const Color(0xD9333333), this.touchPressed = const Color(0xD9333333), this.touchKnob = const Color(0xE6FFFFFF), this.touchGlyph = const Color(0xFFFFFFFF), this.touchOn = const Color(0xF2FFFFFF), this.touchOnGlyph = const Color(0xFF101010)})
   final Color accent
   final Color error
   final Color faint
@@ -1172,8 +1234,10 @@ base class Flutter3dGameLocalizations
   final Color miniMapOthers
   final Color miniMapPlayer
   final Color miniMapTrack
+  final Color notice
   final Color panel
   final Color scrim
+  final Color sheet
   final Color text
   final Color touchFill
   final Color touchGlyph
@@ -1191,15 +1255,28 @@ base class Flutter3dGameLocalizations
   static GameUiTheme of(BuildContext context)
   static const GameUiTheme fallback = GameUiTheme()
 
+abstract final class Wcag
+  static Color over(Color top, Color under)
+  static const double flashLuminanceChange = 0.1
+  static const double largeTextContrast = 3.0
+  static const double nonTextContrast = 3.0
+  static const double targetSize = 24.0
+  static const double textContrast = 4.5
+  static const double textScale = 2.0
+  static const int flashesPerSecond = 3
+  static double contrast(Color a, Color b)
+  static double luminance(Color color)
+
 library package:flutter3d_game_ui/touch.dart
 
 class SteeringBand extends StatefulWidget
   State<SteeringBand> createState()
-  const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis})
+  const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis, this.label})
   final AxisAction? axis
   final GameAction left
   final GameAction right
   final InputState state
+  final String? label
   final double height
   final double width
 
@@ -1265,9 +1342,10 @@ class TouchSlots extends StatelessWidget
 
 class TouchStick extends StatefulWidget
   State<TouchStick> createState()
-  const TouchStick({super.key, required this.state, this.radius = 64.0, this.action = DualAxisAction.move})
+  const TouchStick({super.key, required this.state, this.radius = 64.0, this.action = DualAxisAction.move, this.label})
   final DualAxisAction action
   final InputState state
+  final String? label
   final double radius
 
 class TouchToggle extends StatelessWidget

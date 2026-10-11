@@ -8,3 +8,10 @@
 # would win over this one; test/flutter_test_config.dart turns that into
 # a factor of one, so a widget test gets this minute too.
 timeout: 1m
+
+tags:
+  # `test/accessibility_test.dart`: every widget here held to WCAG 2.2 at
+  # level AA. tool/ci.sh runs this tag on its own in every package and
+  # application that carries it, so a red one is named as an accessibility
+  # failure rather than lost among the package's suite.
+  accessibility:

@@ -1361,6 +1361,49 @@ const Map<String, String> propertyReadersPending = <String, String>{
       'nothing reads a body\'s material damping yet',
 };
 
+/// The packages and applications that promise WCAG 2.2 at level AA, with
+/// what the promise covers (decision 34 of the readiness review).
+///
+/// **A promise a rule can see.** For each, `a package that promises WCAG AA
+/// keeps it` reads its libraries — no colour typed outside
+/// [accessibleColorsAllowed], no pinned text size, no `TextPainter` without
+/// a scaler, no control a screen reader cannot name, no animation in a
+/// library that never asks for reduced motion — and finds its
+/// `test/accessibility_test.dart`, which `tool/ci.sh` runs in every package and
+/// application that carries one. The demo games are best effort and are not
+/// here.
+const Map<String, String> accessibleUis = <String, String>{
+  'flutter3d_game_ui':
+      'every widget around a game: the heads-up display, the touch '
+      'controls, the settings, the screens, photo mode and sharing',
+};
+
+/// Where a package of [accessibleUis] may type a colour in, by file under
+/// the package, with the reason.
+const Map<String, String> accessibleColorsAllowed = <String, String>{
+  'flutter3d_game_ui/lib/src/theme/game_ui_theme.dart':
+      'the tokens themselves, held to their ratios over any frame by '
+      '`GameUiTheme.contrastPairs` and the accessibility test',
+  'flutter3d_game_ui/lib/src/theme/contrast.dart':
+      'the arithmetic: the clear background a pair defaults to, and the '
+      'colour a blend makes',
+};
+
+/// Applications whose promise is not kept yet, with when it will be.
+///
+/// **A to-do list, not an exemption**, like [propertyReadersPending]: the
+/// rule fails on an entry that already carries
+/// `test/accessibility_test.dart`, so it moves to [accessibleUis] the day it can be held.
+const Map<String, String> accessibleUisPending = <String, String>{
+  'flutter3d_lesson_viewer':
+      'Semantics on every control, the textScaler, the focus order and the '
+      'reduced-motion flag for the laboratory audience in rc.1; WCAG AA in '
+      'full with the viewers\' move to Flutter3dView in rc.2',
+  'flutter3d_lab_pendulum':
+      'the same, for the laboratory panel: rc.1 for its controls, rc.2 for '
+      'the rest',
+};
+
 /// Fixtures a format's reader is held to beyond its one per version: a
 /// section added at a version, which a file of every version since has to
 /// carry, by the format's name in [versionedFormats], with the version it

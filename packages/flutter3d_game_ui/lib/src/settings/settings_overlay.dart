@@ -71,12 +71,17 @@ class SettingsOverlay extends StatelessWidget {
               alignment: Alignment.topRight,
               child: Padding(
                 padding: const EdgeInsets.only(right: 18.0, top: 16.0),
+                // On a panel, because the gear is drawn over the game and a
+                // light grey gear on a bright sky is a gear nobody finds.
                 child: IconButton(
                   tooltip: Flutter3dGameLocalizations.of(context).settings,
                   onPressed: () {
                     opening();
                     settings.show();
                   },
+                  style: IconButton.styleFrom(
+                    backgroundColor: GameUiTheme.of(context).panel,
+                  ),
                   icon: Icon(
                     Icons.settings,
                     color: GameUiTheme.of(context).label,

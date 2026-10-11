@@ -16,6 +16,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../l10n/game_localizations.dart';
+import '../theme/game_ui_theme.dart';
 
 /// Covers the game and restarts it when tapped.
 ///
@@ -35,37 +36,48 @@ final class TapToRestart extends StatelessWidget {
   final String? label;
 
   @override
-  Widget build(BuildContext context) => Positioned.fill(
-    child: GestureDetector(
-      // Opaque: the drag-look layer underneath would otherwise take the touch
-      // and turn the camera of a body that is dead.
-      behavior: HitTestBehavior.opaque,
-      onTap: onRestart,
-      child: SafeArea(
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 40.0),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(8.0),
-              ),
+  Widget build(BuildContext context) {
+    final theme = GameUiTheme.of(context);
+    final said = label ?? Flutter3dGameLocalizations.of(context).tapToPlayAgain;
+    return Positioned.fill(
+      // One button to a screen reader, named by what it says, and its double
+      // tap restarts as a touch anywhere does.
+      child: Semantics(
+        button: true,
+        label: said,
+        onTap: onRestart,
+        excludeSemantics: true,
+        child: GestureDetector(
+          // Opaque: the drag-look layer underneath would otherwise take the
+          // touch and turn the camera of a body that is dead.
+          behavior: HitTestBehavior.opaque,
+          onTap: onRestart,
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.bottomCenter,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18.0,
-                  vertical: 10.0,
-                ),
-                child: Text(
-                  label ??
-                      Flutter3dGameLocalizations.of(context).tapToPlayAgain,
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
+                padding: const EdgeInsets.only(bottom: 40.0),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.panel,
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18.0,
+                      vertical: 10.0,
+                    ),
+                    child: Text(
+                      said,
+                      style: TextStyle(color: theme.text, fontSize: 18),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

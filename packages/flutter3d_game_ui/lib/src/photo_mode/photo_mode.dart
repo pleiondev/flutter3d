@@ -7,6 +7,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import '../l10n/game_localizations.dart';
+import '../theme/game_ui_theme.dart';
 import 'photo_controls.dart';
 
 /// Photo mode — `N8`: the run stopped, a camera to fly, a filter to pick and
@@ -238,6 +239,7 @@ class PhotoBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final words = Flutter3dGameLocalizations.of(context);
+    final theme = GameUiTheme.of(context);
     return IgnorePointer(
       child: Align(
         alignment: Alignment.bottomCenter,
@@ -245,11 +247,11 @@ class PhotoBar extends StatelessWidget {
           margin: const EdgeInsets.all(16),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.6),
+            color: theme.panel,
             borderRadius: BorderRadius.circular(8),
           ),
           child: DefaultTextStyle(
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: theme.text, fontSize: 14),
             textAlign: TextAlign.center,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -267,7 +269,10 @@ class PhotoBar extends StatelessWidget {
                 ),
                 Text(mode.keysHint ?? words.photoWalkingKeys),
                 Text(words.photoExposureKeys),
-                if (mode.said case final said?) Text(said),
+                // Where the picture went, or why not: said aloud when it
+                // arrives, since the player is looking at the view.
+                if (mode.said case final said?)
+                  Semantics(liveRegion: true, child: Text(said)),
               ],
             ),
           ),

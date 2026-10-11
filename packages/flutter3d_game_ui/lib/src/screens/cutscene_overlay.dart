@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+
+import '../access/flash_limit.dart';
+import '../theme/game_ui_theme.dart';
 
 /// What a cutscene puts over the picture: the dark of its fade, the words of
 /// its subtitles, and the way out of it. Drawn over the game while a
@@ -7,8 +11,17 @@ import 'package:flutter/material.dart';
 /// **Only what the cutscene says, read every frame.** The fade and the
 /// subtitle come from `SequencePlayer`, which reads them off the step the
 /// simulation reached and the frame's place between two steps; this widget
-/// keeps nothing, so a rewind or a skip shows what the step says at once.
-final class CutsceneOverlay extends StatelessWidget {
+/// keeps nothing of the cutscene, so a rewind or a skip shows what the step
+/// says at once.
+///
+/// **But the fade goes through a [FlashLimit].** A sequence that blinks to
+/// black and back faster than three times a second is a strobe, whoever
+/// wrote it, so the fade is held to the limit as it is drawn. A fade in or
+/// out, at any speed, is untouched.
+///
+/// **The words sit on [GameUiTheme.panel]**, and so does the way out, so
+/// they read over a bright frame as over a dark one.
+final class CutsceneOverlay extends StatefulWidget {
   const CutsceneOverlay({
     super.key,
     required this.fade,
@@ -29,14 +42,37 @@ final class CutsceneOverlay extends StatelessWidget {
   final VoidCallback onSkip;
 
   @override
+  State<CutsceneOverlay> createState() => _CutsceneOverlayState();
+}
+
+class _CutsceneOverlayState extends State<CutsceneOverlay> {
+  final FlashLimit _flashes = FlashLimit();
+
+  /// When the last frame was drawn, for a build outside a frame.
+  Duration _at = Duration.zero;
+
+  /// The time of the frame being built: the scheduler's, which a test moves
+  /// with `pump` as the engine moves it with the display.
+  Duration _now() {
+    final binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase != SchedulerPhase.idle) {
+      _at = binding.currentFrameTimeStamp;
+    }
+    return _at;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final said = subtitle;
+    final theme = GameUiTheme.of(context);
+    final said = widget.subtitle;
+    final fade = _flashes.limit(widget.fade.clamp(0.0, 1.0), at: _now());
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
         IgnorePointer(
           child: ColoredBox(
-            color: Colors.black.withValues(alpha: fade.clamp(0.0, 1.0)),
+            key: const ValueKey<String>('cutscene:fade'),
+            color: theme.sheet.withValues(alpha: fade),
           ),
         ),
         if (said != null)
@@ -45,17 +81,27 @@ final class CutsceneOverlay extends StatelessWidget {
             right: 48,
             bottom: 72,
             child: IgnorePointer(
-              child: Text(
-                said,
-                key: const ValueKey<String>('cutscene:subtitle'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  shadows: <Shadow>[
-                    Shadow(blurRadius: 6, color: Colors.black),
-                    Shadow(blurRadius: 2, color: Colors.black),
-                  ],
+              child: Center(
+                child: Semantics(
+                  liveRegion: true,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: theme.panel,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        said,
+                        key: const ValueKey<String>('cutscene:subtitle'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: theme.text, fontSize: 22),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -65,11 +111,12 @@ final class CutsceneOverlay extends StatelessWidget {
           bottom: 16,
           child: TextButton(
             key: const ValueKey<String>('cutscene:skip'),
-            onPressed: onSkip,
-            child: Text(
-              skipHint,
-              style: const TextStyle(color: Color(0xCCFFFFFF)),
+            onPressed: widget.onSkip,
+            style: TextButton.styleFrom(
+              backgroundColor: theme.panel,
+              foregroundColor: theme.text,
             ),
+            child: Text(widget.skipHint),
           ),
         ),
       ],
