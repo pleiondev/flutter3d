@@ -149,6 +149,7 @@ final class _MountHost implements _SceneHost {
   @override
   SimulationHandle? get simulation => null;
 
+  /// A fraction, nought to one: one, the newest step unblended.
   @override
   double get alpha => 1.0;
 }

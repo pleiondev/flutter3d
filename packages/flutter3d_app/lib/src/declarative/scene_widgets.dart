@@ -274,6 +274,8 @@ class _Scene3DState extends State<Scene3D>
   @override
   SimulationHandle? get simulation => _controller?.engine.simulation;
 
+  /// A fraction, nought to one: the loop's own when the simulation runs
+  /// in it, one otherwise.
   @override
   double get alpha {
     final view = _controller?.engine;

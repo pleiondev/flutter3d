@@ -16,13 +16,15 @@ final class LevelBatching
 final class LevelScene
   LevelSceneParts build(Level level, {required GraphicsDevice device, Map<String, TextureHandle?> textures = const <String, TextureHandle?>{}, Map<String, RenderMaterial> deferred = const <String, RenderMaterial>{}, LevelVisibility? visibility, LightmapLayout? lightmapLayout, TextureHandle? lightmapTexture})
   List<LevelBatch> brushBatches(Level level, {required GraphicsDevice device, Map<String, TextureHandle?> textures = const <String, TextureHandle?>{}, Map<String, RenderMaterial> deferred = const <String, RenderMaterial>{}, LevelVisibility? visibility, LightmapLayout? lightmapLayout, TextureHandle? lightmapTexture, List<int>? origins})
-  const LevelScene({this.batching = LevelBatching.perMaterial})
+  PhysicalMaterial? substanceOf(LevelMaterial source)
+  const LevelScene({this.batching = LevelBatching.perMaterial, this.materials})
   final LevelBatching batching
+  final MaterialCatalog? materials
   static DecalNode decalOf(EntityDef entity, Level level, Map<String, TextureHandle?> textures)
   static LightNode lightOf(LevelLight light)
   static PlanarReflectorNode reflectorOf(EntityDef entity, List<LevelBatch> batches)
   static ReflectionProbeNode probeOf(EntityDef entity)
-  static RenderMaterial materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerDescriptor tiling = _tiling})
+  static RenderMaterial materialFrom(LevelMaterial source, Map<String, TextureHandle?> textures, {String? name, SamplerDescriptor tiling = _tiling, PhysicalMaterial? substance})
   static RenderView screenOf(EntityDef entity, List<LevelBatch> batches, {required GraphicsDevice device})
   static SamplerDescriptor tilingSamplerFor(GraphicsDevice device)
   static ShadowCastingMode shadowModeOf(ShadowCasting casting)
