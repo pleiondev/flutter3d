@@ -5,6 +5,10 @@
 ///
 ///     dart test test/compute_wiring_test.dart
 ///
+/// What the step writes is read by a pass-through node after the scene, as
+/// a particle draw would read it: a step whose output nothing in the frame
+/// reads is culled, as any other node is (`compute_step_test.dart`).
+///
 /// Mutation: add the node without `prepare` in `addComputeStep` and the step
 /// is never placed, so the frame skips it and nothing is recorded.
 library;
@@ -41,6 +45,28 @@ compute Step {
   void record(ComputeContext context) => ran.add(context.placement);
 }
 
+/// Reads the step's output, as a particle draw would, and hands the scene's
+/// colour on unchanged.
+final class _Reader extends RenderNode {
+  @override
+  String get name => 'test.reader';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    _particles,
+    FrameResourceIds.hdrColor,
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColor];
+
+  @override
+  void execute(RenderFrame frame) => frame.resources.provide(
+    FrameResourceIds.hdrColor,
+    frame.resources.texture(FrameResourceIds.hdrColor),
+  );
+}
+
 void main() {
   test(
     'a step is placed on the registered CPU and runs in the frame',
@@ -58,6 +84,7 @@ void main() {
       );
       expect(step.refusal, isNull);
       expect(step.executor!.placement, ComputePlacement.cpu);
+      final reader = renderer.renderSteps.addNode(_Reader());
 
       final camera = CameraNode()..setPosition(0.0, 2.0, 2.0);
       camera.lookAt(Vector3.zero());
@@ -70,7 +97,9 @@ void main() {
       draw();
       expect(step.ran, <ComputePlacement>[ComputePlacement.cpu]);
 
+      // Taken out with what reads it, and the frame no longer runs it.
       registration.cancel();
+      reader.cancel();
       draw();
       expect(step.ran, hasLength(1));
     },
