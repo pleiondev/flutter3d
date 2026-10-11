@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A skinning hook writes a buffer the scene draws.** `SkinningHook` names
+  its `kernels` and `demand` and `record`s each claimed mesh into
+  `SkinningContext.output`, a buffer of `FrameResourceIds.skinnedVertices`
+  in the standard layout, which the scene draws through the unskinned
+  stage. `RendererSteps.placeSkinningHook` places it as a compute step: on
+  the drawing device, where the vertices never leave the GPU, or on the
+  CPU, which uploads them; a demand nothing meets falls back to the CPU,
+  its refusal kept as `skinningRefusal`. The synchronous shape is
+  `HostSkinningHook.skin`, and `LinearBlendSkinning` is `SkinBlend` in it.
 - **`RendererSteps.addComputeStep` puts a compute step in the frame.** It
   places the step on the executors `DeviceRegistry.computeExecutors`
   answers — the drawing device, the sidecar `registerWgpuSidecar` added,

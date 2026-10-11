@@ -7,6 +7,8 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColorVector;
+import 'package:flutter3d_hardware/backend.dart'
+    show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -23,6 +25,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 // released together, and are nobody else's API since 1.0.
 // ignore: implementation_imports
 import 'package:flutter3d_shaders/internal.dart';
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/device_mesh.dart';
@@ -118,6 +121,7 @@ part 'renderer_probe_pass.dart';
 part 'renderer_resources.dart';
 part 'renderer_scene_pass.dart';
 part 'renderer_shadow_pass.dart';
+part 'renderer_skinning_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_steps.dart';
 part 'renderer_temporal_pass.dart';
@@ -5283,6 +5287,9 @@ final class Renderer with RenderServices {
     final _SceneNode sceneNode;
     final _CompositeNode compositeNode;
     try {
+      // D22b: which skinned meshes a placed hook skins this frame, asked
+      // before the graph is built so the scene reads what the hooks write.
+      renderSteps._store.skinning.begin(scene, device);
       final cubeStaticNode = _CubeShadowStaticNode(
         this,
         scene: scene,

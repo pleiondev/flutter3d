@@ -1676,6 +1676,7 @@ abstract final class FrameResourceIds
   static const ResourceId sceneColor = ResourceId('scene_color')
   static const ResourceId shadowMap = ResourceId('shadow_map')
   static const ResourceId shadowMoments = ResourceId('shadow_moments')
+  static const ResourceId skinnedVertices = ResourceId('skinned_vertices')
   static const ResourceId surfaceBuffer = ResourceId('surface_buffer')
   static const ResourceId temporalHistory = ResourceId('temporal_history')
   static const ResourceId velocity = ResourceId('velocity')
@@ -1982,6 +1983,11 @@ final class HitResult
   final Vector3 normal
   final Vector3 point
   int triangleIndex
+
+abstract base class HostSkinningHook extends SkinningHook
+  abstract Float32List? skin(SkinningContext context)
+  bool record(SkinningContext context)
+  const HostSkinningHook()
 
 typedef ImageDecoder = Future<Rgba8Image?> Function(Uint8List encoded);
 
@@ -2316,6 +2322,11 @@ final class LineStripNode extends MeshNode
   int get count
   void append(Vector3 point)
   void clear()
+
+final class LinearBlendSkinning extends HostSkinningHook
+  Float32List? skin(SkinningContext context)
+  LinearBlendSkinning()
+  bool claims(SkinningContext context)
 
 final class LocalExposureSettings
   LocalExposureSettings copyWith({bool? enabled, double? strength, double? shadowStops, double? highlightStops})
@@ -4281,7 +4292,10 @@ final class Renderer with RenderServices
   void warmUp({required int width, required int height, required Scene scene, required List<RenderView> views, RenderSettings settings = const RenderSettings()})
 
 final class RendererSteps extends RenderStepRegistry
+  ComputePlacement? skinningPlacement(SkinningHook hook)
+  ComputePlacementException? skinningRefusal(SkinningHook hook)
   Future<Registration> addComputeStep(ComputeStep step, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
+  Future<Registration> placeSkinningHook(SkinningHook hook, ComputeExecutors executors)
   GraphicsDevice get device
   Iterable<PluginRegistry> get companions
   List<PassContributor> get contributors
@@ -4787,13 +4801,19 @@ final class SkinBlend
   final MeshData mesh
 
 final class SkinningContext
-  const SkinningContext({required this.node, required this.jointMatrices})
+  const SkinningContext({required this.node, required this.jointMatrices, this.device, this.output, this.compute})
+  final ComputeContext? compute
   final Float32List jointMatrices
+  final GraphicsDevice? device
   final MeshNode node
+  final StorageBuffer? output
+  int get vertexCount
 
 abstract base class SkinningHook
-  Float32List? skin(SkinningContext context)
+  ComputePlacement? get demand
+  List<ComputeKernel> get kernels
   bool claims(SkinningContext context)
+  bool record(SkinningContext context)
   const SkinningHook()
 
 typedef SkippedPass = ({String name, PassSkip reason});
@@ -5906,6 +5926,8 @@ const int splatVerticesPerSplat = 6
 const int spzLatestVersion = 4
 
 double srgbToLinear(double c)
+
+Float32List standardVertices(Float32List vertices, VertexLayout layout, int vertexCount)
 
 SurfaceMaterial surfaceMaterialFromJson(Map<String, Object?> json, {LightingModels? lightingModels, String? name, List<String>? warnings, TextureBinding? baseColorTexture, TextureBinding? normalTexture, TextureBinding? metallicRoughnessTexture, TextureBinding? occlusionTexture, TextureBinding? emissiveTexture, MaterialExtensions? extensions})
 

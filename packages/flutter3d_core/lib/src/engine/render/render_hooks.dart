@@ -13,12 +13,18 @@ library;
 import 'dart:collection';
 import 'dart:typed_data';
 
+import 'package:flutter3d_core/geometry.dart' show MeshData, VertexLayout;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ComputePlacement, GraphicsDevice, StorageBuffer;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show PluginRegistry, PluginScope, Registration;
+import 'package:flutter3d_shaders/kernel.dart' show ComputeKernel;
 
+import '../animation/skin_blend.dart';
 import '../scene/camera_node.dart';
 import '../scene/lod_group.dart';
 import '../scene/mesh_node.dart';
+import 'compute_step.dart';
 import 'quality_table.dart';
 import 'render_view.dart';
 
@@ -98,9 +104,21 @@ abstract base class LodPolicy {
   int? select(LodContext context) => null;
 }
 
-/// What a [SkinningHook] is asked about one skinned mesh.
+/// What a [SkinningHook] is asked about one skinned mesh, and where it
+/// writes the answer.
+///
+/// **One context that can grow**, never a list of parameters that does: a
+/// later minor adds members here, and a hook written against this one keeps
+/// compiling. [claims](SkinningHook.claims) is asked with [node] and
+/// [jointMatrices] alone; [record](SkinningHook.record) with the rest too.
 final class SkinningContext {
-  const SkinningContext({required this.node, required this.jointMatrices});
+  const SkinningContext({
+    required this.node,
+    required this.jointMatrices,
+    this.device,
+    this.output,
+    this.compute,
+  });
 
   /// The skinned mesh.
   final MeshNode node;
@@ -108,29 +126,159 @@ final class SkinningContext {
   /// Its joints' matrices, sixteen column-major floats a joint — what the
   /// engine's skinned vertex stage reads.
   final Float32List jointMatrices;
+
+  /// The device [output] lives on: the one drawing the frame, or the one
+  /// [compute] runs on. Null while the hook is only asked [SkinningHook.claims].
+  final GraphicsDevice? device;
+
+  /// Where the skinned vertices go: [vertexCount] vertices in
+  /// [VertexLayout.standard] — position, normal, texture coordinate, tangent
+  /// and colour, the skinned layout without its joints and weights — which
+  /// the mesh pass binds as the mesh's vertices this frame. A buffer
+  /// resource of the frame (`FrameResourceIds.skinnedVertices`), written
+  /// before the scene draws. Null while the hook is only asked
+  /// [SkinningHook.claims].
+  final StorageBuffer? output;
+
+  /// The compute pass the hook's [SkinningHook.kernels] run in — the
+  /// executor its step was placed on, its device and each kernel's stage —
+  /// or null for a [HostSkinningHook], which computes on the host.
+  final ComputeContext? compute;
+
+  /// How many vertices the mesh has, and so how many [output] holds.
+  int get vertexCount => node.mesh.vertexCount;
 }
 
-/// How a skinned mesh is skinned (D22b), beside the engine's own: the
-/// four-joint linear blend in `mesh_skinned.vert` on the GPU, and
-/// `SkinBlend` on the CPU.
+/// How a skinned mesh is skinned (D22b), beside the engine's own four-joint
+/// linear blend in `mesh_skinned.vert`.
 ///
-/// **A seam for skinning another way** — dual quaternions, a compute pass
-/// that skins once for every view, corrective shapes a plugin drives. A
-/// hook [claims] the meshes it skins, and for each writes the skinned
-/// vertices, in the mesh's own layout, through [skin]; the renderer draws
-/// what it wrote as an unskinned mesh. The renderer's side lands with the
-/// compute steps of the frame graph, which a skinning pass runs through;
-/// until then a hook registered here is not asked.
+/// **A compute pass that writes a buffer the mesh pass draws.** A hook
+/// [claims] the meshes it skins, names the [kernels] it skins with, and for
+/// each claimed mesh [record]s a pass that writes the skinned vertices into
+/// [SkinningContext.output]; the scene draws that buffer as an unskinned
+/// mesh. It is placed like any `ComputeStep`
+/// (`RendererSteps.placeSkinningHook`): on the device drawing the frame,
+/// where the vertices never leave the GPU, or on the CPU, which fills the
+/// same buffer from the host. A hook that computes on the host without
+/// kernels is a [HostSkinningHook].
+///
+/// The shadow passes, the pick pass and the instanced draws skin with the
+/// engine's own stage still; a hook changes what the scene shows.
+///
+/// Extendable outside this package, and stays so through 1.x: a member
+/// added later arrives with a default, and every method takes the one
+/// growing context.
 abstract base class SkinningHook {
   const SkinningHook();
 
   /// Whether this hook skins [context]'s mesh. False by default.
   bool claims(SkinningContext context) => false;
 
+  /// The kernels [record] dispatches, as a `ComputeStep`'s are: what
+  /// placing the hook loads on the executor it lands on.
+  List<ComputeKernel> get kernels => const <ComputeKernel>[];
+
+  /// The placement this hook must run at, or null for the drawing device
+  /// and then the CPU. A demand nothing can meet is refused, and the hook
+  /// is placed on the CPU instead, the refusal kept.
+  ComputePlacement? get demand => null;
+
+  /// Records the skinning of [context]'s mesh into its
+  /// [SkinningContext.output], through [SkinningContext.compute]. True when
+  /// it wrote the vertices; false leaves the mesh to the engine's own
+  /// skinning this frame, which is the default.
+  bool record(SkinningContext context) => false;
+}
+
+/// A [SkinningHook] that computes the skinned vertices on the host, as a
+/// list of floats, and has the frame upload them.
+///
+/// **The synchronous shape, as an adapter of the compute one**: [skin]
+/// answers the vertices in the mesh's own layout, as `SkinBlend.vertices`
+/// holds them, and [record] writes their standard part into the output on
+/// the drawing device — an upload, never a readback. It has no kernels and
+/// needs no placement.
+abstract base class HostSkinningHook extends SkinningHook {
+  const HostSkinningHook();
+
   /// The skinned vertices of [context]'s mesh, in its own layout and
-  /// stride, as `SkinBlend.vertices` holds them, or null to leave it to the
-  /// engine this frame.
-  Float32List? skin(SkinningContext context) => null;
+  /// stride, or null to leave it to the engine this frame.
+  Float32List? skin(SkinningContext context);
+
+  @override
+  bool record(SkinningContext context) {
+    final device = context.device;
+    final output = context.output;
+    if (device == null || output == null) return false;
+    final vertices = skin(context);
+    if (vertices == null) return false;
+    final layout = context.node.mesh.source?.layout ?? VertexLayout.skinned;
+    device.writeBuffer(
+      output,
+      0,
+      ByteData.sublistView(
+        standardVertices(vertices, layout, context.vertexCount),
+      ),
+    );
+    return true;
+  }
+}
+
+/// [vertices] in [layout], as [vertexCount] vertices of
+/// [VertexLayout.standard]: the attributes the standard layout has, in its
+/// order, copied float for float.
+Float32List standardVertices(
+  Float32List vertices,
+  VertexLayout layout,
+  int vertexCount,
+) {
+  const standard = VertexLayout.standard;
+  final from = layout.floatsPerVertex;
+  final to = standard.floatsPerVertex;
+  final out = Float32List(vertexCount * to);
+  // The standard layout is the skinned one's prefix, so the common case is
+  // one copy a vertex.
+  final prefix = <int>[
+    for (final attribute in standard.attributes)
+      layout.floatOffsetOf(attribute.name),
+  ];
+  for (var v = 0; v < vertexCount; v++) {
+    var at = 0;
+    for (var a = 0; a < standard.attributes.length; a++) {
+      final width = standard.attributes[a].componentCount;
+      final source = prefix[a];
+      for (var i = 0; i < width; i++) {
+        out[v * to + at + i] = source < 0
+            ? 0.0
+            : vertices[v * from + source + i];
+      }
+      at += width;
+    }
+  }
+  return out;
+}
+
+/// The engine's own CPU skinning — `SkinBlend`, the four-joint linear blend
+/// `mesh_skinned.vert` computes — as a [HostSkinningHook]: every skinned
+/// mesh whose source data was kept, skinned on the host and drawn from the
+/// uploaded buffer.
+final class LinearBlendSkinning extends HostSkinningHook {
+  LinearBlendSkinning();
+
+  final Expando<SkinBlend> _blends = Expando<SkinBlend>();
+
+  @override
+  bool claims(SkinningContext context) =>
+      context.node.mesh.source?.layout.isSkinned ?? false;
+
+  @override
+  Float32List? skin(SkinningContext context) {
+    final MeshData? source = context.node.mesh.source;
+    if (source == null || !source.layout.isSkinned) return null;
+    final blend = _blends[source] ??= SkinBlend(source);
+    blend.blend(context.jointMatrices);
+    return blend.vertices;
+  }
 }
 
 /// What a [PacingPolicy] is asked before a frame is drawn.
@@ -244,8 +392,11 @@ final class RenderHooks extends PluginRegistry {
   /// cancelled; the one added last decides.
   Registration addLodPolicy(LodPolicy policy) => _add(_store.lod, policy);
 
-  /// Adds [hook] to the skinning hooks until the result is cancelled: what
-  /// a plugin's skinning pass, or an application's, registers with.
+  /// Lists [hook] among the skinning hooks until the result is cancelled.
+  ///
+  /// **A listed hook does not skin by being listed**: it skins once
+  /// `RendererSteps.placeSkinningHook` has placed it, which lists it too.
+  /// This is for a tool that keeps its own account of who skins what.
   Registration addSkinningHook(SkinningHook hook) =>
       _add(_store.skinning, hook);
 

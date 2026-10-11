@@ -838,6 +838,11 @@ final class _SceneNode extends RenderNode {
     // show, and the mirrored pictures the reflectors' surfaces lay on.
     FrameResourceIds.renderTextures,
     FrameResourceIds.planarReflections,
+    // D22b: what the skinning hooks wrote, drawn in place of the meshes they
+    // claimed. Named only while a hook is placed, since the graph refuses a
+    // read of a name nothing writes.
+    if (_renderer.renderSteps._store.skinning.steps.isNotEmpty)
+      FrameResourceIds.skinnedVertices,
   ];
 
   /// **Both names always, including on a device that cannot attach the
