@@ -424,23 +424,15 @@ final class Editing {
     _remember('duplicate');
     switch (it) {
       case final Brush brush:
+        // Through the brush's own document, as a light is below: every
+        // field it writes comes across, the mode, the surface and whatever
+        // a later version adds, so a new field cannot be dropped here.
         level.brushes.add(
-          Brush(
-            id: LevelIds.fresh(_ids),
-            center: brush.center + Vector3(brush.size.x, 0.0, 0.0),
-            size: brush.size,
-            material: brush.material,
-            surface: brush.surface == brush.material ? null : brush.surface,
-            solid: brush.solid,
-            // The mode rather than the boolean: a copy of a `doubleSided`
-            // wall is a wall, and a copy that quietly became an ordinary
-            // caster is exactly the kind of thing a duplicate must not do.
-            shadowCasting: brush.shadowCasting,
-            layer: brush.layer,
-            ramp: brush.ramp,
-            drawOrder: brush.drawOrder,
-            depthLayer: brush.depthLayer,
-          ),
+          Brush.fromJson(<String, Object?>{
+            ...brush.toJson(),
+            'id': LevelIds.fresh(_ids),
+            'at': (brush.center + Vector3(brush.size.x, 0.0, 0.0)).toJson(),
+          }),
         );
         selected = level.brushes.length - 1;
       case final LevelLight light:

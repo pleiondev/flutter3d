@@ -214,6 +214,47 @@ void main() {
       expect(editing.brush!.center.x, from.center.x + from.size.x);
       expect(editing.brush!.material, from.material);
     });
+
+    test('and a duplicate keeps every field the brush carried', () {
+      // Every key a brush writes, set off its default, and one this build
+      // does not know (as a later version's field arrives). Mutation:
+      // rebuild the copy field by field and the next field added is lost.
+      final brush = <String, Object?>{
+        'id': 'wall',
+        'at': <double>[1.0, 2.0, 3.0],
+        'size': <double>[2.0, 1.0, 0.5],
+        'material': 'stone',
+        'surface': 'moss',
+        'solid': true,
+        'shadowCasting': 'doubleSided',
+        'layer': 3,
+        'ramp': '+z',
+        'drawOrder': 2,
+        'depthLayer': 1,
+        'physicalMaterial': 'f3d.granite',
+      };
+      final editing = Editing.parse(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'brushes': <Object?>[brush],
+        }),
+        path: '/levels/copy.json',
+      )..select(Piece.brush, 0);
+
+      editing.duplicate();
+
+      final copy = editing.brush!.toJson();
+      expect(copy['id'], isNot('wall'));
+      expect(copy['at'], <double>[3.0, 2.0, 3.0]);
+      expect(
+        <String, Object?>{...copy}
+          ..remove('id')
+          ..remove('at'),
+        <String, Object?>{...brush}
+          ..remove('id')
+          ..remove('at'),
+      );
+    });
   });
 
   group('undo', () {
