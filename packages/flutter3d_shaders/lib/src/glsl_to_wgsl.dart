@@ -74,6 +74,8 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
 
+import 'stage_bindings.dart';
+
 /// Raised when a stage cannot be prepared.
 ///
 /// Carries the file, because a message naming only a construct is a message
@@ -311,6 +313,42 @@ const int maxInterStageVariables = 16;
 /// numbering it has everywhere and the material's own follow it in the order
 /// its source declares them. A name the stage does not declare is skipped;
 /// empty, which is every engine stage, numbers as above.
+///
+/// The blocks and samplers the engine's own stages bind, by name, that a
+/// material's own may not take: every one, but `MaterialParams`, the block
+/// a material's plain uniforms are members of, which the engine's polyline
+/// stage declares under the same name for the same reason.
+final Set<String> _engineBindingNames = <String>{
+  for (final stage in stageBindings.values) ...<String>{
+    ...stage.blocks,
+    ...stage.samplers,
+  },
+}..remove('MaterialParams');
+
+void _checkOwnBindings(List<String> ownBindings, {required String from}) {
+  final seen = <String>{};
+  for (final name in ownBindings) {
+    if (!seen.add(name)) {
+      throw WgslPrepareException(
+        '$from binds "$name" twice as its own: a block and a texture of a '
+        'material share one name space, so each needs a name of its own',
+      );
+    }
+    if (_engineBindingNames.contains(name)) {
+      throw WgslPrepareException(
+        '$from binds "$name" as its own, and the engine binds a block or a '
+        'texture under that name: a stage that includes the engine\'s would '
+        'number the engine\'s as the material\'s. Rename it',
+      );
+    }
+  }
+}
+
+/// **One name, one binding.** Blocks and textures share [ownBindings]' one
+/// name space, as they share the stage's, so a block and a texture of the
+/// material's own under one name, or an own name that one of the engine's
+/// stages binds as its own (it would be numbered as the material's in a
+/// stage that includes it), is a [WgslPrepareException] naming it.
 PreparedStage prepareStage(
   String resolved, {
   required String from,
@@ -318,6 +356,7 @@ PreparedStage prepareStage(
   required Map<String, int> varyingLocations,
   List<String> ownBindings = const <String>[],
 }) {
+  _checkOwnBindings(ownBindings, from: from);
   final lines = resolved.split('\n');
   final scan = _Scan(from: from, fragment: fragment);
   scan.run(lines);

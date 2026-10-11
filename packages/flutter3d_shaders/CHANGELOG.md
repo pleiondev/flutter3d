@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A material's own binding names are one name space.** `prepareStage`
+  refuses, with a `WgslPrepareException` naming the source, an
+  `ownBindings` list that names one block or texture twice, or that takes
+  a name one of the engine's stages binds (`MaterialParams` aside, the
+  block a material's plain uniforms are members of).
 - **A material's own blocks and textures are numbered after the engine's
   on WebGPU.** `prepareStage(ownBindings:)` takes the names of a
   material's slot table, its blocks and then its textures, and numbers
