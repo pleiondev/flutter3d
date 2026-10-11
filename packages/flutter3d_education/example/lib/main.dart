@@ -6,11 +6,16 @@
 /// Glass turned from profiles, labels typeset in TeX and wrapped on, and
 /// liquid that keeps level and sloshes. Drag to turn round the bench, scroll
 /// to come closer, pick a vessel and pour, tilt or tap it.
+///
+/// The bench is drawn by one [Flutter3dView], which opens the device and owns
+/// the frame clock; it runs only while a liquid moves, and a turn of the
+/// camera or a label put on draws one frame by building it again. The other
+/// laboratory here, a pendulum on the accurate profile, is
+/// `lib/pendulum_main.dart`.
 library;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
@@ -51,13 +56,8 @@ class BenchScreen extends StatefulWidget {
   State<BenchScreen> createState() => _BenchScreenState();
 }
 
-class _BenchScreenState extends State<BenchScreen>
-    with SingleTickerProviderStateMixin {
+class _BenchScreenState extends State<BenchScreen> {
   final CameraNode _camera = CameraNode(name: 'eye');
-  late final RenderView _view = RenderView(
-    camera: _camera,
-    clearColor: LinearColor.fromSrgb(0.1, 0.11, 0.14, 1.0),
-  );
   // A bench is looked at from above and from not too far: the controller's
   // own limits let the camera go under the table and out of the room.
   late final OrbitController _orbit = OrbitController(
@@ -84,24 +84,31 @@ class _BenchScreenState extends State<BenchScreen>
     }
   }
 
-  ({Renderer renderer, Bench bench})? _ready;
-  Object? _error;
+  Bench? _bench;
   int _selected = 1;
 
-  /// Runs while a liquid moves, and stops when every one is still.
-  late final Ticker _ticker = createTicker(_tick);
-  Duration _last = Duration.zero;
+  /// Whether a liquid moves: the view's clock runs while one does, and stops
+  /// when every one is still.
+  bool _moving = false;
 
-  void _tick(Duration elapsed) {
-    final bench = _ready?.bench;
+  void _open(Flutter3dEngine engine) {
+    final bench = Bench(engine.device, photons: true, physics: usePhysics())
+      ..retire = engine.renderer.releaseMeshAfterFrame
+      ..retireTexture = engine.renderer.releaseTextureAfterFrame;
+    engine
+      ..scene = bench.scene
+      ..view.clearColor = LinearColor.fromSrgb(0.1, 0.11, 0.14, 1.0);
+    setState(() => _bench = bench);
+  }
+
+  void _step(Flutter3dEngine engine, FrameInfo frame) {
+    final bench = _bench;
+    if (bench == null) return;
     // A frame late is a frame long: held to a thirtieth, so a stall does not
     // throw the liquid out of its glass.
-    final seconds = ((elapsed - _last).inMicroseconds / 1e6).clamp(0.0, 1 / 30);
-    _last = elapsed;
-    if (bench == null) return;
-    final moving = bench.step(seconds);
-    setState(() {});
-    if (!moving) _ticker.stop();
+    if (!bench.step(frame.seconds.clamp(0.0, 1 / 30))) {
+      setState(() => _moving = false);
+    }
   }
 
   /// The way the camera looks, which a vessel leans about so that it leans
@@ -113,77 +120,44 @@ class _BenchScreenState extends State<BenchScreen>
 
   /// Something has set a liquid moving: run the clock if it is not running.
   void _stir() {
-    if (_ticker.isActive) return;
-    _last = Duration.zero;
-    _ticker.start();
+    if (!_moving) setState(() => _moving = true);
   }
 
   @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _open();
-  }
-
-  Future<void> _open() async {
-    try {
-      final device = await openDevice(width: 1280, height: 720);
-      final renderer = Renderer.create(device: device);
-      final bench = Bench(device, photons: true, physics: usePhysics())
-        ..retire = renderer.releaseMeshAfterFrame
-        ..retireTexture = renderer.releaseTextureAfterFrame;
-      bench.scene.add(_camera);
-      if (!mounted) return;
-      setState(() => _ready = (renderer: renderer, bench: bench));
-    } catch (error) {
-      if (mounted) setState(() => _error = error);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF14161A),
-    body: switch ((_error, _ready)) {
-      (final Object error, _) => DidNotStart(
-        error,
-        background: const Color(0xFF14161A),
-        foreground: const Color(0xFFFF8A80),
-      ),
-      (_, null) => const Center(child: CircularProgressIndicator()),
-      (_, (:final renderer, :final bench)?) => Stack(
+  Widget build(BuildContext context) {
+    final bench = _bench;
+    return Scaffold(
+      backgroundColor: const Color(0xFF14161A),
+      body: Stack(
         children: [
           // The labels, drawn out of sight and put on as they arrive; until
           // then the paper is blank.
-          Positioned(
-            left: 0,
-            top: 0,
-            width: 1,
-            height: 1,
-            child: LabelPrinter(
-              solutions: [
-                for (final v in bench.vessels)
-                  if (v.solution != null) v.solution!,
-              ],
-              // setState, because SceneSurface draws when its widget
-              // changes: a label put on between frames is not seen until
-              // the next one.
-              onPrinted: (i, image) => setState(
-                () => bench.dress(
-                  bench.vessels.where((v) => v.solution != null).elementAt(i),
-                  image,
+          if (bench != null)
+            Positioned(
+              left: 0,
+              top: 0,
+              width: 1,
+              height: 1,
+              child: LabelPrinter(
+                solutions: [
+                  for (final v in bench.vessels)
+                    if (v.solution != null) v.solution!,
+                ],
+                // setState, because a view that is not running draws when it
+                // is built: a label put on between frames is not seen until
+                // the next one.
+                onPrinted: (i, image) => setState(
+                  () => bench.dress(
+                    bench.vessels.where((v) => v.solution != null).elementAt(i),
+                    image,
+                  ),
                 ),
               ),
             ),
-          ),
           Positioned.fill(
             child: Listener(
-              // In setState: SceneSurface draws in build, so a camera moved
-              // without a rebuild is not drawn until something else is.
+              // In setState, for the same reason: a camera moved without a
+              // rebuild is not drawn until something else is.
               onPointerMove: (PointerMoveEvent event) =>
                   setState(() => _turn(event.delta.dx, event.delta.dy)),
               onPointerSignal: (PointerSignalEvent event) {
@@ -195,57 +169,66 @@ class _BenchScreenState extends State<BenchScreen>
                   );
                 }
               },
-              child: SceneSurface(
-                renderer: renderer,
-                scene: bench.scene,
-                view: _view,
-                settings: () => bench.settings,
-                onBeforeFrame: () => _orbit.syncProjectionDepth(_camera),
-                presentFrame: presentFrame,
+              child: Flutter3dView(
+                camera: _camera,
+                onCreated: _open,
+                onBeforeFrame: (_, _) => _orbit.syncProjectionDepth(_camera),
+                onFrame: _step,
+                view: ViewSettings(
+                  settings: bench?.settings ?? const RenderSettings(),
+                  continuous: _moving,
+                  placeholder: const Center(child: CircularProgressIndicator()),
+                  failure: (Object error) => DidNotStart(
+                    error,
+                    background: const Color(0xFF14161A),
+                    foreground: const Color(0xFFFF8A80),
+                  ),
+                ),
               ),
             ),
           ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: _Controls(
-              bench: bench,
-              selected: _selected,
-              onSelect: (i) => setState(() => _selected = i),
-              onPour: (level) {
-                setState(() => bench.pour(bench.vessels[_selected], level));
-                _stir();
-              },
-              onLean: (angle) {
-                setState(
-                  () => bench.lean(
-                    bench.vessels[_selected],
-                    angle,
-                    across: _lookingAlong(),
-                  ),
-                );
-                _stir();
-              },
-              onTap: () {
-                bench.tap(bench.vessels[_selected]);
-                _stir();
-              },
-              onShare: () {
-                setState(
-                  () => bench.share(
-                    bench.vessels[_selected],
-                    across: _lookingAlong(),
-                  ),
-                );
-                _stir();
-              },
+          if (bench != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: _Controls(
+                bench: bench,
+                selected: _selected,
+                onSelect: (i) => setState(() => _selected = i),
+                onPour: (level) {
+                  setState(() => bench.pour(bench.vessels[_selected], level));
+                  _stir();
+                },
+                onLean: (angle) {
+                  setState(
+                    () => bench.lean(
+                      bench.vessels[_selected],
+                      angle,
+                      across: _lookingAlong(),
+                    ),
+                  );
+                  _stir();
+                },
+                onTap: () {
+                  bench.tap(bench.vessels[_selected]);
+                  _stir();
+                },
+                onShare: () {
+                  setState(
+                    () => bench.share(
+                      bench.vessels[_selected],
+                      across: _lookingAlong(),
+                    ),
+                  );
+                  _stir();
+                },
+              ),
             ),
-          ),
         ],
       ),
-    },
-  );
+    );
+  }
 }
 
 class _Controls extends StatelessWidget {
