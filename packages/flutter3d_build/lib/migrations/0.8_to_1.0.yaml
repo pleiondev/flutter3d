@@ -20318,3 +20318,14 @@ entries:
       baker, so it is a build step: `flutter3d_build`'s `lightmap.dart`, and
       `dart run flutter3d_build:lightmap` for the command. `Lightmap`
       and `LightmapLayout`, which the loader reads, stay in `flutter3d_sim`.
+
+  - id: 4e-mesh-FittedBox
+    package: flutter3d_mesh
+    symbol: FittedBox
+    kind: rename
+    to: FittedCuboid
+    wave: 4
+    guidance: >-
+      A public name does not shadow one of Flutter's, and `FittedBox` is a
+      Flutter widget: the box `fitBoxByInertia` answers is `FittedCuboid`,
+      with the same fields.
