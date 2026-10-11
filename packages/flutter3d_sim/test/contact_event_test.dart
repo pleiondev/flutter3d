@@ -137,6 +137,44 @@ void main() {
     expect(other!.step, lessThan(once.steps.first + 1));
   });
 
+  test('the step where a game runs its bodies raises what they touched', () {
+    // Mutation: step the dynamics in `WorldStep.index` and raise nothing,
+    // and no genre's bus hears a contact.
+    final world = CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
+    final dynamics = Dynamics(world: world)
+      ..add(
+        RigidBody(
+          world: world,
+          shape: CollisionSphere(0.25),
+          position: Vector3(0.0, 0.252, 0.0),
+        ),
+      );
+    final raised = <GameEvent>[];
+    final step = WorldStep(
+      collision: world,
+      dynamics: dynamics,
+      raise: raised.add,
+    );
+    for (var i = 0; i < 3; i++) {
+      step
+        ..movers(1 / 60)
+        ..index(1 / 60)
+        ..settle()
+        ..publish();
+    }
+    final contacts = raised.whereType<ContactEvent>().toList();
+    expect(contacts.map((e) => e.phase), <ContactPhase>[
+      ContactPhase.begin,
+      ContactPhase.persist,
+      ContactPhase.persist,
+    ]);
+    final last = dynamics.contacts.single;
+    expect(contacts.last.bodyA, last.idA);
+    expect(contacts.last.bodyB, last.idB);
+    expect(contacts.last.point, last.point);
+  });
+
   test('it crosses to a view encoded, and reads back as the same event', () {
     // Mutation: an event published with no codec — the view gets its name
     // and nothing it can read.

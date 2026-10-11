@@ -34,7 +34,8 @@ final class ContactEvent extends GameEvent {
     required this.relativeVelocity,
   });
 
-  /// The event a step's [contact] is.
+  /// The event a step's [contact] is: its vectors the ones the contact
+  /// hands out, each made for this event alone.
   factory ContactEvent.of(StepContact contact) => ContactEvent(
     bodyA: contact.idA,
     bodyB: contact.idB,
@@ -42,10 +43,10 @@ final class ContactEvent extends GameEvent {
     materialA: contact.materialA,
     materialB: contact.materialB,
     phase: contact.phase,
-    point: contact.point.clone(),
-    normal: contact.normal.clone(),
+    point: contact.point,
+    normal: contact.normal,
     impulse: contact.impulse,
-    relativeVelocity: contact.relativeVelocity.clone(),
+    relativeVelocity: contact.relativeVelocity,
   );
 
   /// The name it is declared and published under.

@@ -2926,10 +2926,11 @@ final class WorldSnapshotPart extends SnapshotPart
   void restore(Object? data, int version)
 
 final class WorldStep
-  WorldStep({required this.collision, this.mechanisms, this.dynamics})
+  WorldStep({required this.collision, this.mechanisms, this.dynamics, this.raise})
   final CollisionWorld collision
   final MechanismWorld? mechanisms
   final RigidDynamics? dynamics
+  final void Function(GameEvent event)? raise
   void afterRestore()
   void index(double dt)
   void movers(double dt)

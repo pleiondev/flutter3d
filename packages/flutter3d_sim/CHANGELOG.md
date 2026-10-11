@@ -6,6 +6,11 @@
   phase — with a codec, so it is digested on the tape and decoded on a
   view like `ActorHurt`. `declareSimulationEvents` declares it, and
   `ContactEvent.publishAll` publishes a step's contacts in order.
+- **The step where a game runs its bodies raises what they touched.**
+  `WorldStep` takes `raise`, where its events go, and `index` raises a
+  `ContactEvent` for each contact the dynamics report once they have
+  stepped. The platformer, the shooter and the racing game hand it their
+  bus, so every genre with loose bodies publishes contacts, on either core.
 - **A body's material state is a component.** `MaterialStateComponent`
   holds a `MaterialState` on an entity, registered and published on every
   `EngineLoop`; a quantity it cannot read, a plugin's or a later

@@ -136,6 +136,7 @@ final class PlatformerSimulation {
     collision: collision,
     mechanisms: mechanisms,
     dynamics: dynamics,
+    raise: _publish,
   );
   final InputState input;
   final MechanismWorld? mechanisms;

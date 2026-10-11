@@ -182,6 +182,7 @@ final class GameSimulation {
     collision: collision,
     mechanisms: mechanisms,
     dynamics: dynamics,
+    raise: _publish,
   );
   final InputState input;
 
