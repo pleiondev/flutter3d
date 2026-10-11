@@ -65,7 +65,7 @@ void _describe(MaterialProgram program, StringBuffer text) {
   text
     ..writeln(
       'name ${program.name} v${program.languageVersion} '
-      '${program.kind} inputs ${(program.inputsUsed.toList()..sort())}',
+      '${program.kind} inputs ${program.inputsUsed.toList()..sort()}',
     )
     ..writeln(
       'params ${[for (final p in program.parameters) '${p.name}:${p.type}=${p.defaultValue}${p.uniform ? ' uniform ${p.block}' : ''}']}',

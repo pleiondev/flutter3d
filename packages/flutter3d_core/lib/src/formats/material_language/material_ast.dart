@@ -33,6 +33,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
         ExpressionVariable,
         ExpressionVisitor,
         Expression,
+        Flutter3dFormatException,
         applyExpressionOperator,
         broadcastExpressionArguments;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
@@ -699,6 +700,109 @@ final class MaterialOutput extends MaterialStatement {
   R accept<R>(MaterialStatementVisitor<R> visitor) => visitor.visitOutput(this);
 }
 
+/// One step of a material's `updates` block — language version 3: how a
+/// parameter value written for a version before [version] changes on the
+/// way to it.
+///
+/// **An open set**: an `abstract base class` whose kinds each say what they
+/// do in [apply], so a kind a later minor adds (a unit change, a split of
+/// one parameter into two) needs nothing of a reader but to call it.
+abstract base class MaterialUpdate {
+  const MaterialUpdate(this.version);
+
+  /// The material version this step leads to: it applies to a value
+  /// written for any version before it.
+  final int version;
+
+  /// [values], keyed by parameter name, after this step. May return
+  /// [values] itself, changed.
+  Map<String, List<double>> apply(Map<String, List<double>> values);
+}
+
+/// `2: rename ink -> inkColor;` — the value of [from] is [to]'s from
+/// [version] on.
+final class MaterialRenameUpdate extends MaterialUpdate {
+  const MaterialRenameUpdate(super.version, this.from, this.to);
+
+  final String from;
+  final String to;
+
+  @override
+  Map<String, List<double>> apply(Map<String, List<double>> values) {
+    final value = values.remove(from);
+    if (value != null) values[to] = value;
+    return values;
+  }
+
+  @override
+  String toString() => '$version: rename $from -> $to';
+}
+
+/// `3: scale roughness 0.5;` — every component of [name]'s value is
+/// multiplied by [factor] from [version] on: a parameter whose meaning
+/// changed scale (a roughness that became perceptual, a size in another
+/// unit).
+final class MaterialScaleUpdate extends MaterialUpdate {
+  const MaterialScaleUpdate(super.version, this.name, this.factor);
+
+  final String name;
+  final double factor;
+
+  @override
+  Map<String, List<double>> apply(Map<String, List<double>> values) {
+    final value = values[name];
+    if (value != null) {
+      values[name] = <double>[for (final v in value) v * factor];
+    }
+    return values;
+  }
+
+  @override
+  String toString() => '$version: scale $name $factor';
+}
+
+/// `4: remove sheen;` — [name] has no meaning from [version] on, and an
+/// instance's value for it is dropped rather than kept for a parameter
+/// that a later version may declare again with another meaning.
+final class MaterialRemoveUpdate extends MaterialUpdate {
+  const MaterialRemoveUpdate(super.version, this.name);
+
+  final String name;
+
+  @override
+  Map<String, List<double>> apply(Map<String, List<double>> values) =>
+      values..remove(name);
+
+  @override
+  String toString() => '$version: remove $name';
+}
+
+/// An instance written for a version of a material this build does not
+/// have: a newer one, or none at all.
+final class MaterialVersionException extends Flutter3dFormatException {
+  const MaterialVersionException(this.material, this.written, this.current);
+
+  /// The material's name.
+  final String material;
+
+  /// The version the instance says it was written for.
+  final int written;
+
+  /// The version the material is at in this build.
+  final int current;
+
+  @override
+  String get message => written < 1
+      ? 'an instance of "$material" says it was written for version '
+            '$written, and versions count from 1'
+      : 'an instance of "$material" was written for its version $written, '
+            'and this build has version $current: update the material, or '
+            'the build, to one that has version $written';
+
+  @override
+  String toString() => 'MaterialVersionException: $message';
+}
+
 /// A material read from source: its name, what it declares, and its body.
 final class MaterialProgram {
   const MaterialProgram({
@@ -715,6 +819,8 @@ final class MaterialProgram {
     this.ambient,
     this.composite,
     this.workgroupSize = (8, 8),
+    this.version = 1,
+    this.updates = const <MaterialUpdate>[],
   });
 
   final String name;
@@ -723,6 +829,52 @@ final class MaterialProgram {
   /// `f3dmat <version>` line, or 1 when it has none. See
   /// `materialLanguageVersion`.
   final int languageVersion;
+
+  /// The material's own version — `material Hatch version 3 { … }`,
+  /// language version 3 — or 1 for a material that says none.
+  ///
+  /// Not the language's: this counts the changes to one material's
+  /// parameters (a rename, a new scale), so that what a level or a saved
+  /// instance set for an older version is carried forward by [updates]
+  /// rather than silently read under the new meaning.
+  final int version;
+
+  /// How a parameter value written for an older [version] becomes one for
+  /// this version, in the order the `updates` block says them; [lift]
+  /// applies them.
+  final List<MaterialUpdate> updates;
+
+  /// [values], parameter values an instance set for version [from] of this
+  /// material, carried to [version] through every update after [from], in
+  /// version order and, within a version, in the order written.
+  ///
+  /// A value no update names is kept as it is, under its name, so a value
+  /// for a parameter this material no longer has is still there for its
+  /// reader to report. Throws [MaterialVersionException] for a [from] newer
+  /// than [version] or below 1: an instance from a newer material cannot be
+  /// read back into an older one.
+  Map<String, List<double>> lift(
+    Map<String, List<double>> values, {
+    required int from,
+  }) {
+    if (from > version || from < 1) {
+      throw MaterialVersionException(name, from, version);
+    }
+    // By version, and within a version in the order written.
+    final ordered =
+        <(int, MaterialUpdate)>[
+          for (final (index, update) in updates.indexed)
+            if (update.version > from) (index, update),
+        ]..sort(
+          (a, b) => a.$2.version != b.$2.version
+              ? a.$2.version.compareTo(b.$2.version)
+              : a.$1.compareTo(b.$1),
+        );
+    return ordered.fold(
+      Map<String, List<double>>.of(values),
+      (lifted, step) => step.$2.apply(lifted),
+    );
+  }
 
   /// What the source is: a surface, a full-screen stage or a compute
   /// kernel — version 2. Every version 1 file is a surface.
@@ -878,6 +1030,8 @@ MaterialProgram specializeMaterial(
     kind: program.kind,
     state: program.state,
     workgroupSize: program.workgroupSize,
+    version: program.version,
+    updates: program.updates,
   );
 }
 

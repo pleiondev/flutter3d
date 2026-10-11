@@ -114,11 +114,14 @@ import 'material_ast.dart';
 /// The tokens the material language reads: the expression language's
 /// arithmetic, its own `{ } = ;`, and no units, exponents or comparisons,
 /// which no version of it has had.
+///
+/// `:` and `>` are version 3's, for an `updates` block's `2: rename a -> b`;
+/// in an expression they are refused as they were.
 const ExpressionSyntax materialSyntax = ExpressionSyntax(
   units: false,
   exponents: false,
   logic: false,
-  punctuation: '{}=;',
+  punctuation: '{}=;:>',
 );
 
 /// What the engine binds, and therefore the only names a `texture` declaration
@@ -153,7 +156,27 @@ const List<String> materialTextureBindings = <String>[
 /// a syntax error, and because a version 1 file stays exactly what it was —
 /// one that binds `let sceneDepth` still compiles. A version 2 file also
 /// keeps names starting `f3d_` for the generated stage.
-const int materialLanguageVersion = 2;
+///
+/// **Version 3** (1.0) gives a material a version of its own and the
+/// updates that carry an older instance's values to it:
+///
+/// ```text
+/// f3dmat 3
+/// material Hatch version 3 {
+///   uniform vec3 inkColor = vec3(0.1);
+///   uniform float roughness = 0.5;
+///   updates {
+///     2: rename ink -> inkColor;
+///     3: scale roughness 0.5;
+///   }
+///   ...
+/// }
+/// ```
+///
+/// An update is `rename a -> b`, `scale a <factor>` or `remove a`, under
+/// the version it leads to, from 2 to the material's own;
+/// `MaterialProgram.lift` applies them. Everything else reads as version 2.
+const int materialLanguageVersion = 3;
 
 /// `.f3dmat` in the format registry: text, versioned by an optional
 /// `f3dmat <N>` line, so it has no JSON envelope and no fixed magic.
@@ -421,7 +444,20 @@ final class _Parser extends ExpressionParser {
     kind = parseKind();
     final surface = kind == MaterialStageKind.surface;
     final name = take('name', 'the material\'s name').text;
+    var materialVersion = 1;
+    if (current.kind == 'name' && current.text == 'version') {
+      if (version < 3) {
+        fail(
+          'a material\'s own version is material language version 3: open '
+          'the file with "f3dmat 3".',
+        );
+      }
+      position++;
+      materialVersion = wholeNumber('the material\'s version', from: 1);
+    }
     take('{', '"{" after the material\'s name');
+    final updates = <(ExpressionToken, MaterialUpdate)>[];
+    ExpressionToken? updatesAt;
     // The picture a full-screen stage draws over, bound as every post stage
     // of the engine's binds it.
     if (kind == MaterialStageKind.fullscreen) {
@@ -504,6 +540,16 @@ final class _Parser extends ExpressionParser {
         if (workgroupAt != null) fail('a kernel has one workgroup.', where);
         workgroupAt = where;
         workgroup = parseWorkgroup();
+      } else if (word == 'updates' && version < 3) {
+        fail(
+          '"updates" is material language version 3: open the file with '
+          '"f3dmat 3".',
+        );
+      } else if (word == 'updates') {
+        position++;
+        if (updatesAt != null) fail('a material has one updates block.', where);
+        updatesAt = where;
+        updates.addAll(parseUpdates());
       } else {
         fail(switch (kind) {
           _ when version < 2 =>
@@ -601,9 +647,12 @@ final class _Parser extends ExpressionParser {
         );
       }
     }
+    checkUpdates(name, materialVersion, updates);
 
     return MaterialProgram(
       name: name,
+      version: materialVersion,
+      updates: <MaterialUpdate>[for (final (_, update) in updates) update],
       parameters: parameters,
       textures: textures,
       body: body,
@@ -786,6 +835,118 @@ final class _Parser extends ExpressionParser {
       environment: environment,
       directional: directional,
     );
+  }
+
+  /// A whole number token of at least [from], [what] naming it in a
+  /// refusal.
+  int wholeNumber(String what, {required int from}) {
+    final token = take('number', what);
+    final value = token.number!;
+    if (value != value.truncateToDouble() || value < from) {
+      fail('$what is a whole number from $from, not "${token.text}".', token);
+    }
+    return value.toInt();
+  }
+
+  /// An `updates` block — version 3: `<version>: rename a -> b;`,
+  /// `<version>: scale a <factor>;` and `<version>: remove a;`, each with
+  /// the token it starts at.
+  List<(ExpressionToken, MaterialUpdate)> parseUpdates() {
+    take('{', '"{" after "updates"');
+    final updates = <(ExpressionToken, MaterialUpdate)>[];
+    while (!takeIf('}')) {
+      if (current.kind == 'end') fail('the updates block is never closed.');
+      final at = current;
+      final leadsTo = wholeNumber('an update\'s version', from: 2);
+      take(':', '":" after the update\'s version');
+      final verb = take('name', 'rename, scale or remove');
+      final update = switch (verb.text) {
+        'rename' => () {
+          final from = take('name', 'the name the parameter had').text;
+          take('-', '"->" after the old name');
+          take('>', '"->" after the old name');
+          final to = take('name', 'the name the parameter has now').text;
+          if (from == to) fail('"$from" is renamed to itself.', verb);
+          return MaterialRenameUpdate(leadsTo, from, to);
+        }(),
+        'scale' => () {
+          final parameter = take('name', 'the parameter to scale').text;
+          final negative = takeIf('-');
+          final factor = take('number', 'the factor its value is scaled by');
+          return MaterialScaleUpdate(
+            leadsTo,
+            parameter,
+            negative ? -factor.number! : factor.number!,
+          );
+        }(),
+        'remove' => MaterialRemoveUpdate(
+          leadsTo,
+          take('name', 'the parameter that is removed').text,
+        ),
+        _ => fail(
+          '"${verb.text}" is not an update: rename, scale and remove are.',
+          verb,
+        ),
+      };
+      take(';', '";" after the update');
+      updates.add((at, update));
+    }
+    return updates;
+  }
+
+  /// Every update leads to a version from 2 to the material's own, and a
+  /// rename or a scale names, by the name it ends up with, a parameter the
+  /// material declares: an update of a parameter nobody has is a typo that
+  /// would otherwise carry an instance's value nowhere.
+  void checkUpdates(
+    String material,
+    int materialVersion,
+    List<(ExpressionToken, MaterialUpdate)> updates,
+  ) {
+    final ordered =
+        <(int, ExpressionToken, MaterialUpdate)>[
+          for (final (index, (at, update)) in updates.indexed)
+            (index, at, update),
+        ]..sort(
+          (a, b) => a.$3.version != b.$3.version
+              ? a.$3.version.compareTo(b.$3.version)
+              : a.$1.compareTo(b.$1),
+        );
+    for (final (k, (_, at, update)) in ordered.indexed) {
+      if (update.version > materialVersion) {
+        fail(
+          'an update leads to a version from 2 to the material\'s own, '
+          '$materialVersion, and this one leads to ${update.version}: raise '
+          'the material\'s version with "material $material version '
+          '${update.version}".',
+          at,
+        );
+      }
+      String? name = switch (update) {
+        MaterialRenameUpdate(:final to) => to,
+        MaterialScaleUpdate(:final name) => name,
+        _ => null,
+      };
+      final written = name;
+      for (final (_, _, later) in ordered.skip(k + 1)) {
+        if (name == null) break;
+        name = switch (later) {
+          MaterialRenameUpdate(:final from, :final to) when from == name => to,
+          MaterialRemoveUpdate(name: final removed) when removed == name =>
+            null,
+          _ => name,
+        };
+      }
+      if (name != null && parameterNamed(name) == null) {
+        fail(
+          written == name
+              ? '"$name" is not a parameter "$material" declares.'
+              : '"$written" becomes "$name", which "$material" does not '
+                    'declare.',
+          at,
+        );
+      }
+    }
   }
 
   /// `workgroup x y;` — a kernel's workgroup size, version 2.

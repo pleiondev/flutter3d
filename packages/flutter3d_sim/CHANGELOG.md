@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A level material carries its instance's values and their version.**
+  `LevelMaterial.parameters` (a name to its components) and
+  `LevelMaterial.materialVersion` (the version of the material they were
+  written for, null for a level that predates material versions) read and
+  write as optional keys of level format 5, so a loader can lift the
+  values through the material's `updates` rather than read them under a
+  newer meaning.
 - **Breaking: `LevelIssueSeverity` and `ShadowCasting` are open sets.**
   Classes with constants rather than enums, so a severity or a shadow mode a
   later minor adds breaks no `switch`; the words a level writes are
