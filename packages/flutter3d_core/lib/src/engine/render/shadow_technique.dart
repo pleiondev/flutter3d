@@ -23,6 +23,7 @@ final class ShadowProducerContext {
     required this.settings,
     this.camera,
     this.cascades,
+    this.cubeAtlas,
   });
 
   /// The frame's shadow settings.
@@ -36,6 +37,83 @@ final class ShadowProducerContext {
   /// frame, which [ShadowTechnique.shadowMapProducer]'s node draws into;
   /// null where the frame asks of a producer with nothing fitted.
   final ShadowCascades? cascades;
+
+  /// What the engine laid out and fitted for the cube atlas of point and
+  /// spot lights this frame, which [ShadowTechnique.cubeAtlasProducer]'s
+  /// node draws into; null where the frame asks
+  /// [ShadowTechnique.shadowMapProducer].
+  final ShadowCubeAtlas? cubeAtlas;
+}
+
+/// The cube atlas of point and spot lights as the engine laid it out and
+/// fitted it for one frame: what a technique's own producer draws into
+/// (D22).
+///
+/// **The layout is the engine's, as the directional map's is.** [atlas] is
+/// six tiles of [tile] texels across and a row a light down; the light in
+/// row `r` casts into [tileOf] `(r, face)` through
+/// [ShadowCubeLight.viewProjections] `[face]`, and the lit stages read the
+/// tile through the same matrix. A producer writes what the engine's
+/// `ShadowDistance` stage writes: in red, the distance from the light over
+/// [ShadowCubeLight.range], one where nothing is. It loads or clears as it
+/// likes and draws every tile it means the lit stages to read: nothing of
+/// the engine's is drawn into [atlas] while it produces.
+///
+/// **What does not move stays the engine's.** The casters marked
+/// `shadowIsStatic` are baked into an atlas of their own, which the lit
+/// stages read beside this one, taking the nearer of the two; a producer
+/// draws what moves, or everything, and the picture is the same.
+final class ShadowCubeAtlas {
+  const ShadowCubeAtlas({
+    required this.atlas,
+    required this.depth,
+    required this.tile,
+    required this.lights,
+  });
+
+  /// The colour target the lit stages sample as the moving half of the
+  /// cube atlas.
+  final TextureHandle atlas;
+
+  /// A depth attachment the size of [atlas], for the producer's pass.
+  final TextureHandle depth;
+
+  /// One face's side, in texels.
+  final int tile;
+
+  /// The lights holding a row this frame, each with its row.
+  final List<ShadowCubeLight> lights;
+
+  /// Where face [face] of the light in row [row] lies in [atlas].
+  ScreenRect tileOf(int row, int face) =>
+      ScreenRect(x: face * tile, y: row * tile, width: tile, height: tile);
+}
+
+/// One light's row of a [ShadowCubeAtlas].
+final class ShadowCubeLight {
+  const ShadowCubeLight({
+    required this.row,
+    required this.position,
+    required this.range,
+    required this.viewProjections,
+  });
+
+  /// The atlas row the light holds.
+  final int row;
+
+  /// Where the light is, in world space.
+  final vm.Vector3 position;
+
+  /// How far it reaches, in metres: what a stored one means.
+  final double range;
+
+  /// Each face's view and projection as this device draws with it: six for
+  /// a point light, one for a spot, whose cone is face nought and whose
+  /// other five tiles the lit stages never read.
+  final List<vm.Matrix4> viewProjections;
+
+  /// Whether the light is a spot, casting into face nought alone.
+  bool get isSpot => viewProjections.length == 1;
 }
 
 /// The directional map as the engine fitted and laid it out for one frame:
@@ -84,11 +162,8 @@ final class ShadowCascades {
   int get count => viewProjections.length;
 
   /// Where cascade [index] lies in [atlas].
-  ScreenRect tileOf(int index) => ScreenRect(
-    x: index * resolution,
-    width: resolution,
-    height: resolution,
-  );
+  ScreenRect tileOf(int index) =>
+      ScreenRect(x: index * resolution, width: resolution, height: resolution);
 }
 
 /// The lookup the lit draws make into the directional map, and its
@@ -292,8 +367,14 @@ abstract base class ShadowTechnique {
   /// `FrameResourceIds.cubeShadow` — in place of the engine's `point
   /// shadows`, or null for the engine's own (D22). The atlas's layout, a
   /// row of six faces per light in the slot the engine assigned, is the
-  /// contract the lit stages read; see [shadowMapProducer] for when the
-  /// renderer asks.
+  /// contract the lit stages read ([ShadowCubeAtlas]).
+  ///
+  /// The renderer asks this each frame the moving atlas is maintained, once
+  /// it has laid the atlas out and fitted every row's faces, with both in
+  /// [ShadowProducerContext.cubeAtlas], and runs the node's
+  /// [RenderNode.execute] where it would have drawn the casters. The static
+  /// bake stays the engine's. When the producer goes, the engine draws every
+  /// face again.
   RenderNode? cubeAtlasProducer(ShadowProducerContext context) => null;
 
   /// [ShadowFilter.pcf]'s: a 3×3 box.

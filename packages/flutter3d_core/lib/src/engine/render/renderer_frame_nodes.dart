@@ -224,6 +224,20 @@ final class _CubeShadowNode extends RenderNode {
   void execute(RenderFrame frame) {
     _renderer._ensureCubeAtlas(settings);
 
+    // D22: a technique's own producer maintains the atlas instead, into the
+    // rows the engine fitted.
+    if (_renderer._produceCubeShadow(
+      frame: frame,
+      settings: settings,
+      slotCount: slotCount,
+    )) {
+      frame.resources.provide(
+        FrameResourceIds.cubeShadow,
+        _renderer._cubeShadow!,
+      );
+      return;
+    }
+
     // Only the faces where what moves has actually changed. Most frames most
     // casters are standing still, and a face whose picture would come out the
     // same is a face worth leaving alone.
