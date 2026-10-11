@@ -11,7 +11,37 @@ flutter run -d macos
 ```
 
 It runs in the browser on the site, under Education, through WebGL2 or
-WebGPU.
+WebGPU. Both laboratories here are one `Flutter3dView` each, which opens the
+device and owns the frame clock.
+
+## A pendulum on the accurate profile
+
+The second laboratory is a pendulum you step by hand:
+
+```bash
+flutter run -d macos -t lib/pendulum_main.dart
+```
+
+A rod of one metre, let go at 0.1 rad, in standard gravity. The panel shows
+the angle and the period measured from the crossings of the vertical, beside
+the period the series gives (2π√(L/g)·(1 + θ²/16 + …)). Over a hundred swings
+the two agree to 1e-4, which `test/pendulum_lab_test.dart` holds.
+
+Two things make it a laboratory rather than a game:
+
+- **It runs on `SimulationProfile.accurate`.** The view's own loop runs the
+  deterministic profile a game is played on, so the laboratory builds its own
+  loop in `pendulumSimulation` and the view places it with
+  `SimulationPlacement.isolate` (in the page on the web). On the accurate
+  profile the pendulum is integrated with its rod held exactly; on the fixed
+  step a game uses it would miss the period by 4.6e-4 and lose most of its
+  swing over the same hundred periods. A laboratory a server checks by
+  replaying the student's run stays on the deterministic profile; the
+  accurate one is for showing.
+- **Its clock is moved by hand.** The view's time source is a `ManualTime`:
+  "Step" hands it one fixed step and "Run" a step's worth every frame. What
+  the panel reads is what the laboratory's probes published, so it reads the
+  same with the simulation in an isolate as it would beside the view.
 
 ## Glass from profiles
 
@@ -57,9 +87,10 @@ Three things to know when doing the same:
   which fixes both.
 - **The card has the strip's proportions.** A wide card on a tall strip
   pulls the text upwards; `LabelCard.size` is worked out from `labelAspect`.
-- **Ask for a frame.** `SceneSurface` draws in `build`, so a label put on or
-  the camera turned is not seen until something rebuilds it. `BenchScreen`
-  does both inside `setState`.
+- **Ask for a frame.** The bench's view runs its clock only while a liquid
+  moves, and otherwise draws when it is built, so a label put on or the
+  camera turned is not seen until something rebuilds it. `BenchScreen` does
+  both inside `setState`.
 
 ## Tests
 
@@ -72,3 +103,8 @@ the bench's tests run on the run's physics: the core by default, the Dart
 reference with `--dart-define=FLUTTER3D_PHYSICS=dart`. The golden leaves the labels
 off, since text is rasterised by the platform and differs between machines;
 the label test checks the card's own pixels instead.
+
+For the pendulum, `test/pendulum_lab_test.dart` checks the profile, that
+nothing moves until the clock is moved, and the period against the series
+over a hundred swings; `test/pendulum_screen_test.dart` steps the screen by
+hand with the simulation in an isolate.

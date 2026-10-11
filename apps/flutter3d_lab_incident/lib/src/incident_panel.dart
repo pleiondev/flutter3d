@@ -9,9 +9,9 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'incident_scenario.dart';
 
 /// Scrubs a pre-recorded [DataSourceTrace] between named moments — `edu-05`'s
-/// own trace read back by [DataSourceTrace.valueAt], the same mechanism
-/// `flutter3d_lab_twin`'s own `TwinWhatIfController` branches rather than
-/// only reads. This one never writes: an incident that already happened is
+/// own trace read back by [DataSourceTrace.valueAt], which a what-if run
+/// would branch rather than only read. This one never writes: an incident
+/// that already happened is
 /// read, not branched, so [DataSourceTrace.record]/`branchAt` never appear
 /// here at all — [trace] is built once, by [recordSpindleOverheatIncident],
 /// before this controller ever sees it.

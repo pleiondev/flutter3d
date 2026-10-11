@@ -1226,9 +1226,9 @@ final class Bench {
   ///
   /// The label joins the scene with its picture already on it, so the bench
   /// never shows blank paper; a label drawn again replaces the node. The
-  /// scene is not drawn again by itself: `SceneSurface` paints when its
-  /// widget changes, so whoever dresses a vessel asks for a frame afterwards,
-  /// as `BenchScreen` does with `setState`.
+  /// scene is not drawn again by itself: a view whose clock is stopped draws
+  /// when it is built, so whoever dresses a vessel asks for a frame
+  /// afterwards, as `BenchScreen` does with `setState`.
   TextureHandle? dress(Vessel vessel, Rgba8Image image) {
     if (vessel.solution == null) return null;
     final texture = uploadRgba8(device, image);

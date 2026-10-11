@@ -4,10 +4,10 @@
 /// frame-accurate scrubber, reading exactly what the sensor showed at each
 /// named moment on the same panel `wg-02` already proved.
 ///
-/// **Its own application, not a mode of `flutter3d_template_app`**, the same
-/// reasoning `flutter3d_lab_twin`'s own `main.dart` already gives for
-/// `ls-i-00`: the incident's own moments are this scenario's feature, not
-/// something every new project starting from the seed needs baked in.
+/// **Its own application, not a mode of `flutter3d_template_app`**: the
+/// incident's own moments are this scenario's feature, not something every
+/// new project starting from the seed needs baked in. A live twin, fed by a
+/// real source, is `packages/flutter3d_app/example/lib/twin_main.dart`.
 ///
 ///     flutter run -d chrome
 ///     flutter run -d chrome --dart-define=FLUTTER_WEB_USE_SKIA=true
@@ -125,9 +125,8 @@ class _IncidentScreenState extends State<IncidentScreen>
     )..setPositionFrom(_machineAt);
     scene.add(machine);
 
-    // Same fix `flutter3d_lab_twin`'s own `main.dart` already documents in
-    // full: `WidgetSurface` content renders rotated a half turn from what
-    // its geometry says, root cause open, worked around here the same way.
+    // `WidgetSurface` content renders rotated a half turn from what its
+    // geometry says, root cause open; the panel's widget is flipped back.
     final panel = WidgetSurface(
       device: device,
       width: 1.6,

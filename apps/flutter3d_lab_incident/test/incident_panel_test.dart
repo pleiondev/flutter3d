@@ -1,6 +1,4 @@
-/// `ls-i-02`'s controller, driven with no window — the same headless
-/// discipline `flutter3d_lab_twin`'s own panel test uses for
-/// `TwinWhatIfController`.
+/// `ls-i-02`'s controller, driven with no window.
 library;
 
 import 'package:flutter3d_lab_incident/src/incident_panel.dart';
