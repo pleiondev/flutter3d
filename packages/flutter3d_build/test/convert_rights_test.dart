@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter3d_build/convert.dart';
+import 'package:flutter3d_core/formats.dart' show F3dDocument;
 import 'package:test/test.dart';
 
 import 'convert_support.dart';
@@ -35,6 +36,26 @@ void main() {
     expect(json['license'], 'CC-BY-4.0');
     expect(json['author'], 'Ada Modeller');
     expect(json['copyright'], '© 2026 Ada Modeller');
+  });
+
+  test('and the .f3d it writes carries them too', () async {
+    // Mutation: drop the rights section from `F3dWriter`. The report keeps
+    // them and the file a game ships loses them, which the report used to
+    // admit as a drop.
+    final result = await convertFiles(<String, Uint8List>{
+      'chair.gltf': File('$fixtures/rights/chair.gltf').readAsBytesSync(),
+    }, to: ConversionTarget.everything);
+    final f3d = result.files.entries.singleWhere(
+      (MapEntry<String, Uint8List> e) => e.key.endsWith('.f3d'),
+    );
+    final asset = F3dDocument.parse(f3d.value).asset!;
+    expect(asset.license, 'CC-BY-4.0');
+    expect(asset.author, 'Ada Modeller');
+    expect(asset.copyright, '© 2026 Ada Modeller');
+    expect(
+      result.reports.single.dropped,
+      isNot(contains(startsWith('the author'))),
+    );
   });
 
   test('a model that says nothing has no such keys', () async {

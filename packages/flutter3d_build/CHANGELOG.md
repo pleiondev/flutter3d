@@ -3,8 +3,8 @@
 - **A conversion's report carries the model's author, licence and
   copyright.** `ConvertReport.author`, `license` and `copyright`, read from
   the document, and the same three keys, when present, in `--json` and
-  `--report`. A `.f3d` file has no field for them yet, so the report says
-  they were dropped from it.
+  `--report`. The `.f3d` it writes carries the three as well (its asset
+  rights section), so nothing is dropped.
 - **A MaterialX material is made of what the catalog knows it as.** The
   converter looks the material's name, its shader's and, for a document of
   one material, the document's up in `MaterialCatalog.byExternal('MaterialX',

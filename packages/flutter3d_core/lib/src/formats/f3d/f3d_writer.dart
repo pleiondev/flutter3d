@@ -193,6 +193,7 @@ final class F3dWriter {
     final surfaceAttributeTable = _writeSurfaceAttributes();
     final meshNameTable = _writeMeshNames();
     final (assetTable, assetCount) = _writeAsset();
+    final (rightsTable, rightsCount) = _writeAssetRights();
     final imageUriTable = _writeImageUris();
     final materialTable = _writeMaterials();
     final (extensionTable, extensionCount) = _writeMaterialExtensions();
@@ -278,6 +279,7 @@ final class F3dWriter {
         (F3dSection.physicalMaterials, physicalTable, physicalCount),
       if (referenceCount > 0)
         (F3dSection.materialReferences, referenceTable, referenceCount),
+      if (rightsCount > 0) (F3dSection.assetRights, rightsTable, rightsCount),
       (F3dSection.strings, _strings.toBytes(), 0),
       (F3dSection.blob, _blob.toBytes(), 0),
       for (final extra in extraSections) (extra.kind, extra.bytes, extra.count),

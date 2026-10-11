@@ -88,6 +88,36 @@ void main() {
     expect(back.asset?.copyright, isNull);
   });
 
+  group('through a .f3d', () {
+    test('the three survive a conversion to .f3d and a read', () async {
+      // Mutation: leave the rights section out of `F3dWriter`. A model
+      // converted for a game loses who made it and on what terms, and the
+      // converter could only say so in its report.
+      final source = await _chair();
+      final back = F3dDocument.parse(F3dWriter(source).write()).asset!;
+      expect(back.copyright, '© 2026 Ada Modeller');
+      expect(back.author, 'Ada Modeller');
+      expect(back.license, 'CC-BY-4.0');
+      expect(back.generator, 'flutter3d test');
+    });
+
+    test('a model that says none of them is the bytes it was', () async {
+      // The section is written only when there is something in it, so a
+      // model with no rights does not change on disk, and a 0.8 reader that
+      // skips the section reads every file it read before.
+      final source = await _chair();
+      final plain = PlainModelDocument(
+        surfaces: source.surfaces,
+        materials: source.materials,
+        images: source.images,
+        asset: const DocumentAsset(generator: 'flutter3d test'),
+      );
+      final document = F3dDocument.parse(F3dWriter(plain).write());
+      expect(document.asset, const DocumentAsset(generator: 'flutter3d test'));
+      expect(document.version, 1);
+    });
+  });
+
   test('two assets differing in a right are not equal', () {
     const a = DocumentAsset(license: 'CC0-1.0');
     expect(a == const DocumentAsset(license: 'CC0-1.0'), isTrue);

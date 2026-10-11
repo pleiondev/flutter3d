@@ -444,17 +444,40 @@ final class F3dDocument extends ModelDocument {
 
   /// The one `asset` record, or null when the section is empty — a file
   /// written before `fmt-04`, or one whose document genuinely said nothing.
+  ///
+  /// With who made the model and on what terms
+  /// ([F3dSection.assetRights]), when the file says so.
   DocumentAsset? _readAsset() {
     final table = _table(F3dSection.asset, F3dRecord.asset);
     final extras = _extrasOf(F3dExtrasOwner.document, 0);
-    if (table.count == 0) {
-      return extras == null ? null : DocumentAsset(extras: extras);
+    final generator = table.count == 0
+        ? null
+        : _string(
+            _view.getUint32(table.offset, Endian.little),
+            _view.getUint32(table.offset + 4, Endian.little),
+          );
+    final rights = _table(F3dSection.assetRights, F3dRecord.assetRights);
+    String? right(int index) => rights.count == 0
+        ? null
+        : _string(
+            _view.getUint32(rights.offset + index * 8, Endian.little),
+            _view.getUint32(rights.offset + index * 8 + 4, Endian.little),
+          );
+    final (copyright, author, license) = (right(0), right(1), right(2));
+    if (table.count == 0 &&
+        extras == null &&
+        copyright == null &&
+        author == null &&
+        license == null) {
+      return null;
     }
-    final generator = _string(
-      _view.getUint32(table.offset, Endian.little),
-      _view.getUint32(table.offset + 4, Endian.little),
+    return DocumentAsset(
+      generator: generator,
+      extras: extras,
+      copyright: copyright,
+      author: author,
+      license: license,
     );
-    return DocumentAsset(generator: generator, extras: extras);
   }
 
   /// Every [F3dSection.extras] block, by owner and index.

@@ -128,6 +128,25 @@ extension _F3dWriteScene on F3dWriter {
     return (table, 1);
   }
 
+  /// Zero or one record: who made the model and on what terms, only when
+  /// the document says one of the three.
+  (Uint8List, int) _writeAssetRights() {
+    final asset = document.asset;
+    final rights = <String?>[asset?.copyright, asset?.author, asset?.license];
+    if (rights.every((String? right) => right == null || right.isEmpty)) {
+      return (Uint8List(0), 0);
+    }
+    final table = Uint8List(F3dRecord.assetRights);
+    final view = ByteData.view(table.buffer);
+    for (final (i, right) in rights.indexed) {
+      final (offset, length) = _string(right);
+      view
+        ..setUint32(i * 8, offset, Endian.little)
+        ..setUint32(i * 8 + 4, length, Endian.little);
+    }
+    return (table, 1);
+  }
+
   /// One `(offset, length)` string per image, [F3dSection.images] order. See
   /// `EncodedImage.sourceUri`.
   Uint8List _writeImageUris() {

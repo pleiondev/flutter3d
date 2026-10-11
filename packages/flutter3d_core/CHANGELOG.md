@@ -58,6 +58,12 @@
   by `F3dWriter.carrying`). Neither section is must-understand, so the file
   stays version 1 and a 0.8 reader skips them;
   `test/fixtures/v2/physical.f3d` is their fixture, laid out as version 2.
+- **A `.f3d` says who made the model and on what terms.** Section 38,
+  `assetRights`, one record holding the copyright, the author and the
+  licence of the model it was converted from, read back as
+  `DocumentAsset.copyright`, `author` and `license`; written only when one
+  of the three is said, so a file without them is the bytes it was, and
+  not must-understand, so a 0.8 reader skips it.
 - **`Photometric.luminousEfficacy`: 683 lm/W, written once.** The
   candela's defining constant, what a spectrum weighted by the eye's
   luminosity function is multiplied by to come out in lumens; the fire's

@@ -98,7 +98,10 @@
 ///   it was written for, read back as `SurfaceMaterial.physicalMaterial` and
 ///   `SurfaceMaterial.materialVersion`, and the **physical materials** the
 ///   catalog does not ship, carried whole ([F3dSection.physicalMaterials]),
-///   `F3dDocument.physicalMaterials`.
+///   `F3dDocument.physicalMaterials`;
+/// * **who made it and on what terms** ([F3dSection.assetRights]): the
+///   copyright, the author and the licence of the model it was converted
+///   from, read back as `DocumentAsset.copyright`, `author` and `license`.
 ///
 /// `F3dWriter` writes the lights, cameras, lighting models and references
 /// from the document, and the rest from its `programs`, `prefabs`, `files`
@@ -355,6 +358,15 @@ abstract final class F3dSection {
   /// a poorer asset, never a different picture.
   static const int materialReferences = 37;
 
+  // ------------------------------------------------ who made it (1.0.0-rc.1)
+
+  /// Who made the model and on what terms, one record or none: its
+  /// copyright, its author and its licence (`DocumentAsset.copyright`,
+  /// `author`, `license`), as the source it was converted from says them.
+  /// Written only when one of the three is said. Not must-understand: a
+  /// reader that skips it opens the same model and cannot say whose it is.
+  static const int assetRights = 38;
+
   /// Every kind above, the ones this build reads. A must-understand section
   /// of any other kind is refused unless the caller understands it.
   static const Set<int> known = <int>{
@@ -395,6 +407,7 @@ abstract final class F3dSection {
     files,
     physicalMaterials,
     materialReferences,
+    assetRights,
   };
 }
 
@@ -559,6 +572,11 @@ abstract final class F3dRecord {
   /// (a length of 0: no physical material named), u32 materialVersion (0:
   /// not said, read as 1)
   static const int materialReference = 16;
+
+  /// u32 copyrightOffset, u32 copyrightLength, u32 authorOffset, u32
+  /// authorLength, u32 licenseOffset, u32 licenseLength into the strings
+  /// section (a length of 0: not said)
+  static const int assetRights = 24;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name
