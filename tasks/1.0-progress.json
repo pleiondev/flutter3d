@@ -47,10 +47,12 @@
     "3.2/3H": "done",
     "3.2/3R": "done",
     "3.3/3W": "done",
-    "3.4/3X": "done"
+    "3.4/3X": "done",
+    "3.2/3Z": "partial"
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
+    "3.2/3Z": "rules and loose ends in; 3 tests red on the base and the Mac findings handed to wave 4",
     "3.4/3X": "in 1.0.0; XR seams frozen; multiview, occlusion and isolate poses left for rc.2",
     "3.3/3W": "in 1.0.0; fields, subsystems, outside plugin; field frame on 3 backends still to run on the Mac",
     "3.2/3R": "in 1.0.0; anatomical swing limits and tissue damping; the elbow prop at a chest-root blow stays open",
