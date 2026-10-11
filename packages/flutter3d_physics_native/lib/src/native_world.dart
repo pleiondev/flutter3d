@@ -3881,3 +3881,52 @@ final class NativeWorld {
     throw ArgumentError.value(value, 'value', 'not finite, or out of range');
   }
 }
+
+/// What [world]'s last step's contact reports say, each handed to [each]:
+/// its two bodies, its manifold's part, its phase (`c.ContactPhases`), and
+/// the floats it takes (`F3D_REPORT_FLOATS`) at [at] in [reals]. In the
+/// core's order, the pair's slots then the part. For `NativeDynamics`,
+/// which makes `StepContact`s of them; not exported.
+void forEachContactReport(
+  NativeWorld world,
+  void Function(
+    NativeBody a,
+    NativeBody b,
+    int part,
+    int phase,
+    Float32List reals,
+    int at,
+  )
+  each,
+) {
+  final live = world._live;
+  final count = c.f3d_world_contact_report_count(live);
+  if (count == 0) return;
+  final values = c.F32s.alloc(count * c.reportFloats);
+  final pairs = c.U64s.alloc(count * 2);
+  final parts = c.U32s.alloc(count * 2);
+  try {
+    final read = c.f3d_world_read_contact_reports(
+      live,
+      values,
+      pairs,
+      parts,
+      count,
+    );
+    final reals = values.copy(read * c.reportFloats);
+    for (var i = 0; i < read; i++) {
+      each(
+        NativeBody(pairs[i * 2]),
+        NativeBody(pairs[i * 2 + 1]),
+        parts[i * 2],
+        parts[i * 2 + 1],
+        reals,
+        i * c.reportFloats,
+      );
+    }
+  } finally {
+    values.free();
+    pairs.free();
+    parts.free();
+  }
+}

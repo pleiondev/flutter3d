@@ -43,6 +43,11 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->events);
   f3d_free(world->manifolds);
   f3d_free(world->next_manifolds);
+  f3d_free(world->reports);
+  f3d_free(world->manifold_push);
+  f3d_free(world->manifold_meet);
+  f3d_free(world->contact_before);
+  f3d_free(world->contact_now);
   f3d_free(world->scratch);
   f3d_tree_clear(&world->tree);
   f3d_free(world->proxies);
@@ -848,6 +853,7 @@ void f3d_world_step(F3dWorld *world, f3d_real dt) {
   f3d_step_vehicles(world, dt);
   f3d_step_water(world, dt);
   f3d_step_solve(world, dt);
+  f3d_make_contact_reports(world);
   f3d_step_multibodies(world, dt);
   f3d_break_joints(world);
   f3d_step_heat(world, dt);

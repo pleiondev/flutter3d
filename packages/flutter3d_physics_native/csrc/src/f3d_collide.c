@@ -99,6 +99,55 @@ uint32_t f3d_world_read_contacts(const F3dWorld *world, f3d_real *contacts,
   return written;
 }
 
+uint32_t f3d_world_contact_report_count(const F3dWorld *world) {
+  return world->report_count;
+}
+
+uint32_t f3d_world_read_contact_reports(const F3dWorld *world, f3d_real *reals,
+                                        F3dBody *pairs, uint32_t *parts,
+                                        uint32_t capacity) {
+  uint32_t written = 0;
+  for (uint32_t i = 0; i < world->report_count && written < capacity; i++) {
+    const F3dContactReport *r = &world->reports[i];
+    /* What the solver wrote, for a manifold it had room to write it for:
+     * nought for an ended one, and for one it never solved. */
+    const int solved = r->manifold < world->push_capacity &&
+                       r->manifold < world->s.manifold_count;
+    const f3d_real push = solved ? world->manifold_push[r->manifold] : F3D_R(0.0);
+    const F3dVec3 meet = solved ? world->manifold_meet[r->manifold]
+                                : f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+    f3d_real *c = reals + (size_t)written * F3D_REPORT_FLOATS;
+    c[0] = r->normal.x;
+    c[1] = r->normal.y;
+    c[2] = r->normal.z;
+    c[3] = r->point.x;
+    c[4] = r->point.y;
+    c[5] = r->point.z;
+    c[6] = push;
+    c[7] = meet.x;
+    c[8] = meet.y;
+    c[9] = meet.z;
+    if (pairs != NULL) {
+      pairs[written * 2u] = r->a;
+      pairs[written * 2u + 1u] = r->b;
+    }
+    if (parts != NULL) {
+      parts[written * 2u] = r->part;
+      parts[written * 2u + 1u] = r->phase;
+    }
+    written++;
+  }
+  return written;
+}
+
+/* The middle of [m]'s points: where a report says the two touch. */
+F3dVec3 f3d_manifold_middle(const F3dManifold *m) {
+  F3dVec3 sum = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  if (m->count == 0) return sum;
+  for (uint32_t k = 0; k < m->count; k++) sum = f3d_add(sum, m->points[k].point);
+  return f3d_scale(sum, F3D_R(1.0) / (f3d_real)m->count);
+}
+
 /* ------------------------------------------------------------- scratch */
 
 /* [bytes] of the world's scratch, grown when it is not enough; null when
@@ -536,9 +585,110 @@ static int moved(const F3dSlot *s) {
   return s != NULL && (s->flags & F3D_FLAG_MOVED) != 0;
 }
 
+/* Orders two manifolds as the reports go: by their pair's slots, then the
+ * handles (one pair of slots holds other bodies once one was taken out and
+ * its slot used again), then the part. */
+static int report_order(const F3dManifold *x, const F3dManifold *y) {
+  const uint64_t kx = manifold_key(x), ky = manifold_key(y);
+  if (kx != ky) return kx < ky ? -1 : 1;
+  if (x->a != y->a) return x->a < y->a ? -1 : 1;
+  if (x->b != y->b) return x->b < y->b ? -1 : 1;
+  if (x->part != y->part) return x->part < y->part ? -1 : 1;
+  return 0;
+}
+
+/* Whether [m], the world's manifold [index] this step, is a contact a
+ * report names: touching, or pushed on by the solver this step however
+ * near it came — a ball the speculative contact stopped short of the floor
+ * hit it in that step, a step before it touches. */
+static int in_contact_now(const F3dWorld *world, const F3dManifold *m, uint32_t index) {
+  if (m->touching) return 1;
+  return index < world->push_capacity && world->manifold_push[index] > F3D_R(0.0);
+}
+
+/* The same of the step before's manifold [index], [m]: as the last reports
+ * found it, or — after a restore, which brings the manifolds and not the
+ * reports — by what it ended that step pushing with. */
+static int in_contact_before(const F3dWorld *world, const F3dManifold *m, uint32_t index) {
+  if (world->contact_known && index < world->contact_capacity) {
+    return world->contact_before[index];
+  }
+  if (m->touching) return 1;
+  for (uint32_t k = 0; k < m->count; k++) {
+    if (m->points[k].normal_impulse > F3D_R(0.0)) return 1;
+  }
+  return 0;
+}
+
+void f3d_make_contact_reports(F3dWorld *world) {
+  world->report_count = 0;
+  const int known = world->contact_known;
+  world->contact_known = 0;
+  if (!world->reports_ready) return;
+  const uint32_t before = world->previous_count;
+  const uint32_t found = world->s.manifold_count;
+  const uint32_t most = before + found;
+  if (most > world->report_capacity) {
+    F3dContactReport *grown = (F3dContactReport *)f3d_realloc(
+        world->reports, (size_t)most * sizeof(F3dContactReport));
+    if (grown == NULL) return;
+    world->reports = grown;
+    world->report_capacity = most;
+  }
+  /* This step's answers, for the next step's [in_contact_before]. */
+  if (found > world->contact_capacity) {
+    uint8_t *a = (uint8_t *)f3d_realloc(world->contact_now, found);
+    if (a != NULL) world->contact_now = a;
+    uint8_t *b = (uint8_t *)f3d_realloc(world->contact_before, found);
+    if (b != NULL) world->contact_before = b;
+    if (a == NULL || b == NULL) return;
+    world->contact_capacity = found;
+  }
+  world->contact_known = known;
+  uint32_t i = 0, j = 0, n = 0;
+  while (i < before || j < found) {
+    const F3dManifold *old = i < before ? &world->next_manifolds[i] : NULL;
+    const F3dManifold *now = j < found ? &world->manifolds[j] : NULL;
+    const int order = old == NULL ? 1 : now == NULL ? -1 : report_order(old, now);
+    const int was = order <= 0 && in_contact_before(world, old, i);
+    const int is = order >= 0 && in_contact_now(world, now, j);
+    if (order >= 0) world->contact_now[j] = (uint8_t)is;
+    if (is) {
+      F3dContactReport *r = &world->reports[n++];
+      r->a = now->a;
+      r->b = now->b;
+      r->part = now->part;
+      r->phase = was ? F3D_CONTACT_PERSISTED : F3D_CONTACT_BEGAN;
+      r->manifold = j;
+      r->normal = now->normal;
+      r->point = f3d_manifold_middle(now);
+    } else if (was) {
+      F3dContactReport *r = &world->reports[n++];
+      r->a = old->a;
+      r->b = old->b;
+      r->part = old->part;
+      r->phase = F3D_CONTACT_ENDED;
+      r->manifold = UINT32_MAX;
+      r->normal = old->normal;
+      r->point = f3d_manifold_middle(old);
+    }
+    if (order <= 0) i++;
+    if (order >= 0) j++;
+  }
+  world->report_count = n;
+  uint8_t *swap = world->contact_before;
+  world->contact_before = world->contact_now;
+  world->contact_now = swap;
+  world->contact_known = 1;
+}
+
 void f3d_step_collide(F3dWorld *world, f3d_real dt) {
   const uint32_t used = world->s.used;
   const f3d_real margin = world->s.contact_margin;
+  /* The reports are this step's or none: a step that stops short for want
+   * of memory leaves none rather than the last step's. */
+  world->report_count = 0;
+  world->reports_ready = 0;
   /* A body placed, turned or reshaped by hand wakes what slept against it:
    * the contact they kept is no longer where they are. */
   for (uint32_t i = 0; i < world->s.manifold_count; i++) {
@@ -666,6 +816,10 @@ void f3d_step_collide(F3dWorld *world, f3d_real dt) {
       f3d_push_pair_event(world, pa, pb, F3D_EVENT_CONTACT_BEGAN);
     }
   }
+  /* The old manifolds stay where they are swapped to until the next step,
+   * for the reports to set the new ones against once they are solved. */
+  world->previous_count = before;
+  world->reports_ready = 1;
   /* The new manifolds become the world's, and the old array is the next
    * step's room. */
   F3dManifold *swap = world->manifolds;

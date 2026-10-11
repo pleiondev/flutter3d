@@ -16,6 +16,16 @@ const int fireFloats = 13;
 /// `F3D_CONTACT_FLOATS`.
 const int contactFloats = 7;
 
+/// `F3D_REPORT_FLOATS`.
+const int reportFloats = 10;
+
+/// `F3dContactPhase`.
+abstract final class ContactPhases {
+  static const int began = 0;
+  static const int persisted = 1;
+  static const int ended = 2;
+}
+
 /// `F3D_HIT_FLOATS`.
 const int hitFloats = 7;
 

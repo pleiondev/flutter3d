@@ -1449,5 +1449,9 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->proxies = NULL;
   world->proxy_capacity = 0;
   world->pairs_ready = 0;
+  /* The reports were the last step's, of manifolds that are gone. */
+  world->report_count = 0;
+  world->reports_ready = 0;
+  world->contact_known = 0;
   return 1;
 }
