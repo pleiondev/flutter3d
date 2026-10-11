@@ -282,10 +282,12 @@ final class FieldHint {
   /// A sentence shown beside the control, or null.
   final String? help;
 
-  /// The low end of a number's control, or null for none.
+  /// The low end of a number's control, in [unit] (a plain number when the
+  /// field names none), or null for none.
   final double? min;
 
-  /// The high end of a number's control, or null for none.
+  /// The high end of a number's control, in [unit] (a plain number when the
+  /// field names none), or null for none.
   final double? max;
 
   /// The step a number's control moves in, or null for a free one.
