@@ -42,6 +42,11 @@ dependencies:
   flutter3d_editor_core:
     path: ../../packages/flutter3d_editor_core
 
+  # `orderedSteps`: the step panel lists a lesson's steps the way a viewer
+  # plays them.
+  flutter3d_education:
+    path: ../../packages/flutter3d_education
+
   # `FieldRow` and the controls it is built from — `ui-27`'s own package,
   # shared with `apps/flutter3d_modeler` rather than each keeping its own
   # copy. See `src/editor_inspector.dart`.

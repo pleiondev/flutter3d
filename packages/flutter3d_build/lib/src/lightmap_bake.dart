@@ -33,24 +33,21 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
-import '../save/game_random.dart';
-import 'brush_geometry.dart';
-import 'legacy_light_unit.dart';
-import 'level.dart';
-import 'level_collision.dart';
-import 'lightmap.dart';
-import 'lightmap_layout.dart';
+/// Lux or candela in one unit of the pre-1.0 level intensity: a light's
+/// default strength. The lightmap's texels and its staleness hash are in
+/// that unit, so every lightmap baked before stays its level's; the level
+/// format freezes the same number for its own lift.
+const double _legacyLightUnit = LevelLight.defaultIntensity;
 
-/// Bakes a level's [Lightmap] from its brushes, offline or at load.
+/// Bakes a level's [Lightmap] from its brushes, offline: what
+/// `dart run flutter3d_build:lightmap` runs before a level ships.
 ///
-/// **In `flutter3d_sim`, though no step reads it**, because it is a level
-/// asset rather than a picture: baked from the level's brushes, stored in a
-/// format sim registers and read beside the level document, with no renderer
-/// type in it — the same reason the navigation mesh lives here. A view
-/// package would have to reach back into the level format for every one of
-/// those, and the renderer already reads it from here.
+/// **A build step, not the simulation's.** No step reads it and its output
+/// is committed beside the level; [Lightmap], the format it writes, stays in
+/// `flutter3d_sim` beside the level document, where the loader reads it.
 final class LightmapBaker {
   const LightmapBaker({
     this.texelsPerMeter = 4.0,
@@ -184,7 +181,7 @@ final class LightmapBaker {
         Vector3(light.color.r, light.color.g, light.color.b),
     ];
     final strengths = <double>[
-      for (final light in level.lights) light.intensity / legacyLightUnit,
+      for (final light in level.lights) light.intensity / _legacyLightUnit,
     ];
 
     for (final face in plan.faces) {

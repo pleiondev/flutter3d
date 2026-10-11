@@ -12,7 +12,7 @@
 /// `CollisionShape`.** That type is `sealed`, and a sealed class in Dart can
 /// only be extended from inside its own library — so a compound shape (this
 /// file's own decomposition can produce more than one convex piece) is not a
-/// case this package is allowed to add to it. [FittedBox], [FittedSphere]
+/// case this package is allowed to add to it. [FittedCuboid], [FittedSphere]
 /// and [FittedCapsule] carry exactly the numbers `CollisionBox`,
 /// `CollisionSphere` and `CollisionCapsule` need to be constructed from —
 /// position, orientation, dimensions — so a caller one layer up, that
@@ -236,8 +236,8 @@ PrincipalInertia principalAxesOf(MeshInertia inertia) {
 // -------------------------------------------------------------- box / sphere
 
 /// A box, positioned and oriented — the numbers `CollisionBox` needs.
-final class FittedBox {
-  const FittedBox({
+final class FittedCuboid {
+  const FittedCuboid({
     required this.center,
     required this.orientation,
     required this.halfExtents,
@@ -293,7 +293,7 @@ final class FittedCapsule {
 /// `a² = 3(Iy+Iz-Ix)/(2m)` and its two rotations. The box's own axes are the
 /// mesh's principal axes; a mesh whose mass is concentrated off an axis
 /// rotates the fitted box to match, which a plain bounding box never does.
-FittedBox fitBoxByInertia(EditMesh mesh) {
+FittedCuboid fitBoxByInertia(EditMesh mesh) {
   final principal = principalAxesOf(computeMeshInertia(mesh));
   final m = principal.mass.abs();
   final ix = principal.moments.x, iy = principal.moments.y;
@@ -304,7 +304,7 @@ FittedBox fitBoxByInertia(EditMesh mesh) {
   final b = halfExtent(ix + iz - iy);
   final c = halfExtent(ix + iy - iz);
 
-  return FittedBox(
+  return FittedCuboid(
     center: principal.centroid,
     orientation: principal.axes,
     halfExtents: Vector3(a, b, c),

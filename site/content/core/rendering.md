@@ -164,7 +164,7 @@ The table carries a hash of the brushes it was baked from and refuses, with a wo
 The light a level's walls throw on each other, baked once and added at draw time. A brush face is a rectangle with its own two axes, so its unwrap is itself: the layout packs every visible face onto shelves at a stated density, computed from the level alone by the baker and by the geometry, so the sidecar beside the level carries pixels and a hash and no table that could go stale.
 
 ```bash
-dart run flutter3d_sim:bake_lightmap --density 4 --bounces 2 --samples 64 assets/levels/crypt.json
+dart run flutter3d_build:lightmap --density 4 --bounces 2 --samples 64 assets/levels/crypt.json
 # writes crypt.lightmap.bin beside it; --direct bakes the direct light in too, for looking at the unwrap
 ```
 

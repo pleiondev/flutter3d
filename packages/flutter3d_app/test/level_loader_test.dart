@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_build/lightmap.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
@@ -291,7 +292,7 @@ void main() {
 
       expect(loaded.lightmap, isNull);
       expect(loaded.issues, hasLength(1));
-      expect(loaded.issues.single.message, contains('bake_lightmap'));
+      expect(loaded.issues.single.message, contains('flutter3d lightmap'));
       expect(loaded.brushNodes.every((n) => !n.lightmapped), isTrue);
     });
 

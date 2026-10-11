@@ -525,8 +525,6 @@ Map<String, Object?> mergedOffsets(EntityDef step, String nodePath, Vector3 delt
 
 List<String> movedStep(List<String> steps, int from, int to)
 
-List<EntityDef> orderedSteps(Level level, String sequenceName)
-
 List<OutlineGroup> outlineOf(Level level, {String filter = ''})
 
 String packageName(String typed)

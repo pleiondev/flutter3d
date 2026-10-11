@@ -224,7 +224,7 @@ final class LevelLoader {
   /// The lightmap beside a level, or null when there is none — and a word
   /// when there is one that will not read.
   ///
-  /// `<level>.lightmap.bin`, baked by `dart run flutter3d_sim:bake_lightmap`.
+  /// `<level>.lightmap.bin`, baked by `dart run flutter3d_build:lightmap`.
   /// The same contract as the visibility sidecar: absent is a level without
   /// one, unreadable is said out loud and the level plays without it.
   static Future<(Lightmap?, LevelIssue?)> _sidecarLightmap(
@@ -556,7 +556,7 @@ final class LevelLoader {
         const LevelIssue(
           LevelIssueSeverity.warning,
           'the lightmap was baked from different brushes or lights and is '
-          'ignored; run bake_lightmap again',
+          'ignored; run `flutter3d lightmap` again',
         ),
       );
       lightmap = null;
@@ -582,7 +582,7 @@ final class LevelLoader {
           LevelIssueSeverity.warning,
           'the lightmap is ${lightmap.width}x${lightmap.height} and this '
           'build plans ${layout.width}x${layout.height} for the same level, '
-          'so it is ignored; run bake_lightmap again',
+          'so it is ignored; run `flutter3d lightmap` again',
         ),
       );
       lightmap = null;

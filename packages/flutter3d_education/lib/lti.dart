@@ -10,12 +10,15 @@
 /// subtype when it does not check out (`lti-00`). [AgsClient] posts a score
 /// to a platform's gradebook via a client-credentials grant signed with
 /// [LtiToolCredentials] (`lti-01`). [XapiClient] sends an [XapiStatement] to
-/// a Learning Record Store (`lti-02`).
+/// a Learning Record Store (`lti-02`). [CheckReporter] is the wire between
+/// them and a lesson: each answer to a `check` question becomes a
+/// statement, and each question settled updates the lesson's score.
 library;
 
 export 'src/lti/ags_client.dart';
 export 'src/lti/ags_exception.dart';
 export 'src/lti/ags_score.dart';
+export 'src/lti/check_reporter.dart';
 export 'src/lti/jwk.dart'
     show
         rsaPrivateKeyFromJwk,

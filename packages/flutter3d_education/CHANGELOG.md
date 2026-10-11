@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **New: a lesson's answers reach the learning platform** (`CheckReporter`,
+  `CheckAnswer`, `CheckDelivery` in `lti.dart`). Each answer to a `check`
+  question is an xAPI `answered` statement; each question an answer
+  settles updates the lesson's one score in the gradebook through AGS,
+  `InProgress` until every question is settled. A launch without a line
+  item or the score scope is not graded and says so, and a refusing
+  platform is reported in the delivery rather than thrown, so a lesson
+  goes on when a gradebook is down. `CheckReporter.forExperiment` and
+  `forLesson` build one for an experiment's or a lesson level's questions.
+- **New: the experiment document, `f3d.experiment` v1** (`experiment.dart`).
+  `ExperimentDocument` holds a level by path, the substances by catalog id,
+  the parameters, the probes (`Probe` and the entity it is on) and a
+  scenario of steps that set parameters, run, expect readings within a
+  tolerance and may ask a `CheckQuestion`; every number is a `Quantity`.
+  References are checked when the file is read, so a step naming a
+  parameter or a probe the document lacks is refused with both names.
+  `unknowns` and `observations` are read and written for inverse runs to
+  come. The pendulum and the chemistry bench are the first two, as
+  fixtures under `test/fixtures/v1/`.
 - **Breaking: `LtiMessageType` is an open set and `LtiLaunchException` is
   `abstract final`.** LTI 1.3 has messages this package does not name yet,
   and a later check is a later refusal, so neither breaks a `switch` when it

@@ -51,6 +51,7 @@ final class LessonPlayer
   final List<EntityDef> steps
   int index
   void applyCurrent(StereoRig rig, {Map<String, SceneNode> nodes = const <String, SceneNode>{}, Map<String, Vector3> restPositions = const <String, Vector3>{}})
+  void applyCurrentTo(SceneNode viewer, {Map<String, SceneNode> nodes = const <String, SceneNode>{}, Map<String, Vector3> restPositions = const <String, Vector3>{}})
   void next()
   void previous()
 
@@ -133,6 +134,8 @@ final class StereoViewer
   static const StereoViewer cardboardV2 = StereoViewer()
 
 void applyLessonStep(StereoRig rig, EntityDef step, {Map<String, SceneNode> nodes = const <String, SceneNode>{}, Map<String, Vector3> restPositions = const <String, Vector3>{}})
+
+void applyLessonStepTo(SceneNode viewer, EntityDef step, {Map<String, SceneNode> nodes = const <String, SceneNode>{}, Map<String, Vector3> restPositions = const <String, Vector3>{}})
 
 HeadPose decodeSensorEvent(List<double> event)
 

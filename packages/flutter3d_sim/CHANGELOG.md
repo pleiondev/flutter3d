@@ -15,6 +15,11 @@
   native physics. Compatibility stays with `SimulationVersion` and with the
   snapshot reader's format check. Digests over native snapshots taken before
   this differ once; the repository's tapes are recorded again.
+- **Breaking: `LightmapBaker` is `flutter3d_build`'s.** A lightmap is baked
+  once before a level ships and no step reads the baker, so it moved to
+  `package:flutter3d_build/lightmap.dart`, and the command with it
+  (`flutter3d lightmap`). `Lightmap` and
+  `LightmapLayout`, which the loader reads, stay here.
 - **A headset's display time is a clock.** `TimeSource.display()`
   (`DisplayTime`) hands each frame the gap between the display times an XR
   runtime predicts, so the world drawn for a frame stands where it will be

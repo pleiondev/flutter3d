@@ -246,6 +246,10 @@ const Map<String, String> flatDartPackages = <String, String>{
 /// every package` fails on an inversion not here, and on an entry here the
 /// order no longer inverts.
 const Map<String, String> devDependencyPublishedLater = <String, String>{
+  'flutter3d_app -> flutter3d_build':
+      '`level_loader_test.dart` loads levels with lightmaps baked for the '
+      'test; the baker is a build step and the loader may not depend on a '
+      'build tool, so the bake for the test comes from the package above',
   'flutter3d_cpu -> flutter3d_model_core':
       '`render_project_test.dart` renders a modeller\'s project on the '
       'software device; `flutter3d_model_core` may not depend on a backend, '
@@ -1081,8 +1085,6 @@ portableStepExempt = <String, Map<String, String>>{
   'flutter3d_sim': <String, String>{
     'lib/src/world/light_fixture.dart':
         'how bright a lamp looks on a frame, which nothing steps on',
-    'lib/src/level/lightmap_baker.dart':
-        'runs once, before a level ships, and its output is committed',
     'lib/src/loop/pace.dart':
         'a dropped-frame meter, measured against the wall clock — it is '
         'already a thing no two machines agree about',
