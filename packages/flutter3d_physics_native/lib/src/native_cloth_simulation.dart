@@ -2,7 +2,7 @@
 /// on [NativePhysics] gets from `backend.cloth(mesh)`.
 ///
 /// Under a profile that does not promise bits (`ClothSettings.profile`,
-/// `SimulationProfile.accurate`) it refuses with [NativeClothRefused]
+/// `SimulationProfile.accurate`) it refuses with [NativeClothRefusedException]
 /// rather than running the float core: such a profile's cloth is the Dart
 /// integrator's, and its owner falls back to `DartCloth`.
 library;
@@ -142,7 +142,7 @@ final class NativeClothSimulation extends ClothSimulation {
     // not promise bits (`accurate`) is the Dart integrator's, and the owner
     // falls back to `DartCloth` rather than this running it in f32.
     if (!settings.profile.isBitExact) {
-      throw NativeClothRefused(
+      throw NativeClothRefusedException(
         NativeClothRefusal.notBitExact,
         'native cloth steps in the core\'s f32, the deterministic profile; '
         '"${settings.profile.name}" does not promise bits, so its cloth is '
@@ -352,8 +352,8 @@ final class NativeClothRefusal {
 
 /// [NativeClothSimulation.step] refused: the owner falls back to
 /// `DartCloth`, which steps the same mesh.
-final class NativeClothRefused extends CapabilityException {
-  const NativeClothRefused(this.reason, this.message);
+final class NativeClothRefusedException extends CapabilityException {
+  const NativeClothRefusedException(this.reason, this.message);
 
   final NativeClothRefusal reason;
 
@@ -361,5 +361,5 @@ final class NativeClothRefused extends CapabilityException {
   final String message;
 
   @override
-  String toString() => 'NativeClothRefused(${reason.name}): $message';
+  String toString() => 'NativeClothRefusedException(${reason.name}): $message';
 }

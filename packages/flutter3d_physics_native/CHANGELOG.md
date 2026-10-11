@@ -2,7 +2,7 @@
 
 - **Native cloth refuses a profile that does not promise bits.** Under
   `ClothSettings.profile` that is not bit-exact (`accurate`),
-  `NativeClothSimulation.step` throws `NativeClothRefused` with
+  `NativeClothSimulation.step` throws `NativeClothRefusedException` with
   `NativeClothRefusal.notBitExact` instead of running the float core, and
   its owner falls back to `DartCloth`. The wind's drag the core is given is
   `WindSettings.effectiveDrag`, scaled by the air's density: exactly the

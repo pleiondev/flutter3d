@@ -177,6 +177,18 @@ final class NativeCloth implements ClothSystem
   void setBalls(List<({Vector3 center, double radius})> balls)
   void step(ClothSettings settings, double dt)
 
+final class NativeClothRefusal
+  String toString()
+  final String name
+  static const List<NativeClothRefusal> values = <NativeClothRefusal>[notBitExact]
+  static const NativeClothRefusal notBitExact = NativeClothRefusal._('notBitExact')
+
+final class NativeClothRefusedException extends CapabilityException
+  String toString()
+  const NativeClothRefusedException(this.reason, this.message)
+  final NativeClothRefusal reason
+  final String message
+
 final class NativeClothSimulation extends ClothSimulation
   NativeClothSimulation(this.mesh)
   final ClothMesh mesh
