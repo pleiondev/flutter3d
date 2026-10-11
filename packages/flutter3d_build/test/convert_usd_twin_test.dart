@@ -75,7 +75,10 @@ void main() {
     final pumpRows = run.rows('plant.level.json', 'pump');
     expect(_props(pumpRows.single)['nodeAttributes'], <String, Object?>{
       'Pump': <String, Object?>{'twin:model': 'XP-200'},
-      'Pump/Body': <String, Object?>{'twin:part': 'housing'},
+      'Pump/Body': <String, Object?>{
+        'twin:part': 'housing',
+        'materials': <Object?>['cast iron', 'bronze'],
+      },
     });
   });
 
@@ -223,5 +226,12 @@ void main() {
     expect(PrefabAttributes.of(model).nodesWhere('twin:id', 'T-1'), <String>[
       'Plant/Tank',
     ]);
+    // An attribute that happens to be called `materials` names no level
+    // material: the model's own table holds the materials, and the
+    // sidecars stay out.
+    expect(
+      bundle.files.keys.where((String path) => path.endsWith('.fmat')),
+      isEmpty,
+    );
   });
 }

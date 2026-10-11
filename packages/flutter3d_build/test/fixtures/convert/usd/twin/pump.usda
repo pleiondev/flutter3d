@@ -16,6 +16,7 @@ def Xform "Pump"
         uniform token[] xformOpOrder = ["xformOp:translate"]
         rel material:binding = </Pump/Looks/Housing>
         custom string twin:part = "housing"
+        custom string[] materials = ["cast iron", "bronze"]
     }
 
     def Scope "Looks"

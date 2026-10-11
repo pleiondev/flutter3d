@@ -30,6 +30,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show PrefabAttributes;
 
 import 'output.dart';
 import 'report.dart';
@@ -141,10 +142,15 @@ bool _isSidecar(String path) =>
 
 /// Whether a level names a material by id anywhere: its `materials` table
 /// is then needed, and the `.fmat` files it points at with it.
+///
+/// A source's attributes are not looked into: a custom attribute a twin
+/// called `materials` is the twin's word, not a row's material slots.
 bool _namesMaterials(Object? json) => switch (json) {
   final Map<String, Object?> map => map.entries.any(
     (MapEntry<String, Object?> e) =>
-        (e.key == 'materials' && e.value is List) || _namesMaterials(e.value),
+        e.key != PrefabAttributes.ownKey &&
+        e.key != PrefabAttributes.nodesKey &&
+        ((e.key == 'materials' && e.value is List) || _namesMaterials(e.value)),
   ),
   final List<Object?> list => list.any(_namesMaterials),
   _ => false,
