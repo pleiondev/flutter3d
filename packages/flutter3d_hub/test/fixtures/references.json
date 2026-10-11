@@ -1,0 +1,57 @@
+{
+  "format": "<uuid>@<n>, optionally followed by #sha256=<64 lowercase hex digits>",
+  "valid": [
+    {
+      "text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1",
+      "uuid": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90",
+      "version": 1,
+      "sha256": null
+    },
+    {
+      "text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@12",
+      "uuid": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90",
+      "version": 12,
+      "sha256": null
+    },
+    {
+      "text": "01928c3a-5b7e-7f00-8d2a-4c6b9e1f3a57@3#sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uuid": "01928c3a-5b7e-7f00-8d2a-4c6b9e1f3a57",
+      "version": 3,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "text": "ffffffff-ffff-ffff-ffff-ffffffffffff@2147483647",
+      "uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      "version": 2147483647,
+      "sha256": null
+    }
+  ],
+  "invalid": [
+    {"text": "", "says": "is empty"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90", "says": "has no version"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@", "says": "has no version"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@0", "says": "starts at 1"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@01", "says": "leading zero"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@-1", "says": "decimal number"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@+1", "says": "decimal number"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1.5", "says": "decimal number"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@latest", "says": "decimal number"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@2147483648", "says": "at most 2147483647"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1@2", "says": "decimal number"},
+    {"text": "0F8B5C2E-7A41-4D3B-9C6E-2A1F8E4D7B90@1", "says": "uppercase"},
+    {"text": "0f8b5c2e7a414d3b9c6e2a1f8e4d7b90@1", "says": "is not a UUID"},
+    {"text": "{0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90}@1", "says": "is not a UUID"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b9g@1", "says": "is not a UUID"},
+    {"text": "00000000-0000-0000-0000-000000000000@1", "says": "nil UUID"},
+    {"text": "chair@1", "says": "is not a UUID"},
+    {"text": " 0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1", "says": "whitespace"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1\n", "says": "whitespace"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1#", "says": "a checksum is written"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1#sha256=", "says": "64 lowercase hexadecimal digits"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1#sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85", "says": "64 lowercase hexadecimal digits"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1#sha256=E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855", "says": "64 lowercase hexadecimal digits"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1#sha512=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "says": "a checksum is written"},
+    {"text": "0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1#sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "says": "a checksum is written"},
+    {"text": "hub:0f8b5c2e-7a41-4d3b-9c6e-2a1f8e4d7b90@1", "says": "is not a UUID"}
+  ]
+}

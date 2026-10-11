@@ -117,6 +117,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flutter3d_game_strategy` | android, ios, linux, macos, web, windows |
 | `flutter3d_game_ui` | android, ios, linux, macos, web, windows |
 | `flutter3d_hardware` | android, ios, linux, macos, web, windows |
+| `flutter3d_hub` | android, ios, linux, macos, web, windows |
 | `flutter3d_impeller` | android, ios, linux, macos, windows |
 | `flutter3d_level_scene` | android, ios, linux, macos, web, windows |
 | `flutter3d_lints` | linux, macos, windows |
