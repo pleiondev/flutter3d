@@ -21,6 +21,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         RenderStepRegistry,
         WorldPosition,
         orderByConstraints;
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show MissingShaderStageException;
 // The generated uniform tables are shared by the engine and its backends,
 // released together, and are nobody else's API since 1.0.
 // ignore: implementation_imports
@@ -2187,10 +2189,11 @@ final class Renderer with RenderServices {
     ShaderHandle require(String name) {
       final shader = library[name];
       if (shader == null) {
-        throw StateError(
-          'The bundle has no "$name" entry. Check the backend\'s bundle '
-          'manifest and rebuild it. Each backend package keeps its own '
-          'shaders/flutter3d.shaderbundle.json and tool/build_shaders.sh.',
+        // D15: every stage asked for here is one every bundle carries, so
+        // the refusal says the bundle was not built by this flutter3d.
+        throw MissingShaderStageException.forStage(
+          name,
+          backend: device.backendName,
         );
       }
       return shader;

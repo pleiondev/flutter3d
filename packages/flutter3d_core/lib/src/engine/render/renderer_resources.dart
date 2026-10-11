@@ -47,9 +47,12 @@ extension _RendererResources on Renderer {
     return _fragmentShaders.putIfAbsent(model.shaderName, () {
       final shader = shaders[model.shaderName];
       if (shader == null) {
-        throw StateError(
-          'The bundle has no "${model.shaderName}" fragment shader. '
-          'Rebuild it with tool/build_shaders.sh.',
+        // D15: a project's bundle carries the lighting models it declared;
+        // the refusal names the need that brings this one.
+        throw MissingShaderStageException.forStage(
+          model.shaderName,
+          backend: device.backendName,
+          detail: 'Material "${model.label}" lights with it.',
         );
       }
       return shader;
@@ -178,13 +181,16 @@ extension _RendererResources on Renderer {
     return _materialVertexShaders.putIfAbsent(wanted, () {
       final shader = shaders[wanted];
       if (shader == null) {
-        throw StateError(
-          'Material "${model.label}" asks for the vertex stage "$wanted", '
-          'which no shader library the renderer was given answers to. '
-          '${skinned ? 'This is the skinned half of "$supplied": a material '
-                    'drawn on a skinned mesh needs both. ' : ''}'
-          'Pass it to Renderer.create as `materials:`, or rebuild the '
-          "backend's bundle with it in.",
+        throw MissingShaderStageException.forStage(
+          wanted,
+          backend: device.backendName,
+          detail:
+              'Material "${model.label}" asks for it as its vertex stage, '
+              'and no shader library the renderer was given answers to it. '
+              '${skinned ? 'This is the skinned half of "$supplied": a '
+                        'material drawn on a skinned mesh needs both. ' : ''}'
+              'Pass it to Renderer.create as `materials:`, or rebuild the '
+              "backend's bundle with it in.",
         );
       }
       return shader;
@@ -209,11 +215,14 @@ extension _MaterialVariants on Renderer {
     return _materialVertexShaders.putIfAbsent(wanted, () {
       final shader = shaders[wanted];
       if (shader == null) {
-        throw StateError(
-          'Material "${model.label}" lists the ${variant.name} vertex stage '
-          '"$wanted", which no shader library the renderer was given answers '
-          'to. Pass it to Renderer.create as `materials:`, or rebuild the '
-          "backend's bundle with it in.",
+        throw MissingShaderStageException.forStage(
+          wanted,
+          backend: device.backendName,
+          detail:
+              'Material "${model.label}" lists it as its ${variant.name} '
+              'vertex stage, and no shader library the renderer was given '
+              'answers to it. Pass it to Renderer.create as `materials:`, or '
+              "rebuild the backend's bundle with it in.",
         );
       }
       return shader;

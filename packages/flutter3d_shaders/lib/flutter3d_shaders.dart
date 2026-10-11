@@ -13,9 +13,16 @@
 /// came back empty.
 ///
 /// Kept in step with the manifest by a test, not by discipline.
+///
+/// **Not every bundle holds every entry point** since 1.0 (D15): a project's
+/// build writes the stages its [ShaderStageNeed]s bring, and a stage left out
+/// is refused with a [MissingShaderStageException] when it is asked for.
 library;
 
+import 'src/stage_need.dart';
+
 export 'src/shading_constants.dart' show dielectricF0;
+export 'src/stage_need.dart' show MissingShaderStageException, ShaderStageNeed;
 
 /// One entry point the engine requires.
 typedef RequiredShader = ({String name, bool fragment});
