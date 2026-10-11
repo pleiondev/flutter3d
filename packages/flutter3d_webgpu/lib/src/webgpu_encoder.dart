@@ -695,7 +695,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
     final refusals = _device.pipelineRefusals;
     if (refusals.isRefused(handle)) return false;
     final layouts = _device.bindingsFor(pipeline);
-    final GPURenderPipeline built;
+    final GPURenderPipeline? built;
     try {
       built = _realPipeline(pipeline, handle, layouts);
     } on Object catch (error) {
@@ -717,6 +717,9 @@ abstract base class WebGpuRecorder extends PassEncoder {
       );
       return false;
     }
+    // Built off the frame, and this draw waits for it: see
+    // `WebGpuDevice.deferPipelineBuilds`.
+    if (built == null) return false;
     _commands.setPipeline(built);
     for (var group = 0; group < layouts.groups.length; group++) {
       final shape = layouts.shapes[group];
@@ -786,17 +789,19 @@ abstract base class WebGpuRecorder extends PassEncoder {
   }
 
   /// The browser's pipeline for [pipeline] in this draw's state, built the
-  /// first time the state is asked for. A build the browser refuses later,
-  /// on its error scope, is reported against [handle] and dropped from the
-  /// cache, so the next draw in that state builds it again — see
-  /// `WebGpuDevice.guardPipeline`.
-  GPURenderPipeline _realPipeline(
+  /// first time the state is asked for — off the frame where the device
+  /// defers, which skips this draw (null) until it arrives, for one frame at
+  /// most; see `WebGpuDevice.deferPipelineBuilds`. A build the browser
+  /// refuses later, on its error scope or its promise, is reported against
+  /// [handle] and dropped from the cache, so the next draw in that state
+  /// builds it again.
+  GPURenderPipeline? _realPipeline(
     WebGpuPipeline pipeline,
     PipelineHandle handle,
     WebGpuBindingLayouts layouts,
   ) {
     final signature = signatureFor(pipeline);
-    return _device.pipelines.get(signature, () {
+    WebGpuDrawState state() {
       final state = WebGpuDrawState(
         signature: signature,
         stencilFront: _stencilFront,
@@ -807,14 +812,14 @@ abstract base class WebGpuRecorder extends PassEncoder {
       // device has built in are what `createPipelineAsync` warms a new pair
       // with.
       _device.rememberDrawState(state);
-      return _device.guardPipeline(
-        handle,
-        signature,
-        () => _device.gpuDevice.createRenderPipeline(
-          webgpuRenderPipelineDescriptor(pipeline, layouts, state),
-        ),
-      );
-    });
+      return state;
+    }
+
+    return _device.pipelineForDraw(
+      handle,
+      signature,
+      () => webgpuRenderPipelineDescriptor(pipeline, layouts, state()),
+    );
   }
 
   static GPUStencilFaceState _faceStateOf(StencilState state) =>

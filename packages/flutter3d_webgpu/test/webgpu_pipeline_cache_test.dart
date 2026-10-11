@@ -437,4 +437,129 @@ void main() {
       expect(cache.get(_signature(layout: _perInstance), build), 'pipeline 1');
     });
   });
+
+  group('a draw that meets a new state', () {
+    /// One frame's draw in [frame]: what [cache] hands it, building in place
+    /// through [built] and off the frame through [later].
+    String? draw(
+      WebGpuPipelineCache<String> cache,
+      int frame, {
+      required List<String> built,
+      required List<WebGpuPipelineSignature> later,
+      WebGpuPipelineSignature? signature,
+      bool defer = true,
+    }) {
+      final at = signature ?? _signature();
+      return cache.forDraw(
+        at,
+        frame: frame,
+        defer: defer,
+        build: () {
+          built.add('now $frame');
+          return 'now $frame';
+        },
+        buildLater: () => later.add(at),
+      );
+    }
+
+    test('waits one frame for a build sent off the frame', () {
+      // Mutation: build in place whenever the cache misses, as before 1.0 —
+      // nothing is sent off the frame and the first draw stalls on a link.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      expect(draw(cache, 1, built: built, later: later), isNull);
+      expect(later, <WebGpuPipelineSignature>[_signature()]);
+      expect(built, isEmpty);
+      expect(cache.isPending(_signature()), isTrue);
+
+      // A second draw in the same frame waits with the first and sends
+      // nothing again.
+      expect(draw(cache, 1, built: built, later: later), isNull);
+      expect(later, hasLength(1));
+
+      // The build arrives between frames; the next draw finds it.
+      cache.offer(_signature(), 'async');
+      expect(cache.isPending(_signature()), isFalse);
+      expect(draw(cache, 2, built: built, later: later), 'async');
+      expect(built, isEmpty);
+    });
+
+    test('builds in place when the build has not arrived a frame later', () {
+      // The one-frame fallback. Mutation: keep waiting while the build is
+      // out — a browser slow to compile leaves the draw missing for as many
+      // frames as it takes.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      expect(draw(cache, 1, built: built, later: later), isNull);
+      expect(draw(cache, 2, built: built, later: later), 'now 2');
+      expect(built, <String>['now 2']);
+      expect(cache.isPending(_signature()), isFalse);
+
+      // What arrives afterwards does not replace what the draw built.
+      expect(cache.offer(_signature(), 'async'), 'now 2');
+      expect(draw(cache, 3, built: built, later: later), 'now 2');
+    });
+
+    test('builds in place when the device is not deferring', () {
+      // Mutation: defer regardless — a frame drawn once and read back, which
+      // is every golden, misses each draw whose state it met first.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      expect(draw(cache, 1, built: built, later: later, defer: false), 'now 1');
+      expect(later, isEmpty);
+    });
+
+    test('a refused build is no longer waited for', () {
+      // Mutation: leave the state pending when the browser refuses — the
+      // next frame's draw takes the fallback and builds what was refused,
+      // instead of asking again off the frame.
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      draw(cache, 1, built: built, later: later);
+      cache.settle(_signature());
+      expect(cache.isPending(_signature()), isFalse);
+      expect(draw(cache, 2, built: built, later: later), isNull);
+      expect(later, hasLength(2));
+    });
+
+    test('two states wait apart', () {
+      final cache = WebGpuPipelineCache<String>();
+      final built = <String>[];
+      final later = <WebGpuPipelineSignature>[];
+      draw(cache, 1, built: built, later: later);
+      draw(
+        cache,
+        2,
+        built: built,
+        later: later,
+        signature: _signature(layout: _perInstance),
+      );
+      cache.offer(_signature(layout: _perInstance), 'instanced');
+      // The first state's build is a frame late and falls back; the second
+      // arrived and is not built again.
+      expect(draw(cache, 2, built: built, later: later), 'now 2');
+      expect(
+        draw(
+          cache,
+          3,
+          built: built,
+          later: later,
+          signature: _signature(layout: _perInstance),
+        ),
+        'instanced',
+      );
+      expect(built, <String>['now 2']);
+    });
+
+    test('forgets what it waits for with everything else', () {
+      final cache = WebGpuPipelineCache<String>();
+      draw(cache, 1, built: <String>[], later: <WebGpuPipelineSignature>[]);
+      cache.clear();
+      expect(cache.isPending(_signature()), isFalse);
+    });
+  });
 }
