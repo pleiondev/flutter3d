@@ -70,6 +70,8 @@ dependencies:
   flutter3d_plugin_runtime: ^1.0.0-rc.1
   flutter3d_matter: ^1.0.0-rc.1
   flutter3d_voxel: ^1.0.0-rc.1
+  # `f3d.experiment`, for `migrate --data` and `doctor`. Plain Dart.
+  flutter3d_education: ^1.0.0-rc.1
 
   # P8's material step: `ShaderBundle`, the container it writes, and
   # `flutter3d_shaders`' `compile.dart` — the engine's headers a material

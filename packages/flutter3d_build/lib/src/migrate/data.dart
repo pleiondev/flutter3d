@@ -36,6 +36,8 @@ import 'package:flutter3d_core/flutter3d_core.dart'
         f3dsplatFormat,
         fmatFormat,
         pipelineFormat;
+import 'package:flutter3d_education/experiment.dart'
+    show experimentFormat;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart' show ShaderBundle;
 import 'package:flutter3d_hardware/trace.dart' show Trace;
@@ -89,6 +91,7 @@ const Map<String, List<FormatSpec>> formatsByPackage =
       'flutter3d_plugin_runtime': <FormatSpec>[DataPluginDocument.format],
       'flutter3d_matter': <FormatSpec>[PhysicalMaterial.format],
       'flutter3d_voxel': <FormatSpec>[VoxelWorld.format],
+      'flutter3d_education': <FormatSpec>[experimentFormat],
       'flutter3d_build': <FormatSpec>[AssetManifest.spec, convertReportFormat],
     };
 
