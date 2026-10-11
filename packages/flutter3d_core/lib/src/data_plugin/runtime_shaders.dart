@@ -232,7 +232,8 @@ ShaderBundle runtimeMaterialBundle(
             // which only the language's own tree can write.
             if (kind == RuntimeBackends.webgpu)
               if (webGpuStage() case final stage?)
-                'webGpuStages': <String, PackedStage>{name: stage},
+                MaterialCompileRequest.webGpuStagesOption:
+                    <String, PackedStage>{name: stage},
           },
         ),
       );

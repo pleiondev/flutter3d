@@ -8,7 +8,9 @@
   `registerGpuBackend(compilers:)` adds `ImpellerSectionCompiler` to a
   `MaterialCompilerRegistry`: it names the `impeller` section and compiles
   nothing while a game runs, so `RuntimeShaders` refuses a data plugin's
-  material on Impeller by the registry's sentence.
+  material on Impeller by the registry's sentence. Its
+  `buildWritesSection` is true: `impellerc` writes the section in the
+  build, which keeps it when this compiler refuses.
 - **A pipeline flutter_gpu will not link skips its draws.** A link refused
   at `createPipeline`, or at the first draw where OpenGL ES links lazily
   (`Failed to append drawIndexed`), is reported to

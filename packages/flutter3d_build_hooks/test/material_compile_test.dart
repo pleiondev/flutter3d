@@ -57,10 +57,11 @@ CompiledStage _fakeWgsl(
 /// A fifth backend's compiler: writes the stage names into a section of its
 /// own, or refuses as [refusal] says.
 final class _Fifth extends MaterialCompiler {
-  _Fifth({this.section = 'fifth', this.refusal});
+  _Fifth({this.section = 'fifth', this.refusal, this.buildWrites = false});
 
   final String section;
   final Exception? refusal;
+  final bool buildWrites;
   final List<MaterialCompileRequest> asked = <MaterialCompileRequest>[];
 
   @override
@@ -68,6 +69,9 @@ final class _Fifth extends MaterialCompiler {
 
   @override
   String get bundleSection => section;
+
+  @override
+  bool get buildWritesSection => buildWrites;
 
   @override
   MaterialCompileResult compile(MaterialCompileRequest request) {
@@ -106,18 +110,19 @@ done
   });
   tearDown(() => scratch.deleteSync(recursive: true));
 
-  ShaderBundle build({MaterialCompilerRegistry? registry}) => compileMaterial(
-    _hair,
-    source: 'assets_src/hair.f3dmat',
-    engine: engine,
-    compilers: MaterialCompilers(
-      impellerc: impellerc.path,
-      sdk: '3.13.0',
-      wgsl: _fakeWgsl,
-      registry: registry,
-    ),
-    scratch: Directory('${scratch.path}/out'),
-  );
+  ShaderBundle build({MaterialCompilerRegistry? registry, bool wgsl = true}) =>
+      compileMaterial(
+        _hair,
+        source: 'assets_src/hair.f3dmat',
+        engine: engine,
+        compilers: MaterialCompilers(
+          impellerc: impellerc.path,
+          sdk: '3.13.0',
+          wgsl: wgsl ? _fakeWgsl : null,
+          registry: registry,
+        ),
+        scratch: Directory('${scratch.path}/out'),
+      );
 
   test('a registered compiler writes its own section', () {
     // Mutation: drop the registry loop from `compileMaterial` and the bundle
@@ -134,7 +139,7 @@ done
     expect(request.engineSources, isNotEmpty);
     // The stages this build wrote as WGSL, for WebGPU's own compiler.
     expect(
-      request.options['webGpuStages'],
+      request.options[MaterialCompileRequest.webGpuStagesOption],
       isA<Map<String, PackedStage>>().having((m) => m.keys, 'keys', <String>[
         'acme_sample_Hair',
       ]),
@@ -151,11 +156,13 @@ done
     );
   });
 
-  test('a refusal of a section the build wrote keeps the build\'s', () {
+  test('a refusal from a compiler whose section the build writes keeps '
+      'the build\'s', () {
     final bundle = build(
       registry: MaterialCompilerRegistry(<MaterialCompiler>[
         _Fifth(
           section: ShaderBundle.impellerSection,
+          buildWrites: true,
           refusal: const MaterialCompileException(
             'impellerc runs in the build',
           ),
@@ -165,6 +172,52 @@ done
     expect(
       _text(bundle.section(ShaderBundle.impellerSection)!),
       'stub impellerc output',
+    );
+  });
+
+  test('any other refusal fails the build, whatever it wrote', () {
+    // Mutation: skip a refusal whenever the build wrote the section, as
+    // the build once did, and a WebGL compiler that refuses the material
+    // ships the build's own section as if it had agreed.
+    expect(
+      () => build(
+        registry: MaterialCompilerRegistry(<MaterialCompiler>[
+          _Fifth(
+            section: ShaderBundle.webglSection,
+            refusal: const MaterialCompileException('not this material'),
+          ),
+        ]),
+      ),
+      throwsA(
+        isA<MaterialBuildException>().having(
+          (e) => e.message,
+          'message',
+          contains('not this material'),
+        ),
+      ),
+    );
+  });
+
+  test('without glslang and naga WebGPU gets no section, and no error', () {
+    // Mutation: ask WebGPU's compiler with no stages, and its refusal
+    // fails a build the file promises goes on without the section.
+    final webgpu = _Fifth(
+      section: ShaderBundle.webgpuSection,
+      refusal: const MaterialCompileException('no WGSL to pack'),
+    );
+    final bundle = build(
+      wgsl: false,
+      registry: MaterialCompilerRegistry(<MaterialCompiler>[webgpu]),
+    );
+    expect(webgpu.asked, isEmpty);
+    expect(bundle.section(ShaderBundle.webgpuSection), isNull);
+    expect(
+      bundle.sections.keys,
+      containsAll(<String>[
+        ShaderBundle.impellerSection,
+        ShaderBundle.webglSection,
+        ShaderBundle.materialSection,
+      ]),
     );
   });
 

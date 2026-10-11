@@ -42,6 +42,12 @@ final class MaterialCompileRequest {
     this.options = const <String, Object?>{},
   });
 
+  /// The key of [options] under which a caller hands WebGPU's compiler the
+  /// stages it already wrote as WGSL, a `Map<String, PackedStage>` by stage
+  /// name: the build writes them with glslang and naga, `RuntimeShaders`
+  /// from the material's tree.
+  static const String webGpuStagesOption = 'webGpuStages';
+
   /// The material's name, which every stage's entry point starts with.
   final String name;
 
@@ -125,6 +131,15 @@ abstract base class MaterialCompiler {
   /// it. False by default: what needs glslang, naga or impellerc runs in
   /// the build only.
   bool get compilesAtRunTime => false;
+
+  /// Whether a build writes this backend's section with a tool of its own
+  /// rather than through [compile]: Impeller's, which `impellerc` writes in
+  /// the build. False by default.
+  ///
+  /// A build that asks such a compiler and is refused keeps the section it
+  /// wrote; a refusal from any other compiler fails the build with its
+  /// sentence, whatever the build wrote under the same section.
+  bool get buildWritesSection => false;
 
   /// The section [request] compiles to. Throws a [MaterialCompileException]
   /// for a source this backend cannot draw, saying why.

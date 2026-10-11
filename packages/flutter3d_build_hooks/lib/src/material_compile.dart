@@ -17,16 +17,19 @@
 /// holds the `MaterialCompiler`s of the backends a build serves; each is
 /// handed the stages as GLSL, the engine's headers and the WebGPU stages
 /// already written, and its section goes into the bundle, a fifth backend's
-/// beside the three above or in place of one of them. A compiler that refuses
-/// a section this build already wrote leaves that section as it is, which is
-/// what Impeller's does, since `impellerc` runs here; one that refuses a
-/// section of its own fails the build with its sentence.
+/// beside the three above or in place of one of them. A compiler whose
+/// section the build writes with a tool of its own
+/// (`MaterialCompiler.buildWritesSection`) and that refuses leaves that
+/// section as the build wrote it, which is what Impeller's does, since
+/// `impellerc` runs here; any other refusal fails the build with its
+/// sentence.
 ///
 /// **The WebGPU section is the one allowed to be missing**: it needs
 /// glslangValidator and naga, which a machine may not have, and a backend's
 /// tooling must not become a requirement for everybody else's build. Without
 /// them the bundle carries two sections and the WebGPU backend refuses that
-/// bundle by name. `impellerc` is never missing in a real build — it ships in
+/// bundle by name; WebGPU's own compiler, which packs the WGSL they write,
+/// is not asked. `impellerc` is never missing in a real build — it ships in
 /// the Flutter SDK that runs the hook — so its absence is an error.
 library;
 
@@ -369,17 +372,28 @@ ShaderBundle compileMaterial(
       engineSources: engine.sources,
       options: <String, Object?>{
         // What WebGPU's compiler packs: the stages this build wrote as WGSL.
-        _webGpuStagesOption: ?webgpu?.stages,
+        MaterialCompileRequest.webGpuStagesOption: ?webgpu?.stages,
       },
     );
     for (final backend in registry.backends) {
       final compiler = registry.forBackend(backend)!;
+      // No glslang or naga, so no WGSL for WebGPU's compiler to pack: the
+      // bundle goes without the section, as it does with no registry.
+      if (compiler.bundleSection == ShaderBundle.webgpuSection &&
+          webgpu == null) {
+        continue;
+      }
       try {
         sections[compiler.bundleSection] = compiler.compile(request).section;
       } on MaterialCompileException catch (error) {
-        // A section this build wrote itself stays as written: Impeller's
-        // compiler refuses because `impellerc`, which it names, ran above.
-        if (sections.containsKey(compiler.bundleSection)) continue;
+        // The section of a compiler whose section the build writes with a
+        // tool of its own stays as written: Impeller's refuses because
+        // `impellerc`, which it names, ran above. Any other refusal is the
+        // build's failure, whatever this build wrote under the section.
+        if (compiler.buildWritesSection &&
+            sections.containsKey(compiler.bundleSection)) {
+          continue;
+        }
         refused('the $backend compiler', error.message);
       } on StageAgreementException catch (error) {
         refused('the $backend compiler', error.message);
@@ -402,10 +416,6 @@ ShaderBundle compileMaterial(
     sections: sections,
   );
 }
-
-/// The option `WebGpuSectionCompiler` reads its stages from, as
-/// `RuntimeShaders` hands them over.
-const String _webGpuStagesOption = 'webGpuStages';
 
 /// One stage a source becomes.
 typedef _Stage = ({String name, bool fragment, String glsl});

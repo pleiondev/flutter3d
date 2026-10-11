@@ -26,6 +26,11 @@ final class ImpellerSectionCompiler extends MaterialCompiler {
   @override
   String get bundleSection => ShaderBundle.impellerSection;
 
+  /// `impellerc` writes the section in the build, so a build that asks
+  /// [compile] anyway keeps what it wrote.
+  @override
+  bool get buildWritesSection => true;
+
   @override
   MaterialCompileResult compile(MaterialCompileRequest request) =>
       throw MaterialCompileException(

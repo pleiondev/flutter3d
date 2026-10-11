@@ -4,9 +4,11 @@
   `MaterialCompilers.registry` (and `MaterialCompilers.locate(registry:)`)
   holds a `MaterialCompilerRegistry`; `compileMaterial` hands each
   compiler the stages as GLSL, the engine's headers and the WebGPU stages
-  it wrote, and puts its section in the bundle. A compiler that refuses a
-  section the build already wrote leaves it; one that refuses a section of
-  its own fails the build.
+  it wrote, and puts its section in the bundle. A compiler whose section
+  the build writes with a tool of its own (`buildWritesSection`, Impeller's)
+  and that refuses leaves the build's section; any other refusal fails the
+  build. Without glslang and naga WebGPU's compiler is not asked, and the
+  bundle goes without its section, as it does with no registry.
 - **Stages that disagree fail the build as a `MaterialBuildException`**
   naming the source, where a `StageAgreementException` from a section
   writer used to escape as itself.

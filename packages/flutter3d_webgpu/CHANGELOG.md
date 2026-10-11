@@ -4,6 +4,7 @@
   `MaterialCompilerRegistry`.** It packs a material's stages, written as
   WGSL by `RuntimeShaders` against `webGpuMaterialHost()`, into the section
   the device reads, and refuses a request without them, naming the build.
+  It reads them under `MaterialCompileRequest.webGpuStagesOption`.
 - **A pipeline the browser will not build is a refused pipeline.** A
   `createRenderPipeline` the browser refuses on its error scope is reported
   to `GraphicsDevice.pipelineRefusals` (`link`) instead of becoming a

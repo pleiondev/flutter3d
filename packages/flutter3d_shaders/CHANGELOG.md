@@ -38,7 +38,10 @@
   `MaterialCompiler`, `MaterialCompileRequest`, `MaterialCompileResult`,
   `MaterialCompileException` and `MaterialCompilerRegistry` — how a backend
   compiles the material language into its section of a bundle, found by
-  backend name by the build hook and by `RuntimeShaders`; `ShaderTarget`;
+  backend name by the build hook and by `RuntimeShaders`, with
+  `MaterialCompileRequest.webGpuStagesOption`, the one key the WGSL stages
+  are handed over under, and `MaterialCompiler.buildWritesSection` for a
+  backend whose section a build writes with a tool of its own; `ShaderTarget`;
   and `StageInterface`, `StageVariable`, `StageBlockMember`,
   `StageMismatch`, `StageMismatchKind` and `checkStageAgreement`, the check
   that a pipeline's stages agree on varyings, attributes and blocks before

@@ -19,7 +19,8 @@ import 'package:flutter3d_shaders/translate.dart'
 /// **What it reads.** The material language's WGSL is written from the
 /// material's tree by `RuntimeShaders` (spliced into `webGpuMaterialHost()`'s
 /// stage, or a full-screen stage written whole), and handed over under the
-/// option [stagesOption] as a `Map<String, PackedStage>` by stage name. This
+/// option [MaterialCompileRequest.webGpuStagesOption] as a
+/// `Map<String, PackedStage>` by stage name. This
 /// compiler packs them into the section document the device reads, holding
 /// a vertex stage to its fragment stage as every section writer does.
 ///
@@ -33,9 +34,6 @@ import 'package:flutter3d_shaders/translate.dart'
 final class WebGpuSectionCompiler extends MaterialCompiler {
   const WebGpuSectionCompiler();
 
-  /// The option a [MaterialCompileRequest] carries the written stages under.
-  static const String stagesOption = 'webGpuStages';
-
   @override
   String get backend => 'webgpu';
 
@@ -47,7 +45,7 @@ final class WebGpuSectionCompiler extends MaterialCompiler {
 
   @override
   MaterialCompileResult compile(MaterialCompileRequest request) {
-    final stages = request.options[stagesOption];
+    final stages = request.options[MaterialCompileRequest.webGpuStagesOption];
     if (stages is! Map<String, PackedStage>) {
       throw const MaterialCompileException(
         'WebGPU packs stages already written as WGSL, and this request '
