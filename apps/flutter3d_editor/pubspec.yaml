@@ -56,6 +56,13 @@ dependencies:
   flutter3d_mcp:
     path: ../../packages/flutter3d_mcp
 
+  # The project's own data plugins: the `.f3dplugin` documents under its
+  # `assets/plugins`, read when a level of it opens, with their `editor:`
+  # and `entityKinds:` sections. A Dart plugin is compiled in; a data plugin
+  # is a file, and the editor installs the project's.
+  flutter3d_plugin_runtime:
+    path: ../../packages/flutter3d_plugin_runtime
+
   # Play: the project run with `flutter run --machine`, its devices, and a
   # saved level sent to it. Shared with `flutter3d_mcp/editor.dart`, so an agent's
   # Play is this toolbar's. Its `attach.dart` is the Play a web build has: a

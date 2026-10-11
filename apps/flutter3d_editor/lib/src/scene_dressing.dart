@@ -173,6 +173,7 @@ final class SceneDressing {
     Editing editing, {
     required Looks looks,
     required Set<String> hidden,
+    EditorPieces? pieces,
   }) {
     if (kLevelOnly) return;
 
@@ -181,6 +182,13 @@ final class SceneDressing {
     }
     gizmos.clear();
     owners.clear();
+    marks
+      ..clear()
+      ..addAll(
+        pieces?.marksFor(editing.level, selected: editing.selection) ??
+            const <DrawnMark>[],
+      );
+    placeMarks(scene, editing, looks: looks);
 
     for (final handle in handlesOf(editing.level, looks: looks)) {
       if (handle.kind == Piece.brush) continue;
@@ -293,6 +301,78 @@ final class SceneDressing {
       gizmos.add(node);
       owners[node] = handle;
     }
+  }
+
+  /// What the plugins' gizmos drew over the level the last time
+  /// [placeGizmos] ran: what a press is tested against for a handle.
+  final List<DrawnMark> marks = <DrawnMark>[];
+
+  /// Draws [marks]: a box, a cage, a ball or a line each, in the mark's own
+  /// colour or the colour of the thing it marks, owned by that thing's
+  /// handle so a click on one selects it.
+  void placeMarks(Scene scene, Editing editing, {required Looks looks}) {
+    final handles = handlesOf(editing.level, looks: looks);
+    final meshes = SharedMeshes(device);
+    for (final drawn in marks) {
+      final owner = handles
+          .where((Handle h) => h.kind == drawn.kind && h.index == drawn.index)
+          .firstOrNull;
+      final mark = drawn.mark;
+      final tint = mark.tint ?? owner?.tint ?? Vector3(1.0, 1.0, 1.0);
+      final material = engine.RenderMaterial(
+        name: 'gizmo',
+        baseColor: LinearColor.fromSrgb(tint.x, tint.y, tint.z, 1.0),
+        emissive: (tint * 0.9).toLinearColor(),
+      );
+      final SceneNode node = switch (mark.shape) {
+        GizmoShape.box => MeshNode(
+          meshes.box(mark.size),
+          material,
+          name: 'mark',
+        )..setPosition(mark.from.x, mark.from.y, mark.from.z),
+        GizmoShape.ball => MeshNode(
+          meshes.shape(
+            'gizmo-ball-${mark.size.x}',
+            () => SphereShape(radius: mark.size.x * 0.5),
+          ),
+          material,
+          name: 'mark',
+        )..setPosition(mark.from.x, mark.from.y, mark.from.z),
+        GizmoShape.line => _line(meshes, mark, material),
+        // A cage, and the outline of a shape this build does not draw.
+        _ => buildCage(scene, mark.center, mark.size, tint, name: 'mark'),
+      };
+      if (node is MeshNode) {
+        node.castsShadow = false;
+        scene.add(node);
+      }
+      gizmos.add(node);
+      if (owner != null) owners[node] = owner;
+    }
+  }
+
+  /// A line mark as a thin bar from one end to the other, turned to lie
+  /// along it.
+  MeshNode _line(
+    SharedMeshes meshes,
+    GizmoMark mark,
+    engine.RenderMaterial material,
+  ) {
+    final along = mark.to - mark.from;
+    final length = along.length;
+    final node = MeshNode(
+      meshes.box(Vector3(mark.size.x, mark.size.y, math.max(length, 1e-3))),
+      material,
+      name: 'mark',
+    );
+    final middle = mark.center;
+    node.setPosition(middle.x, middle.y, middle.z);
+    if (length > 1e-6) {
+      node.setRotation(
+        Quaternion.fromTwoVectors(Vector3(0.0, 0.0, 1.0), along / length),
+      );
+    }
+    return node;
   }
 
   /// The twelve edges of a region, as thin bars.

@@ -96,6 +96,15 @@ final class MemoryDisk implements EditorDisk {
   }
 
   @override
+  List<String> filesUnder(String path) {
+    final prefix = path.endsWith('/') ? path : '$path/';
+    return <String>[
+      for (final file in _files.keys)
+        if (file.startsWith(prefix)) file.substring(prefix.length),
+    ]..sort();
+  }
+
+  @override
   Future<String> readText(String path) async => utf8.decode(_read(path));
 
   @override

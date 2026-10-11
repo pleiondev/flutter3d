@@ -44,6 +44,18 @@ final class IoDisk implements EditorDisk {
   }
 
   @override
+  List<String> filesUnder(String path) {
+    final directory = Directory(path).absolute;
+    if (!directory.existsSync()) return const <String>[];
+    final root = directory.path;
+    return <String>[
+      for (final entity in directory.listSync(recursive: true))
+        if (entity is File)
+          entity.path.substring(root.length + 1).replaceAll(r'\', '/'),
+    ]..sort();
+  }
+
+  @override
   Future<String> readText(String path) => File(path).readAsString();
 
   @override

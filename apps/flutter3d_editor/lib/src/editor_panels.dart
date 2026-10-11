@@ -10,6 +10,9 @@
 ///
 /// [pieces] is what the installed plugins brought: their palette entries are
 /// rows of the palette and their components sections of the inspector.
+/// [plugins] are the panels they docked, each built with what [panelContext]
+/// makes, after the editor's own on their sides; [assets] is the asset
+/// browser, down the left beside the palette.
 ///
 /// A function of its own, outside the screen's state, so the panels can be
 /// docked and laid out in a test with no device under them — the screen
@@ -21,7 +24,7 @@ import 'package:flutter3d/flutter3d.dart' show FrameResult;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_editor_play/attach.dart' show PlayedGame;
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
-    show DockPanel, DockSide;
+    show DockPanel, DockSide, EditorPanelContext, EditorPanels;
 
 import 'console_panel.dart';
 import 'editor_cubit.dart';
@@ -42,6 +45,9 @@ List<DockPanel> editorPanels({
   required void Function(String what) onChanged,
   required void Function(String material, Map<String, Object?> fields) onLive,
   EditorPieces? pieces,
+  EditorPanels? plugins,
+  EditorPanelContext Function(BuildContext context)? panelContext,
+  Widget? assets,
 }) => <DockPanel>[
   DockPanel(
     id: 'outliner',
@@ -104,4 +110,14 @@ List<DockPanel> editorPanels({
     side: DockSide.bottom,
     builder: (_) => RenderGraphView(frame: frame),
   ),
+  if (assets != null)
+    DockPanel(
+      id: 'assets',
+      title: 'Assets',
+      icon: Icons.folder_outlined,
+      side: DockSide.left,
+      builder: (_) => assets,
+    ),
+  if (plugins != null && panelContext != null)
+    ...plugins.dockPanels(panelContext),
 ];
