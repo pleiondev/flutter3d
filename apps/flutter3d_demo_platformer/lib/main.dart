@@ -1122,8 +1122,9 @@ class _GameScreenState extends State<GameScreen> {
       _begin();
       return;
     }
-    if (_runIsOver && _pad.heldButtons.contains(GamePadButton.start))
+    if (_runIsOver && _pad.heldButtons.contains(GamePadButton.start)) {
       _restart();
+    }
   }
 
   /// The pad's presses, told apart from its holds.
