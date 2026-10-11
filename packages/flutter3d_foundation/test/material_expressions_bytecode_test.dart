@@ -22,7 +22,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_foundation/internal.dart';
-import 'package:flutter3d_foundation/src/expressions/expression_bytecode.dart';
 import 'package:test/test.dart';
 
 const List<String> _sources = <String>[

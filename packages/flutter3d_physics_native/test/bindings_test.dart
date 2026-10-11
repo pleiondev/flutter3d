@@ -61,6 +61,10 @@ void main() {
       header,
       contains('F3D_MATERIAL_PARAFFIN = ${c.MaterialKind.paraffin},'),
     );
+    expect(
+      header,
+      contains('F3D_MATERIAL_PAPER_STACK = ${c.MaterialKind.paperStack},'),
+    );
   });
 
   test('the body types are the header\'s numbers', () {

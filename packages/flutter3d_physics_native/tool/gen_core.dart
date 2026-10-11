@@ -137,6 +137,7 @@ _Kind _kind(String type) {
     case 'F3dShapeKind':
     case 'F3dJointType':
     case 'F3dMaterialKind':
+    case 'F3dLawProperty':
       return _Kind.int32;
     case 'uint32_t':
     case 'F3dVehicle':

@@ -549,6 +549,33 @@ Expression parseExpression(String source, {ExpressionScope scope = const Express
 
 library package:flutter3d_foundation/internal.dart
 
+final class ExpressionBytecode
+  List<double> run(List<List<double>> slots)
+  List<double> runNamed(Map<String, List<double>> values)
+  Uint8List encode()
+  factory ExpressionBytecode.compile(Expression expression)
+  final Float64List constants
+  final List<ExpressionBytecodeInput> inputs
+  final Uint16List code
+  final int lanes
+  final int resultDimension
+  final int resultLane
+  final int resultWidth
+  int get instructionCount
+  static ExpressionBytecode decode(Uint8List bytes)
+  void verify()
+
+final class ExpressionBytecodeException extends Flutter3dFormatException
+  String toString()
+  const ExpressionBytecodeException(this.message)
+  final String message
+
+final class ExpressionBytecodeInput
+  const ExpressionBytecodeInput(this.name, this.lane, this.width, this._dim)
+  final String name
+  final int lane
+  final int width
+
 base class ExpressionParser
   Expression binary(ExpressionToken op, Expression left, Expression right)
   Expression call(ExpressionBuiltin builtin, ExpressionToken token)
@@ -594,6 +621,8 @@ final class ExpressionToken
 List<double> applyExpressionOperator(String op, List<double> a, List<double> b)
 
 List<List<double>> broadcastExpressionArguments(List<List<double>> arguments, ExpressionBuiltin builtin)
+
+const int expressionBytecodeVersion = 1
 
 const List<String> expressionOperators = <String>['||', '&&', '<', '<=', '>', '>=', '==', '!=', '+', '-', '*', '/']
 

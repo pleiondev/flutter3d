@@ -1219,6 +1219,38 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bodyHigh,
     JSNumber material,
   );
+  @JS('f3d_body_get_material__w')
+  external JSNumber f3d_body_get_material(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber out,
+  );
+  @JS('f3d_program_load')
+  external JSNumber f3d_program_load(JSNumber bytes, JSNumber length);
+  @JS('f3d_program_free')
+  external void f3d_program_free(JSNumber program);
+  @JS('f3d_program_input_count')
+  external JSNumber f3d_program_input_count(JSNumber program);
+  @JS('f3d_program_input_width')
+  external JSNumber f3d_program_input_width(JSNumber program, JSNumber input);
+  @JS('f3d_program_result_width')
+  external JSNumber f3d_program_result_width(JSNumber program);
+  @JS('f3d_program_run')
+  external JSNumber f3d_program_run(
+    JSNumber program,
+    JSNumber inputs,
+    JSNumber out,
+  );
+  @JS('f3d_body_set_law__w')
+  external JSNumber f3d_body_set_law(
+    JSNumber world,
+    JSNumber bodyLow,
+    JSNumber bodyHigh,
+    JSNumber property,
+    JSNumber bytes,
+    JSNumber length,
+  );
   @JS('f3d_body_set_temperature__w')
   external JSNumber f3d_body_set_temperature(
     JSNumber world,
@@ -2895,6 +2927,45 @@ int f3d_body_set_material(int world, int body, int material) => _x
       lowHalf(body).toJS,
       highHalf(body).toJS,
       material.toJS,
+    )
+    .toDartInt;
+int f3d_body_get_material(int world, int body, int out) => _x
+    .f3d_body_get_material(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      out.toJS,
+    )
+    .toDartInt;
+int f3d_program_load(int bytes, int length) =>
+    _x.f3d_program_load(bytes.toJS, length.toJS).toDartInt.toUnsigned(32);
+void f3d_program_free(int program) => _x.f3d_program_free(program.toJS);
+int f3d_program_input_count(int program) =>
+    _x.f3d_program_input_count(program.toJS).toDartInt.toUnsigned(32);
+int f3d_program_input_width(int program, int input) => _x
+    .f3d_program_input_width(program.toJS, input.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_program_result_width(int program) =>
+    _x.f3d_program_result_width(program.toJS).toDartInt.toUnsigned(32);
+int f3d_program_run(int program, int inputs, int out) => _x
+    .f3d_program_run(program.toJS, inputs.toJS, out.toJS)
+    .toDartInt
+    .toUnsigned(32);
+int f3d_body_set_law(
+  int world,
+  int body,
+  int property,
+  int bytes,
+  int length,
+) => _x
+    .f3d_body_set_law(
+      world.toJS,
+      lowHalf(body).toJS,
+      highHalf(body).toJS,
+      property.toJS,
+      bytes.toJS,
+      length.toJS,
     )
     .toDartInt;
 int f3d_body_set_temperature(int world, int body, double kelvin) => _x

@@ -18,7 +18,7 @@ final class DebrisSettings {
   DebrisSettings({
     NativeWorld? world,
     Vector3? gravity,
-    this.friction = 0.6,
+    this.friction = MaterialCatalog.defaultFriction,
     this.restitution = 0.2,
     this.linearDamping = 0.0,
     this.angularDamping = 0.5,

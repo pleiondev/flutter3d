@@ -432,9 +432,12 @@ final class ConstantLaw extends PropertyLaw {
 /// ends, the segment is the last `i` with `xs[i] <= x`, and the value is
 /// `ys[i] + (ys[i + 1] - ys[i]) * ((x - xs[i]) / (xs[i + 1] - xs[i]))`, in
 /// that order of operations, in double precision: at a point the value is
-/// that point's exactly. The C core does not evaluate laws: it takes each
-/// property's value at the reference state ([value]) from its generated
-/// header, whatever a body's state.
+/// that point's exactly. The C core reads each property's value at the
+/// reference state ([value]) from its generated header, unless a body is
+/// given the law itself (`NativeWorld.setMaterialLaws` in
+/// flutter3d_physics_native): then it evaluates this formula, written as an
+/// expression and compiled to bytecode, at the body's temperature, to the
+/// bit what [at] gives.
 final class TableLaw extends PropertyLaw {
   const TableLaw(
     super.value, {

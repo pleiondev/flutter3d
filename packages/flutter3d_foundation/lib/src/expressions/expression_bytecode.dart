@@ -61,6 +61,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import '../exceptions.dart';
 import '../portable_math.dart';
 import '../units.dart';
 import 'expression_ast.dart';
@@ -227,10 +228,12 @@ final class ExpressionBytecodeInput {
 }
 
 /// Thrown by [ExpressionBytecode.verify] and [ExpressionBytecode.decode]
-/// for a program that is not well formed, or whose units do not add up.
-final class ExpressionBytecodeException implements Exception {
+/// for a program that is not well formed, or whose units do not add up: bytes
+/// that are not what they claim to be, so a [Flutter3dFormatException].
+final class ExpressionBytecodeException extends Flutter3dFormatException {
   const ExpressionBytecodeException(this.message);
 
+  @override
   final String message;
 
   @override

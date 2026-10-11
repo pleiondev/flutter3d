@@ -1,5 +1,51 @@
 ## 1.0.0-rc.1
 
+- **Native cloth refuses a profile that does not promise bits.** Under
+  `ClothSettings.profile` that is not bit-exact (`accurate`),
+  `NativeClothSimulation.step` throws `NativeClothRefused` with
+  `NativeClothRefusal.notBitExact` instead of running the float core, and
+  its owner falls back to `DartCloth`. The wind's drag the core is given is
+  `WindSettings.effectiveDrag`, scaled by the air's density: exactly the
+  drag in standard air.
+- **The Dart views' defaults are the header's.** `NativeMaterial`'s
+  emissivity and conductivity default to `MaterialCatalog`'s, which the
+  core's presets read as `F3D_PRESET_DEFAULT_*`; `DebrisSettings.friction`
+  and a new body's friction in the core are `MaterialCatalog.defaultFriction`
+  (`F3D_DEFAULT_FRICTION`), not a 0.6 written again. The same numbers, so
+  nothing moves. The README and `NativeDynamics` say what the `accurate`
+  profile means here: the Dart engine, the core staying float.
+- **The core evaluates laws and expressions itself.** A C port of the
+  expression language's bytecode interpreter (`f3d_program_*`,
+  `csrc/src/f3d_expr.c`) runs in binary64 on flutter3d_foundation's
+  portable maths, whatever `f3d_real` is, so it answers what the Dart
+  interpreter answers to the bit; `test/law_parity_test.dart` holds it to
+  that on every expression fixture, every law of the catalogue and some
+  thousands of numbers that round, through the library and through the
+  core built in f32 and in f64. `NativeExpression` runs any expression in
+  the core (a probe's `derived:` quantity); `NativeLaw.of` writes a
+  `PropertyLaw` — constant, table or formula — as an expression of a
+  body's temperature; `NativeWorld.setLaw` and `setMaterialLaws` give a
+  body its material's specific heat, conductivity and emissivity as laws
+  the core reads at the body's temperature each step (`f3d_body_set_law`,
+  `NativeLawProperty`, an open class); `NativeMaterialTracker` evaluates a
+  material at a state the core does not hold (a plugin's quantity) in Dart
+  and passes the numbers when they move past a threshold; and
+  `NativeWorld.materialOf` (`f3d_body_get_material`) reads what a body is
+  made of now. A world given no law steps as before, to the bit: the
+  shared scene's hash does not move.
+- **The fire model reads charcoal's glow, a tyre's effective heat and a
+  stack of paper.** `F3D_MATERIAL_CHARCOAL` holds a patch alight down to
+  its glow temperature, 861 K (`F3D_MAT_CHARCOAL_GLOW_TEMPERATURE`), while
+  the catalogue keeps the 610 K charcoal is measured to catch at;
+  `F3D_MATERIAL_RUBBER` gives off the 27 MJ/kg a tyre fire is measured to
+  give (`F3D_MAT_RUBBER_EFFECTIVE_HEAT_OF_COMBUSTION`) rather than a bomb
+  calorimeter's 37.9; `F3D_MATERIAL_PAPER_STACK` and
+  `NativeMaterial.paperStack` are new, a sheet's paper conducting across a
+  stack at 0.05 W/(m·K). `NativeMaterial.of` reads `glowTemperature` and
+  `effectiveHeatOfCombustion` before `ignitionTemperature` and
+  `heatOfCombustion`, and takes an optional `MaterialState` to read each
+  law at. The shared scene's hash does not move; the WebAssembly modules
+  follow.
 - **The presets follow the verified catalogue.** The header is written
   from `flutter3d_matter`'s checked values, so the heat and fire presets
   take theirs: wood burns at the 11.1 MJ/kg measured of it rather than 15

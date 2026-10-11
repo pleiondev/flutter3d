@@ -36,7 +36,7 @@ final class DebrisPlane extends DebrisStatic
 
 final class DebrisSettings
   DebrisSettings copyWith({Vector3? gravity, double? friction, double? restitution, double? linearDamping, double? angularDamping, double? maxSpeed, int? substeps, int? iterations, bool clearGravity = false})
-  DebrisSettings({NativeWorld? world, Vector3? gravity, this.friction = 0.6, this.restitution = 0.2, this.linearDamping = 0.0, this.angularDamping = 0.5, this.maxSpeed = 50.0, this.substeps = 8, this.iterations = 4})
+  DebrisSettings({NativeWorld? world, Vector3? gravity, this.friction = MaterialCatalog.defaultFriction, this.restitution = 0.2, this.linearDamping = 0.0, this.angularDamping = 0.5, this.maxSpeed = 50.0, this.substeps = 8, this.iterations = 4})
   final Vector3 gravity
   final double angularDamping
   final double friction
@@ -270,6 +270,15 @@ final class NativeExplosion
   final double energy
   final double mass
 
+final class NativeExpression
+  List<String> get variables
+  List<double> run(List<List<double>> values)
+  List<double> runNamed(Map<String, List<double>> values)
+  NativeExpression(this.expression)
+  final Expression expression
+  int get width
+  void dispose()
+
 final class NativeFire
   final NativeBody body
   final Vector3 at
@@ -349,6 +358,24 @@ final class NativeJointType
   static const NativeJointType revolute = NativeJointType._(c.JointType.revolute, 'revolute')
   static const NativeJointType spherical = NativeJointType._(c.JointType.spherical, 'spherical')
 
+final class NativeLaw
+  Uint8List get bytecode
+  double at(double kelvin)
+  final Expression expression
+  final PropertyLaw law
+  static NativeLaw? of(PropertyLaw law)
+  static const String temperature = 'T'
+
+final class NativeLawProperty
+  PropertyLaw? of(PhysicalMaterial material)
+  String toString()
+  final String name
+  final int code
+  static const List<NativeLawProperty> values = <NativeLawProperty>[specificHeat, conductivity, emissivity]
+  static const NativeLawProperty conductivity = NativeLawProperty._(1, 'conductivity')
+  static const NativeLawProperty emissivity = NativeLawProperty._(2, 'emissivity')
+  static const NativeLawProperty specificHeat = NativeLawProperty._(0, 'specificHeat')
+
 final class NativeLiquid extends FluidSolver
   const NativeLiquid()
   void flowPipes(PipeFlow flow)
@@ -385,7 +412,7 @@ final class NativeLiquidProperties
 
 final class NativeMaterial
   NativeMaterial copyWith({double? specificHeat, double? emissivity, double? ignitionTemperature, double? heatOfCombustion, double? burnRate, double? fuelFraction, double? flameFeedback, double? conductivity, double? flameTemperature, double? flameConvection, double? flameRadiant, double? flameAbsorption, double? heatOfGasification, double? criticalMassFlux, double? flameSpread, double? modulus, double? poissonRatio, double? sootTemperature, double? charYield, double? spreadMinimum, double? ignitionInertia, double? elementSurface, double? elementDensity, double? sootYield})
-  const NativeMaterial({required this.specificHeat, this.emissivity = 0.9, this.ignitionTemperature = 0.0, this.heatOfCombustion = 0.0, this.burnRate = 0.0, this.fuelFraction = 0.0, this.flameFeedback = 0.0, this.conductivity = 1.0, this.flameTemperature = 0.0, this.flameConvection = 0.0, this.flameRadiant = 0.0, this.flameAbsorption = 0.0, this.heatOfGasification = 0.0, this.criticalMassFlux = 0.0, this.flameSpread = 0.0, this.modulus = 0.0, this.poissonRatio = 0.0, this.sootTemperature = 0.0, this.charYield = 0.0, this.spreadMinimum = 0.0, this.ignitionInertia = 0.0, this.elementSurface = 0.0, this.elementDensity = 0.0, this.sootYield = 0.0})
+  const NativeMaterial({required this.specificHeat, this.emissivity = MaterialCatalog.defaultEmissivity, this.ignitionTemperature = 0.0, this.heatOfCombustion = 0.0, this.burnRate = 0.0, this.fuelFraction = 0.0, this.flameFeedback = 0.0, this.conductivity = MaterialCatalog.defaultConductivity, this.flameTemperature = 0.0, this.flameConvection = 0.0, this.flameRadiant = 0.0, this.flameAbsorption = 0.0, this.heatOfGasification = 0.0, this.criticalMassFlux = 0.0, this.flameSpread = 0.0, this.modulus = 0.0, this.poissonRatio = 0.0, this.sootTemperature = 0.0, this.charYield = 0.0, this.spreadMinimum = 0.0, this.ignitionInertia = 0.0, this.elementSurface = 0.0, this.elementDensity = 0.0, this.sootYield = 0.0})
   final double burnRate
   final double charYield
   final double conductivity
@@ -414,8 +441,9 @@ final class NativeMaterial
   static NativeMaterial charcoal()
   static NativeMaterial inert()
   static NativeMaterial oak()
-  static NativeMaterial of(PhysicalMaterial material)
+  static NativeMaterial of(PhysicalMaterial material, {MaterialState? state})
   static NativeMaterial paper()
+  static NativeMaterial paperStack()
   static NativeMaterial paraffin()
   static NativeMaterial pine()
   static NativeMaterial rubber()
@@ -423,6 +451,14 @@ final class NativeMaterial
   static NativeMaterial stone()
   static NativeMaterial thatch()
   static NativeMaterial wood()
+
+final class NativeMaterialTracker
+  List<NativeLawProperty> update(MaterialState state)
+  NativeMaterialTracker(this.world, this.body, this.material, {this.threshold = 1e-3})
+  final NativeBody body
+  final NativeWorld world
+  final PhysicalMaterial material
+  final double threshold
 
 extension type const NativeMesh(int id)
 
@@ -553,6 +589,7 @@ final class NativeWorld
   List<NativeEvent> readEvents()
   List<NativeFire> fires()
   List<NativeHit> rayCastAll(Vector3 origin, Vector3 direction, double maxDistance, {int mask = 0xffffffff, NativeBody? ignore})
+  List<NativeLawProperty> setMaterialLaws(NativeBody body, PhysicalMaterial material)
   List<NativeWheelState> wheelsOf(NativeVehicle vehicle)
   Matrix3 inertiaTensorOf(NativeBody body)
   NativeBody addBody({required Vector3 position, NativeBodyType type = NativeBodyType.dynamic, double mass = 1.0})
@@ -563,6 +600,7 @@ final class NativeWorld
   NativeHull createHull(List<Vector3> points)
   NativeJoint createDistanceJoint(NativeBody a, NativeBody b, {required Vector3 anchorA, required Vector3 anchorB})
   NativeJoint createJoint(NativeJointType type, NativeBody a, NativeBody b, {required Vector3 anchor, Vector3? axis})
+  NativeMaterial materialOf(NativeBody body)
   NativeMesh createMesh(List<Vector3> vertices, List<int> indices)
   NativeMultibody createMultibody(NativeBody root)
   NativeShallowInfo shallowInfoOf(NativeShallowLiquid water)
@@ -669,6 +707,7 @@ final class NativeWorld
   void setJointLimits(NativeJoint joint, ({double lower, double upper})? limits)
   void setJointMotor(NativeJoint joint, ({double speed, double maxForce})? motor)
   void setJointSpring(NativeJoint joint, ({double hertz, double damping})? spring)
+  void setLaw(NativeBody body, NativeLawProperty property, NativeLaw? law)
   void setLinkCone(NativeMultibody multibody, int link, {double? swing, double twist = 3.141592653589793})
   void setLinkLimits(NativeMultibody multibody, int link, {double? lower, double? upper})
   void setLinkMotor(NativeMultibody multibody, int link, {double? speed, double force = 0.0})

@@ -45,6 +45,7 @@ const List<String> coreSources = <String>[
   'csrc/src/f3d_fluid.c',
   'csrc/src/f3d_liquid.c',
   'csrc/src/f3d_pool.c',
+  'csrc/src/f3d_expr.c',
   'csrc/src/f3d_memory_libc.c',
 ];
 

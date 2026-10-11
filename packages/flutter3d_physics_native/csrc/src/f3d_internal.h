@@ -856,6 +856,14 @@ typedef struct F3dLane {
   int failed;
 } F3dLane;
 
+/* One property of one body's material read through a law: the program
+ * the world loaded from its bytecode, run at the body's temperature. */
+typedef struct F3dLawBinding {
+  F3dBody body;
+  uint32_t property;
+  F3dProgram *program;
+} F3dLawBinding;
+
 struct F3dWorld {
   F3dWorldState s;
   F3dSlot *slots;
@@ -960,7 +968,23 @@ struct F3dWorld {
    * when the world grows. None of it outlives a step. */
   void *scratch;
   size_t scratch_bytes;
+  /* The laws bodies' materials are read through (f3d_body_set_law), in the
+   * order they were set: each step writes each one's value at its body's
+   * temperature into the material before anything reads it. Not in a
+   * snapshot: like a body's material preset, they are what the world is
+   * set up with, and a restored world reads them at the temperatures it
+   * was restored to. */
+  F3dLawBinding *laws;
+  uint32_t law_count;
+  uint32_t law_capacity;
 };
+
+/* Writes every law's value at its body's temperature into that body's
+ * material (f3d_expr.c). */
+void f3d_apply_laws(F3dWorld *world);
+
+/* Frees every law the world holds. */
+void f3d_clear_laws(F3dWorld *world);
 
 /* The slot [body] names in [world], or null for a stale or foreign one. */
 F3dSlot *f3d_slot_of(const F3dWorld *world, F3dBody body);

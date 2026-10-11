@@ -2165,7 +2165,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         source: 'estimate: no citable source was reached; searched: no flat-paper radiant fraction found; closest sourced proxies: corrugated cardboard flames 0.20-0.28 by external flux (Zeng et al., FSS 11, 2014, doi:10.3801/IAFSS.FSS.11-97) and dry Douglas-fir trees 0.3 (NIST TN 2327r1, used for wood). 0.3 sits at the top of that band',
       ),
-      source: 'specific heat: Incropera and colleagues (2007), table A.3; conductivity a stack\'s across its sheets with the air between them, the engine\'s choice (a solid sheet\'s is 0.18); it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel\'s in general',
+      source: 'specific heat: Incropera and colleagues (2007), table A.3; conductivity a solid sheet\'s, a stack\'s with the air between its sheets being f3d.paperStack\'s; it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel\'s in general',
     ),
   );
 
@@ -2228,6 +2228,35 @@ abstract final class Materials {
         interval: PropertyInterval(0.2, 0.28),
       ),
       source: 'specific heat, conductivity and emissivity of its virgin layers: Semmes and colleagues, Fire Safety Science 11 (2014), table 2; it catches at 350 °C, what its 8.5 kW/m² critical flux gives a black surface (Khan, de Ris and Ogden, Fire Safety Science 9, 2008); 14.03 MJ/kg burnt (UL FSRI, Corrugated Cardboard); a radiant share of 0.20 to 0.28 (Zeng and colleagues, Fire Safety Science 11, 2014)',
+    ),
+  );
+
+  /// Stack of paper.
+  static const PhysicalMaterial paperStack = PhysicalMaterial(
+    id: 'f3d.paperStack',
+    name: 'stack of paper',
+    phase: MaterialPhase.solid,
+    confidence: Confidence.handbook,
+    mechanical: MechanicalProperties(
+      staticFriction: ConstantLaw(0.6, confidence: Confidence.estimate),
+      source: 'estimate: no measurement of it on itself was read; the engine\'s default coefficient (MaterialCatalog.defaultFriction)',
+    ),
+    thermal: ThermalProperties(
+      specificHeat: ConstantLaw(1340.0, confidence: Confidence.handbook),
+      conductivity: ConstantLaw(
+        0.05,
+        confidence: Confidence.estimate,
+        source: 'across its sheets, 0.05: between loose-fill cellulosic insulation of milled paper, 0.039 to 0.046 at 37 to 51 kg/m³ (Cengel and Ghajar, Heat and Mass Transfer, 5th ed., 2015, appendix 1, insulation table, after Incropera table A.3), and copy paper pressed into a stack, 0.071 to 0.093 measured through stacks of sheets with their contact resistance taken out (Thermal Properties of Copy Paper Sheets, vol. 30, no. 3, 2012, pp. 297-311, as its abstract and figures are indexed, the full text not read); the engine\'s choice for a stack that is not pressed, at the low end',
+        interval: PropertyInterval(0.039, 0.093),
+      ),
+      emissivity: ConstantLaw(0.9, confidence: Confidence.handbook),
+      ignitionTemperature: ConstantLaw(506.15, confidence: Confidence.handbook),
+      heatOfCombustion: ConstantLaw(
+        16000000.0,
+        confidence: Confidence.handbook,
+      ),
+      radiantFraction: ConstantLaw(0.3, confidence: Confidence.estimate),
+      source: 'f3d.paper\'s sheets with air between them — a pile of newspaper, a loose ream, a heap of documents: the sheets\' specific heat, emissivity, ignition, heat of combustion and radiant share are f3d.paper\'s, with that entry\'s sources',
     ),
   );
 
@@ -2327,6 +2356,11 @@ abstract final class Materials {
         source: 'Oliveira, da Silva, Cupertino, Delatorre, Amorim, de Souza, Brito & Dias Junior, Influence of Pyrolysis Temperature on Critical Variables Related to Charcoal Spontaneous Combustion, Bioresources and Bioproducts 1(2) (2025) 6: eucalyptus charcoal, forced step-heating in furnace with IR camera; carbonized at 350/450/550/650 C (https://www.mdpi.com/3042-8092/1/2/6 (doi:10.3390/bioresourbioprod1020006))',
         interval: PropertyInterval(546.0, 697.0),
       ),
+      glowTemperature: ConstantLaw(
+        860.8,
+        confidence: Confidence.estimate,
+        source: 'derived, not measured: the surface temperature at which the heat of carbon burning as fast as oxygen diffuses to a 35.5 mm lump in still air (Spalding\'s transfer number; free convection, Nu = 0.54 Ra^1/4, Incropera and DeWitt, eq. 9.30) pays for its radiation at an emissivity of 0.77 (Vanaparti, Auburn University, 2016) and its convection: 860.8 K, solved in flutter3d_physics_native\'s doc/derivations/charcoal_glow.md. The measured piloted ignition of eucalyptus charcoal, 546 to 697 K (Oliveira and colleagues, Bioresources and Bioproducts 1, 2025), is where it catches, not where it glows on',
+      ),
       heatOfCombustion: ConstantLaw(
         29450000.0,
         confidence: Confidence.handbook,
@@ -2338,7 +2372,7 @@ abstract final class Materials {
         confidence: Confidence.estimate,
         source: 'estimate: no citable source was reached; searched: no published radiant fraction for glowing charcoal found; 0.88 is derived in the repo (charcoal_glow.md) as radiation / (radiation + free convection) of a 0.77-emissivity surface at 1204 K (Kim & Sunderland, Fire Saf. J. 106 (2019), doi:10.1016/j.firesaf.2019.04.006, ember temperature) - a model output, not a measurement',
       ),
-      source: 'Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it catches where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)',
+      source: 'Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it glows on by itself where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)',
     ),
   );
 
@@ -2459,6 +2493,11 @@ abstract final class Materials {
         confidence: Confidence.measured,
         source: 'Campuzano, Ortiz, Betancur & Martinez, Characterization of three different solid wastes as energy resources for pyrolysis (2018), abstract (UPB repository): waste tyre, gross (higher) heating value, bomb calorimetry (http://hdl.handle.net/20.500.11912/4396)',
         interval: PropertyInterval(35750000.0, 38000000.0),
+      ),
+      effectiveHeatOfCombustion: ConstantLaw(
+        27000000.0,
+        confidence: Confidence.measured,
+        source: '27 MJ/kg released per kilogram of tyres burnt in SP\'s pile-storage tyre fires under a large calorimeter (Lönnermark and Blomqvist, Emissions from tyre fires, SP Swedish National Testing and Research Institute, 2005), as Lönnermark gave it to and Ingason and Hammarström quote it in Fire test with a front wheel loader rubber tyre, SP Report 2010:64: about 0.71 of the gross heat a bomb gives a tyre. Not read in the 2005 report itself; no cone calorimeter value for tyre rubber was found openly (Tewarson\'s tables in the SFPE Handbook were not reachable)',
       ),
       radiantFraction: ConstantLaw(
         0.45,
@@ -26770,6 +26809,7 @@ abstract final class Materials {
     pine,
     paper,
     cardboard,
+    paperStack,
     thatch,
     charcoal,
     paraffin,

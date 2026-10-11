@@ -430,7 +430,22 @@ final class PhysicalMaterial {
         300.0,
         2000.0,
       );
+      range('glow temperature, K', t.glowTemperature?.value, 300.0, 2000.0);
       range('heat of combustion, J/kg', t.heatOfCombustion?.value, 1e5, 1.5e8);
+      range(
+        'effective heat of combustion, J/kg',
+        t.effectiveHeatOfCombustion?.value,
+        1e5,
+        1.5e8,
+      );
+      final gross = t.heatOfCombustion?.value;
+      final effective = t.effectiveHeatOfCombustion?.value;
+      if (gross != null && effective != null && effective > gross) {
+        found.add(
+          '$id: an effective heat of combustion of $effective J/kg is more '
+          'than the whole $gross',
+        );
+      }
       range('radiant fraction', t.radiantFraction?.value, 0.0, 1.0);
       final melts = t.meltingPoint?.value, boils = t.boilingPoint?.value;
       if (melts != null && boils != null && boils <= melts) {

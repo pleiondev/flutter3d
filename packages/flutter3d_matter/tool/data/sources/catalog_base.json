@@ -707,7 +707,7 @@
         "ignitionTemperature": 506.15,
         "heatOfCombustion": 16000000.0,
         "radiantFraction": 0.3,
-        "source": "specific heat: Incropera and colleagues (2007), table A.3; conductivity a stack's across its sheets with the air between them, the engine's choice (a solid sheet's is 0.18); it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel's in general",
+        "source": "specific heat: Incropera and colleagues (2007), table A.3; conductivity a solid sheet's, a stack's with the air between its sheets being f3d.paperStack's; it catches at 451 °F; sixteen megajoules a kilogram and a third radiated, a cellulosic fuel's in general",
         "confidence": "estimate",
         "confidenceOf": {
           "specificHeat": "handbook"
@@ -735,6 +735,33 @@
         "radiantFraction": 0.24,
         "source": "specific heat, conductivity and emissivity of its virgin layers: Semmes and colleagues, Fire Safety Science 11 (2014), table 2; it catches at 350 °C, what its 8.5 kW/m² critical flux gives a black surface (Khan, de Ris and Ogden, Fire Safety Science 9, 2008); 14.03 MJ/kg burnt (UL FSRI, Corrugated Cardboard); a radiant share of 0.20 to 0.28 (Zeng and colleagues, Fire Safety Science 11, 2014)",
         "confidence": "handbook"
+      }
+    },
+    {
+      "id": "f3d.paperStack",
+      "name": "stack of paper",
+      "phase": "solid",
+      "temperature": 293.15,
+      "pressure": 101325.0,
+      "thermal": {
+        "specificHeat": 1340.0,
+        "conductivity": 0.05,
+        "emissivity": 0.9,
+        "ignitionTemperature": 506.15,
+        "heatOfCombustion": 16000000.0,
+        "radiantFraction": 0.3,
+        "source": "f3d.paper's sheets with air between them — a pile of newspaper, a loose ream, a heap of documents: the sheets' specific heat, emissivity, ignition, heat of combustion and radiant share are f3d.paper's, with that entry's sources",
+        "confidence": "handbook",
+        "confidenceOf": {
+          "conductivity": "estimate",
+          "radiantFraction": "estimate"
+        },
+        "sourceOf": {
+          "conductivity": "across its sheets, 0.05: between loose-fill cellulosic insulation of milled paper, 0.039 to 0.046 at 37 to 51 kg/m³ (Cengel and Ghajar, Heat and Mass Transfer, 5th ed., 2015, appendix 1, insulation table, after Incropera table A.3), and copy paper pressed into a stack, 0.071 to 0.093 measured through stacks of sheets with their contact resistance taken out (Thermal Properties of Copy Paper Sheets, vol. 30, no. 3, 2012, pp. 297-311, as its abstract and figures are indexed, the full text not read); the engine's choice for a stack that is not pressed, at the low end"
+        },
+        "intervalOf": {
+          "conductivity": [0.039, 0.093]
+        }
       }
     },
     {
@@ -775,10 +802,17 @@
         "conductivity": 0.03,
         "emissivity": 0.77,
         "ignitionTemperature": 860.8,
+        "glowTemperature": 860.8,
         "heatOfCombustion": 30000000.0,
         "radiantFraction": 0.88,
-        "source": "Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it catches where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)",
-        "confidence": "handbook"
+        "source": "Santos and colleagues, CERNE 26 (2020); emissivity: Vanaparti, Auburn University (2016); 30 MJ/kg (Zeng and colleagues); it glows on by itself where its glow holds a lump on its own, and radiates 0.88 (Kim and Sunderland, Fire Safety Journal 106, 2019; doc/derivations/charcoal_glow.md)",
+        "confidence": "handbook",
+        "confidenceOf": {
+          "glowTemperature": "estimate"
+        },
+        "sourceOf": {
+          "glowTemperature": "derived, not measured: the surface temperature at which the heat of carbon burning as fast as oxygen diffuses to a 35.5 mm lump in still air (Spalding's transfer number; free convection, Nu = 0.54 Ra^1/4, Incropera and DeWitt, eq. 9.30) pays for its radiation at an emissivity of 0.77 (Vanaparti, Auburn University, 2016) and its convection: 860.8 K, solved in flutter3d_physics_native's doc/derivations/charcoal_glow.md. The measured piloted ignition of eucalyptus charcoal, 546 to 697 K (Oliveira and colleagues, Bioresources and Bioproducts 1, 2025), is where it catches, not where it glows on"
+        }
       }
     },
     {
@@ -829,12 +863,17 @@
         "emissivity": 0.92,
         "ignitionTemperature": 623.15,
         "heatOfCombustion": 32000000.0,
+        "effectiveHeatOfCombustion": 27000000.0,
         "radiantFraction": 0.45,
         "source": "specific heat of soft and conductivity of hard vulcanized rubber: Incropera and colleagues (2007), table A.3; its emissivity, ignition, heat of combustion and a sooty flame's radiant share are the engine's, of the order a tyre fire is measured at",
         "confidence": "estimate",
         "confidenceOf": {
           "specificHeat": "handbook",
-          "conductivity": "handbook"
+          "conductivity": "handbook",
+          "effectiveHeatOfCombustion": "measured"
+        },
+        "sourceOf": {
+          "effectiveHeatOfCombustion": "27 MJ/kg released per kilogram of tyres burnt in SP's pile-storage tyre fires under a large calorimeter (Lönnermark and Blomqvist, Emissions from tyre fires, SP Swedish National Testing and Research Institute, 2005), as Lönnermark gave it to and Ingason and Hammarström quote it in Fire test with a front wheel loader rubber tyre, SP Report 2010:64: about 0.71 of the gross heat a bomb gives a tyre. Not read in the 2005 report itself; no cone calorimeter value for tyre rubber was found openly (Tewarson's tables in the SFPE Handbook were not reachable)"
         }
       }
     },

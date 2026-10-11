@@ -12,6 +12,11 @@
 /// types `package:flutter3d_foundation/flutter3d_foundation.dart` names.
 /// This is a library of its own rather than `src/` imports so that what the
 /// core depends on is in the API snapshot, and a change shows in review.
+///
+/// `flutter3d_physics_native` compiles laws and probes' expressions to the
+/// internal bytecode ([ExpressionBytecode]) its C interpreter runs, so the
+/// core evaluates them without Dart; the format stays internal in 1.0 and
+/// carries its version in its header.
 library;
 
 export 'src/expressions/expression_ast.dart'
@@ -19,5 +24,11 @@ export 'src/expressions/expression_ast.dart'
         applyExpressionOperator,
         broadcastExpressionArguments,
         expressionOperators;
+export 'src/expressions/expression_bytecode.dart'
+    show
+        ExpressionBytecode,
+        ExpressionBytecodeException,
+        ExpressionBytecodeInput,
+        expressionBytecodeVersion;
 export 'src/expressions/expression_parser.dart'
     show ExpressionParser, ExpressionToken, tokenizeExpression;

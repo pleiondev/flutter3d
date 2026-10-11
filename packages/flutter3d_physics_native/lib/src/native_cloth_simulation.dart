@@ -1,10 +1,17 @@
 /// A `flutter3d_physics` [ClothMesh] stepped by the core: the cloth a run
 /// on [NativePhysics] gets from `backend.cloth(mesh)`.
+///
+/// Under a profile that does not promise bits (`ClothSettings.profile`,
+/// `SimulationProfile.accurate`) it refuses with [NativeClothRefused]
+/// rather than running the float core: such a profile's cloth is the Dart
+/// integrator's, and its owner falls back to `DartCloth`.
 library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show CapabilityException;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -131,6 +138,17 @@ final class NativeClothSimulation extends ClothSimulation {
     List<ClothObstacle> obstacles = const <ClothObstacle>[],
   }) {
     final held = _live;
+    // The core is float, the deterministic profile's: a profile that does
+    // not promise bits (`accurate`) is the Dart integrator's, and the owner
+    // falls back to `DartCloth` rather than this running it in f32.
+    if (!settings.profile.isBitExact) {
+      throw NativeClothRefused(
+        NativeClothRefusal.notBitExact,
+        'native cloth steps in the core\'s f32, the deterministic profile; '
+        '"${settings.profile.name}" does not promise bits, so its cloth is '
+        'the Dart integrator\'s (DartCloth)',
+      );
+    }
     if (dt <= 0 || settings.substeps <= 0) return;
     _complianceFrom(held.cloth, settings);
     final n = mesh.particleCount;
@@ -285,7 +303,9 @@ int _writeSettings(ClothSettings settings, ClothMesh mesh) {
       ? settings.selfCollisionThickness ?? mesh.meanRestEdge
       : 0.0;
   final reals = <(int, double)>[
-    (c.F3dClothSolveSettingsLayout.windDrag, wind.drag),
+    // The drag scaled by the air the cloth is in: exactly the drag in
+    // standard air.
+    (c.F3dClothSolveSettingsLayout.windDrag, wind.effectiveDrag),
     (c.F3dClothSolveSettingsLayout.damping, settings.damping),
     (c.F3dClothSolveSettingsLayout.thickness, settings.collisionThickness),
     (c.F3dClothSolveSettingsLayout.friction, settings.friction),
@@ -304,4 +324,42 @@ int _writeSettings(ClothSettings settings, ClothMesh mesh) {
     math.max(0, settings.iterations),
   );
   return s;
+}
+
+/// Why native cloth will not step a sheet.
+///
+/// **Open**: a class of constants, so a reason a later core adds breaks no
+/// `switch` written against these.
+final class NativeClothRefusal {
+  const NativeClothRefusal._(this.name);
+
+  /// The settings' profile does not promise bits (`accurate`): the core
+  /// steps in f32, and such a profile's cloth is the Dart integrator's.
+  static const NativeClothRefusal notBitExact = NativeClothRefusal._(
+    'notBitExact',
+  );
+
+  /// The reasons this release has, in the order they were added.
+  static const List<NativeClothRefusal> values = <NativeClothRefusal>[
+    notBitExact,
+  ];
+
+  final String name;
+
+  @override
+  String toString() => 'NativeClothRefusal.$name';
+}
+
+/// [NativeClothSimulation.step] refused: the owner falls back to
+/// `DartCloth`, which steps the same mesh.
+final class NativeClothRefused extends CapabilityException {
+  const NativeClothRefused(this.reason, this.message);
+
+  final NativeClothRefusal reason;
+
+  @override
+  final String message;
+
+  @override
+  String toString() => 'NativeClothRefused(${reason.name}): $message';
 }

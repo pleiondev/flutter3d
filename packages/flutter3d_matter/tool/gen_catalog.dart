@@ -60,7 +60,15 @@ const double _lawTolerance = 0.10;
 const double _agreement = 0.005;
 
 /// What a base entry's group holds beside its values.
-const Set<String> _baseKeys = <String>{'source', 'confidence', 'confidenceOf'};
+/// `sourceOf` and `intervalOf` give a value its own source and spread where
+/// they are not the group's.
+const Set<String> _baseKeys = <String>{
+  'source',
+  'confidence',
+  'confidenceOf',
+  'sourceOf',
+  'intervalOf',
+};
 
 const Map<String, List<String>> _groupProperties = <String, List<String>>{
   'mechanical': <String>[
@@ -87,7 +95,9 @@ const Map<String, List<String>> _groupProperties = <String, List<String>>{
     'emissivity',
     'ignitionTemperature',
     'autoignitionTemperature',
+    'glowTemperature',
     'heatOfCombustion',
+    'effectiveHeatOfCombustion',
     'radiantFraction',
   ],
   'acoustic': <String>['absorption', 'speedOfSound', 'impedance'],
@@ -387,6 +397,9 @@ final class _Catalogue {
           group,
           () => <String, _Value>{},
         );
+        final sourceOf = (g['sourceOf'] as Map<String, Object?>?) ?? const {};
+        final intervalOf =
+            (g['intervalOf'] as Map<String, Object?>?) ?? const {};
         for (final MapEntry(:key, :value) in g.entries) {
           if (_baseKeys.contains(key) || value == null) continue;
           values[key] = _Value(
@@ -395,6 +408,14 @@ final class _Catalogue {
                 : <double>[
                     for (final n in value as List) (n as num).toDouble(),
                   ],
+            source: sourceOf[key] as String?,
+            interval: switch (intervalOf[key]) {
+              [final num low, final num high] => <double>[
+                low.toDouble(),
+                high.toDouble(),
+              ],
+              _ => null,
+            },
           );
         }
       }

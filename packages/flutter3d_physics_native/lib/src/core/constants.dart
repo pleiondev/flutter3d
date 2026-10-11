@@ -130,6 +130,7 @@ abstract final class MaterialKind {
   static const int thatch = 9;
   static const int charcoal = 10;
   static const int paraffin = 11;
+  static const int paperStack = 12;
 }
 
 /// `F3dEventKind`.

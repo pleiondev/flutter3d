@@ -31,6 +31,20 @@
 /// drags what moves through it; the reference has no air. A scene held equal
 /// across the two is made in a vacuum: a world whose air's density is next
 /// to none.
+///
+/// ## Under the `accurate` profile
+///
+/// The core is float, and stays so: it is the `deterministic` profile's
+/// engine. A simulation under `SimulationProfile.accurate` (double maths,
+/// adaptive steps, held to analytic tests rather than to bits) runs the
+/// Dart engine, `flutter3d_physics`, not this one; native cloth refuses a
+/// profile that is not bit-exact, and its owner falls back to the Dart
+/// cloth. What the wrapper does in doubles under either profile is what
+/// stays exact across the boundary: a body's place in the world is a
+/// `WorldPosition` in doubles, the origin added (`NativeWorld.positionOf`),
+/// and the laws and expressions the core evaluates (`NativeLaw`,
+/// `NativeExpression`) run in binary64, rounded to f32 once where a body's
+/// material holds the answer.
 library;
 
 import 'dart:convert';
@@ -375,8 +389,7 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
             ),
           },
           normal: _normal..setValues(reals[at], reals[at + 1], reals[at + 2]),
-          point: _point
-            ..setValues(reals[at + 3], reals[at + 4], reals[at + 5]),
+          point: _point..setValues(reals[at + 3], reals[at + 4], reals[at + 5]),
           impulse: reals[at + 6],
           relativeVelocity: _velocity
             ..setValues(reals[at + 7], reals[at + 8], reals[at + 9]),

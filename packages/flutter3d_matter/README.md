@@ -99,10 +99,11 @@ the literature for rock and grains, or the engine's default.
 | `f3d.pine` | — | density, youngsModulus, poissonRatio, staticFriction, specificHeat, conductivity, volumetricExpansion, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction, speedOfSound, resistivity, lossFactor |
 | `f3d.paper` | — | density, youngsModulus, poissonRatio, staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction |
 | `f3d.cardboard` | — | youngsModulus, poissonRatio, staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction |
+| `f3d.paperStack` | — | staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction |
 | `f3d.thatch` | — | poissonRatio, staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction |
-| `f3d.charcoal` | — | poissonRatio, staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction |
+| `f3d.charcoal` | — | poissonRatio, staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, glowTemperature, heatOfCombustion, radiantFraction |
 | `f3d.paraffin` | — | density, poissonRatio, staticFriction, specificHeat, conductivity, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction |
-| `f3d.rubber` | — | density, youngsModulus, poissonRatio, staticFriction, specificHeat, conductivity, volumetricExpansion, emissivity, ignitionTemperature, heatOfCombustion, radiantFraction, speedOfSound, resistivity, lossFactor |
+| `f3d.rubber` | — | density, youngsModulus, poissonRatio, staticFriction, specificHeat, conductivity, volumetricExpansion, emissivity, ignitionTemperature, heatOfCombustion, effectiveHeatOfCombustion, radiantFraction, speedOfSound, resistivity, lossFactor |
 | `f3d.abs` | — | density, youngsModulus, poissonRatio, tensileStrength, staticFriction, specificHeat, conductivity, volumetricExpansion, emissivity |
 | `f3d.polyethylene` | — | density, youngsModulus, poissonRatio, yieldStrength, tensileStrength, staticFriction, specificHeat, conductivity, volumetricExpansion, meltingPoint, emissivity, heatOfCombustion, speedOfSound, refractiveIndex, dielectricF0 |
 | `f3d.sand` | — | density, youngsModulus, staticFriction, specificHeat, conductivity, emissivity, lossFactor |
@@ -314,6 +315,6 @@ the literature for rock and grains, or the engine's default.
 | `f3d.sawdust` | — | density, staticFriction, specificHeat, conductivity |
 | `f3d.mineralWool` | — | density, staticFriction, specificHeat, conductivity |
 
-554 values of 238 materials change with temperature; 1821 are constants at the reference state. No law in the catalogue reads pressure yet.
+554 values of 239 materials change with temperature; 1830 are constants at the reference state. No law in the catalogue reads pressure yet.
 
 <!-- coverage:end -->

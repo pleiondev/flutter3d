@@ -52,8 +52,15 @@ pays for what it loses,
 
 which, by halving over *T* with *h* from the same correlation, is at
 **860.8 K**, burning 1.03 g/(m² s) and radiating 23.7 kW/m². That is
-CHARCOAL's ignition temperature: the coolest a glowing surface stands at
-by its own oxygen.
+CHARCOAL's glow temperature (`glowTemperature` in the catalogue, an
+estimate with this page as its source): the coolest a glowing surface
+stands at by its own oxygen, which the core's fire model reads as the
+temperature a patch is held alight at. It is not where charcoal catches:
+eucalyptus charcoal is measured to ignite at 546 to 697 K under a pilot,
+337 °C for the grade the catalogue takes (Oliveira and colleagues,
+*Bioresources and Bioproducts* 1, 2025), and the catalogue's
+`ignitionTemperature` is that measurement. A lump lit there and left alone
+goes out below 860.8 K.
 
 ## In the core's terms
 

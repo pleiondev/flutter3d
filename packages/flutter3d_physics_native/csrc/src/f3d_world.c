@@ -76,6 +76,7 @@ void f3d_world_destroy(F3dWorld *world) {
   f3d_free(world->moved);
   f3d_free(world->swept);
   f3d_pool_destroy(world->pool);
+  f3d_clear_laws(world);
   for (uint32_t i = 0; i < F3D_MAX_THREADS; i++) f3d_free(world->lanes[i].items);
   f3d_free(world);
 }
@@ -381,7 +382,8 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
   s->temperature = world->s.air_temperature;
   s->interior = s->temperature;
   s->skin = s->temperature;
-  s->friction = F3D_R(0.6);
+  /* MaterialCatalog.defaultFriction, through the header. */
+  s->friction = F3D_DEFAULT_FRICTION;
   s->layer = 1u;
   s->mask = UINT32_MAX;
   f3d_refresh_mass(world, s);
@@ -849,6 +851,9 @@ uint32_t f3d_world_read_fires(const F3dWorld *world, f3d_real *fires,
 
 void f3d_world_step(F3dWorld *world, f3d_real dt) {
   if (!(f3d_finite(dt) && dt > F3D_R(0.0))) return;
+  /* The laws first, at the temperatures the step starts from: nothing in
+   * a world that set none. */
+  f3d_apply_laws(world);
   f3d_step_collide(world, dt);
   f3d_step_vehicles(world, dt);
   f3d_step_water(world, dt);

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`internal.dart` names the expression bytecode** (`ExpressionBytecode`
+  and its version) for `flutter3d_physics_native`, whose C core runs it:
+  still internal, not covered by semver for applications, its format
+  versioned in its header.
 - **The engine's expression language.** `parseExpression` reads text such
   as `1.8e-6 [Pa·s] * exp(1850 [K] / T)` or `T > 100 [°C] && p < 2 [bar]`
   into a typed `Expression` tree whose every node carries an

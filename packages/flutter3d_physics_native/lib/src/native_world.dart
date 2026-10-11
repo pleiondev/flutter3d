@@ -10,6 +10,7 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'core/core.dart' as c;
+import 'native_law.dart';
 
 /// A body in a [NativeWorld]: its slot and the slot's generation, packed as
 /// the C core packs them. Nought is never one.
@@ -705,16 +706,20 @@ final class NativeJointType {
 }
 
 /// What a body is made of, as heat and fire see it — `F3dMaterial`.
+///
+/// What it leaves unsaid takes the values every core preset starts from,
+/// `MaterialCatalog`'s defaults, which the core reads from its generated
+/// header as `F3D_PRESET_DEFAULT_*`: one number on both sides.
 final class NativeMaterial {
   const NativeMaterial({
     required this.specificHeat,
-    this.emissivity = 0.9,
+    this.emissivity = MaterialCatalog.defaultEmissivity,
     this.ignitionTemperature = 0.0,
     this.heatOfCombustion = 0.0,
     this.burnRate = 0.0,
     this.fuelFraction = 0.0,
     this.flameFeedback = 0.0,
-    this.conductivity = 1.0,
+    this.conductivity = MaterialCatalog.defaultConductivity,
     this.flameTemperature = 0.0,
     this.flameConvection = 0.0,
     this.flameRadiant = 0.0,
@@ -764,14 +769,32 @@ final class NativeMaterial {
   /// holds no fuel of its own, as wax melts and runs off.
   static NativeMaterial paraffin() => _preset(c.MaterialKind.paraffin);
 
+  /// A stack of paper sheets with air between them — a pile of newspaper,
+  /// a ream, a heap of documents: [paper]'s sheets, conducting across them
+  /// as `f3d.paperStack` does rather than as one solid sheet.
+  static NativeMaterial paperStack() => _preset(c.MaterialKind.paperStack);
+
   /// [material] as heat and fire see it: the core's preset its id names —
-  /// `f3d.wood`, `f3d.oak`, `f3d.pine`, `f3d.paper`, `f3d.cardboard`,
-  /// `f3d.thatch`, `f3d.charcoal`, `f3d.paraffin`, `f3d.rubber`,
-  /// `f3d.steel`, `f3d.granite` (the core's stone) — or [inert] for any
-  /// other, with what [material]'s thermal and mechanical groups say written
-  /// over it: specific heat, conductivity, emissivity, where it catches, its
-  /// heat of combustion, its flame's radiant share, its modulus and its
-  /// Poisson's ratio.
+  /// `f3d.wood`, `f3d.oak`, `f3d.pine`, `f3d.paper`, `f3d.paperStack`,
+  /// `f3d.cardboard`, `f3d.thatch`, `f3d.charcoal`, `f3d.paraffin`,
+  /// `f3d.rubber`, `f3d.steel`, `f3d.granite` (the core's stone) — or
+  /// [inert] for any other, with what [material]'s thermal and mechanical
+  /// groups say written over it: specific heat, conductivity, emissivity,
+  /// where it catches, its heat of combustion, its flame's radiant share,
+  /// its modulus and its Poisson's ratio.
+  ///
+  /// **What the fire model reads where a material has two numbers.** Where
+  /// it catches is the glow temperature where the material has one
+  /// (`ThermalProperties.glowTemperature`, charcoal's, where a surface that
+  /// burns without a flame holds alight by itself), else its ignition
+  /// temperature; the heat a kilogram gives in a fire is its effective heat
+  /// of combustion where it has one (`effectiveHeatOfCombustion`, a tyre
+  /// fire's), else its heat of combustion.
+  ///
+  /// **At a state.** Given [state], each value is its law at that state
+  /// (`PropertyLaw.at`) — the body's temperature, a plugin's quantity —
+  /// rather than its value at the reference state: what the Dart side
+  /// evaluates and passes to the core as numbers.
   ///
   /// **How a plugin's material reaches the core.** The core holds the
   /// built-ins' numbers in its generated header; a plugin's are passed here,
@@ -780,12 +803,13 @@ final class NativeMaterial {
   /// it. For a built-in this is its preset to the bit. What only the fire
   /// model reads — how a flame creeps, how a char grows — is the preset's,
   /// and a plugin sets it with [copyWith].
-  static NativeMaterial of(PhysicalMaterial material) {
+  static NativeMaterial of(PhysicalMaterial material, {MaterialState? state}) {
     final base = switch (material.id) {
       'f3d.wood' => wood(),
       'f3d.oak' => oak(),
       'f3d.pine' => pine(),
       'f3d.paper' => paper(),
+      'f3d.paperStack' => paperStack(),
       'f3d.cardboard' => cardboard(),
       'f3d.thatch' => thatch(),
       'f3d.charcoal' => charcoal(),
@@ -799,17 +823,25 @@ final class NativeMaterial {
     final stiffness = material.mechanical;
     // Through f32, as the core holds them: a built-in's view is its preset
     // to the bit.
-    double? f32(double? value) =>
-        value == null ? null : (Float32List(1)..[0] = value)[0];
+    double? f32(PropertyLaw? law) {
+      if (law == null) return null;
+      final value = state == null ? law.value : law.at(state);
+      return (Float32List(1)..[0] = value)[0];
+    }
+
     return base.copyWith(
-      specificHeat: f32(heat?.specificHeat?.value),
-      conductivity: f32(heat?.conductivity?.value),
-      emissivity: f32(heat?.emissivity?.value),
-      ignitionTemperature: f32(heat?.ignitionTemperature?.value),
-      heatOfCombustion: f32(heat?.heatOfCombustion?.value),
-      flameRadiant: f32(heat?.radiantFraction?.value),
-      modulus: f32(stiffness?.youngsModulus?.value),
-      poissonRatio: f32(stiffness?.poissonRatio?.value),
+      specificHeat: f32(heat?.specificHeat),
+      conductivity: f32(heat?.conductivity),
+      emissivity: f32(heat?.emissivity),
+      ignitionTemperature: f32(
+        heat?.glowTemperature ?? heat?.ignitionTemperature,
+      ),
+      heatOfCombustion: f32(
+        heat?.effectiveHeatOfCombustion ?? heat?.heatOfCombustion,
+      ),
+      flameRadiant: f32(heat?.radiantFraction),
+      modulus: f32(stiffness?.youngsModulus),
+      poissonRatio: f32(stiffness?.poissonRatio),
     );
   }
 
@@ -817,36 +849,41 @@ final class NativeMaterial {
     final out = c.coreAlloc(c.F3dMaterialLayout.size);
     try {
       c.f3d_material_preset(kind, out);
-      double at(int offset) => c.readF32(out + offset);
-      return NativeMaterial(
-        specificHeat: at(c.F3dMaterialLayout.specificHeat),
-        emissivity: at(c.F3dMaterialLayout.emissivity),
-        ignitionTemperature: at(c.F3dMaterialLayout.ignitionTemperature),
-        heatOfCombustion: at(c.F3dMaterialLayout.heatOfCombustion),
-        burnRate: at(c.F3dMaterialLayout.burnRate),
-        fuelFraction: at(c.F3dMaterialLayout.fuelFraction),
-        flameFeedback: at(c.F3dMaterialLayout.flameFeedback),
-        conductivity: at(c.F3dMaterialLayout.conductivity),
-        flameTemperature: at(c.F3dMaterialLayout.flameTemperature),
-        flameConvection: at(c.F3dMaterialLayout.flameConvection),
-        flameRadiant: at(c.F3dMaterialLayout.flameRadiant),
-        flameAbsorption: at(c.F3dMaterialLayout.flameAbsorption),
-        heatOfGasification: at(c.F3dMaterialLayout.heatOfGasification),
-        criticalMassFlux: at(c.F3dMaterialLayout.criticalMassFlux),
-        flameSpread: at(c.F3dMaterialLayout.flameSpread),
-        modulus: at(c.F3dMaterialLayout.modulus),
-        poissonRatio: at(c.F3dMaterialLayout.poissonRatio),
-        sootTemperature: at(c.F3dMaterialLayout.sootTemperature),
-        charYield: at(c.F3dMaterialLayout.charYield),
-        spreadMinimum: at(c.F3dMaterialLayout.spreadMinimum),
-        ignitionInertia: at(c.F3dMaterialLayout.ignitionInertia),
-        elementSurface: at(c.F3dMaterialLayout.elementSurface),
-        elementDensity: at(c.F3dMaterialLayout.elementDensity),
-        sootYield: at(c.F3dMaterialLayout.sootYield),
-      );
+      return _read(out);
     } finally {
       c.coreFree(out);
     }
+  }
+
+  /// The core's `F3dMaterial` at [out].
+  static NativeMaterial _read(int out) {
+    double at(int offset) => c.readF32(out + offset);
+    return NativeMaterial(
+      specificHeat: at(c.F3dMaterialLayout.specificHeat),
+      emissivity: at(c.F3dMaterialLayout.emissivity),
+      ignitionTemperature: at(c.F3dMaterialLayout.ignitionTemperature),
+      heatOfCombustion: at(c.F3dMaterialLayout.heatOfCombustion),
+      burnRate: at(c.F3dMaterialLayout.burnRate),
+      fuelFraction: at(c.F3dMaterialLayout.fuelFraction),
+      flameFeedback: at(c.F3dMaterialLayout.flameFeedback),
+      conductivity: at(c.F3dMaterialLayout.conductivity),
+      flameTemperature: at(c.F3dMaterialLayout.flameTemperature),
+      flameConvection: at(c.F3dMaterialLayout.flameConvection),
+      flameRadiant: at(c.F3dMaterialLayout.flameRadiant),
+      flameAbsorption: at(c.F3dMaterialLayout.flameAbsorption),
+      heatOfGasification: at(c.F3dMaterialLayout.heatOfGasification),
+      criticalMassFlux: at(c.F3dMaterialLayout.criticalMassFlux),
+      flameSpread: at(c.F3dMaterialLayout.flameSpread),
+      modulus: at(c.F3dMaterialLayout.modulus),
+      poissonRatio: at(c.F3dMaterialLayout.poissonRatio),
+      sootTemperature: at(c.F3dMaterialLayout.sootTemperature),
+      charYield: at(c.F3dMaterialLayout.charYield),
+      spreadMinimum: at(c.F3dMaterialLayout.spreadMinimum),
+      ignitionInertia: at(c.F3dMaterialLayout.ignitionInertia),
+      elementSurface: at(c.F3dMaterialLayout.elementSurface),
+      elementDensity: at(c.F3dMaterialLayout.elementDensity),
+      sootYield: at(c.F3dMaterialLayout.sootYield),
+    );
   }
 
   /// This material with the values given changed: a preset's pine as
@@ -3646,8 +3683,10 @@ final class NativeWorld {
   void setBullet(NativeBody body, {bool bullet = true}) =>
       _check(c.f3d_body_set_bullet(_live, body.raw, bullet ? 1 : 0), body);
 
-  /// Coulomb's coefficient, nought up; 0.6 for a new body. A pair slides on
-  /// the geometric mean of its two.
+  /// Coulomb's coefficient, nought up; for a new body
+  /// [MaterialCatalog.defaultFriction], which the core reads from its
+  /// header (`F3D_DEFAULT_FRICTION`). A pair slides on the geometric mean
+  /// of its two.
   void setFriction(NativeBody body, double friction) => _check(
     c.f3d_body_set_friction(_live, body.raw, friction),
     body,
@@ -3686,6 +3725,74 @@ final class NativeWorld {
     } finally {
       c.coreFree(m);
     }
+  }
+
+  /// What [body] is made of now: as [setMaterial] set it, with what its
+  /// laws ([setLaw]) last wrote over it, in the core's f32.
+  NativeMaterial materialOf(NativeBody body) {
+    final out = c.coreAlloc(c.F3dMaterialLayout.size);
+    try {
+      _check(c.f3d_body_get_material(_live, body.raw, out), body);
+      return NativeMaterial._read(out);
+    } finally {
+      c.coreFree(out);
+    }
+  }
+
+  /// Reads [property] of [body]'s material through [law] from now on: the
+  /// core evaluates it at the temperature the body starts each step at and
+  /// writes the value into the material before anything reads it, a value
+  /// out of the property's range leaving the one before. Null takes the
+  /// law off, leaving the value last written.
+  ///
+  /// **Off unless set.** A world that sets no law steps as it always has,
+  /// every material its numbers at the reference state, which is what the
+  /// recorded runs and the default simulation are made of; a game or a
+  /// laboratory that wants a body's heat to follow its temperature asks
+  /// for it here or with [setMaterialLaws].
+  ///
+  /// In the f32 core the temperature the law reads is the body's f32 one,
+  /// and its value is rounded to f32 once, when it is written: the law
+  /// itself runs in binary64, the bits [NativeLaw.at] gives.
+  void setLaw(NativeBody body, NativeLawProperty property, NativeLaw? law) {
+    if (law == null) {
+      _check(c.f3d_body_set_law(_live, body.raw, property.code, 0, 0), body);
+      return;
+    }
+    final bytes = law.bytecode;
+    final at = c.coreAlloc(bytes.length);
+    try {
+      c.setU8s(at, bytes);
+      _check(
+        c.f3d_body_set_law(_live, body.raw, property.code, at, bytes.length),
+        body,
+        law.law,
+      );
+    } finally {
+      c.coreFree(at);
+    }
+  }
+
+  /// Reads each of [body]'s material's values the core can read through a
+  /// law ([NativeLawProperty.values]) through [material]'s law of it, where
+  /// that law changes with the state: its specific heat, conductivity and
+  /// emissivity follow the body's temperature as `PropertyLaw.at` says. A
+  /// value [material] has no law of, or a law the same at every state, is
+  /// left as [setMaterial] wrote it. Returns the properties it set.
+  List<NativeLawProperty> setMaterialLaws(
+    NativeBody body,
+    PhysicalMaterial material,
+  ) {
+    final set = <NativeLawProperty>[];
+    for (final property in NativeLawProperty.values) {
+      final law = property.of(material);
+      if (law == null || !law.dependsOnState) continue;
+      final compiled = NativeLaw.of(law);
+      if (compiled == null) continue;
+      setLaw(body, property, compiled);
+      set.add(property);
+    }
+    return set;
   }
 
   /// Kelvin: its mean, what the heat in it says.
