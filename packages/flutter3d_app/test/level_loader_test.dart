@@ -292,7 +292,7 @@ void main() {
 
       expect(loaded.lightmap, isNull);
       expect(loaded.issues, hasLength(1));
-      expect(loaded.issues.single.message, contains('bake_lightmap'));
+      expect(loaded.issues.single.message, contains('flutter3d lightmap'));
       expect(loaded.brushNodes.every((n) => !n.lightmapped), isTrue);
     });
 

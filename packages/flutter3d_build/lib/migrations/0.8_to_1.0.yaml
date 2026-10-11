@@ -20316,5 +20316,5 @@ entries:
     guidance: >-
       A lightmap is baked once, before a level ships, and no step reads the
       baker, so it is a build step: `flutter3d_build`'s `lightmap.dart`, and
-      `dart run flutter3d_build:bake_lightmap` for the command. `Lightmap`
+      `dart run flutter3d_build:lightmap` for the command. `Lightmap`
       and `LightmapLayout`, which the loader reads, stay in `flutter3d_sim`.

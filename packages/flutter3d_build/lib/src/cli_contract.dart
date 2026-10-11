@@ -92,6 +92,7 @@ const List<String> cliCommands = <String>[
   'plugins',
   'migrate',
   'lights',
+  'lightmap',
   'doctor',
   'help',
 ];
@@ -112,6 +113,7 @@ Commands:
             or check that it is current (--check).
   migrate   Move a project written against flutter3d 0.8 to 1.0.
   lights    Fewer lights for a level, judged by the pictures they make.
+  lightmap  Bake the light a level's walls throw on each other, beside it.
   doctor    Check the SDKs and the optional tools.
   help      This text, or a command's: flutter3d help <command>.
 
@@ -262,6 +264,22 @@ changes whose picture stays close to the original.
                         itself alone
 ''';
 
+/// What `flutter3d help lightmap` prints.
+const String lightmapUsage = '''
+usage: dart run flutter3d_build:lightmap [options] <level.json> ...
+
+Bakes the light a level's walls throw on each other into
+<level>.lightmap.bin beside each level, the sidecar the level loader reads.
+Deterministic: two bakes of one level are the same bytes, so a committed
+map that differs from a fresh bake is a level nobody re-baked.
+
+  --density <n>   texels per metre of face; default 4
+  --bounces <n>   how many times light bounces; default 2
+  --samples <n>   rays a texel sends each bounce; default 64
+  --direct        bake the direct light and its shadows in as well, to look
+                  at the unwrap; a shipped map leaves them to the renderer
+''';
+
 /// What `flutter3d help migrate` prints.
 const String migrateUsage = '''
 Moves a project written against an earlier flutter3d (0.8 or later) to
@@ -303,6 +321,7 @@ String cliSurface() {
     'plugins': pluginsUsage,
     'migrate': migrateUsage,
     'lights': lightsUsage,
+    'lightmap': lightmapUsage,
     'doctor': doctorUsage,
     'help': helpUsage,
   };

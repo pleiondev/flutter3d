@@ -43,7 +43,7 @@ import 'package:vector_math/vector_math.dart';
 const double _legacyLightUnit = LevelLight.defaultIntensity;
 
 /// Bakes a level's [Lightmap] from its brushes, offline: what
-/// `dart run flutter3d_build:bake_lightmap` runs before a level ships.
+/// `dart run flutter3d_build:lightmap` runs before a level ships.
 ///
 /// **A build step, not the simulation's.** No step reads it and its output
 /// is committed beside the level; [Lightmap], the format it writes, stays in

@@ -1,5 +1,5 @@
 /// Baking a level's lightmap: [LightmapBaker], what `dart run
-/// flutter3d_build:bake_lightmap` runs over each level before it ships.
+/// flutter3d_build:lightmap` runs over each level before it ships.
 ///
 /// **Its own library, with no `dart:io` behind it,** so a page that bakes a
 /// small room as it is shown (the showcase's) compiles for the web; the

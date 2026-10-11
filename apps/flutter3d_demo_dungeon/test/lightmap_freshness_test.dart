@@ -45,7 +45,7 @@ void main() {
         map.isStaleFor(level),
         isFalse,
         reason:
-            'run dart run flutter3d_build:bake_lightmap — otherwise the level '
+            'run dart run flutter3d_build:lightmap — otherwise the level '
             'loads with no baked light at all, and only says so in a warning',
       );
     });

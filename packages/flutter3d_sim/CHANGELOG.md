@@ -2,8 +2,8 @@
 
 - **Breaking: `LightmapBaker` is `flutter3d_build`'s.** A lightmap is baked
   once before a level ships and no step reads the baker, so it moved to
-  `package:flutter3d_build/lightmap.dart`, and `bake_lightmap` with it
-  (`dart run flutter3d_build:bake_lightmap`). `Lightmap` and
+  `package:flutter3d_build/lightmap.dart`, and the command with it
+  (`flutter3d lightmap`). `Lightmap` and
   `LightmapLayout`, which the loader reads, stay here.
 - **A headset's display time is a clock.** `TimeSource.display()`
   (`DisplayTime`) hands each frame the gap between the display times an XR

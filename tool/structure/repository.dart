@@ -246,6 +246,10 @@ const Map<String, String> flatDartPackages = <String, String>{
 /// every package` fails on an inversion not here, and on an entry here the
 /// order no longer inverts.
 const Map<String, String> devDependencyPublishedLater = <String, String>{
+  'flutter3d_app -> flutter3d_build':
+      '`level_loader_test.dart` loads levels with lightmaps baked for the '
+      'test; the baker is a build step and the loader may not depend on a '
+      'build tool, so the bake for the test comes from the package above',
   'flutter3d_cpu -> flutter3d_model_core':
       '`render_project_test.dart` renders a modeller\'s project on the '
       'software device; `flutter3d_model_core` may not depend on a backend, '
