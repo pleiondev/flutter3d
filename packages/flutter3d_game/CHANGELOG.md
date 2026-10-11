@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A headset's controllers drive the action map.** `InputSource.xr(hand,
+  control)` spells a control as an XR session reports it
+  (`xr:<hand>/<control>`), so a rebinding is saved beside the keyboard's
+  and the pad's, and `ActionInput.xrControls` takes a frame's readings by
+  that id: a button bound in the map is pressed and released on its edges
+  with its pull as the value, a trigger's pull or a stick's x drives an
+  axis, a stick a pair; `letGo` releases what the controllers held.
 - **A recorded run keeps what its probes read.** `DemoRecording` attached to
   a loop writes each step's probe readings into `Demo.probes`, stamped with
   the step of its own tape, and drops those after a level swap with the

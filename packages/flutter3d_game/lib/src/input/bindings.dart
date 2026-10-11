@@ -50,6 +50,13 @@ final class InputSource {
   /// `stick`, `band`, `button.jump`.
   factory InputSource.touch(String control) => InputSource('touch:$control');
 
+  /// A headset's controller or hand control, `xr:<hand>/<control>`, as an
+  /// XR session reports it (`XrActionSource.sourceId`): a button with a
+  /// travel, a trigger's pull, a stick as a pair. See
+  /// `ActionInput.xrControls`.
+  factory InputSource.xr(XrHand hand, XrControl control) =>
+      InputSource(XrActionSource.sourceId(hand, control));
+
   /// The mouse's motion while it is captured: what turns a first-person
   /// view, and the source a look binding's sensitivity and invert are on.
   static const InputSource pointerMotion = InputSource('pointer:motion');

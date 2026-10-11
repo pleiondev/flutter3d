@@ -66,6 +66,39 @@ final class ActionInput {
     _resolveFor(source);
   }
 
+  /// One frame of a headset's controls, by source id
+  /// (`InputSource.xr`, `xr:<hand>/<control>`): what an XR session's frame
+  /// reads for each.
+  ///
+  /// **A controller is a device like a pad.** Its pressed state is a
+  /// digital source, its pull (or a stick's x) a one-number one, a stick a
+  /// pair, each through the map's axis bindings; and, since no device of
+  /// this package presses a headset's buttons, a control bound in
+  /// [ActionMap.buttons] presses and releases its action here, on the
+  /// edges, with the pull as the action's value. A control nothing binds is
+  /// passed over.
+  void xrControls(Map<String, XrControlReading> readings) {
+    for (final MapEntry(key: id, value: reading) in readings.entries) {
+      final source = InputSource(id);
+      if (map.buttons[source] case final GameAction button) {
+        if (reading.pressed && _xrDown.add(source)) state.press(button);
+        if (!reading.pressed && _xrDown.remove(source)) state.release(button);
+        if (reading.value > 0.0) {
+          state.setActionValue(button, reading.value.clamp(0.0, 1.0));
+        } else {
+          state.clearActionValue(button);
+        }
+      }
+      if (!routes(source)) continue;
+      reading.pressed ? sourceDown(source) : sourceUp(source);
+      sourceValue(source, reading.x != 0.0 ? reading.x : reading.value);
+      sourcePair(source, reading.x, reading.y);
+    }
+  }
+
+  /// The headset's controls this has pressed a button action for.
+  final Set<InputSource> _xrDown = <InputSource>{};
+
   /// Motion since the last call on [source], shaped by its binding to
   /// [action] — the mouse's sensitivity and inverted look — or as it came
   /// when no binding names that source.
@@ -90,6 +123,14 @@ final class ActionInput {
   /// Lets go of every source and every action this wrote — a pad unplugged,
   /// a window that lost focus.
   void letGo() {
+    for (final source in _xrDown) {
+      if (map.buttons[source] case final GameAction button) {
+        state
+          ..release(button)
+          ..clearActionValue(button);
+      }
+    }
+    _xrDown.clear();
     _down.clear();
     _analogue.clear();
     _pairs.clear();
