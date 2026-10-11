@@ -14,7 +14,9 @@ import 'package:flutter3d_showcase/src/demo/demo.dart';
 final class ToneMappingDemo extends ShowcaseDemo {
   int curve = 0;
   int display = 0;
-  double exposure = 1.6;
+  // The engine's own default, so the page opens on the exposure every other
+  // scene is drawn at.
+  double exposure = RenderSettings.defaultExposure;
 
   static const List<TonemapCurve> _curves = TonemapCurve.values;
 
