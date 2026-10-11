@@ -21,10 +21,10 @@ dependencies:
     path: ../../packages/flutter3d_sim
 
   # `orderedSteps` — resolving an `edu_sequence.steps` name list to the
-  # `edu_step` entities themselves. Headless, plain Dart, already off the
-  # Flutter SDK for the same reason `flutter3d_editor` needs it there.
-  flutter3d_editor_core:
-    path: ../../packages/flutter3d_editor_core
+  # `edu_step` entities themselves: the lesson half of the education
+  # package, not the editor, which a viewer has no use for.
+  flutter3d_education:
+    path: ../../packages/flutter3d_education
 
   vector_math: ^2.2.0
 

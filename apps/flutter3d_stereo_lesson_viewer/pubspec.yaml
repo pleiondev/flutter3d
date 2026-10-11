@@ -21,9 +21,10 @@ dependencies:
     path: ../../packages/flutter3d_sim
 
   # `orderedSteps` — resolving an `edu_sequence.steps` name list to the
-  # `edu_step` entities themselves. Headless, plain Dart.
-  flutter3d_editor_core:
-    path: ../../packages/flutter3d_editor_core
+  # `edu_step` entities themselves: the lesson half of the education
+  # package, not the editor, which a viewer has no use for.
+  flutter3d_education:
+    path: ../../packages/flutter3d_education
 
   # `edu-06`'s own screen: `StereoRig`, `StereoSurface`, `LessonPlayer`,
   # `LessonStereoView` — the whole of this app's difference from

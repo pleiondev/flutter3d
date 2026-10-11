@@ -20294,3 +20294,15 @@ entries:
       The `exposure` default is written as `RenderSettings.defaultExposure`
       where it was the literal 1.6; the value is the same, so every call
       still compiles and draws as it did.
+
+  - id: 4e-editor_core-orderedSteps
+    package: flutter3d_editor_core
+    symbol: orderedSteps
+    kind: moved
+    to: package:flutter3d_education/lesson.dart
+    wave: 4
+    guidance: >-
+      Reading a lesson's steps in order is what a lesson viewer needs as
+      much as an editor, and a viewer does not depend on an editor, so it is
+      `flutter3d_education`'s `lesson.dart` now. The function is the same;
+      the import and the dependency on `flutter3d_education` change.

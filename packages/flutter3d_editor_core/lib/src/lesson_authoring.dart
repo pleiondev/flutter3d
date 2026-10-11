@@ -15,6 +15,10 @@ import 'package:vector_math/vector_math.dart';
 /// those two existing commands are handed — a step panel's "drag this part
 /// two centimetres" or "move this step up the list" turned into the map or
 /// list `SetField` should carry.
+///
+/// Reading a lesson's steps in order (`orderedSteps`) is not here: a viewer
+/// needs it as much as an editor, and a viewer does not depend on an editor,
+/// so it is `flutter3d_education`'s `lesson.dart`.
 
 /// The index of the entity named [name] in [level], or null.
 ///
@@ -28,26 +32,6 @@ int? indexOfNamed(Level level, String name) {
     if (level.entities[i].name == name) return i;
   }
   return null;
-}
-
-/// The `edu_step` entities [sequenceName] names, in the order it names them.
-///
-/// A name in `steps` that no entity carries is skipped rather than thrown
-/// for — the same choice `Level.named` already makes for a dangling
-/// reference elsewhere in the format: a step panel reading a document with a
-/// typo in it should show the steps that do exist, not refuse all of them.
-List<EntityDef> orderedSteps(Level level, String sequenceName) {
-  final sequence = level.named(sequenceName);
-  if (sequence == null || sequence.type != 'edu_sequence') {
-    return const <EntityDef>[];
-  }
-  final names = sequence.properties['steps'];
-  if (names is! List) return const <EntityDef>[];
-  return <EntityDef>[
-    for (final raw in names)
-      if (raw is String)
-        if (level.named(raw) case final EntityDef step) step,
-  ];
 }
 
 /// [step]'s own `offsets` map, with [nodePath] set to [delta] — the value a
