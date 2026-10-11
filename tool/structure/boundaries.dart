@@ -372,9 +372,6 @@ const Map<String, String> typeNamesDeclaredOutside = <String, String>{
       '`package:analyzer`\'s AST node, which the lints\' migration scan reads',
   'Key': 'Flutter\'s widget key',
   'Link': 'Flutter\'s `widgets.dart`, a link a screen reader announces',
-  'FittedBox':
-      'Flutter\'s `widgets.dart`, which scales a touch control\'s label into '
-      'its face; `flutter3d_mesh` declares a collision shape of the same name',
   'PluginRegistry':
       '`analysis_server_plugin`, which the lints\' analyzer plugin registers '
       'its rules with',
