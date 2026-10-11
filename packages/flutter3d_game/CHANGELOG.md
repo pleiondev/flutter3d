@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **A wall lets through what its material does not reflect.**
+  `SoundOcclusion` reads the acoustic group of each obstacle's
+  `Collider.material`: the mean absorption over 250–2 000 Hz where it is
+  measured, otherwise the normal-incidence share from its impedance (or
+  density times speed of sound) against the collision world's air, as a
+  gain by its square root. Concrete lets through 0.13 where every wall let
+  through 0.5, mineral wool 0.88, steel the floor. Laws are read at the
+  state `stateOf:` gives for an obstacle, else at the material's reference
+  state. A wall with no material, or no acoustic numbers, still lets
+  through `perObstacle`, so a level whose brushes name no physical
+  material sounds as it did.
 - **Re-exports `FrameWindow`** from `flutter3d`.
 - **`PipelineRefusedException`, `PipelineRefusalReason`, `PipelineRefusals` and
   `FramePipelineRefused` are exported**, as `flutter3d` exports them: a
