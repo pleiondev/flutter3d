@@ -266,21 +266,96 @@ final class WebGlShaderLibrary with ShaderLibrary {
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
   }) {
-    final key = '${vertex.name}+${fragment.name}';
     final linked = _programs
         .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
-        .putIfAbsent(fragment, () => _link(vertex, fragment));
-    return wrapPipeline(
-      backend: WebGlProgram(
-        linked.program,
-        linked.attributes,
-        linked.blocks,
-        linked.samplers,
-        layout: layout,
-        fragmentOutputs: linked.fragmentOutputs,
-      ),
-      name: key,
+        .putIfAbsent(fragment, () {
+          // A link of this pair already out on the driver's threads is
+          // finished here rather than started again: asking its status waits
+          // for it, which is what a synchronous caller wants, and the pair is
+          // linked once.
+          final pending = _linking[vertex]?.remove(fragment);
+          return pending == null
+              ? _link(vertex, fragment)
+              : pending.finish(this, vertex, fragment);
+        });
+    return _wrap(vertex, fragment, linked, layout);
+  }
+
+  PipelineHandle _wrap(
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+    WebGlProgram linked,
+    VertexLayoutDescriptor? layout,
+  ) => wrapPipeline(
+    backend: WebGlProgram(
+      linked.program,
+      linked.attributes,
+      linked.blocks,
+      linked.samplers,
+      layout: layout,
+      fragmentOutputs: linked.fragmentOutputs,
+    ),
+    name: '${vertex.name}+${fragment.name}',
+  );
+
+  /// Whether the context links on the driver's own threads and says when it
+  /// is done (`KHR_parallel_shader_compile`), which [linkAsync] needs. Set
+  /// by the device that asked for the extension.
+  bool parallelCompile = false;
+
+  /// Links out on the driver's threads, by the handles of the pair.
+  final Map<ShaderHandle, Map<ShaderHandle, _PendingLink>> _linking =
+      <ShaderHandle, Map<ShaderHandle, _PendingLink>>{};
+
+  /// [link] without waiting for the driver in the calling turn.
+  ///
+  /// **The link runs on the driver's threads either way; what blocks is
+  /// asking how it went.** `getProgramParameter(LINK_STATUS)` waits for the
+  /// link to finish. With [parallelCompile] the program is linked, and then
+  /// `COMPLETION_STATUS_KHR`, which never waits, is asked once a turn until
+  /// it says yes; only then is the status read and the program reflected.
+  /// Without it this is [link], completed in the calling turn.
+  ///
+  /// A [link] of the same pair in the meantime finishes this program rather
+  /// than linking a second; the future then answers with what it finished.
+  /// A pair the linker refuses completes the future with the
+  /// [ShaderCompileException] [link] throws.
+  Future<PipelineHandle> linkAsync(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+  }) async {
+    if (!parallelCompile) return link(vertex, fragment, layout: layout);
+    final cached = _programs[vertex]?[fragment];
+    if (cached != null) return _wrap(vertex, fragment, cached, layout);
+    final byFragment = _linking.putIfAbsent(
+      vertex,
+      () => <ShaderHandle, _PendingLink>{},
     );
+    final pending = byFragment[fragment] ??= _PendingLink.start(
+      _gl,
+      vertex,
+      fragment,
+    );
+    while (!pending.done) {
+      // A turn first: a link the driver has finished by the time it is asked
+      // still lets the caller's event loop go round once, as the contract's
+      // "without holding up the caller" says.
+      await Future<void>.delayed(Duration.zero);
+      if (pending.done) break;
+      if (!identical(_linking[vertex]?[fragment], pending)) {
+        // A refresh swapped the code behind a stage while the link was out
+        // ([forgetPrograms] retired it): the pair is linked again, from the
+        // code the handles carry now.
+        return linkAsync(vertex, fragment, layout: layout);
+      }
+      if (!pending.isComplete(_gl)) continue;
+      _linking[vertex]!.remove(fragment);
+      _programs
+          .putIfAbsent(vertex, () => <ShaderHandle, WebGlProgram>{})
+          .putIfAbsent(fragment, () => pending.finish(this, vertex, fragment));
+    }
+    return _wrap(vertex, fragment, pending.result(), layout);
   }
 
   /// Programs [forgetPrograms] took out of the cache and has not yet deleted.
@@ -312,6 +387,15 @@ final class WebGlShaderLibrary with ShaderLibrary {
   void forgetPrograms(Iterable<ShaderHandle> stale) {
     _deleteRetired();
     final gone = stale.toSet();
+    // Links still out on the driver's threads were started from the old code
+    // too; [linkAsync] starts them again when it next looks.
+    for (final vertex in _linking.keys) {
+      _linking[vertex]!.removeWhere((ShaderHandle fragment, _PendingLink link) {
+        if (!gone.contains(vertex) && !gone.contains(fragment)) return false;
+        _retired.add(link.program);
+        return true;
+      });
+    }
     for (final vertex in gone) {
       final byFragment = _programs.remove(vertex);
       if (byFragment == null) continue;
@@ -332,11 +416,17 @@ final class WebGlShaderLibrary with ShaderLibrary {
     _retired.clear();
   }
 
-  WebGlProgram _link(ShaderHandle vertex, ShaderHandle fragment) {
-    final program = _gl.createProgram()!;
-    _gl.attachShader(program, (vertex.backend as WebGlShader).shader);
-    _gl.attachShader(program, (fragment.backend as WebGlShader).shader);
-    _gl.linkProgram(program);
+  WebGlProgram _link(ShaderHandle vertex, ShaderHandle fragment) =>
+      _linked(_startLink(_gl, vertex, fragment), vertex, fragment);
+
+  /// [program], linked from [vertex] and [fragment], reflected; or a
+  /// [ShaderCompileException] with the program deleted, where the linker
+  /// refused it. Asking its status waits for a link still running.
+  WebGlProgram _linked(
+    web.WebGLProgram program,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) {
     final linked =
         _gl.getProgramParameter(program, web.WebGLRenderingContext.LINK_STATUS)!
             as JSBoolean;
@@ -413,6 +503,12 @@ final class WebGlShaderLibrary with ShaderLibrary {
   /// names — so this is also where they go.
   void dispose() {
     _deleteRetired();
+    for (final byFragment in _linking.values) {
+      for (final pending in byFragment.values) {
+        pending.abandon(_gl);
+      }
+    }
+    _linking.clear();
     for (final byFragment in _programs.values) {
       for (final program in byFragment.values) {
         _gl.deleteProgram(program.program);
@@ -587,5 +683,80 @@ final class WebGlShaderLibrary with ShaderLibrary {
       samplers[info.name] = (unit: samplers.length, target: target);
     }
     return samplers;
+  }
+}
+
+/// A program attached and linked, before anybody asked how the link went.
+web.WebGLProgram _startLink(
+  web.WebGL2RenderingContext gl,
+  ShaderHandle vertex,
+  ShaderHandle fragment,
+) {
+  final program = gl.createProgram()!;
+  gl.attachShader(program, (vertex.backend as WebGlShader).shader);
+  gl.attachShader(program, (fragment.backend as WebGlShader).shader);
+  gl.linkProgram(program);
+  return program;
+}
+
+/// `COMPLETION_STATUS_KHR`, from `KHR_parallel_shader_compile`.
+const int webglCompletionStatus = 0x91B1;
+
+/// A link out on the driver's threads: the program, and what came of it once
+/// somebody finished it — [WebGlShaderLibrary.linkAsync]'s poll or a
+/// [WebGlShaderLibrary.link] of the same pair.
+final class _PendingLink {
+  _PendingLink.start(
+    web.WebGL2RenderingContext gl,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) : _program = _startLink(gl, vertex, fragment);
+
+  final web.WebGLProgram _program;
+
+  /// The program, for a refresh that retires it.
+  web.WebGLProgram get program => _program;
+
+  WebGlProgram? _linked;
+  ShaderCompileException? _refused;
+
+  /// Whether [finish] or [abandon] ran.
+  bool done = false;
+
+  /// Whether the driver has finished the link, asked without waiting.
+  bool isComplete(web.WebGL2RenderingContext gl) =>
+      (gl.getProgramParameter(_program, webglCompletionStatus)! as JSBoolean)
+          .toDart;
+
+  /// The link's verdict, waited for if the driver is still on it; throws
+  /// the refusal, as [WebGlShaderLibrary.link] does, and remembers either.
+  WebGlProgram finish(
+    WebGlShaderLibrary library,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) {
+    done = true;
+    try {
+      return _linked = library._linked(_program, vertex, fragment);
+    } on ShaderCompileException catch (error) {
+      _refused = error;
+      rethrow;
+    }
+  }
+
+  /// What [finish] came to.
+  WebGlProgram result() => _linked ?? (throw _refused!);
+
+  /// Deletes the program nobody will finish: its library is going.
+  void abandon(web.WebGL2RenderingContext gl) {
+    if (done) return;
+    done = true;
+    gl.deleteProgram(_program);
+    _refused = ShaderCompileException(
+      shader: 'a pipeline',
+      backend: webglBackendName,
+      log: 'the device was disposed while the link was out',
+      target: ShaderBundle.webglSection,
+    );
   }
 }

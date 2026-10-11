@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **`createPipelineAsync` links on the driver's threads where the browser
+  offers `KHR_parallel_shader_compile`.** The program is linked and its
+  status read only once `COMPLETION_STATUS_KHR` says, without waiting, that
+  the driver is done; a `createPipeline` of the same pair meanwhile finishes
+  that program instead of linking a second, and a pair the linker refuses
+  is reported to `pipelineRefusals` as `createPipeline` reports it.
+  `WebGlDevice.parallelShaderCompile` says whether the context has it.
 - **Registers its material compiler beside the device.**
   `registerWebGlBackend(compilers:)` adds `WebGlSectionCompiler` to a
   `MaterialCompilerRegistry`: each stage of a material translated to

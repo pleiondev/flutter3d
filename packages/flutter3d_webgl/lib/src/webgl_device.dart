@@ -318,6 +318,8 @@ final class WebGlDevice extends GraphicsDevice
             ),
           )
           .._clipControl = clipControl
+          .._parallelShaderCompile =
+              gl.getExtension('KHR_parallel_shader_compile') != null
           .._floatLinear = floatLinear != null
           .._colorBufferFloat = colorBufferFloat != null
           // The rest of what WebGL2 offers past its core, each asked for once
@@ -1281,6 +1283,39 @@ final class WebGlDevice extends GraphicsDevice
       return handle;
     }
   }
+
+  /// [createPipeline], linked without waiting for the driver in the calling
+  /// turn where the browser offers `KHR_parallel_shader_compile`
+  /// ([parallelShaderCompile]): the program is linked, and its status is
+  /// read once the driver says, without waiting, that it is done — see
+  /// `WebGlShaderLibrary.linkAsync`. A link of the same pair through
+  /// [createPipeline] in the meantime finishes that program rather than
+  /// linking a second. A pair the linker refuses is reported to
+  /// [pipelineRefusals], as [createPipeline] reports it, and the handle's
+  /// draws are skipped. Without the extension this is [createPipeline].
+  @override
+  Future<PipelineHandle> createPipelineAsync(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+  }) async {
+    try {
+      return await _library.linkAsync(vertex, fragment, layout: layout);
+    } on ShaderCompileException catch (error) {
+      final handle = wrapPipeline(
+        backend: WebGlUnlinkedPipeline(vertex, fragment, layout),
+        name: '${vertex.name}+${fragment.name}',
+      );
+      pipelineRefusals.report(handle, _linkRefusal(handle, error));
+      return handle;
+    }
+  }
+
+  /// Whether this context links on the driver's threads and says when it is
+  /// done (`KHR_parallel_shader_compile`), which is what lets
+  /// [createPipelineAsync] link without holding up its caller.
+  bool get parallelShaderCompile => _library.parallelCompile;
+  set _parallelShaderCompile(bool value) => _library.parallelCompile = value;
 
   /// The program for [handle], whose pair would not link at
   /// [createPipeline], linking it again now — or null when it still will
