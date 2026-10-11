@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The Dart views' defaults are the header's.** `NativeMaterial`'s
+  emissivity and conductivity default to `MaterialCatalog`'s, which the
+  core's presets read as `F3D_PRESET_DEFAULT_*`; `DebrisSettings.friction`
+  and a new body's friction in the core are `MaterialCatalog.defaultFriction`
+  (`F3D_DEFAULT_FRICTION`), not a 0.6 written again. The same numbers, so
+  nothing moves. The README and `NativeDynamics` say what the `accurate`
+  profile means here: the Dart engine, the core staying float.
 - **The core evaluates laws and expressions itself.** A C port of the
   expression language's bytecode interpreter (`f3d_program_*`,
   `csrc/src/f3d_expr.c`) runs in binary64 on flutter3d_foundation's

@@ -706,16 +706,20 @@ final class NativeJointType {
 }
 
 /// What a body is made of, as heat and fire see it — `F3dMaterial`.
+///
+/// What it leaves unsaid takes the values every core preset starts from,
+/// `MaterialCatalog`'s defaults, which the core reads from its generated
+/// header as `F3D_PRESET_DEFAULT_*`: one number on both sides.
 final class NativeMaterial {
   const NativeMaterial({
     required this.specificHeat,
-    this.emissivity = 0.9,
+    this.emissivity = MaterialCatalog.defaultEmissivity,
     this.ignitionTemperature = 0.0,
     this.heatOfCombustion = 0.0,
     this.burnRate = 0.0,
     this.fuelFraction = 0.0,
     this.flameFeedback = 0.0,
-    this.conductivity = 1.0,
+    this.conductivity = MaterialCatalog.defaultConductivity,
     this.flameTemperature = 0.0,
     this.flameConvection = 0.0,
     this.flameRadiant = 0.0,
@@ -3679,8 +3683,10 @@ final class NativeWorld {
   void setBullet(NativeBody body, {bool bullet = true}) =>
       _check(c.f3d_body_set_bullet(_live, body.raw, bullet ? 1 : 0), body);
 
-  /// Coulomb's coefficient, nought up; 0.6 for a new body. A pair slides on
-  /// the geometric mean of its two.
+  /// Coulomb's coefficient, nought up; for a new body
+  /// [MaterialCatalog.defaultFriction], which the core reads from its
+  /// header (`F3D_DEFAULT_FRICTION`). A pair slides on the geometric mean
+  /// of its two.
   void setFriction(NativeBody body, double friction) => _check(
     c.f3d_body_set_friction(_live, body.raw, friction),
     body,

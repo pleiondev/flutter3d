@@ -192,6 +192,31 @@ void main() {
     );
   });
 
+  test("the Dart views' defaults are the header's", () {
+    // Mutation: write 0.9 or 0.6 back into NativeMaterial or DebrisSettings
+    // and change MaterialCatalog's, and these part.
+    const bare = NativeMaterial(specificHeat: 1000);
+    expect(bare.emissivity, MaterialCatalog.defaultEmissivity);
+    expect(bare.conductivity, MaterialCatalog.defaultConductivity);
+    expect(
+      NativeMaterial.inert().emissivity,
+      _f32(MaterialCatalog.defaultEmissivity),
+    );
+    expect(DebrisSettings().friction, MaterialCatalog.defaultFriction);
+    final header = generateMaterialsHeader();
+    expect(
+      header,
+      contains(
+        '#define F3D_DEFAULT_FRICTION '
+        'F3D_R(${MaterialCatalog.defaultFriction})',
+      ),
+    );
+    // The core's new body takes it from there, not from a number of its
+    // own.
+    final world = File('csrc/src/f3d_world.c').readAsStringSync();
+    expect(world, contains('s->friction = F3D_DEFAULT_FRICTION;'));
+  });
+
   test('σ is one number on both sides', () {
     expect(
       RegExp(

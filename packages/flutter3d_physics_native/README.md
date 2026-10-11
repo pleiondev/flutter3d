@@ -67,6 +67,12 @@ The deterministic mode uses the same bits on every platform. Every number is an 
 
 Built with `-DF3D_REAL_DOUBLE`, the core uses doubles throughout instead. That build is for C callers who want the precision and do not need the browser to agree; the Dart bindings refuse it.
 
+The core is the `deterministic` profile's engine. Under `SimulationProfile.accurate`, which promises double maths and adaptive steps rather than bits, a simulation runs the Dart engine in `flutter3d_physics`, and native cloth refuses a profile that is not bit-exact so its owner falls back to the Dart cloth. Two things are exact in doubles here under either profile: a body's place in the world, a `WorldPosition` with the origin added, and the laws and expressions the core evaluates.
+
+## Laws in the core
+
+A body's material can follow its temperature. `NativeWorld.setMaterialLaws(body, material)` gives the core the specific heat, conductivity and emissivity laws of a `PhysicalMaterial`, tables and formulas alike, compiled to the expression language's bytecode. Each step begins by evaluating them at the body's temperature. `NativeExpression` runs any expression of the language in the core, such as a probe's derived quantity. The C interpreter (`csrc/src/f3d_expr.c`) computes in binary64 on the same portable maths as Dart's in both builds, and `test/law_parity_test.dart` holds the two to the bit on every expression fixture and every law of the catalogue. In the f32 core a body's temperature is an f32 and the value a law writes into its material is rounded to f32 once; the test holds that value to Dart's at the same f32 temperature, rounded the same way. A world that sets no law steps exactly as before.
+
 ## Tests
 
 ```sh

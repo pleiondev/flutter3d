@@ -382,7 +382,8 @@ F3dBody f3d_body_create(F3dWorld *world, F3dBodyType type, f3d_real px,
   s->temperature = world->s.air_temperature;
   s->interior = s->temperature;
   s->skin = s->temperature;
-  s->friction = F3D_R(0.6);
+  /* MaterialCatalog.defaultFriction, through the header. */
+  s->friction = F3D_DEFAULT_FRICTION;
   s->layer = 1u;
   s->mask = UINT32_MAX;
   f3d_refresh_mass(world, s);
