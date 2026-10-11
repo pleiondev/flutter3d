@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A placed thing keeps what its source said about it.**
+  `PrefabAttributes` reads a row's own attributes (`attributes`) and a
+  model row's attributes of its nodes by node path (`nodeAttributes`), as
+  `flutter3d convert` writes USD's custom attributes; `findByAttribute`
+  finds an element of an expanded level by one of them (`AttributeMatch`).
+  Expanding an instance gives its own attributes to every row it becomes,
+  its keys winning, so a pump placed as `P-101` is `P-101` on each of its
+  parts. The engine reads none of them.
 - **A headset's display time is a clock.** `TimeSource.display()`
   (`DisplayTime`) hands each frame the gap between the display times an XR
   runtime predicts, so the world drawn for a frame stands where it will be

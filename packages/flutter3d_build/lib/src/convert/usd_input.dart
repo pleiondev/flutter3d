@@ -1,7 +1,10 @@
 /// USD: a `.usda` layer, a `.usdz` package, or a binary layer through
 /// `usdcat`. The layer's meshes become one `.f3d`, its UsdPreviewSurface
 /// materials `.fmat` files, and its prims a prefab; a prim that references
-/// another file becomes an instance of that file's prefab.
+/// another file becomes an instance of that file's prefab. What a prim's
+/// author added to it, its custom attributes, rides the rows as
+/// `PrefabAttributes`: an instance's on its row, the layer's prims' on the
+/// model row by node path.
 library;
 
 import 'dart:convert';
