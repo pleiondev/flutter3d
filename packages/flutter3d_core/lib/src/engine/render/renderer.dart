@@ -3838,6 +3838,16 @@ final class Renderer with RenderServices {
   /// pass, and a null entry is a tile that has to be drawn.
   final List<int?> _directionalBaked = <int?>[null, null, null];
 
+  /// What each caster brings to a directional tile's key, by its place in
+  /// `Scene.meshes`: everything the key reads off it except whether the
+  /// tile's volume holds it. Worked out once a frame by [_keyCasters] and
+  /// mixed into every tile's key from here, rather than read off every
+  /// caster again for every cascade. Grown with the scene, never shrunk.
+  Int32List _casterKeys = Int32List(0);
+
+  /// Beside [_casterKeys]: [_casts], [_castsSeeThrough] and [_castsStatic].
+  Uint8List _casterFlags = Uint8List(0);
+
   /// Whether a frame with [settings] runs the spatial upscale — `R5`: asked
   /// for, below full size, no temporal resolve, and a bundle with the stage.
   bool _upscales(RenderSettings settings) =>

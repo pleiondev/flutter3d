@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A caster is read once a frame for the sun's shadow keys.** Each
+  cascade's key walked every caster again, reading its material, mesh,
+  morph, instances and joints, and the static tiles' key walked them once
+  more, so three cascades read the scene four times to decide whether to
+  draw. What a caster brings to a key is now worked out once a frame and
+  kept by its place in the scene; a cascade mixes in those of the casters
+  its volume holds. Which tiles are redrawn is decided as before.
 - **A headset's views go to their layers in the frame graph.**
   `ProjectionLayerNode` runs last, reads the finished picture and gives it
   back unchanged, and copies each of `FrameContext.views` into its own
