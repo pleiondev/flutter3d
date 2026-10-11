@@ -594,8 +594,16 @@ extension _ShadowPasses on Renderer {
     if (!settings.enabled || settings.strength <= 0.0 || slotCount <= 0) {
       return false;
     }
+    // The engine's own three produce nothing, so a frame drawn through one
+    // fits nothing here: the tile loop fits the rows it draws.
+    final technique = settings.directionalTechnique;
+    if (identical(technique, ShadowTechnique.pcf) ||
+        identical(technique, ShadowTechnique.pcss) ||
+        identical(technique, ShadowTechnique.evsm)) {
+      return false;
+    }
     final fits = _fitCubeShadow(slotCount);
-    final producer = settings.directionalTechnique.cubeAtlasProducer(
+    final producer = technique.cubeAtlasProducer(
       ShadowProducerContext(
         settings: settings,
         camera: frame.view?.camera,
