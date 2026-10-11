@@ -33,6 +33,7 @@ library;
 export 'src/webgl_backend_registration.dart';
 export 'src/webgl_device.dart' show WebGlDevice;
 export 'src/webgl_frame_presenter.dart';
+export 'src/webgl_section_compiler.dart';
 export 'src/webgl_shaders.dart' show ShaderSources;
 
 // The encoder, the bundle and transfer encoders, the shader library, the

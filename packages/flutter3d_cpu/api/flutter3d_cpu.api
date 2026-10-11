@@ -669,6 +669,13 @@ final class CpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary
 
 typedef CpuMaterialCompiler = CpuStage Function(String stage, String source);
 
+final class CpuSectionCompiler extends MaterialCompiler
+  MaterialCompileResult compile(MaterialCompileRequest request)
+  String get backend
+  String get bundleSection
+  bool get compilesAtRunTime
+  const CpuSectionCompiler()
+
 final class CpuShaderLibrary with ShaderLibrary
   CpuShaderLibrary(Map<String, CpuStage> stages)
   ShaderHandle? operator [](String name)
@@ -773,7 +780,7 @@ int differingPixels(Uint8List a, Uint8List b, {int channel = 8, bool alpha = fal
 
 Uint8List encodePng(Uint8List rgba, int width, int height)
 
-Registration registerCpuBackend(DeviceRegistry registry, {CpuMaterialCompiler? materialCompiler})
+Registration registerCpuBackend(DeviceRegistry registry, {CpuMaterialCompiler? materialCompiler, MaterialCompilerRegistry? compilers})
 
 library package:flutter3d_cpu/testing.dart
 

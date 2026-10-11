@@ -3,8 +3,10 @@ library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/backend.dart' show MaterialCompilerRegistry;
 
 import 'cpu_device.dart';
+import 'cpu_section_compiler.dart';
 import 'cpu_shaders_builtin.dart';
 
 /// Adds the software rasteriser to [registry] as its fallback: the backend
@@ -21,9 +23,15 @@ import 'cpu_shaders_builtin.dart';
 /// so a frame drawn on a device without compute still runs its compute
 /// steps, the kernels translated to Dart. The one registration takes both
 /// out again.
+///
+/// **And its material compiler, since 1.0** (D26): given [compilers], the
+/// registry `RuntimeShaders` and a build consult by backend, the
+/// [CpuSectionCompiler] is registered there too, and taken out with the
+/// rest.
 Registration registerCpuBackend(
   DeviceRegistry registry, {
   CpuMaterialCompiler? materialCompiler,
+  MaterialCompilerRegistry? compilers,
 }) {
   final backend = registry.addBackend(
     'the software rasteriser',
@@ -40,7 +48,9 @@ Registration registerCpuBackend(
     'the software rasteriser',
     () async => cpuComputeDevice(),
   );
+  final compiler = compilers?.register(const CpuSectionCompiler());
   return Registration(() {
+    compiler?.cancel();
     compute.cancel();
     backend.cancel();
   });

@@ -78,4 +78,11 @@ class WebGlFramePresenter extends StatelessWidget
   final TextureHandle frame
   final WebGlDevice device
 
-Registration registerWebGlBackend(DeviceRegistry registry)
+final class WebGlSectionCompiler extends MaterialCompiler
+  MaterialCompileResult compile(MaterialCompileRequest request)
+  String get backend
+  String get bundleSection
+  bool get compilesAtRunTime
+  const WebGlSectionCompiler()
+
+Registration registerWebGlBackend(DeviceRegistry registry, {MaterialCompilerRegistry? compilers})
