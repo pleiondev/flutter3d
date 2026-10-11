@@ -156,14 +156,14 @@ final class WadingHearing {
   /// at which it plays three tenths fast; it is never quieter than a fifth.
   final double washLoud, washFast;
 
-  /// How long, s, after one splash a body going in again is not heard
-  /// splashing: a car hopping along the edge of a puddle is one splash.
+  /// How long after one splash, in seconds, a body going in again is not
+  /// heard splashing: a car hopping along the edge of a puddle is one
+  /// splash.
   final double hush;
 }
 
 /// A body moving through or by water this frame, as [ElementSounds.wade]
-/// hears it: the game's key for it, where it is, whether it is in water and
-/// how fast it goes, m/s.
+/// hears it.
 final class Wader {
   const Wader({
     required this.key,
@@ -172,9 +172,16 @@ final class Wader {
     required this.speed,
   });
 
+  /// The game's key for it: what its wash is held by.
   final int key;
+
+  /// Where it is.
   final Vector3 at;
+
+  /// Whether it is in water.
   final bool wet;
+
+  /// How fast it goes, in metres per second.
   final double speed;
 }
 
