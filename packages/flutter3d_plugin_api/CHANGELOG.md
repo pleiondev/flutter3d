@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A run recorded under an outside profile reads back.**
+  `SimulationVersion.fromJson(profiles:)` reads a profile by its name among
+  the ones given, this release's by default; a name none of them has is
+  read under that name promising nothing (not bit-exact, no double
+  precision, no adaptive steps) instead of refusing the file, and a version
+  matches another by its profile's name, since the name is all a file says
+  of it.
 - **A simulation names the subsystems that run in it.**
   `SimulationVersion.subsystems` holds every running solver's id at its
   own number (`withSubsystems`), written only when there is one, so the

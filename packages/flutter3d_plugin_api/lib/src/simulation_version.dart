@@ -221,7 +221,19 @@ final class SimulationVersion {
   /// Reads what [toJson] wrote. A number that is not one is refused with a
   /// [PluginFormatException] rather than guessed: a guessed simulation is a
   /// tape replayed into the wrong one.
-  factory SimulationVersion.fromJson(Map<String, Object?> json) {
+  ///
+  /// **A profile is read by its name among [profiles]**, this release's
+  /// unless a caller adds its own (an outside package's profile). A name
+  /// none of them has is a run recorded under a profile this build does not
+  /// know: it is read under that name promising nothing (not bit-exact, no
+  /// double precision, no adaptive steps), so the file still opens, its
+  /// poses still show and nothing verifies it by replay, and it matches a
+  /// simulation running a profile of that name, since the name is all the
+  /// file says of it ([==], [refusalOn]).
+  factory SimulationVersion.fromJson(
+    Map<String, Object?> json, {
+    Iterable<SimulationProfile> profiles = SimulationProfile.values,
+  }) {
     final engine = json['engine'];
     final genre = json['genre'];
     final genreVersion = json['genreVersion'] ?? 1;
@@ -292,7 +304,16 @@ final class SimulationVersion {
     try {
       profile = switch (json['profile']) {
         null => SimulationProfile.deterministic,
-        final String name => SimulationProfile.parse(name),
+        final String name
+            when name.isNotEmpty &&
+                !profiles.any((SimulationProfile p) => p.name == name) =>
+          SimulationProfile(
+            name,
+            isBitExact: false,
+            usesDoublePrecision: false,
+            allowsAdaptiveSteps: false,
+          ),
+        final String name => SimulationProfile.parse(name, known: profiles),
         final other => throw DocumentFormatException(
           'the simulation names profile $other',
         ),
@@ -319,7 +340,7 @@ final class SimulationVersion {
   /// one asks for an update. A plugin missing on one side, or at another
   /// number, is named by id.
   String? refusalOn(SimulationVersion running) {
-    if (profile != running.profile) {
+    if (profile.name != running.profile.name) {
       return 'the run was played on the ${profile.name} profile and this '
           'simulation runs the ${running.profile.name} one; the same input '
           'plays out differently here, so it is not replayed';
@@ -421,7 +442,9 @@ final class SimulationVersion {
   bool operator ==(Object other) =>
       other is SimulationVersion &&
       other.engine == engine &&
-      other.profile == profile &&
+      // By name, as the profile is written: a run read under a profile this
+      // build does not know carries its name and nothing else.
+      other.profile.name == profile.name &&
       other.genre == genre &&
       (genre == null || other.genreVersion == genreVersion) &&
       _samePlugins(other.otherGenres, otherGenres) &&
@@ -438,7 +461,7 @@ final class SimulationVersion {
   @override
   int get hashCode => Object.hash(
     engine,
-    profile,
+    profile.name,
     genre,
     genre == null ? 0 : genreVersion,
     Object.hashAllUnordered(<Object>[

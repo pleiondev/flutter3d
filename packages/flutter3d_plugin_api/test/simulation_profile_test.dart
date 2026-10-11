@@ -62,4 +62,52 @@ void main() {
       reference,
     );
   });
+
+  group('a run recorded under a profile of its own', () {
+    const reference = SimulationProfile(
+      'reference',
+      isBitExact: true,
+      usesDoublePrecision: true,
+      allowsAdaptiveSteps: false,
+    );
+    final recorded = const SimulationVersion(profile: reference).toJson();
+
+    test('is read back exactly by a build that is told of it', () {
+      // Mutation: drop `profiles:` from `fromJson` and the outside plugin's
+      // own tape cannot be read by the plugin's own game.
+      final read = SimulationVersion.fromJson(
+        recorded,
+        profiles: <SimulationProfile>[...SimulationProfile.values, reference],
+      );
+      expect(read.profile, reference);
+      expect(read.refusalOn(const SimulationVersion(profile: reference)), null);
+    });
+
+    test('and by one that is not, as a promise of nothing, under its name', () {
+      // Mutation: refuse the name, as `SimulationProfile.parse` does, and a
+      // tape from an outside profile cannot even be opened to show its
+      // poses; or give it the default's promises, and a server verifies
+      // by replay a run that never promised bits.
+      final read = SimulationVersion.fromJson(recorded);
+      expect(read.profile.name, 'reference');
+      expect(read.profile.isBitExact, isFalse);
+      expect(read.profile.usesDoublePrecision, isFalse);
+      expect(read.profile.allowsAdaptiveSteps, isFalse);
+      // The file carries the name alone, so the name is what it is matched
+      // by: a build running the profile replays it, another refuses it.
+      expect(read.refusalOn(const SimulationVersion(profile: reference)), null);
+      expect(read.refusalOn(const SimulationVersion()), contains('reference'));
+      expect(read, const SimulationVersion(profile: reference));
+    });
+
+    test('a profile that is not a word is still refused', () {
+      expect(
+        () => SimulationVersion.fromJson(<String, Object?>{
+          'engine': 1,
+          'profile': 3,
+        }),
+        throwsA(isA<Flutter3dFormatException>()),
+      );
+    });
+  });
 }

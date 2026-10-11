@@ -157,14 +157,17 @@ void main() {
       expect(accurate.refusalOn(accurate), isNull);
     });
 
-    test('a profile this build does not know is refused, not guessed', () {
-      expect(
-        () => SimulationVersion.fromJson(<String, Object?>{
-          'engine': 1,
-          'profile': 'reference',
-        }),
-        throwsA(isA<PluginFormatException>()),
-      );
+    test('a profile this build does not know is not guessed: it promises '
+        'nothing', () {
+      // Read under its own name and no promise, never as the default: a run
+      // of an outside profile opens, and nothing verifies it by replay.
+      final read = SimulationVersion.fromJson(<String, Object?>{
+        'engine': 1,
+        'profile': 'reference',
+      });
+      expect(read.profile, isNot(SimulationProfile.deterministic));
+      expect(read.profile.name, 'reference');
+      expect(read.profile.isBitExact, isFalse);
     });
   });
 
