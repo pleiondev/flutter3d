@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A frame and a replay are drawn on the device a test names.**
+  `renderFrame`, `testReplay` and `expectReplayMatches` take `device:`, a
+  `BackendOpener` (`WebGpuDevice.open`, `GpuRenderBackend.open`, an outside
+  backend's own), and draw there instead of on the software rasteriser: a
+  frame's device is disposed once its pixels are read, a replay's at the end
+  of the run. `drawOnce`, the half both share, is exported for a test that
+  holds its own device and renderer. Null keeps the software rasteriser.
 - **Breaking: `renderFrame(clearColor:)` takes a `LinearColor`**, linear
   as `RenderView.clearColor` is, where it took an sRGB `Vector4`:
   `LinearColor.fromSrgb(r, g, b, a)` draws the same picture, and the

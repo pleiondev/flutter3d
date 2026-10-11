@@ -32,8 +32,9 @@ final class ReplayStart {
   /// so the replay refuses one before it steps.
   final InputState input;
 
-  /// Where the level's meshes and textures go: the software device every
-  /// golden of this replay is drawn on.
+  /// Where the level's meshes and textures go: the device every golden of
+  /// this replay is drawn on — the software rasteriser, or the one the
+  /// replay's `device:` opened.
   final GraphicsDevice device;
 }
 
@@ -125,10 +126,19 @@ typedef ReplayStarter = FutureOr<ReplaySubject> Function(ReplayStart start);
 /// step can be numerically identical and drawn by a renderer that changed,
 /// and a step can look the same by eye while the state underneath diverged.
 ///
+/// **[device] opens the device the goldens are drawn on**, once for the
+/// whole run and at [width] by [height], as [renderFrame]'s does: a GPU
+/// backend's `open` or an outside backend's. The device is opened when the
+/// test runs, not when it is registered, so a backend that opens with an
+/// `await` needs no set-up of its own. Null is the software rasteriser.
+/// A golden set drawn on one backend is that backend's: keep each in a
+/// [goldenDirectory] of its own.
+///
 /// Everything else is [expectReplayMatches], which does the work.
 void testReplay(
   String tapePath, {
   required ReplayStarter start,
+  BackendOpener? device,
   Iterable<int>? digestAt,
   Iterable<int> goldensAt = const <int>[],
   String goldenDirectory = 'test/goldens',
@@ -152,6 +162,7 @@ void testReplay(
     await expectReplayMatches(
       readTape(tapePath),
       start: start,
+      device: device,
       digestAt: digestAt,
       goldensAt: goldensAt,
       goldenDirectory: goldenDirectory,
@@ -199,7 +210,8 @@ Demo readTape(String path) {
 /// asked for; see [testReplay] for what [digestAt] and [goldensAt] mean.
 ///
 /// [tolerance] and [recordMissing] are [expectMatchesGolden]'s, for every
-/// golden of the replay.
+/// golden of the replay. [device] is [testReplay]'s: the device opened for
+/// the run, and disposed at its end.
 ///
 /// For a game that has its [Demo] in memory rather than in a file — one it
 /// has just recorded, say. The golden for step `s` is
@@ -214,6 +226,7 @@ Demo readTape(String path) {
 Future<void> expectReplayMatches(
   Demo demo, {
   required ReplayStarter start,
+  BackendOpener? device,
   Iterable<int>? digestAt,
   Iterable<int> goldensAt = const <int>[],
   String goldenDirectory = 'test/goldens',
@@ -263,15 +276,69 @@ Future<void> expectReplayMatches(
     );
   }
 
-  final kit = cpuTestDevice(width: width, height: height);
-  final renderer = Renderer.create(
-    device: kit.device,
-    fallbackAlbedo: kit.albedo,
-    fallbackNormal: kit.normal,
-  );
+  // The software rasteriser keeps the fallbacks every golden recorded on it
+  // was drawn with; a device the caller names gets the renderer's own.
+  final GraphicsDevice drawOn;
+  final Renderer renderer;
+  if (device == null) {
+    final kit = cpuTestDevice(width: width, height: height);
+    drawOn = kit.device;
+    renderer = Renderer.create(
+      device: kit.device,
+      fallbackAlbedo: kit.albedo,
+      fallbackNormal: kit.normal,
+    );
+  } else {
+    drawOn = await device(width: width, height: height);
+    renderer = Renderer.create(device: drawOn);
+  }
+  try {
+    await _replay(
+      demo,
+      start: start,
+      device: drawOn,
+      renderer: renderer,
+      digests: digests,
+      goldens: goldens,
+      recorded: recorded,
+      goldenDirectory: goldenDirectory,
+      goldenName: goldenName,
+      width: width,
+      height: height,
+      settings: settings,
+      tolerance: tolerance,
+      recordMissing: recordMissing,
+      label: label,
+    );
+  } finally {
+    if (device != null) {
+      renderer.dispose();
+      drawOn.dispose();
+    }
+  }
+}
+
+/// The replay itself, on a device and renderer already made.
+Future<void> _replay(
+  Demo demo, {
+  required ReplayStarter start,
+  required GraphicsDevice device,
+  required Renderer renderer,
+  required Set<int> digests,
+  required Set<int> goldens,
+  required Map<int, int> recorded,
+  required String goldenDirectory,
+  required String goldenName,
+  required int width,
+  required int height,
+  required RenderSettings settings,
+  required double tolerance,
+  required bool? recordMissing,
+  required String label,
+}) async {
   final input = InputState();
   final run = await start(
-    ReplayStart(demo: demo, input: input, device: kit.device),
+    ReplayStart(demo: demo, input: input, device: device),
   );
   final loop = run.loop;
   final genre = run.genre;
@@ -336,7 +403,7 @@ Future<void> expectReplayMatches(
 
       if (goldens.contains(step)) {
         final frame = await drawOnce(
-          device: kit.device,
+          device: device,
           renderer: renderer,
           subject: await run.frame(step),
           width: width,
