@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **New: a lesson's answers reach the learning platform** (`CheckReporter`,
+  `CheckAnswer`, `CheckDelivery` in `lti.dart`). Each answer to a `check`
+  question is an xAPI `answered` statement; each question an answer
+  settles updates the lesson's one score in the gradebook through AGS,
+  `InProgress` until every question is settled. A launch without a line
+  item or the score scope is not graded and says so, and a refusing
+  platform is reported in the delivery rather than thrown, so a lesson
+  goes on when a gradebook is down.
 - **New: the experiment document, `f3d.experiment` v1** (`experiment.dart`).
   `ExperimentDocument` holds a level by path, the substances by catalog id,
   the parameters, the probes (`Probe` and the entity it is on) and a
