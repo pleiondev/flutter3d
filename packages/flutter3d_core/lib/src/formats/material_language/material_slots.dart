@@ -10,10 +10,22 @@ final class MaterialBlockMember {
     required this.name,
     required this.type,
     required this.offset,
+    this.defaultValue = const <double>[],
   });
 
   final String name;
   final MaterialType type;
+
+  /// What the member is when a material sets nothing for it: the value its
+  /// source declares (`uniform(Hair) float shift = 0.1;`), as many numbers
+  /// as [type] has components, or empty for a member with none.
+  ///
+  /// **The slot's default, bound in a material's place** (D21): a draw
+  /// through a plugin's lit model binds every block of the table, the
+  /// members the material sets and these for the rest, so no backend meets
+  /// a block the stage declares with nothing bound. WebGPU refuses that
+  /// draw; the others would read zeros where the source said otherwise.
+  final List<double> defaultValue;
 
   /// Bytes from the start of the block, as std140 lays a `float`, `vec2`,
   /// `vec3` or `vec4` out: aligned to 4, 8, 16 and 16.
@@ -33,10 +45,20 @@ final class MaterialBlockMember {
       other is MaterialBlockMember &&
       other.name == name &&
       other.type == type &&
-      other.offset == offset;
+      other.offset == offset &&
+      _sameNumbers(other.defaultValue, defaultValue);
 
   @override
-  int get hashCode => Object.hash(name, type, offset);
+  int get hashCode =>
+      Object.hash(name, type, offset, Object.hashAll(defaultValue));
+
+  static bool _sameNumbers(List<double> a, List<double> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
 /// One uniform block a material binds: `MaterialParams`, or a block of its
@@ -64,7 +86,8 @@ final class MaterialBlockSlot {
 }
 
 /// One texture of a material's own, by what the source calls it and what
-/// it is bound under.
+/// it is bound under. A material that names none for it is drawn with a
+/// white texel in its place, as an engine texture slot nobody filled is.
 final class MaterialTextureSlotEntry {
   const MaterialTextureSlotEntry({required this.name, required this.binding});
 
@@ -96,8 +119,11 @@ final class MaterialTextureSlotEntry {
 ///   number on WebGPU, numbered in this order after the engine's (see "The
 ///   shader ABI" in `docs/CONTRACTS.md`);
 /// - the renderer binds each block from `RenderMaterial.parameters` (the
-///   members that belong to it) and each texture from
-///   `RenderMaterial.extraTextures` under its [MaterialTextureSlotEntry.binding].
+///   members that belong to it, each member the material leaves unset at
+///   its [MaterialBlockMember.defaultValue]) and each texture from
+///   `RenderMaterial.extraTextures` under its [MaterialTextureSlotEntry.binding],
+///   a white texel where the material names none: every slot of the table
+///   is bound on every draw.
 ///
 /// The order is the order of declaration in the source, `MaterialParams`
 /// first when the material has a uniform of its own, and is part of the
@@ -176,6 +202,7 @@ final class MaterialSlotTable {
           name: parameter.name,
           type: parameter.type,
           offset: offset,
+          defaultValue: List<double>.unmodifiable(parameter.defaultValue),
         ),
       );
       offset += parameter.type.components * 4;

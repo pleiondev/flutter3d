@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A plugin's lit model draws its defaults where a material sets
+  nothing.** `MaterialBlockMember.defaultValue` (new) carries the value a
+  member's source declares; the renderer binds every block of a model's
+  slot table on every draw, in the fragment stage and the material's own
+  vertex stages (its instanced and lightmapped variants included, which a
+  batch now draws through), each member the material leaves unset at its
+  default, and each texture of its own it names none for at a white texel.
+- **A plugin that touches only tooling adds nothing to the frame.**
+  `RendererSteps.addStep`, `addNode` and `addMaterials` refuse a plugin of
+  `PluginTouches.tooling` with a `PluginException`.
 - **A stage the bundle left out is refused by name.** `Renderer.create`,
   and the first draw with a lighting model or a material's vertex stage the
   bundle does not hold, throw `MissingShaderStageException` (from

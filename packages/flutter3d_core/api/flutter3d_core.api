@@ -2542,7 +2542,8 @@ final class MaterialBlendMode
 final class MaterialBlockMember
   Map<String, Object?> toJson()
   bool operator ==(Object other)
-  const MaterialBlockMember({required this.name, required this.type, required this.offset})
+  const MaterialBlockMember({required this.name, required this.type, required this.offset, this.defaultValue = const <double>[]})
+  final List<double> defaultValue
   final MaterialType type
   final String name
   final int offset
@@ -6808,7 +6809,8 @@ final class MaterialBlend
 final class MaterialBlockMember
   Map<String, Object?> toJson()
   bool operator ==(Object other)
-  const MaterialBlockMember({required this.name, required this.type, required this.offset})
+  const MaterialBlockMember({required this.name, required this.type, required this.offset, this.defaultValue = const <double>[]})
+  final List<double> defaultValue
   final MaterialType type
   final String name
   final int offset

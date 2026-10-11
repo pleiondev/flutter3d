@@ -115,9 +115,13 @@ extension _MaterialStages on Renderer {
     }
     // [node]'s own values over the material's, so a node whose wave is its
     // own casts the shadow of that wave.
+    // Through the slot table where the model has one (D21), so a vertex
+    // stage reads the blocks of its own, defaults included, as the
+    // fragment stage does.
     final values = node?.parametersFor(material) ?? material.parameters;
-    if (parameters && values.isNotEmpty) {
-      pass.bindUniformBlock(stage, material.parameterBlock, values);
+    if (parameters &&
+        (values.isNotEmpty || material.lighting.slots.blocks.isNotEmpty)) {
+      _bindMaterialBlocks(pass, stage, material, values);
     }
   }
 
