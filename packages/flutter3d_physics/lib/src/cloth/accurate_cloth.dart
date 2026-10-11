@@ -5,6 +5,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+
 import '../adaptive.dart';
 import '../collision_shape.dart';
 import 'cloth_collision.dart';
@@ -85,11 +87,13 @@ final class _AccurateCloth {
     final d = settings.damping;
     _dragRate = d <= 0.0 || settings.substeps <= 0
         ? 0.0
-        : -math.log(math.max(1.0 - d, 1e-12)) * settings.substeps / dt;
+        : -Portable.log(math.max(1.0 - d, 1e-12)) * settings.substeps / dt;
   }
 
   final ClothMesh mesh;
   final ClothSettings settings;
+
+  /// The step being taken, in seconds.
   final double dt;
   final List<ClothObstacle> obstacles;
   final int n;

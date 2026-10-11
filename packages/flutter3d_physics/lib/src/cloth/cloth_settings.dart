@@ -261,7 +261,8 @@ final class WindSettings {
   /// unless the world says otherwise (`ClothSettings.inWorld`).
   final double airDensity;
 
-  /// The drag the solver applies: [drag], which is quoted in standard air,
+  /// The drag the solver applies, newtons per square metre per metre per
+  /// second: [drag], which is quoted in standard air,
   /// scaled by how dense this air is against it. A flat plate's drag is
   /// proportional to the air's density, so the same wind on a mountain top
   /// pushes a sheet less, and on the Moon not at all. Exactly [drag] in

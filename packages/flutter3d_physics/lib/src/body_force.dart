@@ -51,19 +51,31 @@ final class BodyForceContext {
   /// Seconds since the start of the step being taken.
   double get time => _t;
 
-  /// Where the body is, metres, origin-local.
+  /// Where the body is along X, in metres, origin-local.
   double get x => _x;
+
+  /// Where the body is along Y, in metres, origin-local.
   double get y => _y;
+
+  /// Where the body is along Z, in metres, origin-local.
   double get z => _z;
 
-  /// How fast it moves, metres per second.
+  /// How fast it moves along X, in metres per second.
   double get vx => _vx;
+
+  /// How fast it moves along Y, in metres per second.
   double get vy => _vy;
+
+  /// How fast it moves along Z, in metres per second.
   double get vz => _vz;
 
-  /// The force added so far, newtons.
+  /// The force added so far along X, in newtons.
   double get forceX => _fx;
+
+  /// The force added so far along Y, in newtons.
   double get forceY => _fy;
+
+  /// The force added so far along Z, in newtons.
   double get forceZ => _fz;
 
   /// Adds a force of [fx], [fy], [fz] newtons.

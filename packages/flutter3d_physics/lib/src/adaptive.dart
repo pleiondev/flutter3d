@@ -5,6 +5,8 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+
 /// The derivative of a state [y] at time [t], written into [dy].
 typedef Derivative = void Function(double t, Float64List y, Float64List dy);
 
@@ -30,14 +32,19 @@ final class DormandPrince {
     this.maxSteps = 100000,
   });
 
-  /// The relative tolerance the accurate profile holds a state to.
+  /// The relative tolerance the accurate profile holds a state to, a
+  /// fraction of the state.
   static const double defaultRelative = 1e-10;
 
   /// The absolute tolerance, in the state's own units (metres, metres per
   /// second).
   static const double defaultAbsolute = 1e-12;
 
+  /// The relative tolerance of this integrator, a fraction of the state.
   final double relative;
+
+  /// The absolute tolerance of this integrator, in the state's own units
+  /// (metres, metres per second).
   final double absolute;
 
   /// How many steps one [integrate] may take before it gives up with a
@@ -151,7 +158,7 @@ final class DormandPrince {
       final error = n == 0 ? 0.0 : math.sqrt(sum / n);
       final grow = error == 0.0
           ? 5.0
-          : math.min(5.0, math.max(0.2, 0.9 * math.pow(error, -0.2)));
+          : math.min(5.0, math.max(0.2, 0.9 * Portable.pow(error, -0.2)));
       if (error <= 1.0) {
         t = last ? to : t + h;
         y.setAll(0, _next);

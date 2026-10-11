@@ -1,5 +1,31 @@
 ## 1.0.0-rc.1
 
+- **The accurate profile, in the Dart engine.** `Dynamics`, `ClothSettings`
+  and `FluidWorld` take a `SimulationProfile` (deterministic by default, its
+  steps and saves unchanged), and `RigidDynamics.profile` says which one a
+  backend steps under. Under `SimulationProfile.accurate`, a body nothing
+  pushes on flies the step on its laws in doubles (`Dynamics.exactStateOf`,
+  saved with the dynamics' state). A sheet is integrated by an adaptive
+  Dormand–Prince integrator: rigid edges are held by Lagrange multipliers
+  and compliant ones are springs. A floating body's push is its velocity's
+  equation integrated through the step. `pendulum_period_test.dart`,
+  `projectile_test.dart` and `orbit_test.dart` hold it to analytic answers.
+  The README says what it covers and what it does not.
+- **`BodyForce`**, a force that is a law of a body's state (a planet's
+  pull, a spring, a field), in `Dynamics.forces`. It is read once a step
+  under the deterministic profile and at every integrator stage under the
+  accurate one, through one `BodyForceContext`.
+- **A sheet hangs in its world's air and its material.**
+  `WindSettings.airDensity` (standard air by default) scales the wind's drag
+  (`effectiveDrag`), and `ClothSettings.inWorld` sets it from the world. It
+  also takes a `material:` and a `state:` and gives the sheet that material's
+  friction. `ClothMesh.particleMassOf` weighs a grid's particles by a
+  material's density.
+- **A liquid at its temperature.** `LiquidBody.state` and
+  `mediumInState`, `FluidMedium.material` and `FluidMedium.at(state)`: what
+  floats in a liquid is lifted and dragged by its density and viscosity at
+  the liquid's state. With no state, or at the reference state, the numbers
+  are the catalogue's to the bit.
 - **`Dynamics` catches a contact the step the native core does.** A pair
   is looked for as far as its bodies move in the step (the core's
   speculative reach, held to ten metres), the solver lets the gap close
