@@ -514,7 +514,8 @@ base class PluginAuthorMcpServer
 
 const String _instructions = '''
 Write a flutter3d plugin and check it. `plugin.create` writes a package from a
-template — render-step, effect, genre, element or tool. Run `dart pub get` in
+template — render-step, effect, genre, element, tool, or backend for a graphics
+backend held to the device suite. Run `dart pub get` in
 it, edit the plugin, then call `plugin.conformance`, which runs its suite:
 the manifest, switching on and off at a step boundary, determinism (each step
 run twice from a snapshot), every declared backend, and the budget in the

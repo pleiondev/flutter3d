@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **`flutter3d create plugin --kind backend` writes a graphics backend.**
+  `PluginKind.backend`, with `PluginKind.isPlugin` false: the null backend
+  of `examples/flutter3d_backend_null`, file for file, under the package's
+  name (`flutter3d_metal` declares `MetalDevice` and
+  `registerMetalBackend`). It passes every conformance check but the
+  shader tier as written; a test holds the template to the example.
 - **A conversion's report carries the model's author, licence and
   copyright.** `ConvertReport.author`, `license` and `copyright`, read from
   the document, and the same three keys, when present, in `--json` and

@@ -140,7 +140,7 @@ final class NullDevice extends GraphicsDevice {
 
   // ------------------------------------------------------------ textures
 
-  final Expando<NullTexels> _texels = Expando<NullTexels>('null texels');
+  final Expando<NullTexels> _texels = Expando<NullTexels>('texels');
 
   /// The texels behind [texture], which this device made.
   NullTexels texelsOf(TextureHandle texture) {
@@ -322,7 +322,7 @@ final class NullDevice extends GraphicsDevice {
 
   // ------------------------------------------------------------ geometry
 
-  final Expando<Uint8List> _bytes = Expando<Uint8List>('null geometry');
+  final Expando<Uint8List> _bytes = Expando<Uint8List>('geometry');
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
