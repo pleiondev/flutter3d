@@ -10,6 +10,11 @@
 - **A plugin that touches only tooling adds nothing to the frame.**
   `RendererSteps.addStep`, `addNode` and `addMaterials` refuse a plugin of
   `PluginTouches.tooling` with a `PluginException`.
+- **A shader reload during an asynchronous warm-up no longer caches a
+  pipeline of the old stages.** `Renderer.warmUpInSlices` links through
+  `createPipelineAsync`; a link still compiling when `relinkShaders` or a
+  change of the added materials empties the cache is given back when it
+  completes, and a warm-up asked for after the change links again.
 - **A stage the bundle left out is refused by name.** `Renderer.create`,
   and the first draw with a lighting model or a material's vertex stage the
   bundle does not hold, throw `MissingShaderStageException` (from

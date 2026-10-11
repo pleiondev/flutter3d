@@ -89,6 +89,10 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'a package depends on what its code names', run: _declareWhatYouName),
   (
+    name: 'an application declares no type a package publishes',
+    run: _applicationsCopyNoPackageType,
+  ),
+  (
     name: 'a public name has one home across the published packages',
     run: _oneHomePerName,
   ),
@@ -807,20 +811,26 @@ List<Finding> _noForeignSrcImports() {
 }
 
 /// An example under `examples/` is written as a project outside the
-/// repository would be: it reaches no package's `src/` and no file of the
-/// repository by a relative path, it is not published, and it depends on
-/// each package of this repository by `path: ../../packages/<name>`, the
-/// override an outside project makes.
+/// repository would be: it reaches no package's `src/` or `internal.dart`
+/// and no file of the repository by a relative path, it is not published,
+/// and it depends on each package of this repository by
+/// `path: ../../packages/<name>`, the override an outside project makes.
 ///
 /// **What the outside sample plugin proves rests on this.** It adds a
 /// quantity to a body's material state, hears the contact event, writes a
 /// field and registers a subsystem; that it does so through the published
 /// libraries alone is the claim that anybody's plugin can, and without
 /// this rule one `src/` import would make the claim false with every test
-/// still green.
+/// still green. The reference backend, `examples/flutter3d_backend_null`,
+/// makes the same claim for a backend: an `internal.dart` is what the
+/// engine's own packages share among themselves, and a backend that needed
+/// one would be a backend nobody outside could write.
 ///
 /// Mutation: import `package:flutter3d_sim/src/loop/engine_loop.dart` in
-/// `examples/outside_plugin/lib/outside_plugin.dart`, and this names it.
+/// `examples/outside_plugin/lib/outside_plugin.dart`, or
+/// `package:flutter3d_shaders/internal.dart` in
+/// `examples/flutter3d_backend_null/lib/src/null_device.dart`, and this
+/// names it.
 List<Finding> _outsideExamplesReachOnlyTheApi() {
   final root = Directory('${repositoryRoot.path}/examples');
   final examples = root.existsSync()
@@ -1125,6 +1135,17 @@ List<Finding> _noHarnessAssembly() {
 
 // ----------------------------------------------------------------- the lists
 
+/// The lists this tool keeps agree with the workspace, and every example
+/// written as from outside (`examples/<name>/`) is a member of it and is run
+/// by `tool/ci.sh`'s loop over `examples/`.
+///
+/// **An example outside the workspace is one nothing analyses or tests**:
+/// the root `flutter analyze` sees the workspace's members, and a reference
+/// backend that stopped compiling would go on being copied by `flutter3d
+/// create plugin --kind backend`.
+///
+/// Mutation: take `examples/flutter3d_backend_null` out of the root
+/// pubspec's `workspace:`, and this names it.
 List<Finding> _listsAgree() {
   final found = <Finding>[];
   final workspace = File(
@@ -1134,6 +1155,36 @@ List<Finding> _listsAgree() {
     for (final line in workspace.split('\n'))
       if (RegExp(r'^\s+-\s+(packages|apps)/').hasMatch(line)) line.trim(),
   ];
+
+  final examplesRoot = Directory('${repositoryRoot.path}/examples');
+  final onDisk = examplesRoot.existsSync()
+      ? <String>{
+          for (final dir in examplesRoot.listSync().whereType<Directory>())
+            if (File('${dir.path}/pubspec.yaml').existsSync())
+              dir.path.split(Platform.pathSeparator).last,
+        }
+      : const <String>{};
+  final listed = <String>{
+    for (final line in workspace.split('\n'))
+      if (RegExp(r'^\s+-\s+examples/(\S+?)/?\s*$').firstMatch(line)
+          case final match?)
+        match.group(1)!,
+  };
+  for (final (name, why) in exampleMembershipProblems(onDisk, listed)) {
+    found.add(Finding('examples/$name', why));
+  }
+  final ci = File('${repositoryRoot.path}/tool/ci.sh');
+  if (onDisk.isNotEmpty &&
+      !(ci.existsSync() &&
+          ci.readAsStringSync().contains('for example in examples/*/'))) {
+    found.add(
+      const Finding(
+        'tool/ci.sh',
+        'has no loop over examples/*/, so the examples written as from '
+            'outside are never tested in CI',
+      ),
+    );
+  }
 
   final inWorkspace = <String>{
     for (final member in members)
@@ -3819,9 +3870,9 @@ List<Finding> _webPackagesReachNoIo() {
 /// thing, in both directions, because a table that lists a package the tree
 /// no longer publishes is as wrong as one that leaves a package out.
 ///
-/// A backend is a published package with a class that implements
-/// `GraphicsDevice`, other than `flutter3d_hardware`, whose own
-/// `RecordingDevice` wraps one. Each has to be named in `SUPPORT.md`, so a
+/// A backend is a published package with a class that extends (or, as
+/// before 1.0, implements) `GraphicsDevice`, other than `flutter3d_hardware`,
+/// whose own `RecordingDevice` wraps one. Each has to be named in `SUPPORT.md`, so a
 /// fifth backend arrives with a column of support levels or not at all.
 ///
 /// Mutation: delete the `platforms:` block from any published pubspec, add
@@ -3908,12 +3959,12 @@ List<Finding> _platformsDeclared() {
     if (entry.key == 'flutter3d_hardware') continue;
     final isBackend = dartFilesIn(
       Directory('${entry.value.path}/lib'),
-    ).any((File file) => implementsGraphicsDevice(file.readAsStringSync()));
+    ).any((File file) => declaresGraphicsDevice(file.readAsStringSync()));
     if (isBackend && !text.contains('`${entry.key}`')) {
       found.add(
         Finding(
           'SUPPORT.md',
-          'never names `${entry.key}`, which implements GraphicsDevice: a '
+          'never names `${entry.key}`, which extends GraphicsDevice: a '
               'backend needs its support levels written down',
         ),
       );
@@ -6033,9 +6084,20 @@ List<Finding> _unitsDocumented() {
 /// dependencies the map refused while its moves took them out, which only
 /// shrank; step C emptied it, and the list went with its last entry. A
 /// dependency the map refuses is a finding, with no list to park it on.
+///
+/// **The applications stand in a layer of their own**, [applicationLayer],
+/// above every package's: an application may depend on any package and on
+/// no other application, which is what keeps a demo from becoming the
+/// library a second demo is written against.
+///
+/// Mutation: make `flutter3d_demo_arcade` depend on `flutter3d_demo_river`,
+/// and this names the pair.
 List<Finding> _layersBelow() {
   final dependencies = <String, Set<String>>{
-    for (final MapEntry(key: name, value: dir) in packages.entries)
+    for (final MapEntry(key: name, value: dir) in <String, Directory>{
+      ...packages,
+      ...apps,
+    }.entries)
       name: pubspecSection(
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
         'dependencies',
@@ -6044,7 +6106,10 @@ List<Finding> _layersBelow() {
   final found = <Finding>[
     for (final (package, dependency, why) in layerProblems(
       dependencies,
-      layers: packageLayers,
+      layers: <String, int>{
+        ...packageLayers,
+        for (final app in apps.keys) app: applicationLayer,
+      },
       forbidden: layerForbidden,
     ))
       dependency == null
@@ -6125,9 +6190,20 @@ List<Finding> _simulationDrawsNothing() {
 /// dependencies are not asked about, because a test may drive an editor;
 /// a deliberate run-time one is in [runtimeToolDependencyAllowed] with its
 /// reason, and an entry there that is no longer a dependency is a finding.
+///
+/// **The applications are held to it too**, all but the two that are tools
+/// ([toolApplications]): a demo, a lesson viewer or a laboratory is what a
+/// player or a learner installs, and the two lesson viewers resolved the
+/// editor's document layer until 1.0.0-rc.1 with no rule to say so.
+///
+/// Mutation: make `flutter3d_lesson_viewer` depend on
+/// `flutter3d_editor_core` again, and this names it.
 List<Finding> _runtimeIsNoTool() {
   final dependencies = <String, Set<String>>{
-    for (final MapEntry(key: name, value: dir) in packages.entries)
+    for (final MapEntry(key: name, value: dir) in <String, Directory>{
+      ...packages,
+      ...apps,
+    }.entries)
       name: pubspecSection(
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
         'dependencies',
@@ -6135,9 +6211,12 @@ List<Finding> _runtimeIsNoTool() {
   };
   final found = <Finding>[];
   final allowedNow = <String>{};
+  final applications = apps.keys.toSet();
   for (final (package, tool) in runtimeToolDependencies(
     dependencies,
-    runtime: isRuntimePackage,
+    runtime: (String name) => applications.contains(name)
+        ? isRuntimeApplication(name)
+        : isRuntimePackage(name),
     tools: runtimeMayNotDependOn.keys.toSet(),
   )) {
     final key = '$package -> $tool';
@@ -6481,17 +6560,19 @@ List<Finding> _restrictedLibraries() {
 
 // ------------------------------------------------------------- re-exports
 
-/// The `package:` re-exports of every package's `lib/`, by package and file.
-Map<String, Map<String, List<({String uri, bool named})>>> _packageExports() =>
-    <String, Map<String, List<({String uri, bool named})>>>{
-      for (final MapEntry(key: name, value: dir) in packages.entries)
-        name: <String, List<({String uri, bool named})>>{
-          for (final file in dartFilesIn(Directory('${dir.path}/lib')))
-            if (packageExportsIn(file.readAsStringSync()) case final e
-                when e.isNotEmpty)
-              _inRepository(file): e,
-        },
-    };
+/// The `package:` re-exports of the `lib/` of each of [dirs] (every package
+/// when null), by package and file.
+Map<String, Map<String, List<({String uri, bool named})>>> _packageExports([
+  Map<String, Directory>? dirs,
+]) => <String, Map<String, List<({String uri, bool named})>>>{
+  for (final MapEntry(key: name, value: dir) in (dirs ?? packages).entries)
+    name: <String, List<({String uri, bool named})>>{
+      for (final file in dartFilesIn(Directory('${dir.path}/lib')))
+        if (packageExportsIn(file.readAsStringSync()) case final e
+            when e.isNotEmpty)
+          _inRepository(file): e,
+    },
+};
 
 /// A package re-exports another package of the repository only where
 /// [reexportsAllowed] (`tool/structure/boundaries.dart`) says so, and names
@@ -6499,9 +6580,17 @@ Map<String, Map<String, List<({String uri, bool named})>>> _packageExports() =>
 /// of `tasks/1.0-boundaries.md`. An allowance nothing uses any more is a
 /// finding, so the list does not outlive its reasons.
 ///
+/// **An application is held to less, and to something.** It is nobody's
+/// library, so a re-export inside it (a `backend.dart` handing the
+/// application's own files what they draw with) hides nothing from a
+/// reader of another package; what it may not do is hand on a package its
+/// own pubspec does not depend on ([applicationReexportProblems]), which
+/// builds only for as long as something else brings that package along.
+///
 /// Mutation: put `export 'package:flutter3d_physics/flutter3d_physics.dart'
 /// show CollisionWorld;` back in `flutter3d_sim.dart`, and this names the
-/// file and the package it hands on.
+/// file and the package it hands on; re-export `flutter3d_net` from a file
+/// of `apps/flutter3d_lab_incident/lib/`, and this names that too.
 List<Finding> _reexportsAllowedOnly() {
   final exports = _packageExports();
   final found = <Finding>[
@@ -6510,6 +6599,18 @@ List<Finding> _reexportsAllowedOnly() {
       repository: packages.keys.toSet(),
       allowed: reexportsAllowed,
       whole: reexportedWhole,
+    ))
+      Finding(file, why),
+    for (final (_, file, why) in applicationReexportProblems(
+      _packageExports(apps),
+      repository: packages.keys.toSet(),
+      dependencies: <String, Set<String>>{
+        for (final MapEntry(key: name, value: dir) in apps.entries)
+          name: pubspecSection(
+            File('${dir.path}/pubspec.yaml').readAsStringSync(),
+            'dependencies',
+          ),
+      },
     ))
       Finding(file, why),
   ];
@@ -6563,7 +6664,11 @@ List<Finding> _noReexportOnlyDependency() {
     r"""^(import|export)\s+['"]package:(\w+)/""",
     multiLine: true,
   );
-  for (final MapEntry(key: name, value: dir) in packages.entries) {
+  // The applications too: an application holds no dependency to hand it on.
+  for (final MapEntry(key: name, value: dir) in <String, Directory>{
+    ...packages,
+    ...apps,
+  }.entries) {
     dependencies[name] = pubspecSection(
       File('${dir.path}/pubspec.yaml').readAsStringSync(),
       'dependencies',
@@ -6594,10 +6699,14 @@ List<Finding> _noReexportOnlyDependency() {
   ];
 }
 
-/// A file of a package or an application — `lib/` and `bin/` — that names
-/// a type another package declares is in a package that depends on that
-/// one, or on a facade whose allowed re-exports carry the name: rule 4 of
-/// `tasks/1.0-boundaries.md`, declare what you name.
+/// A file of a package or an application — `lib/`, `bin/` and `hook/` —
+/// that names a type another package declares is in a package that depends
+/// on that one, or on a facade whose allowed re-exports carry the name: rule
+/// 4 of `tasks/1.0-boundaries.md`, declare what you name. A build hook is
+/// held to more: every package it imports is among the run-time
+/// `dependencies:`, since that is all the hook is compiled against
+/// ([undeclaredHookImports]); [hookImportsPending] lists the hooks still on
+/// their way there.
 ///
 /// **Read off the snapshots**, which the snapshot rule holds to the source:
 /// where each type is declared, and what each allowed re-export admits. A
@@ -6645,27 +6754,54 @@ List<Finding> _declareWhatYouName() {
   final dependencies = <String, Set<String>>{};
   final named = <String, Map<String, Set<String>>>{};
   final declared = <String, Set<String>>{};
+  final hookImports = <(String, String, String)>[];
   for (final MapEntry(key: name, value: dir) in <String, Directory>{
     ...packages,
     ...apps,
   }.entries) {
     final pubspec = File('${dir.path}/pubspec.yaml');
     if (!pubspec.existsSync()) continue;
-    dependencies[name] = pubspecSection(
+    final runtime = dependencies[name] = pubspecSection(
       pubspec.readAsStringSync(),
       'dependencies',
     );
     final files = named[name] = <String, Set<String>>{};
     final own = declared[name] = <String>{};
-    for (final sub in const <String>['lib', 'bin']) {
+    for (final sub in const <String>['lib', 'bin', 'hook']) {
       for (final file in dartFilesIn(Directory('${dir.path}/$sub'))) {
-        final names = typeNamesIn(file.readAsStringSync());
+        final source = file.readAsStringSync();
+        final names = typeNamesIn(source);
         files[_inRepository(file)] = names.named;
         own.addAll(names.declared);
+        if (sub != 'hook') continue;
+        for (final imported in undeclaredHookImports(
+          source,
+          own: name,
+          dependencies: runtime,
+        )) {
+          hookImports.add((name, _inRepository(file), imported));
+        }
       }
     }
   }
+  final pendingNow = <String>{
+    for (final (package, _, imported) in hookImports) '$package -> $imported',
+  };
   final found = <Finding>[
+    for (final (package, file, imported) in hookImports)
+      if (!hookImportsPending.containsKey('$package -> $imported'))
+        Finding(
+          file,
+          'imports $imported, which $package\'s `dependencies:` does not '
+          'list: a build hook is compiled against the run-time dependencies '
+          'alone, so it builds here by luck and nowhere else',
+        ),
+    for (final key in hookImportsPending.keys)
+      if (!pendingNow.contains(key))
+        Finding(
+          'hookImportsPending → $key',
+          'no hook imports it undeclared any more: take it off',
+        ),
     for (final name in typeNamesDeclaredOutside.keys)
       if (!homes.containsKey(name))
         Finding(
@@ -6689,4 +6825,71 @@ List<Finding> _declareWhatYouName() {
         'through a facade `reexportsAllowed` lists',
       ),
   ]);
+}
+
+/// No demo, viewer or laboratory — an application of the runtime, not one of
+/// [toolApplications] — declares, in its shipped code (`lib/` and `bin/`), a
+/// type under a name a published package declares ([applicationCopies]),
+/// but those [applicationCopiesPending] lists with why; an entry there that
+/// is no longer such a copy is a finding. The editor and the modeller are
+/// left out: they are built on the editors' packages, and a name of theirs
+/// that one of those also declares is the one-home question between two
+/// tools, not an engine copied into a game.
+///
+/// **Read off the snapshots** for the packages' names, as the rule above
+/// is, and off the applications' sources for theirs. A demo that needs what
+/// a package almost has asks the package for it; a copy is a fork nobody
+/// keeps in step.
+///
+/// Mutation: declare `class ElementSounds {}` in a file of
+/// `apps/flutter3d_demo_racing/lib/`, and this names the file's application,
+/// the type and `flutter3d_game_physics`.
+List<Finding> _applicationsCopyNoPackageType() {
+  final declaredBy = <String, Set<String>>{};
+  for (final MapEntry(key: name, value: dir) in _publishedPackages.entries) {
+    final snapshot = File('${dir.path}/api/$name.api');
+    if (!snapshot.existsSync()) continue;
+    for (final library in parseApi(snapshot.readAsStringSync()).values) {
+      for (final MapEntry(key: type, value: block)
+          in library.declarations.entries) {
+        if (type.isEmpty || type.startsWith('_')) continue;
+        if (!isTypeDeclaration(block.header)) continue;
+        (declaredBy[type] ??= <String>{}).add(name);
+      }
+    }
+  }
+  final homes = <String, String>{
+    for (final MapEntry(key: type, value: at) in declaredBy.entries)
+      if (at.length == 1) type: at.single,
+  };
+  final declared = <String, Set<String>>{
+    for (final MapEntry(key: name, value: dir) in apps.entries)
+      if (isRuntimeApplication(name))
+        name: <String>{
+          for (final sub in const <String>['lib', 'bin'])
+            for (final file in dartFilesIn(Directory('${dir.path}/$sub')))
+              ...typeNamesIn(file.readAsStringSync()).declared,
+        },
+  };
+  final copies = applicationCopies(
+    declared,
+    homes: homes,
+    allowed: const <String, String>{},
+  );
+  final standing = <String>{for (final (app, type, _) in copies) '$app: $type'};
+  return <Finding>[
+    for (final (app, type, home) in copies)
+      if (!applicationCopiesPending.containsKey('$app: $type'))
+        Finding(
+          'apps/$app',
+          'declares `$type`, which $home publishes: use the package\'s, or '
+              'ask the package for what the copy adds',
+        ),
+    for (final key in applicationCopiesPending.keys)
+      if (!standing.contains(key))
+        Finding(
+          'applicationCopiesPending → $key',
+          'is no longer a copy of a package\'s type: take it off',
+        ),
+  ];
 }

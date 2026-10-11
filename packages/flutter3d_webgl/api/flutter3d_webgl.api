@@ -58,7 +58,7 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   int get debugTrackedResourceCount
   int get preferredSampleCount
   late final String viewType
-  static Future<WebGlDevice> open({required int width, required int height, ShaderSources? sources, bool highpMaterials = false})
+  static Future<WebGlDevice> open({required int width, required int height, ShaderSources? sources, bool highpMaterials = false, Future<ByteData?> Function(String key)? loadAsset})
   void beginFrame()
   void blitToCanvas(TextureHandle frame)
   void dispose()

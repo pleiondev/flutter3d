@@ -19,14 +19,20 @@ import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ShaderCompileException, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart'
     show SynchronousBufferReadback, UniformScratch, wrapPipeline;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
 import 'package:web/web.dart' as web;
 
-import '../engine_shaders.dart';
+// Deferred: the whole engine's GLSL is most of what this package weighs in a
+// web build, and a project whose hook wrote its own bundle never reads it.
+import '../engine_shaders.dart' deferred as compiled;
 
 import 'webgl_buffers.dart';
 import 'webgl_bundle.dart';
@@ -35,6 +41,7 @@ import 'webgl_formats.dart';
 import 'webgl_framebuffer.dart';
 import 'webgl_image_decode.dart';
 import 'webgl_loaded_shaders.dart';
+import 'webgl_project_shaders.dart';
 import 'webgl_resources.dart';
 import 'webgl_shaders.dart';
 import 'webgl_textures.dart';
@@ -209,6 +216,32 @@ final class WebGlDevice extends GraphicsDevice
   /// it, one per block size, for the device's life.
   final UniformScratch _uniformScratch = UniformScratch();
 
+  /// The engine's stages for [open] handed none: the project's bundle's
+  /// `webgl` section where [load] finds one, the compiled table otherwise.
+  static Future<ShaderSources> _engineSources(
+    Future<ByteData?> Function(String key) load,
+  ) async {
+    final project = projectWebGlSources(
+      await load(EngineBundleStamp.projectAsset),
+    );
+    if (project != null) {
+      return ShaderSources(project.vertex, project.fragment);
+    }
+    await compiled.loadLibrary();
+    return compiled.webGlEngineShaders;
+  }
+
+  /// An asset of the application's, or null for one it does not carry.
+  static Future<ByteData?> _loadAsset(String key) async {
+    try {
+      return await rootBundle.load(key);
+    } on FlutterError {
+      return null;
+    } on Exception {
+      return null;
+    }
+  }
+
   /// Builds a device over a _canvas of [width] by [height].
   ///
   /// The _canvas is the thing the browser composites; see [blitToCanvas]. It is
@@ -216,10 +249,17 @@ final class WebGlDevice extends GraphicsDevice
   /// know a DOM element is involved.
   ///
   /// [sources] are the engine's own shaders by default — GLSL ES 3.00,
-  /// translated from `flutter3d_shaders` by `tool/generate_shaders.dart`.
-  /// There is no compiled bundle on this backend: a browser compiles GLSL
-  /// itself, so a "bundle" is a map from the engine's entry point names to
-  /// source text.
+  /// translated from `flutter3d_shaders`. A browser compiles GLSL itself, so
+  /// a "bundle" here is a map from the engine's entry point names to source
+  /// text. **Without [sources], the project's own bundle comes first**: the
+  /// `webgl` section of [EngineBundleStamp.projectAsset], which
+  /// `flutter3d_build`'s hook writes with the stages the project needs, read
+  /// through [loadAsset] (the application's asset bundle when null). Where
+  /// the project has no such bundle, or its bundle has no `webgl` section,
+  /// the table `tool/generate_shaders.dart` wrote is loaded instead, as a
+  /// deferred part of the program a web build fetches only then. A bundle
+  /// that is there and cannot be read is a [ShaderBundleException] naming the
+  /// asset.
   ///
   /// [highpMaterials] compiles the lit models at highp throughout, the
   /// picture before `A1.1` — see [WebGlShaderLibrary.highpMaterials].
@@ -242,7 +282,9 @@ final class WebGlDevice extends GraphicsDevice
     required int height,
     ShaderSources? sources,
     bool highpMaterials = false,
+    Future<ByteData?> Function(String key)? loadAsset,
   }) async {
+    final stages = sources ?? await _engineSources(loadAsset ?? _loadAsset);
     final canvas = web.document.createElement('canvas') as web.HTMLCanvasElement
       ..width = width
       ..height = height;
@@ -311,11 +353,7 @@ final class WebGlDevice extends GraphicsDevice
         WebGlDevice._(
             gl,
             canvas,
-            WebGlShaderLibrary(
-              gl,
-              sources ?? webGlEngineShaders,
-              highpMaterials: highpMaterials,
-            ),
+            WebGlShaderLibrary(gl, stages, highpMaterials: highpMaterials),
           )
           .._clipControl = clipControl
           .._parallelShaderCompile =

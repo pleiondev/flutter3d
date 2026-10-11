@@ -107,7 +107,7 @@ final class ShaderBuildReport {
 }
 
 /// Which backends' sections a build writes: Impeller's for a native target,
-/// the web's for a browser, both when the build cannot tell.
+/// the web's two for a browser, all three when the build cannot tell.
 ///
 /// An open set like every other: a minor may add a target.
 final class ShaderBuildTarget {
@@ -115,6 +115,7 @@ final class ShaderBuildTarget {
     this.name, {
     required this.impeller,
     required this.webGl,
+    required this.webGpu,
   });
 
   /// A native target: `impellerc`'s output.
@@ -122,13 +123,15 @@ final class ShaderBuildTarget {
     'native',
     impeller: true,
     webGl: false,
+    webGpu: false,
   );
 
-  /// A browser: the WebGL2 sources.
+  /// A browser: the WebGL2 sources and the WebGPU stages.
   static const ShaderBuildTarget web = ShaderBuildTarget._(
     'web',
     impeller: false,
     webGl: true,
+    webGpu: true,
   );
 
   /// A build that names no target.
@@ -136,6 +139,7 @@ final class ShaderBuildTarget {
     'any',
     impeller: true,
     webGl: true,
+    webGpu: true,
   );
 
   /// The target's name, as a log says it.
@@ -146,6 +150,12 @@ final class ShaderBuildTarget {
 
   /// Whether the bundle carries the WebGL2 section.
   final bool webGl;
+
+  /// Whether the bundle carries the WebGPU section: the stages in WGSL with
+  /// their reflection, made by glslang and naga. A machine without either
+  /// writes the bundle without it, and the WebGPU device falls back to the
+  /// stages it was compiled with.
+  final bool webGpu;
 
   @override
   String toString() => 'ShaderBuildTarget.$name';
@@ -260,6 +270,14 @@ ShaderBuildReport runShaderBuild(
   final cache = _readCache(cachePath);
 
   final engineHash = _hashOf(shaders.sources);
+  final wgsl = target.webGpu ? tools.wgsl : null;
+  if (target.webGpu && wgsl == null) {
+    sink.writeln(
+      'flutter3d_build: no glslangValidator or naga on PATH, so the shader '
+      'bundle carries no WebGPU section; a WebGPU device draws with the '
+      'stages it was compiled with',
+    );
+  }
   final stamp = <String>[
     engineHash,
     tools.sdk,
@@ -267,6 +285,8 @@ ShaderBuildReport runShaderBuild(
     'f3sb${ShaderBundle.formatVersion}',
     if (target.impeller) 'impeller',
     if (target.webGl) 'webgl',
+    // The WGSL document's own version, which `compile.dart` names.
+    if (wgsl != null) 'webgpu$sectionVersion',
     ...stages,
   ].join(' ');
 
@@ -296,6 +316,8 @@ ShaderBuildReport runShaderBuild(
               ),
             if (target.webGl)
               ShaderBundle.webglSection: _webgl(stages, shaders),
+            if (wgsl != null)
+              ShaderBundle.webgpuSection: _webgpu(stages, shaders, wgsl),
           },
         );
     final bytes = bundle.encode();
@@ -418,6 +440,70 @@ ByteData _webgl(List<String> stages, ShaderSet shaders) {
     return encodeWebGlSection(vertex: vertex, fragment: fragment);
   } on StageAgreementException catch (error) {
     throw MaterialBuildException(error.message, source: '');
+  }
+}
+
+/// The WebGPU section of [stages]: each in WGSL with the reflection a
+/// `GPUShaderModule` cannot be asked for, made as `flutter3d_webgpu`'s own
+/// table is.
+///
+/// **The varyings are numbered over the engine's whole manifest**, not over
+/// the stages this project keeps, because that is how the table the device
+/// was compiled with numbers them: a stage of this section is paired with
+/// whichever of the others the frame asks for, and WebGPU joins two modules
+/// by `@location` alone. So a stage here is the table's stage, byte for byte
+/// on the same glslang and naga, and a project's section is the table cut to
+/// what the project draws.
+ByteData _webgpu(
+  List<String> stages,
+  ShaderSet shaders,
+  WgslStageCompiler compile,
+) {
+  var current = '';
+  try {
+    final locations = bundleVaryingLocations(
+      shaders,
+      const <BundleStageSource>[],
+    );
+    final vertex = <String, PackedStage>{};
+    final fragment = <String, PackedStage>{};
+    for (final name in stages) {
+      current = name;
+      final stage = shaders.stages[name]!;
+      final prepared = prepareStage(
+        resolveIncludes(
+          shaders.sources[stage.file]!,
+          shaders.sources,
+          from: stage.file,
+        ),
+        from: stage.file,
+        fragment: stage.fragment,
+        varyingLocations: locations,
+      );
+      final compiled = compile(prepared, name: name, fragment: stage.fragment);
+      checkStd140Offsets(name, prepared, compiled.offsets);
+      (stage.fragment ? fragment : vertex)[name] = (
+        wgsl: compiled.wgsl,
+        prepared: prepared,
+      );
+    }
+    return Uint8List.fromList(
+      utf8.encode(wgslSectionDocument(vertex: vertex, fragment: fragment)),
+    ).buffer.asByteData();
+  } on GlslTranslateException catch (error) {
+    throw MaterialBuildException(error.message, source: current);
+  } on WgslPrepareException catch (error) {
+    throw MaterialBuildException(
+      'the WebGPU preparation of $current: ${error.message}',
+      source: current,
+    );
+  } on WgslCompileException catch (error) {
+    throw MaterialBuildException(
+      'the WebGPU compile of $current: ${error.message}',
+      source: current,
+    );
+  } on WgslSectionException catch (error) {
+    throw MaterialBuildException(error.message, source: current);
   }
 }
 

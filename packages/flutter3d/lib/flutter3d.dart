@@ -459,6 +459,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         ViewportShadingSettings,
         VkFormat,
         VolumetricFogSettings,
+        WebDecodeWorker,
         WorldRay,
         WrittenFile,
         XraySettings,

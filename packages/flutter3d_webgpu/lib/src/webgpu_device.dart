@@ -38,13 +38,18 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ShaderDiagnostic, UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/backend.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
 
-import '../engine_shaders.dart';
+// Deferred: the whole engine's WGSL is most of what this package weighs in a
+// web build, and a project whose hook wrote its own bundle never reads it.
+import '../engine_shaders.dart' deferred as compiled;
 import 'webgpu_bundle_section.dart';
 import 'webgpu_compute.dart';
 import 'webgpu_compute_stage.dart';
@@ -55,6 +60,7 @@ import 'webgpu_image_decode.dart';
 import 'webgpu_interop.dart';
 import 'webgpu_loaded_shaders.dart';
 import 'webgpu_pipeline_cache.dart';
+import 'webgpu_project_shaders.dart';
 import 'webgpu_resources.dart';
 import 'webgpu_shaders.dart';
 import 'webgpu_timer.dart';
@@ -537,8 +543,18 @@ final class WebGpuDevice extends GraphicsDevice
 
   /// Opens a device over a canvas of [width] by [height], with the engine's
   /// own [stages] unless others are given — WGSL translated from
-  /// `flutter3d_shaders` by `tool/generate_shaders.dart`, beside the
-  /// reflection a `GPUShaderModule` cannot be asked for.
+  /// `flutter3d_shaders`, beside the reflection a `GPUShaderModule` cannot be
+  /// asked for.
+  ///
+  /// **Without [stages], the project's own bundle comes first**: the `webgpu`
+  /// section of [EngineBundleStamp.projectAsset], which `flutter3d_build`'s
+  /// hook writes with the stages the project needs, read through [loadAsset]
+  /// (the application's asset bundle when null). Where the project has no
+  /// such bundle, or its bundle has no `webgpu` section (a build on a machine
+  /// without glslang and naga), the table `tool/generate_shaders.dart` wrote
+  /// is loaded instead, as a deferred part of the program a web build fetches
+  /// only then. A bundle that is there and cannot be read is a
+  /// [ShaderBundleException] naming the asset.
   ///
   /// **Asynchronous, and it is the one place the fourth backend costs anything
   /// outside itself.** `requestAdapter` and `requestDevice` are both promises,
@@ -578,7 +594,9 @@ final class WebGpuDevice extends GraphicsDevice
     required int width,
     required int height,
     WebGpuSectionStages? stages,
+    Future<ByteData?> Function(String key)? loadAsset,
   }) async {
+    final engineStages = stages ?? await _engineStages(loadAsset ?? _loadAsset);
     const unavailable = DeviceUnavailableException(
       'WebGPU is not available in this browser. The engine needs '
       'navigator.gpu and an adapter it will hand out — a browser without '
@@ -633,12 +651,31 @@ final class WebGpuDevice extends GraphicsDevice
         alphaMode: 'opaque',
       ),
     );
-    return WebGpuDevice._(
-      created,
-      canvas,
-      context,
-      stages ?? webGpuEngineShaders,
+    return WebGpuDevice._(created, canvas, context, engineStages);
+  }
+
+  /// The engine's stages for [open] handed none: the project's bundle's
+  /// `webgpu` section where [load] finds one, the compiled table otherwise.
+  static Future<WebGpuSectionStages> _engineStages(
+    Future<ByteData?> Function(String key) load,
+  ) async {
+    final project = projectWebGpuStages(
+      await load(EngineBundleStamp.projectAsset),
     );
+    if (project != null) return project;
+    await compiled.loadLibrary();
+    return compiled.webGpuEngineShaders;
+  }
+
+  /// An asset of the application's, or null for one it does not carry.
+  static Future<ByteData?> _loadAsset(String key) async {
+    try {
+      return await rootBundle.load(key);
+    } on FlutterError {
+      return null;
+    } on Exception {
+      return null;
+    }
   }
 
   /// The browser's device. The encoder beside this one records into it,

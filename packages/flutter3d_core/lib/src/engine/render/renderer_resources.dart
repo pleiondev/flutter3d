@@ -138,6 +138,13 @@ extension _RendererResources on Renderer {
   /// holds up the loading screen, and where it cannot the future is already
   /// complete. Kept in the same cache under the same key; a pipeline a frame
   /// linked while this one was compiling wins, and this one goes back.
+  ///
+  /// **A link that was out when the stages changed is not cached.** A shader
+  /// reload (`relinkShaders`) or a change of the added materials empties the
+  /// cache while a link may still be compiling the stages of before; that
+  /// link goes back when it completes, and the next use links the stages of
+  /// now. A warm-up asked for after the change starts a link of its own
+  /// rather than waiting on the old one.
   Future<void> _pipelineForAsync(
     LightingModel model, {
     required bool skinned,
@@ -165,7 +172,8 @@ extension _RendererResources on Renderer {
     );
     _linking[key] = link;
     return link.whenComplete(() {
-      _linking.remove(key);
+      // A link started after a reload may stand under the key by now.
+      if (identical(_linking[key], link)) _linking.remove(key);
     });
   }
 
@@ -177,6 +185,7 @@ extension _RendererResources on Renderer {
     required bool lightmapped,
     required bool opaque,
   }) async {
+    final generation = _stageGeneration;
     final stages = _pipelineStages(
       model,
       skinned: skinned,
@@ -189,7 +198,7 @@ extension _RendererResources on Renderer {
       stages.fragment,
       layout: stages.layout,
     );
-    if (_pipelineCache.containsKey(key)) {
+    if (generation != _stageGeneration || _pipelineCache.containsKey(key)) {
       pipeline.dispose();
     } else {
       _pipelineCache[key] = pipeline;

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`RecordingDevice` forwards `createPipelineAsync` and
+  `createComputePipelineAsync`** to the device it records, so a device that
+  links off the thread still does under the recorder; the pipeline enters
+  the trace when its link completes.
 - **`DeviceFeature.viewportBeyondTarget`**: `setViewport` takes a
   rectangle that starts outside the target and reaches past it, and draws
   what falls on the target. The software rasteriser and WebGL2 list it;

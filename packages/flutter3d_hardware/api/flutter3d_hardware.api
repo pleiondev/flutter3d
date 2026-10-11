@@ -1740,9 +1740,11 @@ final class RecordingDevice extends GraphicsDevice with SynchronousBufferReadbac
   FramebufferOrigin get framebufferOrigin
   Future<ByteData> readBuffer(StorageBuffer buffer)
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region})
+  Future<ComputePipelineHandle> createComputePipelineAsync(ShaderHandle shader)
   Future<List<int>> readQueryResults(QuerySet querySet, {int first = 0, int? count})
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes)
   Future<MappedBuffer> mapBuffer(StorageBuffer buffer, MapMode mode, {int offsetInBytes = 0, int? sizeInBytes})
+  Future<PipelineHandle> createPipelineAsync(ShaderHandle vertex, ShaderHandle fragment, {VertexLayoutDescriptor? layout})
   Future<void> overwriteTexture(TextureHandle target, ByteData rgba, {ScreenRect? region, int mipLevel = 0})
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage)
   List<TextureFormat> get hdrOutputFormats

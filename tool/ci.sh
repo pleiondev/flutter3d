@@ -432,6 +432,12 @@ step "test webgpu_spike (browser)" in_dir tool/webgpu_spike flutter test --platf
 # the slower place to do that.
 step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
 step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
+# The browser's model decoder in a Web Worker: compiled the way an
+# application compiles it and held to the in-place decode of the same bytes.
+# Its files are `@TestOn('browser')` under `test/web/`, so the core's VM run
+# above skips them; the directory is named because the rest of the suite
+# reaches `dart:io`.
+step "test flutter3d_core (browser)" in_dir packages/flutter3d_core dart test -p chrome test/web/
 # The native physics core as WebAssembly, under both web compilers: the
 # shared scene to the native library's hash, on one thread and on four Web
 # Workers, and flutter3d_physics' bodies on it through NativeDynamics. The second needs SharedArrayBuffer, which tool/chrome_sab.sh asks
@@ -461,7 +467,12 @@ done
 
 # The examples written as from outside the repository: the outside sample
 # plugin, which holds the default simulation to a racing tape recorded
-# before fields and subsystems, and earns the plugin suite's badge.
+# before fields and subsystems, and earns the plugin suite's badge; and the
+# reference backend, `flutter3d_backend_null`, which passes the conformance
+# suite on published libraries alone and is what `flutter3d create plugin
+# --kind backend` copies. The structure rule "the repository lists agree
+# with the workspace" holds every one of them to the workspace and to this
+# loop.
 for example in examples/*/; do
   [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$example")" in_dir "$example" flutter test
@@ -539,7 +550,17 @@ step "benchmarks compile" bash -c '
 # assert — a redraw costs more than a skip, a repeated stroke costs what the
 # first did — is still checked on every commit. The 4K frame's own threshold
 # is for one named machine and skips itself where CI is set.
-step "benchmarks" bash tool/benchmarks.sh
+#
+# The frame's allocations on the software backend are their own step, because
+# they are the one benchmark held to a baseline: 31 draw calls exactly, and
+# the objects the engine and the rasteriser allocate for a warm frame within
+# a tenth of the numbers `frame_allocation_benchmark_test.dart` writes down.
+# Counts, not timings, so a shared runner measures them as well as a desk
+# does. It runs `flutter test --enable-vmservice --tags benchmark
+# --run-skipped test/frame_allocation_benchmark_test.dart` in
+# `packages/flutter3d`, and fails a run that counted nothing.
+step "benchmark frame allocations (cpu)" bash tool/benchmarks.sh allocations
+step "benchmarks" bash tool/benchmarks.sh tagged
 
 echo ""
 if [ ${#FAILED[@]} -eq 0 ]; then
