@@ -60,7 +60,7 @@ final class _Fifth extends MaterialCompiler {
   _Fifth({this.section = 'fifth', this.refusal});
 
   final String section;
-  final Object? refusal;
+  final Exception? refusal;
   final List<MaterialCompileRequest> asked = <MaterialCompileRequest>[];
 
   @override
