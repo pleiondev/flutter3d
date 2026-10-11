@@ -1,41 +1,116 @@
 import 'package:flutter3d_core/flutter3d_core.dart'
-    show CuboidShape, DeviceMesh, MeshNode, RenderMaterial;
-import 'package:flutter3d_effects/flutter3d_effects.dart';
+    show CuboidShape, DeviceMesh, MeshNode, RenderMaterial, Scene;
 import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show SnapshotPart;
+    show ComponentCodec, SnapshotPart;
 import 'package:vector_math/vector_math.dart';
+
+/// A wreck as it is published: what a view draws it from, with no world to
+/// ask — the body it is, whether it is a slick of oil, where it lies, how it
+/// is turned and whether it burns.
+///
+/// **The view's side of the boundary.** [BurningWrecks.published] copies
+/// these out of the elements' world after a step; [WreckLooks] draws from
+/// them; [codec] writes them as a component, for a game that publishes its
+/// wrecks on its entities and draws them in another isolate.
+final class BurningWreck {
+  const BurningWreck({
+    required this.body,
+    required this.oil,
+    required this.at,
+    required this.turn,
+    required this.burning,
+  });
+
+  /// Read back from [toJson]'s map; null for anything else.
+  static BurningWreck? fromJson(Object? json) => switch (json) {
+    {
+      'body': final int body,
+      'oil': final bool oil,
+      'at': [final num x, final num y, final num z],
+      'turn': [final num qx, final num qy, final num qz, final num qw],
+      'burning': final bool burning,
+    } =>
+      BurningWreck(
+        body: body,
+        oil: oil,
+        at: Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+        turn: Quaternion(
+          qx.toDouble(),
+          qy.toDouble(),
+          qz.toDouble(),
+          qw.toDouble(),
+        ),
+        burning: burning,
+      ),
+    _ => null,
+  };
+
+  /// How a wreck is written as a component, published.
+  static final ComponentCodec<BurningWreck> codec =
+      ComponentCodec<BurningWreck>.of(
+        id: 'flutter3d.game_physics.wreck',
+        encode: (wreck) => wreck.toJson(),
+        decode: (data, _) => fromJson(data),
+      );
+
+  /// The core's body, by its handle: what a view keys the look it keeps
+  /// for the wreck by.
+  final int body;
+
+  /// Whether it is a slick of oil, drawn; a heap of timbers is drawn by its
+  /// fire alone.
+  final bool oil;
+
+  /// Where it lies, in the elements' world.
+  final Vector3 at;
+  final Quaternion turn;
+
+  /// Whether it burns.
+  final bool burning;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'body': body,
+    'oil': oil,
+    'at': <double>[at.x, at.y, at.z],
+    'turn': <double>[turn.x, turn.y, turn.z, turn.w],
+    'burning': burning,
+  };
+}
 
 /// What a hit leaves burning: oil spread on the water and alight, a heap of
 /// timbers on the bank. Fires of the physics core's own heat in a game's
-/// [Elements], lit by a blast's fireball, which burn as long as their fuel
-/// lasts and light what stands close enough, drawn as flames and smoke, and
-/// let go once whoever left them is far enough past.
+/// elements, lit by a blast's fireball, which burn as long as their fuel
+/// lasts and light what stands close enough, and are let go once whoever
+/// left them is far enough past.
 ///
 /// **On the elements, not beside them.** A wreck is a body in the elements'
 /// world: the water floats the slick and its current carries it off, the
-/// fires model spreads the burning, and the elements step and draw both.
-/// This class only places them and lets them go.
+/// fires model spreads the burning, and the elements step both.
+///
+/// **On published state, not on a device.** This is the simulation's half:
+/// it places the wrecks, lights them and lets them go, and holds nothing
+/// that draws. What a view draws — the slick — it reads from [published],
+/// rows copied out of the world after a step ([BurningWreck]), so the
+/// wrecks draw the same wherever the elements are stepped: [WreckLooks]
+/// draws them.
 final class BurningWrecks {
-  /// Wrecks in [elements], their looks uploaded to [device].
+  /// Wrecks in [simulation]'s world.
   ///
   /// [along] is the way the player travels: a fire more than [behind]
   /// metres back along it from the distance [step] is told is let go.
   BurningWrecks(
-    Elements elements,
-    GraphicsDevice device, {
+    ElementsSimulation simulation, {
     Vector3? along,
     this.behind = defaultBehind,
-  }) : _elements = elements,
-       _device = device,
+  }) : _elements = simulation,
        _along = (along ?? Vector3(0.0, 0.0, -1.0)).normalized();
 
   /// The elements: the water, and what burns on it.
-  final Elements _elements;
-  final GraphicsDevice _device;
+  final ElementsSimulation _elements;
   final Vector3 _along;
 
   /// The wrecks held, oldest first, each with whether it is a slick of oil
@@ -74,39 +149,43 @@ final class BurningWrecks {
   /// fuel (513, USDA INT-115, 1972), to the figure.
   static const double splinterDensity = 500.0;
 
+  /// Half a slick's size: three metres by one and a half, a hand deep.
+  static Vector3 get slickHalf => Vector3(1.4, 0.05, 0.8);
+
   /// The wrecks still held, oldest first: what a game's sound or score asks
   /// after, and what is let go by [step].
   List<TrackedBody> get bodies => List<TrackedBody>.unmodifiable(_burning.keys);
+
+  /// The wrecks as they lie now, oldest first: what a view draws them from.
+  List<BurningWreck> get published {
+    final world = _elements.world;
+    return <BurningWreck>[
+      for (final MapEntry(key: body, value: oil) in _burning.entries)
+        if (world.contains(body.native))
+          BurningWreck(
+            body: body.native.raw,
+            oil: oil,
+            at: world.localPositionOf(body.native),
+            turn: world.orientationOf(body.native),
+            burning: world.isBurning(body.native),
+          ),
+    ];
+  }
 
   /// A cargo of oil spread over the water at [at] and burning: crude, which
   /// burns as long and as sooty as rubber does — sixty kilograms of it over
   /// a slick three metres by one and a half. It is the oil that burns, not
   /// the hull, which goes down under it: the slick floats, far lighter than
-  /// the water, and the current carries it and its fire off. Drawn as what
-  /// it is, a black film as glossy as water — oil's refractive index of
-  /// about 1.5 reflects 4% head on, as water's 1.33 reflects 2%.
+  /// the water, and the current carries it and its fire off.
   void oil(Vector3 at) => _light(
     Solid.box(
-      _slickHalf,
+      slickHalf,
       material: NativeMaterial.rubber(),
       density: 60.0 / (2.8 * 0.1 * 1.6),
     ),
     Vector3(at.x, 0.05, at.z),
     type: NativeBodyType.dynamic,
-    look: _slick(),
-  );
-
-  static Vector3 get _slickHalf => Vector3(1.4, 0.05, 0.8);
-
-  /// The black film a slick is drawn as.
-  MeshNode _slick() => MeshNode(
-    DeviceMesh.upload(_device, CuboidShape(size: _slickHalf * 2.0).build()),
-    RenderMaterial(
-      name: 'crude',
-      baseColor: LinearColor.fromSrgb(0.02, 0.018, 0.015, 1.0),
-      roughness: 0.08,
-    ),
-    name: 'slick',
+    oil: true,
   );
 
   /// A heap of timbers at [at], burning where they fell: 160 kg of wood.
@@ -129,26 +208,26 @@ final class BurningWrecks {
       density: 160.0 / (1.8 * 1.0 * 1.8),
     ),
     at,
+    oil: false,
   );
 
   void _light(
     Solid solid,
     Vector3 at, {
     NativeBodyType type = NativeBodyType.fixed,
-    MeshNode? look,
+    required bool oil,
   }) {
-    final body = _elements.addBody(solid, at: at, type: type, look: look);
+    final body = _elements.track(_elements.addBody(solid, at: at, type: type));
     _elements.fires.ignite(
       body,
       by: fireball,
       at: Vector3(at.x, at.y + 0.5, at.z),
     );
-    _burning[body] = look != null;
+    _burning[body] = oil;
   }
 
   /// The player [distance] metres on along the way it travels: a fire more
-  /// than [behind] metres back is let go. The elements step and draw the
-  /// fires.
+  /// than [behind] metres back is let go. The elements step the fires.
   void step(double distance) {
     _burning.removeWhere((body, _) {
       final on = _elements.world.localPositionOf(body.native).dot(_along);
@@ -173,9 +252,10 @@ final class BurningWrecks {
   /// registry restores first in registration order: a wreck the snapshot
   /// held is kept only when that world has its body again. A wreck lit
   /// since is let go; one let go since, whose body the world has again, is
-  /// taken back in and drawn as it was. What a body is doing — where it
-  /// lies, how hot it is, how much is left to burn — is the world's to put
-  /// back, and the flames held to it the elements' (`Elements.snapshotPart`).
+  /// taken back in. What a body is doing — where it lies, how hot it is,
+  /// how much is left to burn — is the world's to put back, and the flames
+  /// held to it the elements' (`ElementsSimulation.snapshotPart`); what is
+  /// drawn of it follows from [published].
   SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.wrecks'}) =>
       SnapshotPart.of(id: id, capture: _capture, restore: _restore);
 
@@ -200,22 +280,86 @@ final class BurningWrecks {
     final world = _elements.world;
     final restored = <TrackedBody, bool>{
       for (final MapEntry(key: raw, value: oil) in saved.entries)
-        ?(held[raw] ?? _retrack(world, NativeBody(raw), oil: oil)): oil,
+        ?(held[raw] ?? _retrack(world, NativeBody(raw))): oil,
     };
     _burning
       ..clear()
       ..addAll(restored);
   }
 
-  /// [native] taken back into the elements, drawn as a slick when [oil];
-  /// null when the world does not have it.
-  TrackedBody? _retrack(
-    NativeWorld world,
-    NativeBody native, {
-    required bool oil,
-  }) {
-    if (!world.contains(native)) return null;
-    final look = oil ? _slick() : null;
-    return _elements.track(native, look: look, chars: look);
+  /// [native] taken back into the elements; null when the world does not
+  /// have it.
+  TrackedBody? _retrack(NativeWorld world, NativeBody native) =>
+      world.contains(native) ? _elements.track(native) : null;
+}
+
+/// The wrecks drawn: a black film as glossy as water for each slick of oil,
+/// placed where [BurningWrecks.published] says it lies. A heap of timbers
+/// is drawn by its fire, which the elements' view draws.
+///
+/// **The view's half.** It reads published rows and nothing of the world,
+/// so it draws the same wherever the wrecks are stepped. Oil's refractive
+/// index of about 1.5 reflects 4 % head on, as water's 1.33 reflects 2 %.
+final class WreckLooks {
+  /// Slicks drawn into [scene], their mesh uploaded to [device] once.
+  WreckLooks(this.scene, GraphicsDevice device)
+    : _mesh = DeviceMesh.upload(
+        device,
+        CuboidShape(size: BurningWrecks.slickHalf * 2.0).build(),
+      );
+
+  /// Where the slicks are drawn.
+  final Scene scene;
+
+  final DeviceMesh _mesh;
+
+  /// The look kept for each slick, by its body's handle.
+  final Map<int, MeshNode> _slicks = <int, MeshNode>{};
+
+  /// The slick drawn for the wreck of [body], if one is: for a test, or a
+  /// game that dresses it further.
+  MeshNode? slickOf(int body) => _slicks[body];
+
+  /// [wrecks] drawn: a slick made for each one of oil not drawn yet, each
+  /// placed where it lies, and the slick of a wreck no longer among them
+  /// taken out.
+  void show(Iterable<BurningWreck> wrecks) {
+    final seen = <int>{};
+    for (final wreck in wrecks) {
+      if (!wreck.oil) continue;
+      seen.add(wreck.body);
+      final slick = _slicks[wreck.body] ??= _slick();
+      slick
+        ..setPositionFrom(wreck.at)
+        ..setRotation(wreck.turn);
+    }
+    _slicks.removeWhere((body, slick) {
+      if (seen.contains(body)) return false;
+      slick.removeFromParent();
+      return true;
+    });
+  }
+
+  MeshNode _slick() {
+    final node = MeshNode(
+      _mesh,
+      RenderMaterial(
+        name: 'crude',
+        baseColor: LinearColor.fromSrgb(0.02, 0.018, 0.015, 1.0),
+        roughness: 0.08,
+      ),
+      name: 'slick',
+    );
+    scene.add(node);
+    return node;
+  }
+
+  /// Every slick taken out and the mesh let go.
+  void dispose() {
+    for (final slick in _slicks.values) {
+      slick.removeFromParent();
+    }
+    _slicks.clear();
+    _mesh.dispose();
   }
 }

@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The wrecks are drawn from what they publish.** `BurningWrecks` is the
+  simulation's half alone: made over an `ElementsSimulation`, with no
+  device, it places, lights and lets go the wrecks and publishes each as a
+  `BurningWreck` (its body, whether it is oil, where it lies, how it is
+  turned, whether it burns; `toJson`, `fromJson` and a `ComponentCodec`).
+  `WreckLooks(scene, device).show(published)` draws the slicks from those
+  rows, so the wrecks draw the same wherever the elements are stepped.
 - **A body wading is heard.** `ElementSounds.wade(scene, waders, dt)` plays
   a splash as each `Wader` goes into water fast enough, as loud as it goes
   and not again for a moment, and holds a wash to each one ploughing

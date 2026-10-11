@@ -75,7 +75,12 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
       unawaited(_open(drawing));
     }
     water?.update(dt);
+    // The slicks drawn where the wrecks' last step left them.
+    if (game.wrecks case final wrecks?) _wreckLooks?.show(wrecks.published);
   }
+
+  /// What draws the wrecks' slicks, with the water.
+  WreckLooks? _wreckLooks;
 
   Future<void> _open(Renderer drawing) async {
     try {
@@ -94,9 +99,11 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
         return;
       }
       water = RiverWater(game: game, elements: elements);
-      // The run's wrecks burn on the water, in its elements.
+      // The run's wrecks burn on the water, in its elements, and their
+      // slicks are drawn from what they publish.
+      _wreckLooks = WreckLooks(game.scene, game.device);
       game
-        ..wrecks = BurningWrecks(elements, game.device)
+        ..wrecks = BurningWrecks(elements.simulation)
         ..waterDrawnElsewhere();
     } catch (error) {
       debugPrint('river: no water material, so the plane stays ($error)');
@@ -106,6 +113,8 @@ final class RiverWaterLayer extends Component with HasGameReference<RiverGame> {
   /// Everything let go, before the device it is drawn on closes.
   void close() {
     game.wrecks = null;
+    _wreckLooks?.dispose();
+    _wreckLooks = null;
     water?.dispose();
     water = null;
   }
