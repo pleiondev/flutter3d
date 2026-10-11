@@ -731,9 +731,11 @@ final class ExpressionBytecode {
       }
     }
     final version = u16();
-    if (version != expressionBytecodeVersion) {
+    // Every version up to this build's is read; only a newer one, or none,
+    // is refused.
+    if (version > expressionBytecodeVersion || version < 1) {
       throw ExpressionBytecodeException(
-        'bytecode version $version; this build reads '
+        'bytecode version $version; this build reads up to '
         '$expressionBytecodeVersion',
       );
     }

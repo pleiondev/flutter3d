@@ -2424,12 +2424,7 @@ final class MaterialAlphaMode
   static const MaterialAlphaMode mask = MaterialAlphaMode._('mask')
   static const MaterialAlphaMode opaque = MaterialAlphaMode._('opaque')
 
-final class MaterialBinary extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialBinary(this.op, this.left, this.right, MaterialType type)
-  final MaterialExpression left
-  final MaterialExpression right
-  final String op
+typedef MaterialBinary = ExpressionBinary;
 
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
@@ -2487,52 +2482,18 @@ final class MaterialBlockSlot
   final String name
   int get size
 
-final class MaterialBuiltin
-  final List<double> Function(List<List<double>> arguments) apply
-  final String glsl
-  final String name
-  final bool componentWise
-  final int arity
-  final int? resultComponents
-  static MaterialBuiltin? byName(String name)
-  static const List<MaterialBuiltin> all = <MaterialBuiltin>[dot, length, normalize, mix, clamp, smoothstep, step, pow, min, max, abs, sqrt, floor, fract, sin, cos]
-  static const MaterialBuiltin abs = MaterialBuiltin._('abs', arity: 1, glsl: 'abs', apply: _abs)
-  static const MaterialBuiltin clamp = MaterialBuiltin._('clamp', arity: 3, glsl: 'clamp', apply: _clamp)
-  static const MaterialBuiltin cos = MaterialBuiltin._('cos', arity: 1, glsl: 'cos', apply: _cos)
-  static const MaterialBuiltin dot = MaterialBuiltin._('dot', arity: 2, glsl: 'dot', apply: _dot, componentWise: false, resultComponents: 1)
-  static const MaterialBuiltin floor = MaterialBuiltin._('floor', arity: 1, glsl: 'floor', apply: _floor)
-  static const MaterialBuiltin fract = MaterialBuiltin._('fract', arity: 1, glsl: 'fract', apply: _fract)
-  static const MaterialBuiltin length = MaterialBuiltin._('length', arity: 1, glsl: 'length', apply: _length, componentWise: false, resultComponents: 1)
-  static const MaterialBuiltin max = MaterialBuiltin._('max', arity: 2, glsl: 'max', apply: _max)
-  static const MaterialBuiltin min = MaterialBuiltin._('min', arity: 2, glsl: 'min', apply: _min)
-  static const MaterialBuiltin mix = MaterialBuiltin._('mix', arity: 3, glsl: 'mix', apply: _mix)
-  static const MaterialBuiltin normalize = MaterialBuiltin._('normalize', arity: 1, glsl: 'normalize', apply: _normalize, componentWise: false)
-  static const MaterialBuiltin pow = MaterialBuiltin._('pow', arity: 2, glsl: 'pow', apply: _pow)
-  static const MaterialBuiltin sin = MaterialBuiltin._('sin', arity: 1, glsl: 'sin', apply: _sin)
-  static const MaterialBuiltin smoothstep = MaterialBuiltin._('smoothstep', arity: 3, glsl: 'smoothstep', apply: _smoothstep)
-  static const MaterialBuiltin sqrt = MaterialBuiltin._('sqrt', arity: 1, glsl: 'sqrt', apply: _sqrt)
-  static const MaterialBuiltin step = MaterialBuiltin._('step', arity: 2, glsl: 'step', apply: _step)
+typedef MaterialBuiltin = ExpressionBuiltin;
 
 final class MaterialBundleException extends Flutter3dFormatException
   String toString()
   const MaterialBundleException(this.message)
   final String message
 
-final class MaterialCall extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialCall(this.builtin, this.arguments, MaterialType type)
-  final List<MaterialExpression> arguments
-  final MaterialBuiltin builtin
+typedef MaterialCall = ExpressionCall;
 
-final class MaterialConstant extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialConstant(this.value, MaterialType type)
-  final List<double> value
+typedef MaterialConstant = ExpressionConstant;
 
-final class MaterialConstruct extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialConstruct(this.arguments, MaterialType type)
-  final List<MaterialExpression> arguments
+typedef MaterialConstruct = ExpressionConstruct;
 
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
@@ -2546,23 +2507,16 @@ final class MaterialDocument
   final String parameterBlock
   final SurfaceMaterial surface
 
-abstract base class MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialExpression(this.type)
-  final MaterialType type
+typedef MaterialExpression = Expression;
 
-abstract base class MaterialExpressionVisitor<R>
-  abstract R visitBinary(MaterialBinary expression)
-  abstract R visitCall(MaterialCall expression)
-  abstract R visitConstant(MaterialConstant expression)
-  abstract R visitConstruct(MaterialConstruct expression)
+abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R>
+  R visitConditional(ExpressionConditional expression)
+  R visitNot(ExpressionNot expression)
+  R visitVariable(ExpressionVariable expression)
   abstract R visitInputRef(MaterialInputRef expression)
   abstract R visitLocalRef(MaterialLocalRef expression)
-  abstract R visitNegate(MaterialNegate expression)
   abstract R visitParamRef(MaterialParamRef expression)
   abstract R visitSample(MaterialSample expression)
-  abstract R visitSwizzle(MaterialSwizzle expression)
-  abstract R visitUnknown(MaterialExpression expression)
   const MaterialExpressionVisitor()
 
 final class MaterialExtensions
@@ -2638,9 +2592,9 @@ final class MaterialInput
   final String glsl
   final String name
 
-final class MaterialInputRef extends MaterialExpression
+final class MaterialInputRef extends ExpressionVariable
   MaterialInputRef(this.input)
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
+  R accept<R>(ExpressionVisitor<R> visitor)
   final MaterialInput input
 
 final class MaterialLet extends MaterialStatement
@@ -2649,10 +2603,9 @@ final class MaterialLet extends MaterialStatement
   final MaterialExpression value
   final String name
 
-final class MaterialLocalRef extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialLocalRef(this.name, MaterialType type)
-  final String name
+final class MaterialLocalRef extends ExpressionVariable
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const MaterialLocalRef(super.name, super.type)
 
 final class MaterialMap
   String toString()
@@ -2667,10 +2620,7 @@ final class MaterialMap
   static const MaterialMap normal = MaterialMap._('normal')
   static const MaterialMap occlusion = MaterialMap._('occlusion')
 
-final class MaterialNegate extends MaterialExpression
-  MaterialNegate(this.operand)
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  final MaterialExpression operand
+typedef MaterialNegate = ExpressionNegate;
 
 final class MaterialOutput extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
@@ -2678,9 +2628,9 @@ final class MaterialOutput extends MaterialStatement
   final MaterialExpression value
   final MaterialInput output
 
-final class MaterialParamRef extends MaterialExpression
+final class MaterialParamRef extends ExpressionVariable
   MaterialParamRef(this.parameter)
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
+  R accept<R>(ExpressionVisitor<R> visitor)
   final MaterialParameter parameter
 
 final class MaterialParameter
@@ -2718,11 +2668,12 @@ final class MaterialParameters
   void setNamed(String name, Object value)
 
 final class MaterialProgram
+  Map<String, List<double>> lift(Map<String, List<double>> values, {required int from})
   MaterialParameter? parameter(String name)
   String? get vertexStageName
   bool get isLit
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = 1, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8)})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = 1, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = 1, this.updates = const <MaterialUpdate>[]})
   final (int, int) workgroupSize
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
@@ -2731,22 +2682,44 @@ final class MaterialProgram
   final List<MaterialStatement>? light
   final List<MaterialStatement>? vertex
   final List<MaterialTextureSlot> textures
+  final List<MaterialUpdate> updates
   final MaterialFileState state
   final MaterialStageKind kind
   final Set<String> inputsUsed
   final String name
   final int languageVersion
+  final int version
+
+final class MaterialRemoveUpdate extends MaterialUpdate
+  Map<String, List<double>> apply(Map<String, List<double>> values)
+  String toString()
+  const MaterialRemoveUpdate(super.version, this.name)
+  final String name
+
+final class MaterialRenameUpdate extends MaterialUpdate
+  Map<String, List<double>> apply(Map<String, List<double>> values)
+  String toString()
+  const MaterialRenameUpdate(super.version, this.from, this.to)
+  final String from
+  final String to
 
 final class MaterialReturn extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialReturn(this.value)
   final MaterialExpression value
 
-final class MaterialSample extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
+final class MaterialSample extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
   const MaterialSample(this.slot, this.uv)
   final MaterialExpression uv
   final MaterialTextureSlot slot
+
+final class MaterialScaleUpdate extends MaterialUpdate
+  Map<String, List<double>> apply(Map<String, List<double>> values)
+  String toString()
+  const MaterialScaleUpdate(super.version, this.name, this.factor)
+  final String name
+  final double factor
 
 final class MaterialSlotTable
   Map<String, Object?> toJson()
@@ -2789,11 +2762,7 @@ final class MaterialSurfaceValues
   final Map<String, List<double>> inputs
   final Map<String, List<double>> uniforms
 
-final class MaterialSwizzle extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialSwizzle(this.target, this.components, MaterialType type)
-  final List<int> components
-  final MaterialExpression target
+typedef MaterialSwizzle = ExpressionSwizzle;
 
 final class MaterialSyntaxException extends Flutter3dFormatException
   String toString()
@@ -2814,22 +2783,25 @@ final class MaterialTextureSlotEntry
   final String binding
   final String name
 
-final class MaterialType
-  String toString()
-  bool get isNumeric
-  final String name
-  final int components
-  static const Map<int, MaterialType> numeric = <int, MaterialType>{1: float, 2: vec2, 3: vec3, 4: vec4}
-  static const MaterialType float = MaterialType._('float', 1)
-  static const MaterialType texture = MaterialType._('texture', 0)
-  static const MaterialType vec2 = MaterialType._('vec2', 2)
-  static const MaterialType vec3 = MaterialType._('vec3', 3)
-  static const MaterialType vec4 = MaterialType._('vec4', 4)
+typedef MaterialType = ExpressionType;
+
+abstract base class MaterialUpdate
+  abstract Map<String, List<double>> apply(Map<String, List<double>> values)
+  const MaterialUpdate(this.version)
+  final int version
 
 final class MaterialVariant
   const MaterialVariant(this.name, [this.values = const {}])
   final Map<String, List<double>> values
   final String name
+
+final class MaterialVersionException extends Flutter3dFormatException
+  String get message
+  String toString()
+  const MaterialVersionException(this.material, this.written, this.current)
+  final String material
+  final int current
+  final int written
 
 final class MemoryBudget
   MemoryBudget({Map<MemoryCategory, int> limits = const {}, this.total})
@@ -5727,6 +5699,8 @@ bool looksLikeSpz(Uint8List bytes)
 
 const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', MaterialType.vec3, 'f3d_lightmap')]
 
+const List<MaterialBuiltin> materialBuiltins = …
+
 const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', MaterialType.vec3, 'f3d_direct'), MaterialInput('indirect', MaterialType.vec3, 'f3d_indirect')]
 
 const List<MaterialInput> materialComputeInputs = …
@@ -5745,7 +5719,7 @@ const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInp
 
 const List<MaterialInput> materialInputs = …
 
-const int materialLanguageVersion = 2
+const int materialLanguageVersion = 3
 
 const List<MaterialInput> materialLightInputs = …
 
@@ -5758,6 +5732,8 @@ const String materialOwnTexturePrefix = 'material_'
 const String materialParametersBlock = 'MaterialParams'
 
 const List<MaterialInput> materialSceneInputs = …
+
+const ExpressionSyntax materialSyntax = ExpressionSyntax(units: false, exponents: false, logic: false, punctuation: '{}=;:>')
 
 const List<String> materialTextureBindings = <String>['base_color_texture', 'normal_texture', 'occlusion_texture', 'emissive_texture', 'metallic_roughness_texture']
 
@@ -6652,12 +6628,7 @@ final class LightingModels extends PluginRegistry
   Registration register(LightingModel model)
   static final LightingModels shipped
 
-final class MaterialBinary extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialBinary(this.op, this.left, this.right, MaterialType type)
-  final MaterialExpression left
-  final MaterialExpression right
-  final String op
+typedef MaterialBinary = ExpressionBinary;
 
 final class MaterialBindings
   LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
@@ -6707,52 +6678,18 @@ final class MaterialBlockSlot
   final String name
   int get size
 
-final class MaterialBuiltin
-  final List<double> Function(List<List<double>> arguments) apply
-  final String glsl
-  final String name
-  final bool componentWise
-  final int arity
-  final int? resultComponents
-  static MaterialBuiltin? byName(String name)
-  static const List<MaterialBuiltin> all = <MaterialBuiltin>[dot, length, normalize, mix, clamp, smoothstep, step, pow, min, max, abs, sqrt, floor, fract, sin, cos]
-  static const MaterialBuiltin abs = MaterialBuiltin._('abs', arity: 1, glsl: 'abs', apply: _abs)
-  static const MaterialBuiltin clamp = MaterialBuiltin._('clamp', arity: 3, glsl: 'clamp', apply: _clamp)
-  static const MaterialBuiltin cos = MaterialBuiltin._('cos', arity: 1, glsl: 'cos', apply: _cos)
-  static const MaterialBuiltin dot = MaterialBuiltin._('dot', arity: 2, glsl: 'dot', apply: _dot, componentWise: false, resultComponents: 1)
-  static const MaterialBuiltin floor = MaterialBuiltin._('floor', arity: 1, glsl: 'floor', apply: _floor)
-  static const MaterialBuiltin fract = MaterialBuiltin._('fract', arity: 1, glsl: 'fract', apply: _fract)
-  static const MaterialBuiltin length = MaterialBuiltin._('length', arity: 1, glsl: 'length', apply: _length, componentWise: false, resultComponents: 1)
-  static const MaterialBuiltin max = MaterialBuiltin._('max', arity: 2, glsl: 'max', apply: _max)
-  static const MaterialBuiltin min = MaterialBuiltin._('min', arity: 2, glsl: 'min', apply: _min)
-  static const MaterialBuiltin mix = MaterialBuiltin._('mix', arity: 3, glsl: 'mix', apply: _mix)
-  static const MaterialBuiltin normalize = MaterialBuiltin._('normalize', arity: 1, glsl: 'normalize', apply: _normalize, componentWise: false)
-  static const MaterialBuiltin pow = MaterialBuiltin._('pow', arity: 2, glsl: 'pow', apply: _pow)
-  static const MaterialBuiltin sin = MaterialBuiltin._('sin', arity: 1, glsl: 'sin', apply: _sin)
-  static const MaterialBuiltin smoothstep = MaterialBuiltin._('smoothstep', arity: 3, glsl: 'smoothstep', apply: _smoothstep)
-  static const MaterialBuiltin sqrt = MaterialBuiltin._('sqrt', arity: 1, glsl: 'sqrt', apply: _sqrt)
-  static const MaterialBuiltin step = MaterialBuiltin._('step', arity: 2, glsl: 'step', apply: _step)
+typedef MaterialBuiltin = ExpressionBuiltin;
 
 final class MaterialBundleException extends Flutter3dFormatException
   String toString()
   const MaterialBundleException(this.message)
   final String message
 
-final class MaterialCall extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialCall(this.builtin, this.arguments, MaterialType type)
-  final List<MaterialExpression> arguments
-  final MaterialBuiltin builtin
+typedef MaterialCall = ExpressionCall;
 
-final class MaterialConstant extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialConstant(this.value, MaterialType type)
-  final List<double> value
+typedef MaterialConstant = ExpressionConstant;
 
-final class MaterialConstruct extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialConstruct(this.arguments, MaterialType type)
-  final List<MaterialExpression> arguments
+typedef MaterialConstruct = ExpressionConstruct;
 
 final class MaterialDocument
   const MaterialDocument({required this.surface, this.images = const <String>[], this.lighting, this.parameterBlock = 'MaterialParams', this.parameters = const <String, Float32List>{}, this.hints = const <String, MaterialHint>{}, this.extraTextures = const <String, TextureBinding>{}, this.warnings = const <String>[], this.unknown = const <String, Object?>{}})
@@ -6766,23 +6703,16 @@ final class MaterialDocument
   final String parameterBlock
   final SurfaceMaterial surface
 
-abstract base class MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialExpression(this.type)
-  final MaterialType type
+typedef MaterialExpression = Expression;
 
-abstract base class MaterialExpressionVisitor<R>
-  abstract R visitBinary(MaterialBinary expression)
-  abstract R visitCall(MaterialCall expression)
-  abstract R visitConstant(MaterialConstant expression)
-  abstract R visitConstruct(MaterialConstruct expression)
+abstract base class MaterialExpressionVisitor<R> extends ExpressionVisitor<R>
+  R visitConditional(ExpressionConditional expression)
+  R visitNot(ExpressionNot expression)
+  R visitVariable(ExpressionVariable expression)
   abstract R visitInputRef(MaterialInputRef expression)
   abstract R visitLocalRef(MaterialLocalRef expression)
-  abstract R visitNegate(MaterialNegate expression)
   abstract R visitParamRef(MaterialParamRef expression)
   abstract R visitSample(MaterialSample expression)
-  abstract R visitSwizzle(MaterialSwizzle expression)
-  abstract R visitUnknown(MaterialExpression expression)
   const MaterialExpressionVisitor()
 
 final class MaterialExtensions
@@ -6858,9 +6788,9 @@ final class MaterialInput
   final String glsl
   final String name
 
-final class MaterialInputRef extends MaterialExpression
+final class MaterialInputRef extends ExpressionVariable
   MaterialInputRef(this.input)
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
+  R accept<R>(ExpressionVisitor<R> visitor)
   final MaterialInput input
 
 final class MaterialLet extends MaterialStatement
@@ -6869,10 +6799,9 @@ final class MaterialLet extends MaterialStatement
   final MaterialExpression value
   final String name
 
-final class MaterialLocalRef extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialLocalRef(this.name, MaterialType type)
-  final String name
+final class MaterialLocalRef extends ExpressionVariable
+  R accept<R>(ExpressionVisitor<R> visitor)
+  const MaterialLocalRef(super.name, super.type)
 
 final class MaterialMap
   String toString()
@@ -6887,10 +6816,7 @@ final class MaterialMap
   static const MaterialMap normal = MaterialMap._('normal')
   static const MaterialMap occlusion = MaterialMap._('occlusion')
 
-final class MaterialNegate extends MaterialExpression
-  MaterialNegate(this.operand)
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  final MaterialExpression operand
+typedef MaterialNegate = ExpressionNegate;
 
 final class MaterialOutput extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
@@ -6898,9 +6824,9 @@ final class MaterialOutput extends MaterialStatement
   final MaterialExpression value
   final MaterialInput output
 
-final class MaterialParamRef extends MaterialExpression
+final class MaterialParamRef extends ExpressionVariable
   MaterialParamRef(this.parameter)
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
+  R accept<R>(ExpressionVisitor<R> visitor)
   final MaterialParameter parameter
 
 final class MaterialParameter
@@ -6912,11 +6838,12 @@ final class MaterialParameter
   final bool uniform
 
 final class MaterialProgram
+  Map<String, List<double>> lift(Map<String, List<double>> values, {required int from})
   MaterialParameter? parameter(String name)
   String? get vertexStageName
   bool get isLit
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = 1, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8)})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = 1, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = 1, this.updates = const <MaterialUpdate>[]})
   final (int, int) workgroupSize
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
@@ -6925,22 +6852,44 @@ final class MaterialProgram
   final List<MaterialStatement>? light
   final List<MaterialStatement>? vertex
   final List<MaterialTextureSlot> textures
+  final List<MaterialUpdate> updates
   final MaterialFileState state
   final MaterialStageKind kind
   final Set<String> inputsUsed
   final String name
   final int languageVersion
+  final int version
+
+final class MaterialRemoveUpdate extends MaterialUpdate
+  Map<String, List<double>> apply(Map<String, List<double>> values)
+  String toString()
+  const MaterialRemoveUpdate(super.version, this.name)
+  final String name
+
+final class MaterialRenameUpdate extends MaterialUpdate
+  Map<String, List<double>> apply(Map<String, List<double>> values)
+  String toString()
+  const MaterialRenameUpdate(super.version, this.from, this.to)
+  final String from
+  final String to
 
 final class MaterialReturn extends MaterialStatement
   R accept<R>(MaterialStatementVisitor<R> visitor)
   const MaterialReturn(this.value)
   final MaterialExpression value
 
-final class MaterialSample extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
+final class MaterialSample extends Expression
+  R accept<R>(ExpressionVisitor<R> visitor)
   const MaterialSample(this.slot, this.uv)
   final MaterialExpression uv
   final MaterialTextureSlot slot
+
+final class MaterialScaleUpdate extends MaterialUpdate
+  Map<String, List<double>> apply(Map<String, List<double>> values)
+  String toString()
+  const MaterialScaleUpdate(super.version, this.name, this.factor)
+  final String name
+  final double factor
 
 final class MaterialSlotTable
   Map<String, Object?> toJson()
@@ -6978,11 +6927,7 @@ final class MaterialSurfaceValues
   final Map<String, List<double>> inputs
   final Map<String, List<double>> uniforms
 
-final class MaterialSwizzle extends MaterialExpression
-  R accept<R>(MaterialExpressionVisitor<R> visitor)
-  const MaterialSwizzle(this.target, this.components, MaterialType type)
-  final List<int> components
-  final MaterialExpression target
+typedef MaterialSwizzle = ExpressionSwizzle;
 
 final class MaterialSyntaxException extends Flutter3dFormatException
   String toString()
@@ -7003,22 +6948,25 @@ final class MaterialTextureSlotEntry
   final String binding
   final String name
 
-final class MaterialType
-  String toString()
-  bool get isNumeric
-  final String name
-  final int components
-  static const Map<int, MaterialType> numeric = <int, MaterialType>{1: float, 2: vec2, 3: vec3, 4: vec4}
-  static const MaterialType float = MaterialType._('float', 1)
-  static const MaterialType texture = MaterialType._('texture', 0)
-  static const MaterialType vec2 = MaterialType._('vec2', 2)
-  static const MaterialType vec3 = MaterialType._('vec3', 3)
-  static const MaterialType vec4 = MaterialType._('vec4', 4)
+typedef MaterialType = ExpressionType;
+
+abstract base class MaterialUpdate
+  abstract Map<String, List<double>> apply(Map<String, List<double>> values)
+  const MaterialUpdate(this.version)
+  final int version
 
 final class MaterialVariant
   const MaterialVariant(this.name, [this.values = const {}])
   final Map<String, List<double>> values
   final String name
+
+final class MaterialVersionException extends Flutter3dFormatException
+  String get message
+  String toString()
+  const MaterialVersionException(this.material, this.written, this.current)
+  final String material
+  final int current
+  final int written
 
 final class MeshoptFormatException extends Flutter3dFormatException
   String toString()
@@ -7766,6 +7714,8 @@ bool looksLikeSpz(Uint8List bytes)
 
 const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', MaterialType.vec3, 'f3d_lightmap')]
 
+const List<MaterialBuiltin> materialBuiltins = …
+
 const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', MaterialType.vec3, 'f3d_direct'), MaterialInput('indirect', MaterialType.vec3, 'f3d_indirect')]
 
 const List<MaterialInput> materialComputeInputs = …
@@ -7784,7 +7734,7 @@ const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInp
 
 const List<MaterialInput> materialInputs = …
 
-const int materialLanguageVersion = 2
+const int materialLanguageVersion = 3
 
 const List<MaterialInput> materialLightInputs = …
 
@@ -7797,6 +7747,8 @@ const String materialOwnTexturePrefix = 'material_'
 const String materialParametersBlock = 'MaterialParams'
 
 const List<MaterialInput> materialSceneInputs = …
+
+const ExpressionSyntax materialSyntax = ExpressionSyntax(units: false, exponents: false, logic: false, punctuation: '{}=;:>')
 
 const List<String> materialTextureBindings = <String>['base_color_texture', 'normal_texture', 'occlusion_texture', 'emissive_texture', 'metallic_roughness_texture']
 

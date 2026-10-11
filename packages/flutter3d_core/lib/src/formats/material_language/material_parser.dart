@@ -443,7 +443,7 @@ final class _Parser extends ExpressionParser {
     version = parseVersion();
     kind = parseKind();
     final surface = kind == MaterialStageKind.surface;
-    final name = take('name', 'the material\'s name').text;
+    final name = expectToken('name', 'the material\'s name').text;
     var materialVersion = 1;
     if (current.kind == 'name' && current.text == 'version') {
       if (version < 3) {
@@ -455,7 +455,7 @@ final class _Parser extends ExpressionParser {
       position++;
       materialVersion = wholeNumber('the material\'s version', from: 1);
     }
-    take('{', '"{" after the material\'s name');
+    expectToken('{', '"{" after the material\'s name');
     final updates = <(ExpressionToken, MaterialUpdate)>[];
     ExpressionToken? updatesAt;
     // The picture a full-screen stage draws over, bound as every post stage
@@ -489,15 +489,15 @@ final class _Parser extends ExpressionParser {
       return parseBody(block);
     }
 
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the material is never closed with "}".');
       final word = current.kind == 'name' ? current.text : '';
       final where = current;
-      if (takeWordIf('param')) {
+      if (skipWordIf('param')) {
         parseParameter();
-      } else if (takeWordIf('uniform')) {
+      } else if (skipWordIf('uniform')) {
         parseParameter(uniform: true);
-      } else if (takeWordIf('texture')) {
+      } else if (skipWordIf('texture')) {
         parseTexture();
       } else if (word == 'fragment' && kind != MaterialStageKind.compute) {
         position++;
@@ -672,7 +672,7 @@ final class _Parser extends ExpressionParser {
   MaterialStageKind parseKind() {
     final token = current;
     for (final candidate in MaterialStageKind.all) {
-      if (!takeWordIf(candidate.name)) continue;
+      if (!skipWordIf(candidate.name)) continue;
       if (candidate != MaterialStageKind.surface && version < 2) {
         fail(
           '"${candidate.name}" is material language version 2: open the file '
@@ -691,7 +691,7 @@ final class _Parser extends ExpressionParser {
 
   /// A `state` block's settings, once each — version 2.
   MaterialFileState parseState() {
-    take('{', '"{" after "state"');
+    expectToken('{', '"{" after "state"');
     final seen = <String>{};
     MaterialBlend? blend;
     double? cutoff;
@@ -710,7 +710,7 @@ final class _Parser extends ExpressionParser {
     ExpressionToken? effectsAt;
 
     bool onOff(ExpressionToken key) {
-      final value = take('name', '"on" or "off" after "${key.text}"');
+      final value = expectToken('name', '"on" or "off" after "${key.text}"');
       return switch (value.text) {
         'on' => true,
         'off' => false,
@@ -721,13 +721,13 @@ final class _Parser extends ExpressionParser {
       };
     }
 
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the state block is never closed.');
-      final key = take('name', 'a setting');
+      final key = expectToken('name', 'a setting');
       if (!seen.add(key.text)) fail('"${key.text}" is set twice.', key);
       switch (key.text) {
         case 'blend':
-          final value = take('name', 'a blend after "blend"');
+          final value = expectToken('name', 'a blend after "blend"');
           blend =
               MaterialBlend.byName(value.text) ??
               fail(
@@ -737,7 +737,7 @@ final class _Parser extends ExpressionParser {
               );
         case 'cutoff':
           cutoffAt = key;
-          final value = take('number', 'the alpha the mask cuts at');
+          final value = expectToken('number', 'the alpha the mask cuts at');
           cutoff = value.number!;
           if (cutoff < 0 || cutoff > 1) {
             fail('a cutoff is an alpha, from nought to one.', value);
@@ -748,7 +748,10 @@ final class _Parser extends ExpressionParser {
           depthTest = onOff(key);
         case 'depthCompare':
           compareAt = key;
-          final value = take('name', 'a depth test after "depthCompare"');
+          final value = expectToken(
+            'name',
+            'a depth test after "depthCompare"',
+          );
           if (!materialDepthCompares.contains(value.text)) {
             fail(
               '"${value.text}" is not a depth test: '
@@ -763,8 +766,11 @@ final class _Parser extends ExpressionParser {
         case 'doubleSided':
           doubleSided = onOff(key);
         case 'depthLayer':
-          final negative = takeIf('-');
-          final value = take('number', 'a whole number after "depthLayer"');
+          final negative = skipIf('-');
+          final value = expectToken(
+            'number',
+            'a whole number after "depthLayer"',
+          );
           final number = value.number!;
           if (number != number.truncateToDouble() ||
               number > materialDepthLayerLimit) {
@@ -791,7 +797,7 @@ final class _Parser extends ExpressionParser {
             key,
           );
       }
-      take(';', '";" after the setting');
+      expectToken(';', '";" after the setting');
     }
 
     final masked = blend == MaterialBlend.mask;
@@ -840,7 +846,7 @@ final class _Parser extends ExpressionParser {
   /// A whole number token of at least [from], [what] naming it in a
   /// refusal.
   int wholeNumber(String what, {required int from}) {
-    final token = take('number', what);
+    final token = expectToken('number', what);
     final value = token.number!;
     if (value != value.truncateToDouble() || value < from) {
       fail('$what is a whole number from $from, not "${token.text}".', token);
@@ -852,27 +858,30 @@ final class _Parser extends ExpressionParser {
   /// `<version>: scale a <factor>;` and `<version>: remove a;`, each with
   /// the token it starts at.
   List<(ExpressionToken, MaterialUpdate)> parseUpdates() {
-    take('{', '"{" after "updates"');
+    expectToken('{', '"{" after "updates"');
     final updates = <(ExpressionToken, MaterialUpdate)>[];
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the updates block is never closed.');
       final at = current;
       final leadsTo = wholeNumber('an update\'s version', from: 2);
-      take(':', '":" after the update\'s version');
-      final verb = take('name', 'rename, scale or remove');
+      expectToken(':', '":" after the update\'s version');
+      final verb = expectToken('name', 'rename, scale or remove');
       final update = switch (verb.text) {
         'rename' => () {
-          final from = take('name', 'the name the parameter had').text;
-          take('-', '"->" after the old name');
-          take('>', '"->" after the old name');
-          final to = take('name', 'the name the parameter has now').text;
+          final from = expectToken('name', 'the name the parameter had').text;
+          expectToken('-', '"->" after the old name');
+          expectToken('>', '"->" after the old name');
+          final to = expectToken('name', 'the name the parameter has now').text;
           if (from == to) fail('"$from" is renamed to itself.', verb);
           return MaterialRenameUpdate(leadsTo, from, to);
         }(),
         'scale' => () {
-          final parameter = take('name', 'the parameter to scale').text;
-          final negative = takeIf('-');
-          final factor = take('number', 'the factor its value is scaled by');
+          final parameter = expectToken('name', 'the parameter to scale').text;
+          final negative = skipIf('-');
+          final factor = expectToken(
+            'number',
+            'the factor its value is scaled by',
+          );
           return MaterialScaleUpdate(
             leadsTo,
             parameter,
@@ -881,14 +890,14 @@ final class _Parser extends ExpressionParser {
         }(),
         'remove' => MaterialRemoveUpdate(
           leadsTo,
-          take('name', 'the parameter that is removed').text,
+          expectToken('name', 'the parameter that is removed').text,
         ),
         _ => fail(
           '"${verb.text}" is not an update: rename, scale and remove are.',
           verb,
         ),
       };
-      take(';', '";" after the update');
+      expectToken(';', '";" after the update');
       updates.add((at, update));
     }
     return updates;
@@ -955,7 +964,7 @@ final class _Parser extends ExpressionParser {
   /// backends that run compute meet too.
   (int, int) parseWorkgroup() {
     int side() {
-      final token = take('number', 'a whole number of invocations');
+      final token = expectToken('number', 'a whole number of invocations');
       final value = token.number!;
       if (value != value.truncateToDouble() || value < 1 || value > 256) {
         fail('a workgroup side is a whole number from 1 to 256.', token);
@@ -965,7 +974,7 @@ final class _Parser extends ExpressionParser {
 
     final x = side();
     final y = side();
-    take(';', '";" after the workgroup');
+    expectToken(';', '";" after the workgroup');
     if (x * y > 256) {
       fail('a workgroup is at most 256 invocations, and $x by $y is ${x * y}.');
     }
@@ -985,8 +994,8 @@ final class _Parser extends ExpressionParser {
   /// language compiles to whatever this build thinks its words mean.
   int parseVersion() {
     final header = current;
-    if (!takeWordIf('f3dmat')) return 1;
-    final number = take('number', 'the language version after "f3dmat"');
+    if (!skipWordIf('f3dmat')) return 1;
+    final number = expectToken('number', 'the language version after "f3dmat"');
     final value = number.number!;
     if (value != value.truncateToDouble() || value < 1) {
       fail(
@@ -1011,8 +1020,8 @@ final class _Parser extends ExpressionParser {
     // `uniform(Hair) vec3 tint = …;` — version 2 (D21): a member of a block
     // of the material's own rather than of `MaterialParams`.
     String? block;
-    if (uniform && takeIf('(')) {
-      final named = take('name', 'the uniform block\'s name');
+    if (uniform && skipIf('(')) {
+      final named = expectToken('name', 'the uniform block\'s name');
       if (version < 2) {
         fail(
           'a uniform block of a material\'s own is version 2; start the file '
@@ -1028,7 +1037,7 @@ final class _Parser extends ExpressionParser {
           named,
         );
       }
-      take(')', '")" after the block\'s name');
+      expectToken(')', '")" after the block\'s name');
       block = named.text;
     }
     final type = parseType();
@@ -1038,7 +1047,7 @@ final class _Parser extends ExpressionParser {
         '"texture".',
       );
     }
-    final nameToken = take('name', 'the parameter\'s name');
+    final nameToken = expectToken('name', 'the parameter\'s name');
     checkFreeName(nameToken);
     // A uniform reaches the shader under its own name, as a member of the
     // block — `P8` — so the names GLSL and the emitter keep are closed to it,
@@ -1052,13 +1061,13 @@ final class _Parser extends ExpressionParser {
         nameToken,
       );
     }
-    take(
+    expectToken(
       '=',
       '"=" and a default value — a parameter without one is a '
           'parameter a variant can forget to set',
     );
     final value = parseConstant(type);
-    take(';', '";" after the parameter');
+    expectToken(';', '";" after the parameter');
     parameters.add(
       MaterialParameter(
         nameToken.text,
@@ -1071,11 +1080,11 @@ final class _Parser extends ExpressionParser {
   }
 
   void parseTexture() {
-    final nameToken = take('name', 'the slot\'s name');
+    final nameToken = expectToken('name', 'the slot\'s name');
     checkFreeName(nameToken);
     // `texture fur;` — version 2 (D21): a texture of the material's own, in
     // its slot table, bound as `material_fur`.
-    if (kind == MaterialStageKind.surface && takeIf(';')) {
+    if (kind == MaterialStageKind.surface && skipIf(';')) {
       if (version < 2) {
         fail(
           'a texture of a material\'s own is version 2; start the file with '
@@ -1092,8 +1101,8 @@ final class _Parser extends ExpressionParser {
       );
       return;
     }
-    take('=', '"=" and the engine binding this slot reads');
-    final binding = take('name', 'the engine binding\'s name');
+    expectToken('=', '"=" and the engine binding this slot reads');
+    final binding = expectToken('name', 'the engine binding\'s name');
     if (kind != MaterialStageKind.surface) {
       // A full-screen stage or a kernel is bound by whoever draws it, by
       // the names it declares — `FullscreenEffect.textures` — so the slot
@@ -1120,7 +1129,7 @@ final class _Parser extends ExpressionParser {
         binding,
       );
     }
-    take(';', '";" after the texture');
+    expectToken(';', '";" after the texture');
     textures.add(MaterialTextureSlot(nameToken.text, binding.text));
   }
 
@@ -1182,7 +1191,7 @@ final class _Parser extends ExpressionParser {
   }
 
   MaterialType parseType() {
-    final token = take('name', 'a type');
+    final token = expectToken('name', 'a type');
     for (final type in MaterialType.numeric.values) {
       if (type.name == token.text) return type;
     }
@@ -1212,15 +1221,15 @@ final class _Parser extends ExpressionParser {
   /// shader, or a stage of their own.
   List<MaterialStatement> parseBody(_Block body) {
     final what = body.what;
-    take('{', '"{" after "${body.opening}"');
+    expectToken('{', '"{" after "${body.opening}"');
     locals.clear();
     outputs.clear();
     block = body;
     final statements = <MaterialStatement>[];
-    while (!takeIf('}')) {
+    while (!skipIf('}')) {
       if (current.kind == 'end') fail('the $what is never closed.');
-      if (takeWordIf('let')) {
-        final nameToken = take('name', 'the name being bound');
+      if (skipWordIf('let')) {
+        final nameToken = expectToken('name', 'the name being bound');
         checkFreeName(nameToken);
         // Only a `let` is written into the shader under its own name; a
         // parameter is folded to a number and a slot to its binding.
@@ -1238,17 +1247,17 @@ final class _Parser extends ExpressionParser {
             nameToken,
           );
         }
-        take('=', '"=" after the name');
+        expectToken('=', '"=" after the name');
         final value = parseExpression();
         if (!value.type.isNumeric) {
           fail('a "let" binds a number or a vector, not a ${value.type}.');
         }
-        take(';', '";" after the binding');
+        expectToken(';', '";" after the binding');
         locals[nameToken.text] = value.type;
         statements.add(MaterialLet(nameToken.text, value));
-      } else if (body.isVertex && takeWordIf('out')) {
+      } else if (body.isVertex && skipWordIf('out')) {
         statements.add(parseOutput());
-      } else if (!body.isVertex && takeWordIf('return')) {
+      } else if (!body.isVertex && skipWordIf('return')) {
         final value = parseExpression();
         if (value.type != body.returns) {
           fail(switch (body.opening) {
@@ -1276,7 +1285,7 @@ final class _Parser extends ExpressionParser {
                   '${value.type}.',
           });
         }
-        take(';', '";" after the returned value');
+        expectToken(';', '";" after the returned value');
         statements.add(MaterialReturn(value));
         if (current.kind != '}') {
           fail('nothing follows the return in a $what.');
@@ -1308,7 +1317,7 @@ final class _Parser extends ExpressionParser {
 
   /// `out name = value;` in a `vertex` block — version 2.
   MaterialOutput parseOutput() {
-    final nameToken = take('name', 'the output\'s name');
+    final nameToken = expectToken('name', 'the output\'s name');
     final name = nameToken.text;
     final output =
         materialVertexOutputs.where((o) => o.name == name).firstOrNull ??
@@ -1325,12 +1334,12 @@ final class _Parser extends ExpressionParser {
         nameToken,
       );
     }
-    take('=', '"=" after the output');
+    expectToken('=', '"=" after the output');
     final value = parseExpression();
     if (value.type != output.type) {
       fail('"$name" is a ${output.type}, and this is a ${value.type}.');
     }
-    take(';', '";" after the output');
+    expectToken(';', '";" after the output');
     return MaterialOutput(output, value);
   }
 
@@ -1446,8 +1455,8 @@ final class _Parser extends ExpressionParser {
         token,
       );
     }
-    take('(', '"(" after sample');
-    final slotToken = take('name', 'the texture slot');
+    expectToken('(', '"(" after sample');
+    final slotToken = expectToken('name', 'the texture slot');
     final slot = textureNamed(slotToken.text);
     if (slot == null) {
       fail(
@@ -1456,12 +1465,12 @@ final class _Parser extends ExpressionParser {
       );
     }
     sampled.add(slot.name);
-    take(',', '"," and the coordinates');
+    expectToken(',', '"," and the coordinates');
     final uv = parseExpression();
     if (uv.type != MaterialType.vec2) {
       fail('sample takes a vec2 of coordinates, not a ${uv.type}.', token);
     }
-    take(')', '")" after sample');
+    expectToken(')', '")" after sample');
     return MaterialSample(slot, uv);
   }
 }

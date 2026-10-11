@@ -746,6 +746,9 @@ final class MaterialScaleUpdate extends MaterialUpdate {
   const MaterialScaleUpdate(super.version, this.name, this.factor);
 
   final String name;
+
+  /// What the value is multiplied by: a pure number, a fraction or a
+  /// multiple.
   final double factor;
 
   @override

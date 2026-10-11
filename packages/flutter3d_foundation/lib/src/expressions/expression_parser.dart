@@ -113,7 +113,8 @@ final class ExpressionToken {
   /// From 1.
   final int column;
 
-  /// A number token's value as written.
+  /// A number token's value as written, a pure number: a unit after it is a
+  /// token of its own.
   final double? number;
 
   @override
@@ -355,7 +356,7 @@ base class ExpressionParser {
 
   /// [current], which must be of [kind], and moves past it; [what] is how
   /// the refusal names what was expected.
-  ExpressionToken take(String kind, String what) {
+  ExpressionToken expectToken(String kind, String what) {
     if (current.kind != kind) {
       fail(
         'expected $what, found "${current.text.isEmpty ? 'the end of the '
@@ -368,14 +369,14 @@ base class ExpressionParser {
   }
 
   /// Moves past [current] if it is of [kind].
-  bool takeIf(String kind) {
+  bool skipIf(String kind) {
     if (current.kind != kind) return false;
     position++;
     return true;
   }
 
   /// Moves past [current] if it is the name [word].
-  bool takeWordIf(String word) {
+  bool skipWordIf(String word) {
     if (current.kind != 'name' || current.text != word) return false;
     position++;
     return true;
@@ -419,9 +420,9 @@ base class ExpressionParser {
   Expression parseConditional() {
     final condition = parseOr();
     if (current.kind != '?') return condition;
-    final question = take('?', '"?"');
+    final question = expectToken('?', '"?"');
     final then = parseExpression();
-    take(':', '":" and the value when the condition is false');
+    expectToken(':', '":" and the value when the condition is false');
     final otherwise = parseExpression();
     if (!condition.type.isBoolean) {
       fail('a condition is a bool, and this is a ${condition.type}.', question);
@@ -439,7 +440,7 @@ base class ExpressionParser {
   Expression parseOr() {
     var left = parseAnd();
     while (current.kind == '||') {
-      final op = take('||', 'an operator');
+      final op = expectToken('||', 'an operator');
       left = logical(op, left, parseAnd());
     }
     return left;
@@ -448,7 +449,7 @@ base class ExpressionParser {
   Expression parseAnd() {
     var left = parseComparison();
     while (current.kind == '&&') {
-      final op = take('&&', 'an operator');
+      final op = expectToken('&&', 'an operator');
       left = logical(op, left, parseComparison());
     }
     return left;
@@ -458,7 +459,7 @@ base class ExpressionParser {
     final left = parseSum();
     const comparisons = <String>{'<', '<=', '>', '>=', '==', '!='};
     if (!comparisons.contains(current.kind)) return left;
-    final op = take(current.kind, 'an operator');
+    final op = expectToken(current.kind, 'an operator');
     final right = parseSum();
     if (comparisons.contains(current.kind)) {
       fail('comparisons do not chain: write "a < b && b < c".', current);
@@ -470,7 +471,7 @@ base class ExpressionParser {
   Expression parseSum() {
     var left = parseProduct();
     while (current.kind == '+' || current.kind == '-') {
-      final op = take(current.kind, 'an operator');
+      final op = expectToken(current.kind, 'an operator');
       final right = parseProduct();
       left = binary(op, left, right);
     }
@@ -481,7 +482,7 @@ base class ExpressionParser {
   Expression parseProduct() {
     var left = parseUnary();
     while (current.kind == '*' || current.kind == '/') {
-      final op = take(current.kind, 'an operator');
+      final op = expectToken(current.kind, 'an operator');
       final right = parseUnary();
       left = binary(op, left, right);
     }
@@ -491,7 +492,7 @@ base class ExpressionParser {
   /// `-` and `!`. A negated constant is folded.
   Expression parseUnary() {
     if (current.kind == '-') {
-      final token = take('-', '"-"');
+      final token = expectToken('-', '"-"');
       final operand = parseUnary();
       if (!operand.type.isNumeric) {
         fail('a ${operand.type} cannot be negated.', token);
@@ -504,7 +505,7 @@ base class ExpressionParser {
       return ExpressionNegate(operand);
     }
     if (syntax.logic && current.kind == '!') {
-      final token = take('!', '"!"');
+      final token = expectToken('!', '"!"');
       final operand = parseUnary();
       if (!operand.type.isBoolean) {
         fail('"!" takes a bool, and this is a ${operand.type}.', token);
@@ -517,8 +518,8 @@ base class ExpressionParser {
   /// A primary and its swizzles.
   Expression parsePostfix() {
     var value = parsePrimary();
-    while (takeIf('.')) {
-      final field = take('name', 'a component after "."');
+    while (skipIf('.')) {
+      final field = expectToken('name', 'a component after "."');
       value = swizzle(value, field);
     }
     return value;
@@ -526,21 +527,23 @@ base class ExpressionParser {
 
   /// A number, a parenthesis, a constructor, a call or a name.
   Expression parsePrimary() {
-    if (takeIf('(')) {
+    if (skipIf('(')) {
       final inner = parseExpression();
-      take(')', '")"');
+      expectToken(')', '")"');
       return inner;
     }
     if (current.kind == 'number') {
-      final token = take('number', 'a number');
-      if (current.kind == 'unit') return quantity(token, take('unit', ''));
+      final token = expectToken('number', 'a number');
+      if (current.kind == 'unit') {
+        return quantity(token, expectToken('unit', ''));
+      }
       return ExpressionConstant(<double>[token.number!], ExpressionType.float);
     }
     if (current.kind != 'name') {
       fail('expected a value, found "${current.text}".');
     }
 
-    final token = take('name', 'a value');
+    final token = expectToken('name', 'a value');
     final name = token.text;
     if (syntax.logic && (name == 'true' || name == 'false')) {
       return ExpressionConstant(<double>[
@@ -573,13 +576,13 @@ base class ExpressionParser {
 
   /// The arguments of a call, between parentheses.
   List<Expression> arguments() {
-    take('(', '"(" and the arguments');
+    expectToken('(', '"(" and the arguments');
     final arguments = <Expression>[];
-    if (!takeIf(')')) {
+    if (!skipIf(')')) {
       do {
         arguments.add(parseExpression());
-      } while (takeIf(','));
-      take(')', '")" after the arguments');
+      } while (skipIf(','));
+      expectToken(')', '")" after the arguments');
     }
     return arguments;
   }
