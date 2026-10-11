@@ -57,6 +57,12 @@ final class ShaderTarget
   static const ShaderTarget spirv = ShaderTarget._('spirv', null)
   static const ShaderTarget wgsl = ShaderTarget._('wgsl', 'wgsl')
 
+final class StageAgreementException extends Flutter3dFormatException
+  StageAgreementException(Iterable<StageMismatch> mismatches)
+  String get message
+  String toString()
+  final List<StageMismatch> mismatches
+
 final class StageBlockMember
   String toString()
   bool operator ==(Object other)
@@ -99,7 +105,13 @@ final class StageVariable
   final int? location
   int get hashCode
 
+List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
+
 List<StageMismatch> checkStageAgreement({required StageInterface vertex, required StageInterface fragment, List<StageVariable>? attributes})
+
+String? pairedFragmentStage(String vertex, Set<String> fragments)
+
+void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 const Map<String, ({Set<String> blocks, Set<String> samplers})> stageBindings = …
 
@@ -160,6 +172,28 @@ final class ShaderTarget
   static const ShaderTarget spirv = ShaderTarget._('spirv', null)
   static const ShaderTarget wgsl = ShaderTarget._('wgsl', 'wgsl')
 
+final class StageAgreementException extends Flutter3dFormatException
+  StageAgreementException(Iterable<StageMismatch> mismatches)
+  String get message
+  String toString()
+  final List<StageMismatch> mismatches
+
+final class StageMismatch
+  String toString()
+  const StageMismatch({required this.kind, required this.name, required this.says})
+  final StageMismatchKind kind
+  final String name
+  final String says
+
+final class StageMismatchKind
+  String toString()
+  final String name
+  static StageMismatchKind? byName(String name)
+  static const List<StageMismatchKind> values = <StageMismatchKind>[varying, attribute, block]
+  static const StageMismatchKind attribute = StageMismatchKind._('attribute')
+  static const StageMismatchKind block = StageMismatchKind._('block')
+  static const StageMismatchKind varying = StageMismatchKind._('varying')
+
 typedef WebGlSectionSources = ({Map<String, String> vertex, Map<String, String> fragment});
 
 final class WgslCompileException extends Flutter3dFormatException
@@ -180,6 +214,8 @@ final class WgslSectionException extends Flutter3dFormatException
 Map<String, int> assignVaryingLocations(Iterable<Set<String>> stages)
 
 Map<String, int> bundleVaryingLocations(ShaderSet engine, Iterable<BundleStageSource> stages)
+
+List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<String, int>> offsets)
 
@@ -205,7 +241,11 @@ const String nagaExecutable = 'naga'
 
 String packageRoot(String name, {String? from})
 
+String? pairedFragmentStage(String vertex, Set<String> fragments)
+
 PreparedStage prepareStage(String resolved, {required String from, required bool fragment, required Map<String, int> varyingLocations})
+
+void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 String resolveIncludes(String source, GlslSources sources, {required String from, Set<String>? seen, List<String>? stack})
 
@@ -866,6 +906,28 @@ final class PreparedStage
   final List<PreparedSampler> samplers
   final String glsl
 
+final class StageAgreementException extends Flutter3dFormatException
+  StageAgreementException(Iterable<StageMismatch> mismatches)
+  String get message
+  String toString()
+  final List<StageMismatch> mismatches
+
+final class StageMismatch
+  String toString()
+  const StageMismatch({required this.kind, required this.name, required this.says})
+  final StageMismatchKind kind
+  final String name
+  final String says
+
+final class StageMismatchKind
+  String toString()
+  final String name
+  static StageMismatchKind? byName(String name)
+  static const List<StageMismatchKind> values = <StageMismatchKind>[varying, attribute, block]
+  static const StageMismatchKind attribute = StageMismatchKind._('attribute')
+  static const StageMismatchKind block = StageMismatchKind._('block')
+  static const StageMismatchKind varying = StageMismatchKind._('varying')
+
 typedef WebGlSectionSources = ({Map<String, String> vertex, Map<String, String> fragment});
 
 final class WgslPrepareException extends Flutter3dFormatException
@@ -879,6 +941,8 @@ final class WgslSectionException extends Flutter3dFormatException
   final String message
 
 Map<String, int> assignVaryingLocations(Iterable<Set<String>> stages)
+
+List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<String, int>> offsets)
 
@@ -894,7 +958,11 @@ const int fragmentGroup = 1
 
 const int maxInterStageVariables = 16
 
+String? pairedFragmentStage(String vertex, Set<String> fragments)
+
 PreparedStage prepareStage(String resolved, {required String from, required bool fragment, required Map<String, int> varyingLocations})
+
+void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
 String resolveIncludes(String source, GlslSources sources, {required String from, Set<String>? seen, List<String>? stack})
 

@@ -15,5 +15,15 @@ library;
 export 'src/bundle_section_exception.dart';
 export 'src/glsl_to_wgsl.dart';
 export 'src/glsl_translate.dart';
+// The writers below refuse a bundle whose stages disagree; what they throw,
+// and the check a packer runs on its own, are the contract's.
+export 'src/stage_interface.dart'
+    show
+        StageAgreementException,
+        StageMismatch,
+        StageMismatchKind,
+        checkBundleAgreement,
+        pairedFragmentStage,
+        requireBundleAgreement;
 export 'src/webgl_bundle_section.dart';
 export 'src/wgsl_section.dart';
