@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **`releasePipeline` lets go of what was built for the pipeline.** With
+  the last handle over a stage pair and vertex layout, every
+  `GPURenderPipeline` the draws built for them leaves the cache, and with
+  the last over the pair, its bind group layouts and the bind groups made
+  from them. WebGPU has no `destroy` for these, and the caches held them
+  for the life of the device; a second handle over the same pair keeps
+  drawing after the first is given back.
+- **A draw keys the pipeline cache without rendering its vertex layout.**
+  The layout's fingerprint was rendered into a string at every draw; it is
+  rendered once per pipeline, as the cache's own documentation said.
 - **`WebGpuSectionCompiler`, this backend's entry in a
   `MaterialCompilerRegistry`.** It packs a material's stages, written as
   WGSL by `RuntimeShaders` against `webGpuMaterialHost()`, into the section

@@ -771,6 +771,20 @@ final class WebGlDevice extends GraphicsDevice
     return library;
   }
 
+  /// Deletes the GL program behind [pipeline] once no other handle shares
+  /// it: two layouts over one pair, or the same pair asked for twice, are
+  /// one program here. A pair that would not link gives back the program a
+  /// later bind linked, if one did. See `WebGlShaderLibrary.release`.
+  @override
+  void releasePipeline(PipelineHandle pipeline) {
+    if (pipeline.backend case final WebGlUnlinkedPipeline unlinked) {
+      if (unlinked.relinked case final relinked?) _library.release(relinked);
+      unlinked.relinked = null;
+      return;
+    }
+    _library.release(pipeline);
+  }
+
   @override
   void releaseTexture(TextureHandle texture) {
     final backend = texture.backend;
@@ -1280,11 +1294,12 @@ final class WebGlDevice extends GraphicsDevice
     VertexLayoutDescriptor? layout,
   }) {
     try {
-      return _library.link(vertex, fragment, layout: layout);
+      return _library.link(vertex, fragment, layout: layout, owner: this);
     } on ShaderCompileException catch (error) {
       final handle = wrapPipeline(
         backend: WebGlUnlinkedPipeline(vertex, fragment, layout),
         name: '${vertex.name}+${fragment.name}',
+        owner: this,
       );
       pipelineRefusals.report(handle, _linkRefusal(handle, error));
       return handle;
@@ -1302,15 +1317,12 @@ final class WebGlDevice extends GraphicsDevice
     if (linked != null) return linked;
     if (pipelineRefusals.isRefused(handle)) return null;
     try {
-      return unlinked.linked =
-          _library
-                  .link(
-                    unlinked.vertex,
-                    unlinked.fragment,
-                    layout: unlinked.layout,
-                  )
-                  .backend
-              as WebGlProgram;
+      final relinked = unlinked.relinked = _library.link(
+        unlinked.vertex,
+        unlinked.fragment,
+        layout: unlinked.layout,
+      );
+      return relinked.backend as WebGlProgram;
     } on ShaderCompileException catch (error) {
       pipelineRefusals.report(handle, _linkRefusal(handle, error));
       return null;

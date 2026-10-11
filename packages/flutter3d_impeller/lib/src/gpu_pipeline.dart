@@ -30,15 +30,31 @@ final class GpuPipeline<T extends Object> {
   /// `vertex+fragment`, as the handle names it.
   final String name;
 
-  final T Function() _build;
+  T Function()? _build;
   T? _linked;
+
+  /// Lets go of the linked pipeline and of what would link it again: what
+  /// `GraphicsDevice.releasePipeline` can do here.
+  ///
+  /// flutter_gpu's `RenderPipeline` has no dispose, so its native side goes
+  /// with its last reference, which this drops — the handle a renderer still
+  /// holds in a field no longer keeps it, nor the two stages it was linked
+  /// from. A released pipeline links nothing again: its draws are skipped,
+  /// as a debug build's `debugCheckLive` at the bind would have said.
+  void release() {
+    _linked = null;
+    _build = null;
+  }
+
+  /// Whether [release] has run.
+  bool get isReleased => _build == null;
 
   /// The linked pipeline, linking it first when it is not: at creation, and
   /// at the bind after a refusal dropped it.
   ///
   /// Null when the pipeline cannot be had now — left refused by [refusals],
   /// even one linked before, or refused by this link, which is reported
-  /// there — and the draws that follow its bind are skipped.
+  /// there, or [release]d — and the draws that follow its bind are skipped.
   T? linked(
     PipelineHandle handle,
     PipelineRefusals refusals, {
@@ -47,10 +63,12 @@ final class GpuPipeline<T extends Object> {
     // The record first, whatever was linked: a pipeline it leaves refused is
     // skipped on every backend, built or not.
     if (refusals.isRefused(handle)) return null;
+    final build = _build;
+    if (build == null) return null;
     final linked = _linked;
     if (linked != null) return linked;
     try {
-      return _linked = _build();
+      return _linked = build();
     } on Exception catch (error) {
       refusals.report(handle, _refusal(error, deviceLost: deviceLost));
       return null;

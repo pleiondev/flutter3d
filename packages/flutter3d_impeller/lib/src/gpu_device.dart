@@ -1018,6 +1018,16 @@ final class GpuRenderBackend extends GraphicsDevice {
   @override
   void releaseGeometry(GeometryBuffer geometry) {}
 
+  /// Lets go of the linked `gpu.RenderPipeline` and the stages it would be
+  /// linked from: flutter_gpu has no dispose for one either, so what this can
+  /// do is stop being the reference that keeps it. See [GpuPipeline.release].
+  @override
+  void releasePipeline(PipelineHandle pipeline) {
+    if (pipeline.backend case final GpuPipeline<Object> linked) {
+      linked.release();
+    }
+  }
+
   /// Drops the `gpu.SamplerOptions` built for [sampler]. The cache is the
   /// backend's, shared by every device in the isolate, so another device's
   /// next bind of the same description builds it again too.

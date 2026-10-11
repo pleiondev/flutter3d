@@ -119,9 +119,13 @@ final class WebGlUnlinkedPipeline {
   final ShaderHandle fragment;
   final VertexLayoutDescriptor? layout;
 
-  /// The program a later link made, kept so the next bind does not link
-  /// again; null until one does.
-  WebGlProgram? linked;
+  /// The handle a later link made, kept so the next bind does not link
+  /// again, and given back with the handle that carries this; null until a
+  /// link takes.
+  PipelineHandle? relinked;
+
+  /// The program [relinked] carries, or null.
+  WebGlProgram? get linked => relinked?.backend as WebGlProgram?;
 }
 
 /// A linked program plus what reflection told us about it.

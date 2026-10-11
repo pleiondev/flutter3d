@@ -1311,7 +1311,63 @@ final class WebGpuDevice extends GraphicsDevice
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
-  }) => createWebGpuPipeline(vertex, fragment, layout: layout);
+  }) => _held(
+    createWebGpuPipeline(vertex, fragment, layout: layout, owner: this),
+  );
+
+  /// [handle], counted among the handles over its stages and layout until
+  /// [releasePipeline] gives it back.
+  PipelineHandle _held(PipelineHandle handle) {
+    final stages = _stagesOf(handle.backend as WebGpuPipeline);
+    _holders.hold(stages);
+    _heldStages[handle] = stages;
+    return handle;
+  }
+
+  static WebGpuStages _stagesOf(WebGpuPipeline pipeline) => WebGpuStages(
+    vertexModule: pipeline.vertexModule,
+    fragmentModule: pipeline.fragmentModule,
+    vertexLayout: pipeline.layoutFingerprint,
+  );
+
+  /// How many live handles stand for each pair and layout; see
+  /// [releasePipeline].
+  final WebGpuPipelineHolders _holders = WebGpuPipelineHolders();
+
+  /// The stages each live handle [createPipeline] made stands for, taken out
+  /// at its release so a second release counts nothing.
+  final Expando<WebGpuStages> _heldStages = Expando<WebGpuStages>(
+    'held stages',
+  );
+
+  /// Forgets what was built for [pipeline]'s pair and layout once no other
+  /// handle stands for them: every `GPURenderPipeline` the draws built in
+  /// whatever state, and — when the pair has no handle left under any
+  /// layout — its bind group layouts and the bind groups made from them.
+  ///
+  /// WebGPU has no `destroy` for a pipeline, a layout or a bind group; they
+  /// go with their last reference, and the device's caches were that
+  /// reference for the life of the device. `createPipeline` is nearly free
+  /// here and a renderer may ask for one pair twice, so the count keeps a
+  /// second handle drawing after the first is given back.
+  @override
+  void releasePipeline(PipelineHandle pipeline) {
+    final stages = _heldStages[pipeline];
+    if (stages == null) return;
+    _heldStages[pipeline] = null;
+    if (!_holders.release(stages)) return;
+    _pipelines.forgetStages(stages);
+    if (_holders.holdsPair(stages)) return;
+    final layouts = _bindingLayouts.remove(
+      _StagePairKey(stages.vertexModule!, stages.fragmentModule!),
+    );
+    if (layouts == null) return;
+    _bindGroups.removeWhere(
+      (_BindGroupKey key, GPUBindGroup _) => layouts.groups.any(
+        (GPUBindGroupLayout g) => identical(g, key.layout),
+      ),
+    );
+  }
 
   /// [createPipeline], and the real pipelines it will need **built off the
   /// calling turn**, through `createRenderPipelineAsync`.
@@ -1339,7 +1395,9 @@ final class WebGpuDevice extends GraphicsDevice
     ShaderHandle fragment, {
     VertexLayoutDescriptor? layout,
   }) async {
-    final handle = createWebGpuPipeline(vertex, fragment, layout: layout);
+    final handle = _held(
+      createWebGpuPipeline(vertex, fragment, layout: layout, owner: this),
+    );
     final pipeline = handle.backend as WebGpuPipeline;
     final layouts = _bindingsFor(pipeline);
     await Future.wait(<Future<void>>[
@@ -2414,6 +2472,7 @@ fn fs_main(@builtin(position) at: vec4<f32>) -> @location(0) vec4<f32> {
     // makes the resource count fall to zero, and what stops a caller holding
     // this device from holding them too.
     _pipelines.clear();
+    _holders.clear();
     _drawStates.clear();
     _bindingLayouts.clear();
     _samplers.clear();

@@ -549,10 +549,14 @@ final class WebGpuGroupShape {
 /// fragment stage of this backend, when the two stages disagree about where a
 /// name is bound, or when [layout] does not feed every input the vertex stage
 /// declares.
+///
+/// [owner] is the device whose `releasePipeline` the handle's `dispose`
+/// calls.
 PipelineHandle createWebGpuPipeline(
   ShaderHandle vertex,
   ShaderHandle fragment, {
   VertexLayoutDescriptor? layout,
+  GraphicsDevice? owner,
 }) {
   final vertexStage = _stageOf(vertex, wantVertex: true);
   final fragmentStage = _stageOf(fragment, wantVertex: false);
@@ -582,6 +586,7 @@ PipelineHandle createWebGpuPipeline(
       fragmentOutputs: wgslFragmentOutputs(fragmentStage.stage.wgsl),
     ),
     name: name,
+    owner: owner,
   );
 }
 
