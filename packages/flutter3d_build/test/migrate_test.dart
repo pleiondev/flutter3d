@@ -454,10 +454,29 @@ int ef(int x)
   });
 
   group('the command line', () {
-    Future<ProcessResult> migrate(List<String> args) => Process.run(
-      Platform.resolvedExecutable,
-      <String>['bin/migrate.dart', ...args],
-    );
+    // **Compiled once, run three times.** Each `dart bin/migrate.dart` ran
+    // the whole build tool through the JIT again, about eighteen seconds a
+    // run on a loaded machine; the kernel is compiled from the same entry
+    // point once and each run then starts in well under a second, so what
+    // is checked is still the alias a user types, in a process of its own.
+    late Directory scratch;
+    late String kernel;
+    setUpAll(() async {
+      scratch = Directory.systemTemp.createTempSync('f3d_migrate_cli_');
+      kernel = '${scratch.path}/migrate.dill';
+      final compiled = await Process.run(Platform.resolvedExecutable, <String>[
+        'compile',
+        'kernel',
+        'bin/migrate.dart',
+        '-o',
+        kernel,
+      ]);
+      expect(compiled.exitCode, 0, reason: '${compiled.stderr}');
+    });
+    tearDownAll(() => scratch.deleteSync(recursive: true));
+
+    Future<ProcessResult> migrate(List<String> args) =>
+        Process.run(Platform.resolvedExecutable, <String>[kernel, ...args]);
 
     test('--help is an answer, on stdout, exiting 0', () async {
       // Mutation: answer --help as the usage error it shares a branch with

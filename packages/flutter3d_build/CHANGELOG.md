@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **An impostor bakes in a twentieth of the time.** The bake draws its
+  views without shadows, which its unlit and normals pictures never read;
+  the sun's cascades, keyed again for every view, were most of the work.
+  The atlases are the same bytes.
 - **A twin's USD arrives with the ids it binds its elements by.** Custom
   attributes (declared `custom`, under `userProperties:`, or in a prim's
   `customData`) ride the level: an instance's on its row under

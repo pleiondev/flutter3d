@@ -73,7 +73,12 @@ Future<ModelDocument> bakeImpostors(
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       );
   final renderer = Renderer.create(device: gpu);
-  final settings = const RenderSettings().forMeasurement();
+  // No shadows: the unlit and normals models the bake draws read none, and
+  // the sun's cascades, keyed again for every view's camera, were nineteen
+  // twentieths of a bake's time on the software rasteriser.
+  final settings = const RenderSettings(
+    shadows: ShadowSettings(enabled: false),
+  ).forMeasurement();
   final normalsMaterial = RenderMaterial(
     lighting: LightingModel.normals,
     doubleSided: true,
