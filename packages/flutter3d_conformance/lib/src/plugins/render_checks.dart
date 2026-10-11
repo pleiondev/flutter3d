@@ -370,7 +370,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
               ..setScale(2.0, 2.0, 2.0),
           );
         final result = stage.render(painted);
-        if (!result.passes.any((p) => p.name == 'decals')) {
+        if (!result.passes.any((p) => p.name == FramePassNames.decals)) {
           return outcome('render.decal', false, 'the decal pass did not run');
         }
         if (pictures != null) {
@@ -393,7 +393,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
         final order = <String>[
           for (final pass in stage.render(stage.scene()).passes) pass.name,
         ];
-        final velocity = order.indexOf('camera velocity');
+        final velocity = order.indexOf(FramePassNames.cameraVelocity);
         final at = order.indexOf(reader);
         final passed = velocity >= 0 && at > velocity;
         return outcome(

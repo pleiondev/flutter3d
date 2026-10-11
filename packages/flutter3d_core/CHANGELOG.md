@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`FramePassNames`: the passes code outside the renderer names.**
+  `decals`, `cameraVelocity` and `objectVelocity`, the strings
+  `FrameResult.passes` reports, spelled once: the nodes, their
+  `RenderStep`s, `RenderSettings.passOrder` and the conformance render
+  checks all read them from here.
 - **A material has a version of its own, and updates.** Material language
   version 3 reads `material Hatch version 3 { updates { 2: rename ink ->
   inkColor; 3: scale roughness 0.5; } … }`: `MaterialProgram.version` and

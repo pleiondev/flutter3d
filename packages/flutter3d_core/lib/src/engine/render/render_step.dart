@@ -27,6 +27,7 @@ library;
 
 import '../scene/occlusion/occlusion_test.dart';
 import 'frame_graph.dart' show PassSkip, SkippedPass;
+import 'frame_plan.dart' show FramePassNames;
 import 'render_settings.dart';
 
 /// One step of the frame that can be switched off — the passes before the
@@ -247,7 +248,7 @@ final class RenderStep {
     'decals',
     _decalsOff,
     _decalsOn,
-    passes: <String>{'decals'},
+    passes: <String>{FramePassNames.decals},
   );
 
   /// The scene's second half — `M3`: on a frame that holds glass, a
@@ -365,7 +366,10 @@ final class RenderStep {
     'velocity',
     null,
     null,
-    passes: <String>{'camera velocity', 'object velocity'},
+    passes: <String>{
+      FramePassNames.cameraVelocity,
+      FramePassNames.objectVelocity,
+    },
   );
 
   /// Off is `motionBlur.enabled` false. Needs [velocity].

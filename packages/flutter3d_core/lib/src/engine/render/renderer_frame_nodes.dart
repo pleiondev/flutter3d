@@ -1029,7 +1029,7 @@ final class _DecalNode extends RenderNode {
   final RenderSettings _settings;
 
   @override
-  String get name => 'decals';
+  String get name => FramePassNames.decals;
 
   @override
   bool get isSupported => _renderer.device.limits.maxColorAttachments > 2;
@@ -1528,7 +1528,7 @@ final class _CameraVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   final RenderSettings _settings;
 
   @override
-  String get name => 'camera velocity';
+  String get name => FramePassNames.cameraVelocity;
 
   @override
   bool get isActive => _settings._velocityOn(asked: asked);
@@ -1580,7 +1580,7 @@ final class _ObjectVelocityNode extends RenderNode with _NeedsSurfaceBuffer {
   final Scene _scene;
 
   @override
-  String get name => 'object velocity';
+  String get name => FramePassNames.objectVelocity;
 
   @override
   bool get isActive => _settings._velocityOn(asked: asked);

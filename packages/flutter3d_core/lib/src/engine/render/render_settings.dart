@@ -12,6 +12,7 @@ import 'auto_exposure.dart';
 import 'debug_draw.dart';
 import 'debug_view.dart';
 import 'frame_graph.dart' show PassSkip;
+import 'frame_plan.dart' show FramePassNames;
 import 'physical_camera.dart';
 import 'render_step.dart';
 import 'shadow_settings.dart';
@@ -2419,7 +2420,7 @@ final class RenderSettings {
     // are named by index rather than by a constant — see [probePassName].
     'scene',
     // `P3`: painted onto the opaque half, before the glass is drawn over it.
-    'decals',
+    FramePassNames.decals,
     // `M3`: on a frame with glass, the scene as the opaque half left it, and
     // the glass and the transparent half drawn over it. Culled on any other.
     'scene color copy',
@@ -2440,8 +2441,8 @@ final class RenderSettings {
     // temporal resolve to average it across frames.
     'contact shadow resolve',
     // `R1`: the motion of every pixel, and then of what moved over it.
-    'camera velocity',
-    'object velocity',
+    FramePassNames.cameraVelocity,
+    FramePassNames.objectVelocity,
     // `R4`: what blends marked over it, for the resolve to trust less.
     'reactive mask',
     // `R3`: the two noisy effects carried into their own histories.

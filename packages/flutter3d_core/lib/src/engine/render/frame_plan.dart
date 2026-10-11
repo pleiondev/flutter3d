@@ -18,6 +18,24 @@ library;
 
 import 'frame_graph.dart';
 
+/// The names of the engine's passes that code outside the renderer refers
+/// to, as `FrameResult.passes` reports them: a plugin ordering a node after
+/// one, a check that looks for one in a frame.
+///
+/// For the reason [FrameResourceIds] are constants: the node, the
+/// `RenderStep` that owns it, `RenderSettings.passOrder` and every reader
+/// spell the name once, here. `RenderSettings.passOrder` lists every name.
+abstract final class FramePassNames {
+  /// Decals painted onto the opaque half.
+  static const String decals = 'decals';
+
+  /// The motion the camera alone gives every pixel.
+  static const String cameraVelocity = 'camera velocity';
+
+  /// The motion of the nodes that moved, over [cameraVelocity]'s.
+  static const String objectVelocity = 'object velocity';
+}
+
 /// Everything the frame produces or hands around.
 ///
 /// Named constants rather than bare strings so a misspelling is a compile
