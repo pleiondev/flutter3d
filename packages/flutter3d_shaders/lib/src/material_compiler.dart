@@ -133,8 +133,10 @@ final class MaterialCompileException extends CapabilityException {
 abstract base class MaterialCompiler {
   const MaterialCompiler();
 
-  /// The backend's name, as its `GraphicsDevice` gives it — `webgpu`,
-  /// `vulkan`.
+  /// The backend's id, exactly as its `GraphicsDevice.backendId` gives it:
+  /// `webgpu`, `vulkan`. [MaterialCompilerRegistry.forBackend] compares it
+  /// as written; the engine's four are `cpu`, `webgl`, `webgpu` and
+  /// `impeller`.
   String get backend;
 
   /// The key of the section this compiler writes in a `ShaderBundle`, and
@@ -187,6 +189,7 @@ final class MaterialCompilerRegistry {
   };
 
   /// The compiler for [backend] — the one registered last — or null.
+  /// [backend] is a backend id, compared exactly.
   MaterialCompiler? forBackend(String backend) {
     for (final compiler in _compilers.reversed) {
       if (compiler.backend == backend) return compiler;

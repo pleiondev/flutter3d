@@ -49,6 +49,9 @@ final class GpuRenderBackend extends GraphicsDevice {
   @override
   String get backendName => 'Impeller';
 
+  @override
+  String get backendId => 'impeller';
+
   /// [frame] — a texture this device made, such as `FrameResult.frame` — as
   /// a `dart:ui` image over the same allocation, without a copy. What a
   /// widget that composites the engine's frame itself paints.

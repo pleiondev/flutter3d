@@ -48,6 +48,9 @@ final class RecordingDevice extends GraphicsDevice
   String get backendName => inner.backendName;
 
   @override
+  String get backendId => inner.backendId;
+
+  @override
   Stream<DeviceLoss> get lost => inner.lost;
 
   @override

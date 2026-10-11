@@ -68,16 +68,29 @@ abstract final class RuntimeBackends {
   /// Impeller: runs what `impellerc` compiled ahead of time.
   static const String impeller = 'impeller';
 
-  /// [backend] as one of the four names above: lower case, so `WebGL2`,
-  /// `webgl2` and `webgl` are one backend. Null stays null.
+  /// The names, in any case, that mean one of the engine's four backends:
+  /// each id, and the `GraphicsDevice.backendName` each device gives.
+  static const Map<String, String> _aliases = <String, String>{
+    'cpu': cpu,
+    'the software rasteriser': cpu,
+    'webgl': webgl,
+    'webgl2': webgl,
+    'webgpu': webgpu,
+    'impeller': impeller,
+  };
+
+  /// [backend] as a backend id: one of the four ids above for one of the
+  /// engine's own backends, by its id or its device's name in any case
+  /// (`WebGL2`, `webgl2` and `webgl` are one backend), and any other name
+  /// exactly as written. Null stays null.
+  ///
+  /// **Exact, not by prefix.** A backend from outside is matched by its own
+  /// id (`GraphicsDevice.backendId`), the one its `MaterialCompiler` gives:
+  /// `webgpu-dawn` is not the engine's WebGPU, and `Vulkan` finds the
+  /// compiler registered as `Vulkan`.
   static String? normalize(String? backend) {
     if (backend == null) return null;
-    final lower = backend.toLowerCase();
-    if (lower.startsWith('webgl')) return webgl;
-    if (lower.startsWith('webgpu')) return webgpu;
-    if (lower.startsWith('impeller')) return impeller;
-    if (lower.startsWith('cpu') || lower.startsWith('software')) return cpu;
-    return lower;
+    return _aliases[backend.toLowerCase()] ?? backend;
   }
 }
 

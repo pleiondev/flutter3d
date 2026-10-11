@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A backend is matched by its id, exactly.** `RuntimeBackends.normalize`
+  maps the engine's four backends by their ids and device names, in any
+  case, and leaves every other name as written: `webgpu-dawn` is no longer
+  taken for the engine's WebGPU by its prefix, and a compiler registered
+  as `Vulkan` is found under `Vulkan`.
 - **A plugin's lit model draws its defaults where a material sets
   nothing.** `MaterialBlockMember.defaultValue` (new) carries the value a
   member's source declares; the renderer binds every block of a model's

@@ -1098,8 +1098,10 @@ Registration register{{stem}}Backend(
 final class {{stem}}MaterialCompiler extends MaterialCompiler {
   const {{stem}}MaterialCompiler();
 
+  /// The device's `backendId`, which the registry matches exactly: the
+  /// device's name in lower case, its default.
   @override
-  String get backend => {{stem}}Device.name;
+  String get backend => {{stem}}Device.name.toLowerCase();
 
   /// [{{lowerStem}}Section], which no other backend's compiler may take.
   @override
@@ -2104,7 +2106,14 @@ void main() {
     final registration = register{{stem}}Backend(registry, compilers: compilers);
     expect(registry.backendNames, <String>[{{stem}}Device.name]);
     expect(compilers.forBackend({{stem}}Device.name), isA<{{stem}}MaterialCompiler>());
-    expect(await registry.open(width: 8, height: 8), isA<{{stem}}Device>());
+    final device = await registry.open(width: 8, height: 8);
+    expect(device, isA<{{stem}}Device>());
+    // The compiler is found by the id the device gives, exactly.
+    // Mutation: name the compiler "{{stem}}".
+    expect(
+      compilers.forBackend((device as {{stem}}Device).backendId),
+      isA<{{stem}}MaterialCompiler>(),
+    );
 
     registration.cancel();
     expect(registry.backendNames, isEmpty);

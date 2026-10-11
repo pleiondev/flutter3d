@@ -1610,6 +1610,9 @@ final class WebGpuDevice extends GraphicsDevice
   @override
   String get backendName => _backend;
 
+  @override
+  String get backendId => 'webgpu';
+
   // -------------------------------------------------- 1.0: loss and labels
 
   /// The device's `lost` promise, as [GraphicsDevice.lost]: one event, never

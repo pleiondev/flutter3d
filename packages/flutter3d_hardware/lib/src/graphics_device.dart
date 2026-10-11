@@ -706,6 +706,17 @@ abstract base class GraphicsDevice with TextureAllocator {
   /// by ("WebGPU", "Impeller").
   String get backendName => '$runtimeType';
 
+  /// The backend's id: the one name a material compiler, a plugin manifest
+  /// and `RuntimeShaders` know this backend by, compared exactly.
+  ///
+  /// [backendName] is for people ("WebGL2", "the software rasteriser"); this
+  /// is for matching, so it is short, lower case and fixed for good once a
+  /// backend ships: `cpu`, `webgl`, `webgpu`, `impeller` for the engine's
+  /// four. A `MaterialCompiler` for this backend answers the same string as
+  /// its `backend`. [backendName] in lower case by default, so a backend
+  /// that names itself "Vulkan" is `vulkan` unless it says otherwise.
+  String get backendId => backendName.toLowerCase();
+
   /// The refusal for [feature] on this device, for a default body or a
   /// backend's own gate to throw: `throw refuse(DeviceFeature.compute)`.
   @protected

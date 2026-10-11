@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **`GraphicsDevice.backendId`: one name a backend is matched by.**
+  `backendName` is for people ("WebGL2", "the software rasteriser"); the
+  id is what a `MaterialCompiler`'s `backend` and a plugin manifest give,
+  compared exactly: `cpu`, `webgl`, `webgpu` and `impeller` for the
+  engine's four, and the name in lower case by default for any other.
 - **A descriptor says which features its fields need.**
   `SamplerDescriptor`, `BlendState`, `TextureDescriptor` and
   `BufferDescriptor` gain `checkFeatures(features, backend:)`, as

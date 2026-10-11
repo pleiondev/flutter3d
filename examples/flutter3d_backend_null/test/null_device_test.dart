@@ -21,7 +21,14 @@ void main() {
     final registration = registerNullBackend(registry, compilers: compilers);
     expect(registry.backendNames, <String>[NullDevice.name]);
     expect(compilers.forBackend(NullDevice.name), isA<NullMaterialCompiler>());
-    expect(await registry.open(width: 8, height: 8), isA<NullDevice>());
+    final device = await registry.open(width: 8, height: 8);
+    expect(device, isA<NullDevice>());
+    // The compiler is found by the id the device gives, exactly.
+    // Mutation: name the compiler "Null".
+    expect(
+      compilers.forBackend((device as NullDevice).backendId),
+      isA<NullMaterialCompiler>(),
+    );
 
     registration.cancel();
     expect(registry.backendNames, isEmpty);

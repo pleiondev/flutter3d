@@ -307,7 +307,20 @@ void main() {
       expect(RuntimeBackends.normalize('Impeller'), RuntimeBackends.impeller);
       expect(RuntimeBackends.normalize('WebGPU'), RuntimeBackends.webgpu);
       expect(RuntimeBackends.normalize('cpu'), RuntimeBackends.cpu);
+      expect(
+        RuntimeBackends.normalize('the software rasteriser'),
+        RuntimeBackends.cpu,
+      );
       expect(RuntimeBackends.normalize(null), isNull);
+    });
+
+    test('a backend from outside is its own id, matched exactly', () {
+      // Mutation: match by prefix again, and a Dawn backend from outside is
+      // taken for the engine's WebGPU, and a Vulkan one is lower-cased past
+      // the compiler registered under its id.
+      expect(RuntimeBackends.normalize('webgpu-dawn'), 'webgpu-dawn');
+      expect(RuntimeBackends.normalize('Vulkan'), 'Vulkan');
+      expect(RuntimeBackends.normalize('software-gl'), 'software-gl');
     });
   });
 }

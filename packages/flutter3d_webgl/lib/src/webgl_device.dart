@@ -122,6 +122,9 @@ final class WebGlDevice extends GraphicsDevice
   @override
   String get backendName => 'WebGL2';
 
+  @override
+  String get backendId => 'webgl';
+
   // ------------------------------------------------ 1.0: a context that goes
 
   /// `webglcontextlost` and `webglcontextrestored` on [_canvas], as

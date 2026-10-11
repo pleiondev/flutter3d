@@ -10,8 +10,8 @@ library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/backend.dart';
-import 'package:flutter3d_shaders/kernel.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
+import 'package:flutter3d_shaders/kernel.dart';
 import 'package:test/test.dart';
 
 void main() {
