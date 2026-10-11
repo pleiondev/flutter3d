@@ -117,7 +117,12 @@ void ContributorLight(int index, vec3 world, out vec3 toLight,
                           : 1.0;
   float ramp = linearRamp * linearRamp;
 
-  float attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
+  // A plugin's light type (codes from 16 up) is its own model's to read, and
+  // gives nothing here, as it gives nothing in `surface.glsl`'s loop.
+  float attenuation = type > 15.5
+                          ? 0.0
+                          : (directional ? 1.0
+                                         : (degenerate ? 0.0 : falloff * ramp));
   radiance = color.rgb * color.w * attenuation;
 }
 

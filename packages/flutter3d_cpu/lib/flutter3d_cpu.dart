@@ -11,6 +11,7 @@ library;
 export 'src/cpu_backend_registration.dart';
 export 'src/cpu_device.dart' show CpuDevice;
 export 'src/cpu_png.dart';
+export 'src/cpu_section_compiler.dart';
 export 'src/cpu_shader.dart';
 export 'src/cpu_shader_library.dart'
     show CpuLoadedShaderLibrary, CpuMaterialCompiler, CpuShaderLibrary;

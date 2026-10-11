@@ -39,6 +39,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
 
 import 'glsl_to_wgsl.dart';
+import 'stage_interface.dart';
 
 /// The shape of the document this writer produces.
 ///
@@ -80,18 +81,34 @@ typedef PackedStage = ({String wgsl, PreparedStage prepared});
 ///
 /// The caller writes it as UTF-8; `ShaderBundle` carries bytes and this file
 /// deliberately stops at the text, so a test can read what was written.
+///
+/// Throws a [StageAgreementException] when a vertex stage and the fragment
+/// stage its name pairs it with ([pairedFragmentStage]) disagree, read from
+/// the GLSL each was prepared from.
 String wgslSectionDocument({
   required Map<String, PackedStage> vertex,
   required Map<String, PackedStage> fragment,
-}) => jsonEncode(<String, Object>{
-  'version': sectionVersion,
-  'vertex': <String, Object>{
-    for (final entry in vertex.entries) entry.key: _stageJson(entry.value),
-  },
-  'fragment': <String, Object>{
-    for (final entry in fragment.entries) entry.key: _stageJson(entry.value),
-  },
-});
+}) {
+  requireBundleAgreement(
+    vertex: <String, String>{
+      for (final MapEntry(:key, :value) in vertex.entries)
+        key: value.prepared.glsl,
+    },
+    fragment: <String, String>{
+      for (final MapEntry(:key, :value) in fragment.entries)
+        key: value.prepared.glsl,
+    },
+  );
+  return jsonEncode(<String, Object>{
+    'version': sectionVersion,
+    'vertex': <String, Object>{
+      for (final entry in vertex.entries) entry.key: _stageJson(entry.value),
+    },
+    'fragment': <String, Object>{
+      for (final entry in fragment.entries) entry.key: _stageJson(entry.value),
+    },
+  });
+}
 
 Map<String, Object> _stageJson(PackedStage stage) => <String, Object>{
   'wgsl': stage.wgsl,

@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Registers its material compiler beside the device.**
+  `registerCpuBackend(compilers:)` adds `CpuSectionCompiler` to a
+  `MaterialCompilerRegistry` and takes it out with the device: the section
+  `RuntimeShaders` writes for this backend, the material's source under each
+  of its stages, now found by backend name.
+- **The light loops skip a plugin's light type.** `sampleLight` and
+  `contributorLight` give a row coded 16 or more nothing, as the GLSL does:
+  its own hook packed it and its own lighting model reads it.
 - **A viewport moved by whole pixels draws the same fragments, moved.**
   Window positions are measured from the viewport's corner and the corner is
   added to the pixel's index, where it was added to each position and

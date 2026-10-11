@@ -8,6 +8,14 @@ final WebGpuSectionStages webGpuEngineShaders
 
 library package:flutter3d_webgpu/flutter3d_webgpu.dart
 
+final class WebGpuSectionCompiler extends MaterialCompiler
+  MaterialCompileResult compile(MaterialCompileRequest request)
+  String get backend
+  String get bundleSection
+  bool get compilesAtRunTime
+  const WebGpuSectionCompiler()
+  static const String stagesOption = 'webGpuStages'
+
 typedef WebGpuSectionStages = ({Map<String, WebGpuStage> vertex, Map<String, WebGpuStage> fragment});
 
 WebGpuSectionStages decodeWebGpuSection(ByteData bytes)

@@ -43,6 +43,10 @@ export 'src/runtime_material_host.dart';
 export 'src/webgpu_bundle_section.dart'
     show WebGpuSectionStages, decodeWebGpuSection;
 
+/// The compiler `RuntimeShaders` and a build find this backend by in a
+/// `MaterialCompilerRegistry`: it packs a material's WGSL into the section.
+export 'src/webgpu_section_compiler.dart';
+
 // Everything else under `lib/src` — the translation tables (`gpu*`), the
 // pipeline signature and cache, the shader library — is this backend's own
 // business since 1.0, imported by its tests from `src/` and by nobody else:

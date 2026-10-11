@@ -48,7 +48,7 @@ final class GpuRenderBackend extends GraphicsDevice
   int get rejectedSubmissions
   late final DeviceFeatures features
   late final DeviceLimits limits
-  static Future<GpuRenderBackend> open({required int width, required int height, String bundleAsset = defaultBundleAsset, List<String> extraBundles = const <String>[]})
+  static Future<GpuRenderBackend> open({required int width, required int height, String bundleAsset = defaultBundleAsset})
   static const String defaultBundleAsset = 'packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle'
   ui.Image frameImage(TextureHandle frame)
   void beginFrame()
@@ -64,6 +64,12 @@ final class GpuRenderBackend extends GraphicsDevice
   void writeBuffer(StorageBuffer target, int offsetInBytes, ByteData bytes)
   void writeTexture(TextureHandle target, ByteData data, {TextureRegion? region, int mipLevel = 0, int? bytesPerRow})
 
+final class ImpellerSectionCompiler extends MaterialCompiler
+  MaterialCompileResult compile(MaterialCompileRequest request)
+  String get backend
+  String get bundleSection
+  const ImpellerSectionCompiler()
+
 final class ShaderBundleBuildException extends ResourceException
   String toString()
   const ShaderBundleBuildException(this.message, {this.cause})
@@ -72,4 +78,4 @@ final class ShaderBundleBuildException extends ResourceException
 
 const String impellerBackendName = 'Impeller'
 
-Registration registerGpuBackend(DeviceRegistry registry)
+Registration registerGpuBackend(DeviceRegistry registry, {MaterialCompilerRegistry? compilers})

@@ -230,6 +230,108 @@ final class RendererSteps extends RenderStepRegistry {
     return registration;
   }
 
+  /// Places [step] on [executors] (`ComputeStep.prepare`) and adds it as a
+  /// node at [at], as [addNode] does — the one call that puts a compute step
+  /// in the frame.
+  ///
+  /// **Placed before it is added, because a frame cannot wait.** Loading a
+  /// kernel is asynchronous on every device; the frame graph only asks the
+  /// step whether it was placed. [executors] is what
+  /// `DeviceRegistry.computeExecutors` answers for the device this renderer
+  /// draws on: that device, the sidecar `registerWgpuSidecar` added, the CPU
+  /// `registerCpuBackend` added. A step nothing can run is added all the
+  /// same: the frame reports it as `PassSkip.unsupported`, with
+  /// `ComputeStep.refusal` saying why, and culls what only read its output.
+  ///
+  /// Throws what [addNode] throws, before anything is loaded.
+  Future<Registration> addComputeStep(
+    ComputeStep step,
+    ComputeExecutors executors, {
+    RenderAnchor? at,
+    RenderStep? owner,
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) async {
+    // The checks first, then the placement, then the node: a name refused
+    // loads no kernel on any device.
+    addNode(step, at: at, step: owner, after: after, before: before).cancel();
+    await step.prepare(executors);
+    return addNode(step, at: at, step: owner, after: after, before: before);
+  }
+
+  /// Places [hook] on [executors] and puts it in the frame: the one call
+  /// that makes a [SkinningHook] skin (D22b).
+  ///
+  /// A hook with kernels is placed as a `ComputeStep` is — at its demand, or
+  /// on the drawing device and then the CPU, never the sidecar, whose
+  /// vertices would reach the drawing device only through the host. A
+  /// demand nothing can meet is refused, the refusal kept as
+  /// [skinningRefusal], and the hook placed on the CPU instead. A
+  /// [HostSkinningHook] needs no placement. The step runs before the
+  /// shadows and writes `FrameResourceIds.skinnedVertices`, which the scene
+  /// reads.
+  ///
+  /// The hook is listed in [RenderHooks.skinningHooks] too, and the result
+  /// takes both out again.
+  Future<Registration> placeSkinningHook(
+    SkinningHook hook,
+    ComputeExecutors executors,
+  ) async {
+    final step = _SkinningStep(
+      hook,
+      _store.skinning,
+      'skinning ${_store.sequence}',
+    );
+    if (hook is! HostSkinningHook && hook.kernels.isNotEmpty) {
+      final placeable = ComputeExecutors(
+        device: executors.device,
+        cpu: executors.cpu,
+      );
+      step.wanted = hook.demand;
+      final refused = await step.prepare(placeable);
+      if (refused != null &&
+          hook.demand != null &&
+          hook.demand != ComputePlacement.cpu) {
+        step
+          ..demandRefusal = refused
+          ..wanted = ComputePlacement.cpu;
+        await step.prepare(placeable);
+      }
+    }
+    final listed = _store.hooks.addSkinningHook(hook);
+    final node = addNode(step);
+    _store.skinning.steps.add(step);
+    final registration = Registration(() {
+      _store.skinning.steps.remove(step);
+      node.cancel();
+      listed.cancel();
+    });
+    _scope?.track(registration);
+    return registration;
+  }
+
+  /// Where [hook] runs, as [placeSkinningHook] placed it: a placement, or
+  /// null for a [HostSkinningHook], for one nothing could place, and for a
+  /// hook not placed here.
+  ComputePlacement? skinningPlacement(SkinningHook hook) {
+    for (final step in _store.skinning.steps) {
+      if (identical(step.hook, hook)) return step.executor?.placement;
+    }
+    return null;
+  }
+
+  /// Why [hook] does not run where it asked: the refusal of its demand
+  /// when it fell back to the CPU, or of every placement when nothing
+  /// could run it; null when it runs where it asked.
+  ComputePlacementException? skinningRefusal(SkinningHook hook) {
+    for (final step in _store.skinning.steps) {
+      if (identical(step.hook, hook)) {
+        return step.demandRefusal ?? (step.isSupported ? null : step.refusal);
+      }
+    }
+    return null;
+  }
+
   /// Every anchor a node can be placed at here: the engine's, then the ones
   /// added with [addAnchor], in the order they were added.
   @override
@@ -611,6 +713,7 @@ final class _StepStore {
   final LightingModels lightingModels = LightingModels();
   final LightTypes lightTypes = LightTypes();
   final RenderHooks hooks = RenderHooks();
+  final _SkinningState skinning = _SkinningState();
   final SceneBindings sceneBindings = SceneBindings();
   final PipelineNodeKinds nodeKinds = PipelineNodeKinds();
 

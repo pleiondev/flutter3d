@@ -116,6 +116,11 @@ abstract final class FrameResourceIds {
   /// What is shown.
   static const ResourceId frame = ResourceId('frame');
 
+  /// The vertices a `SkinningHook` wrote for the meshes it skins this
+  /// frame, a buffer for each, which the scene draws in place of the
+  /// meshes' own. Produced only while a hook is placed.
+  static const ResourceId skinnedVertices = ResourceId('skinned_vertices');
+
   /// The filtered cube of the [index]th reflection probe in the scene.
   ///
   /// One name per probe rather than one for all of them, because a resource

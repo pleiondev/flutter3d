@@ -280,6 +280,11 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
       ? lightListTexel(bindings, row, 3)
       : bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
 
+  // A plugin's light type (codes from 16 up) leaves first: its own hook
+  // packed the row and its own lighting model reads it — `SampleLight`'s
+  // branch of the same name.
+  if (position.w > 15.5) return null;
+
   // **A rectangle leaves before the aim is normalised — `gfx-77n`.** For every
   // other kind `direction.xyz` points somewhere and its length means nothing;
   // for this one the length *is* half the panel's width, and normalising would
@@ -504,7 +509,10 @@ int contributorLightCount(ShaderBindings bindings, Vector3 world) {
       : 1.0;
   final ramp = linearRamp * linearRamp;
 
-  final attenuation = directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp);
+  // A plugin's light type (codes from 16 up) gives nothing here.
+  final attenuation = type > 15.5
+      ? 0.0
+      : (directional ? 1.0 : (degenerate ? 0.0 : falloff * ramp));
   return (
     toLight: toLight,
     radiance: Vector3(color.x, color.y, color.z) * (color.w * attenuation),

@@ -9,4 +9,5 @@ library;
 
 export 'src/gpu_backend_registration.dart';
 export 'src/gpu_device.dart' hide GpuRenderBackendInternals;
+export 'src/impeller_section_compiler.dart';
 export 'src/shader_bundle_build_exception.dart';

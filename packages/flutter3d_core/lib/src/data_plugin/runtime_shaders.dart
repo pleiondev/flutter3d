@@ -171,6 +171,26 @@ ShaderBundle runtimeMaterialBundle(
     ],
     sections: sections,
   );
+  // The material's WGSL, written from its tree: a full-screen stage written
+  // whole, or the body spliced into the engine's compiled `Unlit` stage. Null
+  // when this engine was given nothing to write it against.
+  PackedStage? webGpuStage() {
+    final specialised = specializeMaterial(program, MaterialVariant(name));
+    return switch ((webGpuFullscreenUvLocation, webGpuHost)) {
+      (final int uvLocation, _) when fullscreen => fullscreenMaterialWgsl(
+        specialised,
+        uvLocation: uvLocation,
+        from: from,
+      ),
+      (_, final PackedStage host) when !fullscreen => spliceMaterialWgsl(
+        specialised,
+        host,
+        from: from,
+      ),
+      _ => null,
+    };
+  }
+
   final compiler = kind == null ? null : compilers?.forBackend(kind);
   if (compiler != null) {
     if (!compiler.compilesAtRunTime) {
@@ -208,6 +228,11 @@ ShaderBundle runtimeMaterialBundle(
           options: <String, Object?>{
             'webGpuHost': ?webGpuHost,
             'webGpuFullscreenUvLocation': ?webGpuFullscreenUvLocation,
+            // What `WebGpuSectionCompiler` packs: the stages written as WGSL,
+            // which only the language's own tree can write.
+            if (kind == RuntimeBackends.webgpu)
+              if (webGpuStage() case final stage?)
+                'webGpuStages': <String, PackedStage>{name: stage},
           },
         ),
       );
@@ -273,13 +298,7 @@ ShaderBundle runtimeMaterialBundle(
       try {
         document = wgslSectionDocument(
           vertex: const <String, PackedStage>{},
-          fragment: <String, PackedStage>{
-            name: fullscreenMaterialWgsl(
-              specializeMaterial(program, MaterialVariant(name)),
-              uvLocation: webGpuFullscreenUvLocation,
-              from: from,
-            ),
-          },
+          fragment: <String, PackedStage>{name: webGpuStage()!},
         );
       } on WgslSectionException catch (error) {
         throw RuntimeShadersException('$from: ${error.message}');
@@ -299,11 +318,7 @@ ShaderBundle runtimeMaterialBundle(
           'webGpuHost',
         );
       }
-      final spliced = spliceMaterialWgsl(
-        specializeMaterial(program, MaterialVariant(name)),
-        webGpuHost,
-        from: from,
-      );
+      final spliced = webGpuStage()!;
       final String document;
       try {
         document = wgslSectionDocument(

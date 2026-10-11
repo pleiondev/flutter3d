@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **The section writers refuse a bundle whose stages disagree.**
+  `encodeWebGlSection` and `wgslSectionDocument` hold every vertex stage to
+  the fragment stage its name pairs it with (`<F>Vertex` and its
+  `Skinned`, `Instanced` and `Lightmapped` halves to `<F>`,
+  `pairedFragmentStage`) by `checkStageAgreement`, and throw a
+  `StageAgreementException` naming both stages and what each declares:
+  a build error, not a pair that links on one backend and draws zeros on
+  another. `checkBundleAgreement` and `requireBundleAgreement` are the
+  check on its own, for a packer.
+- **The engine's light loops skip a plugin's light type.** `SampleLight` in
+  `surface.glsl` and `ContributorLight` in `contributor_lights.glsl` give a
+  row coded 16 or more nothing, before any branch would read it as a panel
+  or a point.
 - **Compute kernels in `.f3dmat compute`, in `package:flutter3d_shaders/kernel.dart`.**
   `ComputeKernel.parse` reads a `compute Name { … }` block once into one
   checked tree (a mistake is a `ComputeKernelException` with its line and

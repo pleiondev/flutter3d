@@ -633,6 +633,21 @@ LightSample SampleLight(int index, Surface s) {
 
   float type = position.w;
 
+  // **A plugin's light type leaves first.** Codes from 16 up are handed to a
+  // `LightTypeHook` once per renderer; its own hook packed the row and its own
+  // lighting model reads it, with a falloff this loop does not know. Read here
+  // it would pass for a panel, so it gives nothing, as a light on the surface
+  // does below.
+  if (type > 15.5) {
+    light.l = s.n;
+    light.h = s.n;
+    light.radiance = vec3(0.0);
+    light.n_dot_l = 0.0;
+    light.n_dot_h = 0.0;
+    light.v_dot_h = 0.0;
+    return light;
+  }
+
   // **The rectangle leaves before `aim` is taken — `gfx-77n`.** For every other
   // kind `direction.xyz` is a unit vector saying which way the light points;
   // for this one it is an edge of the panel, with its length carrying half the

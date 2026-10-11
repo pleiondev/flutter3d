@@ -331,7 +331,13 @@ extension _MeshEncode on Renderer {
     final predraw = phase == _DrawPhase.predraw;
     final afterPredraw = phase == _DrawPhase.afterPredraw;
 
-    final skeleton = node.skeleton;
+    // D22b: a mesh a skinning hook wrote this frame is drawn from the buffer
+    // it wrote, through the unskinned stage; every other skinned mesh as the
+    // engine's own stage skins it.
+    final hooked = node.skeleton == null
+        ? null
+        : renderSteps._store.skinning.drawn[node]?.asVertices;
+    final skeleton = hooked == null ? node.skeleton : null;
     final skinned = skeleton != null;
     // A batch draws its instances in one call from a third vertex stage; a
     // batch with nothing in it draws nothing, and binding for it would leave
@@ -353,7 +359,10 @@ extension _MeshEncode on Renderer {
     // position is the same arithmetic, rather than linking a fourth pipeline
     // for a term the flat colour never reads.
     final lightmapped =
-        node.lightmapped && !skinned && !batched && override == null;
+        node.lightmapped &&
+        node.skeleton == null &&
+        !batched &&
+        override == null;
     // `A1.2`: the lighting model's opaque variant wherever nothing this draw
     // does needs the cut — an opaque material, one whose edge is coverage,
     // and the lit half of a pre-drawn one — and the model has one.
@@ -501,7 +510,7 @@ extension _MeshEncode on Renderer {
       state.depthCompare = depthCompare;
     }
 
-    encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
+    encoder.bindVertexBuffer(hooked ?? mesh.vertices, mesh.vertexCount);
     final indexCount = clustered?.count ?? mesh.indexCount;
     encoder.bindIndexBuffer(
       clustered?.buffer ?? mesh.indices,

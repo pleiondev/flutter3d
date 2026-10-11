@@ -2,6 +2,9 @@
 /// pipeline agree before they reach a device.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Flutter3dFormatException;
+
 /// One variable a stage reads or writes across its boundary: a vertex
 /// attribute, a varying, a fragment output.
 final class StageVariable {
@@ -305,4 +308,82 @@ bool _sameMembers(List<StageBlockMember> a, List<StageBlockMember> b) {
     if (a[i] != b[i]) return false;
   }
   return true;
+}
+
+/// A bundle the writer refused because the stages of one of its pipelines
+/// disagree: every [StageMismatch] found, each naming both stages.
+///
+/// **A build error with names, not a crash on one backend** (amendment 5).
+/// The section writers throw it before a byte is written, so the stage that
+/// would have drawn zeros on one device and failed to link on another
+/// never reaches either.
+final class StageAgreementException extends Flutter3dFormatException {
+  StageAgreementException(Iterable<StageMismatch> mismatches)
+    : mismatches = List<StageMismatch>.unmodifiable(mismatches);
+
+  /// What disagrees, in the order found.
+  final List<StageMismatch> mismatches;
+
+  @override
+  String get message =>
+      'the stages of a pipeline disagree, so no bundle is written: '
+      '${mismatches.map((m) => m.says).join('; ')}';
+
+  @override
+  String toString() => 'StageAgreementException: $message';
+}
+
+/// The fragment stage of [fragments] that the vertex stage [vertex] is drawn
+/// with in a bundle, by the names the material language and the engine give
+/// their stages, or null when its name pairs it with none.
+///
+/// A vertex stage `<F>Vertex` belongs to the fragment stage `<F>`, and so do
+/// its halves — `<F>VertexSkinned`, `<F>VertexInstanced`,
+/// `<F>VertexLightmapped` — which is how a material's `vertex` block names
+/// the stages it becomes. A shared vertex stage (`MeshVertex`) pairs with no
+/// fragment stage by name, and is held to the ones it is drawn with where a
+/// pipeline names them.
+String? pairedFragmentStage(String vertex, Set<String> fragments) {
+  final half = _halves.where(vertex.endsWith).firstOrNull;
+  final stem = half == null
+      ? vertex
+      : vertex.substring(0, vertex.length - half.length);
+  if (!stem.endsWith('Vertex')) return null;
+  final base = stem.substring(0, stem.length - 'Vertex'.length);
+  return base.isNotEmpty && fragments.contains(base) ? base : null;
+}
+
+const List<String> _halves = <String>['Skinned', 'Instanced', 'Lightmapped'];
+
+/// Every mismatch between the stages of a bundle that are drawn together:
+/// [vertex] and [fragment] are the GLSL of each stage by name, includes
+/// resolved, and each vertex stage is held to the fragment stage
+/// [pairedFragmentStage] names. Empty when they agree.
+List<StageMismatch> checkBundleAgreement({
+  required Map<String, String> vertex,
+  required Map<String, String> fragment,
+}) {
+  final fragments = fragment.keys.toSet();
+  return <StageMismatch>[
+    for (final MapEntry(key: name, value: glsl) in vertex.entries)
+      if (pairedFragmentStage(name, fragments) case final paired?)
+        ...checkStageAgreement(
+          vertex: StageInterface.fromGlsl(glsl, name: name, fragment: false),
+          fragment: StageInterface.fromGlsl(
+            fragment[paired]!,
+            name: paired,
+            fragment: true,
+          ),
+        ),
+  ];
+}
+
+/// Throws a [StageAgreementException] when [checkBundleAgreement] finds
+/// anything: what a bundle's section writer calls before it writes.
+void requireBundleAgreement({
+  required Map<String, String> vertex,
+  required Map<String, String> fragment,
+}) {
+  final found = checkBundleAgreement(vertex: vertex, fragment: fragment);
+  if (found.isNotEmpty) throw StageAgreementException(found);
 }

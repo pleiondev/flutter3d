@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **Registers its material compiler beside the device.**
+  `registerWebGlBackend(compilers:)` adds `WebGlSectionCompiler` to a
+  `MaterialCompilerRegistry`: each stage of a material translated to
+  GLSL ES 3.00 against the engine's headers, the section `RuntimeShaders`
+  wrote on its own before, refused with a sentence without the headers.
+- **The engine's table is written only when its stages agree.**
+  `tool/generate_shaders.dart` holds every vertex stage to the fragment
+  stage its name pairs it with, as a bundle's section writer does.
 - **Lists `DeviceFeature.viewportBeyondTarget`**: `glViewport` takes a
   negative corner and a size past the framebuffer's, and the scissor holds
   the draw to it.

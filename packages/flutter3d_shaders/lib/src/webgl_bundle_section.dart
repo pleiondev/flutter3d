@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'bundle_section_exception.dart';
+import 'stage_interface.dart';
 
 /// What the section decodes to.
 typedef WebGlSectionSources = ({
@@ -27,10 +28,16 @@ typedef WebGlSectionSources = ({
 });
 
 /// The section bytes for [vertex] and [fragment] sources.
+///
+/// Throws a [StageAgreementException] when a vertex stage and the fragment
+/// stage its name pairs it with ([pairedFragmentStage]) disagree on a
+/// varying or a uniform block: the bundle is refused with both names before
+/// a browser links the pair and draws zeros.
 ByteData encodeWebGlSection({
   required Map<String, String> vertex,
   required Map<String, String> fragment,
 }) {
+  requireBundleAgreement(vertex: vertex, fragment: fragment);
   final text = jsonEncode(<String, Object>{
     'vertex': vertex,
     'fragment': fragment,
