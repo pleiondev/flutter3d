@@ -25,11 +25,8 @@ export 'package:flutter3d_core/formats.dart'
 // none of them can resolve a Flutter SDK to get it.
 export 'asset_source.dart';
 
-/// Whether this build has no isolates in it — the question `kIsWeb` used to
-/// answer here, asked the way a package with no Flutter SDK behind it can.
-const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
-
-/// Decodes a model on a background isolate.
+/// Decodes a model on a background isolate — in the browser, on the decode
+/// worker where one is running (`WebDecodeWorker`) and in place where not.
 ///
 /// The asset layer was kept free of the graphics backend, `dart:ui` and direct file access
 /// precisely so this would be possible: the decoders are pure Dart and take their
@@ -50,15 +47,10 @@ const bool _isWeb = bool.fromEnvironment('dart.library.js_interop');
 /// Sibling files are requested back over a port, so a `.gltf` referencing an
 /// external `.bin` works exactly as it does synchronously.
 Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
-  // The web has no isolates. `dart:isolate` compiles there — it is a stub — so
-  // this fails at run time rather than at build time, with
-  // `ReceivePort.listen` unsupported, several seconds into loading a model.
+  // The web has no isolates: `decodeOnIsolate` there is the browser's decode
+  // worker where one is running (`WebDecodeWorker`), and the page itself
+  // where not — see `model_isolate_web.dart`.
   //
-  // Decoding on the main thread instead, which is what the name promises not to
-  // do and the only thing available. A parse that janks is worse than one that
-  // does not; a parse that throws is worse than both.
-  if (_isWeb) return decodeModel(request);
-
   // An async span, not startSync/finishSync: the read and the isolate round trip
   // both suspend, and a synchronous span would close on the first await and
   // report a fraction of the real cost.
