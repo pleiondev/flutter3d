@@ -29,7 +29,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart'
-    show FrameCapture, f3dFormat, f3dmatFormat, f3dsplatFormat, fmatFormat;
+    show
+        FrameCapture,
+        f3dFormat,
+        f3dmatFormat,
+        f3dsplatFormat,
+        fmatFormat,
+        pipelineFormat;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart' show ShaderBundle;
 import 'package:flutter3d_hardware/trace.dart' show Trace;
@@ -65,6 +71,7 @@ const Map<String, List<FormatSpec>> formatsByPackage =
         f3dmatFormat,
         f3dsplatFormat,
         FrameCapture.format,
+        pipelineFormat,
       ],
       'flutter3d_hardware': <FormatSpec>[ShaderBundle.format, Trace.format],
       'flutter3d_model_core': <FormatSpec>[projectFormat],
