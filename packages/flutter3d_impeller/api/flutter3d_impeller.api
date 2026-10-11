@@ -57,6 +57,7 @@ final class GpuRenderBackend extends GraphicsDevice
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
   void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
   void releaseGeometry(GeometryBuffer geometry)
+  void releasePipeline(PipelineHandle pipeline)
   void releaseQuerySet(QuerySet querySet)
   void releaseSampler(SamplerDescriptor sampler)
   void releaseStorageBuffer(StorageBuffer buffer)

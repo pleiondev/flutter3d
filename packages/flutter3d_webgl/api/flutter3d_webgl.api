@@ -64,6 +64,7 @@ final class WebGlDevice extends GraphicsDevice with EncodedImageUpload, Synchron
   void onGpuTimings(void Function(GpuFrameTimings timings)? listener)
   void overwriteGeometry(GeometryBuffer target, int offsetInBytes, ByteData bytes)
   void releaseGeometry(GeometryBuffer geometry)
+  void releasePipeline(PipelineHandle pipeline)
   void releaseQuerySet(QuerySet querySet)
   void releaseStorageBuffer(StorageBuffer buffer)
   void releaseTexture(TextureHandle texture)
