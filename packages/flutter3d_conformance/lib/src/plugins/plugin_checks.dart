@@ -106,6 +106,7 @@ final class PluginSession {
       registries: harness.registries?.call(backend) ?? const <PluginRegistry>[],
       backend: backend,
       determinismCheck: check,
+      profile: harness.profile,
     );
     harness.setUp?.call(loop);
     rewindWorld(loop);
@@ -114,7 +115,8 @@ final class PluginSession {
 }
 
 /// What a loop is made of, as names: its phases of both kinds, the systems
-/// in each, and the events declared on its bus. What switching a plugin off
+/// in each, the events declared on its bus, and the fields and subsystems
+/// declared to it. What switching a plugin off
 /// must give back exactly.
 ///
 /// Phases and systems in the order they run, since that order is part of
@@ -129,6 +131,8 @@ List<String> _shape(EngineLoop loop) => <String>[
     ],
   ...<String>[
     for (final declared in loop.events.declared) 'event ${declared.name}',
+    for (final field in loop.fields.declared) 'field ${field.id}',
+    for (final solver in loop.subsystems.declared) 'subsystem ${solver.id}',
   ]..sort(),
 ];
 
@@ -251,7 +255,7 @@ Object? _sorted(Object? value) => switch (value) {
 // -------------------------------------------------------------------- switch
 
 /// Every name the plugin adds to the loop — its systems, its phases, the
-/// events it declares — is in its namespace, `<namespace>.<name>` (D23), so
+/// events, fields and subsystems it declares — is in its namespace, `<namespace>.<name>` (D23), so
 /// a name the engine or another plugin adds later cannot be one it took.
 ///
 /// The registries the renderer fills refuse a name outside the namespace at
@@ -293,8 +297,8 @@ List<PluginCheckOutcome> _names(PluginSession session) {
   }
 }
 
-/// What [loop] holds by name: each phase, each system and each declared
-/// event, with what kind of name it is.
+/// What [loop] holds by name: each phase, each system, each declared event,
+/// field and subsystem, with what kind of name it is.
 Set<(String, String)> _named(EngineLoop loop) => <(String, String)>{
   for (final kind in <PhaseKind>[PhaseKind.step, PhaseKind.frame])
     for (final phase in loop.phases(kind)) ...<(String, String)>[
@@ -302,6 +306,8 @@ Set<(String, String)> _named(EngineLoop loop) => <(String, String)>{
       for (final system in loop.systemsIn(phase)) ('the system', system),
     ],
   for (final declared in loop.events.declared) ('the event', declared.name),
+  for (final field in loop.fields.declared) ('the field', field.id),
+  for (final solver in loop.subsystems.declared) ('the subsystem', solver.id),
 };
 
 List<PluginCheckOutcome> _switch(PluginSession session) {

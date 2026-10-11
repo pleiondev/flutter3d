@@ -150,9 +150,10 @@ final class PluginCheckOutcome
   final bool passed
 
 final class PluginHarness
-  const PluginHarness({this.registries, this.setUp, this.dependencies, this.steps = 600})
+  const PluginHarness({this.registries, this.setUp, this.dependencies, this.steps = 600, this.profile = SimulationProfile.deterministic})
   final List<Flutter3dPlugin> Function()? dependencies
   final List<PluginRegistry> Function(String? backend)? registries
+  final SimulationProfile profile
   final int steps
   final void Function(EngineLoop loop)? setUp
 

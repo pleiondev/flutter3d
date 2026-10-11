@@ -12,16 +12,12 @@ import 'package:test/test.dart';
 
 const _frame = ResourceId('frame');
 
-FieldDeclaration _heat({
-  FieldResidence residence = FieldResidence.texture3D,
-  int components = 1,
-}) => FieldDeclaration(
+FieldDeclaration _heat({int components = 1}) => FieldDeclaration(
   id: 'acme.heat',
   quantity: 'f3d.temperature',
   unit: Unit.kelvin,
   grid: FieldGrid(4, 3, 2, components: components),
-  residence: residence,
-  writer: const FieldAccess.frame('acme.heat upload'),
+  writer: const FieldAccess.simulation('acme.diffuse'),
   readers: const <FieldAccess>[FieldAccess.frame('acme.shimmer')],
 );
 
@@ -192,7 +188,8 @@ void main() {
   test('a buffer field goes where compute is placed, and is refused where '
       'no executor has it', () {
     final upload = FieldUpload(
-      HostField(_heat(residence: FieldResidence.buffer)),
+      HostField(_heat()),
+      residence: FieldResidence.buffer,
     );
     final refused = upload.place(ComputeExecutors(device: FakeBackend()));
     // Mutation: hold it on the drawing device whatever it has. A fake with
@@ -213,12 +210,12 @@ void main() {
     expect(
       () => resources.provideField(
         const ResourceId('acme.cold'),
-        HostField(_heat(residence: FieldResidence.host)),
+        HostField(_heat()),
       ),
       throwsA(isA<FrameGraphError>()),
     );
     expect(
-      () => FieldUpload(HostField(_heat(residence: FieldResidence.host))),
+      () => FieldUpload(HostField(_heat()), residence: FieldResidence.host),
       throwsArgumentError,
     );
   });

@@ -1471,12 +1471,13 @@ final class FieldUpload extends RenderNode
   FieldDeclaration get declaration
   FieldResidenceException? get refusal
   FieldResidenceException? place(ComputeExecutors executors)
-  FieldUpload(this.source)
+  FieldUpload(this.source, {this.residence = FieldResidence.texture3D})
   List<ResourceId> get writes
   RenderAnchor get defaultAnchor
   ResourceId get id
   String get name
   bool get isSupported
+  final FieldResidence residence
   final HostField source
   void execute(RenderFrame frame)
   void release()

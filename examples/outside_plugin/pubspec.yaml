@@ -1,0 +1,59 @@
+name: outside_plugin
+description: "A plugin written outside the engine against its published API only: a quantity of its own on a body's material state, contacts heard from the bus, a field it writes and a solver registered as a subsystem."
+publish_to: 'none'
+version: 1.0.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# **Every engine package by path, as an outside project overrides them.** No
+# `src/` import anywhere in this package: the structure rule `an outside
+# example reaches only the published API` reads every file here and refuses
+# one, so what this plugin does is what anybody's can.
+dependencies:
+  # The contract a plugin is written against: the manifest, the host, the
+  # loop's phases, the bus, the snapshots and the profiles.
+  flutter3d_plugin_api:
+    path: ../../packages/flutter3d_plugin_api
+
+  # The fields and the subsystems: the seams this plugin is the proof of.
+  flutter3d_fields:
+    path: ../../packages/flutter3d_fields
+
+  # The contact event it listens to and the material state it writes.
+  flutter3d_sim:
+    path: ../../packages/flutter3d_sim
+
+  # The frame graph its field is carried into.
+  flutter3d_core:
+    path: ../../packages/flutter3d_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The scene the tests drop a ball in: bodies, a floor, their materials.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+  flutter3d_matter:
+    path: ../../packages/flutter3d_matter
+  flutter3d_foundation:
+    path: ../../packages/flutter3d_foundation
+
+  # The device the frame is drawn on in a test: the software rasteriser,
+  # with no GPU under it, and the graphics vocabulary its checks ask in.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+  flutter3d_hardware:
+    path: ../../packages/flutter3d_hardware
+
+  # The suite a plugin is held to.
+  flutter3d_conformance:
+    path: ../../packages/flutter3d_conformance
+
+  # The racing genre, whose tape the default simulation is held to with this
+  # plugin's solver registered and not switched on.
+  flutter3d_game_racing:
+    path: ../../packages/flutter3d_game_racing
+  vector_math: ^2.2.0

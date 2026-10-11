@@ -28,12 +28,13 @@
 ///   the manifest is the same written out and read back, and the plugin
 ///   installs: a view plugin that adds a step system is refused here, with
 ///   the loop's own sentence.
-/// * **switch** — switched off at a step boundary, the loop's phases, systems
-///   and declared events are exactly those of a loop without it; switched
+/// * **switch** — switched off at a step boundary, the loop's phases, systems,
+///   declared events, fields and subsystems are exactly those of a loop
+///   without it; switched
 ///   back on, exactly those with it; both journalled at the step they were
 ///   made.
-/// * **names** — every phase, system and event it adds to the loop is in its
-///   namespace, `<namespace>.<name>`; the engine's own packages are not held
+/// * **names** — every phase, system, event, field and subsystem it adds to
+///   the loop is in its namespace, `<namespace>.<name>`; the engine's own packages are not held
 ///   to one.
 /// * **determinism** — every step run twice from one state by the loop's
 ///   `DeterminismCheck`, which names the system that diverged; and two fresh

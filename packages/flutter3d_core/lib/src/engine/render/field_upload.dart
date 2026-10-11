@@ -70,9 +70,14 @@ final class Texture3DField extends FieldStorage {
   String toString() => 'Texture3DField(${declaration.id})';
 }
 
-/// The node that puts a host field on a device every frame, where its
-/// declaration says: in a buffer on a compute executor, or in a 3D texture
-/// on the device that draws.
+/// The node that puts a host field on a device every frame, in [residence]:
+/// a buffer on a compute executor, or a 3D texture on the device that
+/// draws.
+///
+/// **The simulation's field, the frame's copy.** A field a subsystem steps
+/// is declared in host memory, and the frame draws a volume from a copy of
+/// it on the device, under the same id: [residence] says where that copy is
+/// held, the 3D texture a stage samples unless the caller says otherwise.
 ///
 /// **Placed before the frame, as a compute step is.** [place] decides where
 /// the field is held and whether it can be; a field that cannot is not
@@ -83,22 +88,25 @@ final class Texture3DField extends FieldStorage {
 /// **What it writes is the field's id**, and nothing else: a reader names
 /// the same id and takes the storage with `FrameResources.field`.
 final class FieldUpload extends RenderNode {
-  /// The node that puts [source] on a device, as its declaration's
-  /// residence says. [source] is read every frame: the simulation's
-  /// published copy (`FieldRegistry.published`) is what a frame hands.
-  FieldUpload(this.source) {
-    if (!source.declaration.residence.onDevice) {
+  /// The node that puts [source] on a device, held in [residence]. [source]
+  /// is read every frame: the simulation's published copy
+  /// (`FieldRegistry.published`) is what a frame hands.
+  FieldUpload(this.source, {this.residence = FieldResidence.texture3D}) {
+    if (!residence.onDevice) {
       throw ArgumentError.value(
-        source.declaration.id,
-        'source',
-        'is held in ${source.declaration.residence.name}; a field is put on '
-            'a device when its declaration says buffer or texture3D',
+        residence.name,
+        'residence',
+        'is not on a device; field "${source.declaration.id}" is put on one '
+            'as a buffer or a 3D texture',
       );
     }
   }
 
   /// The host values put on the device every frame.
   final HostField source;
+
+  /// Where the frame's copy is held.
+  final FieldResidence residence;
 
   /// The field.
   FieldDeclaration get declaration => source.declaration;
@@ -133,7 +141,7 @@ final class FieldUpload extends RenderNode {
   FieldResidenceException? get refusal => switch (_refusal) {
     final r? when r.field.isEmpty => FieldResidenceException(
       field: declaration.id,
-      residence: declaration.residence,
+      residence: residence,
       reason: r.reason,
     ),
     final r => r,
@@ -154,11 +162,11 @@ final class FieldUpload extends RenderNode {
   /// null when placed. Placing again releases what the last placement made.
   FieldResidenceException? place(ComputeExecutors executors) {
     release();
-    return _refusal = switch (declaration.residence) {
+    return _refusal = switch (residence) {
       FieldResidence.texture3D => _placeTexture(executors.device),
       FieldResidence.buffer => _placeBuffer(executors),
       // A residence a later version names has no executor in this one.
-      final other => _refused(FieldRefusal.noPlacement, residence: other),
+      final other => _refused(FieldRefusal.noPlacement, other: other),
     };
   }
 
@@ -207,13 +215,13 @@ final class FieldUpload extends RenderNode {
 
   FieldResidenceException _refused(
     FieldRefusal reason, {
-    FieldResidence? residence,
+    FieldResidence? other,
     DeviceFeature? capability,
     String? backend,
     Object? cause,
   }) => FieldResidenceException(
     field: declaration.id,
-    residence: residence ?? declaration.residence,
+    residence: other ?? residence,
     reason: reason,
     capability: capability,
     backend: backend,
@@ -250,7 +258,7 @@ final class FieldUpload extends RenderNode {
   FieldStorage _make(ComputeExecutor executor, ByteData bytes) {
     final grid = declaration.grid;
     final device = executor.device;
-    return declaration.residence == FieldResidence.texture3D
+    return residence == FieldResidence.texture3D
         ? Texture3DField(
             declaration,
             device.createTexture(

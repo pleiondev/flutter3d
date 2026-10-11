@@ -24,6 +24,7 @@ final class PluginHarness {
     this.setUp,
     this.dependencies,
     this.steps = 600,
+    this.profile = SimulationProfile.deterministic,
   }) : assert(steps > 0, 'a run of nought steps checks nothing');
 
   /// The registries the plugin asks its host for — `EntityKinds`,
@@ -44,6 +45,11 @@ final class PluginHarness {
 
   /// How many steps the determinism, switching and budget runs take.
   final int steps;
+
+  /// The profile every loop of the suite runs under: the default
+  /// simulation unless the plugin brings a solver a profile switches on,
+  /// which is held to the checks under the profile that runs it.
+  final SimulationProfile profile;
 }
 
 /// What one check found, on one backend where the check is per backend.

@@ -4,13 +4,13 @@
   `FrameResources.provideField`, `field` and `tryField` carry a
   `flutter3d_fields` `FieldStorage` between the node that writes the field
   and the nodes that read it, ordered and culled as a texture is.
-  `FieldUpload` puts a host field on a device every frame where its
-  declaration says: a `BufferField` on the compute executor
-  `ComputeExecutors.place` picks, or a `Texture3DField` on the device that
-  draws. Placed before the frame (`place`), it refuses a field the device
-  cannot hold with a `FieldResidenceException` naming the feature
-  (`DeviceFeature.texture3D` on Impeller today), and the frame reports it as
-  unsupported rather than throwing.
+  `FieldUpload` puts a host field on a device every frame, the frame's
+  copy of a field the simulation steps: a `BufferField` on the compute
+  executor `ComputeExecutors.place` picks, or a `Texture3DField` on the
+  device that draws. Placed before the frame (`place`), it refuses a field
+  the device cannot hold with a `FieldResidenceException` naming the
+  feature (`DeviceFeature.texture3D` on Impeller today), and the frame
+  reports it as unsupported rather than throwing.
 - **An asset source says which version of a file it is, and its hash.**
   `AssetSource.contentHash` (the SHA-256 of what `read` returns, when the
   source knows it ahead) and `AssetSource.version` (the version in the

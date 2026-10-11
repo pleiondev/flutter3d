@@ -5,6 +5,12 @@
   written, or refused with `DeviceFeature.texture3D` named; a field in a
   storage buffer reads back bit for bit after it is made and after it is
   written over.
+- **A plugin's fields and subsystems are held like its systems.** The
+  `switch` check finds the fields and subsystems a plugin declared gone when
+  it is switched off and back when it is switched on; the `names` check holds
+  their ids to the plugin's namespace. `PluginHarness.profile` runs every
+  loop of the suite under a profile, so a solver a profile switches on is
+  checked where it runs.
 - **The render checks are a package of their own,
   `flutter3d_conformance_render`**, and this one no longer depends on
   `flutter3d_core`: a backend that runs the contract as a dev dependency

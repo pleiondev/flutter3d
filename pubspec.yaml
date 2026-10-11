@@ -104,6 +104,9 @@ workspace:
   - apps/flutter3d_stereo_lesson_viewer
   - apps/flutter3d_lab_incident
   - apps/flutter3d_lab_pendulum
+  # A plugin as somebody outside the repository writes one: published
+  # libraries only, every engine package by path.
+  - examples/outside_plugin
   # Not a package and not an application: a program this repository runs on
   # itself, kept where `tool/`'s other programs are. See its own pubspec for
   # why it is not in `packages/`.
