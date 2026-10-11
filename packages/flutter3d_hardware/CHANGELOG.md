@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `StageBindings` and `UniformMemberLayout` are classes.** Both
+  were records, and a record cannot gain a field, so no binding kind
+  (storage buffers, storage textures) and no array stride could be added
+  to them in a minor. The fields and their names are the same; a literal
+  `(blocks: …, samplers: …)` becomes `StageBindings(blocks: …, samplers:
+  …)`, each field defaulting to empty, and `UniformMemberLayout.elements`
+  defaults to one. Both compare by value, as the records did.
 - **`RecordingDevice` forwards `createPipelineAsync` and
   `createComputePipelineAsync`** to the device it records, so a device that
   links off the thread still does under the recorder; the pipeline enters

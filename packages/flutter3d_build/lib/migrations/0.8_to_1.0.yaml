@@ -20338,3 +20338,33 @@ entries:
     reason: >-
       It returns the same box under its new name, `FittedCuboid`; the
       rename of the type carries the fix, and a call needs none.
+
+  - id: af3-hardware-StageBindings-class
+    package: flutter3d_hardware
+    symbol: StageBindings
+    kind: recordToClass
+    fields:
+      blocks: blocks
+      samplers: samplers
+    wave: 4
+    guidance: >-
+      `StageBindings` is a class with the same `blocks` and `samplers`, so a
+      binding kind can be added to it later. A literal `(blocks: …,
+      samplers: …)` becomes `StageBindings(blocks: …, samplers: …)`, and
+      either field may be left out for an empty set.
+
+  - id: af3-hardware-UniformMemberLayout-class
+    package: flutter3d_hardware
+    symbol: UniformMemberLayout
+    kind: recordToClass
+    fields:
+      offset: offset
+      byteLength: byteLength
+      elements: elements
+      type: type
+    wave: 4
+    guidance: >-
+      `UniformMemberLayout` is a class with the same four fields, so a
+      layout can carry a stride later. A literal `(offset: …, byteLength: …,
+      elements: …, type: …)` becomes `UniformMemberLayout(offset: …, …)`,
+      and `elements` may be left out for a member that is not an array.
