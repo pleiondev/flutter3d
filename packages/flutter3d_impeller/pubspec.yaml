@@ -69,6 +69,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # For `material_slots_test.dart` alone: a plugin's lit model compiled
+  # through the real impellerc the way a build hook compiles it, to see the
+  # blocks and textures of its own reach the bundle under the names this
+  # backend binds by. Plain Dart; nothing in `lib/` reaches it.
+  flutter3d_build_hooks: ^1.0.0-rc.1
 
 # A note on where the GLSL is, because this package has none and used to.
 #
