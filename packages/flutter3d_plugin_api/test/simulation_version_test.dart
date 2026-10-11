@@ -86,4 +86,55 @@ void main() {
       );
     });
   });
+
+  group('what a newer build wrote', () {
+    // A minor that adds a dimension of the simulation's identity writes a
+    // key this build does not know.
+    final newer = <String, Object?>{
+      'engine': 1,
+      'genre': 'racing',
+      'genreVersion': 2,
+      'weather': <String, Object?>{'model': 'storms', 'version': 3},
+    };
+
+    test('is kept, and written back as it was read', () {
+      // Mutation: read only the known keys. A relay or a tool that reads a
+      // hello and writes it again strips the newer dimension.
+      final read = SimulationVersion.fromJson(newer);
+      expect(read.extra, <String, Object?>{
+        'weather': <String, Object?>{'model': 'storms', 'version': 3},
+      });
+      expect(read.toJson(), newer);
+      expect(
+        read.withPlugins(const <String, int>{'acme': 1}).extra,
+        read.extra,
+      );
+      expect(read.withProfile(SimulationProfile.accurate).extra, read.extra);
+      expect(read.withSubsystems(const <String, int>{}).extra, read.extra);
+      expect(read.withGenre('shooter', 1).extra, read.extra);
+    });
+
+    test('is another simulation, refused rather than replayed', () {
+      // Mutation: leave `extra` out of `==` and `refusalOn`. A 1.0 client
+      // reads the newer simulation as its own and replays or matches across
+      // two different ones.
+      final read = SimulationVersion.fromJson(newer);
+      const running = SimulationVersion(genre: 'racing', genreVersion: 2);
+      expect(read, isNot(running));
+      expect(
+        read.refusalOn(running),
+        allOf(contains('weather'), contains('update flutter3d')),
+      );
+      expect(SimulationVersion.fromJson(newer), read);
+      expect(SimulationVersion.fromJson(newer).hashCode, read.hashCode);
+      expect(read.refusalOn(SimulationVersion.fromJson(newer)), isNull);
+      // Two values of the newer key are two simulations too.
+      final other = SimulationVersion.fromJson(<String, Object?>{
+        ...newer,
+        'weather': <String, Object?>{'model': 'storms', 'version': 4},
+      });
+      expect(other, isNot(read));
+      expect(read.refusalOn(other), contains('weather'));
+    });
+  });
 }
