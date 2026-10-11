@@ -45,11 +45,11 @@
     "3.2/3E": "done",
     "3.2/3G": "done",
     "3.2/3H": "done",
-    "3.2/3R": "active"
+    "3.2/3R": "done"
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
-    "3.2/3R": "found in wave 1: spine and neck cones too stiff in flexion, arm struts; to do with the inelastic group",
+    "3.2/3R": "in 1.0.0; anatomical swing limits and tissue damping; the elbow prop at a chest-root blow stays open",
     "M/M4": "nine formats owned by Flutter packages are reported, not lifted",
     "M/M6": "the 0.8.5 site corpus fails on 14 names, handed to wave 2",
     "2/2Z": "wave 2 closed and pushed; goldens match on 4 backends",
