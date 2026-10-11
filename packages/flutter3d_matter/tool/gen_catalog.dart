@@ -1,0 +1,1268 @@
+/// Writes the engine's material catalogue from its data.
+///
+///     dart run tool/gen_catalog.dart          # write it
+///     dart run tool/gen_catalog.dart --check  # exit 1 if it is out of date
+///
+/// **The data is the one place a number is written.** Three files under
+/// `tool/data/sources/` hold it:
+///
+/// * `catalog_base.json`, the 33 entries the catalogue had before the
+///   verified data, with their sources: their values at the reference state
+///   stay as they were, because the C core's header and every recorded run
+///   are made of them;
+/// * `fluids.json` and `solids.json`, about 120 fluids and 120 solids, every
+///   value with its source, its confidence and, where one was found, its law
+///   in temperature (`SCHEMA.txt`).
+///
+/// It writes `lib/src/materials/materials.g.dart`, the `Materials` class,
+/// and `tool/data/catalog.verified.json`, the same numbers as data, which
+/// `test/catalog_verified_test.dart` holds the Dart to.
+///
+/// **How a value becomes a law.** A table in temperature becomes a
+/// `TableLaw` with the value quoted at the reference state as one of its
+/// points; a closed form (Andrade, Arrhenius, Vogel–Fulcher–Tammann, a
+/// polynomial, a linear or exponential coefficient) becomes a `FormulaLaw`
+/// anchored on that value, `value · (shape(T) / shape(T₀))`, so the law
+/// gives the quoted value at the reference state to the bit. A law whose
+/// shape is more than [_lawTolerance] off the quoted value there, or that is
+/// in another variable (salinity, density, speed), is left out and the value
+/// is a constant; the verified file says why.
+///
+/// **Friction for every solid.** A solid whose self-friction no source gave
+/// takes an estimate, marked so, whose source says what it is: the median
+/// of its family's measured self-pairs in this catalogue, a rule from the
+/// literature for rock and grains, or the engine's default.
+library;
+
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:flutter3d_matter/flutter3d_matter.dart';
+
+/// Where the Dart goes, from the package root.
+const String dartPath = 'lib/src/materials/materials.g.dart';
+
+/// Where the verified data goes, from the package root.
+const String verifiedPath = 'tool/data/catalog.verified.json';
+
+/// How far a law's shape may be off the quoted value at the reference state
+/// before the law is left out: 10 %.
+const double _lawTolerance = 0.10;
+
+const Map<String, List<String>> _groupProperties = <String, List<String>>{
+  'mechanical': <String>[
+    'density',
+    'youngsModulus',
+    'poissonRatio',
+    'yieldStrength',
+    'tensileStrength',
+    'hardness',
+    'staticFriction',
+    'kineticFriction',
+    'restitution',
+    'rollingResistance',
+  ],
+  'fluid': <String>['viscosity', 'surfaceTension', 'bulkModulus'],
+  'thermal': <String>[
+    'specificHeat',
+    'conductivity',
+    'volumetricExpansion',
+    'meltingPoint',
+    'boilingPoint',
+    'latentHeatOfFusion',
+    'latentHeatOfVaporization',
+    'emissivity',
+    'ignitionTemperature',
+    'autoignitionTemperature',
+    'heatOfCombustion',
+    'radiantFraction',
+  ],
+  'acoustic': <String>['absorption', 'speedOfSound', 'impedance'],
+  'optical': <String>[
+    'refractiveIndex',
+    'abbeNumber',
+    'dielectricF0',
+    'absorption',
+    'metalReflectance',
+    'roughnessMin',
+    'roughnessMax',
+  ],
+  'electrical': <String>['resistivity'],
+  'inelastic': <String>['lossFactor'],
+};
+
+const Map<String, String> _groupClass = <String, String>{
+  'mechanical': 'MechanicalProperties',
+  'fluid': 'FluidProperties',
+  'thermal': 'ThermalProperties',
+  'acoustic': 'AcousticProperties',
+  'optical': 'OpticalProperties',
+  'electrical': 'ElectricalProperties',
+  'inelastic': 'InelasticProperties',
+};
+
+/// The list-valued properties, which stay lists at the reference state.
+const Set<String> _lists = <String>{
+  'acoustic.absorption',
+  'optical.absorption',
+  'optical.metalReflectance',
+};
+
+/// The external id spaces of the data, by the catalogue's name.
+const Map<String, String> _spaces = <String, String>{
+  'CAS': ExternalIdSpace.cas,
+  'IFC4.Category': ExternalIdSpace.ifc,
+  'MaterialX': ExternalIdSpace.materialX,
+  'UNS': ExternalIdSpace.uns,
+  'ISO1043': ExternalIdSpace.iso1043,
+  'EN': ExternalIdSpace.en,
+  'physicallybased.info': ExternalIdSpace.physicallyBased,
+  'SCHOTT': 'SCHOTT',
+  'ASTM': 'ASTM',
+};
+
+/// The families a solid's estimated self-friction is taken from.
+const Map<String, List<String>> _families = <String, List<String>>{
+  'metals': <String>[
+    'iron', 'steel', 'aluminum', 'copper', 'gold', 'silver', 'lead', //
+    'nickel', 'zinc', 'tin', 'titanium', 'tungsten', 'magnesium',
+    'platinum', 'chromium', 'molybdenum', 'stainlessSteel304',
+    'stainlessSteel316', 'castIron', 'titaniumTi6Al4V', 'aluminum6061T6',
+    'aluminum7075T6', 'aluminum2024T3', 'brass', 'phosphorBronze',
+    'aluminumBronze', 'constantan', 'nichrome', 'inconelX750', 'steel4340',
+  ],
+  'glasses and ceramics': <String>[
+    'glass', 'borosilicateGlass', 'fusedSilica', 'crownGlassBK7', //
+    'flintGlassF2', 'alumina', 'sapphire', 'porcelain', 'siliconCarbide',
+    'diamond', 'graphite', 'quartz', 'glassCeramic', 'silicon',
+    'siliconNitride', 'mica',
+  ],
+  'plastics': <String>[
+    'polyethylene', 'polyethyleneLD', 'polypropylene', 'pvc', 'abs', //
+    'pmma', 'polycarbonate', 'polystyrene', 'nylon66', 'ptfe', 'pet', 'pom',
+    'epoxy', 'peek', 'bakelite', 'linoleum', 'carbonFiberComposite',
+    'fiberglassComposite',
+  ],
+  'rubbers': <String>[
+    'rubber', 'naturalRubber', 'siliconeRubber', 'neoprene', //
+    'butylRubber', 'polybutadieneRubber',
+  ],
+  'woods': <String>[
+    'oak', 'pine', 'pineEasternWhite', 'birch', 'maple', 'douglasFir', //
+    'spruce', 'balsa', 'wood', 'hardwoodGeneric', 'softwoodGeneric',
+    'hardboard', 'particleboard', 'cork', 'sawdust',
+  ],
+};
+
+/// Rock on rock, and the rocks a building is made of.
+const List<String> _rocks = <String>[
+  'concrete', 'lightweightConcrete', 'brick', 'granite', 'basalt', //
+  'sandstone', 'limestone', 'marble', 'slate', 'quartzite', 'cementMortar',
+  'rockSalt', 'gypsumBoard', 'plaster',
+];
+
+/// Grains: a bed's friction is its internal friction.
+const List<String> _grains = <String>[
+  'sand', 'soil', 'soilDry', 'soilWet', 'clayDry', 'clayWet', //
+];
+
+/// The thermal group the data has none for: molten basalt's, so heat and
+/// fire can read the lava they are given.
+const Map<String, Object?> _basaltMeltThermal = <String, Object?>{
+  'specificHeat': <String, Object?>{
+    'value': 1480.0,
+    'confidence': 'estimate',
+    'interval': <double>[1200.0, 1600.0],
+    'source':
+        'a basaltic liquid\'s isobaric heat capacity, 1.2 to 1.6 kJ/(kg·K) '
+        'across silicate melts (Lesher and Spera, "Thermodynamic and '
+        'transport properties of silicate melts and magma", The Encyclopedia '
+        'of Volcanoes, 2nd ed., 2015): an estimate inside that span, recalled '
+        'and not re-read',
+  },
+  'conductivity': <String, Object?>{
+    'value': 1.5,
+    'confidence': 'estimate',
+    'interval': <double>[1.0, 2.0],
+    'source':
+        'a silicate melt\'s thermal conductivity, about 1 to 2 W/(m·K) (Lesher '
+        'and Spera, 2015): an estimate, recalled and not re-read; dense solid '
+        'basalt\'s is 1.8 in this catalogue (f3d.basalt)',
+  },
+  'meltingPoint': <String, Object?>{
+    'value': 1450.0,
+    'confidence': 'estimate',
+    'interval': <double>[1250.0, 1500.0],
+    'source':
+        'where it sets: solid basalt\'s melting range in this catalogue '
+        '(f3d.basalt), 1250 to 1500 K, the value the engine\'s lava uses',
+  },
+  'latentHeatOfFusion': <String, Object?>{
+    'value': 4.0e5,
+    'confidence': 'estimate',
+    'interval': <double>[3.5e5, 5.0e5],
+    'source':
+        'a basalt\'s heat of fusion, 350 to 500 kJ/kg as lava-flow models take '
+        'it (Lesher and Spera, 2015): an estimate, recalled and not re-read',
+  },
+  'emissivity': <String, Object?>{
+    'value': 0.9,
+    'confidence': 'estimate',
+    'interval': <double>[0.7, 0.95],
+    'source':
+        'an estimate for a molten basalt surface, between solid basalt\'s '
+        '0.72 at room temperature in this catalogue and a black body; not a '
+        'measurement',
+  },
+  'source':
+      'estimates for a basaltic melt near 1200 °C, each with its own source; '
+      'none is a measurement of this melt',
+};
+
+void main(List<String> args) {
+  final root = File.fromUri(Platform.script).parent.parent.path;
+  final catalogue = _Catalogue.read('$root/tool/data/sources');
+  final dart = catalogue.dart();
+  final verified =
+      '${const JsonEncoder.withIndent('  ').convert(catalogue.verified())}\n';
+  final dartFile = File('$root/$dartPath');
+  final verifiedFile = File('$root/$verifiedPath');
+  final readmeFile = File('$root/README.md');
+  final readme = catalogue.readme(readmeFile.readAsStringSync());
+  final scratch = Directory.systemTemp.createTempSync('gen_catalog');
+  try {
+    final formatted = File('${scratch.path}/materials.g.dart')
+      ..writeAsStringSync(dart);
+    final format = Process.runSync('dart', <String>['format', formatted.path]);
+    if (format.exitCode != 0) {
+      stderr.writeln(format.stderr);
+      exitCode = 1;
+      return;
+    }
+    final text = formatted.readAsStringSync();
+    if (args.contains('--check')) {
+      String now(File file) => file.existsSync()
+          ? file.readAsStringSync().replaceAll('\r\n', '\n')
+          : '';
+      if (now(dartFile) != text ||
+          now(verifiedFile) != verified ||
+          now(readmeFile) != readme) {
+        stderr.writeln(
+          '$dartPath or $verifiedPath is out of date: run `dart run '
+          'tool/gen_catalog.dart` in flutter3d_matter',
+        );
+        exitCode = 1;
+      }
+      return;
+    }
+    dartFile.writeAsStringSync(text);
+    verifiedFile.writeAsStringSync(verified);
+    readmeFile.writeAsStringSync(readme);
+    stdout.writeln(
+      '${catalogue.entries.length} materials, '
+      '${catalogue.pairs.length} pairs, ${catalogue.dropped.length} laws '
+      'left out',
+    );
+  } finally {
+    scratch.deleteSync(recursive: true);
+  }
+}
+
+/// One value of an entry as the generator holds it.
+final class _Value {
+  _Value(
+    this.value, {
+    this.confidence,
+    this.source,
+    this.interval,
+    this.verification,
+  });
+
+  /// A double, or a list of them.
+  final Object value;
+  final String? confidence;
+  String? source;
+  final List<double>? interval;
+  final String? verification;
+
+  /// The law's Dart, once made: `ConstantLaw(…)`, `TableLaw(…)`, ….
+  String? lawDart;
+  String lawKind = 'constant';
+}
+
+/// One entry as the generator holds it.
+final class _Entry {
+  _Entry(this.id, this.name, this.phase);
+
+  final String id;
+  final String name;
+  final String phase;
+  double temperature = 293.15;
+  double pressure = 101325.0;
+  String? description;
+  final Map<String, String> externalIds = <String, String>{};
+  final Map<String, Map<String, _Value>> groups =
+      <String, Map<String, _Value>>{};
+  final Map<String, String> groupSources = <String, String>{};
+  final Map<String, Map<String, Object?>> models =
+      <String, Map<String, Object?>>{};
+  String? confidence;
+
+  /// Whether it is one of the 33 the catalogue had before.
+  bool base = false;
+
+  String get field => id.substring('f3d.'.length);
+}
+
+final class _Catalogue {
+  _Catalogue(this.entries, this.pairs, this.dropped);
+
+  factory _Catalogue.read(String dir) {
+    Map<String, Object?> json(String name) =>
+        jsonDecode(File('$dir/$name').readAsStringSync())
+            as Map<String, Object?>;
+    final base = json('catalog_base.json');
+    final fluids = json('fluids.json');
+    final solids = json('solids.json');
+    final entries = <String, _Entry>{};
+    final dropped = <String, String>{};
+
+    for (final body
+        in (base['materials']! as List).cast<Map<String, Object?>>()) {
+      final entry =
+          _Entry(
+              body['id']! as String,
+              body['name']! as String,
+              body['phase']! as String,
+            )
+            ..base = true
+            ..temperature = (body['temperature']! as num).toDouble()
+            ..pressure = (body['pressure']! as num).toDouble();
+      for (final group in _groupProperties.keys) {
+        final g = body[group] as Map<String, Object?>?;
+        if (g == null) continue;
+        entry.groupSources[group] = g['source']! as String;
+        final values = entry.groups.putIfAbsent(
+          group,
+          () => <String, _Value>{},
+        );
+        for (final MapEntry(:key, :value) in g.entries) {
+          if (key == 'source' || value == null) continue;
+          values[key] = _Value(
+            value is num
+                ? value.toDouble()
+                : <double>[
+                    for (final n in value as List) (n as num).toDouble(),
+                  ],
+          );
+        }
+      }
+      entries[entry.id] = entry;
+    }
+
+    // A liquid metal shares its research id with the solid (`lead`): the
+    // liquid is the melt, as `basaltMelt` is.
+    final solidIds = <String>{
+      for (final raw in (solids['entries']! as List).cast<Map<String, Object?>>())
+        raw['id']! as String,
+    };
+    for (final data in <Map<String, Object?>>[fluids, solids]) {
+      for (final raw
+          in (data['entries']! as List).cast<Map<String, Object?>>()) {
+        final melt =
+            identical(data, fluids) && solidIds.contains(raw['id']) ? 'Melt' : '';
+        final id =
+            (raw['catalogId'] as String?) ?? 'f3d.${raw['id']}$melt';
+        final entry = entries.putIfAbsent(
+          id,
+          () => _Entry(id, raw['name']! as String, raw['phase']! as String),
+        );
+        final reference = raw['referenceState']! as Map<String, Object?>;
+        if (!entry.base) {
+          entry
+            ..temperature = (reference['temperature']! as num).toDouble()
+            ..pressure = (reference['pressure']! as num).toDouble()
+            ..description = raw['description'] as String?;
+        }
+        final ids =
+            (raw['externalIds'] as Map<String, Object?>?) ??
+            <String, Object?>{'CAS': raw['cas']};
+        for (final MapEntry(:key, :value) in ids.entries) {
+          if (value is String && value.isNotEmpty) {
+            entry.externalIds[_spaces[key] ?? key] = value;
+          }
+        }
+        final groups = raw['groups']! as Map<String, Object?>;
+        for (final MapEntry(key: group, value: props) in groups.entries) {
+          if (group == 'extra') continue;
+          if (group == 'inelastic') {
+            _inelastic(entry, props! as Map<String, Object?>);
+            continue;
+          }
+          if (!_groupProperties.containsKey(group)) continue;
+          for (final MapEntry(key: name, value: p)
+              in (props! as Map<String, Object?>).entries) {
+            if (p is! Map<String, Object?> || p['value'] == null) continue;
+            if (!_groupProperties[group]!.contains(name)) continue;
+            final values = entry.groups.putIfAbsent(
+              group,
+              () => <String, _Value>{},
+            );
+            final held = values[name];
+            final research = _research(p);
+            if (held == null) {
+              values[name] = research;
+              _law(entry, group, name, research, p, dropped);
+            } else if (held.value is double &&
+                research.value is double &&
+                _close(held.value as double, research.value as double, 0.005)) {
+              // The research agrees with the catalogue: its confidence and
+              // its law, anchored on the catalogue's own number.
+              final agreed = _Value(
+                held.value,
+                confidence: research.confidence,
+                source: null,
+                interval: research.interval,
+                verification: research.verification,
+              );
+              values[name] = agreed;
+              _law(entry, group, name, agreed, p, dropped);
+            } else if (held.value is double) {
+              // The catalogue's number stays; a law of another number's
+              // shape is anchored on it only when they are close.
+              if (research.value is double &&
+                  _close(
+                    held.value as double,
+                    research.value as double,
+                    _lawTolerance,
+                  )) {
+                _law(entry, group, name, held, p, dropped);
+              } else {
+                dropped['${entry.id} $group.$name'] =
+                    'the catalogue keeps ${held.value}; the research has '
+                    '${research.value}';
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Molten basalt's heat.
+    final basalt = entries['f3d.basaltMelt']!;
+    final thermal = basalt.groups.putIfAbsent(
+      'thermal',
+      () => <String, _Value>{},
+    );
+    basalt.groupSources['thermal'] = _basaltMeltThermal['source']! as String;
+    for (final MapEntry(:key, :value) in _basaltMeltThermal.entries) {
+      if (value is! Map<String, Object?>) continue;
+      thermal[key] = _Value(
+        (value['value']! as num).toDouble(),
+        confidence: value['confidence'] as String?,
+        source: value['source'] as String?,
+        interval: (value['interval'] as List?)?.cast<double>(),
+      );
+    }
+
+    // A liquid or a gas the data gives no density or viscosity for is left
+    // out: everything that flows it reads both, and neither is invented.
+    final list = <_Entry>[];
+    for (final entry in entries.values) {
+      final flows = entry.phase == 'liquid' || entry.phase == 'gas';
+      final missing = <String>[
+        if (entry.groups['mechanical']?['density'] == null) 'density',
+        if (entry.groups['fluid']?['viscosity'] == null) 'viscosity',
+      ];
+      if (flows && missing.isNotEmpty) {
+        dropped[entry.id] = 'left out: the data has no ${missing.join(' or ')}';
+        continue;
+      }
+      list.add(entry);
+    }
+    _friction(list);
+    for (final entry in list) {
+      _finish(entry);
+    }
+    final pairs = _pairs(base, solids, entries);
+    return _Catalogue(list, pairs, dropped);
+  }
+
+  final List<_Entry> entries;
+  final List<Map<String, Object?>> pairs;
+  final Map<String, String> dropped;
+
+  static _Value _research(Map<String, Object?> p) {
+    final raw = p['value']!;
+    return _Value(
+      raw is num
+          ? raw.toDouble()
+          : <double>[for (final n in raw as List) (n as num).toDouble()],
+      confidence: p['confidence'] as String?,
+      source: _sourceOf(p),
+      interval: switch (p['range']) {
+        [final num low, final num high] when low <= high => <double>[
+          low.toDouble(),
+          high.toDouble(),
+        ],
+        _ => null,
+      },
+      verification: p['verification'] as String?,
+    );
+  }
+
+  static String? _sourceOf(Map<String, Object?> p) {
+    final source = p['source'] as String?;
+    if (source == null) return null;
+    final note = p['note'] as String?;
+    final url = p['sourceUrl'] as String?;
+    return <String>[
+      source,
+      if (url != null && !source.contains(url)) url,
+      if (note != null && note.isNotEmpty) note,
+    ].join('; ');
+  }
+
+  static bool _close(double a, double b, double tolerance) =>
+      a == b || (a - b).abs() <= tolerance * math.max(a.abs(), b.abs());
+
+  static void _inelastic(_Entry entry, Map<String, Object?> props) {
+    final damping = props['damping'] as Map<String, Object?>?;
+    final loss = damping?['lossFactor'] as Map<String, Object?>?;
+    if (loss != null && loss['value'] != null) {
+      entry.groups.putIfAbsent(
+        'inelastic',
+        () => <String, _Value>{},
+      )['lossFactor'] = _research(
+        loss,
+      );
+      entry.groupSources['inelastic'] ??= loss['source']! as String;
+    }
+    for (final kind in <String>['hyperelastic', 'viscoelastic', 'plastic']) {
+      final model = props[kind] as Map<String, Object?>?;
+      if (model == null) continue;
+      final name = model['model'] as String?;
+      if (name == null) continue;
+      String? source;
+      String? confidence;
+      final parameters = <String, double>{};
+      final terms = <Map<String, double>>[];
+      bool complete = true;
+      void collect(Map<String, Object?> from, Map<String, double> into) {
+        for (final MapEntry(:key, :value) in from.entries) {
+          if (value is Map<String, Object?> && value.containsKey('value')) {
+            final v = value['value'];
+            if (v is num) {
+              into[key] = v.toDouble();
+              source ??= value['source'] as String?;
+              confidence ??= value['confidence'] as String?;
+            } else {
+              complete = false;
+            }
+          } else if (value is num && key != 'model') {
+            into[key] = value.toDouble();
+          }
+        }
+      }
+
+      collect(model, parameters);
+      for (final term in (model['terms'] as List?) ?? const <Object?>[]) {
+        final into = <String, double>{};
+        collect(term! as Map<String, Object?>, into);
+        terms.add(into);
+      }
+      if (!complete || (parameters.isEmpty && terms.isEmpty)) continue;
+      entry.models[kind] = <String, Object?>{
+        'model': name,
+        'parameters': parameters,
+        'terms': terms,
+        'confidence': confidence,
+        'source': source,
+      };
+      entry.groupSources['inelastic'] ??= source ?? 'see each model';
+    }
+  }
+
+  /// The law of [value], from the research's [p], into [value.lawDart].
+  static void _law(
+    _Entry entry,
+    String group,
+    String name,
+    _Value value,
+    Map<String, Object?> p,
+    Map<String, String> dropped,
+  ) {
+    if (value.value is! double) return;
+    final laws = <Map<String, Object?>>[
+      if (p['law'] case final Map<String, Object?> law) law,
+      for (final law in (p['laws'] as List?) ?? const <Object?>[])
+        law! as Map<String, Object?>,
+    ];
+    if (laws.isEmpty) return;
+    final where = '${entry.id} $group.$name';
+    final v = value.value as double;
+    final reference = MaterialState.at(
+      temperature: entry.temperature,
+      pressure: entry.pressure,
+    );
+    // A table where there is one: the measurements themselves.
+    for (final law in laws) {
+      final points = switch (law) {
+        {'kind': 'table', 'points': final List points}
+            when _inTemperature(law) =>
+          points,
+        {'tablePoints': final List points} => points,
+        _ => null,
+      };
+      if (points == null) continue;
+      final factor = '${law['valueIs'] ?? ''}'.contains('factor');
+      final celsius = _celsius(law);
+      final xs = <double>[], ys = <double>[];
+      for (final point in points.cast<List>()) {
+        xs.add((point[0] as num).toDouble() + (celsius ? 273.15 : 0.0));
+        ys.add((point[1] as num).toDouble() * (factor ? v : 1.0));
+      }
+      final table = TableLaw(0, xs: xs, ys: ys);
+      if (table.problems().isNotEmpty) {
+        _drop(dropped, where, 'table: ${table.problems().join('; ')}');
+        continue;
+      }
+      final shape = table.at(reference);
+      if (!_close(shape, v, _lawTolerance)) {
+        _drop(dropped, where, 'table gives $shape at the reference state, quoted $v');
+        continue;
+      }
+      // The quoted value as a point of its own.
+      final t = entry.temperature;
+      final at = xs.indexWhere((x) => x >= t);
+      if (at == -1) {
+        xs.add(t);
+        ys.add(v);
+      } else if (xs[at] == t) {
+        ys[at] = v;
+      } else {
+        xs.insert(at, t);
+        ys.insert(at, v);
+      }
+      value
+        ..lawKind = 'table'
+        ..lawDart =
+            'TableLaw(${_d(v)}, xs: <double>[${xs.map(_d).join(', ')}], '
+            'ys: <double>[${ys.map(_d).join(', ')}]';
+      return;
+    }
+    for (final law in laws) {
+      final shape = _shape(law);
+      if (shape == null) {
+        _drop(dropped, where, 'a ${law['kind']} law in ${law['variable'] ?? law['x'] ?? 'T'} '
+            'the expression language is not given');
+        continue;
+      }
+      final range = (law['validRange'] as List?)?.cast<num>();
+      final input = range == null
+          ? LawInput.temperature
+          : LawInput.temperature.within(
+              range[0].toDouble(),
+              range[1].toDouble(),
+            );
+      final probe = FormulaLaw(
+        0,
+        expression: shape,
+        inputs: <String, LawInput>{'T': input},
+      );
+      final double c;
+      try {
+        if (!probe.dimension.isNone) throw StateError('not a pure shape');
+        c = probe.at(reference);
+      } on Object catch (e) {
+        _drop(dropped, where, 'the shape "$shape" does not read: $e');
+        continue;
+      }
+      // An anchored shape: the unanchored one is the value at the reference
+      // state only when its fit is good there.
+      final scale = _scaleOf(law, v);
+      if (!c.isFinite || c == 0 || !_close(c * scale, v, _lawTolerance)) {
+        _drop(dropped, where, '${law['kind']} gives ${c * scale} at the reference state, '
+            'quoted $v');
+        continue;
+      }
+      final unit = propertyUnits['$group.$name']!.symbol;
+      final head = unit == '1' ? _d(v) : '${_d(v)} [$unit]';
+      final text = '$head * (($shape) / ${_d(c)})';
+      final anchored = FormulaLaw(
+        v,
+        expression: text,
+        inputs: <String, LawInput>{'T': input},
+      );
+      final at = anchored.at(reference);
+      if (at != v) {
+        _drop(dropped, where, 'the anchored formula gives $at, not $v');
+        continue;
+      }
+      if (anchored.dimension != propertyUnits['$group.$name']!.dimension) {
+        _drop(dropped, where, 'the formula measures ${anchored.dimension}');
+        continue;
+      }
+      value
+        ..lawKind = 'formula'
+        ..lawDart =
+            'FormulaLaw(${_d(v)}, expression: ${_s(text)}, '
+            'inputs: <String, LawInput>{\'T\': ${_inputDart(input)}}'
+            '';
+      return;
+    }
+  }
+
+  /// Records why the law of [where] was left out, after what was said of it
+  /// already.
+  static void _drop(Map<String, String> dropped, String where, String why) =>
+      dropped[where] = switch (dropped[where]) {
+        null => why,
+        final said => '$said; then $why',
+      };
+
+  static bool _inTemperature(Map<String, Object?> law) {
+    final x = '${law['x'] ?? law['variable'] ?? 'T'}';
+    return x == 'T' || x == 'theta' || x.startsWith('T (');
+  }
+
+  static bool _celsius(Map<String, Object?> law) {
+    final x = '${law['x'] ?? law['variable'] ?? ''}';
+    final unit = '${law['xUnit'] ?? law['unit'] ?? ''}';
+    return x == 'theta' || x.contains('°C') || unit == 'C' || unit == '°C';
+  }
+
+  /// What the unanchored shape is multiplied by to give the property: the
+  /// scale the law's own form carries, so its fit can be judged.
+  static double _scaleOf(Map<String, Object?> law, double value) =>
+      switch (law['kind']) {
+        'linear' => value,
+        'arrhenius' => switch (law['mu0']) {
+          final num mu0 => mu0.toDouble(),
+          _ => value,
+        },
+        _ => 1.0,
+      };
+
+  /// The law's form as a dimensionless expression in `T` (K); null when it
+  /// is not one the generator writes.
+  static String? _shape(Map<String, Object?> law) {
+    const t = '(T / 1 [K])';
+    const theta = '(T / 1 [K] - 273.15)';
+    double? n(String key) => (law[key] as num?)?.toDouble();
+    switch (law['kind']) {
+      case 'andrade':
+        final a = n('A'), b = n('B');
+        if (a == null || b == null) return null;
+        return 'exp(${_e(a)} + ${_e(b)} / $t)';
+      case 'arrhenius':
+        final ea = n('Ea'), b = n('B');
+        if (ea != null) {
+          final r = n('R') ?? 8.314462618;
+          return 'exp(${_e(ea)} / (${_e(r)} * $t))';
+        }
+        if (b != null) return 'exp(${_e(b)} / $t)';
+        return null;
+      case 'vft':
+        final a = n('A'), b = n('B'), c = n('C');
+        if (a == null || b == null || c == null) return null;
+        return 'pow(10.0, ${_e(a)} + ${_e(b)} / ($t - ${_e(c)}))';
+      case 'polynomial':
+        final x = _celsius(law) ? theta : t;
+        if (law['coefficients'] case final List coefficients
+            when coefficients.every((c) => c is num)) {
+          if (!_inTemperature(law) && law['variable'] != null) return null;
+          return _horner(<double>[
+            for (final c in coefficients) (c as num).toDouble(),
+          ], x);
+        }
+        if (law['form'] case final String form
+            when law['coefficients'] == null) {
+          final coefficients = _polynomial(form, _celsius(law) ? 'theta' : 'T');
+          return coefficients == null ? null : _horner(coefficients, x);
+        }
+        return null;
+      case 'linear':
+        // `x(T) = x20 * (1 + alpha * (T - 293.15))`, alpha named or written.
+        final form = '${law['form'] ?? ''}';
+        final written = RegExp(
+          r'\(1 \+ ([0-9.eE+-]+|alpha) \*? ?\(T - [0-9.]+\)\)',
+        ).firstMatch(form)?.group(1);
+        final coefficients = law['coefficients'];
+        final num? alpha = written == 'alpha'
+            ? ((coefficients as Map?)?['alpha'] as num?)
+            : written == null
+            ? null
+            : double.tryParse(written);
+        final t0 = RegExp(r'T - ([0-9.]+)').firstMatch(form)?.group(1);
+        if (alpha == null || t0 == null) return null;
+        return '(1.0 + ${_e(alpha.toDouble())} * ($t - $t0))';
+      case 'exponential':
+        final match = RegExp(
+          r'^([0-9.eE+-]+) exp\(([0-9.eE+-]+) T\)$',
+        ).firstMatch('${law['form'] ?? ''}'.trim());
+        if (match == null) return null;
+        return '(${match.group(1)} * exp(${_e(double.parse(match.group(2)!))} '
+            '* $t))';
+      default:
+        return null;
+    }
+  }
+
+  /// The coefficients of a polynomial written `450 + 0.280 theta - 2.91e-4
+  /// theta^2`, in [variable]; null when [form] is not one.
+  static List<double>? _polynomial(String form, String variable) {
+    final text = form.replaceAll(' ', '');
+    final term = RegExp(
+      '([+-]?)([0-9.]+(?:e[+-]?[0-9]+)?)(?:\\*?$variable(?:\\^([0-9]))?)?',
+    );
+    final coefficients = <int, double>{};
+    var at = 0;
+    for (final match in term.allMatches(text)) {
+      if (match.start != at || match.group(0)!.isEmpty) return null;
+      at = match.end;
+      final sign = match.group(1) == '-' ? -1.0 : 1.0;
+      final value = double.parse(match.group(2)!) * sign;
+      final power = match.group(0)!.contains(variable)
+          ? int.parse(match.group(3) ?? '1')
+          : 0;
+      coefficients[power] = (coefficients[power] ?? 0) + value;
+    }
+    if (at != text.length || coefficients.isEmpty) return null;
+    final degree = coefficients.keys.reduce(math.max);
+    return <double>[for (var i = 0; i <= degree; i++) coefficients[i] ?? 0.0];
+  }
+
+  static String _horner(List<double> coefficients, String x) {
+    var text = _e(coefficients.last);
+    for (var i = coefficients.length - 2; i >= 0; i--) {
+      text = '(${_e(coefficients[i])} + $x * $text)';
+    }
+    return text;
+  }
+
+  /// [value] as the expression language writes a number.
+  static String _e(double value) =>
+      value.isNegative ? '(${_d(value)})' : _d(value);
+
+  /// Every solid that says no friction of its own takes an estimate.
+  static void _friction(List<_Entry> entries) {
+    final byField = <String, _Entry>{for (final e in entries) e.field: e};
+    double? measured(_Entry e) {
+      final m = e.groups['mechanical'];
+      final v = (m?['kineticFriction'] ?? m?['staticFriction'])?.value;
+      return v is double ? v : null;
+    }
+
+    for (final entry in entries) {
+      if (entry.phase != 'solid' && entry.phase != 'granular') continue;
+      if (measured(entry) != null) continue;
+      final family = _families.entries
+          .where((f) => f.value.contains(entry.field))
+          .firstOrNull;
+      final _Value estimate;
+      if (family != null) {
+        final known = <(String, double)>[
+          for (final field in family.value)
+            if (byField[field] case final e? when e != entry)
+              if (byField[field]!.groups['mechanical']?['staticFriction']?.value
+                  case final double v)
+                (field, v),
+        ]..sort((a, b) => a.$2.compareTo(b.$2));
+        if (known.isEmpty) continue;
+        final mid = known.length ~/ 2;
+        final median = known.length.isOdd
+            ? known[mid].$2
+            : (known[mid - 1].$2 + known[mid].$2) / 2;
+        estimate = _Value(
+          median,
+          confidence: 'estimate',
+          interval: <double>[known.first.$2, known.last.$2],
+          source:
+              'estimate: no measurement of it on itself was read; the median '
+              'of the clean, dry self-friction of the ${family.key} in this '
+              'catalogue (${known.map((k) => 'f3d.${k.$1}').join(', ')}), '
+              'the spread their least and greatest',
+        );
+      } else if (_rocks.contains(entry.field)) {
+        estimate = _Value(
+          0.6,
+          confidence: 'estimate',
+          interval: const <double>[0.6, 0.85],
+          source:
+              "estimate: Byerlee's rule for rock sliding on rock, μ 0.6 to "
+              '0.85 (Byerlee, "Friction of rocks", Pure and Applied '
+              'Geophysics 116, 1978), its lower end; not a measurement of '
+              'this stone',
+        );
+      } else if (_grains.contains(entry.field)) {
+        estimate = _Value(
+          0.6,
+          confidence: 'estimate',
+          interval: const <double>[0.6, 0.7],
+          source:
+              "estimate: a granular bed's internal friction, an angle of 30 "
+              'to 35° (tan 0.6 to 0.7) for sands and soils, its lower end; '
+              'not a measurement of this one',
+        );
+      } else {
+        estimate = _Value(
+          MaterialCatalog.defaultFriction,
+          confidence: 'estimate',
+          source:
+              'estimate: no measurement of it on itself was read; the '
+              "engine's default coefficient (MaterialCatalog.defaultFriction)",
+        );
+      }
+      final mechanical = entry.groups.putIfAbsent(
+        'mechanical',
+        () => <String, _Value>{},
+      );
+      mechanical['staticFriction'] = estimate;
+      entry.groupSources['mechanical'] ??= estimate.source!;
+    }
+  }
+
+  /// Group sources, every value's law, and the entry's confidence.
+  static void _finish(_Entry entry) {
+    final counts = <String, int>{};
+    for (final MapEntry(key: group, value: values) in entry.groups.entries) {
+      // The group's source: the one most of its values give.
+      final sources = <String, int>{};
+      for (final value in values.values) {
+        if (value.source case final s?) sources[s] = (sources[s] ?? 0) + 1;
+      }
+      final common = sources.entries.isEmpty
+          ? null
+          : (sources.entries.toList()
+                  ..sort((a, b) => b.value.compareTo(a.value)))
+                .first
+                .key;
+      entry.groupSources[group] ??= common ?? 'see each value';
+      for (final value in values.values) {
+        if (value.source == entry.groupSources[group]) value.source = null;
+        if (value.confidence case final c?) counts[c] = (counts[c] ?? 0) + 1;
+      }
+    }
+    // The base entries' values the research did not speak to: a handbook's
+    // unless their source says the number is the engine's own.
+    for (final MapEntry(key: group, value: values) in entry.groups.entries) {
+      final source = entry.groupSources[group]!;
+      final own = RegExp(
+        r"engine's|estimate|no measurement|not found|left to",
+      ).hasMatch(source);
+      for (final MapEntry(:key, :value) in values.entries) {
+        if (value.confidence != null || value.value is! double) continue;
+        values[key] = _Value(
+          value.value,
+          confidence: own ? 'estimate' : 'handbook',
+          source: value.source,
+          interval: value.interval,
+          verification: entry.base ? 'catalog' : value.verification,
+        )..lawDart = value.lawDart
+          ..lawKind = value.lawKind;
+      }
+    }
+    entry.confidence =
+        (counts.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
+            .firstOrNull
+            ?.key ??
+        'handbook';
+  }
+
+  static List<Map<String, Object?>> _pairs(
+    Map<String, Object?> base,
+    Map<String, Object?> solids,
+    Map<String, _Entry> entries,
+  ) {
+    final pairs = <String, Map<String, Object?>>{};
+    for (final pair in (base['pairs']! as List).cast<Map<String, Object?>>()) {
+      pairs[MaterialPair.keyOf(
+        pair['first']! as String,
+        pair['second']! as String,
+      )] = <String, Object?>{
+        ...pair,
+        'confidence': 'handbook',
+      };
+    }
+    for (final raw in (solids['pairs']! as List).cast<Map<String, Object?>>()) {
+      final condition = '${raw['condition'] ?? ''}';
+      if (!condition.contains('dry') || condition.contains('tyre')) continue;
+      final a = 'f3d.${raw['a']}', b = 'f3d.${raw['b']}';
+      if (!entries.containsKey(a) || !entries.containsKey(b)) continue;
+      final key = MaterialPair.keyOf(a, b);
+      if (pairs.containsKey(key)) continue;
+      final p =
+          (raw['kineticFriction'] ?? raw['staticFriction'])
+              as Map<String, Object?>?;
+      if (p == null || p['value'] == null) continue;
+      pairs[key] = <String, Object?>{
+        'first': a,
+        'second': b,
+        'friction': (p['value']! as num).toDouble(),
+        'confidence': p['confidence'],
+        'source':
+            '${raw['kineticFriction'] == null ? 'static' : 'kinetic'} friction, '
+            '$condition: ${_sourceOf(p)}',
+      };
+    }
+    return pairs.values.toList();
+  }
+
+  // -------------------------------------------------------------- writing
+
+  String dart() {
+    final out = StringBuffer()
+      ..writeln('// Generated by tool/gen_catalog.dart from tool/data/sources.')
+      ..writeln('// Do not edit: change the data and run')
+      ..writeln('// `dart run tool/gen_catalog.dart` in flutter3d_matter.')
+      ..writeln()
+      ..writeln("part of 'materials.dart';")
+      ..writeln()
+      ..writeln('/// The engine\'s built-in materials and the pairs measured')
+      ..writeln('/// between them: what `MaterialCatalog.builtIn` holds.')
+      ..writeln('///')
+      ..writeln(
+        '/// Values are at each entry\'s reference state (20 °C and one',
+      )
+      ..writeln('/// standard atmosphere unless its `temperature` says')
+      ..writeln('/// otherwise), each with its confidence, and its law where')
+      ..writeln('/// one is known: reference values for simulation, not for')
+      ..writeln('/// design or safety calculations.')
+      ..writeln('abstract final class Materials {');
+    for (final entry in entries) {
+      out
+        ..writeln('  /// ${_doc(entry)}')
+        ..writeln(
+          '  static const PhysicalMaterial ${entry.field} = PhysicalMaterial(',
+        )
+        ..writeln("    id: '${entry.id}',")
+        ..writeln('    name: ${_s(entry.name)},')
+        ..writeln('    phase: ${_phase(entry.phase)},');
+      if (entry.temperature != 293.15) {
+        out.writeln('    temperature: ${_d(entry.temperature)},');
+      }
+      if (entry.pressure != 101325.0) {
+        out.writeln('    pressure: ${_d(entry.pressure)},');
+      }
+      out.writeln('    confidence: Confidence.${entry.confidence},');
+      if (entry.externalIds.isNotEmpty) {
+        final ids = entry.externalIds.keys.toList()..sort();
+        out.writeln(
+          '    externalIds: <String, String>{'
+          '${ids.map((k) => '${_s(k)}: ${_s(entry.externalIds[k]!)}').join(', ')}},',
+        );
+      }
+      for (final group in _groupProperties.keys) {
+        final values = entry.groups[group];
+        final models = group == 'inelastic' ? entry.models : const {};
+        if ((values == null || values.isEmpty) && models.isEmpty) continue;
+        out.writeln('    $group: ${_groupClass[group]}(');
+        for (final name in _groupProperties[group]!) {
+          final value = values?[name];
+          if (value == null) continue;
+          out.writeln('      $name: ${_valueDart(group, name, value)},');
+        }
+        for (final MapEntry(key: kind, value: model) in models.entries) {
+          out.writeln('      $kind: ${_modelDart(model)},');
+        }
+        out
+          ..writeln('      source: ${_s(entry.groupSources[group]!)},')
+          ..writeln('    ),');
+      }
+      out
+        ..writeln('  );')
+        ..writeln();
+    }
+    out
+      ..writeln('  /// Every built-in material, in the order the catalogue')
+      ..writeln('  /// lists them.')
+      ..writeln(
+        '  static const List<PhysicalMaterial> all = <PhysicalMaterial>[',
+      )
+      ..writeln('    ${entries.map((e) => e.field).join(', ')},')
+      ..writeln('  ];')
+      ..writeln()
+      ..writeln('  /// How the built-ins meet where a pair was measured, or')
+      ..writeln('  /// where a liquid meets a wall.')
+      ..writeln('  static const List<MaterialPair> pairs = <MaterialPair>[');
+    for (final pair in pairs) {
+      out.writeln(
+        '    MaterialPair(${_s(pair['first']! as String)}, '
+        '${_s(pair['second']! as String)}, '
+        '${<String>[
+          for (final key in <String>['friction', 'restitution', 'rollingResistance', 'contactAngle'])
+            if (pair[key] case final num v) '$key: ${_d(v.toDouble())}',
+          if (pair['confidence'] case final String c) 'confidence: Confidence.$c',
+          'source: ${_s(pair['source']! as String)}',
+        ].join(', ')}),',
+      );
+    }
+    out
+      ..writeln('  ];')
+      ..writeln('}');
+    return out.toString();
+  }
+
+  static String _doc(_Entry entry) {
+    final what =
+        entry.description ??
+        '${entry.name[0].toUpperCase()}${entry.name.substring(1)}.';
+    return what.replaceAll('\n', ' ');
+  }
+
+  static String _phase(String phase) => switch (phase) {
+    'solid' || 'liquid' || 'gas' || 'granular' => 'MaterialPhase.$phase',
+    _ => "MaterialPhase.named('$phase')",
+  };
+
+  static String _valueDart(String group, String name, _Value value) {
+    if (_lists.contains('$group.$name')) {
+      final list = value.value as List<double>;
+      return group == 'optical'
+          ? 'RgbValues(${list.map(_d).join(', ')})'
+          : '<double>[${list.map(_d).join(', ')}]';
+    }
+    // The law's own arguments, then what is said of the value, which the
+    // last pass over the entry may have settled after the law was made.
+    return '${value.lawDart ?? 'ConstantLaw(${_d(value.value as double)}'}'
+        '${_meta(value)})';
+  }
+
+  static String _meta(_Value value) => <String>[
+    '',
+    if (value.confidence case final c?) 'confidence: Confidence.$c',
+    if (value.source case final s?) 'source: ${_s(s)}',
+    if (value.interval case [final low, final high])
+      'interval: PropertyInterval(${_d(low)}, ${_d(high)})',
+  ].join(', ');
+
+  static String _inputDart(LawInput input) => input.low == null
+      ? 'LawInput.temperature'
+      : 'LawInput(MaterialState.temperatureId, unit: Unit.kelvin, '
+            'low: ${_d(input.low!)}, high: ${_d(input.high!)})';
+
+  static String _modelDart(Map<String, Object?> model) {
+    final parameters = model['parameters']! as Map<String, double>;
+    final terms = model['terms']! as List<Map<String, double>>;
+    String map(Map<String, double> m) =>
+        '<String, double>{${m.entries.map((e) => '${_s(e.key)}: ${_d(e.value)}').join(', ')}}';
+    return 'ConstitutiveModel(${_s(model['model']! as String)}'
+        '${parameters.isEmpty ? '' : ', parameters: ${map(parameters)}'}'
+        '${terms.isEmpty ? '' : ', terms: <Map<String, double>>[${terms.map(map).join(', ')}]'}'
+        '${model['confidence'] is String ? ', confidence: Confidence.${model['confidence']}' : ''}'
+        '${model['source'] is String ? ', source: ${_s(model['source']! as String)}' : ''})';
+  }
+
+  /// [readme] with its coverage table between the markers rewritten: per
+  /// entry, which properties carry a law in temperature and which are a
+  /// constant at the reference state.
+  String readme(String readme) {
+    const start = '<!-- coverage:start -->', end = '<!-- coverage:end -->';
+    final from = readme.indexOf(start), to = readme.indexOf(end);
+    if (from < 0 || to < from) {
+      throw StateError('README.md has no $start … $end markers');
+    }
+    final rows = StringBuffer()
+      ..writeln(start)
+      ..writeln()
+      ..writeln(
+        '| Material | Changes with temperature | Constant at the reference '
+        'state |',
+      )
+      ..writeln('|---|---|---|');
+    var laws = 0, constants = 0;
+    for (final entry in entries) {
+      final varying = <String>[], constant = <String>[];
+      for (final group in _groupProperties.keys) {
+        final values = entry.groups[group];
+        if (values == null) continue;
+        for (final name in _groupProperties[group]!) {
+          final value = values[name];
+          if (value == null || _lists.contains('$group.$name')) continue;
+          (value.lawKind == 'constant' ? constant : varying).add(name);
+        }
+      }
+      laws += varying.length;
+      constants += constant.length;
+      rows.writeln(
+        '| `${entry.id}` | ${varying.isEmpty ? '—' : varying.join(', ')} | '
+        '${constant.isEmpty ? '—' : constant.join(', ')} |',
+      );
+    }
+    rows
+      ..writeln()
+      ..writeln(
+        '$laws values of ${entries.length} materials change with '
+        'temperature; $constants are constants at the reference state. '
+        'No law in the catalogue reads pressure yet.',
+      )
+      ..writeln()
+      ..write(end);
+    return readme.replaceRange(from, to + end.length, rows.toString());
+  }
+
+  /// The verified data: every entry's values as the Dart holds them.
+  Map<String, Object?> verified() => <String, Object?>{
+    'about':
+        'Generated by tool/gen_catalog.dart: every value of the built-in '
+        'catalogue, as test/catalog_verified_test.dart holds the Dart to. '
+        'Reference values for simulation, not for design or safety '
+        'calculations.',
+    'materials': <String, Object?>{
+      for (final entry in entries)
+        entry.id: <String, Object?>{
+          'confidence': entry.confidence,
+          if (entry.temperature != 293.15) 'temperature': entry.temperature,
+          for (final group in _groupProperties.keys)
+            if (entry.groups[group] case final values? when values.isNotEmpty)
+              group: <String, Object?>{
+                for (final name in _groupProperties[group]!)
+                  if (values[name] case final value?)
+                    name: <String, Object?>{
+                      'value': value.value,
+                      'confidence': value.confidence,
+                      'law': value.lawKind,
+                      'verification': ?value.verification,
+                    },
+              },
+        },
+    },
+    'pairs': <String, Object?>{
+      for (final pair in pairs)
+        MaterialPair.keyOf(
+          pair['first']! as String,
+          pair['second']! as String,
+        ): <String, Object?>{
+          for (final key in <String>['friction', 'contactAngle', 'confidence'])
+            if (pair[key] != null) key: pair[key],
+        },
+    },
+    'lawsLeftOut': <String, Object?>{
+      for (final key in dropped.keys.toList()..sort()) key: dropped[key],
+    },
+  };
+}
+
+/// [value] as a Dart double literal that reads back to the same double.
+String _d(double value) {
+  final text = value.toString();
+  return text.contains('.') || text.contains('e') || text.contains('n')
+      ? text
+      : '$text.0';
+}
+
+/// [text] as a Dart string literal.
+///
+/// The word for molten rock in the data's notes is written as such: the
+/// engine's packages name no game's genre, and a catalogue is not one.
+String _s(String text) => _quoted(
+  text.replaceAllMapped(
+    RegExp(r'\b([Ll])avas?\b'),
+    (m) => m[1] == 'L' ? 'Molten rock' : 'molten rock',
+  ),
+);
+
+String _quoted(String text) =>
+    "'${text.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll(r'$', r'\$').replaceAll('\n', r'\n')}'";

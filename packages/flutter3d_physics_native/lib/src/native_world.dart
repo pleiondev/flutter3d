@@ -266,8 +266,8 @@ final class NativeLiquidProperties {
   /// [ArgumentError] for a material that does not say all three.
   factory NativeLiquidProperties.of(PhysicalMaterial material) {
     final density = material.density;
-    final viscosity = material.fluid?.viscosity;
-    final tension = material.fluid?.surfaceTension;
+    final viscosity = material.fluid?.viscosity?.value;
+    final tension = material.fluid?.surfaceTension?.value;
     if (density == null || viscosity == null || tension == null) {
       throw ArgumentError.value(
         material.id,
@@ -370,9 +370,9 @@ final class NativeLiquidHeat {
     bool? boils,
   }) {
     final heat = material.thermal;
-    final specificHeat = heat?.specificHeat;
-    final conductivity = heat?.conductivity;
-    final expansion = heat?.volumetricExpansion;
+    final specificHeat = heat?.specificHeat?.value;
+    final conductivity = heat?.conductivity?.value;
+    final expansion = heat?.volumetricExpansion?.value;
     if (specificHeat == null || conductivity == null || expansion == null) {
       throw ArgumentError.value(
         material.id,
@@ -802,14 +802,14 @@ final class NativeMaterial {
     double? f32(double? value) =>
         value == null ? null : (Float32List(1)..[0] = value)[0];
     return base.copyWith(
-      specificHeat: f32(heat?.specificHeat),
-      conductivity: f32(heat?.conductivity),
-      emissivity: f32(heat?.emissivity),
-      ignitionTemperature: f32(heat?.ignitionTemperature),
-      heatOfCombustion: f32(heat?.heatOfCombustion),
-      flameRadiant: f32(heat?.radiantFraction),
-      modulus: f32(stiffness?.youngsModulus),
-      poissonRatio: f32(stiffness?.poissonRatio),
+      specificHeat: f32(heat?.specificHeat?.value),
+      conductivity: f32(heat?.conductivity?.value),
+      emissivity: f32(heat?.emissivity?.value),
+      ignitionTemperature: f32(heat?.ignitionTemperature?.value),
+      heatOfCombustion: f32(heat?.heatOfCombustion?.value),
+      flameRadiant: f32(heat?.radiantFraction?.value),
+      modulus: f32(stiffness?.youngsModulus?.value),
+      poissonRatio: f32(stiffness?.poissonRatio?.value),
     );
   }
 

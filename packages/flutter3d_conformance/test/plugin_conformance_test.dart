@@ -190,8 +190,14 @@ PhysicalMaterial _jam({String source = 'Orchard lab notes, 2026'}) =>
       id: 'orchard.plumJam',
       name: 'plum jam',
       phase: MaterialPhase.liquid,
-      mechanical: MechanicalProperties(density: 1300.0, source: source),
-      fluid: FluidProperties(viscosity: 30.0, source: source),
+      mechanical: MechanicalProperties(
+        density: const ConstantLaw(1300.0),
+        source: source,
+      ),
+      fluid: FluidProperties(
+        viscosity: const ConstantLaw(30.0),
+        source: source,
+      ),
     );
 
 PluginCheckOutcome _only(List<PluginCheckOutcome> outcomes, String check) =>
@@ -379,8 +385,11 @@ void main() {
           id: 'orchard.plumJam',
           name: 'plum jam',
           phase: MaterialPhase.liquid,
-          mechanical: MechanicalProperties(density: 1.3e-4, source: 'g/cm³'),
-          fluid: FluidProperties(viscosity: 30.0, source: 'notes'),
+          mechanical: MechanicalProperties(
+            density: ConstantLaw(1.3e-4),
+            source: 'g/cm³',
+          ),
+          fluid: FluidProperties(viscosity: ConstantLaw(30.0), source: 'notes'),
         ),
       ),
     );

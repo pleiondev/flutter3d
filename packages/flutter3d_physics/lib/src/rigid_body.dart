@@ -60,10 +60,11 @@ final class RigidBody {
     int layer = 1 << 0,
     int mask = Layers.all,
     Object? userData,
-  }) : restitution = restitution ?? material?.mechanical?.restitution ?? 0.0,
+  }) : restitution =
+           restitution ?? material?.mechanical?.restitution?.value ?? 0.0,
        friction =
            friction ??
-           material?.mechanical?.friction ??
+           material?.mechanical?.friction?.value ??
            MaterialCatalog.defaultFriction,
        inverseMass = mass <= 0.0 ? 0.0 : 1.0 / mass,
        inertiaLocal = inertiaFor(shape, mass),

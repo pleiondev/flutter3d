@@ -11,6 +11,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'material_json.dart';
 import 'materials.dart';
 import 'physical_material.dart';
+import 'property_law.dart';
 
 /// How two materials meet when the catalogue holds a measurement of the pair
 /// itself, in place of [MaterialCatalog.contact]'s rule.
@@ -26,6 +27,7 @@ final class MaterialPair {
     this.restitution,
     this.rollingResistance,
     this.contactAngle,
+    this.confidence,
     required this.source,
   });
 
@@ -53,6 +55,11 @@ final class MaterialPair {
   /// Where the numbers come from.
   final String source;
 
+  /// How the numbers were come by: [Confidence.estimate] where a source
+  /// gives a range or a rule rather than a measurement of the pair. Null
+  /// when it does not say.
+  final Confidence? confidence;
+
   /// The pair's key, the same either way round.
   String get key => keyOf(first, second);
 
@@ -72,6 +79,7 @@ final class MaterialPair {
     'restitution': ?restitution,
     'rollingResistance': ?rollingResistance,
     'contactAngle': ?contactAngle,
+    'confidence': ?confidence?.name,
     'source': source,
   };
 
@@ -101,6 +109,14 @@ final class MaterialPair {
       restitution: number('restitution'),
       rollingResistance: number('rollingResistance'),
       contactAngle: number('contactAngle'),
+      confidence: switch (json['confidence']) {
+        null => null,
+        final String name when name.isNotEmpty => Confidence.named(name),
+        final other => throw MaterialFormatException(
+          'the pair of "$first" and "$second": "confidence" must be a word, '
+          'not $other',
+        ),
+      },
       source: switch (json['source']) {
         final String said when said.trim().isNotEmpty => said,
         _ => throw MaterialFormatException(
@@ -252,6 +268,20 @@ base class MaterialCatalog extends PluginRegistry {
   PhysicalMaterial require(String id) =>
       _byId[id] ?? (throw UnknownMaterialException(id));
 
+  /// The first material registered that another system knows as [id] in
+  /// [space] ([PhysicalMaterial.externalIds]): a CAS number, an IFC
+  /// category, a MaterialX name. Null when none is.
+  ///
+  /// **The first, in the order they were added**, because a space such as
+  /// an IFC category names a kind of material rather than one: `concrete`
+  /// is the engine's `f3d.concrete` before a plugin's lightweight one.
+  PhysicalMaterial? byExternal(String space, String id) {
+    for (final material in materials) {
+      if (material.externalIds[space] == id) return material;
+    }
+    return null;
+  }
+
   /// The pair measured between [a] and [b], either way round; null when the
   /// catalogue has none.
   MaterialPair? pairOf(String a, String b) => _pairs[MaterialPair.keyOf(a, b)];
@@ -278,15 +308,21 @@ base class MaterialCatalog extends PluginRegistry {
       friction:
           pair?.friction ??
           math.sqrt(
-            (ma?.friction ?? defaultFriction) *
-                (mb?.friction ?? defaultFriction),
+            (ma?.friction?.value ?? defaultFriction) *
+                (mb?.friction?.value ?? defaultFriction),
           ),
       restitution:
           pair?.restitution ??
-          math.max(ma?.restitution ?? 0.0, mb?.restitution ?? 0.0),
+          math.max(
+            ma?.restitution?.value ?? 0.0,
+            mb?.restitution?.value ?? 0.0,
+          ),
       rollingResistance:
           pair?.rollingResistance ??
-          math.max(ma?.rollingResistance ?? 0.0, mb?.rollingResistance ?? 0.0),
+          math.max(
+            ma?.rollingResistance?.value ?? 0.0,
+            mb?.rollingResistance?.value ?? 0.0,
+          ),
     );
   }
 
@@ -381,6 +417,10 @@ final class _PluginMaterials extends MaterialCatalog {
 
   @override
   PhysicalMaterial require(String id) => _inner.require(id);
+
+  @override
+  PhysicalMaterial? byExternal(String space, String id) =>
+      _inner.byExternal(space, id);
 
   @override
   MaterialPair? pairOf(String a, String b) => _inner.pairOf(a, b);
