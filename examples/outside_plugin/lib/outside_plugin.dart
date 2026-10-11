@@ -195,9 +195,9 @@ final class OutsidePlugin extends Flutter3dPlugin {
 
   /// The node that puts the field on the device the frame draws on, as a
   /// 3D texture a volume samples, from the copy the simulation published:
-  /// what an application adds to its renderer after placing it
-  /// (`FieldUpload.place`) on the device's executors. Null where the field
-  /// is not declared.
+  /// what an application places and adds to its renderer in one call
+  /// (`RendererSteps.addFieldUpload`) on the device's executors. Null where
+  /// the field is not declared.
   static FieldUpload? upload(FieldRegistry fields) =>
       switch (fields.published(heatField.id)) {
         final HostField published => FieldUpload(published),
