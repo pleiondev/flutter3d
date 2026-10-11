@@ -132,6 +132,8 @@ List<FuzzTransform> transformsFor(FuzzProgram program, int seed)
 
 const Map<String, String> unprobedFeatures = …
 
+List<ConformanceCheck> get xrChecks
+
 library package:flutter3d_conformance/plugins.dart
 
 final class PluginBudget

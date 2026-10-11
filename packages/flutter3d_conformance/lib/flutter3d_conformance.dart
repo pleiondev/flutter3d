@@ -14,7 +14,7 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: 33 of the 55 link stages and draw. A new
+/// pipeline: 33 of the 58 link stages and draw. A new
 /// backend following the old promise would have met 33 shader checks
 /// it could do nothing about, so the lists say which is which — [coreChecks]
 /// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.

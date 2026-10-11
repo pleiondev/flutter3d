@@ -24,6 +24,25 @@ abstract base class HeadTracker
   HeadTracker()
   abstract ValueListenable<HeadPose> get pose
 
+final class HolderXrSession extends XrSession
+  Future<XrFrame> waitFrame()
+  Future<void> end()
+  Future<void> start(XrSessionRequest request)
+  HolderXrSession({required this.tracker, this.viewer, this.screen, this.interpupillaryDistance = 0.064, this.fovY = 1.0, this.aspect = 1.0, this.period = 1 / 60, this.eyeHeight = 1.6})
+  Set<XrCapability> get capabilities
+  Stream<XrSessionState> get states
+  String get runtimeName
+  XrSessionState get state
+  final HeadTracker tracker
+  final StereoScreen? screen
+  final StereoViewer? viewer
+  final double aspect
+  final double eyeHeight
+  final double fovY
+  final double interpupillaryDistance
+  final double period
+  void endFrame(XrFrameEnd end)
+
 final class LessonPlayer
   EntityDef? get current
   LessonPlayer(this.steps, {int start = 0})
@@ -70,6 +89,9 @@ final class StereoRig
   void dispose()
   void faceYaw(double yawRadians)
   void fitToViewport({required int width, required int height, double fovY = 1.0})
+
+extension StereoRigSession on StereoRig
+  void applyFrame(XrFrame frame)
 
 extension StereoRigViewer on StereoRig
   void applyViewer(StereoViewer viewer, StereoScreen screen)

@@ -128,7 +128,7 @@ final class Flutter3dEngine
 
 final class Flutter3dView extends StatefulWidget
   State<Flutter3dView> createState()
-  const Flutter3dView({super.key, this.scene, this.camera, this.onCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.time})
+  const Flutter3dView({super.key, this.scene, this.camera, this.onCreated, this.onBeforeFrame, this.onFrame, this.device = const DeviceSettings(), this.view = const ViewSettings(), this.loop = const LoopSettings(), this.plugins = const PluginSettings(), this.log, this.focusNode, this.autofocus = false, this.onKeyEvent, this.restorationId, this.saveState, this.restoreState, this.onPausedChanged, this.onListenerMoved, this.time, this.xr})
   final CameraNode? camera
   final DeviceSettings device
   final EngineLog? log
@@ -141,6 +141,7 @@ final class Flutter3dView extends StatefulWidget
   final String? restorationId
   final TimeSource? time
   final ViewSettings view
+  final XrSettings? xr
   final bool autofocus
   final void Function(Flutter3dEngine engine)? onCreated
   final void Function(Flutter3dEngine engine, FrameInfo frame)? onBeforeFrame
@@ -742,6 +743,246 @@ final class WidgetTexture
   final GraphicsDevice device
   static Future<ui.Image> rasterise(Widget widget, {required int width, required int height, double pixelRatio = 1.0})
 
+final class XrAnchor
+  EntityDef toEntity()
+  String toString()
+  XrAnchor({required this.id, required this.pose, this.space = XrSpace.localFloor, this.geo})
+  factory XrAnchor.fromEntity(EntityDef entity)
+  final GeoOrigin? geo
+  final String id
+  final XrPose pose
+  final XrSpace space
+  static const String entityType = 'xr.anchor'
+
+final class XrAnchorRequest
+  const XrAnchorRequest({required this.pose, this.space = XrSpace.localFloor, this.geo})
+  final GeoOrigin? geo
+  final XrPose pose
+  final XrSpace space
+
+final class XrCapability extends Capability
+  String get askedBy
+  String toString()
+  final String name
+  static XrCapability? byName(String name)
+  static const List<XrCapability> values = …
+  static const XrCapability anchors = XrCapability._('anchors')
+  static const XrCapability cylinderLayers = XrCapability._('cylinderLayers')
+  static const XrCapability depthOcclusion = XrCapability._('depthOcclusion')
+  static const XrCapability eyeGaze = XrCapability._('eyeGaze')
+  static const XrCapability hands = XrCapability._('hands')
+  static const XrCapability haptics = XrCapability._('haptics')
+  static const XrCapability immersiveAr = XrCapability._('immersiveAr')
+  static const XrCapability immersiveVr = XrCapability._('immersiveVr')
+  static const XrCapability inline = XrCapability._('inline')
+  static const XrCapability lightEstimation = XrCapability._('lightEstimation')
+  static const XrCapability passthrough = XrCapability._('passthrough')
+  static const XrCapability planes = XrCapability._('planes')
+  static const XrCapability quadLayers = XrCapability._('quadLayers')
+  static const XrCapability sceneMesh = XrCapability._('sceneMesh')
+
+final class XrCylinderLayer extends XrLayer
+  const XrCylinderLayer({required XrSpace space, required this.pose, required this.radius, required this.centralAngle, required this.height, required this.image})
+  final TextureHandle image
+  final XrPose pose
+  final double centralAngle
+  final double height
+  final double radius
+
+final class XrDriver
+  Future<void> dispose()
+  Future<void> endFrame()
+  Future<void> start({InputState? input})
+  List<RenderView> get views
+  XrDriver({required this.settings, required this.renderer, required this.origin, this.drawPanel})
+  XrFrame? beginFrame(InputState input)
+  XrSession get session
+  XrSwapchain? get swapchain
+  final DisplayTime time
+  final EnvironmentDepthNode environmentDepth
+  final Future<TextureHandle?> Function(Widget widget, int width, int height)? drawPanel
+  final ProjectionLayerNode projection
+  final Renderer renderer
+  final SceneNode origin
+  final XrSettings settings
+  int get framesEnded
+
+final class XrFieldOfView
+  OffAxisProjection projection({double near = 0.05, double far = 500.0})
+  String toString()
+  const XrFieldOfView({required this.left, required this.right, required this.up, required this.down})
+  final double down
+  final double left
+  final double right
+  final double up
+
+final class XrFrame
+  List<ExternalStateInput> toInputs()
+  Map<String, XrControlReading> get controlReadings
+  XrFrame({required this.index, required this.predictedDisplayTime, required this.space, required List<XrView> views, this.predictedDisplayPeriod = 1 / 90, this.shouldRender = true, Map<String, XrPose> poses = const <String, XrPose>{}, List<XrInputSource> inputs = const <XrInputSource>[], List<XrPlane> planes = const <XrPlane>[], List<String> lostPlanes = const <String>[], List<XrSceneMesh> meshes = const <XrSceneMesh>[], this.light, this.depth})
+  final EnvironmentDepth? depth
+  final List<String> lostPlanes
+  final List<XrInputSource> inputs
+  final List<XrPlane> planes
+  final List<XrSceneMesh> meshes
+  final List<XrView> views
+  final Map<String, XrPose> poses
+  final XrLightEstimate? light
+  final XrSpace space
+  final bool shouldRender
+  final double predictedDisplayPeriod
+  final double predictedDisplayTime
+  final int index
+
+final class XrFrameEnd
+  XrFrameEnd({required this.frame, List<XrLayer> layers = const <XrLayer>[]})
+  final List<XrLayer> layers
+  final XrFrame frame
+
+final class XrHaptic
+  const XrHaptic({required this.hand, this.amplitude = 1.0, this.duration = const Duration(milliseconds: 50), this.frequency})
+  final Duration duration
+  final XrHand hand
+  final double amplitude
+  final double? frequency
+
+final class XrInputSource
+  const XrInputSource({required this.hand, this.profiles = const <String>[], this.controls = const <XrControl, XrControlReading>{}, this.isHand = false})
+  final List<String> profiles
+  final Map<XrControl, XrControlReading> controls
+  final XrHand hand
+  final bool isHand
+
+abstract final class XrLayer
+  final XrSpace space
+
+final class XrLightEstimate
+  Vector3? get direction
+  XrLightEstimate({required this.ambient, required this.ambientIntensity, Vector3? direction, this.color, this.intensity})
+  final LinearColor ambient
+  final LinearColor? color
+  final double ambientIntensity
+  final double? intensity
+  void applyTo(Scene scene, {LightNode? main})
+
+final class XrPanel
+  XrLayer layer(XrSpace space, TextureHandle image)
+  XrPanel({required this.child, required this.pose, this.width = 1.0, this.height = 0.6, this.pixelWidth = 1024, this.pixelHeight = 614, this.shape = XrPanelShape.quad, this.radius = 1.5})
+  XrPose pose
+  final Widget child
+  final XrPanelShape shape
+  final double height
+  final double radius
+  final double width
+  final int pixelHeight
+  final int pixelWidth
+  int get generation
+  void invalidate()
+
+final class XrPanelShape
+  String toString()
+  final String name
+  static XrPanelShape? byName(String name)
+  static const List<XrPanelShape> values = <XrPanelShape>[quad, cylinder]
+  static const XrPanelShape cylinder = XrPanelShape._('cylinder')
+  static const XrPanelShape quad = XrPanelShape._('quad')
+
+final class XrProjectionLayer extends XrLayer
+  XrProjectionLayer({required XrSpace space, required this.swapchain, required this.image, required List<XrView> views})
+  final List<XrView> views
+  final TextureHandle image
+  final XrSwapchain swapchain
+
+final class XrQuadLayer extends XrLayer
+  const XrQuadLayer({required XrSpace space, required this.pose, required this.width, required this.height, required this.image})
+  final TextureHandle image
+  final XrPose pose
+  final double height
+  final double width
+
+abstract base class XrSession
+  Future<XrAnchor> placeAnchor(XrAnchorRequest request)
+  Future<XrAnchor?> restoreAnchor(String id)
+  UnsupportedCapabilityException refusal(XrCapability capability)
+  XrSession()
+  XrSwapchain createSwapchain(XrSwapchainRequest request)
+  abstract Future<XrFrame> waitFrame()
+  abstract Future<void> end()
+  abstract Future<void> start(XrSessionRequest request)
+  abstract Set<XrCapability> get capabilities
+  abstract Stream<XrSessionState> get states
+  abstract String get runtimeName
+  abstract XrSessionState get state
+  abstract void endFrame(XrFrameEnd end)
+  void requireCapabilities(XrSessionRequest request)
+  void vibrate(XrHaptic haptic)
+
+final class XrSessionRequest
+  const XrSessionRequest({this.mode = XrCapability.immersiveVr, this.space = XrSpace.localFloor, this.required = const <XrCapability>{}, this.optional = const <XrCapability>{}})
+  final Set<XrCapability> optional
+  final Set<XrCapability> required
+  final XrCapability mode
+  final XrSpace space
+
+final class XrSessionState
+  String toString()
+  bool get draws
+  final String name
+  static XrSessionState? byName(String name)
+  static const List<XrSessionState> values = <XrSessionState>[idle, ready, visible, focused, stopping, ended, lost]
+  static const XrSessionState ended = XrSessionState._('ended')
+  static const XrSessionState focused = XrSessionState._('focused')
+  static const XrSessionState idle = XrSessionState._('idle')
+  static const XrSessionState lost = XrSessionState._('lost')
+  static const XrSessionState ready = XrSessionState._('ready')
+  static const XrSessionState stopping = XrSessionState._('stopping')
+  static const XrSessionState visible = XrSessionState._('visible')
+
+final class XrSettings
+  XrSettings copyWith({XrSession? session, XrSessionRequest? request, List<XrPanel>? panels, Map<String, InputAction<Object>>? actions, XrSwapchainRequest? swapchain, bool clearSwapchain = false, double? near, double? far, LightNode? mainLight, bool clearMainLight = false})
+  const XrSettings({required this.session, this.request = const XrSessionRequest(), this.panels = const <XrPanel>[], this.actions = const <String, InputAction<Object>>{}, this.swapchain, this.near = 0.05, this.far = 500.0, this.mainLight})
+  final LightNode? mainLight
+  final List<XrPanel> panels
+  final Map<String, InputAction<Object>> actions
+  final XrSession session
+  final XrSessionRequest request
+  final XrSwapchainRequest? swapchain
+  final double far
+  final double near
+
+final class XrSpace
+  String toString()
+  final String name
+  static XrSpace? byName(String name)
+  static const List<XrSpace> values = <XrSpace>[viewer, local, localFloor, stage, unbounded]
+  static const XrSpace local = XrSpace._('local')
+  static const XrSpace localFloor = XrSpace._('localFloor')
+  static const XrSpace stage = XrSpace._('stage')
+  static const XrSpace unbounded = XrSpace._('unbounded')
+  static const XrSpace viewer = XrSpace._('viewer')
+
+abstract base class XrSwapchain
+  XrSwapchain()
+  abstract Future<void> release()
+  abstract TextureDescriptor get descriptor
+  abstract TextureHandle acquire(GraphicsDevice device)
+  void dispose()
+
+final class XrSwapchainRequest
+  TextureDescriptor get descriptor
+  XrSwapchainRequest withFormat(TextureFormat format)
+  const XrSwapchainRequest({required this.width, required this.height, this.views = 2, this.format})
+  final TextureFormat? format
+  final int height
+  final int views
+  final int width
+
+final class XrView
+  const XrView({required this.index, required this.pose, required this.fov})
+  final XrFieldOfView fov
+  final XrPose pose
+  final int index
+
 String? applicationDirectory({required String appName, required TargetPlatform platform, required Map<String, String> environment, required String temporary})
 
 String? applicationFolder(String appName)
@@ -811,3 +1052,41 @@ void writeBytesAtomicallySync(String path, Uint8List contents)
 Future<void> writeFileAtomically(String path, String contents)
 
 void writeFileAtomicallySync(String path, String contents)
+
+library package:flutter3d_app/xr_testing.dart
+
+final class FakeXrSession extends XrSession
+  FakeXrSession({Set<XrCapability>? capabilities, this.period = 1 / 90, this.startTime = 100.0, XrFrame Function(FakeXrSession session, int index)? frameAt, Map<String, XrAnchor>? anchorStore})
+  Future<XrAnchor> placeAnchor(XrAnchorRequest request)
+  Future<XrAnchor?> restoreAnchor(String id)
+  Future<XrFrame> waitFrame()
+  Future<void> end()
+  Future<void> start(XrSessionRequest request)
+  Stream<XrSessionState> get states
+  String get runtimeName
+  XrSessionRequest? get request
+  XrSessionState get state
+  XrSwapchain createSwapchain(XrSwapchainRequest request)
+  final List<FakeXrSwapchain> swapchains
+  final List<XrFrameEnd> ended
+  final List<XrHaptic> pulses
+  final Map<String, XrAnchor> anchorStore
+  final Set<XrCapability> capabilities
+  final XrFrame Function(FakeXrSession session, int index) frameAt
+  final double period
+  final double startTime
+  int get framesWaited
+  static XrFrame standardFrame(FakeXrSession session, int index)
+  void endFrame(XrFrameEnd end)
+  void moveTo(XrSessionState state)
+  void vibrate(XrHaptic haptic)
+
+final class FakeXrSwapchain extends XrSwapchain
+  FakeXrSwapchain(this.descriptor)
+  Future<void> release()
+  TextureHandle acquire(GraphicsDevice device)
+  TextureHandle? get image
+  final TextureDescriptor descriptor
+  int get acquired
+  int get released
+  void dispose()

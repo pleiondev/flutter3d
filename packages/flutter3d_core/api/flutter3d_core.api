@@ -1243,6 +1243,23 @@ final class EnvironmentCube
   final TextureHandle texture
   final int levels
 
+final class EnvironmentDepth
+  EnvironmentDepth({required this.width, required this.height, required this.meters, this.view = 0})
+  final Float32List meters
+  final int height
+  final int view
+  final int width
+
+final class EnvironmentDepthNode extends RenderNode
+  EnvironmentDepth? depth
+  EnvironmentDepthNode()
+  List<ResourceId> get writes
+  RenderAnchor get defaultAnchor
+  String get name
+  static const ResourceId id = ResourceId('environment_depth')
+  void execute(RenderFrame frame)
+  void release()
+
 abstract final class EnvironmentMap
   static ByteData hdrToRgba8(HdrImage image)
   static EnvironmentCube fromPanorama(GraphicsDevice device, ByteData panorama, {required int width, required int height, int size = 32, int levels = 4})
@@ -3896,6 +3913,18 @@ abstract base class Projection
   abstract double get near
   const Projection()
   double? get verticalFieldOfView
+
+final class ProjectionLayerNode extends RenderNode
+  List<ResourceId> get reads
+  List<ResourceId> get writes
+  ProjectionLayerNode()
+  RenderAnchor get defaultAnchor
+  String get name
+  TextureHandle? target
+  int get copied
+  int get frames
+  static void check(GraphicsDevice device, TextureHandle image, {required int views, required TextureFormat format})
+  void execute(RenderFrame frame)
 
 final class QualityContext
   const QualityContext({required this.table, required this.micros, required this.motion, required this.current, required this.choice})
