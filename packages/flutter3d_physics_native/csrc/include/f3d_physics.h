@@ -338,7 +338,9 @@ typedef enum F3dEventKind {
  * pushed on by the solver in the step however near it came — a ball the
  * speculative contact stopped short of a floor hit it then — and a
  * manifold at a time: the same two bodies may begin on one face and end
- * on another. After a restore, the step before is told by the impulses its
+ * on another. A snapshot keeps what the step before was in contact as, so a
+ * restored world reports the phases the world it was taken from would; one
+ * written before it kept them tells the step before by the impulses its
  * manifolds ended with. */
 typedef enum F3dContactPhase {
   F3D_CONTACT_BEGAN = 0,

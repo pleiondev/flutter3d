@@ -607,8 +607,8 @@ static int in_contact_now(const F3dWorld *world, const F3dManifold *m, uint32_t 
 }
 
 /* The same of the step before's manifold [index], [m]: as the last reports
- * found it, or — after a restore, which brings the manifolds and not the
- * reports — by what it ended that step pushing with. */
+ * found it, which a snapshot keeps; or — after a restore from a snapshot
+ * written before it kept them — by what it ended that step pushing with. */
 static int in_contact_before(const F3dWorld *world, const F3dManifold *m, uint32_t index) {
   if (world->contact_known && index < world->contact_capacity) {
     return world->contact_before[index];

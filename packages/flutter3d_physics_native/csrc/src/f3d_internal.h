@@ -29,11 +29,12 @@ void f3d_copy(void *to, const void *from, size_t bytes);
 
 #define F3D_PI F3D_R(3.14159265358979323846)
 
-/* Overlap the solver leaves alone, m: pushing a resting box out to the last
- * micrometre would have it lose contact, fall a substep and land again. A
- * contact this close or closer counts as touching, since this is as close
- * as the solver brings a body it holds. */
-#define F3D_LINEAR_SLOP F3D_R(0.005)
+/* F3D_LINEAR_SLOP, the overlap the solver leaves alone, m — pushing a
+ * resting box out to the last micrometre would have it lose contact, fall
+ * a substep and land again — is in the generated header below, written
+ * from flutter3d_physics' contactSlop: a contact this close or closer
+ * counts as touching on both cores, since this is as close as the solver
+ * brings a body it holds. */
 
 /* The constants of nature, the standard world's defaults and every built-in
  * material's numbers — F3D_STEFAN_BOLTZMANN, F3D_STANDARD_GRAVITY,
@@ -882,8 +883,10 @@ struct F3dWorld {
   uint32_t previous_count;
   int reports_ready;
   /* Whether each of the last step's manifolds was in contact, as its
-   * reports said, and room for this step's; trusted while contact_known,
-   * which a restore clears. */
+   * reports said, and room for this step's; trusted while contact_known.
+   * In a snapshot, so a restored world tells its phases as the world it
+   * was taken from would; a snapshot from before it was kept clears
+   * contact_known. */
   uint8_t *contact_before;
   uint8_t *contact_now;
   uint32_t contact_capacity;

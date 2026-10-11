@@ -1,104 +1,162 @@
 // The step's contacts from the two cores: the same scenes built once,
 // through RigidDynamics, stepped by the reference and by the core, and their
 // contact lists held to one another — the same pairs on the same faces,
-// beginning and ending in the same order, each at the same step or the one
-// beside it, meeting at the same speed and passing the same momentum.
+// beginning and ending in the same order, meeting at the same speed and
+// passing the same momentum; and each core, restored from a save mid-scene,
+// telling exactly the contacts it told the first time.
 //
-// **A step either way, and no more.** The core's speculative contact
-// reaches as far as a body moves in a step, so it catches a falling ball
-// the step before it would touch; the reference's reaches its two
-// centimetres of margin, so it catches it the step it does. Both say the
-// impact happened, at the speed it fell at; neither moves the simulation
-// to agree with the other, since the reference's bits are the ones every
-// recorded run holds.
+// **A step either way, and no more: the one thing not yet exact.** The
+// core's speculative contact reaches as far as a body moves in a step, so
+// it can catch a falling ball the step before the reference's two
+// centimetres of margin do. Both say the impact happened, at the speed it
+// fell at; telling it on the same step on both would take a speculative
+// contact in the reference's solver, which moves every run recorded on it,
+// and is not done here.
+//
+// Every other tolerance below is the least the two cores' arithmetic
+// allows, with its reason beside it: the core steps in floats with
+// substeps, the reference in doubles with one step, and each solver leaves
+// a resting body at an overlap of its own inside [contactSlop].
+import 'package:flutter3d_matter/flutter3d_matter.dart' show standardGravity;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 
 import 'scenes/contact_scenes.dart';
 
+/// A normal along an axis is exact in floats, and one made from float
+/// positions is a float's rounding of a unit vector: six parts in a hundred
+/// million a component.
+const double _normalTolerance = 1e-6;
+
+/// Across the normal, a contact's middle is the middle of a face both cores
+/// place where the scene put it: a float's rounding of a few metres, a
+/// micrometre at most.
+const double _acrossTolerance = 1e-6;
+
+/// Along the normal, each solver leaves a resting body at an overlap of its
+/// own between nought and [contactSlop], and the middle is halfway into it,
+/// so the two middles are at most half the slop apart — and a whole slop
+/// more for each resting body under it ([ContactScene.stacked]), whose
+/// overlap it stands on.
+double _alongTolerance(ContactScene scene) =>
+    contactSlop * (scene.stacked + 0.5);
+
+/// The speed a contact begins at, on the same step: the same fall on both,
+/// the core's in floats, a float's rounding of a few metres a second.
+const double _speedTolerance = 1e-5;
+
+/// A step apart, the speeds are a step of gravity apart.
+const double _stepOfGravity = standardGravity / 60.0;
+
 void main() {
   for (final scene in contactScenes) {
-    test('${scene.name}: the cores report the same contacts', () {
-      final reference = ContactHistory(
-        scene.run(
-          (world) =>
-              Dynamics(world: world)
-                ..sleepAfter = scene.sleeps ? 0.5 : double.infinity,
-        ),
-      );
-      final core = ContactHistory(
-        scene.run((world) {
-          world.properties = world.properties.copyWith(airDensity: 1e-30);
-          final dynamics = NativeDynamics(world: world);
-          if (!scene.sleeps) dynamics.native.setSleep(speed: 0.0, time: 0.0);
-          addTearDown(dynamics.dispose);
-          return dynamics;
-        }),
-      );
-      expect(reference.pairs, isNotEmpty, reason: 'a scene with no contact');
-      // Mutation: report a contact the core keeps while both sides sleep as
-      // ended, or a body's removal as nothing, and the pairs or their
-      // phases part.
-      expect(core.pairs, reference.pairs);
-      for (final pair in reference.pairs) {
-        final r = reference.changes[pair]!, n = core.changes[pair]!;
-        expect(
-          n.map((c) => c.contact.phase).toList(),
-          r.map((c) => c.contact.phase).toList(),
-          reason: '$pair: what became of it, in order',
+    RigidDynamics reference(CollisionWorld world) =>
+        Dynamics(world: world)
+          ..sleepAfter = scene.sleeps ? 0.5 : double.infinity;
+    RigidDynamics core(CollisionWorld world) {
+      world.properties = world.properties.copyWith(airDensity: 1e-30);
+      final dynamics = NativeDynamics(world: world);
+      if (!scene.sleeps) dynamics.native.setSleep(speed: 0.0, time: 0.0);
+      addTearDown(dynamics.dispose);
+      return dynamics;
+    }
+
+    group(scene.name, () {
+      test('the cores report the same contacts', () {
+        _holdTo(
+          ContactHistory(scene.run(core)),
+          ContactHistory(scene.run(reference)),
+          scene,
         );
-        for (var i = 0; i < r.length; i++) {
-          final why = '$pair: ${r[i].order} against ${n[i].order}';
+      });
+
+      for (final (name, make)
+          in <(String, RigidDynamics Function(CollisionWorld))>[
+            ('the reference', reference),
+            ('the core', core),
+          ]) {
+        test('$name restored mid-scene tells the same contacts again', () {
+          final straight = scene.run(make);
+          final restored = scene.run(make, restoreAt: scene.steps ~/ 2);
+          // Mutation: forget the step before on a restore, on either core,
+          // and a contact resting through it begins again.
           expect(
-            (n[i].step - r[i].step).abs(),
-            lessThanOrEqualTo(1),
-            reason: why,
+            restored.map((c) => c.order).toList(),
+            straight.map((c) => c.order).toList(),
+            reason: 'every contact, in order, on its step, in its phase',
           );
-          expect(
-            n[i].normal.distanceTo(r[i].normal),
-            lessThan(1e-3),
-            reason: why,
-          );
-          // Where a contact begins, the core says by the points its manifold
-          // had then: a crate the speculative contact caught short of
-          // another holds the corner that reached it first. Where it rests,
-          // below, the two agree.
-          if (r[i].contact.phase != ContactPhase.begin) {
-            expect(
-              n[i].point.distanceTo(r[i].point),
-              lessThan(0.05),
-              reason: why,
-            );
+          for (var i = 0; i < straight.length; i++) {
+            expect(restored[i].point, straight[i].point);
+            expect(restored[i].impulse, straight[i].impulse);
           }
-          if (r[i].contact.phase == ContactPhase.begin) {
-            expect(
-              (n[i].relativeVelocity - r[i].relativeVelocity).length,
-              lessThan(0.3),
-              reason: why,
-            );
-          }
-        }
-        if (reference.resting[pair] case final r?) {
-          final n = core.resting[pair]!;
-          expect(
-            n.point.distanceTo(r.point),
-            lessThan(0.05),
-            reason: '$pair: where it rests',
-          );
-          expect(n.normal.distanceTo(r.normal), lessThan(1e-3));
-        }
-        // The momentum the pair passed over the scene: the impact's and the
-        // weight held, give or take a step of weight either way.
-        if (scene.sleeps) continue;
-        expect(
-          core.impulse[pair]!,
-          closeTo(reference.impulse[pair]!, scene.impulseTolerance),
-          reason: '$pair: impulse over the scene',
-        );
+        });
       }
     });
   }
+}
+
+/// [n], the core's, held to [r], the reference's.
+void _holdTo(ContactHistory n, ContactHistory r, ContactScene scene) {
+  expect(r.pairs, isNotEmpty, reason: 'a scene with no contact');
+  // Mutation: report a contact the core keeps while both sides sleep as
+  // ended, or a body's removal as nothing, and the pairs or their phases
+  // part.
+  expect(n.pairs, r.pairs);
+  for (final pair in r.pairs) {
+    final rs = r.changes[pair]!, ns = n.changes[pair]!;
+    expect(
+      ns.map((c) => c.contact.phase).toList(),
+      rs.map((c) => c.contact.phase).toList(),
+      reason: '$pair: what became of it, in order',
+    );
+    for (var i = 0; i < rs.length; i++) {
+      final a = rs[i], b = ns[i];
+      final why = '$pair: ${a.order} against ${b.order}';
+      final apart = (b.step - a.step).abs();
+      expect(apart, lessThanOrEqualTo(1), reason: why);
+      expect(
+        b.normal.distanceTo(a.normal),
+        lessThan(_normalTolerance),
+        reason: why,
+      );
+      if (a.contact.phase == ContactPhase.begin) {
+        expect(
+          (b.relativeVelocity - a.relativeVelocity).length,
+          lessThanOrEqualTo(_speedTolerance + apart * _stepOfGravity),
+          reason: why,
+        );
+      }
+      if (a.contact.phase == ContactPhase.end) _samePlace(b, a, scene, why);
+    }
+    if (r.resting[pair] case final a?) {
+      _samePlace(n.resting[pair]!, a, scene, '$pair: where it rests');
+    }
+    // The momentum the pair passed over the scene: its impact and the
+    // weight it held, every step of it the same weight times the step on
+    // both, give or take the step the impact is told on.
+    if (scene.sleeps) continue;
+    expect(
+      n.impulse[pair]!,
+      closeTo(r.impulse[pair]!, scene.impulseTolerance),
+      reason: '$pair: impulse over the scene',
+    );
+  }
+}
+
+/// [b]'s middle against [a]'s: across the normal to the floats' rounding,
+/// along it within the two solvers' resting overlaps.
+void _samePlace(SeenContact b, SeenContact a, ContactScene scene, String why) {
+  final n = a.normal;
+  final d = b.point - a.point;
+  final along = d.dot(n);
+  final across = (d - n * along).length;
+  expect(
+    across,
+    lessThan(_acrossTolerance * (1 + a.point.length)),
+    reason: why,
+  );
+  expect(along.abs(), lessThanOrEqualTo(_alongTolerance(scene)), reason: why);
 }
 
 /// A scene's contacts, by pair and face: where each began and ended, and

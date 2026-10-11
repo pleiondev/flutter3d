@@ -16,9 +16,16 @@
   gives one report a manifold, begun, persisting or ended, with the
   impulse summed over the substeps and the bounce and the velocity the
   bodies met at; `NativeDynamics.contacts` makes `StepContact`s of them in
-  the reference's order, and its phases hold across a restore. The solver's
-  numbers, the snapshot layout and the ABI number are unchanged; the
-  WebAssembly modules are rebuilt.
+  the reference's order, reading them through room the world keeps rather
+  than asking for it every step, and refuses a phase it does not know
+  rather than calling it an end. The snapshot's contacts section is at
+  version 2: it keeps what each manifold was in contact as, so a restored
+  world reports the phases the world it was taken from would, and a
+  version 1 snapshot reads as before; `NativeDynamics.saveState` keeps the
+  pairs it reported. `F3D_LINEAR_SLOP` is written into the generated header
+  from `flutter3d_physics`' `contactSlop`, the same 0.005. The solver's
+  numbers and the ABI number are unchanged; the WebAssembly modules are
+  rebuilt.
 - **wgpu-native is fetched where the compute sidecar fetches it.** The
   hook's pinned release, checksums and unpacking moved to
   `flutter3d_wgpu`'s `wgpu_native_hook.dart`, which this hook imports, so

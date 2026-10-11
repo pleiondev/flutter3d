@@ -316,27 +316,36 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
 
   /// The colliders and world ids of the core bodies in the last step's
   /// contacts, for a contact that ends after one of them was taken out of
-  /// the world and so out of [_owners].
+  /// the world and so out of [_owners]; and the next step's, kept to be
+  /// cleared and swapped rather than made again.
   Map<NativeBody, (Collider, int)> _named = <NativeBody, (Collider, int)>{};
+  Map<NativeBody, (Collider, int)> _naming = <NativeBody, (Collider, int)>{};
 
   /// The last step's contacts in contact, by their ids and feature: the one
   /// way a contact whose body is gone is still told as one that had a body.
-  Set<(int, int, int)> _reported = <(int, int, int)>{};
+  /// In a save ([saveState]), as the core's phases are in its snapshot.
+  final Set<(int, int, int)> _reported = <(int, int, int)>{};
+
+  /// What a report's vectors are read into on their way into a contact,
+  /// which keeps none of them.
+  final Vector3 _point = Vector3.zero();
+  final Vector3 _normal = Vector3.zero();
+  final Vector3 _velocity = Vector3.zero();
+
+  (Collider, int)? _nameOf(NativeBody handle) {
+    final collider = _owners[handle];
+    if (collider != null) {
+      final id = world.idOf(collider);
+      return id == null ? null : (collider, id);
+    }
+    return _named[handle];
+  }
 
   void _readContacts() {
     final contacts = <StepContact>[];
-    final named = <NativeBody, (Collider, int)>{};
-    (Collider, int)? nameOf(NativeBody handle) {
-      final collider = _owners[handle];
-      if (collider != null) {
-        final id = world.idOf(collider);
-        return id == null ? null : (collider, id);
-      }
-      return _named[handle];
-    }
-
+    final named = _naming..clear();
     forEachContactReport(native, (a, b, part, phase, reals, at) {
-      final ia = nameOf(a), ib = nameOf(b);
+      final ia = _nameOf(a), ib = _nameOf(b);
       if (ia == null || ib == null) return;
       final key = ia.$2 < ib.$2 ? (ia.$2, ib.$2, part) : (ib.$2, ia.$2, part);
       if (!_byCollider.containsKey(ia.$1) &&
@@ -356,26 +365,33 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
           phase: switch (phase) {
             c.ContactPhases.began => ContactPhase.begin,
             c.ContactPhases.persisted => ContactPhase.persist,
-            _ => ContactPhase.end,
+            c.ContactPhases.ended => ContactPhase.end,
+            // A phase this binding was not written for is a core newer
+            // than it: refused, rather than told as one it is not.
+            _ => throw StateError(
+              'the physics core reported a contact in phase $phase, which '
+              'this binding does not know; it was written for '
+              '${c.ContactPhases.began} to ${c.ContactPhases.ended}',
+            ),
           },
-          normal: Vector3(reals[at], reals[at + 1], reals[at + 2]),
-          point: Vector3(reals[at + 3], reals[at + 4], reals[at + 5]),
+          normal: _normal..setValues(reals[at], reals[at + 1], reals[at + 2]),
+          point: _point
+            ..setValues(reals[at + 3], reals[at + 4], reals[at + 5]),
           impulse: reals[at + 6],
-          relativeVelocity: Vector3(
-            reals[at + 7],
-            reals[at + 8],
-            reals[at + 9],
-          ),
+          relativeVelocity: _velocity
+            ..setValues(reals[at + 7], reals[at + 8], reals[at + 9]),
         ),
       );
     });
     contacts.sort();
+    _naming = _named;
     _named = named;
-    _reported = <(int, int, int)>{
-      for (final contact in contacts)
-        if (contact.phase != ContactPhase.end)
-          (contact.idA, contact.idB, contact.feature),
-    };
+    _reported.clear();
+    for (final contact in contacts) {
+      if (contact.phase != ContactPhase.end) {
+        _reported.add((contact.idA, contact.idB, contact.feature));
+      }
+    }
     _contacts = List<StepContact>.unmodifiable(contacts);
   }
 
@@ -431,8 +447,21 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
       // back both and the next step does not write the new world over the
       // old.
       'world': world.properties.toJson(),
+      // The pairs the last step had in contact, by their world ids: the
+      // core keeps their phases in its bytes, and these say which of its
+      // reports are this dynamics' once a body of them is gone.
+      'contacts': <Object?>[
+        for (final (a, b, feature) in _reported.toList()..sort(_byKey))
+          <int>[a, b, feature],
+      ],
     };
   }
+
+  static int _byKey((int, int, int) x, (int, int, int) y) => x.$1 != y.$1
+      ? x.$1.compareTo(y.$1)
+      : x.$2 != y.$2
+      ? x.$2.compareTo(y.$2)
+      : x.$3.compareTo(y.$3);
 
   /// What tells a standing collider in a world staged again: its shape's
   /// kind and size, and where it stands, to the float.
@@ -479,6 +508,16 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
     // start again from nothing, as they did then.
     if (forceFields.isNotEmpty) {
       forceFields.restoreState(saved is Map ? saved['fields'] : null);
+    }
+    // The pairs the saved step had in contact; a save from before they were
+    // kept has none, and a contact ending after it whose body is gone is
+    // not reported, as before.
+    if (saved case {'contacts': final List<Object?> keys}) {
+      for (final key in keys) {
+        if (key case [final int a, final int b, final int feature]) {
+          _reported.add((a, b, feature));
+        }
+      }
     }
   }
 
@@ -550,6 +589,16 @@ final class NativeDynamics extends RigidDynamics with WorldMirror {
         for (final MapEntry(key: body, value: mirror) in _mirrors.entries)
           mirror.handle: body.collider,
       });
+    // The last step's contacts were of a world that is gone: none until the
+    // next step, whose phases the core tells from its snapshot. Every body
+    // now held is named, so a contact of one taken out before that step
+    // still ends as its own.
+    _contacts = const <StepContact>[];
+    _reported.clear();
+    _named.clear();
+    _owners.forEach((handle, collider) {
+      if (world.idOf(collider) case final id?) _named[handle] = (collider, id);
+    });
     world.reindex();
   }
 

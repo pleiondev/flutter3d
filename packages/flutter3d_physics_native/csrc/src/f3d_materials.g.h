@@ -23,6 +23,11 @@
 /* What a body whose material says none takes, and what every
  * F3dMaterial preset starts from (tool/gen_materials.dart). */
 #define F3D_DEFAULT_FRICTION F3D_R(0.6)
+
+/* How near counts as touching, and the overlap the solver leaves
+ * alone, m: flutter3d_physics' contactSlop, so the two cores
+ * say "in contact" of the same pairs. */
+#define F3D_LINEAR_SLOP F3D_R(0.005)
 #define F3D_PRESET_DEFAULT_EMISSIVITY F3D_R(0.9)
 #define F3D_PRESET_DEFAULT_CONDUCTIVITY F3D_R(1.0)
 #define F3D_PRESET_DEFAULT_YOUNGS_MODULUS F3D_R(50000000000.0)

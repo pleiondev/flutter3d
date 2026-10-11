@@ -24,7 +24,8 @@
 /// `NativeMaterial.of`) when the thing that needs it is made.
 ///
 /// **The core's own defaults are here too**, so the Dart views and the C
-/// presets read one number: [defaultFriction] and the values every
+/// presets read one number — and the contact slop the two cores' contacts
+/// are told by (`contactSlop`, `F3D_LINEAR_SLOP`): [defaultFriction] and the values every
 /// `F3dMaterial` preset starts from before its entry is laid over it
 /// ([presetDefaults]), each defined, with its source, on
 /// `MaterialCatalog`.
@@ -33,6 +34,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart' show contactSlop;
 
 /// Where the header goes, from the package root.
 const String headerPath = 'csrc/src/f3d_materials.g.h';
@@ -83,7 +85,12 @@ String generateMaterialsHeader() {
     ..writeln()
     ..writeln('/* What a body whose material says none takes, and what every')
     ..writeln(' * F3dMaterial preset starts from (tool/gen_materials.dart). */')
-    ..writeln(_define('F3D_DEFAULT_FRICTION', defaultFriction));
+    ..writeln(_define('F3D_DEFAULT_FRICTION', defaultFriction))
+    ..writeln()
+    ..writeln('/* How near counts as touching, and the overlap the solver leaves')
+    ..writeln(' * alone, m: flutter3d_physics\' contactSlop, so the two cores')
+    ..writeln(' * say "in contact" of the same pairs. */')
+    ..writeln(_define('F3D_LINEAR_SLOP', contactSlop));
   for (final MapEntry(:key, :value) in presetDefaults.entries) {
     out.writeln(_define('F3D_PRESET_DEFAULT_$key', value));
   }

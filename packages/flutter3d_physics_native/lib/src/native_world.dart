@@ -1360,8 +1360,21 @@ final class NativeWorld {
       _pieceWaters.free();
       _pieceRoom = 0;
     }
+    if (_reportRoom > 0) {
+      _reportReals.free();
+      _reportPairs.free();
+      _reportParts.free();
+      _reportRoom = 0;
+    }
     _world = 0;
   }
+
+  /// Room for the last step's contact reports, kept between steps and
+  /// grown when a step has more: [forEachContactReport]'s.
+  c.F32s _reportReals = const c.F32s(0);
+  c.U64s _reportPairs = const c.U64s(0);
+  c.U32s _reportParts = const c.U32s(0);
+  int _reportRoom = 0;
 
   /// Whether [dispose] has run.
   bool get isDisposed => _world == 0;
@@ -3884,9 +3897,10 @@ final class NativeWorld {
 
 /// What [world]'s last step's contact reports say, each handed to [each]:
 /// its two bodies, its manifold's part, its phase (`c.ContactPhases`), and
-/// the floats it takes (`F3D_REPORT_FLOATS`) at [at] in [reals]. In the
-/// core's order, the pair's slots then the part. For `NativeDynamics`,
-/// which makes `StepContact`s of them; not exported.
+/// the floats it takes (`F3D_REPORT_FLOATS`) at [at] in [reals], the
+/// world's own room for them, read before the next step. In the core's
+/// order, the pair's slots then the part. For `NativeDynamics`, which makes
+/// `StepContact`s of them; not exported.
 void forEachContactReport(
   NativeWorld world,
   void Function(
@@ -3894,7 +3908,7 @@ void forEachContactReport(
     NativeBody b,
     int part,
     int phase,
-    Float32List reals,
+    c.F32s reals,
     int at,
   )
   each,
@@ -3902,31 +3916,38 @@ void forEachContactReport(
   final live = world._live;
   final count = c.f3d_world_contact_report_count(live);
   if (count == 0) return;
-  final values = c.F32s.alloc(count * c.reportFloats);
-  final pairs = c.U64s.alloc(count * 2);
-  final parts = c.U32s.alloc(count * 2);
-  try {
-    final read = c.f3d_world_read_contact_reports(
-      live,
-      values,
-      pairs,
-      parts,
-      count,
-    );
-    final reals = values.copy(read * c.reportFloats);
-    for (var i = 0; i < read; i++) {
-      each(
-        NativeBody(pairs[i * 2]),
-        NativeBody(pairs[i * 2 + 1]),
-        parts[i * 2],
-        parts[i * 2 + 1],
-        reals,
-        i * c.reportFloats,
-      );
+  if (count > world._reportRoom) {
+    if (world._reportRoom > 0) {
+      world._reportReals.free();
+      world._reportPairs.free();
+      world._reportParts.free();
     }
-  } finally {
-    values.free();
-    pairs.free();
-    parts.free();
+    // Room to grow into, so a pile settling does not ask on every step.
+    final room = count * 2;
+    world
+      .._reportReals = c.F32s.alloc(room * c.reportFloats)
+      .._reportPairs = c.U64s.alloc(room * 2)
+      .._reportParts = c.U32s.alloc(room * 2)
+      .._reportRoom = room;
+  }
+  final reals = world._reportReals;
+  final pairs = world._reportPairs;
+  final parts = world._reportParts;
+  final read = c.f3d_world_read_contact_reports(
+    live,
+    reals,
+    pairs,
+    parts,
+    count,
+  );
+  for (var i = 0; i < read; i++) {
+    each(
+      NativeBody(pairs[i * 2]),
+      NativeBody(pairs[i * 2 + 1]),
+      parts[i * 2],
+      parts[i * 2 + 1],
+      reals,
+      i * c.reportFloats,
+    );
   }
 }
