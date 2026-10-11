@@ -12,6 +12,8 @@
 /// On Windows with MSVC, the compiler the hook builds the core with there,
 /// run from a developer prompt so that `cl` is on the path: no sanitisers,
 /// but the same checks and the same digests, and the pool on Win32 threads.
+/// There each test still compiles the core with its own file; with cc the
+/// core is compiled once per set of flags and kept (`c_build.dart`).
 @TestOn('mac-os || linux || windows')
 library;
 
@@ -20,11 +22,12 @@ import 'dart:io';
 import 'package:test/test.dart';
 
 import '../hook/build.dart' show coreSources;
+import 'c_build.dart';
 
 /// Builds [source] with the core and [defines], runs it, and returns what
 /// it printed, having failed the test on a build error, a failed check or
 /// a sanitiser's report.
-String _buildAndRun(String source, List<String> defines) {
+Future<String> _buildAndRun(String source, List<String> defines) async {
   final scratch = Directory.systemTemp.createTempSync('f3d_ctest');
   addTearDown(() => scratch.deleteSync(recursive: true));
   final binary = Platform.isWindows
@@ -32,7 +35,7 @@ String _buildAndRun(String source, List<String> defines) {
       : '${scratch.path}/test';
   final built = Platform.isWindows
       ? _buildWithMsvc(source, defines, scratch.path, binary)
-      : _buildWithCc(source, defines, binary);
+      : await _buildWithCc(source, defines, binary);
   expect(built.exitCode, 0, reason: '${built.stdout}${built.stderr}');
   final ran = Process.runSync(binary, const <String>[]);
   expect(ran.exitCode, 0, reason: '${ran.stdout}${ran.stderr}');
@@ -65,36 +68,37 @@ ProcessResult _buildWithMsvc(
   '/Fe$binary',
 ]);
 
-ProcessResult _buildWithCc(
+/// With cc the core is compiled once per precision and kept
+/// (`c_build.dart`), and each test compiles only its own file and links:
+/// the same flags for both, so the core is checked exactly as before.
+Future<ProcessResult> _buildWithCc(
   String source,
   List<String> defines,
   String binary,
-) => Process.runSync('cc', <String>[
-  '-std=c11',
-  // The sanitisers see as much at -O1, and the heaps of debris and
-  // cloth step in seconds instead of minutes.
-  '-O1',
-  '-Wall',
-  '-Wextra',
-  '-Werror',
-  '-pedantic',
-  '-ffp-contract=off',
-  '-fsanitize=address,undefined',
-  '-fno-sanitize-recover=all',
-  '-g',
-  ...defines,
-  // The pool's threads: in libc everywhere but older glibc.
-  if (Platform.isLinux) '-pthread',
-  '-Icsrc/include',
-  '-Icsrc/src',
-  ...coreSources,
-  source,
-  '-o',
+) => buildAgainstCore(
+  'cc',
+  <String>[
+    '-std=c11',
+    // The sanitisers see as much at -O1, and the heaps of debris and
+    // cloth step in seconds instead of minutes.
+    '-O1',
+    '-Wall',
+    '-Wextra',
+    '-Werror',
+    '-pedantic',
+    '-ffp-contract=off',
+    '-fsanitize=address,undefined',
+    '-fno-sanitize-recover=all',
+    '-g',
+    ...defines,
+    // The pool's threads: in libc everywhere but older glibc.
+    if (Platform.isLinux) '-pthread',
+  ],
+  <String>[source],
   binary,
-  // The tests' own sqrt and pow: in libSystem on Apple's, not in
-  // glibc's libc.
-  '-lm',
-]);
+  // The tests' own sqrt and pow: in libSystem on Apple's, not in glibc's
+  // libc.
+);
 
 void main() {
   final tests = Directory(
@@ -108,31 +112,30 @@ void main() {
   for (final source in tests) {
     for (final precision in const <String>['f32', 'f64']) {
       final name = '${source.uri.pathSegments.last} ($precision)';
+      // Within the minute every test has: the core is compiled once per
+      // precision and kept, so a test is its own file's build, a link and
+      // the run. The longest, the shallow water's in f64 under the
+      // sanitisers, ran in 24 s on an M-series Mac, mostly the run.
       test(
         name,
-        () {
-          _buildAndRun(source.path, <String>[
-            if (precision == 'f64') '-DF3D_REAL_DOUBLE',
-          ]);
-        },
-        // Heaps of debris, cloth and water under the sanitisers take
-        // seconds alone and much longer on a machine busy with other work.
-        timeout: const Timeout(Duration(minutes: 5)),
+        () => _buildAndRun(source.path, <String>[
+          if (precision == 'f64') '-DF3D_REAL_DOUBLE',
+        ]),
       );
     }
   }
 
-  test(
-    'the fast mode lands on the same bits on vectors as without',
-    timeout: const Timeout(Duration(minutes: 5)),
-    () {
-      // The fast mode solves a colour's contacts in lanes of a vector where
-      // the compiler has them, and a lane at a time where it does not
-      // (MSVC); every lane must do what one contact alone does.
-      String hash(List<String> defines) => RegExp(
-        r'fast snapshot ([0-9a-f]{16})',
-      ).firstMatch(_buildAndRun('csrc/tests/test_fast.c', defines))!.group(1)!;
-      expect(hash(const <String>['-DF3D_NO_SIMD']), hash(const <String>[]));
-    },
-  );
+  test('the fast mode lands on the same bits on vectors as without', () async {
+    // The fast mode solves a colour's contacts in lanes of a vector where
+    // the compiler has them, and a lane at a time where it does not
+    // (MSVC); every lane must do what one contact alone does.
+    Future<String> hash(List<String> defines) async =>
+        RegExp(r'fast snapshot ([0-9a-f]{16})')
+            .firstMatch(await _buildAndRun('csrc/tests/test_fast.c', defines))!
+            .group(1)!;
+    expect(
+      await hash(const <String>['-DF3D_NO_SIMD']),
+      await hash(const <String>[]),
+    );
+  });
 }

@@ -32,7 +32,7 @@ import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../../flutter3d_foundation/test/expression_fixtures.dart';
-import '../hook/build.dart' show coreSources;
+import 'c_build.dart';
 
 /// [value]'s bits, every NaN one NaN.
 String _bits(double value) {
@@ -360,7 +360,7 @@ void main() {
   });
 
   test('the core built in f32 and in f64 answers the same programs to the '
-      'bits each can hold', () {
+      'bits each can hold', () async {
     final corpus = _Corpus();
     for (final fixture in expressionFixtures) {
       final expression = parseExpression(fixture.source, scope: fixture.scope);
@@ -411,21 +411,20 @@ void main() {
           ('f64', const <String>['-DF3D_REAL_DOUBLE'], corpus.f64),
         ]) {
       final binary = '${scratch.path}/parity_$name';
-      final built = Process.runSync('cc', <String>[
-        '-std=c11',
-        '-O2',
-        '-ffp-contract=off',
-        '-fno-fast-math',
-        ...defines,
-        if (Platform.isLinux) '-pthread',
-        '-Icsrc/include',
-        '-Icsrc/src',
-        ...coreSources,
-        'test/c/law_parity.c',
-        '-o',
+      // The core compiled once per precision and kept (`c_build.dart`).
+      final built = await buildAgainstCore(
+        'cc',
+        <String>[
+          '-std=c11',
+          '-O2',
+          '-ffp-contract=off',
+          '-fno-fast-math',
+          ...defines,
+          if (Platform.isLinux) '-pthread',
+        ],
+        <String>['test/c/law_parity.c'],
         binary,
-        '-lm',
-      ]);
+      );
       expect(built.exitCode, 0, reason: '${built.stdout}${built.stderr}');
       final ran = Process.runSync(binary, <String>[file.path]);
       expect(ran.exitCode, 0, reason: '${ran.stderr}');
