@@ -805,7 +805,8 @@ final class HotSwap {
       case 'emissiveStrength':
         // A material file's strength, a plain multiple; the material's is
         // nits.
-        material.emissiveStrength = v[0] * RenderMaterial.defaultEmissiveStrength;
+        material.emissiveStrength =
+            v[0] * RenderMaterial.defaultEmissiveStrength;
       case 'roughness':
         material.roughness = v[0];
       case 'metallic':
@@ -1337,6 +1338,22 @@ final class HotMaterials {
   BundledMaterials get materials => _materials;
   BundledMaterials _materials;
 
+  /// Each surface material's program, by its name, read off the source the
+  /// bundle carries — as it was loaded, and again after every hot reload:
+  /// what `LevelLoader.load(programs:)` lifts the values a level wrote for
+  /// an older version of one of them with (`MaterialProgram.lift`).
+  Map<String, MaterialProgram> get programs => _programs ??=
+      Map<String, MaterialProgram>.unmodifiable(<String, MaterialProgram>{
+        for (final MapEntry(key: name, value: source) in decodeMaterialSection(
+          _materials.bundle,
+        ).entries)
+          if (_materials.lighting.containsKey(name))
+            if (parseMaterial(source) case final program
+                when program.name == name)
+              name: program,
+      });
+  Map<String, MaterialProgram>? _programs;
+
   final List<(WeakReference<RenderMaterial>, String)> _bound =
       <(WeakReference<RenderMaterial>, String)>[];
 
@@ -1378,6 +1395,7 @@ final class HotMaterials {
   /// case anyway if the stage was in use.
   void _adopt(ByteData bytes) {
     _materials = BundledMaterials.read(bytes);
+    _programs = null;
     for (final (reference, name) in List.of(_bound)) {
       final material = reference.target;
       if (material == null || !_materials.lighting.containsKey(name)) continue;

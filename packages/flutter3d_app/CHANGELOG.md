@@ -22,6 +22,16 @@
   binding's material by id (`materials:`), its fields driving the node's own
   material parameters, and taken away or hidden as the binding's lifetime
   says.
+- **A level's values for an older material are lifted on load.**
+  `LevelLoader.load` and `build` take `programs:`, the material-language
+  programs by name (`HotMaterials.programs`); a surface deferring to a
+  `.fmat` drawn with one of them has its level's parameter values carried
+  from the version the level wrote them for (`materialVersion`) to the
+  program's own through its `updates` (`MaterialProgram.lift`). Values for
+  a newer material, and for a parameter the program no longer has, are
+  warnings in `LoadedLevel.issues`. The loader also hands `LevelScene` the
+  collision world's catalogue, so a substance a level names by id is read
+  from it.
 - **`openDevice` is the sugar it looks like**: `(registry ??
   platformDevices()).open(width:, height:)` with the refusals printed and
   the registry remembered, now that every backend opens in that one shape.

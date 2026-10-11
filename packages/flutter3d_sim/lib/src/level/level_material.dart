@@ -124,15 +124,15 @@ final class LevelMaterial {
   /// `material Name version N`. Null for a level that predates material
   /// versions, which is read as version 1.
   ///
-  /// **The level keeps the version; nothing lifts the values yet.** A
+  /// **The level keeps the version; the loader lifts the values.** A
   /// material that renamed or rescaled a parameter since says how, in its
   /// `updates` block, and `MaterialProgram.lift` carries values from an
-  /// older version to the material's own. No loader calls it today:
-  /// [parameters] reach the material as the document wrote them, under the
-  /// names of this version. Lifting on load belongs to the level loader,
-  /// which reads both the level and the material, and arrives with it.
-  /// This package does not read materials, so it keeps the number exactly
-  /// as the document said it.
+  /// older version to the material's own. `flutter3d_app`'s level loader,
+  /// which reads both the level and the material, calls it on load
+  /// (`LevelLoader.build(programs:)`), so [parameters] reach the material
+  /// under the names and scales of the version it is at. This package does
+  /// not read materials, so it keeps the number exactly as the document
+  /// said it.
   final int? materialVersion;
 
   /// The substance a surface in this material is made of, as a body and a
