@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' show RenderSettings;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'sky.dart';
@@ -51,9 +50,10 @@ abstract final class SkyPresets {
     fogBacklitExponent: 6.0,
     fogBacklitStrength: 0.35,
     ambientIntensity: 0.10,
-    // The engine's own, read rather than copied: the default morning is
-    // the default frame.
-    exposure: RenderSettings.defaultExposure,
+    // The engine's default, `RenderSettings.defaultExposure`: the default
+    // morning is the default frame. Written out because this half of the
+    // package does not reach the renderer; `sky_test.dart` holds it there.
+    exposure: 1.6,
     sunDisc: 14.0,
   );
 

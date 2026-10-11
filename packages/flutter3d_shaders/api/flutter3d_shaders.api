@@ -269,6 +269,8 @@ typedef RequiredShader = ({String name, bool fragment});
 
 const List<String> computeShaders = <String>['PrefixSum', 'SplatSortCount', 'SplatSortScan', 'SplatSortScatter']
 
+const double dielectricF0 = 0.04
+
 const List<RequiredShader> requiredShaders = …
 
 library package:flutter3d_shaders/internal.dart

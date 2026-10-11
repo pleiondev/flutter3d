@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1738 places,
+only in a major version. To get there, 0.8's API changed in 1739 places,
 361 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -220,7 +220,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1738 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 119 `migrate`, 361 by hand, 331 nothing to do, 456 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1739 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 119 `migrate`, 361 by hand, 332 nothing to do, 456 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -1442,6 +1442,7 @@ carried out:
 - <a id="model_core-RenderRefusal"></a>**`RenderRefusal`** (nothing to do). `RenderRefusal` is still a final class with the same members; it now extends `CapabilityException` (and through it `Flutter3dException`) instead of implementing `Exception` directly. Every `on RenderRefusal` and `on Exception` still catches it, and nothing outside the package could extend it.
 - <a id="2s-model_core-ResizeFilter-open"></a>**`ResizeFilter`** (`migrate`, with a TODO). `ResizeFilter` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `ResizeFilter` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is not.
 - <a id="4a-model_core-RigBuildOptions"></a>**`RigBuildOptions`** (`dart fix`). `RigBuildOptions` is `RigBuildSettings`. Settings classes have one suffix in 1.0, Settings (a HAL type's is Descriptor), and each is final, const, with a copyWith that covers every field. The class is the same under the new name.
+- <a id="3d-model_core-SceneLighting"></a>**`SceneLighting`** (nothing to do). The `exposure` default is written as `RenderSettings.defaultExposure` where it was the literal 1.6; the value is the same, so every call still compiles and draws as it did.
 - <a id="2s-model_core-SelectionMode-open"></a>**`SelectionMode`** (`migrate`, with a TODO). `SelectionMode` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `SelectionMode` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is not.
 - <a id="model_core-SetAnimationGraph"></a>**`SetAnimationGraph`** (by hand). `ModelCommand` has a new case, `SetAnimationGraph`: a `switch` over a `ModelCommand` that names every case needs one for it, or a wildcard.
 - <a id="4a-model_core-SetOrigin-SetOrigin"></a>**`SetOrigin.SetOrigin`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.

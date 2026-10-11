@@ -1891,7 +1891,7 @@ final class SceneEnvironmentPreset
 
 final class SceneLighting
   SceneLighting copyWith({List<ProjectLight>? lights, SceneEnvironmentPreset? environment, double? ambientIntensity, bool? shadows, double? exposure, ScenePostSettings? post, int? panorama, bool clearPanorama = false})
-  const SceneLighting({this.lights = const <ProjectLight>[], this.environment = SceneEnvironmentPreset.none, this.ambientIntensity = 0.3, this.shadows = false, this.exposure = 1.6, this.post = const ScenePostSettings(), this.panorama})
+  const SceneLighting({this.lights = const <ProjectLight>[], this.environment = SceneEnvironmentPreset.none, this.ambientIntensity = 0.3, this.shadows = false, this.exposure = RenderSettings.defaultExposure, this.post = const ScenePostSettings(), this.panorama})
   final List<ProjectLight> lights
   final SceneEnvironmentPreset environment
   final ScenePostSettings post
