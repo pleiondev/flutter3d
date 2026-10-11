@@ -511,10 +511,20 @@ section, says whether it compiles while a game runs, and takes one
 `MaterialCompileRequest` (the source, the stages the engine's emitter
 wrote as GLSL, the engine's headers, and backend options by name) to a
 `MaterialCompileResult`, or refuses with a `MaterialCompileException` saying
-why. A `MaterialCompilerRegistry` finds it by backend: the build hook asks
-it for every backend it builds, and `RuntimeShaders` for the backend the
-game runs on, before the engine's own three run-time paths. Two backends
-never write one section.
+why. A `MaterialCompilerRegistry` finds it by backend id, exactly: the
+compiler's `backend` is its device's `GraphicsDevice.backendId` (`cpu`,
+`webgl`, `webgpu`, `impeller` for the engine's four; a backend from outside
+gives its own, its name in lower case by default), and
+`RuntimeBackends.normalize` maps only the engine's own names to theirs.
+`RuntimeShaders` asks the compiler of the backend the game runs on, before
+the engine's own three run-time paths. The project's shader build
+(`runShaderBuild`, handed the registry) asks every compiler it holds for a
+backend from outside the engine for its section of the engine's bundle,
+handed the engine's stages as GLSL with the engine's headers and an empty
+source, and of every plugin material's bundle; a project whose only GPU
+backend is from outside gets its bundle with that section alone. The
+engine's three GPU sections are written by the build's own tools. Two
+backends never write one section.
 
 `compileStage` (`package:flutter3d_shaders/compile.dart`, with glslang and
 naga on the machine) hands a backend a stage's SPIR-V and its text in a
