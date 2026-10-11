@@ -86,6 +86,7 @@ final class LightShading {
       for (final light in lights) LevelScene.lightOf(light),
       if (lights.isEmpty)
         LevelScene.lightOf(
+          // A billionth of a candela, meant to be that dim.
           LevelLight(position: view.from, intensity: 1e-9, castsShadow: false),
         ),
     ];

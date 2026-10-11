@@ -1049,6 +1049,9 @@ class _GameScreenState extends State<GameScreen> {
     // combination fails to allocate them — every frame, from the first.
     _runnerVisuals.box(device, level.scene, runner);
     _followCamera = FollowCamera(world: level.loaded.collision);
+    // The sparks and the dust fall by the level's world, at the gravity the
+    // runner jumps in, not at the standard one.
+    _particles.world = level.loaded.collision.properties;
     // A camera is built per level, so the setting has to be put back on it.
     _applyAccessibility();
     // **`mounted` is not enough, and the gap is a whole level.** Reading and
@@ -1119,7 +1122,8 @@ class _GameScreenState extends State<GameScreen> {
       _begin();
       return;
     }
-    if (_runIsOver && _pad.heldButtons.contains(GamePadButton.start)) _restart();
+    if (_runIsOver && _pad.heldButtons.contains(GamePadButton.start))
+      _restart();
   }
 
   /// The pad's presses, told apart from its holds.

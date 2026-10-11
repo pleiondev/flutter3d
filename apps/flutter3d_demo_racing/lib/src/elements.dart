@@ -182,7 +182,10 @@ final class TrackElements {
     // The race's world — its gravity, air and wind — so the spray, the fires
     // and the water fall and drift as the cars do: one gravity in a race.
     if (cars.isNotEmpty) {
-      _elements.world.applyProperties(cars.first.world.properties);
+      final world = cars.first.world.properties;
+      _elements.world.applyProperties(world);
+      _haze.world = world;
+      _spray.world = world;
     }
     _floodLowSpots();
     for (var i = 0; i < cars.length; i++) {
@@ -1214,8 +1217,6 @@ final class TrackElements {
       return out;
     });
     _throwUp(progress);
-    // The drops fall as the circuit's world does.
-    _spray.gravity = _elements.world.gravityMagnitude;
     _haze.advance(step);
     _spray.advance(step);
   }
