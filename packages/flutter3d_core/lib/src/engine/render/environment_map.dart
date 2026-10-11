@@ -10,6 +10,8 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'package:vector_math/vector_math.dart';
 
 import '../assets/image_decoder.dart';
+import '../platform/background.dart';
+import 'panorama_faces.dart';
 import 'sky_settings.dart';
 
 /// A prefiltered environment cube as [EnvironmentMap] builds it: the
@@ -307,8 +309,18 @@ abstract final class EnvironmentMap {
   /// file. A `.hdr` is told apart by its header, so the name of the file
   /// plays no part.
   ///
-  /// Throws a [PanoramaFormatException] for bytes neither reader takes, and
-  /// everything [fromPanorama] throws.
+  /// **Off the calling isolate.** A `.hdr` is decoded, cut into faces and
+  /// convolved on an isolate of its own, and an image [decodeImage] read is
+  /// cut and convolved there: a 2048-pixel panorama is tens of milliseconds
+  /// of reading and the convolution is more, which is jank however fast
+  /// either is. Only the upload stays here, because the device does. In the
+  /// browser the same work goes to the decode worker when one is running
+  /// (`WebDecodeWorker`) and is done in place when not.
+  ///
+  /// Throws `UnsupportedCapabilityException` before any work where the
+  /// device has no cube textures, an [ArgumentError] for a [size] or
+  /// [levels] below one, a [PanoramaFormatException] for bytes neither
+  /// reader takes, and everything [fromPanorama] throws.
   static Future<EnvironmentCube> fromEncoded(
     GraphicsDevice device,
     Uint8List bytes, {
@@ -316,44 +328,49 @@ abstract final class EnvironmentMap {
     int size = 32,
     int levels = 4,
   }) async {
-    final ({ByteData pixels, int width, int height})? panorama =
-        hdrSizeOf(bytes) != null
-        ? _fromHdr(bytes)
-        : switch (await decodeImage(bytes)) {
-            final Rgba8Image image => (
-              pixels: ByteData.sublistView(image.pixels),
-              width: image.width,
-              height: image.height,
-            ),
-            null => null,
-          };
-    if (panorama == null) {
-      throw const PanoramaFormatException(
-        'the bytes are neither a Radiance .hdr nor an image the decoder '
-        'reads',
-      );
+    _requireCubes(device);
+    if (size < 1) {
+      throw ArgumentError.value(size, 'size', 'must be at least one');
     }
-    return fromPanorama(
-      device,
-      panorama.pixels,
-      width: panorama.width,
-      height: panorama.height,
-      size: size,
-      levels: levels,
+    if (levels < 1) {
+      throw ArgumentError.value(levels, 'levels', 'must be at least one');
+    }
+    const unreadable = PanoramaFormatException(
+      'the bytes are neither a Radiance .hdr nor an image the decoder reads',
     );
-  }
-
-  static ({ByteData pixels, int width, int height})? _fromHdr(Uint8List bytes) {
-    try {
-      final HdrImage image = readHdr(bytes);
-      return (
-        pixels: hdrToRgba8(image),
-        width: image.width,
-        height: image.height,
-      );
-    } on HdrFormatException {
-      return null;
+    final PanoramaFaces prepared;
+    if (hdrSizeOf(bytes) != null) {
+      prepared =
+          await hdrPanoramaFacesInBackground(
+            bytes,
+            size: size,
+            levels: levels,
+          ) ??
+          (throw unreadable);
+    } else {
+      final image = await decodeImage(bytes) ?? (throw unreadable);
+      final pixels = ByteData.sublistView(image.pixels);
+      prepared =
+          await panoramaFacesInBackground(
+            pixels,
+            width: image.width,
+            height: image.height,
+            size: size,
+            levels: levels,
+          ) ??
+          (throw ArgumentError.value(
+            pixels,
+            'panorama',
+            'is not ${image.width}x${image.height} RGBA8 pixels',
+          ));
     }
+    final texture = device.createCubeTextureFromPixels(
+      size: prepared.size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      faces: prepared.faces,
+      mipLevels: prepared.chain,
+    );
+    return EnvironmentCube(texture, levels);
   }
 
   /// A Radiance image as the RGBA8 [fromPanorama] reads.

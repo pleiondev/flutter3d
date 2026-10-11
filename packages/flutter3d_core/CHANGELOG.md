@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A panorama file becomes a cube off the calling isolate.**
+  `EnvironmentMap.fromEncoded` decodes a Radiance `.hdr`, cuts the faces
+  and convolves the chain on an isolate of its own, and cuts and convolves
+  an image its decoder read there too; only the upload stays on the
+  caller's. A device without cube textures is refused before any of it,
+  and a `size` or `levels` below one is an `ArgumentError` at the call.
 - **A headset's views go to their layers in the frame graph.**
   `ProjectionLayerNode` runs last, reads the finished picture and gives it
   back unchanged, and copies each of `FrameContext.views` into its own
