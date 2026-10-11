@@ -780,6 +780,15 @@ final class MaterialRemoveUpdate extends MaterialUpdate {
   String toString() => '$version: remove $name';
 }
 
+/// The material language version of a file with no `f3dmat` line: every
+/// file written before the line existed.
+const int materialLanguageFirstVersion = 1;
+
+/// The version of a material that says none (`material Hatch { … }` rather
+/// than `material Hatch version 3 { … }`), and of an instance that
+/// predates material versions. A material's versions count from it.
+const int firstMaterialVersion = 1;
+
 /// An instance written for a version of a material this build does not
 /// have: a newer one, or none at all.
 final class MaterialVersionException extends Flutter3dFormatException {
@@ -795,9 +804,9 @@ final class MaterialVersionException extends Flutter3dFormatException {
   final int current;
 
   @override
-  String get message => written < 1
+  String get message => written < firstMaterialVersion
       ? 'an instance of "$material" says it was written for version '
-            '$written, and versions count from 1'
+            '$written, and versions count from $firstMaterialVersion'
       : 'an instance of "$material" was written for its version $written, '
             'and this build has version $current: update the material, or '
             'the build, to one that has version $written';
@@ -815,14 +824,14 @@ final class MaterialProgram {
     required this.body,
     required this.inputsUsed,
     this.light,
-    this.languageVersion = 1,
+    this.languageVersion = materialLanguageFirstVersion,
     this.kind = MaterialStageKind.surface,
     this.state = MaterialFileState.none,
     this.vertex,
     this.ambient,
     this.composite,
     this.workgroupSize = (8, 8),
-    this.version = 1,
+    this.version = firstMaterialVersion,
     this.updates = const <MaterialUpdate>[],
   });
 
@@ -860,7 +869,7 @@ final class MaterialProgram {
     Map<String, List<double>> values, {
     required int from,
   }) {
-    if (from > version || from < 1) {
+    if (from > version || from < firstMaterialVersion) {
       throw MaterialVersionException(name, from, version);
     }
     // By version, and within a version in the order written.

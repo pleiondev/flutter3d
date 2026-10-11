@@ -77,6 +77,42 @@ void main() {
     );
   });
 
+  test('each construct is read from the version its constant names', () {
+    String source(int language, String body) =>
+        'f3dmat $language\nmaterial M$body';
+    const state =
+        ' { state { blend alpha; } light { return albedo; } '
+        'fragment { return vec4(lit, alpha); } }';
+    const updates =
+        ' version 2 { param float b = 1.0; updates { 2: rename a -> b; } '
+        'fragment { return vec4(albedo * b, alpha); } }';
+
+    // Mutation: compare against a literal one off from the constant, and
+    // the version on one side of it reads what it should not, or refuses
+    // what it should read.
+    expect(
+      () => parseMaterial(source(materialLanguageStagesVersion - 1, state)),
+      throwsA(isA<MaterialSyntaxException>()),
+    );
+    expect(
+      parseMaterial(source(materialLanguageStagesVersion, state)).state,
+      isNot(MaterialFileState.none),
+    );
+    expect(
+      () => parseMaterial(source(materialLanguageUpdatesVersion - 1, updates)),
+      throwsA(isA<MaterialSyntaxException>()),
+    );
+    final lifted = parseMaterial(
+      source(materialLanguageUpdatesVersion, updates),
+    );
+    expect(lifted.version, firstMaterialVersion + 1);
+    expect(parseMaterial(_fixture(1)).version, firstMaterialVersion);
+    expect(
+      parseMaterial(_fixture(1)).languageVersion,
+      materialLanguageFirstVersion,
+    );
+  });
+
   test('a version that is not a whole number from 1 is a syntax error', () {
     // Mutation: truncate instead of refusing and `f3dmat 1.5` reads as 1.
     for (final bad in <String>['f3dmat 0', 'f3dmat 1.5', 'f3dmat material']) {

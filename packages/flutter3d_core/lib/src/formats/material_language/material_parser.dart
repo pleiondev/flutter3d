@@ -174,6 +174,15 @@ const List<String> materialTextureBindings = <String>[
 /// `MaterialProgram.lift` applies them. Everything else reads as version 2.
 const int materialLanguageVersion = 3;
 
+/// The material language version that adds the `state`, `vertex`,
+/// `ambient` and `composite` blocks, the `fullscreen` and `compute` kinds,
+/// the scene inputs, and a material's own blocks and textures.
+const int materialLanguageStagesVersion = 2;
+
+/// The material language version that gives a material a version of its
+/// own and an `updates` block.
+const int materialLanguageUpdatesVersion = 3;
+
 /// `.f3dmat` in the format registry: text, versioned by an optional
 /// `f3dmat <N>` line, so it has no JSON envelope and no fixed magic.
 ///
@@ -354,7 +363,7 @@ final class _Parser extends ExpressionParser {
   final Map<String, MaterialType> locals = <String, MaterialType>{};
 
   /// The language version the source declared — 1 without a header.
-  int version = 1;
+  int version = materialLanguageFirstVersion;
 
   /// What the source is, read after the version.
   MaterialStageKind kind = MaterialStageKind.surface;
@@ -388,7 +397,7 @@ final class _Parser extends ExpressionParser {
     'fragment',
     inputs: <MaterialInput>[
       ...materialInputs,
-      if (version >= 2) ...materialSceneInputs,
+      if (version >= materialLanguageStagesVersion) ...materialSceneInputs,
     ],
     returns: MaterialType.vec4,
   );
@@ -440,16 +449,19 @@ final class _Parser extends ExpressionParser {
     kind = parseKind();
     final surface = kind == MaterialStageKind.surface;
     final name = expectToken('name', 'the material\'s name').text;
-    var materialVersion = 1;
+    var materialVersion = firstMaterialVersion;
     if (current.kind == 'name' && current.text == 'version') {
-      if (version < 3) {
+      if (version < materialLanguageUpdatesVersion) {
         fail(
           'a material\'s own version is material language version 3: open '
           'the file with "f3dmat 3".',
         );
       }
       position++;
-      materialVersion = wholeNumber('the material\'s version', from: 1);
+      materialVersion = wholeNumber(
+        'the material\'s version',
+        from: firstMaterialVersion,
+      );
     }
     expectToken('{', '"{" after the material\'s name');
     final updates = <(ExpressionToken, MaterialUpdate)>[];
@@ -507,7 +519,7 @@ final class _Parser extends ExpressionParser {
         if (light != null) fail('a material has one light block.', lightAt);
         light = parseBody(lightBlock);
       } else if (surface &&
-          version < 2 &&
+          version < materialLanguageStagesVersion &&
           const <String>{
             'state',
             'vertex',
@@ -536,7 +548,8 @@ final class _Parser extends ExpressionParser {
         if (workgroupAt != null) fail('a kernel has one workgroup.', where);
         workgroupAt = where;
         workgroup = parseWorkgroup();
-      } else if (word == 'updates' && version < 3) {
+      } else if (word == 'updates' &&
+          version < materialLanguageUpdatesVersion) {
         fail(
           '"updates" is material language version 3: open the file with '
           '"f3dmat 3".',
@@ -548,7 +561,7 @@ final class _Parser extends ExpressionParser {
         updates.addAll(parseUpdates());
       } else {
         fail(switch (kind) {
-          _ when version < 2 =>
+          _ when version < materialLanguageStagesVersion =>
             '"${current.text}" is not a declaration: a material holds '
                 '"param", "uniform", "texture", one "fragment" and at most '
                 'one "light".',
@@ -669,7 +682,8 @@ final class _Parser extends ExpressionParser {
     final token = current;
     for (final candidate in MaterialStageKind.all) {
       if (!skipWordIf(candidate.name)) continue;
-      if (candidate != MaterialStageKind.surface && version < 2) {
+      if (candidate != MaterialStageKind.surface &&
+          version < materialLanguageStagesVersion) {
         fail(
           '"${candidate.name}" is material language version 2: open the file '
           'with "f3dmat 2".',
@@ -679,7 +693,7 @@ final class _Parser extends ExpressionParser {
       return candidate;
     }
     fail(
-      version < 2
+      version < materialLanguageStagesVersion
           ? 'a material starts with the word "material".'
           : 'a source starts with "material", "fullscreen" or "compute".',
     );
@@ -859,7 +873,10 @@ final class _Parser extends ExpressionParser {
     while (!skipIf('}')) {
       if (current.kind == 'end') fail('the updates block is never closed.');
       final at = current;
-      final leadsTo = wholeNumber('an update\'s version', from: 2);
+      final leadsTo = wholeNumber(
+        'an update\'s version',
+        from: firstMaterialVersion + 1,
+      );
       expectToken(':', '":" after the update\'s version');
       final verb = expectToken('name', 'rename, scale or remove');
       final update = switch (verb.text) {
@@ -990,13 +1007,15 @@ final class _Parser extends ExpressionParser {
   /// language compiles to whatever this build thinks its words mean.
   int parseVersion() {
     final header = current;
-    if (!skipWordIf('f3dmat')) return 1;
+    if (!skipWordIf('f3dmat')) return materialLanguageFirstVersion;
     final number = expectToken('number', 'the language version after "f3dmat"');
     final value = number.number!;
-    if (value != value.truncateToDouble() || value < 1) {
+    if (value != value.truncateToDouble() ||
+        value < materialLanguageFirstVersion) {
       fail(
         '"${number.text}" is not a language version: write a whole number '
-        'from 1, as in "f3dmat 1".',
+        'from $materialLanguageFirstVersion, as in "f3dmat '
+        '$materialLanguageFirstVersion".',
         number,
       );
     }
@@ -1018,7 +1037,7 @@ final class _Parser extends ExpressionParser {
     String? block;
     if (uniform && skipIf('(')) {
       final named = expectToken('name', 'the uniform block\'s name');
-      if (version < 2) {
+      if (version < materialLanguageStagesVersion) {
         fail(
           'a uniform block of a material\'s own is version 2; start the file '
           'with "f3dmat 2"',
@@ -1081,7 +1100,7 @@ final class _Parser extends ExpressionParser {
     // `texture fur;` — version 2 (D21): a texture of the material's own, in
     // its slot table, bound as `material_fur`.
     if (kind == MaterialStageKind.surface && skipIf(';')) {
-      if (version < 2) {
+      if (version < materialLanguageStagesVersion) {
         fail(
           'a texture of a material\'s own is version 2; start the file with '
           '"f3dmat 2", or bind one the engine binds: '
@@ -1141,7 +1160,7 @@ final class _Parser extends ExpressionParser {
       ...materialInputs,
       ...materialLightInputs,
       materialLitInput,
-      if (version >= 2)
+      if (version >= materialLanguageStagesVersion)
         ...switch (block) {
           null => _surfaceVersion2Inputs,
           final body => body.inputs,
@@ -1232,7 +1251,7 @@ final class _Parser extends ExpressionParser {
         final name = nameToken.text;
         if (_reservedNames.contains(name) ||
             name.startsWith('gl_') ||
-            (version >= 2 &&
+            (version >= materialLanguageStagesVersion &&
                 (name.startsWith('f3d_') ||
                     _version2ReservedNames.contains(name))) ||
             (body.isVertex && _vertexReservedNames.contains(name))) {
@@ -1414,7 +1433,7 @@ final class _Parser extends ExpressionParser {
         ('fragment body', materialInputs),
       ]) {
         if (!inputs.any((input) => input.name == name)) continue;
-        if (version < 2) {
+        if (version < materialLanguageStagesVersion) {
           fail(
             '"$name" is read from material language version 2: open the '
             'file with "f3dmat 2".',

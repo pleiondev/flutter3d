@@ -10,7 +10,10 @@
   `MaterialVersionException`. An update of a parameter the material does not
   declare, or past its version, is refused where it is written. Versions 1
   and 2 read as before; `test/fixtures/v3/rim_glow.f3dmat` is the new
-  version's fixture.
+  version's fixture. The versions that brought each construct are named:
+  `materialLanguageFirstVersion`, `materialLanguageStagesVersion`,
+  `materialLanguageUpdatesVersion`, and `firstMaterialVersion`, the version
+  of a material that says none.
 - **The material language stands on the expression language.** Its
   parser extends `flutter3d_foundation`'s `ExpressionParser`, so a
   material's expressions are that language's tree: `MaterialExpression`,
