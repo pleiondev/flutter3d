@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Observing an authoritative simulation.** `ObserverFeed` sends each
+  `SimulationObserver` the run's tape (input frames with their telemetry)
+  where its profile is bit-exact and the observer runs the same simulation,
+  and each step's published state (poses, probe readings) otherwise, each
+  observer its own `ObserverFilter`'s probes; `ObserverMode` and
+  `ObserverSnapshot` (full, with delta named for a later minor) are open
+  sets, and `ObserverMessages` the engine's message names. The relay's
+  `/observe/<code>` path (`observeParty`) lets an observer in by the
+  owner's token on any simulation, hears it only at the authority, and
+  hands it what the authority addresses to its slot.
 - **`LoopbackWire.pair()` returns a `LoopbackPair`**, `first` in slot
   nought and `second` in slot one, where it returned a record: take it apart
   as `final LoopbackPair(first: a, second: b) = LoopbackWire.pair()`.

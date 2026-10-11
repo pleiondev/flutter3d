@@ -1369,6 +1369,7 @@ final class _Assimilating extends AssimilationContext {
   @override
   int get step => loop._context.step;
 
+  /// One fixed step, in seconds.
   @override
   double get dt => loop._context.dt;
 

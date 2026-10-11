@@ -291,7 +291,13 @@ const Set<String> pluginContractRoots = <String>{
 /// `BindingInterpolation`, `BindingLifetime` and `SceneBindingRegistry`, so
 /// that a data plugin's `bindings:` section and a Dart plugin say how a
 /// component is shown without naming the renderer's types.
-const int pluginApiTypeBudget = 63;
+/// Seven more with the simulation's boundary to the outside (D6, D7):
+/// `ExternalStateInput`, `ReadingKind` and `ReadingQuality`, what a plugin
+/// feeds a step and an `Assimilation` reads; `Assimilation` and
+/// `AssimilationContext`, the hook a twin writes; `ProbeReading` and
+/// `ProbeField`, what `PublishedState` carries of a probe, since the view
+/// reads nothing else.
+const int pluginApiTypeBudget = 70;
 
 /// The packages of the simulation stack: what steps a run, which a server
 /// replays with no window and no GPU.

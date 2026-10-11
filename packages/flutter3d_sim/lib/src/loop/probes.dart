@@ -414,6 +414,7 @@ final class _Sample extends ProbeSample {
   @override
   final int step;
 
+  /// Simulated seconds at the end of [step].
   @override
   final double seconds;
 

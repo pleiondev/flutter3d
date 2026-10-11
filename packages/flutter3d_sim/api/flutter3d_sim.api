@@ -381,7 +381,7 @@ final class Breaches
 
 final class Brush
   Brush withId(String id)
-  Brush({String? id, required Vector3 center, required Vector3 size, this.material = 'default', this.solid = true, bool castsShadow = true, ShadowCasting? shadowCasting, String? surface, this.layer, this.ramp, this.drawOrder = 0, this.depthLayer, Map<String, Object?> source = const <String, Object?>{}})
+  Brush({String? id, required Vector3 center, required Vector3 size, this.material = 'default', this.solid = true, bool castsShadow = true, ShadowCasting? shadowCasting, String? surface, this.layer, this.ramp, this.drawOrder = 0, this.depthLayer, this.physicalMaterial, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
   String get surface
   Vector3 get halfExtents
@@ -394,6 +394,7 @@ final class Brush
   final ShadowCasting shadowCasting
   final String id
   final String material
+  final String? physicalMaterial
   final Vector3 center
   final Vector3 size
   final WedgeUphill? ramp
@@ -560,7 +561,7 @@ final class DecalKind extends _SurfaceKind
 final class Demo
   Map<String, Object?> toJson()
   String? refusalOn(SimulationVersion running)
-  const Demo({required this.level, required this.levelHash, required this.start, required this.tape, required this.buildStamp, required this.checkpoints, this.platform, this.recordedBy, this.dataSources, this.levelSwaps = const <DemoLevelSwap>[], this.physics, this.loopChanges = const <LoopChange>[], this.events, this.simulation, this.poses, this.unknown = const <String, Object?>{}})
+  const Demo({required this.level, required this.levelHash, required this.start, required this.tape, required this.buildStamp, required this.checkpoints, this.platform, this.recordedBy, this.dataSources, this.levelSwaps = const <DemoLevelSwap>[], this.physics, this.loopChanges = const <LoopChange>[], this.events, this.simulation, this.poses, this.probes = const <ProbeReading>[], this.unknown = const <String, Object?>{}})
   factory Demo.fromJson(Map<String, Object?> json)
   final DataSourceTrace? dataSources
   final DigestTrace checkpoints
@@ -568,6 +569,7 @@ final class Demo
   final InputTape tape
   final List<DemoLevelSwap> levelSwaps
   final List<LoopChange> loopChanges
+  final List<ProbeReading> probes
   final Map<String, Object?> unknown
   final PoseRecord? poses
   final SimulationVersion? simulation
@@ -720,15 +722,17 @@ abstract base class EduDataSource
   const EduDataSource()
 
 final class EngineLoop extends LoopRegistry
-  EngineLoop({required this.input, EcsWorld? world, WorldTiming timing = const WorldTiming(), this.simulationBase = SimulationVersion.engineOnly, this.catchUp = const CatchUp.announce(), this.drainLook, this.longestFrame = 0.25, Iterable<Flutter3dPlugin> plugins = const <Flutter3dPlugin>[], Iterable<PluginRegistry> registries = const <PluginRegistry>[], MaterialCatalog? materials, String? backend, int reconcileWindow = 600, int stepEventLimit = 4096, this.determinismCheck})
+  EngineLoop({required this.input, EcsWorld? world, WorldTiming timing = const WorldTiming(), this.simulationBase = SimulationVersion.engineOnly, this.catchUp = const CatchUp.announce(), this.drainLook, this.longestFrame = 0.25, Iterable<Flutter3dPlugin> plugins = const <Flutter3dPlugin>[], Iterable<PluginRegistry> registries = const <PluginRegistry>[], MaterialCatalog? materials, String? backend, int reconcileWindow = 600, int stepEventLimit = 4096, this.determinismCheck, this.profile = SimulationProfile.deterministic})
   FrameCadence? cadence
   InputTapePlayback? playback
   List<LoopChange> get journal
   List<LoopPhase> phases(PhaseKind kind)
+  List<ProbeReading> get probeReadings
   List<String> systemsIn(LoopPhase phase)
   List<int> get keptSteps
   LoopRegistry forPlugin(PluginScope scope)
   PublishedState get published
+  Registration addAssimilation(String name, Assimilation assimilation, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addPhase(LoopPhase phase, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration onChange(void Function(LoopChange change) observer)
@@ -756,8 +760,10 @@ final class EngineLoop extends LoopRegistry
   final InputState input
   final List<InputTapeRecorder> recorders
   final MaterialCatalog materials
+  final ProbeSamplers probeSamplers
   final PublishedWorlds publishedWorlds
   final SimQueries queries
+  final SimulationProfile profile
   final SimulationVersion simulationBase
   final double longestFrame
   final void Function(Vector2 out)? drainLook
@@ -777,6 +783,7 @@ final class EngineLoop extends LoopRegistry
   void runSteps(int count, {bool resimulated = false})
   void schedule(Iterable<LoopChange> changes)
   void shiftOrigin(WorldPosition to)
+  void stageWorld(CollisionWorld world)
 
 final class EntityComponent
   Map<String, Object?> toJson()
@@ -789,7 +796,7 @@ final class EntityComponent
 
 final class EntityDef
   EntityDef withId(String id)
-  EntityDef({required this.type, String? id, Vector3? position, this.yaw = 0.0, this.name, Map<String, Object?>? properties, Map<String, Map<String, Object?>>? components, Map<String, Object?> source = const <String, Object?>{}})
+  EntityDef({required this.type, String? id, Vector3? position, this.yaw = 0.0, this.name, Map<String, Object?>? properties, Map<String, Map<String, Object?>>? components, this.physicalMaterial, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
   String? string(String key)
   Vector3? vector(String key)
@@ -801,10 +808,11 @@ final class EntityDef
   final String id
   final String type
   final String? name
+  final String? physicalMaterial
   final Vector3 position
   final double yaw
   int? integer(String key)
-  static const Set<String> reservedKeys = <String>{'type', 'id', 'at', 'yaw', 'name', 'props', 'components', 'layer', 'rotation', 'scale', 'tags', 'parent', 'enabled'}
+  static const Set<String> reservedKeys = <String>{'type', 'id', 'at', 'yaw', 'name', 'props', 'components', 'physicalMaterial', 'layer', 'rotation', 'scale', 'tags', 'parent', 'enabled'}
 
 abstract base class EntityKind
   Collider place(EntityDef entity, SpawnContext context, {required ColliderKind kind, int layer = CollisionLayers.world, int mask = CollisionLayers.all, Vector3? fallbackSize})
@@ -1203,11 +1211,13 @@ abstract final class InputAction<T extends Object>
 
 final class InputFrame
   InputFrame withAxes(Map<String, double> axes)
+  InputFrame withExternal(List<ExternalStateInput> external)
   Map<String, Object?> toJson()
   bool get isIdle
   bool get needsVersion2
-  const InputFrame({this.pressed = const <String>[], this.released = const <String>[], this.stickX = 0.0, this.stickY = 0.0, this.lookX = 0.0, this.lookY = 0.0, this.values = const <String, double>{}, this.slot, this.tunes = const <String, double>{}, this.axes = const <String, double>{}, this.dualAxes = const <String, ({double x, double y})>{}})
+  const InputFrame({this.pressed = const <String>[], this.released = const <String>[], this.stickX = 0.0, this.stickY = 0.0, this.lookX = 0.0, this.lookY = 0.0, this.values = const <String, double>{}, this.slot, this.tunes = const <String, double>{}, this.axes = const <String, double>{}, this.dualAxes = const <String, ({double x, double y})>{}, this.external = const <ExternalStateInput>[]})
   factory InputFrame.fromJson(Map<String, Object?> json)
+  final List<ExternalStateInput> external
   final List<String> pressed
   final List<String> released
   final Map<String, ({double x, double y})> dualAxes
@@ -1224,6 +1234,7 @@ final class InputState
   Iterable<GameAction> get heldNow
   Iterable<GameAction> get pressedThisStep
   Iterable<GameAction> get releasedThisStep
+  List<ExternalStateInput> get externalThisStep
   Map<AxisAction, double> get axisValues
   Map<DualAxisAction, Vector2> get dualAxisValues
   Map<GameAction, double> get analogValues
@@ -1247,6 +1258,7 @@ final class InputState
   void clearAxis(AxisAction action)
   void clearDualAxis(DualAxisAction action)
   void endStep()
+  void feedExternal(ExternalStateInput input)
   void press(GameAction action)
   void release(GameAction action)
   void replayMoveAxis(double x, double y)
@@ -1262,6 +1274,8 @@ final class InputState
 final class InputTape extends FormatDocument
   FormatSpec get spec
   InputTape({required this.seed, List<InputFrame>? frames, this.version = formatVersion, super.unknown})
+  List<Map<String, Object?>> externalInputsJson()
+  List<String> get requires
   Map<String, Object?> toJson()
   factory InputTape.fromJson(Map<String, Object?> json)
   final List<InputFrame> frames
@@ -1269,7 +1283,9 @@ final class InputTape extends FormatDocument
   final int version
   int get steps
   int get writtenVersion
+  static Map<int, List<ExternalStateInput>> readExternalInputs(Object? json, {required int steps})
   static const FormatSpec format = …
+  static const String externalInputsRequirement = 'externalInputs'
   static const int formatVersion = 2
 
 final class InputTapeFormatException extends Flutter3dFormatException
@@ -1383,14 +1399,16 @@ final class Level extends FormatDocument
   EntityDef? named(String name)
   FormatSpec get spec
   Iterable<EntityDef> ofType(String type)
-  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, this.fogColor = defaultFogColor, this.fogDensity = 0.0, this.world = WorldPropertiesPatch.empty, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Map<String, Object?>>? behaviors, Map<String, Prefab>? prefabs, this.renderSettings = RenderSettingsPatch.empty, Map<String, Object?> source = const <String, Object?>{}})
+  Level({this.name = 'untitled', List<Brush>? brushes, List<EntityDef>? entities, List<LevelLight>? lights, Map<String, LevelMaterial>? materials, this.heightfield, this.fogColor = defaultFogColor, this.fogDensity = 0.0, this.world = WorldPropertiesPatch.empty, this.music, this.next, List<LevelRecipe>? recipes, Map<String, Map<String, Object?>>? behaviors, Map<String, Prefab>? prefabs, this.renderSettings = RenderSettingsPatch.empty, this.geoOrigin, Map<String, Object?> source = const <String, Object?>{}})
   LevelMaterial materialFor(Brush brush)
+  List<String> get physicalMaterialIds
   List<String> get requires
   Map<String, Object?> toJson()
   String get digestHex
   WorldProperties worldOver(WorldProperties game, {MaterialCatalog? materials})
   factory Level.fromJson(Map<String, Object?> json, {Set<String> understands = const <String>{}})
   factory Level.parse(String source, {Set<String> understands = const <String>{}})
+  final GeoOrigin? geoOrigin
   final Heightfield? heightfield
   final LinearColor fogColor
   final List<Brush> brushes
@@ -1409,6 +1427,7 @@ final class Level extends FormatDocument
   static const FormatSpec format = …
   static const LinearColor defaultFogColor = LinearColor(0.05, 0.04, 0.06)
   static const int formatVersion = 5
+  void requireMaterials(MaterialCatalog materials)
 
 extension LevelCollision on Level
   PlayerStart? get playerStart
@@ -1481,7 +1500,7 @@ final class LevelLightType
   static const List<LevelLightType> values = <LevelLightType>[directional, point, spot]
 
 final class LevelMaterial
-  LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, this.parameters = const <String, List<double>>{}, this.materialVersion, Map<String, Object?> source = const <String, Object?>{}})
+  LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, this.parameters = const <String, List<double>>{}, this.materialVersion, this.physicalMaterial, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
   Vector4 get storedBaseColor
   bool get hasMaps
@@ -1492,6 +1511,7 @@ final class LevelMaterial
   final String? fmat
   final String? normal
   final String? orm
+  final String? physicalMaterial
   final double emissive
   final double metallic
   final double roughness
@@ -2139,6 +2159,69 @@ final class PreparedUpload
   const PreparedUpload({required this.upload, required this.says})
   final String says
   final TelemetryUpload? upload
+
+final class Probe
+  Map<String, Object?> toJson()
+  Probe({required this.id, required this.quantity, required this.unit, this.region = const ProbeBody(), String? derived})
+  String toString()
+  String? get derived
+  factory Probe.fromJson(Map<Object?, Object?> json)
+  final Expression? derivedExpression
+  final ProbeRegion region
+  final String id
+  final String quantity
+  final Unit unit
+  late final CompiledExpression? compiled
+  static ExpressionScope scopeFor(Unit unit)
+  static const String positionId = 'f3d.position'
+  static final ComponentCodec<Probe> codec
+
+final class ProbeBody extends ProbeRegion
+  Map<String, Object?> toJson()
+  String get kind
+  const ProbeBody()
+
+final class ProbePoint extends ProbeRegion
+  Map<String, Object?> toJson()
+  String get kind
+  const ProbePoint(this.at)
+  final WorldPosition at
+
+abstract final class ProbeRegion
+  abstract Map<String, Object?> toJson()
+  abstract String get kind
+  const ProbeRegion()
+  static ProbeRegion fromJson(Object? json)
+
+abstract base class ProbeSample
+  abstract Entity get entity
+  abstract Probe get probe
+  abstract SimWorld get world
+  abstract double get seconds
+  abstract int get step
+  const ProbeSample()
+
+abstract base class ProbeSampler
+  abstract Quantity? sample(ProbeSample sample)
+  const ProbeSampler()
+  const factory ProbeSampler.of(Quantity? Function(ProbeSample sample) sample)
+
+final class ProbeSamplers extends PluginRegistry
+  ProbeSampler? forQuantity(String quantity)
+  ProbeSamplers forPlugin(PluginScope scope)
+  ProbeSamplers()
+  Registration add(String quantity, ProbeSampler sampler)
+
+final class ProbeSection extends ProbeRegion
+  Map<String, Object?> toJson()
+  String get kind
+  const ProbeSection({required this.origin, required this.normal})
+  final WorldPosition normal
+  final WorldPosition origin
+
+final class ProbeTrace
+  List<ProbeReading> get readings
+  Registration record(EngineLoop loop)
 
 final class PublishedActor
   WorldPosition get worldAt

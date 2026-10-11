@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A world says what its numbers promise and where it is.**
+  `WorldProperties.profile` (a `SimulationProfile`, deterministic by
+  default) and `WorldProperties.geoOrigin`, both in `copyWith`, the JSON
+  and `WorldPropertiesPatch`, and written only when set, so the standard
+  world reads and digests as before. `GeoOrigin` is a latitude and a
+  longitude (radians here, degrees in a document) and an altitude, the
+  world's axes laid east, up and south on the WGS 84 ellipsoid, with
+  `geodeticOf` and `positionOf` on the portable maths.
 - **Every value that was recalled or carried over is checked against a
   source that was read** (`tool/data/sources/verification.json`): 274
   confirmed keep their number and name the page that confirms it; 21

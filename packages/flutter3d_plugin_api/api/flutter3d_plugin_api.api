@@ -4,6 +4,22 @@
 
 library package:flutter3d_plugin_api/flutter3d_plugin_api.dart
 
+abstract base class Assimilation
+  abstract void assimilate(AssimilationContext context)
+  const Assimilation()
+  const factory Assimilation.of(void Function(AssimilationContext context) assimilate)
+
+abstract base class AssimilationContext
+  Iterable<ExternalStateInput> from(String source)
+  SimulationProfile get profile
+  abstract List<ExternalStateInput> get inputs
+  abstract SimWorld get world
+  abstract bool get isResimulated
+  abstract double get dt
+  abstract int get step
+  abstract void publish(BusEvent event)
+  const AssimilationContext()
+
 final class BindingInterpolation
   String toString()
   final String name
@@ -142,6 +158,25 @@ abstract base class EventRegistry extends PluginRegistry
   abstract void publish(BusEvent event)
   const EventRegistry()
 
+final class ExternalStateInput
+  ExternalStateInput({required this.source, required List<double> value, this.unit, this.sourceTime, this.receivedTime, this.quality, this.kind, this.tag, Map<String, Object?> unknown = const <String, Object?>{}})
+  Map<String, Object?> toJson()
+  Quantity get quantity
+  String toString()
+  bool operator ==(Object other)
+  factory ExternalStateInput.fromJson(Object? json)
+  factory ExternalStateInput.quantity(String source, Quantity quantity, {double? sourceTime, double? receivedTime, ReadingQuality? quality, ReadingKind? kind, String? tag})
+  final List<double> value
+  final Map<String, Object?> unknown
+  final ReadingKind? kind
+  final ReadingQuality? quality
+  final String source
+  final String? tag
+  final Unit? unit
+  final double? receivedTime
+  final double? sourceTime
+  int get hashCode
+
 abstract base class Flutter3dPlugin
   String toString()
   abstract PluginManifest get manifest
@@ -206,6 +241,7 @@ final class LoopPhase
   static const Map<String, String> formerNames = <String, String>{'elements': 'fields'}
 
 abstract base class LoopRegistry extends PluginRegistry
+  Registration addAssimilation(String name, Assimilation assimilation, {List<String> after = const <String>[], List<String> before = const <String>[]})
   abstract LoopRegistry forPlugin(PluginScope scope)
   abstract Registration addPhase(LoopPhase phase, {List<String> after = const <String>[], List<String> before = const <String>[]})
   abstract Registration addSystem(String name, LoopPhase phase, LoopSystem system, {List<String> after = const <String>[], List<String> before = const <String>[]})
@@ -421,6 +457,30 @@ final class PluginsSet extends PluginChange
   final List<String> enabled
   final List<String> order
 
+final class ProbeField
+  Map<String, Object?> toJson()
+  ProbeField({required List<int> shape, required this.values, required this.unit})
+  factory ProbeField.fromJson(Object? json)
+  final Float32List values
+  final List<int> shape
+  final Unit unit
+
+final class ProbeReading
+  Map<String, Object?> toJson()
+  ProbeReading({required this.probe, required this.step, required List<double> value, required this.unit, this.kind = ReadingKind.simulated, this.quality, this.field})
+  Quantity get quantity
+  String toString()
+  bool operator ==(Object other)
+  factory ProbeReading.fromJson(Object? json)
+  final List<double> value
+  final ProbeField? field
+  final ReadingKind kind
+  final ReadingQuality? quality
+  final String probe
+  final Unit unit
+  final int step
+  int get hashCode
+
 final class PublishedEvent
   String toString()
   T? decode<T extends BusEvent>(EventCodec<T> codec)
@@ -436,11 +496,13 @@ final class PublishedState
   Iterable<Entity> entitiesWith(ComponentCodec<Object> codec)
   Iterable<PublishedEvent> eventsNamed(String name)
   Map<String, Object?> toWire()
-  PublishedState({required this.step, required this.seconds, this.origin = WorldPosition.origin, Map<String, Map<Entity, Object?>> components = const <String, Map<Entity, Object?>>{}, Map<Entity, WorldPosition> positions = const <Entity, WorldPosition>{}, List<PublishedEvent> events = const <PublishedEvent>[], this.simulation = SimulationVersion.engineOnly})
+  ProbeReading? probe(String id)
+  PublishedState({required this.step, required this.seconds, this.origin = WorldPosition.origin, Map<String, Map<Entity, Object?>> components = const <String, Map<Entity, Object?>>{}, Map<Entity, WorldPosition> positions = const <Entity, WorldPosition>{}, List<PublishedEvent> events = const <PublishedEvent>[], this.simulation = SimulationVersion.engineOnly, List<ProbeReading> probes = const <ProbeReading>[]})
   String toString()
   T? read<T extends Object>(ComponentCodec<T> codec, Entity entity)
   WorldPosition? positionOf(Entity entity)
   factory PublishedState.fromWire(Object? wire)
+  final List<ProbeReading> probes
   final List<PublishedEvent> events
   final Map<Entity, WorldPosition> positions
   final Map<String, Map<Entity, Object?>> components
@@ -449,6 +511,30 @@ final class PublishedState
   final double seconds
   final int step
   static final PublishedState empty
+
+final class ReadingKind
+  String toString()
+  bool operator ==(Object other)
+  final String name
+  int get hashCode
+  static ReadingKind parse(String name)
+  static const List<ReadingKind> values = <ReadingKind>[measured, estimated, predicted, simulated]
+  static const ReadingKind estimated = ReadingKind._('estimated')
+  static const ReadingKind measured = ReadingKind._('measured')
+  static const ReadingKind predicted = ReadingKind._('predicted')
+  static const ReadingKind simulated = ReadingKind._('simulated')
+
+final class ReadingQuality
+  String toString()
+  bool operator ==(Object other)
+  final String name
+  int get hashCode
+  static ReadingQuality parse(String name)
+  static const List<ReadingQuality> values = <ReadingQuality>[good, uncertain, bad, stale]
+  static const ReadingQuality bad = ReadingQuality._('bad')
+  static const ReadingQuality good = ReadingQuality._('good')
+  static const ReadingQuality stale = ReadingQuality._('stale')
+  static const ReadingQuality uncertain = ReadingQuality._('uncertain')
 
 final class RenderAnchor
   RenderAnchor get engineAnchor
@@ -591,14 +677,16 @@ final class SimulationVersion
   Map<String, int> get genres
   SimulationVersion withGenre(String name, int version)
   SimulationVersion withPlugins(Map<String, int> plugins)
+  SimulationVersion withProfile(SimulationProfile profile)
   String describe()
   String toString()
   String? refusalOn(SimulationVersion running)
   bool operator ==(Object other)
-  const SimulationVersion({this.engine = engineVersion, this.genre, this.genreVersion = 1, this.otherGenres = const <String, int>{}, this.plugins = const <String, int>{}})
+  const SimulationVersion({this.engine = engineVersion, this.genre, this.genreVersion = 1, this.otherGenres = const <String, int>{}, this.plugins = const <String, int>{}, this.profile = SimulationProfile.deterministic})
   factory SimulationVersion.fromJson(Map<String, Object?> json)
   final Map<String, int> otherGenres
   final Map<String, int> plugins
+  final SimulationProfile profile
   final String? genre
   final int engine
   final int genreVersion
@@ -663,7 +751,7 @@ const String vmSchemaVersion = '1.0.0'
 
 const String vmVersionExtension = 'ext.flutter3d.version'
 
-export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, DocumentFormatException, Flutter3dException, Flutter3dFormatException, FormatDocument, FormatMigration, FormatRefusal, FormatSpec, Issue, IssueSink, LinearColor, PluginException, Registration, ResourceException, WorldPosition
+export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityException, DocumentFormatException, Flutter3dException, Flutter3dFormatException, FormatDocument, FormatMigration, FormatRefusal, FormatSpec, Issue, IssueSink, LinearColor, PluginException, Quantity, Registration, ResourceException, Unit, WorldPosition
   CapabilityException
   DocumentFormatException
   Flutter3dException
@@ -676,6 +764,8 @@ export package:flutter3d_foundation/flutter3d_foundation.dart show CapabilityExc
   IssueSink
   LinearColor
   PluginException
+  Quantity
   Registration
   ResourceException
+  Unit
   WorldPosition

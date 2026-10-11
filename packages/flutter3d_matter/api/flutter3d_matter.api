@@ -106,6 +106,25 @@ final class FormulaLaw extends PropertyLaw
   int get hashCode
   static const Map<String, LawInput> standardInputs = <String, LawInput>{'T': LawInput.temperature, 'p': LawInput.pressure}
 
+final class GeoOrigin
+  GeoOrigin geodeticOf(WorldPosition position)
+  Map<String, Object?> toJson()
+  String toString()
+  WorldPosition positionOf(GeoOrigin place)
+  bool operator ==(Object other)
+  double get latitude
+  double get longitude
+  factory GeoOrigin({required double latitude, required double longitude, double altitude = 0.0})
+  factory GeoOrigin.fromJson(Object? json)
+  final double altitude
+  int get hashCode
+  static const String frame = 'enu'
+
+final class GeoOriginFormatException extends Flutter3dFormatException
+  String toString()
+  const GeoOriginFormatException(this.message)
+  final String message
+
 final class InelasticProperties extends PropertyGroup
   Map<String, Object?> toJson()
   Map<String, PropertyLaw> get laws
@@ -609,14 +628,16 @@ final class WorldProperties
   String toString()
   Vector3 get gravity
   Vector3 get wind
-  WorldProperties copyWith({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, bool clearAirDensity = false, Vector3? wind, String? medium})
-  WorldProperties({Vector3? gravity, this.airTemperature = standardAirTemperature, this.airPressure = standardAtmosphere, double? airDensity, Vector3? wind, this.medium = 'f3d.air'})
+  WorldProperties copyWith({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, bool clearAirDensity = false, Vector3? wind, String? medium, SimulationProfile? profile, GeoOrigin? geoOrigin, bool clearGeoOrigin = false})
+  WorldProperties({Vector3? gravity, this.airTemperature = standardAirTemperature, this.airPressure = standardAtmosphere, double? airDensity, Vector3? wind, this.medium = 'f3d.air', this.profile = SimulationProfile.deterministic, this.geoOrigin})
   bool operator ==(Object other)
   double get airDensity
   double get gravityMagnitude
   double get speedOfSound
   double mediumDensity(MaterialCatalog catalog)
   factory WorldProperties.fromJson(Map<String, Object?> json, {WorldProperties? base})
+  final GeoOrigin? geoOrigin
+  final SimulationProfile profile
   final String medium
   final double airPressure
   final double airTemperature
@@ -630,8 +651,10 @@ final class WorldPropertiesFormatException extends Flutter3dFormatException
   final String message
 
 final class WorldPropertiesPatch
+  GeoOrigin? get geoOrigin
   Iterable<String> get keys
   Map<String, Object?> toJson()
+  SimulationProfile? get profile
   String toString()
   String? get medium
   Vector3? get gravity
@@ -642,7 +665,7 @@ final class WorldPropertiesPatch
   double? get airDensity
   double? get airPressure
   double? get airTemperature
-  factory WorldPropertiesPatch({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, Vector3? wind, String? medium})
+  factory WorldPropertiesPatch({Vector3? gravity, double? airTemperature, double? airPressure, double? airDensity, Vector3? wind, String? medium, SimulationProfile? profile, GeoOrigin? geoOrigin})
   factory WorldPropertiesPatch.fromJson(Map<String, Object?> json)
   int get hashCode
   static const WorldPropertiesPatch empty = WorldPropertiesPatch._(<String, Object?>{})

@@ -1,5 +1,29 @@
 ## 1.0.0-rc.1
 
+- **A loop runs under a profile.** `EngineLoop(profile:)`, carried by
+  `simulationVersion`, handed to plugins and, through `stageWorld`, to a
+  physics world's properties; a `DeterminismCheck` runs only where the
+  profile `isBitExact`.
+- **Telemetry is input.** `InputState.feedExternal` and
+  `externalThisStep`; `InputFrame.external` and `withExternal`, recorded
+  and replayed with their step; `EngineLoop.addAssimilation` runs an
+  `Assimilation` in the input phase. An `InputTape` writes the inputs beside
+  its frames (`externalInputs`, `requires: [externalInputs]`), and a run
+  lifts them to the top-level `externalInputs` run format 5 reserved,
+  keeping entries a later build shaped as they were.
+- **Probes.** `Probe` (a `ProbePoint`, a `ProbeSection` or the
+  `ProbeBody` it is on; a quantity id in a unit; an optional `derived`
+  expression, compiled once) is read after every step through a
+  `ProbeSampler` (`ProbeSamplers`, `EngineLoop.probeSamplers`) or the
+  body's material state, and published (`EngineLoop.probeReadings`,
+  `PublishedState.probes`). `ProbeTrace` keeps a run's readings, and
+  `Demo.probes` writes them under the reserved `probes`.
+- **A level on the Earth, made of named substances.** `Level.geoOrigin`
+  (handed to the world by `worldOver`) and `physicalMaterial` on
+  `LevelMaterial`, `Brush` and `EntityDef`, the fields level format 5
+  reserved; `Level.physicalMaterialIds` and `Level.requireMaterials`, which
+  refuses an id no installed plugin declares, naming the plugin.
+  `EntityDef.reservedKeys` holds `physicalMaterial`.
 - **Contacts are events.** `ContactEvent` (`physics.contact`) carries a
   `StepContact` as plain values — the bodies by their world ids, the
   materials by catalogue id, point, normal, impulse, relative velocity and

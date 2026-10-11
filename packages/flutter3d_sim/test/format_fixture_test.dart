@@ -117,8 +117,8 @@ void main() {
       // file says them as it was minted, before anything read them, and a
       // read and a write keep its spelling (no `frame`, no default altitude
       // added). Mutation: write the origin canonically and the bytes move.
-      expect(level.geoOrigin!.latitudeDegrees, 59.9386);
-      expect(level.geoOrigin!.longitudeDegrees, 30.3141);
+      expect(level.geoOrigin!.toJson()['latitude'], 59.9386);
+      expect(level.geoOrigin!.toJson()['longitude'], 30.3141);
       expect(level.geoOrigin!.altitude, 12.0);
       expect(level.materials['floor']!.physicalMaterial, 'f3d.concrete');
       expect(level.physicalMaterialIds, <String>['f3d.concrete']);

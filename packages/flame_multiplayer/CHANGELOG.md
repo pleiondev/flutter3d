@@ -1,5 +1,8 @@
 ## 0.3.0
 
+- **The observer is exported**: `ObserverFeed`, `SimulationObserver`,
+  `ObserverFilter`, `ObserverMode` and `ObserverSnapshot`, from
+  `flutter3d_net`, for watching an authoritative simulation.
 - **`LoopbackPair` is exported beside `LoopbackWire`**, the two ends
   `LoopbackWire.pair()` now returns (see `flutter3d_net`).
 - **A spectator presents the party owner's token.** See `flutter3d_net`:
