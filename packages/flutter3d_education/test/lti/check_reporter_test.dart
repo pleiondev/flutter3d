@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_education/flutter3d_education.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
@@ -254,6 +255,32 @@ void main() {
       () => CheckAnswer(id: 'a', question: question, response: 'x', attempt: 3),
       throwsArgumentError,
     );
+  });
+
+  test('a lesson level asks the questions its steps carry', () {
+    EntityDef step(String? name, Object? check) => EntityDef(
+      type: 'edu_step',
+      name: name,
+      properties: <String, Object?>{'check': ?check},
+    );
+    final reporter = CheckReporter.forLesson(
+      <EntityDef>[
+        step('intro', null),
+        step('torque', <String, Object?>{
+          'question': 'What torque?',
+          'answers': <Object?>['80 Nm'],
+        }),
+        step('typo', <String, Object?>{'question': 'No answers'}),
+        step(null, <String, Object?>{
+          'question': 'Nameless',
+          'answers': <Object?>['x'],
+        }),
+      ],
+      launch: _launch(),
+      platformIssuer: 'https://platform.example.test',
+      activityId: 'https://tool.example.test/lessons/tour',
+    );
+    expect(reporter.questions, <String>['torque']);
   });
 
   test('a lesson step carries the same question, read leniently', () {

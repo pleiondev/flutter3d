@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 0f467e46d1c3a653
+# table-stamp: 121a4ddabd308b41
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -22,3 +22,13 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'XapiLrsSettings'
+  - title: 'flutter3d 1.0.0-rc.1: 4e-editor_core-orderedSteps (orderedSteps)'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      function: 'orderedSteps'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['package:flutter3d_education/lesson.dart']
+          function: 'orderedSteps'

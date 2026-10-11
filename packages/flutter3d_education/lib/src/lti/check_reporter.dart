@@ -1,5 +1,6 @@
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show ResourceException;
+import 'package:flutter3d_sim/flutter3d_sim.dart' show EntityDef;
 
 import '../experiment/check_question.dart';
 import '../experiment/experiment_document.dart';
@@ -131,6 +132,31 @@ final class CheckReporter {
     questions: <String>[
       for (final step in experiment.steps)
         if (step.check != null) step.name,
+    ],
+    grades: grades,
+    statements: statements,
+  );
+
+  /// A reporter for a lesson level's questions: every `edu_step` in
+  /// [steps] (as `orderedSteps` gives them) whose `check` reads as a
+  /// question, by the step's name. A step without a name cannot be
+  /// answered for, and is left out.
+  factory CheckReporter.forLesson(
+    List<EntityDef> steps, {
+    required LtiLaunchClaims launch,
+    required String platformIssuer,
+    required String activityId,
+    AgsClient? grades,
+    XapiClient? statements,
+  }) => CheckReporter(
+    launch: launch,
+    platformIssuer: platformIssuer,
+    activityId: activityId,
+    questions: <String>[
+      for (final step in steps)
+        if (step.name case final String name
+            when CheckQuestion.fromStepProperties(step.properties) != null)
+          name,
     ],
     grades: grades,
     statements: statements,

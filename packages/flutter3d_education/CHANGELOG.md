@@ -7,7 +7,8 @@
   `InProgress` until every question is settled. A launch without a line
   item or the score scope is not graded and says so, and a refusing
   platform is reported in the delivery rather than thrown, so a lesson
-  goes on when a gradebook is down.
+  goes on when a gradebook is down. `CheckReporter.forExperiment` and
+  `forLesson` build one for an experiment's or a lesson level's questions.
 - **New: the experiment document, `f3d.experiment` v1** (`experiment.dart`).
   `ExperimentDocument` holds a level by path, the substances by catalog id,
   the parameters, the probes (`Probe` and the entity it is on) and a
