@@ -91,6 +91,16 @@ and do not take a `WorldPosition`.
 - **How many steps a frame brings is the loop's `TimeSource`'s answer**:
   real time, real time scaled by a factor, a log's timestamps, or a manual
   clock moved by hand. It changes how often the world steps, never `dt`.
+- **State from outside enters as input, on a live step.**
+  `InputState.feedExternal` puts an `ExternalStateInput` (a sensor's
+  reading, a log's line, a headset's pose) on the next step's input and its
+  tape. While the input is muted, which it is while a timeline replays,
+  scrubs or bisects a tape, a reading fed is dropped, not held: one that
+  landed then would be written into the past. A source whose readings
+  arrive on their own clock queues them and drains the queue into
+  `feedExternal` from `EngineLoop.onStepInput`, which runs at the start of
+  every live step and never during a replay, so each reading reaches the
+  first live step after it arrived.
 
 ## Mass and force
 

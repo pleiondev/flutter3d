@@ -117,6 +117,12 @@ final class ReadingQuality {
 /// sensor and the model. So a run fed by telemetry replays bit for bit and
 /// a server can verify it, as a run fed by a keyboard does.
 ///
+/// **Fed on a live step, or lost.** `InputState.feedExternal` drops a
+/// reading while the input is muted, as it is during a replay, so one that
+/// arrives then would otherwise never reach the run. A source on its own
+/// clock queues its readings and drains the queue in `EngineLoop.onStepInput`,
+/// which runs at the start of every live step and never during a replay.
+///
 /// **Numbers with a unit.** [value] is the reading's components (one for a
 /// temperature, seven for a pose: position and a quaternion) in [unit], or
 /// unitless where [unit] is null. Times are seconds, on the clocks their

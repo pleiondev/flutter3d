@@ -458,6 +458,22 @@ final class InputState {
   /// step's assimilations (`LoopRegistry.addAssimilation`), and muted with
   /// the devices during a replay, so telemetry arriving while the timeline
   /// replays does not land in the past. Kept in the order it was fed.
+  ///
+  /// **Dropped while [muted], not held.** A reading fed during a replay, a
+  /// scrub or a bisection is gone; nothing keeps it for the step after. A
+  /// source whose readings arrive on their own clock (a socket, a serial
+  /// port) queues them itself and drains the queue from
+  /// `EngineLoop.onStepInput`, which runs at the start of every live step
+  /// and never while a tape plays:
+  ///
+  /// ```dart
+  /// final pending = <ExternalStateInput>[];
+  /// sensor.listen(pending.add);
+  /// loop.onStepInput((input) {
+  ///   pending.forEach(input.feedExternal);
+  ///   pending.clear();
+  /// });
+  /// ```
   void feedExternal(ExternalStateInput input) {
     if (muted) return;
     _external.add(input);
