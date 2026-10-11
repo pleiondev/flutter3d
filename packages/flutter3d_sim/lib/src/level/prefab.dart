@@ -426,9 +426,22 @@ EntityDef _placed(EntityDef entity, EntityDef parent) {
     (final String outer, final String inner) => '$outer/$inner',
     (_, final inner) => inner,
   };
+  final row = entity.toJson();
+  // The instance's own attributes reach every row it expands to, its keys
+  // winning, as the nearer word does in an override: a pump placed as
+  // `P-101` is `P-101` on each part of it.
+  final inherited = PrefabAttributes.of(parent).own;
+  if (inherited.isNotEmpty) {
+    final props = <String, Object?>{...?row['props'] as Map<String, Object?>?};
+    props[PrefabAttributes.ownKey] = <String, Object?>{
+      ...PrefabAttributes.of(entity).own,
+      ...inherited,
+    };
+    row['props'] = props;
+  }
   return EntityDef.fromJson(
     <String, Object?>{
-      ...entity.toJson(),
+      ...row,
       'id': '${parent.id}/${entity.id}',
       'at': (parent.position + turned).toJson(),
       'yaw': parent.yaw + entity.yaw,
@@ -555,6 +568,124 @@ List<LevelIssue> prefabIssues(Level level) {
   }
   return issues;
 }
+
+/// What a source said about a placed thing beyond how it looks: a digital
+/// twin's element id, a pump's rated flow, the system it belongs to — USD's
+/// custom attributes, as `flutter3d convert` carries them.
+///
+/// **Two places on a row, both properties.** A row's own attributes are
+/// under `attributes` ([ownKey]): what the source said about the thing the
+/// row places, an instance of a referenced file most often. A model row
+/// draws a whole converted layer, whose prims are nodes of one model rather
+/// than rows, so what the source said about each of them is under
+/// `nodeAttributes` ([nodesKey]), by the node's path in the model: the
+/// names from the model's root, joined by `/` (`Plant/Sensors/Temp7`).
+///
+/// **The engine reads neither.** They are data for whoever binds the scene
+/// to something outside it — a twin's database, a building's element
+/// list — and they ride every expansion, save and edit a property does: an
+/// instance changes one of a template row's with the dotted override key
+/// `attributes.twin:id`, and [expandPrefabs] gives an instance's own
+/// attributes to every row it expands to, the instance's key winning over
+/// the row's, so the parts of a pump placed as `P-101` are `P-101` in the
+/// played level. A value is what JSON holds: a string, a number, a bool, a
+/// list or an object of those.
+final class PrefabAttributes {
+  const PrefabAttributes({
+    this.own = const <String, Object?>{},
+    this.nodes = const <String, Map<String, Object?>>{},
+  });
+
+  /// [entity]'s attributes; empty when it carries none.
+  ///
+  /// Throws [LevelFormatException] when either key holds something other
+  /// than an object, or a node's entry is not one.
+  factory PrefabAttributes.of(EntityDef entity) {
+    Map<String, Object?> object(Object? value, String where) => switch (value) {
+      null => const <String, Object?>{},
+      final Map<Object?, Object?> map => <String, Object?>{
+        for (final MapEntry(:key, :value) in map.entries) '$key': value,
+      },
+      _ => throw LevelFormatException('"$where" must be an object'),
+    };
+    return PrefabAttributes(
+      own: object(entity.properties[ownKey], ownKey),
+      nodes: <String, Map<String, Object?>>{
+        for (final MapEntry(:key, :value) in object(
+          entity.properties[nodesKey],
+          nodesKey,
+        ).entries)
+          key: object(value, '$nodesKey.$key'),
+      },
+    );
+  }
+
+  /// The property a row carries its own attributes under.
+  static const String ownKey = 'attributes';
+
+  /// The property a model row carries its nodes' attributes under.
+  static const String nodesKey = 'nodeAttributes';
+
+  /// What the source said about the thing the row places.
+  final Map<String, Object?> own;
+
+  /// What the source said about each node of the row's model, by the
+  /// node's path.
+  final Map<String, Map<String, Object?>> nodes;
+
+  /// Whether the row carries no attribute at all.
+  bool get isEmpty => own.isEmpty && nodes.values.every((m) => m.isEmpty);
+
+  /// The row's own attribute [name], or null.
+  Object? operator [](String name) => own[name];
+
+  /// The paths of the nodes whose attribute [name] is [value], in the order
+  /// the row lists them.
+  Iterable<String> nodesWhere(String name, Object? value) => <String>[
+    for (final MapEntry(:key, value: attributes) in nodes.entries)
+      if (attributes.containsKey(name) && attributes[name] == value) key,
+  ];
+
+  /// The properties a row carries these attributes as: none for an empty
+  /// set, so a row without attributes stays the row it was.
+  Map<String, Object?> toProperties() => <String, Object?>{
+    if (own.isNotEmpty) ownKey: own,
+    if (nodes.isNotEmpty) nodesKey: nodes,
+  };
+}
+
+/// An entity [findByAttribute] found, and the node of its model that
+/// carries the attribute when the entity itself does not.
+final class AttributeMatch {
+  const AttributeMatch(this.entity, {this.node});
+
+  final EntityDef entity;
+
+  /// The node's path in the entity's model; null when the attribute is the
+  /// entity's own.
+  final String? node;
+}
+
+/// Every one of [entities] whose own attribute [name] is [value], and every
+/// node of their models that has it, in their order.
+///
+/// What a twin binds its elements with: [entities] are a level's after
+/// [expandPrefabs], so an instance's attribute is found on the instance's
+/// expanded rows as well as a template's on every copy. Numbers compare as
+/// numbers, `2` matching `2.0`, as JSON does not tell them apart.
+List<AttributeMatch> findByAttribute(
+  Iterable<EntityDef> entities,
+  String name,
+  Object? value,
+) => <AttributeMatch>[
+  for (final entity in entities)
+    if (PrefabAttributes.of(entity) case final attributes) ...<AttributeMatch>[
+      if (attributes.own.containsKey(name) && attributes[name] == value)
+        AttributeMatch(entity),
+      for (final node in attributes.nodesWhere(name, value))
+        AttributeMatch(entity, node: node),
+    ],
+];
 
 PrefabInstance? _instanceOrNull(EntityDef entity) {
   try {
