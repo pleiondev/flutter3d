@@ -1441,4 +1441,145 @@ List<EditorTool> get editorTools => <EditorTool>[
           apply: arguments['apply'] != false,
         ),
   ),
+  _told(
+    mcpTool(
+      name: 'plugin.list',
+      description:
+          'What the project\'s plugins brought to this editor: their commands '
+          'with the arguments each takes (each is also a tool of its own, '
+          '`<plugin id>.<name>`), the fields they hint for components, entity '
+          'kinds and materials, their gizmos, their importers and the kinds '
+          'of file they list.',
+      inputSchema: ObjectSchema(),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        (did: true, says: session.pluginListing()),
+  ),
+  _told(
+    mcpTool(
+      name: 'asset.import',
+      description:
+          'Bring a file into the project through the plugin importer its '
+          'suffix names: the files it writes land in the project, and what '
+          'it places in the level is one step of undo each. plugin.list '
+          'names the importers and the suffixes they read.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'path': StringSchema(
+            description: 'the file to import, inside the project',
+          ),
+          'at': _vector(
+            'where in the level what it places goes; leave out for the '
+            'importer\'s own choice',
+          ),
+        },
+        required: <String>['path'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) => session
+        .importFile(arguments['path']! as String, at: _point(arguments, 'at')),
+  ),
+  ..._experimentTools,
+];
+
+/// The `experiment.*` tools: an `f3d.experiment` document opened beside the
+/// level, listed, edited one value at a time, undone and saved.
+List<EditorTool> get _experimentTools => <EditorTool>[
+  _told(
+    mcpTool(
+      name: 'experiment.open',
+      description:
+          'Open an experiment document (.f3d.experiment) inside the project '
+          'for the other experiment tools, and list what is in it: its '
+          'substances, parameters, probes and the steps of its scenario.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'path': StringSchema(description: 'the document, inside the project'),
+        },
+        required: <String>['path'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.openExperiment(arguments['path']! as String),
+  ),
+  _told(
+    mcpTool(
+      name: 'experiment.list',
+      description:
+          'The open experiment, one line per substance, parameter, probe and '
+          'step, each step with what it sets, how long it runs and what it '
+          'expects each probe to read.',
+      inputSchema: ObjectSchema(),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        (did: session.experiment != null, says: session.experimentListing()),
+  ),
+  _told(
+    mcpTool(
+      name: 'experiment.edit',
+      description:
+          'Change the open experiment by one edit, named under `edit` with '
+          'its own arguments: ${experimentEditNames.join(', ')}. A quantity '
+          'is {"value": 1, "unit": "m"} or "1 m". The document is read back '
+          'after the edit, and what its reader refuses (a step setting a '
+          'parameter that is not declared, a reading of an unknown probe, a '
+          'tolerance in another unit) is refused with its words and changes '
+          'nothing.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'edit': UntitledSingleSelectEnumSchema(
+            description: 'which edit',
+            values: experimentEditNames,
+          ),
+          'arguments': ObjectSchema(
+            description:
+                'the edit\'s arguments: id, role, value, min, max, key, probe '
+                '(an object for setProbe, an id otherwise), step (an object '
+                'for setStep, a name otherwise), at, to, tolerance',
+          ),
+        },
+        required: <String>['edit'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.editExperiment(<String, Object?>{
+          ...switch (arguments['arguments']) {
+            final Map<Object?, Object?> given => given.cast<String, Object?>(),
+            _ => const <String, Object?>{},
+          },
+          'edit': arguments['edit'],
+        }),
+  ),
+  _told(
+    mcpTool(
+      name: 'experiment.undo',
+      description:
+          'Take back the open experiment\'s last edit, or with redo true make '
+          'the last one taken back again.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'redo': BooleanSchema(description: 'true to redo instead'),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.undoExperiment(redo: arguments['redo'] == true),
+  ),
+  _told(
+    mcpTool(
+      name: 'experiment.save',
+      description:
+          'Write the open experiment over the file it came from, or to a '
+          'path inside the project.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'path': StringSchema(
+            description: 'where to write; leave out for the file it came from',
+          ),
+        },
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        session.saveExperiment(arguments['path'] as String?),
+  ),
 ];

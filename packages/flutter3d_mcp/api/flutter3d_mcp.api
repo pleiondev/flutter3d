@@ -10,23 +10,31 @@ base class EditorMcpServer extends ToolTableServer<EditorSession, PictureAnswer>
   EditorMcpServer(super.channel, {required EditorSession session, super.projectTools, super.onProjectCall})
 
 final class EditorSession
+  Answer editExperiment(Map<String, Object?> json)
   Answer generate(LevelRecipe recipe)
+  Answer openExperiment(String path)
   Answer redo()
   Answer removeBehavior(String name)
   Answer removeCutscene(String name)
   Answer run(DocumentCommand command)
+  Answer saveExperiment(String? path)
   Answer select(Piece? kind, int? index, {bool also = false})
   Answer setBehavior(String name, Map<String, Object?> tree)
   Answer setCutscene(String name, Map<String, Object?> sequence, Vector3? at)
   Answer undo()
+  Answer undoExperiment({bool redo = false})
   EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces, ProjectRoot? root})
+  ExperimentEditing? experiment
   Future<Answer> generateLevel(LevelRules rules, {required int seed})
+  Future<Answer> importFile(String path, {Vector3? at})
   Future<Answer> report(Vector3? from, Vector3? at)
   Future<Answer> save(String? path)
   Future<PictureAnswer> screenshot(Vector3? from, Vector3? at, {String? debugView})
   PictureAnswer optimizeLights({List<LightView>? views, bool apply = true})
+  String experimentListing()
   String get selection
   String listing()
+  String pluginListing()
   String validate()
   factory EditorSession.open(String path)
   final Editing editing
@@ -91,9 +99,11 @@ typedef RunFlutterIn = Future<ProcessResult> Function(List<String> arguments, St
 
 const Set<String> buildTargets = <String>{'macos', 'linux', 'windows', 'web', 'apk', 'appbundle', 'ios'}
 
+Map<String, Object?> commandInputSchema(PluginCommandInfo command)
+
 const Map<String, Object?> editorAnswerSchema = …
 
-const String editorMcpSchemaVersion = '1.0.0'
+const String editorMcpSchemaVersion = '1.1.0'
 
 const String editorMcpVersion = '1.0.0-rc.1'
 
@@ -102,6 +112,8 @@ const Map<String, ToolName> editorToolNames = …
 List<EditorTool> get editorTools
 
 EditorMcpServer serveEditorMcp(List<String> arguments, {List<Flutter3dPlugin> plugins = const <Flutter3dPlugin>[]})
+
+Registration shareCommands(EditorPieces pieces, McpTools tools, EditorSession session)
 
 library package:flutter3d_mcp/flutter3d_mcp.dart
 
@@ -120,23 +132,31 @@ base class EditorMcpServer extends ToolTableServer<EditorSession, PictureAnswer>
   EditorMcpServer(super.channel, {required EditorSession session, super.projectTools, super.onProjectCall})
 
 final class EditorSession
+  Answer editExperiment(Map<String, Object?> json)
   Answer generate(LevelRecipe recipe)
+  Answer openExperiment(String path)
   Answer redo()
   Answer removeBehavior(String name)
   Answer removeCutscene(String name)
   Answer run(DocumentCommand command)
+  Answer saveExperiment(String? path)
   Answer select(Piece? kind, int? index, {bool also = false})
   Answer setBehavior(String name, Map<String, Object?> tree)
   Answer setCutscene(String name, Map<String, Object?> sequence, Vector3? at)
   Answer undo()
+  Answer undoExperiment({bool redo = false})
   EditorSession(this.editing, {PlaySession? play, EditorPieces? pieces, ProjectRoot? root})
+  ExperimentEditing? experiment
   Future<Answer> generateLevel(LevelRules rules, {required int seed})
+  Future<Answer> importFile(String path, {Vector3? at})
   Future<Answer> report(Vector3? from, Vector3? at)
   Future<Answer> save(String? path)
   Future<PictureAnswer> screenshot(Vector3? from, Vector3? at, {String? debugView})
   PictureAnswer optimizeLights({List<LightView>? views, bool apply = true})
+  String experimentListing()
   String get selection
   String listing()
+  String pluginListing()
   String validate()
   factory EditorSession.open(String path)
   final Editing editing
@@ -436,6 +456,8 @@ final ModelPictureTool auditTool
 
 const Set<String> buildTargets = <String>{'macos', 'linux', 'windows', 'web', 'apk', 'appbundle', 'ios'}
 
+Map<String, Object?> commandInputSchema(PluginCommandInfo command)
+
 void deleteMcpSessionFile(File file)
 
 const List<String> describableFamilies = <String>['modifier', 'shape', 'textureNode']
@@ -444,7 +466,7 @@ String describeType({required String family, String? kind})
 
 const Map<String, Object?> editorAnswerSchema = …
 
-const String editorMcpSchemaVersion = '1.0.0'
+const String editorMcpSchemaVersion = '1.1.0'
 
 const String editorMcpVersion = '1.0.0-rc.1'
 
@@ -491,6 +513,8 @@ const String schemaVersionMetaKey = 'flutter3d/schemaVersion'
 EditorMcpServer serveEditorMcp(List<String> arguments, {List<Flutter3dPlugin> plugins = const <Flutter3dPlugin>[]})
 
 ModelMcpServer? serveModelMcp(List<String> arguments, {McpTools? projectTools})
+
+Registration shareCommands(EditorPieces pieces, McpTools tools, EditorSession session)
 
 void writeMcpSessionFile(File file, {required int port, required String token})
 

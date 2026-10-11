@@ -16,6 +16,12 @@ dependencies:
   flutter3d_plugin_api:
     path: ../../flutter3d_plugin_api
 
+  # The editor half, `lib/acme_editor.dart`: the editor pieces it adds
+  # (a command, a gizmo, an importer, an asset-browser entry). Its hints need
+  # only the plugin API's `editor.dart`.
+  flutter3d_editor_core:
+    path: ../../flutter3d_editor_core
+
   # The runtime that reads the data half, `plugin/acme_sample.f3dplugin`.
   flutter3d_plugin_runtime:
     path: ../

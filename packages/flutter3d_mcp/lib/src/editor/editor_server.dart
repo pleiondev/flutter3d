@@ -20,7 +20,11 @@ const String editorMcpVersion = '1.0.0-rc.1';
 /// the architecture review): the minors it counted before were moves within
 /// a surface nobody had been promised yet, and a host meeting 1.2.0 at a
 /// first release would look for a 1.0 and 1.1 that never shipped.
-const String editorMcpSchemaVersion = '1.0.0';
+///
+/// 1.1.0 with `plugin.list` and `asset.import`, the editor's plugin
+/// contract seen by an agent, and the `experiment.*` tools that edit an
+/// experiment document beside the level.
+const String editorMcpSchemaVersion = '1.1.0';
 
 /// What each of [editorTools] is published as, `area.verb`, and what it does
 /// to the document. The name a tool is written under — the editor command's
@@ -37,13 +41,22 @@ const Map<String, ToolName> editorToolNames = <String, ToolName>{
   'createPrefab': ToolName('prefab.create', ToolHints.writes),
   'delete': ToolName('selection.delete', ToolHints.writes),
   'duplicate': ToolName('selection.duplicate', ToolHints.writes),
+  'experiment.edit': ToolName('experiment.edit', ToolHints.writes),
+  'experiment.list': ToolName('experiment.list', ToolHints.reads),
+  'experiment.open': ToolName('experiment.open', ToolHints.writes),
+  // Writes over the experiment's file, or one at the path it is given.
+  'experiment.save': ToolName('experiment.save', ToolHints.destroys),
+  'experiment.undo': ToolName('experiment.undo', ToolHints.writes),
   'generate': ToolName('kit.place', ToolHints.writes),
   'generate_level': ToolName('level.generate', ToolHints.destroys),
+  // Writes the importer's files into the project and places in the level.
+  'asset.import': ToolName('asset.import', ToolHints.writes),
   'list': ToolName('level.list', ToolHints.reads),
   'moveBy': ToolName('selection.move', ToolHints.writes),
   'optimizeLights': ToolName('light.optimize', ToolHints.writes),
   'place': ToolName('level.place', ToolHints.writes),
   'placePrefab': ToolName('prefab.place', ToolHints.writes),
+  'plugin.list': ToolName('plugin.list', ToolHints.reads),
   'play': ToolName('play.start', ToolHints(openWorld: true)),
   'play_build': ToolName(
     'play.build',
@@ -195,7 +208,13 @@ each thing has, `selection.set` one of them, then the verbs that change it.
 everything else does. Deleting renumbers what follows it, so call
 `level.list` again afterwards rather than counting. `command.run` runs any
 command the editor knows by name, a plugin's (`<plugin id>.<name>`)
-included.
+included; `plugin.list` says what the project's plugins brought, and each
+plugin command is a tool of its own too.
+
+An experiment (`.f3d.experiment`: a level, substances, parameters, probes
+and a scenario of steps with expected readings) is edited beside the
+level: `experiment.open` it, then `experiment.edit` one value at a time,
+`experiment.undo` and `experiment.save`.
 
 `level.validate` says what is wrong with the document as the game would see
 it, and is worth calling before `level.save`. `history.undo` goes back sixty-four steps.

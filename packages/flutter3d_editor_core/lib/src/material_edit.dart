@@ -28,6 +28,8 @@ import 'dart:typed_data';
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show FormatSpec;
 
+import 'editor_pieces.dart';
+
 /// [document] with one field changed, or null when the change would produce a
 /// `.fmat` this engine's own reader does not take as written.
 ///
@@ -201,7 +203,16 @@ Map<String, Object?> materialDocumentFields(MaterialDocument document) {
 /// only thing that can describe a parameter this engine has never heard of. A
 /// texture slot is a path whatever it is called, so an unhinted one is offered
 /// as a file rather than as a string somebody types blind.
-MaterialHint? materialDocumentHint(MaterialDocument document, String key) =>
+///
+/// With [pieces], a parameter the file does not hint is hinted by the plugin
+/// whose lit model the material names (`EditorPieces.materialHint`, by the
+/// model's stage name), before the engine's table.
+MaterialHint? materialDocumentHint(
+  MaterialDocument document,
+  String key, {
+  EditorPieces? pieces,
+}) =>
     document.hints[key] ??
+    pieces?.materialHint(document.lighting?.shaderName, key) ??
     builtInMaterialHints[key] ??
     (key.startsWith('textures/') ? const MaterialHint(TextureHint()) : null);

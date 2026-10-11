@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter3d_core/flutter3d_core.dart' show DebugView;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
-import 'package:flutter3d_mcp/kit.dart'
-    show Answer, PictureAnswer, ProjectRoot;
+import 'package:flutter3d_mcp/kit.dart' show Answer, PictureAnswer, ProjectRoot;
+import 'package:flutter3d_plugin_api/editor.dart'
+    show ComponentHints, FieldHint;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -66,6 +67,145 @@ final class EditorSession {
   /// `command.run` tool reads a name through, so an agent reaches a plugin's
   /// command by the same door as a built-in one.
   final EditorPieces pieces;
+
+  /// The experiment document open beside the level, or null for none: what
+  /// the `experiment.*` tools edit. One at a time, opened inside [root].
+  ExperimentEditing? experiment;
+
+  /// Opens the `.f3d.experiment` at [path], inside [root], in place of the
+  /// one open before; refused, with the reader's words, for one it does not
+  /// open.
+  Answer openExperiment(String path) {
+    final (path: inside, :refused) = root.tryResolve(path);
+    if (inside == null) return (did: false, says: refused!);
+    final file = File(inside);
+    if (!file.existsSync()) return (did: false, says: 'there is no $path');
+    try {
+      experiment = ExperimentEditing.parse(
+        file.readAsStringSync(),
+        path: inside,
+      );
+    } on Exception catch (error) {
+      return (did: false, says: '$path does not open: $error');
+    }
+    return (did: true, says: experimentListing());
+  }
+
+  /// The open experiment, one line per thing in it: its words, substances,
+  /// parameters, probes, and each step with what it sets, runs and expects.
+  String experimentListing() {
+    final open = experiment;
+    if (open == null) return 'no experiment is open: call experiment.open';
+    final document = open.document;
+    String quantity(Object? written) => switch (written) {
+      {'value': final Object value, 'unit': final Object unit} =>
+        '$value $unit',
+      final Object other => '$other',
+      null => '—',
+    };
+    String when(Object? present, String said) => present == null ? '' : said;
+    String parameterRow(Map<Object?, Object?> row) {
+      final from = when(row['min'], ' from ${quantity(row['min'])}');
+      final to = when(row['max'], ' to ${quantity(row['max'])}');
+      return 'parameter ${row['id']} = ${quantity(row['value'])}$from$to';
+    }
+
+    String stepRow(int index, Map<Object?, Object?> row) {
+      final sets = switch (row['set']) {
+        final Map<Object?, Object?> set =>
+          ': set ${<String>[for (final MapEntry(:key, :value) in set.entries) '$key ${quantity(value)}'].join(', ')}',
+        _ => '',
+      };
+      final runs = when(row['run'], ', run ${quantity(row['run'])}');
+      String reading(Map<Object?, Object?> it) =>
+          '${it['probe']} ${quantity(it['value'])} ± '
+          '${quantity(it['tolerance'])}';
+      final expects = switch (row['expect']) {
+        final List<Object?> expect =>
+          ', expect ${expect.whereType<Map<Object?, Object?>>().map(reading).join(', ')}',
+        _ => '',
+      };
+      return 'step $index ${row['name']}$sets$runs$expects';
+    }
+
+    final json = document.toJson();
+    final steps = switch (json['scenario']) {
+      {'steps': final List<Object?> steps} => steps,
+      _ => const <Object?>[],
+    };
+    final title = when(document.title, ' "${document.title}"');
+    final changed = open.isDirty ? ' (changed)' : '';
+    final heading =
+        'experiment ${document.name}$title, level ${document.level}, '
+        'profile ${document.profile}$changed';
+    return <String>[
+      heading,
+      for (final substance in document.substances)
+        'substance ${substance.id}${when(substance.role, ' as ${substance.role}')}',
+      for (final parameter
+          in (json['parameters'] as List<Object?>?) ?? const <Object?>[])
+        if (parameter case final Map<Object?, Object?> row) parameterRow(row),
+      for (final probe in document.probes)
+        'probe ${probe.id}${when(probe.on, ' on ${probe.on}')}',
+      for (final (index, step) in steps.indexed)
+        if (step case final Map<Object?, Object?> row) stepRow(index, row),
+    ].join('\n');
+  }
+
+  /// Makes the edit [json] names, with its arguments, on the open
+  /// experiment: one step of its undo, or the reader's refusal.
+  Answer editExperiment(Map<String, Object?> json) {
+    final open = experiment;
+    if (open == null) {
+      return (did: false, says: 'no experiment is open: call experiment.open');
+    }
+    final edit = ExperimentEdit.fromJson(json);
+    if (edit == null) {
+      return (
+        did: false,
+        says:
+            '${json['edit']} cannot be read from those arguments; the edits '
+            'are ${experimentEditNames.join(', ')}',
+      );
+    }
+    final refused = open.run(edit);
+    return refused == null
+        ? (did: true, says: edit.says)
+        : (did: false, says: refused);
+  }
+
+  /// Takes back the open experiment's last edit, or makes the last undone
+  /// one again with [redo].
+  Answer undoExperiment({bool redo = false}) {
+    final open = experiment;
+    if (open == null) {
+      return (did: false, says: 'no experiment is open: call experiment.open');
+    }
+    final said = redo ? open.redo() : open.undo();
+    return said == null
+        ? (did: false, says: 'nothing to ${redo ? 'redo' : 'undo'}')
+        : (did: true, says: '${redo ? 'redid' : 'undid'} $said');
+  }
+
+  /// Writes the open experiment, to [path] inside [root] or over the file
+  /// it was read from.
+  Answer saveExperiment(String? path) {
+    final open = experiment;
+    if (open == null) {
+      return (did: false, says: 'no experiment is open: call experiment.open');
+    }
+    final String to;
+    if (path == null) {
+      to = open.path!;
+    } else {
+      final (path: inside, :refused) = root.tryResolve(path);
+      if (inside == null) return (did: false, says: refused!);
+      to = inside;
+    }
+    File(to).writeAsStringSync('${open.write()}\n');
+    if (to == open.path) open.saved();
+    return (did: true, says: 'written to $to');
+  }
 
   /// What this editor writes into `generatedBy` when it takes ownership of a
   /// copy. The application writes `apps/flutter3d_editor` for the same reason:
@@ -382,6 +522,150 @@ final class EditorSession {
           ? '$said\n(undo puts the old lights back)'
           : 'proposed: $said',
       png: plan.pngs.after,
+    );
+  }
+
+  /// What the plugins brought to this editor, a section each: commands with
+  /// their arguments, inspector hints, gizmos, importers and asset-browser
+  /// entries. "no plugin brought anything" when none did.
+  String pluginListing() {
+    final hints = pieces.hints;
+    String fields(Iterable<FieldHint> hinted) =>
+        hinted.map((FieldHint f) => '${f.key} (${f.kind.name})').join(', ');
+    String commandRow(PluginCommandInfo command) {
+      final takes = command.arguments.isEmpty
+          ? ''
+          : ': ${fields(command.arguments)}';
+      final about = command.description == null
+          ? ''
+          : ' — ${command.description}';
+      return '${command.name}$takes$about';
+    }
+
+    String componentRow(ComponentHints component) {
+      final on = component.entityTypes.isEmpty
+          ? ''
+          : ' on ${component.entityTypes.join(', ')}';
+      return '${component.id} "${component.title}": '
+          '${fields(component.fields)}$on';
+    }
+
+    String assetRow(AddedAssetEntry added) {
+      final placed = added.entry.place == null ? '' : ', placed by dropping';
+      return '${added.name} "${added.entry.label}": '
+          '${added.entry.suffixes.join(' ')}$placed';
+    }
+
+    final sections = <(String, List<String>)>[
+      ('commands', <String>[...pieces.pluginCommands.map(commandRow)]),
+      ('components', <String>[...hints.components.map(componentRow)]),
+      (
+        'entity kinds',
+        <String>[
+          for (final kind in hints.entityKinds)
+            '${kind.type} "${kind.title}": ${fields(kind.fields)}',
+        ],
+      ),
+      (
+        'materials',
+        <String>[
+          for (final material in hints.materials)
+            '${material.model}: ${fields(material.fields)}',
+        ],
+      ),
+      ('gizmos', pieces.gizmoNames),
+      (
+        'importers',
+        <String>[
+          for (final added in pieces.importers)
+            '${added.name} "${added.importer.label}": ${added.importer.suffixes.join(' ')}',
+        ],
+      ),
+      (
+        'asset entries',
+        <String>[
+          for (final added in pieces.assetEntries)
+            if (!builtInAssetEntries.contains(added)) assetRow(added),
+        ],
+      ),
+    ];
+    final said = <String>[
+      for (final (title, rows) in sections)
+        if (rows.isNotEmpty) ...<String>[
+          '$title:',
+          for (final row in rows) '  $row',
+        ],
+    ];
+    return said.isEmpty ? 'no plugin brought anything' : said.join('\n');
+  }
+
+  /// Brings the file at [path] into the project through the importer its
+  /// suffix names: the files it writes go under [root], and the commands it
+  /// answers run on the document, one step of undo each.
+  ///
+  /// [path] is resolved inside [root] and refused outside it, as every path
+  /// a tool hands this session is; so is every file the importer writes.
+  Future<Answer> importFile(String path, {Vector3? at}) async {
+    final added = pieces.importerFor(path);
+    if (added == null) {
+      final known = <String>[
+        for (final importer in pieces.importers) ...importer.importer.suffixes,
+      ];
+      return (
+        did: false,
+        says: known.isEmpty
+            ? 'no importer is installed; a plugin adds one'
+            : 'no importer reads $path; the installed ones read '
+                  '${known.join(', ')}',
+      );
+    }
+    final (path: source, :refused) = root.tryResolve(path);
+    if (source == null) return (did: false, says: refused!);
+    final file = File(source);
+    if (!file.existsSync()) return (did: false, says: 'there is no $path');
+    final ImportResult result;
+    try {
+      result = await added.importer.import(
+        ImportRequest(
+          path: source,
+          bytes: file.readAsBytesSync(),
+          level: editing.level,
+          at: at,
+        ),
+      );
+    } on Object catch (error) {
+      return (did: false, says: '${added.name} could not read $path: $error');
+    }
+    final targets = <String, String>{};
+    for (final written in result.files.keys) {
+      final (path: inside, :refused) = root.tryResolve(written);
+      if (inside == null) {
+        return (
+          did: false,
+          says:
+              '${added.name} wanted to write $written: $refused; nothing '
+              'was imported',
+        );
+      }
+      targets[written] = inside;
+    }
+    for (final MapEntry(key: written, value: bytes) in result.files.entries) {
+      File(targets[written]!)
+        ..parent.createSync(recursive: true)
+        ..writeAsBytesSync(bytes);
+    }
+    final ran = <String>[
+      for (final command in result.commands)
+        if (editing.history.run(command)) command.says,
+    ];
+    return (
+      did: true,
+      says: <String>[
+        'imported $path with ${added.name}',
+        for (final written in result.files.keys) '  wrote $written',
+        for (final said in ran) '  $said',
+        for (final note in result.notes) '  $note',
+      ].join('\n'),
     );
   }
 

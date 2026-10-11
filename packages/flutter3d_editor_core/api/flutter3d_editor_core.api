@@ -31,6 +31,16 @@ final class AddLevelLight extends EditorCommand
   final double range
   static const double defaultIntensity = 4.0 * LevelLight.defaultIntensity
 
+final class AddedAssetEntry
+  const AddedAssetEntry(this.name, this.entry)
+  final AssetBrowserEntry entry
+  final String name
+
+final class AddedImporter
+  const AddedImporter(this.name, this.importer)
+  final EditorImporter importer
+  final String name
+
 final class ApplyOverrides extends EditorCommand
   Map<String, Object?> get arguments
   String get name
@@ -38,6 +48,20 @@ final class ApplyOverrides extends EditorCommand
   bool apply(Editing editing)
   const ApplyOverrides({this.path})
   final String? path
+
+final class AssetBrowserEntry
+  bool matches(String path)
+  const AssetBrowserEntry({required this.label, required this.suffixes, this.icon, this.place})
+  final DocumentCommand? Function(AssetPlacement placement)? place
+  final List<String> suffixes
+  final String label
+  final String? icon
+
+final class AssetPlacement
+  AssetPlacement({required this.path, required Vector3 at, required this.level})
+  final Level level
+  final String path
+  final Vector3 at
 
 final class Brighten extends EditorCommand
   Map<String, Object?> get arguments
@@ -78,6 +102,13 @@ abstract final class DocumentText
   static String inline(Object? value)
   static String number(num value)
   static String string(String value)
+
+final class DrawnMark
+  const DrawnMark({required this.gizmo, required this.kind, required this.index, required this.mark})
+  final GizmoMark mark
+  final Piece kind
+  final String gizmo
+  final int index
 
 final class Duplicate extends EditorCommand
   Map<String, Object?> get arguments
@@ -167,16 +198,39 @@ abstract final class EditorCommand extends DocumentCommand
   static EditorCommand? fromJson(Map<String, Object?> json)
 
 final class EditorComponent
+  FieldHint? hintFor(String key)
   Set<String> get fields
   String toString()
   bool appliesTo(Piece piece, [String? type])
-  const EditorComponent({required this.kind, required this.title, this.piece = Piece.entity, this.keys = const <String>{}, this.defaults = const <String, Object?>{}, this.types = const <String>{}})
+  const EditorComponent({required this.kind, required this.title, this.piece = Piece.entity, this.keys = const <String>{}, this.defaults = const <String, Object?>{}, this.types = const <String>{}, this.hints = const <FieldHint>[]})
+  final List<FieldHint> hints
   final Map<String, Object?> defaults
   final Piece piece
   final Set<String> keys
   final Set<String> types
   final String kind
   final String title
+
+abstract base class EditorGizmo
+  DocumentCommand? dragged(GizmoDrag drag)
+  abstract List<GizmoMark> marksFor(GizmoContext context)
+  bool appliesTo(GizmoContext context)
+  const EditorGizmo()
+
+final class EditorHints extends EditorHintRegistry
+  ComponentHints? component(String id)
+  EditorHints forPlugin(PluginScope scope)
+  EditorHints()
+  EntityKindHints? entityKind(String type)
+  List<ComponentHints> componentsOf(String type)
+  List<ComponentHints> get components
+  List<EntityKindHints> get entityKinds
+  List<MaterialHints> get materials
+  MaterialHints? material(String model)
+  Registration addComponent(ComponentHints hints)
+  Registration addEntityKind(EntityKindHints hints)
+  Registration addMaterial(MaterialHints hints)
+  Registration listen(void Function() onChange)
 
 final class EditorHistory
   EditorHistory(this.editing)
@@ -194,24 +248,79 @@ final class EditorHistory
   void saved()
   void undo()
 
+abstract base class EditorImporter
+  abstract Future<ImportResult> import(ImportRequest request)
+  abstract List<String> get suffixes
+  abstract String get label
+  const EditorImporter()
+
 final class EditorPieces extends EditorRegistry
+  AddedAssetEntry? assetEntryFor(String path)
+  AddedImporter? importerFor(String path)
+  DocumentCommand? dragged(DrawnMark drawn, Level level, {required Vector3 from, required Vector3 to})
   DocumentCommand? readCommand(Map<String, Object?> json)
   EditorPieces forPlugin(PluginScope scope)
   EditorPieces()
+  FieldHint? fieldHint(Piece piece, String key, {String? type})
+  Iterable<PluginRegistry> get companions
+  List<AddedAssetEntry> get assetEntries
+  List<AddedImporter> get importers
+  List<DrawnMark> marksFor(Level level, {Iterable<Picked> selected = const <Picked>[]})
   List<EditorComponent> componentsFor(Piece piece, [String? type])
   List<EditorComponent> get components
+  List<FieldHint> argumentsOf(String name)
   List<PaletteEntry> get paletteEntries
+  List<PluginCommandInfo> get pluginCommands
   List<String> get commandNames
+  List<String> get gizmoNames
   Map<String, Object?> offersFor(Piece piece, Iterable<String> present, [String? type])
-  Registration addCommand(String written, CommandReader read, {String? description})
+  MaterialHint? materialHint(String? model, String key)
+  Registration addAssetEntry(String written, AssetBrowserEntry entry)
+  Registration addCommand(String written, CommandReader read, {String? description, List<FieldHint> arguments = const <FieldHint>[]})
   Registration addComponent(EditorComponent written)
+  Registration addGizmo(String written, EditorGizmo gizmo)
+  Registration addImporter(String written, EditorImporter importer)
   Registration addPaletteEntry(PaletteEntry entry)
+  Registration listen(void Function() onChange)
   String published(String name, {String what = 'name'})
   String? descriptionOf(String name)
+  String? refusalOf(Piece piece, String key, Object? value, {String? type})
+  late final EditorHints hints
   static bool builtInComponentKind(String kind)
 
 abstract base class EditorRegistry extends PluginRegistry
   const EditorRegistry()
+
+final class EditorSectionContents
+  const EditorSectionContents({this.components = const <ComponentHints>[], this.entityKinds = const <EntityKindHints>[], this.materials = const <MaterialHints>[]})
+  final List<ComponentHints> components
+  final List<EntityKindHints> entityKinds
+  final List<MaterialHints> materials
+
+abstract final class ExperimentEdit
+  ExperimentDocument applyTo(ExperimentDocument document)
+  Map<String, Object?> toJson()
+  abstract Map<String, Object?> get arguments
+  abstract String get name
+  abstract String get says
+  abstract void change(Map<String, Object?> json)
+  const ExperimentEdit()
+  static ExperimentEdit? fromJson(Map<String, Object?> json)
+
+final class ExperimentEditing
+  ExperimentDocument get document
+  ExperimentEditing(this._document, {this.path, this.limit = 64})
+  String write()
+  String? get canRedo
+  String? get canUndo
+  String? redo()
+  String? run(ExperimentEdit edit)
+  String? undo()
+  bool get isDirty
+  factory ExperimentEditing.parse(String text, {String? path})
+  final String? path
+  final int limit
+  void saved()
 
 final class GeneratorException extends Flutter3dFormatException
   String toString()
@@ -221,6 +330,49 @@ final class GeneratorException extends Flutter3dFormatException
 abstract base mixin class GeneratorSource
   abstract List<String> list(String directory)
   abstract String read(String path)
+
+final class GizmoContext
+  Brush? get brush
+  EntityDef? get entity
+  GizmoContext({required this.level, required this.kind, required this.index, required this.selected})
+  LevelLight? get light
+  Vector3 get where
+  final Level level
+  final Piece kind
+  final bool selected
+  final int index
+
+final class GizmoDrag
+  GizmoDrag({required this.target, required this.handle, required Vector3 from, required Vector3 to})
+  Vector3 get by
+  final GizmoContext target
+  final String handle
+  final Vector3 from
+  final Vector3 to
+
+final class GizmoMark
+  (Vector3, Vector3) get bounds
+  GizmoMark.ball(Vector3 center, {required double radius, Vector3? tint, this.handle})
+  GizmoMark.box(Vector3 center, Vector3 size, {Vector3? tint, this.handle})
+  GizmoMark.cage(Vector3 center, Vector3 size, {Vector3? tint, this.handle})
+  GizmoMark.line(Vector3 from, Vector3 to, {double width = 0.04, Vector3? tint, this.handle})
+  Vector3 get center
+  final GizmoShape shape
+  final String? handle
+  final Vector3 from
+  final Vector3 size
+  final Vector3 to
+  final Vector3? tint
+
+final class GizmoShape
+  String toString()
+  final String name
+  static GizmoShape? byName(String name)
+  static const GizmoShape ball = GizmoShape._('ball')
+  static const GizmoShape box = GizmoShape._('box')
+  static const GizmoShape cage = GizmoShape._('cage')
+  static const GizmoShape line = GizmoShape._('line')
+  static const List<GizmoShape> values = <GizmoShape>[box, cage, ball, line]
 
 final class Handle
   Vector3 get max
@@ -232,6 +384,20 @@ final class Handle
   final Vector3 tint
   final bool volume
   final int index
+
+final class ImportRequest
+  ImportRequest({required this.path, required this.bytes, required this.level, Vector3? at})
+  String get name
+  final Level level
+  final String path
+  final Uint8List bytes
+  final Vector3? at
+
+final class ImportResult
+  const ImportResult({this.files = const <String, Uint8List>{}, this.commands = const <DocumentCommand>[], this.notes = const <String>[]})
+  final List<DocumentCommand> commands
+  final List<String> notes
+  final Map<String, Uint8List> files
 
 typedef LevelGenerator = Map<String, String> Function(GeneratorSource source);
 
@@ -324,6 +490,15 @@ final class MoveSelectionBy extends EditorCommand
   bool apply(Editing editing)
   final Vector3 by
 
+final class MoveStep extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const MoveStep(this.step, this.to)
+  final String step
+  final int to
+  void change(Map<String, Object?> json)
+
 final class OutlineEntry
   Picked get picked
   const OutlineEntry({required this.kind, required this.index, required this.label, required this.detail})
@@ -409,6 +584,55 @@ final class Placeable
 abstract base class PluginCommand extends DocumentCommand
   const PluginCommand()
 
+final class PluginCommandInfo
+  String get bareName
+  const PluginCommandInfo({required this.name, required this.plugin, required this.description, required this.arguments})
+  final List<FieldHint> arguments
+  final String name
+  final String? description
+  final String? plugin
+
+final class RemoveExpectation extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const RemoveExpectation(this.step, this.probe)
+  final String probe
+  final String step
+  void change(Map<String, Object?> json)
+
+final class RemoveParameter extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const RemoveParameter(this.id)
+  final String id
+  void change(Map<String, Object?> json)
+
+final class RemoveProbe extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const RemoveProbe(this.id)
+  final String id
+  void change(Map<String, Object?> json)
+
+final class RemoveStep extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const RemoveStep(this.step)
+  final String step
+  void change(Map<String, Object?> json)
+
+final class RemoveSubstance extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const RemoveSubstance(this.id)
+  final String id
+  void change(Map<String, Object?> json)
+
 final class Resize extends EditorCommand
   Map<String, Object?> get arguments
   Resize(Vector3 by)
@@ -425,6 +649,26 @@ final class RevertOverrides extends EditorCommand
   const RevertOverrides({this.path, this.key})
   final String? key
   final String? path
+
+final class SetExpectation extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const SetExpectation(this.step, this.probe, this.value, this.tolerance)
+  final Object tolerance
+  final Object value
+  final String probe
+  final String step
+  void change(Map<String, Object?> json)
+
+final class SetExperimentField extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const SetExperimentField(this.key, this.value)
+  final String key
+  final String? value
+  void change(Map<String, Object?> json)
 
 final class SetField extends EditorCommand
   Map<String, Object?> get arguments
@@ -455,6 +699,17 @@ final class SetOverride extends EditorCommand
   final String key
   final String path
 
+final class SetParameter extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const SetParameter(this.id, this.value, {this.min, this.max})
+  final Object value
+  final Object? max
+  final Object? min
+  final String id
+  void change(Map<String, Object?> json)
+
 final class SetPrefabField extends EditorCommand
   Map<String, Object?> get arguments
   String get name
@@ -465,6 +720,32 @@ final class SetPrefabField extends EditorCommand
   final String key
   final String path
   final String prefab
+
+final class SetProbe extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const SetProbe(this.probe)
+  final Map<String, Object?> probe
+  void change(Map<String, Object?> json)
+
+final class SetStep extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const SetStep(this.step, {this.at})
+  final Map<String, Object?> step
+  final int? at
+  void change(Map<String, Object?> json)
+
+final class SetSubstance extends ExperimentEdit
+  Map<String, Object?> get arguments
+  String get name
+  String get says
+  const SetSubstance(this.id, {this.role})
+  final String id
+  final String? role
+  void change(Map<String, Object?> json)
 
 final class Template
   const Template({required this.id, required this.name, required this.about, required this.files})
@@ -493,11 +774,17 @@ Vector3 atLeast(Vector3 color, double floor)
 
 Map<String, ActiveBinding> bindingsInLevel(Level level)
 
+const List<AddedAssetEntry> builtInAssetEntries = …
+
 const List<EditorComponent> builtInComponents = …
 
 List<LightView> defaultLightViews(Level level, {double eyeHeight = lightViewEyeHeight})
 
 const List<String> editorCommandNames = …
+
+const DataSection editorSection = _EditorSection()
+
+const List<String> experimentEditNames = …
 
 String freshName(Level level, String prefix)
 
@@ -515,9 +802,13 @@ const double lightViewEyeHeight = 1.6
 
 const String looksFile = 'assets/editor.json'
 
+DrawnMark? markUnder(List<DrawnMark> marks, Vector3 from, Vector3 along)
+
 Map<String, Object?> materialDocumentFields(MaterialDocument document)
 
-MaterialHint? materialDocumentHint(MaterialDocument document, String key)
+MaterialHint? materialDocumentHint(MaterialDocument document, String key, {EditorPieces? pieces})
+
+MaterialHint? materialHintOf(FieldHint hint)
 
 MaterialDocument? materialWith(MaterialDocument document, String key, Object? value, {MaterialHint? hint})
 
@@ -538,6 +829,10 @@ List<ListedPiece> piecesOf(Level level)
 String prefabListing(Level level)
 
 ({String root, String level}) projectAt(String levelPath)
+
+List<String> projectPluginPaths(Iterable<String> files)
+
+const String projectPluginsDirectory = 'assets/plugins'
 
 String pubspecFor(String name)
 

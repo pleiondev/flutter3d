@@ -14,6 +14,7 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'editor_server.dart';
 import 'editor_session.dart';
+import 'plugin_commands.dart';
 
 /// Opens the level [arguments] names and serves it over stdio, offering the
 /// MCP tools [plugins] bring beside the editor's own.
@@ -80,6 +81,9 @@ EditorMcpServer serveEditorMcp(
     // (`CliExit.failure`): a file it could not read.
     exit(1);
   }
+  // Each plugin command is a tool of its own as well, `<plugin id>.<name>`,
+  // with its argument hints as its schema; kept for the life of the process.
+  shareCommands(pieces, tools, session);
   return EditorMcpServer(
     stdioChannel(input: stdin, output: stdout),
     session: session,

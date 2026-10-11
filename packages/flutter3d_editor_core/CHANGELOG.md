@@ -1,5 +1,26 @@
 ## 1.0.0-rc.1
 
+- **The editor's plugin contract, whole.** `EditorPieces` brings
+  `EditorHints` (the editor's `EditorHintRegistry`) along as a companion,
+  and builds from a plugin's hints the inspector sections of its
+  components and entity kinds (`EditorComponent.hints`, `fieldHint`,
+  `refusalOf`), the palette rows of its kinds, and the material panel's
+  controls for its lit model (`materialHint`, `materialHintOf`,
+  `materialDocumentHint(pieces:)`). It gains `addGizmo` (`EditorGizmo`,
+  `GizmoContext`, `GizmoMark`, `GizmoShape`, `GizmoDrag`, `DrawnMark`,
+  `marksFor`, `dragged`, `markUnder`), `addImporter` (`EditorImporter`,
+  `ImportRequest`, `ImportResult`, `importerFor`), `addAssetEntry`
+  (`AssetBrowserEntry`, `AssetPlacement`, `builtInAssetEntries`,
+  `assetEntryFor`), argument hints on `addCommand` (`argumentsOf`,
+  `pluginCommands`) and `listen`. A data plugin says the same in its
+  `editor:` section (`editorSection`), and a project keeps its data
+  plugins under `assets/plugins` (`projectPluginPaths`).
+- **An experiment is edited by values.** `ExperimentEdit` names each
+  change to an `f3d.experiment` document, from its own words to a step's
+  expected reading, writes itself to JSON and reads back
+  (`experimentEditNames`); each is checked by the document's reader, whose
+  refusal is the edit's. `ExperimentEditing` keeps whole documents for undo
+  and redo. The package depends on `flutter3d_education` for the document.
 - **Breaking: `Piece` is an open set and `EditorCommand` is
   `abstract final`.** `Piece` is a class with constants rather than an
   enum, and `EditorCommand` and `DocumentCommand` are no longer sealed, so

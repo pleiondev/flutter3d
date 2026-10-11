@@ -51,7 +51,10 @@ import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart'
         DockArrangement,
         DockLayout,
         DockPanel,
+        EditorPanelContext,
+        EditorPanels,
         PaletteCommand,
+        PanelSelection,
         showCommandPalette;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
@@ -79,6 +82,7 @@ import 'src/play/live_material.dart';
 import 'src/play/play_launch.dart';
 import 'src/play/play_screen.dart';
 import 'src/playtest_report_screen.dart';
+import 'src/plugin_panels.dart';
 import 'src/recent_projects.dart';
 import 'src/run_info.dart';
 import 'src/run_info_screen.dart';
@@ -166,7 +170,19 @@ class _EditorScreenState extends State<EditorScreen>
   /// The installed plugins and what they brought: the inspector's components,
   /// the palette's entries and the commands ([EditorPlugins.pieces]), the
   /// tools an agent is offered, and the decoders every model is read with.
-  late final EditorPlugins _plugins = EditorPlugins(plugins: widget.plugins);
+  ///
+  /// **Installed again when a level of another project opens**, with that
+  /// project's data plugins beside the compiled ones: see
+  /// `EditorPlugins.forProject`. The decoders stay the first set's, since
+  /// the viewport's dressing is made once with the device.
+  late EditorPlugins _plugins = EditorPlugins(plugins: widget.plugins);
+
+  /// The project root [_plugins] were installed for, or null for none yet.
+  String? _pluginsRoot;
+
+  /// The main-screen panel shown in the picture's place, by id, or null for
+  /// the picture.
+  String? _mainPanel;
 
   /// The documents this editor has had open, kept between launches.
   final RecentProjects _projects = RecentProjects();
@@ -427,6 +443,7 @@ class _EditorScreenState extends State<EditorScreen>
         hasAssets: editorDisk.hasDirectory,
       );
       final looks = await _readLooks(assetRoot);
+      await _installProjectPlugins(assetRoot);
       _standWhereThePlayerWould(editing.level);
       if (!mounted) return;
       _written = text;
@@ -527,6 +544,7 @@ class _EditorScreenState extends State<EditorScreen>
         editing,
         looks: ready.looks,
         hidden: ready.hidden,
+        pieces: _plugins.pieces,
       );
       dressing.placeMarker(loaded.scene, editing);
       unawaited(
@@ -718,6 +736,10 @@ class _EditorScreenState extends State<EditorScreen>
   /// that swapped meanings mid-gesture would spin the view instead.
   AxisDrag? _grabbed;
 
+  /// The handle of a plugin's gizmo the press landed on, how far along the
+  /// ray it was, and where in the world it was taken. Null otherwise.
+  ({DrawnMark mark, double distance, Vector3 from})? _handle;
+
   /// How far a pointer may move and still count as a click, in pixels.
   static const double _slop = 4.0;
 
@@ -725,7 +747,49 @@ class _EditorScreenState extends State<EditorScreen>
     _keyboard.requestFocus();
     _dragged = event.localPosition;
     _travelled = 0.0;
-    _grabbed = _grab(event.localPosition, size);
+    _handle = _grabHandle(event.localPosition, size);
+    _grabbed = _handle == null ? _grab(event.localPosition, size) : null;
+  }
+
+  /// Takes hold of a handle of a plugin's gizmo under [at], or answers null.
+  ({DrawnMark mark, double distance, Vector3 from})? _grabHandle(
+    Offset at,
+    Size size,
+  ) {
+    final marks = _dressing?.marks ?? const <DrawnMark>[];
+    if (marks.isEmpty || _ready?.placing != null) return null;
+    final along = _rayThrough(at, size);
+    final hit = markUnder(marks, _fly.position, along);
+    if (hit == null) return null;
+    final (low, high) = hit.mark.bounds;
+    final distance = Picking.hit(low, high, _fly.position, along) ?? 0.0;
+    return (
+      mark: hit,
+      distance: distance,
+      from: _fly.position + along * distance,
+    );
+  }
+
+  /// Ends a drag of a plugin gizmo's handle at [at]: the command its gizmo
+  /// answers runs as one step, named on the bar. True when it ran.
+  bool _dropHandle(
+    ({DrawnMark mark, double distance, Vector3 from}) handle,
+    Offset at,
+    Size size,
+  ) {
+    final editing = _editing;
+    if (editing == null) return false;
+    final to = _fly.position + _rayThrough(at, size) * handle.distance;
+    final command = _plugins.pieces.dragged(
+      handle.mark,
+      editing.level,
+      from: handle.from,
+      to: to,
+    );
+    if (command == null || !editing.history.run(command)) return false;
+    _placeMarker();
+    _changed('${handle.mark.gizmo}: ${command.says}');
+    return true;
   }
 
   /// Takes hold of a bar of the selection box under [at], or answers null.
@@ -756,6 +820,9 @@ class _EditorScreenState extends State<EditorScreen>
     _dragged = event.localPosition;
     if (_travelled < _slop) return;
 
+    // A gizmo's handle is dragged to where the pointer is let go, and its
+    // command runs then: one step, as a bar's drag is.
+    if (_handle != null) return;
     final drag = _grabbed;
     final editing = _editing;
     if (drag == null || editing == null) {
@@ -782,9 +849,16 @@ class _EditorScreenState extends State<EditorScreen>
   void _pointerUp(PointerUpEvent event, Size size) {
     final from = _dragged;
     final drag = _grabbed;
+    final handle = _handle;
     _dragged = null;
     _grabbed = null;
+    _handle = null;
     if (from == null) return;
+    if (handle != null &&
+        _travelled >= _slop &&
+        _dropHandle(handle, event.localPosition, size)) {
+      return;
+    }
 
     final editing = _editing;
     // The whole drag becomes one step here, whatever it took to make it —
@@ -1365,9 +1439,78 @@ class _EditorScreenState extends State<EditorScreen>
     if (mounted) _keyboard.requestFocus();
   }
 
+  /// Installs the compiled plugins again with the data plugins of the
+  /// project at [root], when it is not the project they were installed for.
+  ///
+  /// **The editor installs the project's plugins**: the `.f3dplugin`
+  /// documents under its `assets/plugins`, whose `editor:` sections hint
+  /// its inspectors and whose entity kinds fill its palette.
+  Future<void> _installProjectPlugins(String? root) async {
+    if (root == null || root == _pluginsRoot) return;
+    final installed = await EditorPlugins.forProject(
+      root,
+      listFiles: editorDisk.filesUnder,
+      readBytes: editorDisk.readBytes,
+      plugins: widget.plugins,
+    );
+    if (!mounted) return;
+    _plugins = installed;
+    _pluginsRoot = root;
+    _mainPanel = null;
+    _sayPlugins();
+  }
+
+  /// What a plugin's panel is built with: the open document, the selection,
+  /// and a command run through the history, as the inspector's edits are.
+  EditorPanelContext _panelContext(BuildContext context, EditorReady state) {
+    final editing = state.editing;
+    return EditorPanelContext(
+      context: context,
+      document: jsonDecode(editing.write()) as Map<String, Object?>,
+      path: editing.path,
+      selection: <PanelSelection>[
+        for (final picked in editing.selection)
+          PanelSelection(piece: picked.kind.name, index: picked.index),
+      ],
+      run: (Map<String, Object?> json) {
+        final command = _plugins.pieces.readCommand(json);
+        if (command == null || !editing.history.run(command)) return false;
+        _placeMarker();
+        _changed('${command.name} — ${editing.says}');
+        return true;
+      },
+      say: _cubit.say,
+    );
+  }
+
+  /// Puts what the asset browser's [path] places six metres ahead of the
+  /// camera, through the plugin entry that lists it.
+  void _placeAsset(String path) {
+    final editing = _editing;
+    final entry = _plugins.pieces.assetEntryFor(path);
+    final place = entry?.entry.place;
+    if (editing == null || place == null) return;
+    final command = place(
+      AssetPlacement(
+        path: path,
+        at: _fly.position + _fly.forward * 6.0,
+        level: editing.level,
+      ),
+    );
+    if (command == null || !editing.history.run(command)) {
+      _cubit.say('${entry!.name} placed nothing for $path');
+      return;
+    }
+    _placeMarker();
+    _changed('placed $path — ${editing.says}');
+  }
+
   /// Says in the console which plugins are installed, and why none are when
   /// one refused to install.
   void _sayPlugins() {
+    for (final note in _plugins.notes) {
+      _cubit.log.add(note);
+    }
     final refusal = _plugins.refusal;
     if (refusal != null) {
       _cubit.log.add('plugins: none installed — $refusal', error: true);
@@ -1891,7 +2034,43 @@ class _EditorScreenState extends State<EditorScreen>
     onChanged: (String what) => _changed('$what — ${state.editing.says}'),
     onLive: _liveMaterials.push,
     pieces: _plugins.pieces,
+    plugins: _plugins.panels,
+    panelContext: (BuildContext context) => _panelContext(context, state),
+    assets: AssetBrowser(
+      root: state.assetRoot,
+      files: state.assetRoot == null
+          ? const <String>[]
+          : editorDisk.filesUnder('${state.assetRoot}/assets'),
+      pieces: _plugins.pieces,
+      onPlace: _placeAsset,
+    ),
   );
+
+  /// The picture, or the plugin's main-screen panel chosen in its place,
+  /// under a row of tabs when a plugin brought one.
+  Widget _center(EditorReady state, Widget picture) {
+    final panels = _plugins.panels.mainScreen;
+    if (panels.isEmpty) return picture;
+    final chosen = panels.where((p) => p.id == _mainPanel).firstOrNull;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        MainScreenTabs(
+          panels: panels,
+          chosen: chosen?.id,
+          onChoose: (String? id) => setState(() => _mainPanel = id),
+        ),
+        Expanded(
+          child: chosen == null
+              ? picture
+              : Builder(
+                  builder: (BuildContext context) =>
+                      EditorPanels.build(chosen, _panelContext(context, state)),
+                ),
+        ),
+      ],
+    );
+  }
 
   /// The document is open: the bar, the panels docked around the picture,
   /// and the legend.
@@ -1970,7 +2149,7 @@ class _EditorScreenState extends State<EditorScreen>
                 arrangement: _arrangement,
                 onChanged: _arrange,
                 panels: _panels(state),
-                center: _viewport(renderer, scene),
+                center: _center(state, _viewport(renderer, scene)),
               ),
             ),
             EditorLegend(state: state),
