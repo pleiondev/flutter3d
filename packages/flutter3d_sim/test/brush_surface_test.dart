@@ -11,6 +11,7 @@
 /// decides what `ice` means, exactly as it decides what a `crate` is.
 library;
 
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
@@ -40,6 +41,76 @@ void main() {
       final brush = _brush(surface: 'ice');
       expect(brush.surface, 'ice');
       expect(brush.material, 'stone');
+    });
+  });
+
+  group('the substance its collider is made of', () {
+    PhysicalMaterial? substanceUnder(Level level, {CollisionWorld? into}) {
+      final world = into ?? CollisionWorld();
+      level.addTo(world);
+      final hit = SweepHit();
+      world.sweep(
+        CollisionBox(Vector3.all(0.4)),
+        Vector3(0.0, 3.0, 0.0),
+        Vector3(0.0, -6.0, 0.0),
+        hit,
+      );
+      return hit.collider!.material;
+    }
+
+    test('a brush that names one is made of it', () {
+      // Mutation: drop `material:` from the collider `addTo` builds. The
+      // contact between a body and the floor is a default, and the sound
+      // occlusion reads no wall: both read `Collider.material`.
+      final level = Level(
+        brushes: <Brush>[
+          Brush(
+            center: Vector3(0.0, -0.5, 0.0),
+            size: Vector3(8.0, 1.0, 8.0),
+            physicalMaterial: 'f3d.granite',
+          ),
+        ],
+      );
+      expect(substanceUnder(level)?.id, 'f3d.granite');
+    });
+
+    test('one that does not is made of its material\'s', () {
+      // Mutation: read only `brush.physicalMaterial`. A level that says
+      // "every stone brush is granite" once, on its palette, has floors of
+      // nothing.
+      final level = Level(
+        materials: <String, LevelMaterial>{
+          'planks': LevelMaterial(physicalMaterial: 'f3d.oak'),
+        },
+        brushes: <Brush>[_brush(material: 'planks')],
+      );
+      expect(substanceUnder(level)?.id, 'f3d.oak');
+    });
+
+    test('from the world\'s own catalogue, and of nothing when none is '
+        'named', () {
+      // The world's catalogue holds a plugin's materials beside the
+      // engine's; a brush naming none is of nothing in particular, as it
+      // always was.
+      final plugin = PhysicalMaterial(
+        id: 'acme.basalt',
+        name: 'basalt',
+        phase: MaterialPhase.solid,
+      );
+      final world = CollisionWorld(
+        materials: MaterialCatalog(materials: <PhysicalMaterial>[plugin]),
+      );
+      final named = Level(
+        brushes: <Brush>[
+          Brush(
+            center: Vector3(0.0, -0.5, 0.0),
+            size: Vector3(8.0, 1.0, 8.0),
+            physicalMaterial: 'acme.basalt',
+          ),
+        ],
+      );
+      expect(substanceUnder(named, into: world), same(plugin));
+      expect(substanceUnder(Level(brushes: <Brush>[_brush()])), isNull);
     });
   });
 

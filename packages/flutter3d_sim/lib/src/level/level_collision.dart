@@ -30,11 +30,23 @@ extension LevelCollision on Level {
   ///
   /// With the level's recipes expanded: a wall a recipe stands for is a wall
   /// a body stops at.
+  ///
+  /// **A brush's collider is made of its substance**: the brush's
+  /// `physicalMaterial`, else its material's (`LevelMaterial.
+  /// physicalMaterial`), found in [world]'s catalogue
+  /// (`CollisionWorld.materials`), so a body meets a granite floor as
+  /// granite and a wall stops sound as oak does. A brush naming neither is
+  /// of nothing in particular; one naming an id the catalogue does not hold
+  /// is refused with the `UnknownMaterialException` that names its plugin.
   void addTo(CollisionWorld world) {
     if (heightfield case final ground?) world.add(_groundCollider(ground));
-    for (final brush in expandRecipes(this).brushes) {
+    final expanded = expandRecipes(this);
+    for (final brush in expanded.brushes) {
       if (!brush.solid) continue;
       final ramp = brush.ramp;
+      final substance =
+          brush.physicalMaterial ??
+          expanded.materials[brush.material]?.physicalMaterial;
       world.add(
         Collider(
           // A ramp is a brush with a corner cut off, and the difference is the
@@ -50,6 +62,9 @@ extension LevelCollision on Level {
           // could not say so.
           layer: brush.layer ?? CollisionLayers.world,
           userData: brush,
+          material: substance == null
+              ? null
+              : world.materials.require(substance),
         ),
       );
     }
