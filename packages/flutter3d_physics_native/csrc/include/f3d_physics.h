@@ -46,7 +46,7 @@ extern "C" {
 #endif
 
 /* Bumped whenever a function's meaning or signature changes. */
-#define F3D_ABI_VERSION 38u
+#define F3D_ABI_VERSION 39u
 
 #ifdef F3D_REAL_DOUBLE
 typedef double f3d_real;
@@ -1111,6 +1111,23 @@ F3D_API int f3d_joint_set_damping(F3dWorld *world, F3dJoint joint,
 F3D_API int f3d_joint_set_limit_softness(F3dWorld *world, F3dJoint joint,
                                          int enabled, f3d_real stiffness,
                                          f3d_real ratio);
+
+/* How a soft limit's tissue stiffens past the limit, and how stiff it is
+ * at each one. Past a limit by δ radians the joint is held back by
+ * (k0 / [growth]) (exp([growth] δ) − 1) N m, stiffening as k0 exp(growth δ)
+ * — the shape passive moments take past the end of a joint's range — with
+ * [growth], per radian, nought or more and at most 100: nought is the
+ * linear spring k0 δ. k0 is the stiffness at the limit: [lower] and
+ * [upper] at a twist's or a hinge's two limits, [ahead], [behind], [side]
+ * and [other_side] at a swing's four, each N m per radian, nought or more;
+ * nought, and the cone, take the stiffness of f3d_joint_set_limit_softness,
+ * which is what makes a limit soft at all. [enabled] nought for one
+ * stiffness, linear, everywhere. */
+F3D_API int f3d_joint_set_limit_stiffness(F3dWorld *world, F3dJoint joint,
+                                          int enabled, f3d_real growth,
+                                          f3d_real lower, f3d_real upper,
+                                          f3d_real ahead, f3d_real behind,
+                                          f3d_real side, f3d_real other_side);
 
 /* A motor driving a revolute or prismatic joint at [speed], rad/s or m/s,
  * with at most [max_force], N m or N. */

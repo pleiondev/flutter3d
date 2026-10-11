@@ -4,7 +4,9 @@
  * measured from a neutral direction that need not be where the limb rests;
  * viscous damping that takes a swing down at the rate a damped pendulum's
  * law gives; soft limits that give under a load by the load over their
- * stiffness; all of it through a snapshot; and what each refuses.
+ * stiffness, or stiffen past the limit as (k0 / b)(e^(bδ) − 1) says, with
+ * a stiffness of their own at each limit; all of it through a snapshot;
+ * and what each refuses.
  */
 #include <math.h>
 #include <stdlib.h>
@@ -188,6 +190,121 @@ static void test_soft_limits(void) {
   CHECK(sagged((f3d_real)k) < -0.23);
 }
 
+/* A limb of [mass] kilograms along +x from a hinge about z, between −0.2
+ * and 0.2 rad, its limits soft at [k0] and stiffening at [growth] past
+ * them, [lower] and [upper] at each limit where not nought, under gravity
+ * [g] along y: where it hangs after four seconds. */
+static double held(double mass, f3d_real k0, f3d_real growth, f3d_real lower,
+                   f3d_real upper, f3d_real g) {
+  F3dWorld *w = world();
+  f3d_world_set_gravity(w, 0, g, 0);
+  const F3dBody pivot = f3d_body_create(w, F3D_BODY_FIXED, 0, 2, 0, 0);
+  const F3dBody limb =
+      f3d_body_create(w, F3D_BODY_DYNAMIC, F3D_R(0.5), 2, 0, (f3d_real)mass);
+  f3d_body_set_shape(w, limb, F3D_SHAPE_BOX, F3D_R(0.5), F3D_R(0.05), F3D_R(0.05));
+  const F3dJoint j = f3d_joint_create(w, F3D_JOINT_REVOLUTE, pivot, limb, 0, 2, 0, 0, 0, 1);
+  CHECK(f3d_joint_set_limits(w, j, 1, F3D_R(-0.2), F3D_R(0.2)));
+  CHECK(f3d_joint_set_damping(w, j, 1, F3D_R(2.0 * mass)));
+  CHECK(f3d_joint_set_limit_softness(w, j, 1, k0, 1));
+  CHECK(f3d_joint_set_limit_stiffness(w, j, 1, growth, lower, upper, 0, 0, 0, 0));
+  run(w, 240);
+  f3d_real angle;
+  f3d_joint_get_value(w, j, &angle);
+  f3d_world_destroy(w);
+  return angle;
+}
+
+/* How far past −0.2 the limb above hangs, by the law: its weight's moment,
+ * m g (l/2) cos θ, carried by (k0 / b)(e^(bδ) − 1), or k0 δ with no b. */
+static double overshoot_by_law(double mass, double k0, double b) {
+  double delta = 0;
+  for (int i = 0; i < 100; i++) {
+    const double load = mass * STANDARD_G * 0.5 * cos(-0.2 - delta);
+    delta = b > 0 ? log(1 + b * load / k0) / b : load / k0;
+  }
+  return delta;
+}
+
+static void test_exponential_limits(void) {
+  /* Past its limit the tissue holds back (k0 / b)(e^(bδ) − 1): the limb
+   * hangs where that carries its weight, for loads from a few newton
+   * metres to a few hundred. k0 = 150 N m/rad, the lumbar spine's in
+   * flexion at the end of its range, b = 8.6 /rad, the knee's capsule
+   * past full extension. Mutation: hold it back by k0 δ — the heavy limb
+   * hangs straight down, past −1.5 rad. */
+  const double k0 = 150, b = 8.6;
+  const double masses[] = {2, 20, 60, 90};
+  for (int i = 0; i < 4; i++) {
+    const double want = -0.2 - overshoot_by_law(masses[i], k0, b);
+    CHECK_NEAR(held(masses[i], (f3d_real)k0, (f3d_real)b, 0, 0,
+                    -STANDARD_G),
+               want, 0.01);
+  }
+  /* Stiffening as k0 e^(bδ): about 3000 N m/rad 0.35 rad past the limit,
+   * twenty times what it was there. Read off two loads either side of
+   * that, as the load between over the overshoot between. */
+  const double m1 = 72, m2 = 88;
+  const double d1 = -0.2 - held(m1, (f3d_real)k0, (f3d_real)b, 0, 0, -STANDARD_G);
+  const double d2 = -0.2 - held(m2, (f3d_real)k0, (f3d_real)b, 0, 0, -STANDARD_G);
+  const double l1 = m1 * STANDARD_G * 0.5 * cos(-0.2 - d1);
+  const double l2 = m2 * STANDARD_G * 0.5 * cos(-0.2 - d2);
+  const double stiffness = (l2 - l1) / (d2 - d1);
+  CHECK_NEAR((d1 + d2) / 2, 0.35, 0.02);
+  CHECK_NEAR(stiffness / (k0 * exp(b * (d1 + d2) / 2)), 1, 0.08);
+  CHECK_NEAR(stiffness / 3000, 1, 0.13);
+  /* With no growth it is the linear spring it was. */
+  CHECK_NEAR(held(2, 100, 0, 0, 0, -STANDARD_G),
+             -0.2 - overshoot_by_law(2, 100, 0), 0.01);
+}
+
+static void test_stiffness_at_each_limit(void) {
+  /* A hinge's two limits each with their own stiffness: hung down, the
+   * limb sags past the lower by its weight over the lower's; pulled up,
+   * past the upper by the upper's. Mutation: swap the two — each sags by
+   * a tenth or ten times as far. */
+  const double down = held(1, 1000, 0, 40, 400, -STANDARD_G);
+  const double up = held(1, 1000, 0, 40, 400, STANDARD_G);
+  CHECK_NEAR(down, -0.2 - overshoot_by_law(1, 40, 0), 0.01);
+  CHECK_NEAR(up, 0.2 + overshoot_by_law(1, 400, 0), 0.005);
+  /* Nought at a limit takes the joint's own stiffness. */
+  CHECK_NEAR(held(1, 40, 0, 0, 400, -STANDARD_G), down, 1e-6);
+}
+
+/* The limb on its spherical joint, neutral down and ahead +z, limited to
+ * 0.6 rad every way, soft at [ahead] and [behind] past the limit ahead and
+ * the one behind, pulled ahead by gravity along +z: how far past 0.6 it
+ * swings. */
+static double swung_past(f3d_real ahead, f3d_real behind) {
+  F3dWorld *w = world();
+  f3d_world_set_gravity(w, 0, 0, F3D_R(9.81));
+  F3dBody limb;
+  const F3dJoint j = hung(w, &limb);
+  CHECK(f3d_joint_set_swing(w, j, 1, 0, -1, 0, 0, 0, 1, F3D_R(0.6), F3D_R(0.6),
+                            F3D_R(0.6), F3D_R(0.6)));
+  CHECK(f3d_joint_set_damping(w, j, 1, 1));
+  CHECK(f3d_joint_set_limit_softness(w, j, 1, 1000, 1));
+  CHECK(f3d_joint_set_limit_stiffness(w, j, 1, 0, 0, 0, ahead, behind, 0, 0));
+  run(w, 240);
+  double d[3];
+  pointing(w, limb, d);
+  f3d_world_destroy(w);
+  return acos(-d[1]) - 0.6;
+}
+
+static void test_swing_stiffness_at_each_side(void) {
+  /* Swung ahead, the limit ahead's stiffness holds it: a soft one lets it
+   * swing on until the spring carries its weight's moment, m g (l/2)
+   * cos(0.6 + δ). Mutation: take the limit behind's stiffness ahead — it
+   * stops within a hundredth of a radian. */
+  const double k = 20;
+  double delta = 0;
+  for (int i = 0; i < 100; i++) {
+    delta = STANDARD_G * 0.5 * cos(0.6 + delta) / k;
+  }
+  CHECK_NEAR(swung_past((f3d_real)k, 4000), delta, 0.02);
+  CHECK(swung_past(4000, (f3d_real)k) < 0.01);
+}
+
 /* The swing limits, the damping and the softness held through a
  * snapshot: the world restored steps to the same bytes. */
 static void test_snapshot(void) {
@@ -197,6 +314,8 @@ static void test_snapshot(void) {
   limit(w, j);
   CHECK(f3d_joint_set_damping(w, j, 1, F3D_R(0.5)));
   CHECK(f3d_joint_set_limit_softness(w, j, 1, 50, F3D_R(0.3)));
+  CHECK(f3d_joint_set_limit_stiffness(w, j, 1, F3D_R(8.6), 20, 30, 40, 60, 25,
+                                      35));
   f3d_body_set_velocity(w, limb, 0, 0, 6);
   run(w, 10);
   const uint32_t size = f3d_world_snapshot_size(w);
@@ -244,6 +363,16 @@ static void test_refusals(void) {
   CHECK(!f3d_joint_set_limit_softness(w, hinge, 1, 0, 1));
   CHECK(!f3d_joint_set_limit_softness(w, hinge, 1, 1, -1));
   CHECK(f3d_joint_set_limit_softness(w, hinge, 0, 0, 0));
+  /* The stiffening, a turning joint's: growth from nought to 100 a
+   * radian, each limit's stiffness nought or more. */
+  CHECK(!f3d_joint_set_limit_stiffness(w, slider, 1, 1, 0, 0, 0, 0, 0, 0));
+  CHECK(!f3d_joint_set_limit_stiffness(w, hinge, 1, -1, 0, 0, 0, 0, 0, 0));
+  CHECK(!f3d_joint_set_limit_stiffness(w, hinge, 1, 101, 0, 0, 0, 0, 0, 0));
+  CHECK(!f3d_joint_set_limit_stiffness(w, hinge, 1, nan_value(), 0, 0, 0, 0, 0, 0));
+  CHECK(!f3d_joint_set_limit_stiffness(w, j, 1, 1, 0, 0, 0, -1, 0, 0));
+  CHECK(!f3d_joint_set_limit_stiffness(w, j, 1, 1, 0, 0, 0, 0, 0, nan_value()));
+  CHECK(f3d_joint_set_limit_stiffness(w, j, 1, 100, 0, 0, 0, 0, 0, 0));
+  CHECK(f3d_joint_set_limit_stiffness(w, hinge, 0, -1, -1, -1, -1, -1, -1, -1));
   f3d_world_destroy(w);
 }
 
@@ -252,6 +381,9 @@ int main(void) {
   test_neutral_is_not_rest();
   test_damping();
   test_soft_limits();
+  test_exponential_limits();
+  test_stiffness_at_each_limit();
+  test_swing_stiffness_at_each_side();
   test_snapshot();
   test_refusals();
   return finish();

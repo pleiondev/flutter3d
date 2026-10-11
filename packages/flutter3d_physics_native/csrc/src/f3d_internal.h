@@ -753,6 +753,12 @@ typedef struct F3dJointSlot {
    * back by a spring of this stiffness, N m per radian, at this damping
    * ratio, rather than by its own stiff one; nought stiffness for that. */
   f3d_real limit_stiffness, limit_ratio;
+  /* How a soft limit stiffens past it, per radian, nought for a linear
+   * spring; and its stiffness at each limit, N m per radian, nought for
+   * limit_stiffness: a twist's or a hinge's lower and upper, then a
+   * swing's ahead, behind, side and other side. */
+  f3d_real limit_growth;
+  f3d_real limit_at[6];
 } F3dJointSlot;
 
 /* Everything in a world that is not behind a pointer. A snapshot writes it

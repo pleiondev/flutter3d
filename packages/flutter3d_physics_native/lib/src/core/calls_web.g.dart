@@ -613,6 +613,20 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber stiffness,
     JSNumber ratio,
   );
+  @JS('f3d_joint_set_limit_stiffness__w')
+  external JSNumber f3d_joint_set_limit_stiffness(
+    JSNumber world,
+    JSNumber jointLow,
+    JSNumber jointHigh,
+    JSNumber enabled,
+    JSNumber growth,
+    JSNumber lower,
+    JSNumber upper,
+    JSNumber ahead,
+    JSNumber behind,
+    JSNumber side,
+    JSNumber otherSide,
+  );
   @JS('f3d_joint_set_motor__w')
   external JSNumber f3d_joint_set_motor(
     JSNumber world,
@@ -2207,6 +2221,32 @@ int f3d_joint_set_limit_softness(
       enabled.toJS,
       stiffness.toJS,
       ratio.toJS,
+    )
+    .toDartInt;
+int f3d_joint_set_limit_stiffness(
+  int world,
+  int joint,
+  int enabled,
+  double growth,
+  double lower,
+  double upper,
+  double ahead,
+  double behind,
+  double side,
+  double otherSide,
+) => _x
+    .f3d_joint_set_limit_stiffness(
+      world.toJS,
+      lowHalf(joint).toJS,
+      highHalf(joint).toJS,
+      enabled.toJS,
+      growth.toJS,
+      lower.toJS,
+      upper.toJS,
+      ahead.toJS,
+      behind.toJS,
+      side.toJS,
+      otherSide.toJS,
     )
     .toDartInt;
 int f3d_joint_set_motor(

@@ -1725,6 +1725,56 @@ int f3d_joint_set_limit_softness(
   ratio,
 );
 
+@Native<
+  Int32 Function(
+    Pointer<Void>,
+    Uint64,
+    Int32,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+    Float,
+  )
+>(symbol: 'f3d_joint_set_limit_stiffness', isLeaf: true)
+external int _f3d_joint_set_limit_stiffness(
+  Pointer<Void> world,
+  int joint,
+  int enabled,
+  double growth,
+  double lower,
+  double upper,
+  double ahead,
+  double behind,
+  double side,
+  double otherSide,
+);
+int f3d_joint_set_limit_stiffness(
+  int world,
+  int joint,
+  int enabled,
+  double growth,
+  double lower,
+  double upper,
+  double ahead,
+  double behind,
+  double side,
+  double otherSide,
+) => _f3d_joint_set_limit_stiffness(
+  Pointer.fromAddress(world),
+  joint,
+  enabled,
+  growth,
+  lower,
+  upper,
+  ahead,
+  behind,
+  side,
+  otherSide,
+);
+
 @Native<Int32 Function(Pointer<Void>, Uint64, Int32, Float, Float)>(
   symbol: 'f3d_joint_set_motor',
   isLeaf: true,
