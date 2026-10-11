@@ -119,12 +119,12 @@ void main() {
 
     test('a fire sends a point source far off, and no more than its soot '
         'radiates close to', () {
-      // 100 kW, a third of it radiant, its soot at 1200 K.
-      double at(double far) => CryptHarm.flux(
-        power: 1e5,
-        radiantShare: 0.3,
+      // 100 kW, a third of it radiant, its soot at 1200 K. The law the
+      // crypt's field burns the player by.
+      double at(double far) => FireExposure.flux(
+        radiant: 0.3 * 1e5,
         sootTemperature: 1200.0,
-        far: far,
+        distanceSquared: far * far,
       );
       // Mutation: the sphere's 4π lost — four times the flux at range.
       expect(at(4.0), closeTo(3e4 / (4 * 3.14159265 * 16.0), 0.5));
