@@ -26,6 +26,7 @@
 /// unit of every number here.
 library;
 
+export 'src/geo_origin.dart';
 export 'src/materials/catalog_conformance.dart';
 export 'src/materials/material_catalog.dart';
 export 'src/materials/material_json.dart' show MaterialFormatException;

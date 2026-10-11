@@ -1,7 +1,11 @@
 /// Which simulation a run was played in, as numbers a build can compare.
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show DocumentFormatException;
+
 import 'plugin_version.dart';
+import 'simulation_profile.dart';
 
 /// Which simulation a run was played in, or a machine plays: the engine's
 /// number, a genre's, and one for every simulation plugin installed.
@@ -35,6 +39,7 @@ final class SimulationVersion {
     this.genreVersion = 1,
     this.otherGenres = const <String, int>{},
     this.plugins = const <String, int>{},
+    this.profile = SimulationProfile.deterministic,
   });
 
   /// The engine's simulation: the fixed step, the input, the physics and
@@ -80,6 +85,17 @@ final class SimulationVersion {
   /// "no plugin was asked about" — see [refusalOn].
   final Map<String, int> plugins;
 
+  /// What the simulation promises about its numbers: the same engine run
+  /// under another profile is another simulation, so a tape recorded on
+  /// one is refused on the other ([refusalOn]) and two machines on
+  /// different profiles never form a match.
+  ///
+  /// [SimulationProfile.deterministic] unless the loop says otherwise, and
+  /// written only when it is another ([toJson]), so a run and a hello of
+  /// the default simulation read as they did before there was a second
+  /// profile.
+  final SimulationProfile profile;
+
   /// What a file written before simulations had numbers is read as: version
   /// 1 of the engine and of whatever genre is [running] — the simulation
   /// 1.0.0 shipped, which is the only one such a file can come from.
@@ -99,6 +115,17 @@ final class SimulationVersion {
     genreVersion: genreVersion,
     otherGenres: otherGenres,
     plugins: Map<String, int>.unmodifiable(plugins),
+    profile: profile,
+  );
+
+  /// This version run under [profile] instead of its own.
+  SimulationVersion withProfile(SimulationProfile profile) => SimulationVersion(
+    engine: engine,
+    genre: genre,
+    genreVersion: genreVersion,
+    otherGenres: otherGenres,
+    plugins: plugins,
+    profile: profile,
   );
 
   /// This version with [name] at [version] played beside [genre] — or as
@@ -113,6 +140,7 @@ final class SimulationVersion {
           genre: name,
           genreVersion: version,
           plugins: plugins,
+          profile: profile,
         )
       : SimulationVersion(
           engine: engine,
@@ -123,15 +151,20 @@ final class SimulationVersion {
             name: version,
           }),
           plugins: plugins,
+          profile: profile,
         );
 
-  /// "engine 1, platformer 2, fire 3" — the words a refusal uses.
+  /// "engine 1, platformer 2, fire 3" — the words a refusal uses, and
+  /// what a hello and the relay match on. A profile other than
+  /// [SimulationProfile.deterministic] is named last ("engine 1, accurate
+  /// profile").
   String describe() => <String>[
     'engine $engine',
     if (genre != null) '$genre $genreVersion',
     for (final name in (otherGenres.keys.toList()..sort()))
       '$name ${otherGenres[name]}',
     for (final id in (plugins.keys.toList()..sort())) '$id ${plugins[id]}',
+    if (profile != SimulationProfile.deterministic) '${profile.name} profile',
   ].join(', ');
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -147,6 +180,7 @@ final class SimulationVersion {
       'plugins': <String, Object?>{
         for (final id in (plugins.keys.toList()..sort())) id: plugins[id],
       },
+    if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
   };
 
   /// Reads what [toJson] wrote. A number that is not one is refused with a
@@ -202,12 +236,25 @@ final class SimulationVersion {
       }
       alongside[key] = value;
     }
+    final SimulationProfile profile;
+    try {
+      profile = switch (json['profile']) {
+        null => SimulationProfile.deterministic,
+        final String name => SimulationProfile.parse(name),
+        final other => throw DocumentFormatException(
+          'the simulation names profile $other',
+        ),
+      };
+    } on DocumentFormatException catch (error) {
+      throw PluginFormatException(error.message, json);
+    }
     return SimulationVersion(
       engine: engine,
       genre: genre as String?,
       genreVersion: genreVersion,
       otherGenres: Map<String, int>.unmodifiable(alongside),
       plugins: Map<String, int>.unmodifiable(read),
+      profile: profile,
     );
   }
 
@@ -219,6 +266,11 @@ final class SimulationVersion {
   /// one asks for an update. A plugin missing on one side, or at another
   /// number, is named by id.
   String? refusalOn(SimulationVersion running) {
+    if (profile != running.profile) {
+      return 'the run was played on the ${profile.name} profile and this '
+          'simulation runs the ${running.profile.name} one; the same input '
+          'plays out differently here, so it is not replayed';
+    }
     if (genre != running.genre ||
         !_sameNames(otherGenres, running.otherGenres)) {
       String rules(SimulationVersion v) =>
@@ -284,6 +336,7 @@ final class SimulationVersion {
   bool operator ==(Object other) =>
       other is SimulationVersion &&
       other.engine == engine &&
+      other.profile == profile &&
       other.genre == genre &&
       (genre == null || other.genreVersion == genreVersion) &&
       _samePlugins(other.otherGenres, otherGenres) &&
@@ -299,6 +352,7 @@ final class SimulationVersion {
   @override
   int get hashCode => Object.hash(
     engine,
+    profile,
     genre,
     genre == null ? 0 : genreVersion,
     Object.hashAllUnordered(<Object>[

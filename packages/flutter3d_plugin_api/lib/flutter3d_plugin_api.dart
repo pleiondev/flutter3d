@@ -48,8 +48,10 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
         IssueSink,
         LinearColor,
         PluginException,
+        Quantity,
         Registration,
         ResourceException,
+        Unit,
         WorldPosition;
 
 export 'src/changes.dart';
@@ -64,6 +66,7 @@ export 'src/manifest.dart';
 export 'src/order.dart';
 export 'src/plugin_group.dart';
 export 'src/plugin_version.dart';
+export 'src/readings.dart';
 export 'src/registration.dart';
 export 'src/render.dart';
 export 'src/scene_binding.dart';

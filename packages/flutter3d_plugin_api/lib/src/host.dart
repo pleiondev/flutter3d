@@ -50,6 +50,16 @@ abstract base class PluginHost {
   ///
   /// `SimulationProfile.deterministic` unless the host says otherwise: what
   /// every engine was before there was a second profile.
+  ///
+  /// **The world's own profile is the same one.** What a world is made of —
+  /// its gravity, air, medium, where it sits on the Earth and this profile —
+  /// is a `WorldProperties` (`flutter3d_matter`, which stands on this
+  /// package and so cannot be named in a signature here), read where the
+  /// bodies are (`CollisionWorld.properties`) and by a level
+  /// (`Level.worldOver`). A plugin that steps bodies reads the world there,
+  /// and the substances in it through `host.registry<MaterialCatalog>()`;
+  /// the engine's loop stages a world whose `WorldProperties.profile` is
+  /// this one.
   SimulationProfile get profile => SimulationProfile.deterministic;
 
   /// The loop's phases and systems.

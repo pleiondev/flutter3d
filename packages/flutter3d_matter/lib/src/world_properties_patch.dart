@@ -4,8 +4,11 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:vector_math/vector_math.dart';
 
+import 'geo_origin.dart';
 import 'world_properties.dart';
 
 /// The fields of a [WorldProperties] something sets, and nothing it does not.
@@ -18,7 +21,7 @@ import 'world_properties.dart';
 ///
 /// **Its document is a world's own JSON with keys left out** — `gravity` (a
 /// vector, or m/s² down y), `airTemperature`, `airPressure`, `airDensity`,
-/// `wind`, `medium` — kept as it was written: a key this build does not know
+/// `wind`, `medium`, `profile`, `geoOrigin` — kept as it was written: a key this build does not know
 /// (a `stepRate` from before 1.0, say) is kept and written back, and a value
 /// is never sent through float32 on the way, so a patch read and written is
 /// the same document.
@@ -34,6 +37,8 @@ final class WorldPropertiesPatch {
     double? airDensity,
     Vector3? wind,
     String? medium,
+    SimulationProfile? profile,
+    GeoOrigin? geoOrigin,
   }) {
     try {
       return WorldPropertiesPatch.fromJson(<String, Object?>{
@@ -44,6 +49,8 @@ final class WorldPropertiesPatch {
         'airDensity': ?airDensity,
         if (wind != null) 'wind': <double>[wind.x, wind.y, wind.z],
         'medium': ?medium,
+        if (profile != null) 'profile': profile.toJson(),
+        if (geoOrigin != null) 'geoOrigin': geoOrigin.toJson(),
       });
     } on WorldPropertiesFormatException catch (error) {
       throw ArgumentError(error.message);
@@ -98,6 +105,14 @@ final class WorldPropertiesPatch {
 
   /// The medium it sets, a material's id, or null.
   String? get medium => _json.containsKey('medium') ? _alone!.medium : null;
+
+  /// The profile it asks the world to run under, or null.
+  SimulationProfile? get profile =>
+      _json.containsKey('profile') ? _alone!.profile : null;
+
+  /// Where on the Earth it puts the world's origin, or null.
+  GeoOrigin? get geoOrigin =>
+      _json.containsKey('geoOrigin') ? _alone!.geoOrigin : null;
 
   /// [base] with what this patch sets laid over it.
   WorldProperties over(WorldProperties base) =>

@@ -5,9 +5,12 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show Flutter3dFormatException;
+    show DocumentFormatException, Flutter3dFormatException;
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:vector_math/vector_math.dart';
 
+import 'geo_origin.dart';
 import 'materials/material_catalog.dart';
 import 'standard_world.dart';
 
@@ -32,6 +35,15 @@ import 'standard_world.dart';
 /// dragged and lifted by is [mediumDensity] — the world's own air where the
 /// medium is air, the catalogue's entry otherwise.
 ///
+/// **What its numbers promise** is its [profile]: the deterministic one,
+/// bit for bit on every platform, unless a laboratory or a twin asks for
+/// the accurate one. A body's integrator reads the profile's capabilities
+/// here, where it reads gravity.
+///
+/// **Where it is on the Earth**, when it is somewhere: [geoOrigin], the
+/// latitude, longitude and altitude its origin stands on, its axes east,
+/// up and south.
+///
 /// **Not how often it is stepped.** A world's step rate is the loop's
 /// (`WorldTiming` in `flutter3d_sim`); it was a field here until
 /// 1.0.0-rc.1, which nothing read, and a document that still carries it
@@ -54,6 +66,8 @@ final class WorldProperties {
     double? airDensity,
     Vector3? wind,
     this.medium = 'f3d.air',
+    this.profile = SimulationProfile.deterministic,
+    this.geoOrigin,
   }) : _gravity = gravity?.clone() ?? standardGravityVector,
        _wind = wind?.clone() ?? Vector3.zero(),
        airDensityOverride = airDensity {
@@ -115,6 +129,15 @@ final class WorldProperties {
   /// `MaterialCatalog`: `f3d.air` by default.
   final String medium;
 
+  /// What the world's numbers promise: [SimulationProfile.deterministic] by
+  /// default. Code that decides by it asks a capability
+  /// (`profile.usesDoublePrecision`), never which profile it is.
+  final SimulationProfile profile;
+
+  /// Where the world's origin is on the Earth, or null for a world that is
+  /// nowhere in particular: a game's level, a laboratory's bench.
+  final GeoOrigin? geoOrigin;
+
   /// How fast sound travels in the world's air, m/s ([speedOfSoundAt] its
   /// temperature): what a listener's Doppler shift is reckoned against.
   double get speedOfSound => speedOfSoundAt(airTemperature);
@@ -140,6 +163,9 @@ final class WorldProperties {
     bool clearAirDensity = false,
     Vector3? wind,
     String? medium,
+    SimulationProfile? profile,
+    GeoOrigin? geoOrigin,
+    bool clearGeoOrigin = false,
   }) => WorldProperties(
     gravity: gravity ?? _gravity,
     airTemperature: airTemperature ?? this.airTemperature,
@@ -147,10 +173,15 @@ final class WorldProperties {
     airDensity: clearAirDensity ? null : (airDensity ?? airDensityOverride),
     wind: wind ?? _wind,
     medium: medium ?? this.medium,
+    profile: profile ?? this.profile,
+    geoOrigin: clearGeoOrigin ? null : (geoOrigin ?? this.geoOrigin),
   );
 
   /// The world as JSON, every field: what a snapshot and a level hold.
-  /// `airDensity` only when [airDensityOverride] says it.
+  /// `airDensity` only when [airDensityOverride] says it; `profile` only
+  /// when it is not [SimulationProfile.deterministic] and `geoOrigin` only
+  /// when there is one, so the default world is written, and digested, as
+  /// it was before either existed.
   Map<String, Object?> toJson() => <String, Object?>{
     'gravity': <double>[_gravity.x, _gravity.y, _gravity.z],
     'airTemperature': airTemperature,
@@ -158,6 +189,8 @@ final class WorldProperties {
     'airDensity': ?airDensityOverride,
     'wind': <double>[_wind.x, _wind.y, _wind.z],
     'medium': medium,
+    if (profile != SimulationProfile.deterministic) 'profile': profile.toJson(),
+    if (geoOrigin case final origin?) 'geoOrigin': origin.toJson(),
   };
 
   /// The world [json] describes, each field absent taken from [base] — the
@@ -211,6 +244,26 @@ final class WorldProperties {
         '"medium" must be a material\'s id, not $other',
       ),
     };
+    final SimulationProfile? profile;
+    try {
+      profile = switch (json['profile']) {
+        null => null,
+        final String name => SimulationProfile.parse(name),
+        final other => throw DocumentFormatException(
+          'a profile is named by its word, not $other',
+        ),
+      };
+    } on DocumentFormatException catch (error) {
+      throw WorldPropertiesFormatException('"profile": ${error.message}');
+    }
+    final GeoOrigin? geoOrigin;
+    try {
+      geoOrigin = json['geoOrigin'] == null
+          ? null
+          : GeoOrigin.fromJson(json['geoOrigin']);
+    } on GeoOriginFormatException catch (error) {
+      throw WorldPropertiesFormatException('"geoOrigin": ${error.message}');
+    }
     final airTemperature = positive('airTemperature');
     final airPressure = positive('airPressure');
     final explicitDensity = positive('airDensity');
@@ -226,6 +279,8 @@ final class WorldProperties {
           (keepsBaseDensity ? from.airDensityOverride : null),
       wind: vector('wind') ?? from._wind,
       medium: medium ?? from.medium,
+      profile: profile ?? from.profile,
+      geoOrigin: geoOrigin ?? from.geoOrigin,
     );
   }
 
@@ -246,7 +301,9 @@ final class WorldProperties {
       other.airPressure == airPressure &&
       other.airDensityOverride == airDensityOverride &&
       other._wind == _wind &&
-      other.medium == medium;
+      other.medium == medium &&
+      other.profile == profile &&
+      other.geoOrigin == geoOrigin;
 
   @override
   int get hashCode => Object.hash(
@@ -260,6 +317,8 @@ final class WorldProperties {
     _wind.y,
     _wind.z,
     medium,
+    profile,
+    geoOrigin,
   );
 
   @override

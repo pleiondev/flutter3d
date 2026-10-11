@@ -2,8 +2,10 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 
 import 'ecs.dart';
 import 'events.dart';
+import 'readings.dart';
 import 'registration.dart';
 import 'simulation.dart';
+import 'simulation_profile.dart';
 
 /// Whether a phase runs inside the fixed step or once a frame.
 ///
@@ -260,6 +262,94 @@ abstract base class LoopRegistry extends PluginRegistry {
     List<String> before = const <String>[],
   });
 
+  /// Adds [assimilation] to the step under [name], unique in the loop: it
+  /// runs in the [LoopPhase.input] phase of every step, after the step's
+  /// input is in place, and is handed the [ExternalStateInput]s fed in for
+  /// that step. Ordered against the phase's systems by [after]/[before].
+  ///
+  /// The engine's loop takes it; a registry that has no external input says
+  /// so with an [UnsupportedError], the default.
+  Registration addAssimilation(
+    String name,
+    Assimilation assimilation, {
+    List<String> after = const <String>[],
+    List<String> before = const <String>[],
+  }) => throw UnsupportedError(
+    '$runtimeType takes no assimilation: "$name" has no external input to '
+    'read here',
+  );
+
   @override
   LoopRegistry forPlugin(PluginScope scope);
+}
+
+/// What an [Assimilation] is told about the step it runs in.
+///
+/// **One object rather than parameters, so it can grow**, as [LoopContext]
+/// does. Made by the engine: `base`, so a member added later arrives with
+/// a default.
+abstract base class AssimilationContext {
+  const AssimilationContext();
+
+  /// The step being run, counted from the start of the run.
+  int get step;
+
+  /// One fixed step of simulated time, in seconds.
+  double get dt;
+
+  /// What arrived from outside for this step, in the order it was fed: on
+  /// the tape with the step, so a replay hands the same.
+  List<ExternalStateInput> get inputs;
+
+  /// The ones of [inputs] from [source], in order.
+  Iterable<ExternalStateInput> from(String source) =>
+      inputs.where((input) => input.source == source);
+
+  /// The simulation's world, where the assimilation writes what it decides.
+  SimWorld get world;
+
+  /// What the simulation promises about its numbers: an assimilation that
+  /// blends in double precision asks [SimulationProfile.usesDoublePrecision]
+  /// rather than which profile it is.
+  SimulationProfile get profile => SimulationProfile.deterministic;
+
+  /// Whether the step is being run again after a rollback: [inputs] are the
+  /// ones the step was first fed.
+  bool get isResimulated;
+
+  /// Publishes [event] on the step channel.
+  void publish(BusEvent event);
+}
+
+/// The place inside the step where outside state meets the model: a
+/// twin's Kalman filter, a valve set to what the plant reports, a headset's
+/// pose put on the camera rig.
+///
+/// **The hook a twin writes.** Telemetry enters as input
+/// ([ExternalStateInput], on the tape with its step) and the simulation's
+/// boundary does not change: an assimilation reads the step's inputs and
+/// writes the world, so a run fed by a plant replays as one fed by a
+/// keyboard. Registered with [LoopRegistry.addAssimilation].
+///
+/// `base`, so a member added later arrives with a default; [assimilate]
+/// takes one growing context, never a list of parameters.
+abstract base class Assimilation {
+  const Assimilation();
+
+  /// An assimilation that calls [assimilate].
+  const factory Assimilation.of(
+    void Function(AssimilationContext context) assimilate,
+  ) = _FunctionAssimilation;
+
+  /// Decides between what arrived and what the model says, for one step.
+  void assimilate(AssimilationContext context);
+}
+
+final class _FunctionAssimilation extends Assimilation {
+  const _FunctionAssimilation(this._assimilate);
+
+  final void Function(AssimilationContext context) _assimilate;
+
+  @override
+  void assimilate(AssimilationContext context) => _assimilate(context);
 }

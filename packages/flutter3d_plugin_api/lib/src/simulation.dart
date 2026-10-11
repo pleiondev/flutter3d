@@ -14,6 +14,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'ecs.dart';
 import 'events.dart';
 import 'plugin_version.dart' show PluginFormatException;
+import 'readings.dart';
 import 'simulation_version.dart';
 
 /// How a [WorldPosition] component is written: three doubles, in metres.
@@ -112,7 +113,9 @@ final class PublishedState {
     Map<Entity, WorldPosition> positions = const <Entity, WorldPosition>{},
     List<PublishedEvent> events = const <PublishedEvent>[],
     this.simulation = SimulationVersion.engineOnly,
-  }) : components = Map<String, Map<Entity, Object?>>.unmodifiable(
+    List<ProbeReading> probes = const <ProbeReading>[],
+  }) : probes = List<ProbeReading>.unmodifiable(probes),
+       components = Map<String, Map<Entity, Object?>>.unmodifiable(
          <String, Map<Entity, Object?>>{
            for (final MapEntry(:key, :value) in components.entries)
              key: Map<Entity, Object?>.unmodifiable(value),
@@ -151,6 +154,16 @@ final class PublishedState {
 
   /// The simulation that produced this.
   final SimulationVersion simulation;
+
+  /// What every probe in the simulation read at the end of [step], in the
+  /// order the probes were read: what a chart or a gauge shows, read here
+  /// rather than off the world.
+  final List<ProbeReading> probes;
+
+  /// What the probe [id] read, or null when no probe of that id was read
+  /// (absent).
+  ProbeReading? probe(String id) =>
+      probes.where((reading) => reading.probe == id).firstOrNull;
 
   /// Where [entity] is; null when it publishes no position (absent).
   WorldPosition? positionOf(Entity entity) => positions[entity];
@@ -206,6 +219,8 @@ final class PublishedState {
         ],
     ],
     'simulation': simulation.toJson(),
+    if (probes.isNotEmpty)
+      'probes': <Object?>[for (final reading in probes) reading.toJson()],
   };
 
   /// Reads what [toWire] wrote. Throws a [PluginFormatException] for a value
@@ -291,6 +306,13 @@ final class PublishedState {
       }
     }
     final simulation = wire['simulation'];
+    final probes = switch (wire['probes']) {
+      null => const <ProbeReading>[],
+      final List<Object?> read => <ProbeReading>[
+        for (final reading in read) ProbeReading.fromJson(reading),
+      ],
+      _ => wrong('probes that are not a list'),
+    };
     return PublishedState(
       step: step,
       seconds: seconds.toDouble(),
@@ -301,6 +323,7 @@ final class PublishedState {
       simulation: simulation is Map
           ? SimulationVersion.fromJson(simulation.cast<String, Object?>())
           : wrong('no simulation'),
+      probes: probes,
     );
   }
 
