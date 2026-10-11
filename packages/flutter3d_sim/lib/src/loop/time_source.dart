@@ -37,6 +37,10 @@ abstract base class TimeSource {
   /// Time that moves only when told to ([ManualTime.advance]).
   factory TimeSource.manual() = ManualTime;
 
+  /// The display times an XR runtime predicts for the frames it shows
+  /// ([DisplayTime.predict]).
+  factory TimeSource.display() = DisplayTime;
+
   /// The simulated seconds between the frame drawn at [from] and the one at
   /// [to], vsync timestamps both, which a source is free to ignore.
   double elapsed(Duration from, Duration to);
@@ -160,4 +164,68 @@ final class ManualTime extends TimeSource {
 
   @override
   String toString() => 'TimeSource.manual()';
+}
+
+/// The time a headset's runtime says each frame will be shown at: what a
+/// frame of an XR session hands the loop.
+///
+/// **The runtime's clock, not the display's vsync.** A headset's runtime
+/// paces the frames itself and says, before a frame is drawn, when it will
+/// reach the eyes (OpenXR's `predictedDisplayTime`, WebXR's frame time).
+/// The world drawn for that frame should stand where it will be then, so a
+/// frame brings the gap from the last predicted time to this one, whatever
+/// the vsync timestamps say; the loop's fixed step is untouched, and runs as
+/// many steps as the gap holds.
+///
+/// [predict] is called once a frame, before the frame asks for its time;
+/// a frame with no new prediction brings nothing, and the first prediction
+/// brings nothing either, since there is no frame before it to measure
+/// from.
+final class DisplayTime extends TimeSource {
+  /// A source that has been told no display time yet.
+  DisplayTime();
+
+  double? _handed;
+  double? _predicted;
+
+  /// The display time of the last [predict], seconds on the runtime's
+  /// clock; null before the first.
+  double? get predicted => _predicted;
+
+  /// Says that the frame about to be drawn will be shown at [seconds] on the
+  /// runtime's clock. Throws an [ArgumentError] for a time that is not
+  /// finite or goes back from the last one: a runtime's display times only
+  /// go forward.
+  void predict(double seconds) {
+    final last = _predicted;
+    if (!seconds.isFinite || (last != null && seconds < last)) {
+      throw ArgumentError.value(
+        seconds,
+        'seconds',
+        last == null ? 'not finite' : 'goes back from $last',
+      );
+    }
+    _predicted = seconds;
+    _handed ??= seconds;
+  }
+
+  @override
+  double elapsed(Duration from, Duration to) {
+    final predicted = _predicted;
+    final handed = _handed;
+    if (predicted == null || handed == null) return 0.0;
+    _handed = predicted;
+    return predicted - handed;
+  }
+
+  /// Forgets the display times seen, so the next prediction starts again:
+  /// a session that ended and began anew, on a clock of its own.
+  @override
+  void reset() {
+    _handed = null;
+    _predicted = null;
+  }
+
+  @override
+  String toString() => 'TimeSource.display()';
 }

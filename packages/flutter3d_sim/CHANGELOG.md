@@ -1,5 +1,25 @@
 ## 1.0.0-rc.1
 
+- **A headset's display time is a clock.** `TimeSource.display()`
+  (`DisplayTime`) hands each frame the gap between the display times an XR
+  runtime predicts, so the world drawn for a frame stands where it will be
+  when the frame is shown; the fixed step is untouched.
+- **A headset's poses ride the tape.** `XrPose` is a tracked pose as seven
+  numbers of `ExternalStateInput`, under one spelling of sources
+  (`XrPoseSources`: `xr.head`, `xr.left.grip`, `xr.right.aim`,
+  `xr.left.hand.indexTip`), and `XrPoses` keeps the latest of each inside
+  the step as a world resource, so a recorded session replays its poses
+  bit for bit. `XrHand` and `XrHandJoint` (OpenXR's 26) are open sets.
+- **Controllers and hands drive actions.** `XrActionSource` writes a
+  frame's control readings (`XrControl`, `XrControlReading`) into a game's
+  actions under source ids spelled as the action map spells its devices
+  (`xr:right/trigger`), a button on its edges with its travel, an axis or a
+  pair from a stick.
+- **The room goes on the tape and into the collision world.** `XrPlane` and
+  `XrSceneMesh` are written as external input (`xr.plane.<id>`,
+  `xr.mesh.<id>`), and `XrSceneColliders` keeps a `CollisionWorld` in step
+  with them inside the step: a plane is the box around it, a lost one is
+  taken away, a mesh collides as its bounds. `XrPlaneOrientation` is open.
 - **Fields and subsystems on the loop.** `EngineLoop.fields` and
   `EngineLoop.subsystems` implement `flutter3d_fields`' `FieldRegistry` and
   `SubsystemRegistry`, and a plugin reaches them through its host. A host

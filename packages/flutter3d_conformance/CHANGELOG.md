@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A headset's two views reach their own layers.** `xrChecks`, part of
+  `conformanceChecks`: two views drawn a pass each land in their own layers
+  of an array image, two views copied in as the projection layer copies
+  them land in theirs, and one multiview pass reaches both layers on a
+  device that has multiview (declined on every backend today).
 - **A field on a device, held to the contract.** `fieldResidenceChecks`,
   part of `conformanceChecks`: a 3D texture of a field's shape is made and
   written, or refused with `DeviceFeature.texture3D` named; a field in a

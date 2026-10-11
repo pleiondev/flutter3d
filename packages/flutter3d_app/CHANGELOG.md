@@ -1,5 +1,36 @@
 ## 1.0.0-rc.1
 
+- **One session is the boundary to every XR runtime.** `XrSession` is what
+  WebXR, OpenXR, ARKit, ARCore and visionOS each extend: open capabilities
+  (`XrCapability`: immersive VR and AR, inline, hands, eye gaze,
+  passthrough, anchors, planes, scene mesh, light estimation, depth
+  occlusion, haptics, quad and cylinder layers) refused by name with
+  `UnsupportedCapabilityException`, a lifecycle (`XrSessionState`),
+  reference spaces (`XrSpace`), and frames (`XrFrame`) that carry the
+  predicted display time, each view's pose and four angles, the tracked
+  poses, the controllers and hands, the planes and meshes found, the
+  room's light and its depth. A frame ends with layers (`XrProjectionLayer`,
+  `XrQuadLayer`, `XrCylinderLayer`) drawn into a runtime's images
+  (`XrSwapchain`); `XrPanel` shows a Flutter widget as a layer of its own,
+  so text in a headset is composed once and stays crisp. `XrAnchor` keeps a
+  point fixed to the room under a stable id, in a level as an `xr.anchor`
+  entity and on the Earth through `GeoOrigin`. Every hook takes one object,
+  and every feature beyond the frame has a body that refuses it, so a
+  runtime written against 1.0 compiles against every 1.x. The WebXR and
+  OpenXR sessions arrive in rc.2.
+- **`Flutter3dView(xr:)` drives a session.** `XrSettings` names the session,
+  what it is asked for, the panels, the actions the controls drive and the
+  light the room's main light drives. The runtime paces the frames: its
+  display times are the loop's clock, its poses, planes and meshes enter
+  the loop's input and the tape, its controls write the bound actions, the
+  eyes are placed under the camera by its poses and angles, the room's
+  measured light lights the scene, and what was drawn is copied into its
+  image and handed back with the panels' layers (`XrDriver`). A session
+  that will not start, or a device that copies no texture, is the view's
+  error.
+- **A runtime for tests.** `package:flutter3d_app/xr_testing.dart` holds
+  `FakeXrSession`, which drives the whole contract with no headset, and
+  `FakeXrSwapchain`.
 - **A view's time comes from a source.** `Flutter3dView(time:)` and
   `Scene3D(time:)` take a `TimeSource` (`realTime`, the default; `scaled`,
   `log`, `manual`), and every frame drawn steps the loop, a simulation in an

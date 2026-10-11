@@ -11,11 +11,13 @@
 /// phone's answer to [HeadTracker], and a runtime's answer replaces it without
 /// either of the other two noticing.
 ///
-/// What is deliberately missing until a headset says otherwise: the swapchain,
-/// the frame's timing, and the pose that a compositor predicts rather than a
-/// sensor reports. Those are not "the same thing but better" — they change who
-/// drives the frame — and guessing their shape before the device has answered
-/// is how an interface ends up describing the wrong machine.
+/// **Rebased on the XR session since 1.0.** What this package once left out
+/// until a headset said otherwise — the swapchain, the frame's timing, the
+/// pose a compositor predicts rather than a sensor reports — is now
+/// `XrSession`'s, in `flutter3d_app`, and a phone in a holder is one more
+/// runtime behind it: [HolderXrSession] makes inline frames from a
+/// [HeadTracker] and a holder's lenses, and `StereoRig.applyFrame` takes a
+/// rig's eyes from any runtime's frame, a headset's or a holder's.
 library;
 
 export 'src/head_pose.dart';
@@ -23,5 +25,6 @@ export 'src/head_tracker.dart';
 export 'src/lesson_player.dart';
 export 'src/lesson_stereo_view.dart';
 export 'src/stereo_rig.dart';
+export 'src/stereo_session.dart';
 export 'src/stereo_surface.dart';
 export 'src/stereo_viewer.dart';

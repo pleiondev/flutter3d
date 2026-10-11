@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **Stereo stands on the XR session.** `HolderXrSession` is a phone in a
+  holder, or held up, as an inline `XrSession`: the head from a
+  `HeadTracker`, the eyes turned with it, each frustum the holder's lenses'
+  own as four angles. `StereoRig.applyFrame` takes the rig's head and eyes
+  from any session's frame, a headset's or a holder's.
 - **Breaking: `LessonStereoView` and `StereoSurface` are `final`.** A
   widget is composed, not subclassed; a class that extended one builds one
   instead.

@@ -55,6 +55,8 @@ import '../backend_native.dart'
     show platformDevices, presentFrame;
 import '../l10n/app_localizations.dart';
 import '../surface/scene_surface.dart';
+import '../widget_surface/widget_texture.dart';
+import '../xr/xr_driver.dart';
 import 'frame_info.dart';
 import 'simulation_placing.dart';
 import 'view_settings.dart';
@@ -340,7 +342,24 @@ final class Flutter3dView extends StatefulWidget {
     this.onPausedChanged,
     this.onListenerMoved,
     this.time,
+    this.xr,
   });
+
+  /// An XR session the view drives, or null for a view of the screen.
+  ///
+  /// **The runtime paces the frames.** The session is started once the
+  /// device is open; from then on a frame is drawn when the runtime hands
+  /// one (`XrSession.waitFrame`), and the loop's time is the gap between
+  /// the display times it predicts (`DisplayTime`), so [time] is not asked.
+  /// The frame's poses, planes and meshes enter the loop's input as
+  /// external state, on the tape with their step; its controls drive
+  /// `XrSettings.actions`; the camera is where the player stands and the
+  /// eyes are placed under it by the runtime's poses and angles; what was
+  /// drawn is copied into the runtime's images and the frame ends with the
+  /// projection layer and a layer for each `XrSettings.panels`. The screen
+  /// shows the eyes side by side. A session that refuses to start, or a
+  /// device that cannot feed it, is the view's error ([ViewSettings.failure]).
+  final XrSettings? xr;
 
   /// Where the simulation's time comes from: how many seconds each frame
   /// the view draws hands the loop. Null is the display's own clock,
@@ -455,6 +474,9 @@ class _Flutter3dViewState extends State<Flutter3dView>
 
   Flutter3dEngine? _engine;
   PlacedSimulation? _placed;
+
+  /// What drives `widget.xr`, once its session has started.
+  XrDriver? _xr;
   Object? _error;
   Ticker? _ticker;
   bool _shown = true;
@@ -618,6 +640,22 @@ class _Flutter3dViewState extends State<Flutter3dView>
         _pendingRestore = null;
       }
       _watchDevice(engine);
+      if (widget.xr case final xr?) {
+        final driver = XrDriver(
+          settings: xr,
+          renderer: renderer,
+          origin: camera,
+          drawPanel: (Widget panel, int width, int height) =>
+              WidgetTexture(device).draw(panel, width: width, height: height),
+        );
+        await driver.start(input: loop.input);
+        if (!mounted) {
+          unawaited(driver.dispose());
+          return;
+        }
+        _xr = driver;
+        log.info('started ${xr.session.runtimeName}', source: _source);
+      }
       if (widget.view.continuous) _startTicker();
     } on Object catch (error, stack) {
       log.error(
@@ -822,8 +860,14 @@ class _Flutter3dViewState extends State<Flutter3dView>
       return;
     }
     // A refresh the cap skips is not drawn, and the next frame drawn asks
-    // the source for all the time since the last one.
-    final seconds = _cadence.due(vsync);
+    // the source for all the time since the last one. With a session the
+    // runtime decides instead: a frame is drawn when it hands one, and
+    // brings the gap between its display times.
+    final xr = _xr;
+    if (xr != null && xr.beginFrame(engine.loop.input) == null) return;
+    final seconds = xr != null
+        ? xr.time.elapsed(vsync, vsync)
+        : _cadence.due(vsync);
     if (seconds == null) return;
     final frame = FrameInfo(seconds: seconds, result: _drawn);
     _guarded('onBeforeFrame', () => widget.onBeforeFrame?.call(engine, frame));
@@ -919,6 +963,7 @@ class _Flutter3dViewState extends State<Flutter3dView>
     unawaited(_losses?.cancel());
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.dispose();
+    unawaited(_xr?.dispose());
     unawaited(_placed?.dispose());
     _engine?._dispose();
     _ownFocus?.dispose();
@@ -972,14 +1017,24 @@ class _Flutter3dViewState extends State<Flutter3dView>
                 }
               });
             }
+            // A session's eyes, once its first frame has placed them; the
+            // view's own until then.
+            final eyes = _xr?.views ?? const <RenderView>[];
+            final views = eyes.isNotEmpty ? eyes : view.views;
             return SceneSurface(
               renderer: engine.renderer,
               scene: engine.scene,
-              view: view.views?.first ?? engine.view,
-              moreViews: view.views?.skip(1).toList() ?? const <RenderView>[],
-              settings: () => widget.view.settings,
+              view: views?.first ?? engine.view,
+              moreViews: views?.skip(1).toList() ?? const <RenderView>[],
+              settings: () => eyes.length > 1
+                  ? widget.view.settings.forStereo()
+                  : widget.view.settings,
               onBeforeFrame: () {},
-              onFrame: (FrameInfo frame) => _drawn = frame.result,
+              onFrame: (FrameInfo frame) {
+                _drawn = frame.result;
+                final xr = _xr;
+                if (xr != null) unawaited(xr.endFrame());
+              },
               presentFrame:
                   presenter ??
                   (

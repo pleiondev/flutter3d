@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A headset's views go to their layers in the frame graph.**
+  `ProjectionLayerNode` runs last, reads the finished picture and gives it
+  back unchanged, and copies each of `FrameContext.views` into its own
+  layer of the image a runtime handed out for the frame;
+  `ProjectionLayerNode.check` refuses a device without texture copies by
+  name, and an image with too few layers or in another format, before the
+  first frame. `EnvironmentDepthNode` puts the real world's depth an AR
+  runtime measured (`EnvironmentDepth`) into the frame as an `r32Float`
+  texture under `environment_depth`, for a node that occludes with it.
 - **A field is a frame-graph resource under its own id.**
   `FrameResources.provideField`, `field` and `tryField` carry a
   `flutter3d_fields` `FieldStorage` between the node that writes the field
