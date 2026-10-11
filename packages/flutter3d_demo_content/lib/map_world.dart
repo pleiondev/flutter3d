@@ -28,18 +28,22 @@
 /// `StrategySimulation.shots`:
 ///
 /// * **A hall catches fire when it is shot at**: each shot an armed unit of
-///   the other side fires from beside it is a fire arrow held to the timber
-///   nearest it, which catches when that flame has brought its surface to the
-///   point it ignites at. Buildings have no health in the match, and nobody
-///   stands inside one, so what burns is the hall as drawn — the timber under
-///   the roofs of its keep and its towers — and what it hurts is whoever
-///   stands near it while it burns.
-/// * **The woods burn** from what falls into them: brands thrown up out of a
-///   flame, whose own small flames light a crown they come down in; and then
-///   tree to tree by the heat of their own flames, leaning with the wind and
-///   so running downwind.
+///   the other side fires from within its range of the hall looses a fire
+///   arrow at the timber nearest it, and where the arrow strikes timber —
+///   the core's contact, not a distance — its flame is held, until it has
+///   brought that surface to the point it ignites at. Buildings have no
+///   health in the match, and nobody stands inside one, so what burns is
+///   the hall as drawn — the timber under the roofs of its keep and its
+///   towers — and what it hurts is whoever stands near it while it burns.
+/// * **The woods burn** from what falls into them: brands a fire lofts by the
+///   fuel it burns ([Firebrands]), as hot as its flame, which light a crown
+///   they come down in; and then tree to tree by the heat of their own
+///   flames, leaning with the wind and so running downwind.
 /// * **A ram's strike throws stones** — at the wall it is working at, where
-///   pieces of the wall break off and tumble, or at the unit it hits.
+///   pieces of the wall break off and tumble where a stone strikes its
+///   stone, or at the unit it hits. Stones and arrows are thrown by the
+///   core's own flight of them ([Ballistics]), so they come down where they
+///   were aimed.
 ///
 /// What the viewing side cannot see starts nothing: a fight under its fog
 /// throws no stones and lights no hall, so the fires never tell the player
@@ -57,6 +61,8 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter3d_elements/flutter3d_elements.dart'
+    show Ballistics, Firebrands, Solid;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_game_strategy/flutter3d_game_strategy.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
@@ -94,7 +100,7 @@ final class PieceKind {
   /// middle.
   static const PieceKind rubble = PieceKind._(1, 'rubble');
 
-  /// Burning tinder out of a flame: a ball of [MapPiece.size]'s x.
+  /// A burning brand a fire lofted: a ball of [MapPiece.size]'s x.
   static const PieceKind brand = PieceKind._(2, 'brand');
 
   /// Every kind, in the order a save numbers them.
@@ -114,14 +120,15 @@ final class MapPiece {
   /// Its half-extents, or its radius in x for a ball.
   final Vector3 size;
 
-  /// The hall a stone was thrown at, until it reaches it.
+  /// The hall a stone was thrown at, until it strikes something.
   MapHall? _aim;
 
   /// Seconds since it was made.
   double _age = 0.0;
 }
 
-/// A hall as the fires see it: the timber of its roofs.
+/// A hall as the fires see it: the timber of its roofs, and the stone a
+/// stone thrown at it strikes.
 final class MapHall {
   MapHall._(this.index, this.building);
 
@@ -131,7 +138,14 @@ final class MapHall {
 
   /// What burns: the keep's roof first, then the towers'.
   final List<NativeBody> timbers = <NativeBody>[];
+
+  /// Its stone: the curtain wall and the keep.
+  final List<NativeBody> _stones = <NativeBody>[];
 }
+
+/// A fire arrow in flight: its body, the hall it was loosed at, and the
+/// seconds since.
+typedef _Arrow = ({NativeBody body, MapHall hall, double age});
 
 /// A tree of the map's woods, and the body it burns as once it is near a
 /// fire.
@@ -532,12 +546,40 @@ final class MapWorld {
   static const ({double flux, double area, double temperature, double seconds})
   _fireArrow = (flux: 5e4, area: 0.01, temperature: 1100.0, seconds: 30.0);
 
-  /// The most fires burning at once that brands are still thrown from: the
+  /// The most fires burning at once that brands are still lofted from: the
   /// core's heat from a fire to everything near it costs most of a
   /// millisecond a step for each, and this is paid in the match's step on a
   /// phone as on a desktop — one number for both, because a match must play
   /// the same on either.
   static const int _mostFires = 4;
+
+  /// What a brand is: the burnt end of a twig of the crown, a centimetre
+  /// across, as dense as the catalogue's pine. Not of the crown's thatch: a
+  /// bed of stalks that small is heated through and burns its fuel in one
+  /// step, before it has left the flame.
+  static final Solid _brand = Solid.of(
+    const NativeShape.sphere(0.01),
+    Materials.pine,
+  );
+
+  /// The share of what a fire burns that its plume lofts as brands. The
+  /// game's, not a measured one: as many as it threw before brands were
+  /// lofted by what burns, about one every four seconds from a megawatt of
+  /// thatch.
+  static final double _brandShare =
+      0.25 * _brand.mass * dry.heatOfCombustion / 1e6;
+
+  /// What a fire arrow is as it flies: its head and its burning rag, a ball
+  /// of pine two centimetres across.
+  static final Solid _arrow = Solid.of(
+    const NativeShape.sphere(0.02),
+    Materials.pine,
+  );
+
+  /// The arc a stone and an arrow are thrown on: as far over the level as
+  /// a lob that comes down in [_lob] seconds leaves at, the core's own
+  /// flight then aimed at the mark.
+  static const double _lob = 0.8;
 
   /// How far from a fire a tree is given a body, m: further than a crown's
   /// flame leans, and than most brands fly.
@@ -594,6 +636,17 @@ final class MapWorld {
   /// The fire arrows held to timber, and how long each is held still.
   final List<({NativeBody body, Vector3 at, double left})> _held =
       <({NativeBody body, Vector3 at, double left})>[];
+
+  /// The fire arrows in flight.
+  final List<_Arrow> _arrows = <_Arrow>[];
+
+  /// The brands the fires loft.
+  late final Firebrands _brands = Firebrands(
+    world,
+    brand: _brand,
+    share: _brandShare,
+    most: _mostBrands,
+  );
 
   /// What the steps since the last [takeEvents] said. Not part of the match
   /// — what is heard of it — and so not saved.
@@ -1040,6 +1093,7 @@ final class MapWorld {
       world
         ..setShape(body, NativeShape.box(half))
         ..setMaterial(body, NativeMaterial.stone());
+      hall._stones.add(body);
     }
 
     stone(
@@ -1100,15 +1154,16 @@ final class MapWorld {
   }
 
   /// The world one step on, after the crowd's: the trees near a fire found
-  /// now and then, the step's shots answered, brands thrown and fire arrows
-  /// held, then stepped, and its fires burn whoever is near them.
+  /// now and then, the step's shots answered, brands lofted and fire arrows
+  /// held, then stepped; what the stones and arrows struck answered, and
+  /// its fires burn whoever is near them.
   void _afterStep(double dt) {
     _clock += dt;
     _ticks++;
     world.wind = wind;
     if (_ticks % _lookEvery == 0) _find(_simulation);
     _shots(_simulation);
-    _throwBrands(dt);
+    _loft(dt);
     _hold(dt);
     world.step(dt);
     final List<NativeEvent> happened = world.readEvents();
@@ -1117,6 +1172,7 @@ final class MapWorld {
       _events.removeRange(0, _events.length - _mostHeard);
     }
     _burnt(happened);
+    _struck(world.readContacts(), dt);
     _fly(dt, _simulation);
     _scorch(_simulation, dt);
   }
@@ -1274,17 +1330,39 @@ final class MapWorld {
     }
   }
 
-  /// The hall of another side [unit] stands close enough to to be hitting.
+  /// The hall of another side within [unit]'s range: what it looses at
+  /// beside its mark. Whether that strikes is the flight's.
   MapHall? _hallBeside(StrategyUnit unit) {
     for (final MapHall hall in halls) {
       final Building b = hall.building;
       if (b.side == unit.side) continue;
-      if (b.distanceTo(unit.position.x, unit.position.z) <=
-          unit.type.range + 3.0) {
+      if (b.distanceTo(unit.position.x, unit.position.z) <= unit.type.range) {
         return hall;
       }
     }
     return null;
+  }
+
+  /// The throw that brings [solid] from [from] down on [to] by the core's
+  /// own flight of it, on the arc of a lob that comes down in [_lob]
+  /// seconds; that lob's when the air cannot carry it there on that arc.
+  Vector3 _aimed(Solid solid, Vector3 from, Vector3 to) {
+    final g = world.gravityMagnitude;
+    final lob = lobVelocity(from, to, flight: _lob, g: g);
+    final flat = math.sqrt(lob.x * lob.x + lob.z * lob.z);
+    try {
+      return Ballistics.aim(
+        world,
+        solid,
+        from: from,
+        to: to,
+        elevation: Portable.atan2(lob.y, flat),
+      );
+    } on ArgumentError {
+      return lob;
+    } on StateError {
+      return lob;
+    }
   }
 
   /// The point on [building]'s wall nearest [from], partway up it.
@@ -1303,21 +1381,14 @@ final class MapWorld {
   /// A stone lobbed from a ram at [from] to land on [to] in under a second.
   void _throwAt(Vector3 from, Vector3 to, MapHall? hall) {
     final start = from + Vector3(0.0, 1.5, 0.0);
-    final velocity = lobVelocity(
-      start,
-      to,
-      flight: 0.8,
-      g: world.gravityMagnitude,
-    );
     final double radius = 0.22 + 0.08 * _random.nextDouble();
-    final body = world.addBody(
-      position: start,
-      mass: 2600.0 * 4.0 / 3.0 * math.pi * radius * radius * radius,
-    );
+    // A granite ball, as heavy as the catalogue's granite is.
+    final stone = Solid.of(NativeShape.sphere(radius), Materials.granite);
+    final body = world.addBody(position: start, mass: stone.mass);
     world
-      ..setShape(body, NativeShape.sphere(radius))
+      ..setShape(body, stone.shape)
       ..setMaterial(body, NativeMaterial.stone())
-      ..setVelocity(body, velocity);
+      ..setVelocity(body, _aimed(stone, start, to));
     pieces.add(
       MapPiece._(body, PieceKind.stone, Vector3.all(radius)).._aim = hall,
     );
@@ -1328,8 +1399,10 @@ final class MapWorld {
   /// sets a hall alight itself — the strategy demo's reel opens on one.
   void shootAtHall(int index, Vector3 from) => _shootAt(halls[index], from);
 
-  /// A fire arrow shot at [hall] from [from]: held to the face of the
-  /// timber nearest the shooter that looks towards it.
+  /// A fire arrow loosed from [from] at [hall]: at the face of the timber
+  /// nearest the shooter that looks towards it, by the core's flight of
+  /// it, and held to what it strikes there ([_struck]). None at a timber
+  /// already alight or with an arrow on its way.
   void _shootAt(MapHall hall, Vector3 from) {
     NativeBody? nearest;
     var best = double.infinity;
@@ -1341,13 +1414,91 @@ final class MapWorld {
       }
     }
     if (nearest == null || world.isBurning(nearest)) return;
+    if (_arrows.any((_Arrow a) => identical(a.hall, hall))) return;
     final Vector3 middle = world.localPositionOf(nearest);
     final Vector3 toward = (from - middle)..normalize();
-    _held.add((
-      body: nearest,
-      at: middle + toward * 0.3,
-      left: _fireArrow.seconds,
-    ));
+    final Vector3 start = from + Vector3(0.0, 1.5, 0.0);
+    final body = world.addBody(position: start, mass: _arrow.mass);
+    world
+      ..setShape(body, _arrow.shape)
+      ..setMaterial(body, _arrow.material)
+      ..setVelocity(body, _aimed(_arrow, start, middle + toward * 0.3));
+    _arrows.add((body: body, hall: hall, age: 0.0));
+  }
+
+  /// What the stones and the arrows struck in the step, by the core's
+  /// [contacts]: a stone thrown at a hall breaks pieces off its wall where
+  /// it strikes its stone; a fire arrow is held, burning, where it strikes
+  /// its hall's timber. Either is spent on the first thing it strikes, and
+  /// an arrow that strikes nothing in [_arrowFlies] seconds is let go.
+  void _struck(List<NativeContact> contacts, double dt) {
+    final aimed = <NativeBody, MapPiece>{
+      for (final MapPiece piece in pieces)
+        if (piece._aim != null) piece.body: piece,
+    };
+    final flying = <NativeBody, _Arrow>{
+      for (final _Arrow arrow in _arrows) arrow.body: arrow,
+    };
+    if (aimed.isEmpty && flying.isEmpty) return;
+    final breaks = <(MapHall, Vector3)>[];
+    final spent = <NativeBody>{};
+    for (final NativeContact c in contacts) {
+      for (final (NativeBody it, NativeBody other)
+          in <(NativeBody, NativeBody)>[(c.a, c.b), (c.b, c.a)]) {
+        if (aimed[it] case final MapPiece stone? when stone._aim != null) {
+          final MapHall hall = stone._aim!;
+          stone._aim = null;
+          if (hall._stones.contains(other)) breaks.add((hall, c.point));
+        }
+        if (flying[it] case final _Arrow arrow? when !spent.contains(it)) {
+          spent.add(it);
+          if (arrow.hall.timbers.contains(other)) {
+            _held.add((
+              body: other,
+              at: c.point.clone(),
+              left: _fireArrow.seconds,
+            ));
+          }
+        }
+      }
+    }
+    _arrows.removeWhere((_Arrow arrow) {
+      final gone = spent.contains(arrow.body) || arrow.age > _arrowFlies;
+      if (gone && world.contains(arrow.body)) world.removeBody(arrow.body);
+      return gone;
+    });
+    for (var i = 0; i < _arrows.length; i++) {
+      final _Arrow a = _arrows[i];
+      _arrows[i] = (body: a.body, hall: a.hall, age: a.age + dt);
+    }
+    for (final (MapHall hall, Vector3 at) in breaks) {
+      _breakOff(hall, at);
+    }
+  }
+
+  /// How long an arrow is let fly before it is taken to have gone off the
+  /// map, s: longer than any lob over a hall's range.
+  static const double _arrowFlies = 10.0;
+
+  /// The brands the fires loft this step, while few enough burn
+  /// ([_mostFires]), and [pieces] brought up to them: a new brand drawn, a
+  /// spent one no longer.
+  void _loft(double dt) {
+    if (world.fires().length < _mostFires) _brands.step(dt);
+    final aloft = _brands.brands.toSet();
+    pieces.removeWhere(
+      (MapPiece p) => p.kind == PieceKind.brand && !aloft.contains(p.body),
+    );
+    final drawn = <NativeBody>{
+      for (final MapPiece p in pieces)
+        if (p.kind == PieceKind.brand) p.body,
+    };
+    final size = Vector3.all(_brand.shape.first);
+    for (final NativeBody body in _brands.brands) {
+      if (!drawn.contains(body)) {
+        pieces.add(MapPiece._(body, PieceKind.brand, size.clone()));
+      }
+    }
   }
 
   /// A tree burnt out, from what the step said.
@@ -1358,75 +1509,16 @@ final class MapWorld {
     }
   }
 
-  /// Brands thrown up from the tips of the flames, now and then, into the
-  /// wind: burning tinder that a wood downwind of a fire catches from.
-  void _throwBrands(double dt) {
-    final int brands = pieces
-        .where((MapPiece p) => p.kind == PieceKind.brand)
-        .length;
-    if (brands >= _mostBrands) return;
-    final List<NativeFire> fires = world.fires();
-    if (fires.length >= _mostFires) return;
-    var thrown = brands;
-    for (final NativeFire fire in fires) {
-      if (thrown >= _mostBrands) return;
-      // A big fire throws more: about one every four seconds from a
-      // megawatt.
-      final double megawatts = fire.power / 1e6;
-      if (_random.nextDouble() > dt * megawatts / 4.0) continue;
-      final Vector3 tip = fire.at + fire.axis * (fire.reach * 0.4);
-      final Vector3 air = world.windAt(tip);
-      // A brand is tinder out of the flame, alight as it leaves it: the
-      // flame it was in is where it starts, not a law. It burns on its
-      // own fuel, and what it comes down in, its flame lights.
-      const double radius = 0.03;
-      final body = world.addBody(
-        position: tip,
-        mass: 200.0 * 4.0 / 3.0 * math.pi * radius * radius * radius,
-      );
-      world
-        ..setShape(body, const NativeShape.sphere(radius))
-        ..setMaterial(body, dry)
-        ..setVelocity(
-          body,
-          // The wind at the flame's tip, a fifth over, as the brand leaves:
-          // a velocity scaled, not the air's density.
-          air * 1.2 +
-              Vector3(
-                (_random.nextDouble() - 0.5) * 3.0,
-                1.0 + 2.5 * _random.nextDouble(),
-                (_random.nextDouble() - 0.5) * 3.0,
-              ),
-        )
-        ..setTemperature(body, dry.flameTemperature);
-      pieces.add(MapPiece._(body, PieceKind.brand, Vector3.all(radius)));
-      thrown++;
-    }
-  }
-
-  /// A stone at its wall breaks pieces off it, a brand in a crown lights
-  /// it; burnt-out and grounded brands and the oldest stones are taken out.
+  /// A brand in a crown lights it; grounded brands and the oldest stones
+  /// are taken out.
   void _fly(double dt, StrategySimulation simulation) {
-    // Struck after the walk, not during it: what breaks off a wall is more
-    // pieces, and the list being walked is theirs.
-    final struck = <(MapHall, Vector3)>[];
     for (final MapPiece piece in pieces) {
       piece._age += dt;
-      final MapHall? hall = piece._aim;
-      if (hall == null) continue;
-      final Vector3 at = world.localPositionOf(piece.body);
-      if (hall.building.distanceTo(at.x, at.z) < 0.7 || piece._age > 1.5) {
-        piece._aim = null;
-        if (piece._age <= 1.5) struck.add((hall, at));
-      }
-    }
-    for (final (MapHall hall, Vector3 at) in struck) {
-      _breakOff(hall, at);
     }
 
     // A brand lights a crown it comes down in with its own flame; the crown
     // it is in is given a body for that, if the viewing side has found it.
-    // Burnt out, or on the ground, it is gone.
+    // On the ground, it is gone; burnt out, the brands let it go.
     pieces.removeWhere((MapPiece piece) {
       if (piece.kind != PieceKind.brand) return false;
       final Vector3 at = world.localPositionOf(piece.body);
@@ -1435,10 +1527,8 @@ final class MapWorld {
         _bare.remove(crown);
         _grow(crown);
       }
-      final bool gone =
-          world.fuelOf(piece.body) <= 0.0 ||
-          at.y < _field.heightAt(at.x, at.z) + 0.05;
-      if (gone) world.removeBody(piece.body);
+      final bool gone = at.y < _field.heightAt(at.x, at.z) + 0.05;
+      if (gone) _brands.remove(piece.body);
       return gone;
     });
 
@@ -1566,6 +1656,10 @@ final class MapWorld {
       for (final h in _held)
         <Object>[h.body.raw, h.at.x, h.at.y, h.at.z, h.left],
     ],
+    'arrows': <List<Object>>[
+      for (final _Arrow a in _arrows) <Object>[a.body.raw, a.hall.index, a.age],
+    ],
+    'brands': _brands.save(),
   };
 
   /// Back to what [_save] wrote. A snapshot the core will not take — one
@@ -1666,6 +1760,24 @@ final class MapWorld {
                 left: left.toDouble(),
               ),
       ]);
+    _arrows
+      ..clear()
+      ..addAll(<_Arrow>[
+        if (data['arrows'] case final List<Object?> all)
+          for (final Object? row in all)
+            if (row case [
+              final num raw,
+              final num hall,
+              final num age,
+              ...,
+            ] when hall >= 0 && hall < halls.length)
+              (
+                body: NativeBody(raw.toInt()),
+                hall: halls[hall.toInt()],
+                age: age.toDouble(),
+              ),
+      ]);
+    _brands.restore(data['brands']);
     _events.clear();
   }
 
