@@ -48,17 +48,17 @@ void main() {
       );
 
   test('an agent opens, edits, undoes and saves the pendulum', () async {
-    final none = await call('experiment_list', const <String, Object?>{});
+    final none = await call('experiment.list', const <String, Object?>{});
     expect(none.did, isFalse);
 
-    final opened = await call('experiment_open', <String, Object?>{
+    final opened = await call('experiment.open', <String, Object?>{
       'path': experiment,
     });
     expect(opened.did, isTrue, reason: opened.says);
     expect(opened.says, contains('parameter length = 1.0 m from 0.2 m'));
     expect(opened.says, contains('step 1 shorten: set length 0.25 m'));
 
-    final edited = await call('experiment_edit', <String, Object?>{
+    final edited = await call('experiment.edit', <String, Object?>{
       'edit': 'setParameter',
       'arguments': <String, Object?>{'id': 'length', 'value': '1.5 m'},
     });
@@ -66,18 +66,18 @@ void main() {
     expect(edited.did, isTrue, reason: edited.says);
     expect(session.experiment!.document.parameter('length')!.value.value, 1.5);
 
-    final refused = await call('experiment_edit', <String, Object?>{
+    final refused = await call('experiment.edit', <String, Object?>{
       'edit': 'removeProbe',
       'arguments': <String, Object?>{'id': 'period'},
     });
     expect(refused.did, isFalse);
     expect(refused.says, contains('not a probe'));
 
-    final undone = await call('experiment_undo', const <String, Object?>{});
+    final undone = await call('experiment.undo', const <String, Object?>{});
     expect(undone.says, contains('set parameter length'));
-    await call('experiment_undo', <String, Object?>{'redo': true});
+    await call('experiment.undo', <String, Object?>{'redo': true});
 
-    final saved = await call('experiment_save', const <String, Object?>{});
+    final saved = await call('experiment.save', const <String, Object?>{});
     expect(saved.did, isTrue);
     expect(
       ExperimentDocument.parse(
@@ -90,14 +90,14 @@ void main() {
   test('a document outside the project is neither read nor written', () async {
     File('${sandbox.path}/stray.f3d.experiment').writeAsStringSync('{}');
     // Mutation: read the path unresolved.
-    final outside = await call('experiment_open', <String, Object?>{
+    final outside = await call('experiment.open', <String, Object?>{
       'path': '${sandbox.path}/stray.f3d.experiment',
     });
     expect(outside.did, isFalse);
     expect(outside.says, contains('outside the project'));
 
-    await call('experiment_open', <String, Object?>{'path': experiment});
-    final escaping = await call('experiment_save', <String, Object?>{
+    await call('experiment.open', <String, Object?>{'path': experiment});
+    final escaping = await call('experiment.save', <String, Object?>{
       'path': '../../escaped.f3d.experiment',
     });
     expect(escaping.did, isFalse);
@@ -114,7 +114,7 @@ void main() {
         '"probe": "speed"',
       ),
     );
-    final refused = await call('experiment_open', <String, Object?>{
+    final refused = await call('experiment.open', <String, Object?>{
       'path': experiment,
     });
     expect(refused.did, isFalse);

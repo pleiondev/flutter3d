@@ -74,14 +74,14 @@ void main() {
       'setCutscene',
       'removeCutscene',
       // What the project's plugins brought, and their importers.
-      'plugins',
-      'import',
+      'plugin.list',
+      'asset.import',
       // The experiment document beside the level.
-      'experiment_open',
-      'experiment_list',
-      'experiment_edit',
-      'experiment_undo',
-      'experiment_save',
+      'experiment.open',
+      'experiment.list',
+      'experiment.edit',
+      'experiment.undo',
+      'experiment.save',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),

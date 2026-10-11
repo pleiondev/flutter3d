@@ -1443,7 +1443,7 @@ List<EditorTool> get editorTools => <EditorTool>[
   ),
   _told(
     mcpTool(
-      name: 'plugins',
+      name: 'plugin.list',
       description:
           'What the project\'s plugins brought to this editor: their commands '
           'with the arguments each takes (each is also a tool of its own, '
@@ -1457,7 +1457,7 @@ List<EditorTool> get editorTools => <EditorTool>[
   ),
   _told(
     mcpTool(
-      name: 'import',
+      name: 'asset.import',
       description:
           'Bring a file into the project through the plugin importer its '
           'suffix names: the files it writes land in the project, and what '
@@ -1487,7 +1487,7 @@ List<EditorTool> get editorTools => <EditorTool>[
 List<EditorTool> get _experimentTools => <EditorTool>[
   _told(
     mcpTool(
-      name: 'experiment_open',
+      name: 'experiment.open',
       description:
           'Open an experiment document (.f3d.experiment) inside the project '
           'for the other experiment tools, and list what is in it: its '
@@ -1504,7 +1504,7 @@ List<EditorTool> get _experimentTools => <EditorTool>[
   ),
   _told(
     mcpTool(
-      name: 'experiment_list',
+      name: 'experiment.list',
       description:
           'The open experiment, one line per substance, parameter, probe and '
           'step, each step with what it sets, how long it runs and what it '
@@ -1516,7 +1516,7 @@ List<EditorTool> get _experimentTools => <EditorTool>[
   ),
   _told(
     mcpTool(
-      name: 'experiment_edit',
+      name: 'experiment.edit',
       description:
           'Change the open experiment by one edit, named under `edit` with '
           'its own arguments: ${experimentEditNames.join(', ')}. A quantity '
@@ -1552,7 +1552,7 @@ List<EditorTool> get _experimentTools => <EditorTool>[
   ),
   _told(
     mcpTool(
-      name: 'experiment_undo',
+      name: 'experiment.undo',
       description:
           'Take back the open experiment\'s last edit, or with redo true make '
           'the last one taken back again.',
@@ -1567,7 +1567,7 @@ List<EditorTool> get _experimentTools => <EditorTool>[
   ),
   _told(
     mcpTool(
-      name: 'experiment_save',
+      name: 'experiment.save',
       description:
           'Write the open experiment over the file it came from, or to a '
           'path inside the project.',

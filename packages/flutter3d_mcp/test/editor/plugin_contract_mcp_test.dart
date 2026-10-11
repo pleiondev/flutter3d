@@ -221,7 +221,7 @@ void main() {
   });
 
   test('plugin.list says what the plugins brought', () async {
-    final answer = await call('plugins', const <String, Object?>{});
+    final answer = await call('plugin.list', const <String, Object?>{});
     // Mutation: leave the commands out of the listing.
     expect(answer.says, contains('boats.raise: type (text), by (number)'));
     expect(answer.says, contains('boats.buoyancy "Buoyancy"'));
@@ -232,7 +232,7 @@ void main() {
     'asset.import writes inside the project and places in the level',
     () async {
       File('${project.path}/skiff.hull').writeAsStringSync('keel');
-      final answer = await call('import', <String, Object?>{
+      final answer = await call('asset.import', <String, Object?>{
         'path': '${project.path}/skiff.hull',
         'at': <double>[3.0, 0.0, 3.0],
       });
@@ -248,7 +248,7 @@ void main() {
 
       // Mutation: write the importer's files unresolved.
       File('${project.path}/escape.bad').writeAsStringSync('x');
-      final escaping = await call('import', <String, Object?>{
+      final escaping = await call('asset.import', <String, Object?>{
         'path': '${project.path}/escape.bad',
       });
       expect(escaping.did, isFalse);
@@ -256,13 +256,13 @@ void main() {
 
       // A file outside the project is not read.
       File('${sandbox.path}/stray.hull').writeAsStringSync('x');
-      final outside = await call('import', <String, Object?>{
+      final outside = await call('asset.import', <String, Object?>{
         'path': '${sandbox.path}/stray.hull',
       });
       expect(outside.did, isFalse);
       expect(outside.says, contains('outside the project'));
 
-      final unknown = await call('import', <String, Object?>{
+      final unknown = await call('asset.import', <String, Object?>{
         'path': '${project.path}/skiff.glb',
       });
       expect(unknown.says, contains('.hull'));
