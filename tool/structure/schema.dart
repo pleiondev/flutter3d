@@ -1,5 +1,6 @@
 /// What a change to the tools a package offers an agent means for its version
-/// number, read from two `.mcp` or two `.vm` snapshots.
+/// number, read from two `.mcp`, two `.vm` or two `.hub` snapshots (the
+/// model hub's protocol, written in the `.mcp` format).
 ///
 /// **The same verdicts as `api.dart`, for a different kind of caller.** An
 /// agent's host config names a tool, a prompt tells a model which arguments
@@ -807,6 +808,33 @@ List<(String, String)> proveSchemaDetectorsWork() {
     ),
     Bump.major,
     'a VM extension alias dropped',
+  );
+
+  // An answer a caller reads: what the model hub's protocol leans on.
+  const answer =
+      'tool look\n  says Looks.\n'
+      '  out {"properties":{"a":{"type":"string"},"b":{"type":"integer"}},'
+      '"required":["a"],"type":"object"}\n';
+  expect(
+    verdict(answer, answer.replaceFirst('"b":{"type":"integer"}', '"c":{}')),
+    Bump.major,
+    'a field gone from an answer',
+  );
+  expect(
+    verdict(answer, answer.replaceFirst('"required":["a"],', '')),
+    Bump.major,
+    'a required field of an answer made optional',
+  );
+  expect(
+    verdict(
+      answer,
+      answer.replaceFirst(
+        '"b":{"type":"integer"}',
+        '"b":{"type":"integer"},"d":{"type":"string"}',
+      ),
+    ),
+    Bump.minor,
+    'a field added to an answer',
   );
 
   // Additions, and what moves nothing.

@@ -31,6 +31,9 @@ dependencies:
   # `flutter3d_build`'s plugin author server, built like the rest.
   flutter3d_build: ^1.0.0-rc.1
   flutter3d_editor_core: ^1.0.0-rc.1
+  # The model hub's protocol, read off `HubProtocol` into
+  # `api/flutter3d_hub.hub`.
+  flutter3d_hub: ^1.0.0-rc.1
   flutter3d_mcp: ^1.0.0-rc.1
   flutter3d_model_core: ^1.0.0-rc.1
   flutter3d_sim: ^1.0.0-rc.1

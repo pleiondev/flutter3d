@@ -16,6 +16,7 @@ library;
 import 'package:flutter3d_build/flutter3d_build.dart'
     show PluginAuthorMcpServer, PluginWorkshop;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart' show Editing;
+import 'package:flutter3d_hub/flutter3d_hub.dart' show HubEndpoint, HubProtocol;
 import 'package:flutter3d_mcp/editor.dart';
 import 'package:flutter3d_mcp/kit.dart';
 import 'package:flutter3d_mcp/model.dart';
@@ -73,3 +74,35 @@ Future<List<ServerSurface>> liveSurfaces(String package) async {
   }
   return out;
 }
+
+/// Every server protocol a package declares, by package: what goes into
+/// its `api/<package>.hub`.
+///
+/// **Read off the package's own constants**, the way a server's tools are
+/// read off the server: `HubProtocol.endpoints` is what the hub's client
+/// and its tests are held to, so the snapshot cannot say something the
+/// client does not.
+final Map<String, ServerSurface Function()> liveProtocols =
+    <String, ServerSurface Function()>{'flutter3d_hub': hubProtocolSurface};
+
+/// The model hub's protocol as one server with an exchange per tool.
+ServerSurface hubProtocolSurface() => <String, Object?>{
+  'name': 'flutter3d.hub',
+  'schemaVersion': '${HubProtocol.version}.0',
+  'aliases': const <String, String>{},
+  'tools': <Object?>[
+    for (final HubEndpoint e in HubProtocol.endpoints)
+      <String, Object?>{
+        'name': e.name,
+        'description': e.description,
+        // An exchange changes nothing a client can see, and asking twice
+        // answers the same: versions are immutable.
+        'annotations': const <String, Object?>{
+          'readOnlyHint': true,
+          'idempotentHint': true,
+        },
+        'inputSchema': e.request,
+        'outputSchema': e.response,
+      },
+  ],
+};
