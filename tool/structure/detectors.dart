@@ -1112,11 +1112,18 @@ List<String> _markerValue(
   return out;
 }
 
-/// Whether [source] declares a class that implements `GraphicsDevice`, which
-/// is what makes a package a backend. The declaration may span lines, as
+/// Whether [source] declares a class that is a `GraphicsDevice`, which is
+/// what makes a package a backend: one that `extends` it, as every backend
+/// has since the device became an `abstract base class` in 1.0, or one that
+/// `implements` it, as they did before. The declaration may span lines, as
 /// `CpuDevice`'s `with` clause makes it.
-bool implementsGraphicsDevice(String source) => RegExp(
-  r'^(?:[a-z]+ )*class \w+[^{;]*?\bimplements\b[^{;]*?\bGraphicsDevice\b(?!\w)',
+///
+/// **It read `implements` alone until 1.0.0-rc.1**, and every backend had
+/// moved to `extends` by then, so the rule it serves found no backend at all
+/// and held `SUPPORT.md` to nothing.
+bool declaresGraphicsDevice(String source) => RegExp(
+  r'^(?:[a-z]+ )*class \w+[^{;]*?\b(?:extends|implements)\b[^{;]*?'
+  r'\bGraphicsDevice\b(?!\w)',
   multiLine: true,
 ).hasMatch(source);
 
@@ -1158,14 +1165,19 @@ Set<String> foreignSrcImports(String source, String own) => <String>{
 /// What [source], a file [depth] directories below the root of an example
 /// written as from outside the repository (`examples/<name>/`), reaches
 /// that a project outside the repository could not: another package's
-/// `src/`, and a relative path out of the example (into `packages/`, say).
-/// [own] is the example's own package name.
+/// `src/`, another package's `internal.dart` (what the engine's packages
+/// share among themselves and nobody else builds on), and a relative path
+/// out of the example (into `packages/`, say). [own] is the example's own
+/// package name.
 Set<String> outsideExampleReaches(
   String source, {
   required String own,
   required int depth,
 }) => <String>{
   for (final package in foreignSrcImports(source, own)) 'package:$package/src/',
+  for (final library in restrictedLibrariesIn(source))
+    if (library.endsWith('/internal.dart') && packageOfUri(library) != own)
+      library,
   for (final match in RegExp(
     r'''^\s*(?:import|export|part)\s+['"]([^'":]+)['"]''',
     multiLine: true,
@@ -1216,6 +1228,24 @@ List<String> outsideExamplePubspecProblems(
 
 String _notByPath(String package) =>
     '$package is not reached by `path: ../../packages/$package`';
+
+/// What is wrong between the examples [onDisk] (`examples/<name>/` with a
+/// pubspec) and the ones the root pubspec's `workspace:` [listed], as
+/// `(name, why)`: one on disk the workspace leaves out, and one listed that
+/// is not there.
+List<(String, String)> exampleMembershipProblems(
+  Set<String> onDisk,
+  Set<String> listed,
+) => <(String, String)>[
+  for (final name in onDisk.difference(listed).toList()..sort())
+    (
+      name,
+      'is not in the root pubspec\'s `workspace:`, so nothing analyses or '
+          'tests it',
+    ),
+  for (final name in listed.difference(onDisk).toList()..sort())
+    (name, 'is in the workspace and not on disk with a pubspec'),
+];
 
 // ---------------------------------------------------- the published boundary
 
@@ -2168,6 +2198,32 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'outside example',
+    exampleMembershipProblems(
+      const <String>{'outside_plugin', 'flutter3d_backend_null'},
+      const <String>{'outside_plugin'},
+    ).any(((String, String) p) => p.$1 == 'flutter3d_backend_null'),
+    'an example on disk the workspace leaves out',
+  );
+  quiet(
+    'outside example',
+    exampleMembershipProblems(
+      const <String>{'outside_plugin'},
+      const <String>{'outside_plugin'},
+    ).isEmpty,
+    'every example on disk listed',
+    'the workspace and the directory agree',
+  );
+  fires(
+    'outside example',
+    outsideExampleReaches(
+      "import 'package:flutter3d_shaders/internal.dart';\n",
+      own: 'flutter3d_backend_null',
+      depth: 1,
+    ).contains('package:flutter3d_shaders/internal.dart'),
+    "an engine package's internal.dart",
+  );
+  fires(
+    'outside example',
     outsideExampleReaches(
       "import '../../../packages/flutter3d_sim/lib/flutter3d_sim.dart';\n",
       own: 'outside_plugin',
@@ -2528,16 +2584,24 @@ List<Finding> proveDetectorsWork() {
   );
   fires(
     'backend',
-    implementsGraphicsDevice(
+    declaresGraphicsDevice(
       'final class CpuDevice\n'
       '    with DeviceCapabilityForwarders\n'
       '    implements GraphicsDevice {\n',
     ),
     'a device declared over three lines',
   );
+  fires(
+    'backend',
+    declaresGraphicsDevice(
+      'final class NullDevice extends GraphicsDevice\n'
+      '    with SynchronousBufferReadback {\n',
+    ),
+    'a device that extends the base class, as every backend does since 1.0',
+  );
   quiet(
     'backend',
-    !implementsGraphicsDevice(
+    !declaresGraphicsDevice(
       'final class Probe implements GraphicsDeviceFactory {}\n',
     ),
     'a longer name that starts the same',
@@ -2545,8 +2609,8 @@ List<Finding> proveDetectorsWork() {
   );
   quiet(
     'backend',
-    !implementsGraphicsDevice(
-      'final class Frame implements Pass {\n'
+    !declaresGraphicsDevice(
+      'final class Frame extends Pass {\n'
       '  final GraphicsDevice device;\n',
     ),
     'a field of the type inside another class',
@@ -2813,6 +2877,45 @@ List<Finding> proveDetectorsWork() {
     }).isEmpty,
     'a tool on a tool, and a game on the runtime under it',
     'only the runtime is held to it, and only against the tools',
+  );
+
+  // The applications: a demo on an editor's core is found, the modeller on
+  // its own document layer is not; and an application on another is in its
+  // own layer, which the layers refuse.
+  final applicationsOnTools = runtimeToolDependencies(
+    <String, Set<String>>{
+      'flutter3d_lesson_viewer': <String>{'flutter3d_editor_core'},
+      'flutter3d_modeler': <String>{'flutter3d_model_core'},
+    },
+    runtime: isRuntimeApplication,
+    tools: runtimeMayNotDependOn.keys.toSet(),
+  );
+  fires(
+    'the runtime is not a tool',
+    applicationsOnTools.contains((
+      'flutter3d_lesson_viewer',
+      'flutter3d_editor_core',
+    )),
+    'a lesson viewer depending on the editor\'s core',
+  );
+  quiet(
+    'the runtime is not a tool',
+    applicationsOnTools.length == 1,
+    'the modeller on its document layer',
+    'an application that is a tool is not the runtime',
+  );
+  fires(
+    'the layers',
+    layerProblems(
+      <String, Set<String>>{
+        'demo_a': <String>{'demo_b', 'f'},
+        'demo_b': <String>{'f'},
+        'f': <String>{},
+      },
+      layers: <String, int>{'f': 0, 'demo_a': 9, 'demo_b': 9},
+      forbidden: const <String, Map<String, String>>{},
+    ).any(((String, String?, String) p) => p.$2 == 'demo_b'),
+    'an application depending on another application',
   );
 
   // Nothing at 1.x stands on 0.x (S6). Mutation: compare the major with `>`
@@ -3157,6 +3260,90 @@ List<Finding> proveDetectorsWork() {
     'the physics declared, or the facade that carries it',
     'a dependency or an allowed facade is the declaration; the SDK\'s name '
         'and the package\'s own are not asked about',
+  );
+
+  // A hook is compiled against the run-time dependencies alone: a dev
+  // dependency or a package named nowhere is the finding, the package's own
+  // library and the SDK's are not.
+  const hook =
+      "import 'dart:io';\n"
+      "import 'package:flutter3d_build/flutter3d_build.dart';\n"
+      "import 'package:hooks/hooks.dart';\n"
+      "import 'package:demo/assets.dart';\n";
+  fires(
+    'declare what you name',
+    undeclaredHookImports(
+      hook,
+      own: 'demo',
+      dependencies: const <String>{'flutter3d_app'},
+    ).containsAll(const <String>{'flutter3d_build', 'hooks'}),
+    'a hook importing a dev dependency and an undeclared package',
+  );
+  quiet(
+    'declare what you name',
+    undeclaredHookImports(
+      hook,
+      own: 'demo',
+      dependencies: const <String>{'flutter3d_build', 'hooks'},
+    ).isEmpty,
+    'a hook whose imports are all dependencies, its own and the SDK\'s',
+    'what the pubspec lists is what the hook is compiled against',
+  );
+
+  // A demo that declares a package's type is a copy; one whose name only a
+  // pub.dev package also has, or that is allowed with its reason, is not.
+  final copies = applicationCopies(
+    const <String, Set<String>>{
+      'demo': <String>{'ElementSounds', 'Key', 'RaceState', 'OpenKind'},
+    },
+    homes: const <String, String>{
+      'ElementSounds': 'flutter3d_game_physics',
+      'Key': 'flutter3d_game',
+      'OpenKind': 'flutter3d_sim',
+    },
+    allowed: const <String, String>{'demo: OpenKind': 'waits'},
+  );
+  fires(
+    'an application declares no type a package publishes',
+    copies.any(((String, String, String) c) => c.$2 == 'ElementSounds'),
+    'a demo declaring the game physics\' ElementSounds',
+  );
+  quiet(
+    'an application declares no type a package publishes',
+    copies.length == 1,
+    'a name of its own, one Flutter also declares, and an allowed copy',
+    'only a package\'s name, unallowed and not also the SDK\'s, is a copy',
+  );
+
+  // An application hands on only what it depends on.
+  final handedOn = applicationReexportProblems(
+    const <String, Map<String, List<({String uri, bool named})>>>{
+      'demo': <String, List<({String uri, bool named})>>{
+        'apps/demo/lib/src/backend.dart': <({String uri, bool named})>[
+          (uri: 'package:flutter3d_app/flutter3d_app.dart', named: false),
+          (uri: 'package:flutter3d_net/flutter3d_net.dart', named: true),
+          (uri: 'package:vector_math/vector_math.dart', named: false),
+        ],
+      },
+    },
+    repository: const <String>{'flutter3d_app', 'flutter3d_net'},
+    dependencies: const <String, Set<String>>{
+      'demo': <String>{'flutter3d_app', 'vector_math'},
+    },
+  );
+  fires(
+    'a package re-exports another only where the list allows it',
+    handedOn.any(
+      ((String, String, String) p) => p.$3.contains('flutter3d_net'),
+    ),
+    'an application re-exporting a package it does not depend on',
+  );
+  quiet(
+    'a package re-exports another only where the list allows it',
+    handedOn.length == 1,
+    'an application re-exporting its own dependency, and one from pub.dev',
+    'an application is nobody\'s library; what it depends on it may hand '
+        'its own files',
   );
 
   fires(

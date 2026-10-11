@@ -244,6 +244,30 @@ List<(String, String, String)> reexportProblems(
             ),
 ];
 
+/// What is wrong with [exports] (each application's `lib/` files, by
+/// application, with the package exports each makes) against [dependencies]
+/// (each application's run-time ones), as `(application, file, why)`: a
+/// re-export of a package of [repository] the application does not depend
+/// on. A re-export of one it does depend on is its own files' plumbing.
+List<(String, String, String)> applicationReexportProblems(
+  Map<String, Map<String, List<({String uri, bool named})>>> exports, {
+  required Set<String> repository,
+  required Map<String, Set<String>> dependencies,
+}) => <(String, String, String)>[
+  for (final app in exports.keys.toList()..sort())
+    for (final file in exports[app]!.keys.toList()..sort())
+      for (final export in exports[app]![file]!)
+        if (packageOfUri(export.uri) case final target
+            when repository.contains(target) &&
+                !(dependencies[app]?.contains(target) ?? false))
+          (
+            app,
+            file,
+            're-exports $target, which $app does not depend on: an '
+                'application hands on only what its own pubspec lists',
+          ),
+];
+
 /// Rule 2 of `tasks/1.0-boundaries.md`: the dependencies among
 /// [dependencies] (each package's run-time sibling dependencies) that its
 /// shipped code only re-exports — named by an `export` of [exported] and by
@@ -376,3 +400,99 @@ const Map<String, String> typeNamesDeclaredOutside = <String, String>{
       '`analysis_server_plugin`, which the lints\' analyzer plugin registers '
       'its rules with',
 };
+
+// ------------------------------------------------------------------ hooks
+
+/// The packages the build hook [source] imports that [dependencies] (its
+/// package's `dependencies:`, the run-time ones) does not list, [own] and
+/// the SDK's libraries aside.
+///
+/// **A hook is compiled against what the package depends on, and only
+/// that.** The Flutter tool runs `hook/build.dart` in the package's own
+/// resolution, where a dev dependency is not there for a package somebody
+/// else depends on, and a package named nowhere is there only while some
+/// other dependency happens to bring it. Three demos imported the build tool
+/// (a dev dependency) and `hooks` (undeclared): they built in this
+/// repository's workspace and would not have built anywhere else.
+Set<String> undeclaredHookImports(
+  String source, {
+  required String own,
+  required Set<String> dependencies,
+}) => <String>{
+  for (final match in RegExp(
+    r"""^\s*import\s+['"]package:(\w+)/""",
+    multiLine: true,
+  ).allMatches(source))
+    if (match.group(1)! != own && !dependencies.contains(match.group(1)))
+      match.group(1)!,
+};
+
+/// Hook imports of a package its `dependencies:` does not list yet, as
+/// `'<package> -> <imported>'`, each with why it waits. An entry no hook
+/// imports that way any more is a finding, so the list only shrinks.
+const Map<String, String> hookImportsPending = <String, String>{
+  'flutter3d_demo_dungeon -> flutter3d_build':
+      'the demo hooks move to `flutter3d_build_hooks`, with `hooks` '
+      'declared, when each demo moves onto the 1.0 entry points',
+  'flutter3d_demo_dungeon -> hooks': 'as the build tool above',
+  'flutter3d_demo_platformer -> flutter3d_build': 'as the dungeon\'s',
+  'flutter3d_demo_platformer -> hooks': 'as the dungeon\'s',
+  'flutter3d_demo_racing -> flutter3d_build': 'as the dungeon\'s',
+  'flutter3d_demo_racing -> hooks': 'as the dungeon\'s',
+};
+
+// ------------------------------------------------------- applications' copies
+
+/// The types each application of [declared] (by application, the names its
+/// shipped code declares) declares under a name a published package
+/// declares ([homes], each name with its one package), as
+/// `(application, name, package)`, leaving out those [allowed] names as
+/// `'<application>: <name>'`.
+///
+/// **An application declaring a package's type is a copy of the engine.**
+/// The demos carried their own `ElementSounds`, `OpenKind` and
+/// `LessonPlayer` beside the packages' for as long as nothing compared
+/// them, and a fix to the package's reached none of the copies. A name the
+/// SDK or a pub.dev package also declares ([typeNamesDeclaredOutside]) is
+/// not asked about: the application may well mean that one.
+/// Copies of a package's type an application still declares, as
+/// `'<application>: <Name>'`, each with why it waits. An entry that is no
+/// longer such a copy is a finding, so the list only shrinks.
+const Map<String, String> applicationCopiesPending = <String, String>{
+  'flutter3d_demo_racing: ElementSounds':
+      'the racing game\'s copy of the sounds folded into '
+      '`flutter3d_game_physics`; it goes when the game moves onto the 1.0 '
+      'entry points',
+  'flutter3d_demo_racing: Looks':
+      'the game\'s own materials under the name of the editor\'s look '
+      'mapping: renamed when the game moves',
+  'flutter3d_demo_river: Level':
+      'the river\'s level table under the simulation\'s name for a level '
+      'document: renamed when the game moves',
+  'flutter3d_demo_river: RunState':
+      'the river\'s run under the platformer genre\'s name: renamed when the '
+      'game moves',
+  'flutter3d_demo_sandbox: Facing':
+      'a block face\'s step under the name of the simulation\'s actor '
+      'heading: renamed when the game moves',
+  'flutter3d_demo_sandbox: Surface':
+      'a block\'s colour record under the name of the software shaders\' '
+      'surface: renamed when the game moves',
+  'flutter3d_lesson_viewer: OpenKind':
+      'the viewer\'s copy of the open entity kind; it goes when the viewers '
+      'come off their copies',
+  'flutter3d_stereo_lesson_viewer: OpenKind': 'as the lesson viewer\'s',
+};
+
+List<(String, String, String)> applicationCopies(
+  Map<String, Set<String>> declared, {
+  required Map<String, String> homes,
+  required Map<String, String> allowed,
+}) => <(String, String, String)>[
+  for (final app in declared.keys.toList()..sort())
+    for (final name in declared[app]!.toList()..sort())
+      if (homes[name] case final home?
+          when !allowed.containsKey('$app: $name') &&
+              !typeNamesDeclaredOutside.containsKey(name))
+        (app, name, home),
+];

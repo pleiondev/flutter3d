@@ -362,6 +362,26 @@ bool isRuntimePackage(String package) =>
       'flutter3d_audio_core',
     }.contains(package);
 
+/// The layer every application stands in: one above the highest package's,
+/// so an application may depend on any package and on no other application.
+int get applicationLayer =>
+    packageLayers.values.fold<int>(0, (int a, int b) => a > b ? a : b) + 1;
+
+/// The applications that are tools rather than something a player or a
+/// learner runs, each with why. Every other application is held to the
+/// runtime's rule.
+const Map<String, String> toolApplications = <String, String>{
+  'flutter3d_editor':
+      'the level editor: its document layer, its servers and its Play are '
+      'what it is',
+  'flutter3d_modeler':
+      'the modeller: its document layer and its agent server are what it is',
+};
+
+/// Whether the application [app] is part of the runtime: a demo, a lesson
+/// viewer, a laboratory or the showcase, anything not in [toolApplications].
+bool isRuntimeApplication(String app) => !toolApplications.containsKey(app);
+
 /// The tools no runtime package may depend on at run time, each with why:
 /// the editors, the build tool, the agent servers and the modeller's core.
 const Map<String, String> runtimeMayNotDependOn = <String, String>{
@@ -384,6 +404,11 @@ const Map<String, String> runtimeToolDependencyAllowed = <String, String>{
       'process the Flutter tool starts at build time, and a hook can import '
       'only the package\'s `dependencies:`; nothing under `lib/` names it, '
       'so no game\'s code is compiled against the material compiler',
+  'flutter3d_showcase -> flutter3d_build':
+      'the showcase\'s lightmap page bakes a lightmap in front of its viewer '
+      'with the build tool\'s baker (`package:flutter3d_build/lightmap.dart`); '
+      'the showcase is the engine\'s tour, and that page is the tour of a '
+      'build step',
 };
 
 /// **Rule 7 of `tasks/1.0-boundaries.md`: the runtime is not a tool.** The

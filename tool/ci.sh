@@ -467,7 +467,12 @@ done
 
 # The examples written as from outside the repository: the outside sample
 # plugin, which holds the default simulation to a racing tape recorded
-# before fields and subsystems, and earns the plugin suite's badge.
+# before fields and subsystems, and earns the plugin suite's badge; and the
+# reference backend, `flutter3d_backend_null`, which passes the conformance
+# suite on published libraries alone and is what `flutter3d create plugin
+# --kind backend` copies. The structure rule "the repository lists agree
+# with the workspace" holds every one of them to the workspace and to this
+# loop.
 for example in examples/*/; do
   [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$example")" in_dir "$example" flutter test
