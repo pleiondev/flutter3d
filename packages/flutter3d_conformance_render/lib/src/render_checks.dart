@@ -1,6 +1,7 @@
 /// The render checks: a plugin's points in the frame, drawn on a device.
 library;
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
@@ -62,10 +63,20 @@ const List<String> pluginRenderCheckNames = <String>[
 
 const int _size = 32;
 
+/// Opens the device a check draws on: a call, or an `await` where the
+/// backend opens with one (WebGPU).
+typedef RenderCheckDevice = FutureOr<GraphicsDevice> Function();
+
+/// The stages a plugin ships for [device], beside the device's own: a
+/// library loaded from the plugin's bundle, or null when the device already
+/// answers them.
+typedef RenderCheckMaterials =
+    FutureOr<ShaderLibrary?> Function(GraphicsDevice device);
+
 /// One renderer with the plugin installed into it on a fresh device.
 final class _Stage {
-  _Stage(this.device, Flutter3dPlugin plugin)
-    : renderer = Renderer.create(device: device) {
+  _Stage(this.device, Flutter3dPlugin plugin, {ShaderLibrary? materials})
+    : renderer = Renderer.create(device: device, materials: materials) {
     loop = EngineLoop(
       input: InputState(),
       registries: <PluginRegistry>[renderer.renderSteps],
@@ -172,20 +183,32 @@ String _describe(Object error) => switch (error) {
   _ => '$error',
 };
 
-/// Runs every render check of [points] on devices [device] makes, one fresh
+/// Runs every render check of [points] on devices [device] opens, one fresh
 /// device a check, and returns what each found under [backend]'s name.
 ///
 /// **Pictures where the device draws them.** A device that draws the same
 /// picture with a box as without one (a recording fake) is held to the
 /// structure alone: the parts of a check that compare pictures are
 /// declined, saying so, and a declined check is never green.
+///
+/// **[materials] is the plugin's stages on a GPU backend**: the library a
+/// device loaded from the plugin's bundle (`GraphicsDevice.loadShaders`),
+/// which the renderer consults before the device's own. Left out, the
+/// device itself answers the plugin's stage names, as a software device
+/// built with them does.
 Future<List<PluginCheckOutcome>> checkPluginRender(
   Flutter3dPlugin Function() create, {
-  required GraphicsDevice Function() device,
+  required RenderCheckDevice device,
   required PluginRenderPoints points,
   required String backend,
+  RenderCheckMaterials? materials,
 }) async {
-  final probe = _Stage(device(), create());
+  Future<_Stage> stage() async {
+    final opened = await device();
+    return _Stage(opened, create(), materials: await materials?.call(opened));
+  }
+
+  final probe = await stage();
   final draws = !_same(
     await probe.picture(probe.scene()),
     await probe.picture(Scene()..add(probe.camera)),
@@ -209,7 +232,7 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
     Future<PluginCheckOutcome> Function(_Stage stage) run,
   ) async {
     try {
-      return await run(_Stage(device(), create()));
+      return await run(await stage());
     } on Object catch (error) {
       return outcome(check, false, 'drawing it threw: ${_describe(error)}');
     }

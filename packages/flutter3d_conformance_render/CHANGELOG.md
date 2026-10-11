@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **The render checks run on a GPU backend.** `device:` is a
+  `RenderCheckDevice`, which may open with an `await` as WebGPU does, and
+  `materials:` (a `RenderCheckMaterials`) hands the renderer the plugin's
+  stages loaded from its bundle on that device, consulted before the
+  device's own.
 - **New: the render checks, as a package of their own.**
   `runPluginRenderConformance` and `checkPluginRender` draw a plugin's
   points in the frame on a backend, named by `PluginRenderPoints`: its
