@@ -209,7 +209,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-58 packages and 17 applications in one pub workspace, with the
+59 packages and 17 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -240,7 +240,8 @@ point of §3.3.
 | `flutter3d_webgl` | The WebGL2 backend, and GLSL translated from `flutter3d_shaders` |
 | `flutter3d_webgpu` | The WebGPU backend, and WGSL with its reflection, translated from `flutter3d_shaders`. The only backend whose shaders are not the same text the others read |
 | `flutter3d_cpu` | A software rasteriser: a second reference, and rendering with no GPU |
-| `flutter3d_conformance` | The contract suite every backend passes |
+| `flutter3d_conformance` | The contract suite every backend passes, and the plugin suite of the loop (`plugins.dart`) |
+| `flutter3d_conformance_render` | The render checks: a plugin's points in the frame drawn through the renderer on a backend. Apart from the contract suite because it needs `flutter3d_core`, which a backend's dev dependency on the suite should not pull in |
 | `flutter3d_shaders` | The GLSL the three hardware backends compile (WebGPU after translating it to WGSL), the list of required entry points, a separate manifest of compute stages, and the tables generated from the compiler's reflection: what each stage keeps, each block's layout, a class per block ([§2](#2-the-constraints-that-shape-the-design)) |
 | `flutter3d` | The engine's thin Flutter shell over `flutter3d_core`: `BundleAssetSource`, `defaultImageDecoder`, `ModelAsset`, `bindMaterial`. Re-exports, by name, what an application spells of the core, the graphics vocabulary and the foundation's value types; not the simulation, the physics or the audio, which a game names or takes through `flutter3d_game` |
 | `flutter3d_core` | The engine's rendering core with no Flutter SDK behind it (mcp-03n): scene graph, render list, passes, materials, animation, and asset loading down to an injected reader or decoder — and two libraries under it that import on their own: `geometry.dart`, the mesh vocabulary every decoder and every editable mesh share (`MeshData`, `VertexLayout`, tangents, morph targets, `TriangleBvh`), and `formats.dart`, model documents, their decoders (glTF, OBJ, STL, `.f3d`, and FBX refused with a reason) and writers (the same four and `.usdz`) as `ModelDecoder`/`ModelWriter` values, material files, and the PNG, JPEG and zlib codecs a texture needs ([§8.1](#81-model-decoding), [§8.6](#86-writers)). Plain Dart |
@@ -3662,7 +3663,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13919 tests** across 58 packages and 17 applications |
+| Unit tests | **13928 tests** across 59 packages and 17 applications |
 | Structure rules | 78, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -4749,7 +4750,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  58 packages, the unpublished ones included — `pub publish
+  59 packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -4789,7 +4790,8 @@ the same layer first:
 7. L6: `flame_multiplayer`, `flutter3d_editor_core`, `flutter3d_elements`,
    `flutter3d_game_platformer`, `flutter3d_game_racing`,
    `flutter3d_game_shooter`, `flutter3d_model_core`, `flutter3d_net_webrtc`,
-   `flutter3d_plugin_runtime`, `flutter3d_app`, `flutter3d_testing`
+   `flutter3d_plugin_runtime`, `flutter3d_app`, `flutter3d_testing`,
+   `flutter3d_conformance_render`
 8. L7: `flame_multiplayer_dashwire`, `flutter3d_effects`, `flutter3d_game`,
    `flutter3d_game_kit`, `flutter3d_game_strategy`, `flutter3d_mcp`,
    `flutter3d_stereo`

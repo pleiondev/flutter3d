@@ -3,13 +3,12 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
 import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' show EngineLoop, InputState;
 import 'package:vector_math/vector_math.dart';
-
-import 'harness.dart';
 
 /// What a plugin adds to the frame, named for the render checks: each one
 /// set is drawn and checked, each one left null is not asked.

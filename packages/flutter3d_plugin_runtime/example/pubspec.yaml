@@ -34,9 +34,11 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../flutter3d_cpu
 
-  # The loop the plugin is installed into, and the conformance suite it is
-  # held to.
+  # The loop the plugin is installed into, the conformance suite it is held
+  # to, and the render checks that draw its points in the frame.
   flutter3d_sim:
     path: ../../flutter3d_sim
   flutter3d_conformance:
     path: ../../flutter3d_conformance
+  flutter3d_conformance_render:
+    path: ../../flutter3d_conformance_render

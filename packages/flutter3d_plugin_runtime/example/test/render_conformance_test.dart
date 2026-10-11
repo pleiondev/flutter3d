@@ -1,5 +1,5 @@
 /// The sample plugin's points in the frame, drawn: the render checks of
-/// `flutter3d_conformance` on the backends a VM can draw on.
+/// `flutter3d_conformance_render` on the backends a VM can draw on.
 ///
 ///     dart test test/render_conformance_test.dart
 ///
@@ -22,7 +22,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_conformance/plugin_render.dart';
+import 'package:flutter3d_conformance_render/flutter3d_conformance_render.dart';
 import 'package:flutter3d_cpu/builtin.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/testing.dart';

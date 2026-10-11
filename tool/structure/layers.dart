@@ -79,6 +79,7 @@ const Map<String, int> packageLayers = <String, int>{
   'flutter3d_app': 6,
   'flutter3d_editor_core': 6,
   'flutter3d_testing': 6,
+  'flutter3d_conformance_render': 6,
   'flutter3d_net_webrtc': 6,
   'flame_multiplayer': 6,
   // L7: the game facade, the kits, the genres, and the tools over the

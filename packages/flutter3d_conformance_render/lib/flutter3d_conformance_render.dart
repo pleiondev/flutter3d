@@ -1,14 +1,17 @@
 /// A plugin's points in the frame, drawn on a backend: the render checks.
 ///
-/// **The third part of this package.** `flutter3d_conformance.dart` holds a
-/// backend to the hardware contract and `plugins.dart` holds a plugin to the
-/// loop's; this draws what a plugin adds to the frame on a device, through
-/// the renderer, and checks that each point does what it says on that
-/// backend. A plugin runs it from its own suite once per backend it ships
-/// for:
+/// **The third part of the conformance suite, and a package of its own.**
+/// `flutter3d_conformance` holds a backend to the hardware contract and,
+/// through `plugins.dart`, a plugin to the loop's; this draws what a plugin
+/// adds to the frame on a device, through the renderer, and checks that
+/// each point does what it says on that backend. It is apart because it
+/// needs the renderer (`flutter3d_core`), which neither the backends'
+/// contract suite nor the loop's needs, so a backend that runs the contract
+/// as a dev dependency does not pull the engine in. A plugin runs it from
+/// its own suite once per backend it ships for:
 ///
 /// ```dart
-/// import 'package:flutter3d_conformance/plugin_render.dart';
+/// import 'package:flutter3d_conformance_render/flutter3d_conformance_render.dart';
 ///
 /// void main() => runPluginRenderConformance(
 ///   HairPlugin.new,
@@ -39,16 +42,15 @@
 /// structure: the parts that compare pictures are declined, saying so.
 library;
 
+import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dPlugin;
 import 'package:test/test.dart';
 
-import 'src/plugins/harness.dart';
-import 'src/plugins/render_checks.dart';
+import 'src/render_checks.dart';
 
-export 'src/plugins/harness.dart' show PluginCheckOutcome;
-export 'src/plugins/render_checks.dart'
+export 'src/render_checks.dart'
     show PluginRenderPoints, checkPluginRender, pluginRenderCheckNames;
 
 /// The render checks of [points] as tests, one a check, for the plugin

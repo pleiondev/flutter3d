@@ -98,6 +98,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flutter3d_build_hooks` | linux, macos, windows |
 | `flutter3d_camera` | android, ios, linux, macos, web, windows |
 | `flutter3d_conformance` | android, ios, linux, macos, web, windows |
+| `flutter3d_conformance_render` | android, ios, linux, macos, web, windows |
 | `flutter3d_core` | android, ios, linux, macos, web, windows |
 | `flutter3d_cpu` | android, ios, linux, macos, web, windows |
 | `flutter3d_editor_core` | android, ios, linux, macos, web, windows |
