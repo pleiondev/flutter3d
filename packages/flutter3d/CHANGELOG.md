@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Exports `WebDecodeWorker`**, so a web application starts the browser's
+  decode worker (`WebDecodeWorker.use`) from the one import it loads models
+  through.
 - **Exports the model hub's client types**: `HubAssetSource` from the core,
   and `HubReference`, `HubReferenceFormatException`, `HubCachePolicy`,
   `HubRefusal` and `HubRefusedException` from `flutter3d_hub`, by name.
