@@ -54,6 +54,14 @@ jobs:
       # and a test fails when the bundle is missing.
       - run: flutter precache --linux
 
+      # `tool/ci.sh`'s "impeller on linux" builds the conformance harness as
+      # a Linux desktop application and runs it under Xvfb, through
+      # Impeller's OpenGL ES backend (D56).
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev xvfb
+
       # `tool/check_icons.py` redraws the four applications' icons and compares
       # them with the committed ones. Without Pillow it says so and exits
       # non-zero, so that step failed on every run for the reason it could not

@@ -182,6 +182,24 @@ step "webgpu shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/gen
 # and naga. The same shape of check: regenerate, and fail on any difference.
 step "webgpu compute shaders" bash -c 'cd packages/flutter3d_webgpu && dart run tool/generate_compute_shaders.dart >/dev/null && git diff --exit-code -- lib/src/engine_compute_shaders.dart'
 
+# **Impeller on Linux, through OpenGL ES (D56).** Linux drew nothing through
+# Impeller for as long as the engine's stages read `gl_VertexID`, which GLSL
+# ES 1.00 does not have; they read the index from an attribute on that target
+# now, and this is the run that says the driver agrees. The conformance harness
+# under Xvfb, which is Mesa's llvmpipe: no GPU, and the strictest GLES the
+# repository meets. Linux only, and on Linux it fails rather than skips
+# without `xvfb-run` and the GTK headers, for the reason the shader steps
+# above give.
+if [[ "$(uname -s)" == Linux ]]; then
+  step "impeller on linux" bash -c '
+    command -v xvfb-run >/dev/null || { echo "needs xvfb-run (apt install xvfb)"; exit 1; }
+    pkg-config --exists gtk+-3.0 || { echo "needs the GTK 3 headers (apt install libgtk-3-dev)"; exit 1; }
+    (cd packages/flutter3d_impeller && dart run bin/build_shader_bundle.dart >/dev/null) &&
+    (cd packages/flutter3d/example && ./tool/build_shaders.sh >/dev/null) &&
+    xvfb-run -a packages/flutter3d_impeller/tool/conformance.sh --linux
+  '
+fi
+
 # `G1`: the engine's data tables are generated and seeded, so running the
 # generator again must write the same bytes the test pins by hash.
 step "engine tables" bash -c 'cd packages/flutter3d_core && dart run tool/make_tables.dart >/dev/null && git diff --exit-code -- lib/src/engine/render/tables'
