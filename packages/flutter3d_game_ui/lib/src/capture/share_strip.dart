@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../access/text_scale.dart';
 import '../l10n/game_localizations.dart';
+import '../theme/game_ui_theme.dart';
 
 /// Sharing, where a run can be shared or opened: a button that files the
 /// run just played and says its code, and a field that takes somebody
@@ -73,13 +75,26 @@ class _ShareStripState extends State<ShareStrip> {
   Widget build(BuildContext context) {
     final share = widget.onShare;
     final words = Flutter3dGameLocalizations.of(context);
+    final theme = GameUiTheme.of(context);
+    return Theme(
+      data: theme.controlsTheme(Theme.of(context)),
+      child: _strip(context, share, words, theme),
+    );
+  }
+
+  Widget _strip(
+    BuildContext context,
+    Future<String> Function()? share,
+    Flutter3dGameLocalizations words,
+    GameUiTheme theme,
+  ) {
     return Material(
-      color: const Color(0xCC101418),
+      color: theme.scrim,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: SizedBox(
-          width: 260,
+          width: textScaledWidth(context, 260),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,10 +112,12 @@ class _ShareStripState extends State<ShareStrip> {
                     child: TextField(
                       key: const ValueKey<String>('share:code'),
                       controller: _code,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: theme.text),
                       decoration: InputDecoration(
                         isDense: true,
                         hintText: widget.codeHint ?? words.aFriendsCode,
+                        // Wraps rather than trails off at a large text size.
+                        hintMaxLines: 3,
                       ),
                     ),
                   ),
@@ -116,10 +133,13 @@ class _ShareStripState extends State<ShareStrip> {
               ),
               if (_said case final String said) ...<Widget>[
                 const SizedBox(height: 8),
-                SelectableText(
-                  said,
-                  key: const ValueKey<String>('share:said'),
-                  style: const TextStyle(color: Colors.white),
+                Semantics(
+                  liveRegion: true,
+                  child: SelectableText(
+                    said,
+                    key: const ValueKey<String>('share:said'),
+                    style: TextStyle(color: theme.text),
+                  ),
                 ),
               ],
             ],

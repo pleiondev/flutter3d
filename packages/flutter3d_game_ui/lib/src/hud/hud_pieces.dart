@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../access/text_scale.dart';
 import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
 
@@ -43,7 +44,8 @@ class HudPanel extends StatelessWidget {
 /// `RECORD` wrapped: the panel showed `RECOR` above a lonely `D`. A fixed
 /// width rather than an intrinsic one because the lines are built
 /// independently and a column of labels that each measured itself would not
-/// line up, which is the thing this column is for.
+/// line up, which is the thing this column is for. Fixed for one text size:
+/// it grows with the platform's, so the label stays whole at twice it.
 class HudLine extends StatelessWidget {
   const HudLine({
     super.key,
@@ -75,18 +77,24 @@ class HudLine extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           SizedBox(
-            width: theme.hudLabelWidth,
-            child: Text(
-              label,
-              // One line, always: a label that outgrew the box would wrap
-              // rather than say so.
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                color: accent ? lit : theme.hudLabel,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
+            width: textScaledWidth(context, theme.hudLabelWidth, fontSize: 13),
+            // One line, always, and whole: a label that outgrew the box
+            // would wrap rather than say so, and one clipped to it would say
+            // `RECO`. A face wider than the one the column was measured for
+            // is scaled back into it.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  color: accent ? lit : theme.hudLabel,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                ),
               ),
             ),
           ),
@@ -110,13 +118,15 @@ class HudLine extends StatelessWidget {
 /// How a [HudTally] is drawn: the colour, and the size of its two lines.
 final class HudTallyStyle {
   const HudTallyStyle({
-    this.color = Colors.white,
+    this.color,
     this.valueSize = 30,
     this.labelSize = 12,
     this.tabular = false,
   });
 
-  final Color color;
+  /// The value's colour; null for [GameUiTheme.text]. The label under it is
+  /// [GameUiTheme.label].
+  final Color? color;
 
   /// The value's font size, in logical pixels.
   final double valueSize;
@@ -132,6 +142,9 @@ final class HudTallyStyle {
 /// A big number with a small label under it — `12` over `COINS` — read by a
 /// screen reader as one thing, `"coins 12"`, rather than as two unrelated
 /// numbers in a row of numbers.
+///
+/// **On a [GameUiTheme.panel]**, as every line of the heads-up display is: a
+/// white number with a shadow under it was a white number on a white sky.
 class HudTally extends StatelessWidget {
   const HudTally({
     super.key,
@@ -145,69 +158,86 @@ class HudTally extends StatelessWidget {
   final HudTallyStyle style;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '$label $value',
-    excludeSemantics: true,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          value,
-          style: TextStyle(
-            color: style.color,
-            fontSize: style.valueSize,
-            fontWeight: FontWeight.w600,
-            fontFeatures: style.tabular
-                ? const <FontFeature>[FontFeature.tabularFigures()]
-                : null,
-            shadows: const <Shadow>[
-              Shadow(blurRadius: 8, color: Colors.black87),
+  Widget build(BuildContext context) {
+    final theme = GameUiTheme.of(context);
+    return Semantics(
+      label: '$label $value',
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.panel,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                value,
+                style: TextStyle(
+                  color: style.color ?? theme.text,
+                  fontSize: style.valueSize,
+                  fontWeight: FontWeight.w600,
+                  fontFeatures: style.tabular
+                      ? const <FontFeature>[FontFeature.tabularFigures()]
+                      : null,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: theme.label,
+                  fontSize: style.labelSize,
+                  letterSpacing: 2,
+                ),
+              ),
             ],
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            color: style.color.withValues(alpha: 0.7),
-            fontSize: style.labelSize,
-            letterSpacing: 2,
-          ),
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
-/// A sentence across the middle of the screen, on a dark rounded box: what
-/// the game is waiting for, or what just happened.
+/// A sentence across the middle of the screen, on a [GameUiTheme.panel]:
+/// what the game is waiting for, or what just happened.
+///
+/// **Said aloud when it changes.** A banner is the game talking to the
+/// player, so it is a live region: a screen reader reads the new sentence
+/// without being asked.
 class HudBanner extends StatelessWidget {
-  const HudBanner(
-    this.text, {
-    super.key,
-    this.color = Colors.white,
-    this.fontSize = 18,
-  });
+  const HudBanner(this.text, {super.key, this.color, this.fontSize = 18});
 
   final String text;
-  final Color color;
+
+  /// The text's colour; null for [GameUiTheme.text].
+  final Color? color;
 
   /// The text's font size, in logical pixels.
   final double fontSize;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      color: Colors.black.withValues(alpha: 0.55),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-      child: Text(
-        text,
-        style: TextStyle(color: color, fontSize: fontSize),
+  Widget build(BuildContext context) {
+    final theme = GameUiTheme.of(context);
+    return Semantics(
+      liveRegion: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.panel,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          child: Text(
+            text,
+            style: TextStyle(color: color ?? theme.text, fontSize: fontSize),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// A speed in kilometres an hour, large, from metres a second.
@@ -237,11 +267,11 @@ class Speedometer extends StatelessWidget {
       children: <Widget>[
         Text(
           '${kphOf(metersPerSecond)}',
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: GameUiTheme.of(context).text,
             fontSize: 48,
             fontWeight: FontWeight.w800,
-            fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
           ),
         ),
         const SizedBox(width: 6),

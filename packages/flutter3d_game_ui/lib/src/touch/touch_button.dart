@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../theme/game_ui_theme.dart';
+import 'touch_face.dart';
 
 /// A button that holds an action down while a finger is on it: round for a
 /// thumb's cluster, or a pedal ([TouchButton.pedal]) for a control held
@@ -136,15 +137,12 @@ class _TouchButtonState extends State<TouchButton> {
     child: SizedBox(
       width: widget.radius * 2,
       height: widget.radius * 2,
-      child: Center(
-        child: Text(
+      child: Padding(
+        padding: EdgeInsets.all(widget.radius * 0.25),
+        child: TouchFace(
           widget.label,
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-          style: TextStyle(
-            color: GameUiTheme.of(context).touchGlyph,
-            fontSize: math.min(15.0, widget.radius * 0.5),
-          ),
+          color: GameUiTheme.of(context).touchGlyph,
+          fontSize: math.min(15.0, widget.radius * 0.5),
         ),
       ),
     ),
@@ -160,15 +158,12 @@ class _TouchButtonState extends State<TouchButton> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: theme.touchOutline),
       ),
-      alignment: Alignment.center,
-      child: Text(
+      padding: const EdgeInsets.all(8),
+      child: TouchFace(
         widget.label,
-        textDirection: TextDirection.ltr,
-        style: TextStyle(
-          color: theme.touchGlyph,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        color: theme.touchGlyph,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -190,11 +185,22 @@ class _ButtonPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()..color = down ? theme.touchPressed : theme.touchFill,
-    );
+    // A dark face and a light rim: whichever the frame behind is, one of the
+    // two stands out from it (`GameUiTheme.contrastPairs`).
+    canvas
+      ..drawCircle(
+        center,
+        radius,
+        Paint()..color = down ? theme.touchPressed : theme.touchFill,
+      )
+      ..drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = theme.touchOutline,
+      );
   }
 
   @override

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
 
 /// A strip a thumb slides along to steer: one analogue axis, as two actions'
@@ -13,9 +14,10 @@ import '../theme/game_ui_theme.dart';
 /// turned: [left] gets the distance left of centre, [right] the distance right
 /// of it, each from 0 to 1.
 ///
-/// Not labelled for a screen reader: a wheel under a reader is a gesture nobody
-/// can perform. The pedals are labelled, because they are buttons — see
-/// `TouchButton.pedal`.
+/// Named for a screen reader ([label]), although a wheel under a reader is a
+/// gesture nobody can perform: a player with low vision whose reader is on
+/// meets "steering" rather than an unnamed strip. The pedals are labelled
+/// too, and they are buttons — see `TouchButton.pedal`.
 class SteeringBand extends StatefulWidget {
   const SteeringBand({
     super.key,
@@ -25,7 +27,12 @@ class SteeringBand extends StatefulWidget {
     this.width = 220.0,
     this.height = 72.0,
     this.axis,
+    this.label,
   });
+
+  /// What a screen reader calls it; null for
+  /// [Flutter3dGameLocalizations.steering] in the player's language.
+  final String? label;
 
   final InputState state;
   final GameAction left;
@@ -101,7 +108,12 @@ class _SteeringBandState extends State<SteeringBand> {
   }
 
   @override
-  Widget build(BuildContext context) => Listener(
+  Widget build(BuildContext context) => Semantics(
+    label: widget.label ?? Flutter3dGameLocalizations.of(context).steering,
+    child: _listener(),
+  );
+
+  Widget _listener() => Listener(
     behavior: HitTestBehavior.opaque,
     onPointerDown: (PointerDownEvent event) {
       if (_pointer != null) return;
@@ -157,12 +169,14 @@ class _BandPainter extends CustomPainter {
       ..drawLine(
         Offset(size.width / 2, middle - 18),
         Offset(size.width / 2, middle + 18),
-        Paint()..color = theme.touchHeld,
+        Paint()..color = theme.touchOutline,
       )
+      // The thumb in the knob's colour, which keeps its contrast against the
+      // track (`GameUiTheme.contrastPairs`).
       ..drawCircle(
         Offset(size.width / 2 * (1 + at), middle),
         20,
-        Paint()..color = theme.touchPressed,
+        Paint()..color = theme.touchKnob,
       );
   }
 

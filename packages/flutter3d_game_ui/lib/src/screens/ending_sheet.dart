@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/game_localizations.dart';
+import '../theme/game_ui_theme.dart';
 import 'credits.dart';
 
 /// One number on a scoreboard and what it counts.
@@ -32,7 +33,7 @@ class EndingSheet extends StatelessWidget {
     required this.again,
     this.creditsHeading,
     this.creditsFootnote,
-    this.titleColor = Colors.white,
+    this.titleColor,
     this.backdrop = 0.86,
     this.valueStyle = defaultValueStyle,
     this.aside,
@@ -61,13 +62,14 @@ class EndingSheet extends StatelessWidget {
   /// cannot drift apart.
   final String again;
 
-  final Color titleColor;
+  /// The sentence's colour; null for [GameUiTheme.text].
+  final Color? titleColor;
 
-  /// How dark the sheet is over the level, nought to one.
+  /// How opaque [GameUiTheme.sheet] is over the level, nought to one.
   final double backdrop;
 
-  /// How each tally's number is drawn; its label is always the small line
-  /// under it.
+  /// How each tally's number is drawn, over [GameUiTheme.text]; its label
+  /// is always the small line under it.
   final TextStyle valueStyle;
 
   /// One line in amber under the tallies, or null: something the numbers do
@@ -77,81 +79,80 @@ class EndingSheet extends StatelessWidget {
   /// Anything after the line about playing again.
   final List<Widget> trailing;
 
-  /// A number thirty points high, white and bold.
+  /// A number thirty points high and bold, in [GameUiTheme.text].
   static const TextStyle defaultValueStyle = TextStyle(
-    color: Colors.white,
     fontSize: 30,
     fontWeight: FontWeight.w600,
   );
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: Colors.black.withValues(alpha: backdrop),
-    child: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                title,
-                style: TextStyle(
-                  color: titleColor,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 20),
-              // `Wrap` and not `Row`: four tallies at a large text size is a
-              // row that runs off a handset held in landscape, and the numbers
-              // are the part of this screen somebody with low vision most
-              // wants to read.
-              Wrap(
-                spacing: 28,
-                runSpacing: 12,
-                children: <Widget>[
-                  for (final tally in tallies)
-                    TallyView(tally: tally, valueStyle: valueStyle),
-                ],
-              ),
-              if (aside case final said?) ...<Widget>[
-                const SizedBox(height: 12),
+  Widget build(BuildContext context) {
+    final theme = GameUiTheme.of(context);
+    return ColoredBox(
+      color: theme.sheet.withValues(alpha: backdrop),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
                 Text(
-                  said,
+                  title,
                   style: TextStyle(
-                    color: Colors.amber.withValues(alpha: 0.85),
-                    fontSize: 12,
+                    color: titleColor ?? theme.text,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 2,
                   ),
                 ),
-              ],
-              const SizedBox(height: 26),
-              CreditsSection(
-                credits: credits,
-                heading:
-                    creditsHeading ??
-                    Flutter3dGameLocalizations.of(context).artInThisGame,
-                footnote: creditsFootnote,
-              ),
-              const SizedBox(height: 22),
-              Text(
-                again,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.75),
-                  fontSize: 14,
-                  letterSpacing: 1,
+                const SizedBox(height: 20),
+                // `Wrap` and not `Row`: four tallies at a large text size is a
+                // row that runs off a handset held in landscape, and the numbers
+                // are the part of this screen somebody with low vision most
+                // wants to read.
+                Wrap(
+                  spacing: 28,
+                  runSpacing: 12,
+                  children: <Widget>[
+                    for (final tally in tallies)
+                      TallyView(tally: tally, valueStyle: valueStyle),
+                  ],
                 ),
-              ),
-              ...trailing,
-            ],
+                if (aside case final said?) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    said,
+                    style: TextStyle(color: theme.notice, fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 26),
+                CreditsSection(
+                  credits: credits,
+                  heading:
+                      creditsHeading ??
+                      Flutter3dGameLocalizations.of(context).artInThisGame,
+                  footnote: creditsFootnote,
+                ),
+                const SizedBox(height: 22),
+                Text(
+                  again,
+                  style: TextStyle(
+                    color: theme.label,
+                    fontSize: 14,
+                    letterSpacing: 1,
+                  ),
+                ),
+                ...trailing,
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// One [EndingTally] drawn: the number, and under it what it counts.
@@ -169,22 +170,28 @@ class TallyView extends StatelessWidget {
   final TextStyle valueStyle;
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: '${tally.label} ${tally.value}',
-    excludeSemantics: true,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(tally.value, style: valueStyle),
-        Text(
-          tally.label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 12,
-            letterSpacing: 2,
+  Widget build(BuildContext context) {
+    final theme = GameUiTheme.of(context);
+    return Semantics(
+      label: '${tally.label} ${tally.value}',
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            tally.value,
+            style: TextStyle(color: theme.text).merge(valueStyle),
           ),
-        ),
-      ],
-    ),
-  );
+          Text(
+            tally.label,
+            style: TextStyle(
+              color: theme.label,
+              fontSize: 12,
+              letterSpacing: 2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

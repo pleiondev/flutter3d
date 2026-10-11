@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
+import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
 
 /// A stick under a thumb, reporting into a [DualAxisAction] — walking,
@@ -12,9 +13,17 @@ class TouchStick extends StatefulWidget {
     required this.state,
     this.radius = 64.0,
     this.action = DualAxisAction.move,
+    this.label,
   });
 
   final InputState state;
+
+  /// What a screen reader calls it; null for
+  /// [Flutter3dGameLocalizations.stick] in the player's language. A stick
+  /// under a reader is not a gesture anybody can perform, but a player with
+  /// low vision whose reader is on meets "move" rather than an unnamed
+  /// circle.
+  final String? label;
 
   /// The radius, in logical pixels.
   final double radius;
@@ -81,6 +90,13 @@ class _TouchStickState extends State<TouchStick> {
   @override
   Widget build(BuildContext context) {
     final size = widget.radius * 2;
+    return Semantics(
+      label: widget.label ?? Flutter3dGameLocalizations.of(context).stick,
+      child: _listener(size),
+    );
+  }
+
+  Widget _listener(double size) {
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (PointerDownEvent event) {

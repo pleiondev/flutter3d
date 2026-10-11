@@ -283,6 +283,12 @@ base class Flutter3dGameLocalizations {
   String get brake => 'brake';
   String get handbrake => 'handbrake';
 
+  /// What a screen reader calls a thumb stick that walks.
+  String get stick => 'move';
+
+  /// What a screen reader calls a steering band.
+  String get steering => 'steering';
+
   // ── Photo mode ────────────────────────────────────────────────────────────
 
   String get takingThePicture => 'Taking the picture…';
@@ -520,6 +526,10 @@ final class _Russian extends Flutter3dGameLocalizations {
   String get brake => 'тормоз';
   @override
   String get handbrake => 'ручник';
+  @override
+  String get stick => 'движение';
+  @override
+  String get steering => 'руль';
 
   @override
   String get takingThePicture => 'Снимаем…';

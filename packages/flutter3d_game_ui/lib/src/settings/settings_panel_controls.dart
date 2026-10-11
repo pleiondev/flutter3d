@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
+import '../access/text_scale.dart';
 import '../l10n/game_localizations.dart';
 import '../theme/game_ui_theme.dart';
 import 'action_bindings_section.dart' show ActionBindingsSection;
@@ -55,7 +56,7 @@ class SettingsValueSlider extends StatelessWidget {
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 96,
+            width: textScaledWidth(context, 96),
             child: Text(
               label,
               style: TextStyle(color: GameUiTheme.of(context).label),
@@ -69,11 +70,14 @@ class SettingsValueSlider extends StatelessWidget {
               onChanged: onChanged,
             ),
           ),
-          SizedBox(
-            width: 52,
+          // At least the width it was measured for, and as wide as the number
+          // needs: a number is not a word to break across two lines.
+          ConstrainedBox(
+            constraints: BoxConstraints(minWidth: textScaledWidth(context, 52)),
             child: Text(
               max <= 1.0 ? value.toStringAsFixed(2) : value.round().toString(),
               textAlign: TextAlign.right,
+              softWrap: false,
               style: TextStyle(color: GameUiTheme.of(context).faint),
             ),
           ),
@@ -172,7 +176,7 @@ class SettingsSwitchRow extends StatelessWidget {
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 140,
+            width: textScaledWidth(context, 140),
             child: Text(
               label,
               style: TextStyle(color: GameUiTheme.of(context).label),
@@ -206,7 +210,7 @@ class SettingsChoiceRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         SizedBox(
-          width: 140,
+          width: textScaledWidth(context, 140),
           child: Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
@@ -251,16 +255,14 @@ class SettingsColourRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = GameUiTheme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: <Widget>[
           SizedBox(
-            width: 140,
-            child: Text(
-              label,
-              style: TextStyle(color: GameUiTheme.of(context).label),
-            ),
+            width: textScaledWidth(context, 140),
+            child: Text(label, style: TextStyle(color: theme.label)),
           ),
           Expanded(
             child: Wrap(
@@ -276,18 +278,24 @@ class SettingsColourRow extends StatelessWidget {
                     button: true,
                     child: GestureDetector(
                       key: ValueKey<String>('colour:$label:$i'),
+                      behavior: HitTestBehavior.opaque,
                       onTap: () => onChanged(i),
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: choices[i],
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: i == chosen
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.25),
-                            width: i == chosen ? 2.5 : 1,
+                      // The swatch is 22 pixels and the target round it 28,
+                      // over the 24 a pointer has to be given (WCAG 2.5.8).
+                      child: SizedBox.square(
+                        dimension: 28,
+                        child: Center(
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              color: choices[i],
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: i == chosen ? theme.text : theme.faint,
+                                width: i == chosen ? 2.5 : 1,
+                              ),
+                            ),
                           ),
                         ),
                       ),

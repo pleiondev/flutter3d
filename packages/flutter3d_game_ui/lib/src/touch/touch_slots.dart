@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import '../theme/game_ui_theme.dart';
+import 'touch_face.dart';
 
 /// One numbered slot, as the row draws it.
 final class TouchSlot {
@@ -128,21 +129,23 @@ class _Slot extends StatelessWidget {
             decoration: BoxDecoration(
               color: color,
               borderRadius: BorderRadius.circular(6.0),
+              // A rim, as the round controls have, so the slot is found over
+              // a frame of its own shade (`GameUiTheme.contrastPairs`).
+              border: Border.all(
+                color: held ? theme.touchOnGlyph : theme.touchOutline,
+                width: 1.5,
+              ),
             ),
-            child: Center(
-              child: Text(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: TouchFace(
                 slot.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textDirection: TextDirection.ltr,
-                style: TextStyle(
-                  color: held
-                      ? theme.touchOnGlyph
-                      : slot.owned
-                      ? theme.touchGlyph
-                      : theme.touchOutline,
-                  fontSize: 12.0,
-                ),
+                color: held
+                    ? theme.touchOnGlyph
+                    : slot.owned
+                    ? theme.touchGlyph
+                    : theme.touchOutline,
+                fontSize: 12.0,
               ),
             ),
           ),

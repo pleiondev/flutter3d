@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/game_ui_theme.dart';
 import 'credits.dart';
 
 /// What a game says before it starts: its name, one line about it, what the
@@ -66,18 +67,27 @@ class TitleSheet extends StatelessWidget {
   /// and not a [GestureDetector]: this must not enter the arena against the
   /// sheet's own scroll view, or a sheet too tall for the screen would begin
   /// the game on the first drag of a read.
+  ///
+  /// **And a button to a screen reader**, named by [prompt]: a touch anywhere
+  /// is a gesture a reader cannot make, so the sheet offers the same
+  /// beginning as the one action a reader's double tap performs.
   final VoidCallback? onBegin;
 
   @override
   Widget build(BuildContext context) {
     final begin = onBegin;
-    final sheet = _sheet();
+    final sheet = _sheet(GameUiTheme.of(context));
     if (begin == null) return sheet;
-    return Listener(onPointerDown: (_) => begin(), child: sheet);
+    return Semantics(
+      button: true,
+      label: prompt,
+      onTap: begin,
+      child: Listener(onPointerDown: (_) => begin(), child: sheet),
+    );
   }
 
-  Widget _sheet() => ColoredBox(
-    color: Colors.black.withValues(alpha: 0.78),
+  Widget _sheet(GameUiTheme theme) => ColoredBox(
+    color: theme.sheet,
     child: Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(32),
@@ -89,47 +99,35 @@ class TitleSheet extends StatelessWidget {
             children: <Widget>[
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: theme.text,
                   fontSize: 46,
                   fontWeight: FontWeight.w200,
                   letterSpacing: 6,
                 ),
               ),
               const SizedBox(height: 6),
-              Text(
-                tagline,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 15,
-                ),
-              ),
+              Text(tagline, style: TextStyle(color: theme.label, fontSize: 15)),
               const SizedBox(height: 22),
               for (final line in lines)
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
                     line,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: TextStyle(color: theme.text, fontSize: 14),
                   ),
                 ),
               if (notice case final said?) ...<Widget>[
                 const SizedBox(height: 14),
-                Text(
-                  said,
-                  style: TextStyle(
-                    color: Colors.amber.withValues(alpha: 0.85),
-                    fontSize: 14,
-                  ),
-                ),
+                Text(said, style: TextStyle(color: theme.notice, fontSize: 14)),
               ],
               const SizedBox(height: 26),
               CreditsSection(credits: credits, footnote: creditsFootnote),
               const SizedBox(height: 26),
               Text(
                 prompt,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: theme.text,
                   fontSize: 18,
                   letterSpacing: 1,
                 ),

@@ -64,18 +64,24 @@ class MiniMapPainter extends CustomPainter {
   const MiniMapPainter({
     required this.outline,
     required this.markers,
-    this.playerColor = const Color(0xFFFFFFFF),
-    this.othersColor = const Color(0xFFE0553F),
-    this.trackColor = const Color(0xFF7E8794),
+    this.playerColor,
+    this.othersColor,
+    this.trackColor,
   });
 
   final List<Vector2> outline;
   final List<Vector2> markers;
-  final Color playerColor;
-  final Color othersColor;
 
-  /// The course line's colour.
-  final Color trackColor;
+  /// The player's dot; null for [GameUiTheme.fallback]'s `miniMapPlayer`.
+  final Color? playerColor;
+
+  /// Everyone else's dots; null for [GameUiTheme.fallback]'s
+  /// `miniMapOthers`.
+  final Color? othersColor;
+
+  /// The course line's colour; null for [GameUiTheme.fallback]'s
+  /// `miniMapTrack`.
+  final Color? trackColor;
 
   /// Where [point] lands in a box of [size], or null when the outline has no
   /// extent to fit.
@@ -111,14 +117,18 @@ class MiniMapPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
-        ..color = trackColor,
+        ..color = trackColor ?? GameUiTheme.fallback.miniMapTrack,
     );
 
+    final player = Paint()
+      ..color = playerColor ?? GameUiTheme.fallback.miniMapPlayer;
+    final others = Paint()
+      ..color = othersColor ?? GameUiTheme.fallback.miniMapOthers;
     for (var i = 0; i < markers.length; i++) {
       canvas.drawCircle(
         place(markers[i], size)!,
         i == 0 ? 4.5 : 3.0,
-        Paint()..color = i == 0 ? playerColor : othersColor,
+        i == 0 ? player : others,
       );
     }
   }
