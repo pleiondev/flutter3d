@@ -19,6 +19,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_education/lab.dart';
 
+import 'src/lab_loading_screen.dart';
+import 'src/pendulum_lab_controls.dart';
 import 'src/pendulum_lab_panel.dart';
 
 void main() {
@@ -59,6 +61,10 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     startAngle: 0.9,
   );
   final ValueNotifier<double> _length = ValueNotifier<double>(1.2);
+
+  /// Whether the pendulum swings: paused by the student, or from the start
+  /// when the system asks for reduced motion ([PendulumLabControls]).
+  final ValueNotifier<bool> _running = ValueNotifier<bool>(true);
 
   /// Turns the display's frames into the lab's fixed steps.
   final LabClock _clock = LabClock();
@@ -187,10 +193,7 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
         flipY: true,
         child: PendulumLabPanel(
           lengthMeters: _length,
-          onChangeLength: (value) {
-            _pendulum.lengthMeters = value;
-            _length.value = value;
-          },
+          onChangeLength: _setLength,
         ),
       ),
     )..setPosition(Vector3(1.6, 1.9, -1.6));
@@ -206,6 +209,13 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
 
     _ticker = createTicker(_onTick)..start();
     if (mounted) setState(() => _renderer = Renderer.create(device: device));
+  }
+
+  /// The one number the lab changes, from the panel in the scene or from
+  /// the keyboard and screen reader through [PendulumLabControls] alike.
+  void _setLength(double value) {
+    _pendulum.lengthMeters = value;
+    _length.value = value;
   }
 
   void _placeBob() {
@@ -249,7 +259,9 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     // Stepped by the lab's own fixed step, through the clock, never by the
     // frame's: the swing on screen is the one a recorded run of this lab
     // has, on a 60 Hz display and a 120 Hz one alike.
-    _clock.advance(_pendulum, dt.clamp(0.0, 0.05));
+    // Paused, the frames still pass and the length still shows on the
+    // string; only the steps stop.
+    if (_running.value) _clock.advance(_pendulum, dt.clamp(0.0, 0.05));
     _placeBob();
     _placeString();
     unawaited(_panel.tick());
@@ -303,6 +315,8 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
   @override
   void dispose() {
     _ticker?.dispose();
+    _length.dispose();
+    _running.dispose();
     super.dispose();
   }
 
@@ -317,24 +331,24 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
       );
     }
     final renderer = _renderer;
-    if (renderer == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF14161A),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
+    if (renderer == null) return const LabLoadingScreen();
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
-      body: Listener(
-        onPointerDown: (PointerDownEvent event) =>
-            _tapPanel(event.localPosition),
-        child: SceneSurface(
-          renderer: renderer,
-          scene: _scene,
-          view: RenderView(camera: _camera),
-          settings: () => const RenderSettings(),
-          onBeforeFrame: () {},
-          presentFrame: presentFrame,
+      body: PendulumLabControls(
+        lengthMeters: _length,
+        onChangeLength: _setLength,
+        running: _running,
+        child: Listener(
+          onPointerDown: (PointerDownEvent event) =>
+              _tapPanel(event.localPosition),
+          child: SceneSurface(
+            renderer: renderer,
+            scene: _scene,
+            view: RenderView(camera: _camera),
+            settings: () => const RenderSettings(),
+            onBeforeFrame: () {},
+            presentFrame: presentFrame,
+          ),
         ),
       ),
     );
