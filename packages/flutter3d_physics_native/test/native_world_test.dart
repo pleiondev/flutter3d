@@ -117,8 +117,8 @@ void main() {
     // Mutation: integrate with the old velocity (explicit Euler) in the core
     // — two seconds of it is 0.33 m off.
     const dt = 1.0 / 60.0;
-    // The reference steps once a step; so does the core, given one substep.
-    world.substeps = 1;
+    // The core in its four substeps; the reference falls as they have a
+    // body fall when nothing pushes on it.
     final reference = Dynamics(
       world: CollisionWorld(),
       gravity: Vector3(0.0, -9.81, 0.0),

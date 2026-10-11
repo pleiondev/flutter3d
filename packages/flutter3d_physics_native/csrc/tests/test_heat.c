@@ -487,7 +487,9 @@ static void burn_beam(int upright, int when[5], f3d_real *second_part_peak) {
   f3d_body_set_part_temperature(w, b, 0, 690);
   for (int k = 0; k < 5; k++) when[k] = -1;
   *second_part_peak = 0;
-  for (int i = 0; i < 3000; i++) {
+  /* An hour and some: wood's flame, at the 11.1 MJ/kg measured of it,
+   * climbs a part in about twenty minutes. */
+  for (int i = 0; i < 4000; i++) {
     f3d_world_step(w, 1);
     for (int k = 0; k < 5; k++) {
       int on = 0;

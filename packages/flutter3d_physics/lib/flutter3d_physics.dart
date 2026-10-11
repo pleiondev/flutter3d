@@ -52,7 +52,7 @@ export 'src/cloth/xpbd_solver.dart';
 export 'src/collider.dart' hide fileColliderInWorld;
 export 'src/collision_shape.dart';
 export 'src/collision_world.dart';
-export 'src/contact.dart';
+export 'src/contact.dart' hide ContactLedger, contactPointBetween;
 export 'src/dynamics.dart';
 export 'src/fluid/buoyancy.dart' hide pushBodiesInDart;
 export 'src/fluid/capillary.dart';

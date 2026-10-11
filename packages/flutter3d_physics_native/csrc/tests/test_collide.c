@@ -385,6 +385,119 @@ static void test_contact_events(void) {
   f3d_world_destroy(w);
 }
 
+/* A ball dropped on a floor, through the reports: it begins at the speed
+ * it fell at, persists holding its weight, and ends when it is taken out —
+ * in either mode, and with nothing after a restore until the next step. */
+static void test_contact_reports(int fast) {
+  F3dWorld *w = f3d_world_create();
+  f3d_world_set_gravity(w, 0, F3D_R(-9.81), 0);
+  f3d_world_set_air(w, 293, F3D_R(1e-30));
+  f3d_world_set_fast(w, fast);
+  f3d_world_set_sleep(w, 0, 0);
+  const F3dBody floor = f3d_body_create(w, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 1);
+  f3d_body_set_shape(w, floor, F3D_SHAPE_BOX, 10, F3D_R(0.5), 10);
+  const F3dBody ball = add_shape(w, F3D_BODY_DYNAMIC, 1, f3d_v3(0, 1, 0), identity, 0.25);
+  f3d_real reals[4 * F3D_REPORT_FLOATS];
+  F3dBody pairs[8];
+  uint32_t parts[8];
+  int began = -1;
+  const f3d_real dt = F3D_R(1.0) / 60;
+  for (int i = 0; i < 120; i++) {
+    f3d_world_step(w, dt);
+    const uint32_t n = f3d_world_read_contact_reports(w, reals, pairs, parts, 4);
+    CHECK(n == f3d_world_contact_report_count(w));
+    if (n == 0) {
+      CHECK(began < 0);
+      continue;
+    }
+    CHECK(n == 1 && pairs[0] == floor && pairs[1] == ball && parts[0] == 0);
+    /* Out of the ball, the second, into the floor. */
+    CHECK_NEAR(reals[1], -1, 1e-4);
+    if (began < 0) {
+      began = i;
+      CHECK(parts[1] == F3D_CONTACT_BEGAN);
+      /* The floor's point against the ball's, which was falling: upwards,
+       * at about the speed a fall of three quarters of a metre ends at. */
+      CHECK(reals[8] > F3D_R(3.0) && reals[8] < F3D_R(4.2));
+      CHECK(reals[6] > 0);
+      CHECK_NEAR(reals[4], 0, 0.02);
+    } else {
+      CHECK(parts[1] == F3D_CONTACT_PERSISTED);
+    }
+  }
+  CHECK(began > 0);
+  /* At rest, a step's impulse is its weight over the step. */
+  CHECK(f3d_world_read_contact_reports(w, reals, pairs, parts, 4) == 1);
+  CHECK_NEAR(reals[6], 9.81 * dt, 0.01);
+  /* A restored world has no last step to report. */
+  uint8_t *snap = (uint8_t *)malloc(f3d_world_snapshot_size(w));
+  const uint32_t size = f3d_world_snapshot_write(w, snap, f3d_world_snapshot_size(w));
+  CHECK(f3d_world_restore(w, snap, size));
+  free(snap);
+  CHECK(f3d_world_contact_report_count(w) == 0);
+  f3d_world_step(w, dt);
+  CHECK(f3d_world_read_contact_reports(w, reals, pairs, parts, 4) == 1);
+  CHECK(parts[1] == F3D_CONTACT_PERSISTED);
+  /* Taken out: the contact ends, where it last was, pushing with nothing. */
+  f3d_body_destroy(w, ball);
+  f3d_world_step(w, dt);
+  CHECK(f3d_world_read_contact_reports(w, reals, pairs, parts, 4) == 1);
+  CHECK(parts[1] == F3D_CONTACT_ENDED && pairs[1] == ball);
+  CHECK(reals[6] == 0 && reals[7] == 0 && reals[8] == 0 && reals[9] == 0);
+  CHECK_NEAR(reals[4], 0, 0.01);
+  f3d_world_step(w, dt);
+  CHECK(f3d_world_contact_report_count(w) == 0);
+  f3d_world_destroy(w);
+}
+
+/* What the step before was in contact as goes into a snapshot and comes
+ * back with it: a world restored from one writes the same bytes, and steps
+ * on to the same reports, phases and all, as the world it was taken from —
+ * through a fall, a rest and a body taken out. */
+static void test_contact_phases_survive_a_restore(int fast) {
+  F3dWorld *a = f3d_world_create();
+  f3d_world_set_gravity(a, 0, F3D_R(-9.81), 0);
+  f3d_world_set_air(a, 293, F3D_R(1e-30));
+  f3d_world_set_fast(a, fast);
+  f3d_world_set_sleep(a, 0, 0);
+  const F3dBody floor = f3d_body_create(a, F3D_BODY_FIXED, 0, F3D_R(-0.5), 0, 1);
+  f3d_body_set_shape(a, floor, F3D_SHAPE_BOX, 10, F3D_R(0.5), 10);
+  const F3dBody ball = add_shape(a, F3D_BODY_DYNAMIC, 1, f3d_v3(0, 1, 0), identity, 0.25);
+  add_shape(a, F3D_BODY_DYNAMIC, 1, f3d_v3(F3D_R(1.0), F3D_R(0.6), 0), identity, 0.25);
+  const f3d_real dt = F3D_R(1.0) / 60;
+  f3d_real ra[8 * F3D_REPORT_FLOATS], rb[8 * F3D_REPORT_FLOATS];
+  F3dBody pa[16], pb[16];
+  uint32_t qa[16], qb[16];
+  int reported = 0;
+  for (int i = 0; i < 60; i++) {
+    if (i == 45) f3d_body_destroy(a, ball);
+    const uint32_t size = f3d_world_snapshot_size(a);
+    uint8_t *snap = (uint8_t *)malloc(size);
+    uint8_t *again = (uint8_t *)malloc(size);
+    CHECK(f3d_world_snapshot_write(a, snap, size) == size);
+    F3dWorld *b = f3d_world_create();
+    CHECK(f3d_world_restore(b, snap, size));
+    /* Mutation: leave the phases out of the snapshot, or out of the
+     * restore, and the restored world writes other bytes. */
+    CHECK(f3d_world_snapshot_size(b) == size);
+    CHECK(f3d_world_snapshot_write(b, again, size) == size);
+    CHECK(memcmp(snap, again, size) == 0);
+    f3d_world_step(a, dt);
+    f3d_world_step(b, dt);
+    const uint32_t n = f3d_world_read_contact_reports(a, ra, pa, qa, 8);
+    CHECK(f3d_world_read_contact_reports(b, rb, pb, qb, 8) == n);
+    CHECK(memcmp(pa, pb, n * 2u * sizeof(F3dBody)) == 0);
+    CHECK(memcmp(qa, qb, n * 2u * sizeof(uint32_t)) == 0);
+    CHECK(memcmp(ra, rb, n * F3D_REPORT_FLOATS * sizeof(f3d_real)) == 0);
+    reported += (int)n;
+    f3d_world_destroy(b);
+    free(snap);
+    free(again);
+  }
+  CHECK(reported > 0);
+  f3d_world_destroy(a);
+}
+
 static void test_islands(void) {
   /* Two crates stacked on a floor, and one alone across the room. With no
    * solver yet they stay where they are put, a millimetre into each
@@ -582,6 +695,10 @@ int main(void) {
   test_symmetry();
   test_sweep_finds_every_pair();
   test_contact_events();
+  test_contact_reports(0);
+  test_contact_reports(1);
+  test_contact_phases_survive_a_restore(0);
+  test_contact_phases_survive_a_restore(1);
   test_islands();
   test_conduction();
   test_fire_warms_what_it_touches();

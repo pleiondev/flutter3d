@@ -413,8 +413,9 @@ final class EventBus extends EventRegistry {
 }
 
 /// Declares the events every genre shares, the engine's rather than any
-/// one genre's — [ActorHurt], [ActorDied] and [SequenceSignal] — with their
-/// codecs, each one not already declared on [events].
+/// one genre's — [ActorHurt], [ActorDied], [SequenceSignal] and
+/// [ContactEvent] — with their codecs, each one not already declared on
+/// [events].
 ///
 /// Called by every `GenrePlugin` as it is installed, so the first genre in
 /// an engine declares them and a second finds them there. A game that steps
@@ -448,6 +449,13 @@ void declareSimulationEvents(EventRegistry events) {
       SequenceSignal.eventName,
       description: "A cutscene's signal fired.",
       codec: SequenceSignal.codec,
+    );
+  }
+  if (!declared(ContactEvent.eventName)) {
+    engine.declare<ContactEvent>(
+      ContactEvent.eventName,
+      description: 'Two bodies began, kept or ended a contact.',
+      codec: ContactEvent.codec,
     );
   }
 }

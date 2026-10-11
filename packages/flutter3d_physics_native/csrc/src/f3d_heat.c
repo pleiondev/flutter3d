@@ -80,22 +80,24 @@
 int f3d_material_preset(F3dMaterialKind kind, F3dMaterial *out) {
   F3dMaterial m;
   f3d_zero(&m, sizeof m);
-  m.emissivity = F3D_R(0.9);
-  m.conductivity = F3D_R(1.0);
-  /* A stiff solid's, of the order of glass and stone (Ashby, Materials
-   * Selection in Mechanical Design, chart 1). */
-  m.modulus = F3D_R(5e10);
-  m.poisson_ratio = F3D_R(0.25);
+  /* What a material that says none takes, each with its source on
+   * MaterialCatalog in flutter3d_matter: a rough surface's emissivity, a
+   * conductivity of the order of glass and stone, and a stiff solid's
+   * modulus and Poisson's ratio. */
+  m.emissivity = F3D_PRESET_DEFAULT_EMISSIVITY;
+  m.conductivity = F3D_PRESET_DEFAULT_CONDUCTIVITY;
+  m.modulus = F3D_PRESET_DEFAULT_YOUNGS_MODULUS;
+  m.poisson_ratio = F3D_PRESET_DEFAULT_POISSON_RATIO;
   /* What a preset says of its heat, its burning and its stiffness —
    * specific heat, conductivity, emissivity, where it catches, its heat of
    * combustion, its flame's radiant share, its modulus and Poisson's ratio
-   * — is its entry in flutter3d_physics' material catalogue, read from
+   * — is its entry in flutter3d_matter's material catalogue, read from
    * f3d_materials.g.h (F3D_MAT_<NAME>_*), with that entry's sources; STONE
    * is f3d.granite. What only the fire model reads stays here, with its
    * own. */
   switch (kind) {
     case F3D_MATERIAL_INERT:
-      m.specific_heat = F3D_R(1000.0);
+      m.specific_heat = F3D_PRESET_DEFAULT_INERT_SPECIFIC_HEAT;
       break;
     case F3D_MATERIAL_WOOD:
       /* A generic wood, as plain plywood 1.27 cm thick: how it catches and

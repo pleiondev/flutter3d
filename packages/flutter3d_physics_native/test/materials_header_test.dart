@@ -27,10 +27,14 @@ void main() {
   test("the liquids' presets are the catalogue's entries", () {
     void same(NativeLiquidProperties preset, PhysicalMaterial material) {
       expect(preset.density, material.density, reason: material.id);
-      expect(preset.viscosity, material.fluid!.viscosity, reason: material.id);
+      expect(
+        preset.viscosity,
+        material.fluid!.viscosity!.value,
+        reason: material.id,
+      );
       expect(
         preset.tension,
-        material.fluid!.surfaceTension,
+        material.fluid!.surfaceTension!.value,
         reason: material.id,
       );
     }
@@ -44,8 +48,8 @@ void main() {
     expect(NativeLiquidProperties.water.density, 998.2);
     final heat = NativeLiquidHeat.water();
     expect(heat.specificHeat, 4182.0);
-    expect(heat.conductivity, Materials.water.thermal!.conductivity);
-    expect(heat.expansion, Materials.water.thermal!.volumetricExpansion);
+    expect(heat.conductivity, Materials.water.thermal!.conductivity!.value);
+    expect(heat.expansion, Materials.water.thermal!.volumetricExpansion!.value);
     expect(heat.boils, isTrue);
   });
 
@@ -54,27 +58,27 @@ void main() {
       final heat = material.thermal!;
       expect(
         preset.specificHeat,
-        _f32(heat.specificHeat!),
+        _f32(heat.specificHeat!.value),
         reason: material.id,
       );
       expect(
         preset.conductivity,
-        _f32(heat.conductivity!),
+        _f32(heat.conductivity!.value),
         reason: material.id,
       );
-      if (heat.emissivity case final e?) {
+      if (heat.emissivity?.value case final e?) {
         expect(preset.emissivity, _f32(e), reason: material.id);
       }
-      if (heat.ignitionTemperature case final t?) {
+      if (heat.ignitionTemperature?.value case final t?) {
         expect(preset.ignitionTemperature, _f32(t), reason: material.id);
       }
-      if (heat.heatOfCombustion case final h?) {
+      if (heat.heatOfCombustion?.value case final h?) {
         expect(preset.heatOfCombustion, _f32(h), reason: material.id);
       }
-      if (heat.radiantFraction case final r?) {
+      if (heat.radiantFraction?.value case final r?) {
         expect(preset.flameRadiant, _f32(r), reason: material.id);
       }
-      if (material.mechanical?.youngsModulus case final e?) {
+      if (material.mechanical?.youngsModulus?.value case final e?) {
         expect(preset.modulus, _f32(e), reason: material.id);
       }
       // And the view of the entry is the preset, to the bit.
@@ -107,10 +111,10 @@ void main() {
       name: 'peat',
       phase: MaterialPhase.solid,
       thermal: ThermalProperties(
-        specificHeat: 1900.0,
-        conductivity: 0.06,
-        ignitionTemperature: 500.0,
-        heatOfCombustion: 1.4e7,
+        specificHeat: ConstantLaw(1900.0),
+        conductivity: ConstantLaw(0.06),
+        ignitionTemperature: ConstantLaw(500.0),
+        heatOfCombustion: ConstantLaw(1.4e7),
         source: 'a test',
       ),
     );
@@ -120,6 +124,29 @@ void main() {
     // What it does not say is the inert preset's.
     expect(view.emissivity, NativeMaterial.inert().emissivity);
     expect(() => NativeLiquidProperties.of(peat), throwsArgumentError);
+  });
+
+  test('a law in temperature is its value at the reference state in the '
+      'header, and nothing more', () {
+    final header = generateMaterialsHeader();
+    // Mutation: write a table of a law's points again, or a law's value at
+    // another state, and the header says more than the core reads.
+    final viscosity = Materials.water.fluid!.viscosity!;
+    expect(viscosity, isA<TableLaw>());
+    expect(
+      header,
+      contains('#define F3D_MAT_WATER_VISCOSITY F3D_R(${viscosity.value})\n'),
+    );
+    expect(Materials.mercury.fluid!.viscosity, isA<FormulaLaw>());
+    expect(header, isNot(contains('_TABLE')));
+    expect(header, contains('#define F3D_DEFAULT_FRICTION F3D_R(0.6)'));
+    expect(
+      header,
+      contains(
+        '#define F3D_PRESET_DEFAULT_EMISSIVITY '
+        'F3D_R(${MaterialCatalog.defaultEmissivity})',
+      ),
+    );
   });
 
   test('σ is one number on both sides', () {

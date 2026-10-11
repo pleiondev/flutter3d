@@ -772,6 +772,11 @@ typedef struct Staged {
   f3d_real *shallow_data;
   F3dSpray *spray;
   F3dBubbles *bubbles;
+  /* Whether each manifold was in contact as the last step's reports said,
+   * and whether that is known (a world that has not stepped, or was
+   * restored from a version 1 snapshot, does not know). */
+  uint8_t *contact_before;
+  uint32_t contact_known;
 } Staged;
 
 static void staged_free(Staged *st) {
@@ -796,6 +801,7 @@ static void staged_free(Staged *st) {
   f3d_free(st->shallow_data);
   f3d_free(st->spray);
   f3d_free(st->bubbles);
+  f3d_free(st->contact_before);
 }
 
 /* Reading, [count] zeroed items of [size] into *[block] — none for
@@ -937,11 +943,24 @@ static void sec_events(Io *io, Staged *st) {
 }
 
 /* The last step's contacts: what the next compares against to say what
- * began and ended, and the impulses it warm-starts from. */
+ * began and ended, and the impulses it warm-starts from. Version 2 added
+ * whether each was in contact as that step's reports said, so a world
+ * restored reports the phases the world it was taken from would; version
+ * 1, without it, reads as not knowing, and the next step tells them by the
+ * impulses the manifolds ended with. */
+#define CONTACTS_VERSION 2u
 static void sec_contacts(Io *io, Staged *st) {
   io_u32(io, &st->s.manifold_count);
   make(io, (void **)&st->manifolds, st->s.manifold_count, sizeof(F3dManifold), 1);
   IO_LIST(io, st->s.manifold_count, st->manifolds, io_manifold);
+  if (io->version < 2) {
+    st->contact_known = 0;
+    return;
+  }
+  io_u32(io, &st->contact_known);
+  if (!st->contact_known || io->bad) return;
+  make(io, (void **)&st->contact_before, st->s.manifold_count, 1, 1);
+  if (!io->bad) io_byte_block(io, st->contact_before, st->s.manifold_count);
 }
 
 static void sec_hulls(Io *io, Staged *st) {
@@ -1066,7 +1085,7 @@ static const Section kSections[] = {
     {F3D_SECTION('L', 'U', 'M', 'P'), 1, 0, sec_lumps},
     {F3D_SECTION('W', 'I', 'N', 'D'), 1, 0, sec_wind},
     {F3D_SECTION('E', 'V', 'N', 'T'), 1, 0, sec_events},
-    {F3D_SECTION('C', 'O', 'N', 'T'), 1, 0, sec_contacts},
+    {F3D_SECTION('C', 'O', 'N', 'T'), CONTACTS_VERSION, 0, sec_contacts},
     {F3D_SECTION('H', 'U', 'L', 'L'), 1, 0, sec_hulls},
     {F3D_SECTION('M', 'E', 'S', 'H'), 1, 0, sec_meshes},
     {F3D_SECTION('J', 'O', 'I', 'N'), 1, 0, sec_joints},
@@ -1109,6 +1128,10 @@ static uint64_t write_all(const F3dWorld *world, uint8_t *base) {
   st.shallow_data = world->shallow_data;
   st.spray = world->spray;
   st.bubbles = world->bubbles;
+  /* Known only with an answer for every manifold the world holds. */
+  st.contact_known = world->contact_known &&
+                     world->contact_capacity >= world->s.manifold_count;
+  st.contact_before = st.contact_known ? world->contact_before : NULL;
 
   Io io;
   f3d_zero(&io, sizeof io);
@@ -1202,13 +1225,19 @@ static uint64_t water_reals(uint32_t nx, uint32_t nz) {
   return 5u * (uint64_t)nx * nz + ((uint64_t)nx + 1u) * nz + (uint64_t)nx * (nz + 1u);
 }
 
+/* Whether each of [v]'s components is a number. */
+static int finite3(F3dVec3 v) {
+  return f3d_finite(v.x) && f3d_finite(v.y) && f3d_finite(v.z);
+}
+
 /* Whether what was read hangs together: the arenas' marks inside them;
  * every hull's, mesh's, compound's and water's share inside the arrays it
  * names; every index a step follows — a body's shape and lumps, a
  * compound's part's hull, a triangle's corners, a contact's, a joint's, a
  * vehicle's and a link's bodies, a link's parent and freedoms — inside
- * what it indexes. A step reads all of these without asking again, so a
- * snapshot that fails one is refused rather than read past an array. */
+ * what it indexes; and a live body's place and motion numbers. A step
+ * reads all of these without asking again, so a snapshot that fails one
+ * is refused rather than read past an array. */
 static int consistent(const Staged *st) {
   const F3dWorldState *s = &st->s;
   if (s->live > s->used || s->free_head > s->used) return 0;
@@ -1225,6 +1254,13 @@ static int consistent(const Staged *st) {
     }
     live++;
     if (!shape_in(st, b->shape, b->hull)) return 0;
+    /* Where a body is and how it moves are numbers: a damaged one that is
+     * not would be a body nowhere, which every query then trips on. */
+    if (!finite3(b->position) || !finite3(b->velocity) || !finite3(b->spin) ||
+        !f3d_finite(b->orientation.x) || !f3d_finite(b->orientation.y) ||
+        !f3d_finite(b->orientation.z) || !f3d_finite(b->orientation.w)) {
+      return 0;
+    }
     if (b->lumps != 0) {
       /* A compound's parts' heat, one lump a part at most. */
       if (b->shape != F3D_SHAPE_COMPOUND ||
@@ -1449,5 +1485,25 @@ int f3d_world_restore(F3dWorld *world, const uint8_t *buffer, uint32_t size) {
   world->proxies = NULL;
   world->proxy_capacity = 0;
   world->pairs_ready = 0;
+  /* The reports were the last step's, of manifolds that are gone; what
+   * the snapshot's manifolds were in contact as is the snapshot's, when it
+   * says. */
+  world->report_count = 0;
+  world->reports_ready = 0;
+  world->contact_known = 0;
+  if (st.contact_known && st.s.manifold_count > 0) {
+    uint8_t *now = (uint8_t *)f3d_realloc(world->contact_now, st.s.manifold_count);
+    if (now != NULL) {
+      world->contact_now = now;
+      f3d_free(world->contact_before);
+      world->contact_before = st.contact_before;
+      st.contact_before = NULL;
+      world->contact_capacity = st.s.manifold_count;
+      world->contact_known = 1;
+    }
+  } else if (st.contact_known) {
+    world->contact_known = 1;
+  }
+  f3d_free(st.contact_before);
   return 1;
 }

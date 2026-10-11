@@ -19,6 +19,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
 import 'collision_world.dart';
+import 'contact.dart';
 import 'dynamics.dart';
 import 'rigid_body.dart';
 
@@ -50,6 +51,17 @@ abstract base class RigidDynamics {
 
   /// One fixed step of [dt] seconds.
   void step(double dt);
+
+  /// What the last [step] found in contact, and what stopped being: one
+  /// [StepContact] a pair of colliders (and a face, for two that meet on
+  /// two), at least one of them a body, in their order
+  /// (`StepContact.compareTo`) — by the world's ids, so the same on every
+  /// backend and in every run, which is what lets a tape replay the
+  /// contact events a game makes of them.
+  ///
+  /// Empty by default: a backend that reports none has none to report. Read
+  /// between steps; the next step replaces it.
+  List<StepContact> get contacts => const <StepContact>[];
 
   /// Shoves whatever [by] is walking into, horizontally, at most at the speed
   /// it is walking into it: how a kinematic character pushes a crate.

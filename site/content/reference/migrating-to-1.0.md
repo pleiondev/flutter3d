@@ -190,7 +190,7 @@ the game reads every version of them as before.
 | `f3d.telemetry` | `.upload.json` | `flutter3d_sim` | v1 | nothing to lift |
 | `f3d.effect` | `.f3dfx` | `flutter3d_particles` | v1–v2 | lifted to v2 through its chain |
 | `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v3 | lifted to v3 through its chain |
-| `f3d.physicalMaterial` | `.material.json` | `flutter3d_matter` | v1 | nothing to lift |
+| `f3d.physicalMaterial` | `.material.json` | `flutter3d_matter` | v1–v2 | lifted to v2 through its chain |
 | `f3d.voxelWorld` | `.voxels.json` | `flutter3d_voxel` | v1 | nothing to lift |
 | `f3d.assets` | `flutter3d_assets.yaml` | `flutter3d_build` | v1 | nothing to lift |
 | `f3d.convertReport` | `.report.json` | `flutter3d_build` | v1 | nothing to lift |

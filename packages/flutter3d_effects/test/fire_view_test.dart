@@ -83,9 +83,10 @@ void main() {
       FireView.plumeDepth(kw, base, z),
       closeTo(2.0 * 8.7 * soot / (math.pi * b * u), 1e-9),
     );
-    // A tyre's fire of the same heat makes 0.092 of what burns soot at
-    // 32 MJ/kg: its plume is 2.9 times as dark as wood's. Mutation: the
-    // depth drawn with wood's soot whatever the fire says.
+    // A tyre's fire of the same heat makes 0.092 of what burns soot, at its
+    // heat of combustion: its plume some two and a half times as dark as
+    // wood's. Mutation: the depth drawn with wood's soot whatever the fire
+    // says.
     final rubber = NativeMaterial.rubber();
     expect(
       FireView.plumeDepth(
@@ -95,7 +96,10 @@ void main() {
             sootYield: rubber.sootYield / rubber.heatOfCombustion,
           ) /
           FireView.plumeDepth(kw, base, z),
-      closeTo((0.092 / 32.0) / (0.015 / 15.0), 1e-3),
+      closeTo(
+        (0.092 / (rubber.heatOfCombustion / 1e6)) / (0.015 / 15.0),
+        1e-3,
+      ),
     );
     // Higher up, wider and slower, it thins as z^(−2/3) once z₀ is small
     // beside z. Mutation: the plume's speed taken as constant — it thins

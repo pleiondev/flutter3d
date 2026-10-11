@@ -90,6 +90,7 @@ final class RacingSimulation {
     collision: collision,
     mechanisms: mechanisms,
     dynamics: dynamics,
+    raise: _publish,
   );
 
   /// The cars, in a fixed order. Nought is the player's.

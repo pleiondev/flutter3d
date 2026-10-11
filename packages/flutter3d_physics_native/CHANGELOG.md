@@ -1,5 +1,41 @@
 ## 1.0.0-rc.1
 
+- **The presets follow the verified catalogue.** The header is written
+  from `flutter3d_matter`'s checked values, so the heat and fire presets
+  take theirs: wood burns at the 11.1 MJ/kg measured of it rather than 15
+  (an upright beam's flame climbs a part in about twenty minutes), oak, pine and Douglas-fir bend by their modulus along the
+  grain, oak is 706 kg/m³, charcoal catches at 610 K as measured rather
+  than at the 861 K its glow holds by itself, a tyre's rubber is soft
+  vulcanized (0.13 W/(m·K), emissivity 0.86, 37.9 MJ/kg, catching at
+  673 K), paper conducts as a sheet (0.18), steel's modulus is 211.9 GPa
+  and granite's 59.3. The shared scene's snapshot hash and the WebAssembly
+  modules follow.
+- **The core's header carries the whole catalogue, at its reference
+  state.** `f3d_materials.g.h` defines every built-in material's values at
+  its reference state, as before for the 33 it had and now for all 238.
+  The core evaluates no law: a property that changes with temperature in
+  Dart is its reference value in C, whatever a body's temperature.
+  `F3D_DEFAULT_FRICTION` and the `F3D_PRESET_DEFAULT_*` values every
+  material preset starts from (`MaterialCatalog`'s defaults) are written
+  there too, and `f3d_material_preset` reads them. The values the core
+  already read are unchanged to the bit.
+- **`NativeLiquidProperties.of`, `NativeLiquidHeat.of` and
+  `NativeMaterial.of` read a material's laws at its reference state**
+  (`PropertyLaw.value`), as the catalogue's properties are laws now.
+- **The core reports its contacts.** `f3d_world_read_contact_reports`
+  gives one report a manifold, begun, persisting or ended, with the
+  impulse summed over the substeps and the bounce and the velocity the
+  bodies met at; `NativeDynamics.contacts` makes `StepContact`s of them in
+  the reference's order, reading them through room the world keeps rather
+  than asking for it every step, and refuses a phase it does not know
+  rather than calling it an end. The snapshot's contacts section is at
+  version 2: it keeps what each manifold was in contact as, so a restored
+  world reports the phases the world it was taken from would, and a
+  version 1 snapshot reads as before; `NativeDynamics.saveState` keeps the
+  pairs it reported. `F3D_LINEAR_SLOP` is written into the generated header
+  from `flutter3d_physics`' `contactSlop`, the same 0.005. The solver's
+  numbers and the ABI number are unchanged; the WebAssembly modules are
+  rebuilt.
 - **wgpu-native is fetched where the compute sidecar fetches it.** The
   hook's pinned release, checksums and unpacking moved to
   `flutter3d_wgpu`'s `wgpu_native_hook.dart`, which this hook imports, so

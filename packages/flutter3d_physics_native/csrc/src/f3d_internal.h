@@ -29,11 +29,12 @@ void f3d_copy(void *to, const void *from, size_t bytes);
 
 #define F3D_PI F3D_R(3.14159265358979323846)
 
-/* Overlap the solver leaves alone, m: pushing a resting box out to the last
- * micrometre would have it lose contact, fall a substep and land again. A
- * contact this close or closer counts as touching, since this is as close
- * as the solver brings a body it holds. */
-#define F3D_LINEAR_SLOP F3D_R(0.005)
+/* F3D_LINEAR_SLOP, the overlap the solver leaves alone, m — pushing a
+ * resting box out to the last micrometre would have it lose contact, fall
+ * a substep and land again — is in the generated header below, written
+ * from flutter3d_physics' contactSlop: a contact this close or closer
+ * counts as touching on both cores, since this is as close as the solver
+ * brings a body it holds. */
 
 /* The constants of nature, the standard world's defaults and every built-in
  * material's numbers — F3D_STEFAN_BOLTZMANN, F3D_STANDARD_GRAVITY,
@@ -194,6 +195,21 @@ typedef struct F3dManifold {
   uint32_t part;
   F3dContactPoint points[F3D_MANIFOLD_POINTS];
 } F3dManifold;
+
+/* What one manifold came to in a step, for f3d_world_read_contact_reports:
+ * the collision stage writes which manifold and its phase, the solver what
+ * it pushed with and how fast the two met. Not in a snapshot. */
+typedef struct F3dContactReport {
+  F3dBody a;
+  F3dBody b;
+  uint32_t part;
+  uint32_t phase;
+  /* Into the world's manifolds, or UINT32_MAX for one that ended, whose
+   * manifold is gone: then [normal] and [point] are where it last was. */
+  uint32_t manifold;
+  F3dVec3 normal;
+  F3dVec3 point;
+} F3dContactReport;
 
 /* The most manifolds two bodies have: one a face. */
 #define F3D_PAIR_MANIFOLDS 2u
@@ -854,6 +870,30 @@ struct F3dWorld {
   F3dManifold *next_manifolds;
   uint32_t manifold_capacity;
   uint32_t next_capacity;
+  /* The last step's reports, and for each of its manifolds the impulse
+   * the solver pushed along the normal over the step and the velocity the
+   * two met at, nought for a manifold it did not solve. Not in a snapshot:
+   * a restored world has none until it steps. */
+  F3dContactReport *reports;
+  uint32_t report_count;
+  uint32_t report_capacity;
+  /* How many manifolds the step before had, kept in next_manifolds until
+   * the next collision stage; and whether this step's collision stage ran
+   * through, so they are there. */
+  uint32_t previous_count;
+  int reports_ready;
+  /* Whether each of the last step's manifolds was in contact, as its
+   * reports said, and room for this step's; trusted while contact_known.
+   * In a snapshot, so a restored world tells its phases as the world it
+   * was taken from would; a snapshot from before it was kept clears
+   * contact_known. */
+  uint8_t *contact_before;
+  uint8_t *contact_now;
+  uint32_t contact_capacity;
+  int contact_known;
+  f3d_real *manifold_push;
+  F3dVec3 *manifold_meet;
+  uint32_t push_capacity;
   /* The hulls: headers, vertices three reals each, triangles three indices
    * into their hull's vertices each. In a snapshot. */
   F3dHull *hulls;
@@ -937,6 +977,18 @@ void f3d_push_pair_event(F3dWorld *world, F3dBody body, F3dBody other,
 
 /* Wakes a body, raising its event when it slept. */
 void f3d_wake(F3dWorld *world, F3dSlot *slot);
+
+/* The middle of a manifold's points: where a contact report says the two
+ * bodies touch. */
+F3dVec3 f3d_manifold_middle(const F3dManifold *m);
+
+/* The step's contact reports, once it is solved: the step before's
+ * manifolds and this one's side by side, both in pair order, one report for
+ * every manifold in contact now — begun, or persisting from the same pair's
+ * same part — and one for every manifold that was and has no successor
+ * that is, ended where it last was. A pair that kept its manifold while
+ * both slept is that manifold copied, and persists. */
+void f3d_make_contact_reports(F3dWorld *world);
 
 /* A body's box, as tight as its shape, grown by [margin] on every side. */
 F3dBox f3d_box_of(const F3dWorld *world, const F3dSlot *slot, f3d_real margin);

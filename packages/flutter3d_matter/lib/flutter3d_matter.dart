@@ -26,12 +26,15 @@
 /// unit of every number here.
 library;
 
+export 'src/materials/catalog_conformance.dart';
 export 'src/materials/material_catalog.dart';
 export 'src/materials/material_json.dart' show MaterialFormatException;
 export 'src/materials/material_sections.dart';
+export 'src/materials/material_state.dart';
 export 'src/materials/materials.dart';
 export 'src/materials/physical_material.dart';
 export 'src/materials/property_groups.dart';
+export 'src/materials/property_law.dart';
 export 'src/physical_constants.dart';
 export 'src/standard_world.dart';
 export 'src/world_properties.dart';

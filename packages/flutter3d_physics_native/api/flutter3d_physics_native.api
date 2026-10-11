@@ -207,6 +207,7 @@ final class NativeDebris implements DebrisSystem
 
 final class NativeDynamics extends RigidDynamics with WorldMirror
   Collider? colliderOf(NativeBody handle)
+  List<StepContact> get contacts
   NativeBody? handleOf(RigidBody body)
   NativeBody? handleOfCollider(Collider collider)
   NativeBody? standingOf(Collider collider)

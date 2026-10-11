@@ -101,14 +101,15 @@ void main() {
       position: Vector3(0.0, 0.25, 0.0),
       material: Materials.rubber,
     );
-    expect(tyre.friction, MaterialCatalog.defaultFriction);
+    // Rubber on itself, clean and dry: the catalogue's own μ.
+    expect(tyre.friction, Materials.rubber.mechanical!.friction!.value);
     final steel = RigidBody(
       world: world,
       shape: CollisionBox(Vector3.all(0.25)),
       position: Vector3(3.0, 0.25, 0.0),
       material: Materials.steel,
     );
-    expect(steel.friction, Materials.steel.mechanical!.friction);
+    expect(steel.friction, Materials.steel.mechanical!.friction!.value);
     expect(
       world.materials.contact(Materials.rubber, Materials.concrete).friction,
       0.8,

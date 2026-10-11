@@ -324,6 +324,30 @@ typedef enum F3dEventKind {
  * between their surfaces, and the depth, positive inside. */
 #define F3D_CONTACT_FLOATS 7u
 
+/* Reals one report takes in f3d_world_read_contact_reports: the normal xyz,
+ * out of the second body into the first; the point xyz, the middle of the
+ * manifold's points; the impulse the solver pushed along the normal over
+ * the whole step, N·s, every substep's and the bounce's; and the velocity
+ * xyz of the first body's point relative to the second's as the step found
+ * them, before gravity or a contact acted, m/s. */
+#define F3D_REPORT_FLOATS 10u
+
+/* What a report says happened to a manifold since the step before: it is
+ * in contact now and was not, it was and still is, or it was and is not
+ * now. In contact is touching, as F3D_EVENT_CONTACT_BEGAN has it, or
+ * pushed on by the solver in the step however near it came — a ball the
+ * speculative contact stopped short of a floor hit it then — and a
+ * manifold at a time: the same two bodies may begin on one face and end
+ * on another. A snapshot keeps what the step before was in contact as, so a
+ * restored world reports the phases the world it was taken from would; one
+ * written before it kept them tells the step before by the impulses its
+ * manifolds ended with. */
+typedef enum F3dContactPhase {
+  F3D_CONTACT_BEGAN = 0,
+  F3D_CONTACT_PERSISTED = 1,
+  F3D_CONTACT_ENDED = 2,
+} F3dContactPhase;
+
 /* Events held unread before the newest are dropped and counted. */
 #define F3D_EVENT_CAPACITY 65536u
 
@@ -568,6 +592,23 @@ F3D_API uint32_t f3d_world_contact_count(const F3dWorld *world);
 F3D_API uint32_t f3d_world_read_contacts(const F3dWorld *world,
                                          f3d_real *contacts, F3dBody *pairs,
                                          uint32_t capacity);
+
+/* Reports the last step made, one a manifold that touches now or touched
+ * the step before: what a game's contact events are made of. */
+F3D_API uint32_t f3d_world_contact_report_count(const F3dWorld *world);
+
+/* Writes up to [capacity] reports, F3D_REPORT_FLOATS reals apiece, into
+ * [reals]; each one's two bodies into [pairs] two at a time; and its
+ * manifold's part (nought, or one for a second face) and its
+ * F3dContactPhase into [parts] two at a time. In order of the pair's
+ * slots, then the part. An ended report has where it last touched, no
+ * impulse and no velocity; its handles are as they were then. A world
+ * restored has none until it steps. Returns how many were written. */
+F3D_API uint32_t f3d_world_read_contact_reports(const F3dWorld *world,
+                                                f3d_real *reals,
+                                                F3dBody *pairs,
+                                                uint32_t *parts,
+                                                uint32_t capacity);
 
 /* Events dropped because F3D_EVENT_CAPACITY were waiting unread. */
 F3D_API uint32_t f3d_world_events_dropped(const F3dWorld *world);

@@ -5,6 +5,8 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
 
+import 'property_law.dart';
+
 /// A physical material's document — a `PhysicalMaterial`'s JSON, a data
 /// plugin's `physicalMaterials` entry — that cannot be read: a number that is not
 /// one, a group with no source, a phase or an id that is not a word.
@@ -36,6 +38,13 @@ final class GroupReader {
     final other => throw MaterialFormatException(
       '"$_group.$key" must be a finite number, not $other',
     ),
+  };
+
+  /// The law at [key] — a number is a constant one — or null when the key
+  /// is absent. Throws a [MaterialFormatException] for anything else.
+  PropertyLaw? law(String key) => switch (_json[key]) {
+    null => null,
+    final json => PropertyLaw.fromJson(json, where: '"$_group.$key"'),
   };
 
   /// The [count] numbers at [key], or null when the key is absent.

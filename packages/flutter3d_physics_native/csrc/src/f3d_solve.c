@@ -62,6 +62,10 @@ typedef struct SolverPoint {
   /* The speed they approached at before the solve, for restitution. */
   f3d_real approach;
   f3d_real most;
+  /* What it pushed with over the step: each substep's total once that
+   * substep is solved, and the bounce. Read by the reports, never by the
+   * solver. */
+  f3d_real pushed;
 } SolverPoint;
 
 typedef struct SolverContact {
@@ -259,6 +263,13 @@ static void solve_contact(F3dWorld *world, SolverContact *sc, const SolverBody *
       mp->tangent_impulse[1] = n1;
       push(a, b, ba, bb, p->ra, p->rb, dp);
     }
+    /* The second solve ends the substep: what each point holds now is what
+     * it pushed with through it. */
+    if (!use_bias) {
+      for (uint32_t k = 0; k < sc->count; k++) {
+        sc->p[k].pushed += m->points[k].normal_impulse;
+      }
+    }
   }
 }
 
@@ -319,6 +330,7 @@ static void restitute_contact(F3dWorld *world, SolverContact *sc, const SolverBo
       const f3d_real total = f3d_max(mp->normal_impulse + lambda, F3D_R(0.0));
       const f3d_real delta = total - mp->normal_impulse;
       mp->normal_impulse = total;
+      p->pushed += delta;
       push(a, b, &bodies[sc->a], &bodies[sc->b], p->ra, p->rb,
            f3d_scale(sc->normal, delta));
     }
@@ -463,6 +475,8 @@ typedef struct WidePoint {
   WVec3 ra, rb;
   WReal base, normal_mass, tangent_mass0, tangent_mass1, approach, most;
   WReal normal_impulse, tangent_impulse0, tangent_impulse1;
+  /* SolverPoint's pushed, a lane a contact. */
+  WReal pushed;
   /* The lanes whose contact has this point. */
   WMask live;
 } WidePoint;
@@ -533,6 +547,7 @@ static void wide_fill_lane(WideBatch *w, int l, const F3dWorld *world, const Sol
     W_LANE(wp->normal_impulse, l) = mp->normal_impulse;
     W_LANE(wp->tangent_impulse0, l) = mp->tangent_impulse[0];
     W_LANE(wp->tangent_impulse1, l) = mp->tangent_impulse[1];
+    W_LANE(wp->pushed, l) = p->pushed;
   }
 }
 
@@ -559,11 +574,12 @@ static void wide_fill(WideBatch *w, const F3dWorld *world, const SolverBody *bod
 }
 
 /* The batch's impulses back into its manifolds, once the step is done. */
-static void wide_store(const WideBatch *w, F3dWorld *world, const SolverContact *contacts) {
+static void wide_store(const WideBatch *w, F3dWorld *world, SolverContact *contacts) {
   for (uint32_t l = 0; l < w->lanes; l++) {
-    const SolverContact *sc = &contacts[w->contact[l]];
+    SolverContact *sc = &contacts[w->contact[l]];
     F3dManifold *m = &world->manifolds[sc->manifold];
     for (uint32_t k = 0; k < sc->count; k++) {
+      sc->p[k].pushed = W_LANE(w->p[k].pushed, l);
       m->points[k].normal_impulse = W_LANE(w->p[k].normal_impulse, l);
       m->points[k].tangent_impulse[0] = W_LANE(w->p[k].tangent_impulse0, l);
       m->points[k].tangent_impulse[1] = W_LANE(w->p[k].tangent_impulse1, l);
@@ -686,6 +702,12 @@ static void wide_solve(WideBatch *w, Motion *motion, Softness softness, f3d_real
     p->tangent_impulse1 = w_sel(p->live, n1, p->tangent_impulse1);
     wide_push(w, &m, p->live, p->ra, p->rb, push);
   }
+  if (!use_bias) {
+    for (uint32_t k = 0; k < w->points; k++) {
+      WidePoint *p = &w->p[k];
+      p->pushed = w_sel(p->live, w_add(p->pushed, p->normal_impulse), p->pushed);
+    }
+  }
   wide_save(w, &m, motion);
 }
 
@@ -706,6 +728,7 @@ static void wide_restitute(WideBatch *w, Motion *motion) {
     const WReal total = w_max(w_add(p->normal_impulse, lambda), zero);
     const WReal delta = w_sub(total, p->normal_impulse);
     p->normal_impulse = w_sel(on, total, p->normal_impulse);
+    p->pushed = w_sel(on, w_add(p->pushed, delta), p->pushed);
     wide_push(w, &m, on, p->ra, p->rb, wv_scale(w->normal, delta));
   }
   wide_save(w, &m, motion);
@@ -919,6 +942,25 @@ static int fast_solve(F3dWorld *world, const SolverBody *bodies, Motion *motion,
   return 1;
 }
 
+/* The reports' room for every manifold, zeroed: 0 when it cannot grow. */
+static int reserve_report_room(F3dWorld *world) {
+  const uint32_t n = world->s.manifold_count;
+  if (n > world->push_capacity) {
+    f3d_real *push = (f3d_real *)f3d_realloc(world->manifold_push, (size_t)n * sizeof(f3d_real));
+    if (push == NULL) return 0;
+    world->manifold_push = push;
+    F3dVec3 *meet = (F3dVec3 *)f3d_realloc(world->manifold_meet, (size_t)n * sizeof(F3dVec3));
+    if (meet == NULL) return 0;
+    world->manifold_meet = meet;
+    world->push_capacity = n;
+  }
+  for (uint32_t i = 0; i < n; i++) {
+    world->manifold_push[i] = F3D_R(0.0);
+    world->manifold_meet[i] = f3d_v3(F3D_R(0.0), F3D_R(0.0), F3D_R(0.0));
+  }
+  return 1;
+}
+
 void f3d_step_solve(F3dWorld *world, f3d_real dt) {
   const uint32_t used = world->s.used;
   const uint32_t substeps = world->s.substeps;
@@ -964,6 +1006,10 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
       sb->inverse_inertia = f3d_sym_turned(s->orientation, s->inverse_inertia);
     }
   }
+  /* Room for what the reports read, every manifold's nought until the
+   * solver says otherwise; without it the step is solved as ever and the
+   * reports say nought. */
+  const int reporting = reserve_report_room(world);
   /* Each manifold the solver can act on — one of its bodies awake and
    * dynamic — made ready: anchors, masses, and the approach speed. */
   uint32_t count = 0;
@@ -999,6 +1045,12 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
           mass_along(&bodies[a], &bodies[b], p->ra, p->rb, sc->tangent[1]);
       p->approach = f3d_dot(relative(sa, sb, p->ra, p->rb), m->normal);
       p->most = F3D_R(0.0);
+      p->pushed = F3D_R(0.0);
+    }
+    if (reporting) {
+      const F3dVec3 middle = f3d_manifold_middle(m);
+      world->manifold_meet[i] =
+          relative(sa, sb, f3d_sub(middle, sa->position), f3d_sub(middle, sb->position));
     }
   }
   /* A quarter of the substep rate, and no more than thirty hertz. */
@@ -1064,6 +1116,11 @@ void f3d_step_solve(F3dWorld *world, f3d_real dt) {
     solve(world, contacts, count, bodies, motion, softness, h, 0);
   }
   if (!world->s.fast) restitute(world, contacts, count, bodies, motion);
+  for (uint32_t c = 0; c < count && reporting; c++) {
+    f3d_real pushed = F3D_R(0.0);
+    for (uint32_t k = 0; k < contacts[c].count; k++) pushed += contacts[c].p[k].pushed;
+    world->manifold_push[contacts[c].manifold] = pushed;
+  }
   f3d_step_continuous(world, bodies);
   for (uint32_t i = 0; i < used; i++) {
     F3dSlot *s = &world->slots[i];
