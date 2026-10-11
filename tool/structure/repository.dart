@@ -1311,6 +1311,70 @@ const Map<String, Map<String, String>> worldLiteralExempt =
       },
     };
 
+/// Where each property of a world and each group of a material is read, as
+/// `package/lib/...`: one library of a package other than
+/// `flutter3d_matter` that reads it, for `every world property and material
+/// group has a reader`. One is enough; it is the proof that the number goes
+/// somewhere, not a list of every use.
+const Map<String, String> propertyReaders = <String, String>{
+  'WorldProperties.gravity':
+      'flutter3d_physics_native/lib/src/native_dynamics.dart',
+  'WorldProperties.gravityMagnitude':
+      'flutter3d_physics/lib/src/cloth/cloth_settings.dart',
+  'WorldProperties.wind': 'flutter3d_physics/lib/src/cloth/cloth_settings.dart',
+  'WorldProperties.airDensity':
+      'flutter3d_physics/lib/src/cloth/cloth_settings.dart',
+  'WorldProperties.airDensityOverride':
+      'flutter3d_game_racing/lib/src/vehicle/sphere_vehicle.dart',
+  'WorldProperties.airTemperature':
+      'flutter3d_physics_native/lib/src/native_world.dart',
+  'WorldProperties.airPressure':
+      'flutter3d_physics_native/lib/src/native_world.dart',
+  'WorldProperties.medium': 'flutter3d_sim/lib/src/level/level.dart',
+  'WorldProperties.profile':
+      'flutter3d_physics/lib/src/cloth/cloth_settings.dart',
+  'WorldProperties.speedOfSound': 'flutter3d_audio_core/lib/src/spatial.dart',
+  'WorldProperties.geoOrigin': 'flutter3d_app/lib/src/xr/xr_anchor.dart',
+  'PhysicalMaterial.mechanical':
+      'flutter3d_physics/lib/src/cloth/cloth_settings.dart',
+  'PhysicalMaterial.fluid': 'flutter3d_physics/lib/src/fluid/fluid_medium.dart',
+  'PhysicalMaterial.thermal':
+      'flutter3d_physics_native/lib/src/native_world.dart',
+  'PhysicalMaterial.acoustic':
+      'flutter3d_game/lib/src/visuals/sound_occlusion.dart',
+  'PhysicalMaterial.optical': 'flutter3d_level_scene/lib/src/level_scene.dart',
+  'PhysicalMaterial.electrical':
+      'flutter3d_physics_native/lib/src/native_world.dart',
+};
+
+/// Properties with no reader yet, with what would read one.
+///
+/// **A to-do list, not an exemption**, like [hookParametersPending]: the
+/// rule passes these while no library reads them and fails on an entry once
+/// one is named in [propertyReaders], so the list only shrinks. A property
+/// added from now on is not added here; it comes with its reader.
+const Map<String, String> propertyReadersPending = <String, String>{
+  'PhysicalMaterial.inelastic':
+      'the loss factor and the constitutive models are what a soft contact '
+      'or a joint\'s tissue damps by; both cores\' contacts are rigid, and '
+      'the ragdoll\'s tissue is its own (the catalogue has no tissue), so '
+      'nothing reads a body\'s material damping yet',
+};
+
+/// Fixtures a format's reader is held to beyond its one per version: a
+/// section added at a version, which a file of every version since has to
+/// carry, by the format's name in [versionedFormats], with the version it
+/// came in and the fixture's path, `<N>` standing for the version.
+const Map<String, Map<String, ({int since, String fixture})>>
+formatSectionFixtures = <String, Map<String, ({int since, String fixture})>>{
+  '.f3d': <String, ({int since, String fixture})>{
+    'physicalMaterials, section 36': (
+      since: 2,
+      fixture: 'packages/flutter3d_core/test/fixtures/v<N>/physical.f3d',
+    ),
+  },
+};
+
 /// A file format a 1.x build promises to keep reading: where its reader
 /// declares the version it writes, which constant that is, and the fixture
 /// minted at each version, with `<N>` standing for the version. [since] is
@@ -2160,9 +2224,6 @@ const Map<String, String> slowTestsPending = <String, String>{
   'packages/flutter3d_mesh/test/ux39_fuzz_test.dart':
       'five hundred insets, slides and bridges over three seeds, validated '
       'after each',
-  'packages/flutter3d_physics_native/test/c_unit_test.dart':
-      'the C core\'s own tests compiled under the sanitisers and run, in '
-      'both precisions',
   'packages/flutter3d_sim_mcp/test/fixtures/render_mcp_server.dart':
       'the server a test starts in a process of its own; killed before '
       'this runs out',

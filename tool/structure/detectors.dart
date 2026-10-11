@@ -601,7 +601,7 @@ Set<String> materialNamesIn(String header) => <String>{
 const double kSmallestLightIntensity = 50.0;
 
 final RegExp _lightConstructor = RegExp(
-  r'\b(?:LightNode|Light3D|ModelLight)(?:\.\w+)?\s*\(',
+  r'\b(?:LightNode|Light3D|ModelLight|LevelLight)(?:\.\w+)?\s*\(',
 );
 final RegExp _intensityArgument = RegExp(
   r'\bintensity:\s*(\d[\d_]*(?:\.\d+)?(?:[eE]-?\d+)?)(?=\s*[,)\n])',
@@ -618,8 +618,8 @@ final RegExp _namesLightUnit = RegExp(
 /// [kSmallestLightIntensity], with the line it is on.
 ///
 /// **What counts as a light's intensity:** an `intensity:` argument inside a
-/// `LightNode`, `Light3D` or `ModelLight` constructor call, and an
-/// `.intensity = <number>;` assignment, which in this repository is a light's
+/// `LightNode`, `Light3D`, `ModelLight` or `LevelLight` constructor call, and
+/// an `.intensity = <number>;` assignment, which in this repository is a light's
 /// (a bloom's or a probe's intensity is a settings field, set through a
 /// constructor). Nought is a light switched off, and a literal times
 /// something (`2.5 * LightNode.defaultIntensity`) is a conversion, not a number
@@ -669,6 +669,140 @@ List<({String literal, int line})> smallLightIntensitiesIn(String source) {
         (literal: entry.value, line: lineAt(entry.key)),
   ];
 }
+
+/// The level version from which a document's lights are written in lux and
+/// candela: 4 → 5 multiplied every older one by the renderer's old unit.
+const int levelVersionInLux = 5;
+
+final RegExp _levelVersion = RegExp(r'^\s*"version":\s*(\d+)', multiLine: true);
+final RegExp _jsonIntensity = RegExp(
+  r'"intensity":\s*(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)',
+);
+
+/// Every light in the level document [json] whose intensity is below
+/// [kSmallestLightIntensity], with its 1-based line: a light written in the
+/// pre-1.0 unit into a document that has been in lux and candela since
+/// [levelVersionInLux]. A document older than that is lifted on reading, so
+/// its small numbers are the old unit on purpose and none counts.
+///
+/// A line scanner: the lights are the `"intensity"` keys after the
+/// `"lights"` key and before the next top-level key, which is every level
+/// the repository writes (two-space indentation, one key per line).
+List<({String literal, int line})> smallLevelLightIntensitiesIn(String json) {
+  final version = _levelVersion.firstMatch(json);
+  if (version == null || int.parse(version.group(1)!) < levelVersionInLux) {
+    return const <({String literal, int line})>[];
+  }
+  final found = <({String literal, int line})>[];
+  var inLights = false;
+  for (final (index, line) in json.split('\n').indexed) {
+    if (line.startsWith('  "')) inLights = line.startsWith('  "lights"');
+    if (!inLights) continue;
+    final match = _jsonIntensity.firstMatch(line);
+    if (match == null) continue;
+    final value = double.parse(match.group(1)!);
+    if (value > 0.0 && value < kSmallestLightIntensity) {
+      found.add((literal: match.group(1)!, line: index + 1));
+    }
+  }
+  return found;
+}
+
+// ------------------------------------------------------ a particle's world
+
+final RegExp _particleSystem = RegExp(r'\bParticleSystem\s*\(');
+final RegExp _givesParticlesAWorld = RegExp(r'\.world\s*=[^=]');
+final RegExp _setsAWorld = RegExp(
+  r'\bWorldProperties\b|\.collision\.properties\b|\bworld\.properties\b|'
+  r'\bloaded\.collision\b|\bworldOver\s*\(|'
+  r'\b(?:platformer|racing|shooter)World\b',
+);
+
+/// Whether [source] sets or reads a world other than the standard one: it
+/// names `WorldProperties`, takes a loaded level's or a body's world
+/// (`collision.properties`, `world.properties`, `loaded.collision`,
+/// `Level.worldOver`), or a genre's own (`platformerWorld`, `racingWorld`,
+/// `shooterWorld`).
+bool setsAWorld(String source) => _setsAWorld.hasMatch(codeOf(source));
+
+/// The 1-based lines of [source] that make a `ParticleSystem` while nothing
+/// in [source] hands one its world (`particles.world = …`): sparks that fall
+/// at the standard gravity and drift in no wind beside bodies in the
+/// world a game set. Empty when [source] sets no world ([setsAWorld]).
+List<int> particleSystemsWithoutWorldIn(String source) {
+  final code = codeOf(source);
+  if (!_setsAWorld.hasMatch(code) || _givesParticlesAWorld.hasMatch(code)) {
+    return const <int>[];
+  }
+  return <int>[
+    for (final match in _particleSystem.allMatches(code))
+      '\n'.allMatches(code.substring(0, match.start)).length + 1,
+  ];
+}
+
+// --------------------------------------------------- a property's reader
+
+/// The members of `final class [type]` in a package's API snapshot [api]
+/// that an application reads: its fields and getters by name, without the
+/// static ones and `hashCode`.
+Set<String> readableMembersIn(String api, String type) {
+  final members = <String>{};
+  var inside = false;
+  for (final line in api.split('\n')) {
+    if (!line.startsWith(' ')) {
+      inside = RegExp(
+        '^(?:\\w+ )*class ${RegExp.escape(type)}(?:\\s|\$)',
+      ).hasMatch(line);
+      continue;
+    }
+    if (!inside) continue;
+    final member = RegExp(
+      r'^  (?!static )(?:final |late )*[\w<>?, ]+ (?:get )?(\w+)$',
+    ).firstMatch(line);
+    if (member != null && member.group(1) != 'hashCode') {
+      members.add(member.group(1)!);
+    }
+  }
+  return members;
+}
+
+/// The property groups of `PhysicalMaterial` in the matter snapshot [api]:
+/// its fields whose type is a `…Properties` group, by name.
+Set<String> materialGroupsIn(String api) {
+  final groups = <String>{};
+  var inside = false;
+  for (final line in api.split('\n')) {
+    if (!line.startsWith(' ')) {
+      inside = RegExp(r'^final class PhysicalMaterial(?:\s|$)').hasMatch(line);
+      continue;
+    }
+    if (!inside) continue;
+    final group = RegExp(r'^  final \w+Properties\?? (\w+)$').firstMatch(line);
+    if (group != null) groups.add(group.group(1)!);
+  }
+  return groups;
+}
+
+/// Whether [source]'s code reads [member] of something: `.member` as a
+/// whole word, a named argument (`member:`) and a comment not counting.
+bool readsMember(String source, String member) => RegExp(
+  '\\??\\.${RegExp.escape(member)}\\b(?!\\s*:)',
+).hasMatch(codeOf(source));
+
+// ------------------------------------------------- a section's fixture
+
+/// The versions from [since] to [current] at which [exists] finds no file
+/// for [fixture], `<N>` standing for the version: a section a format added
+/// at [since] that no fixture of a later version carries.
+List<int> versionsWithoutFixture(
+  String fixture, {
+  required int since,
+  required int current,
+  required bool Function(String path) exists,
+}) => <int>[
+  for (var version = since; version <= current; version++)
+    if (!exists(fixture.replaceAll('<N>', '$version'))) version,
+];
 
 /// The Dart in [markdown]'s fenced code blocks, with every other line blank,
 /// so that a line number in the result is the line in the file.
@@ -1712,6 +1846,144 @@ List<Finding> proveDetectorsWork() {
     ).isEmpty,
     'an annotated candle and a bloom',
     'a light that says its unit is kept, and a bloom is not a light',
+  );
+  // A level's own lights: the showcase's closet was lit with a 6.0 that
+  // since 1.0 is six candela.
+  fires(
+    'light intensities',
+    smallLightIntensitiesIn(
+      'LevelLight(\n  position: Vector3(2, 3, 2),\n  intensity: 6.0,\n)',
+    ).isNotEmpty,
+    'LevelLight(intensity: 6.0)',
+  );
+  fires(
+    'level light intensities',
+    smallLevelLightIntensitiesIn(
+          '{\n  "version": 5,\n  "lights": [\n    {\n'
+          '      "intensity": 9.0,\n      "range": 16.0\n    }\n  ]\n}',
+        ).single.line ==
+        5,
+    'a version 5 level with a light of 9.0',
+  );
+  quiet(
+    'level light intensities',
+    smallLevelLightIntensitiesIn(
+      '{\n  "version": 1,\n  "lights": [\n    {\n'
+      '      "intensity": 9.0\n    }\n  ]\n}\n'
+      '{\n  "version": 5,\n  "lights": [\n    {\n'
+      '      "intensity": 52115.25\n    }\n  ],\n  "entities": [\n    {\n'
+      '      "intensity": 0.5\n    }\n  ]\n}',
+    ).isEmpty,
+    'a version 1 level, a light in candela and a probe\'s intensity',
+    'an old document is lifted by the old unit on reading, and an entity '
+        'is not a light',
+  );
+
+  // A particle's world. The platformer's sparks fell at the standard
+  // gravity beside a runner at the platformer's own 24.
+  fires(
+    'particle worlds',
+    particleSystemsWithoutWorldIn(
+          'final p = ParticleSystem(capacity: 2000);\n'
+          'void load() { camera = FollowCamera(world: level.collision); '
+          'gravity = level.collision.properties.gravityMagnitude; }',
+        ).single ==
+        1,
+    'a ParticleSystem beside a level\'s world',
+  );
+  quiet(
+    'particle worlds',
+    particleSystemsWithoutWorldIn(
+          'final p = ParticleSystem(capacity: 3000);\n'
+          'void load() { p.world = level.loaded.collision.properties; }',
+        ).isEmpty &&
+        particleSystemsWithoutWorldIn(
+          'final p = ParticleSystem(capacity: 8);\n'
+          '// WorldProperties is the standard one here.',
+        ).isEmpty,
+    'particles given the level\'s world, and a page with no world',
+    'the first hands the system its world, the second sets none',
+  );
+
+  // A property's reader. The snapshot is the source of the members, so a
+  // property added to the world is a property the rule asks a reader for.
+  const worldApi =
+      'final class WorldProperties\n'
+      '  Vector3 get gravity\n'
+      '  double get speedOfSound\n'
+      '  final GeoOrigin? geoOrigin\n'
+      '  int get hashCode\n'
+      '  static final WorldProperties standard\n'
+      '  Map<String, Object?> toJson()\n'
+      '\n'
+      'final class WorldPropertiesPatch\n'
+      '  final double airTemperature\n';
+  fires(
+    'readable members',
+    readableMembersIn(
+      worldApi,
+      'WorldProperties',
+    ).containsAll(<String>{'gravity', 'speedOfSound', 'geoOrigin'}),
+    'the getters and fields of WorldProperties',
+  );
+  quiet(
+    'readable members',
+    !readableMembersIn(worldApi, 'WorldProperties').any(
+      <String>{'hashCode', 'standard', 'toJson', 'airTemperature'}.contains,
+    ),
+    'hashCode, a static, a method and another class\'s field',
+    'none is a property an application reads off a world',
+  );
+  fires(
+    'material groups',
+    materialGroupsIn(
+          'final class PhysicalMaterial\n'
+          '  final ElectricalProperties? electrical\n'
+          '  final MaterialPhase phase\n'
+          '  final String id\n',
+        ).single ==
+        'electrical',
+    'the electrical group of PhysicalMaterial',
+  );
+  fires(
+    'property readers',
+    readsMember('final c = world?.speedOfSound;', 'speedOfSound') &&
+        readsMember('if (m.electrical case final e?) {}', 'electrical'),
+    'world?.speedOfSound and m.electrical',
+  );
+  quiet(
+    'property readers',
+    !readsMember(
+      '// reads world.speedOfSound\nf(speedOfSound: 343.0);',
+      'speedOfSound',
+    ),
+    'a comment and a named argument',
+    'neither reads the property off anything',
+  );
+
+  // A section's fixture: `.f3d`'s physicalMaterials, section 36, came in
+  // at version 2, and only a file of version 2 holding it shows it reads.
+  fires(
+    'section fixtures',
+    versionsWithoutFixture(
+          'v<N>/physical.f3d',
+          since: 2,
+          current: 3,
+          exists: (String path) => path == 'v2/physical.f3d',
+        ).single ==
+        3,
+    'a bump to 3 without v3/physical.f3d',
+  );
+  quiet(
+    'section fixtures',
+    versionsWithoutFixture(
+      'v<N>/physical.f3d',
+      since: 2,
+      current: 2,
+      exists: (String path) => path == 'v2/physical.f3d',
+    ).isEmpty,
+    'v2/physical.f3d at version 2',
+    'the section is in a fixture at every version that writes it',
   );
 
   // Prose. The wrap is the whole reason this exists — the claim that went

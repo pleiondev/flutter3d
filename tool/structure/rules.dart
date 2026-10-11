@@ -172,6 +172,14 @@ List<Rule> get allRules => <Rule>[
     run: _lightIntensitiesInLux,
   ),
   (
+    name: 'particles fall in the world their application sets',
+    run: _particlesInTheirWorld,
+  ),
+  (
+    name: 'every world property and material group has a reader',
+    run: _everyPropertyHasAReader,
+  ),
+  (
     name: 'every published API is the snapshot its package commits',
     run: _apiSnapshotsCurrent,
   ),
@@ -4167,6 +4175,173 @@ List<Finding> _lightIntensitiesInLux() {
       );
     }
   }
+  // A level's lights, in the documents that ship: what a level of version 5
+  // or later writes is lux or candela already, and a small number in one is
+  // a light the lift will never multiply.
+  for (final entry in <String, Directory>{...packages, ...apps}.entries) {
+    for (final sub in const <String>['assets', 'example/assets']) {
+      final dir = Directory('${entry.value.path}/$sub');
+      if (!dir.existsSync()) continue;
+      for (final file in dir.listSync(recursive: true).whereType<File>()) {
+        if (!file.path.endsWith('.json')) continue;
+        final text = file.readAsStringSync();
+        if (!text.contains('"lights"')) continue;
+        for (final hit in smallLevelLightIntensitiesIn(text)) {
+          found.add(
+            Finding(
+              '${entry.key}/${relative(file, entry.value)}:${hit.line}',
+              'a light of ${hit.literal} in a level written in lux and '
+                  'candela: write it in lux or candela, as the level version '
+                  'it carries says',
+            ),
+          );
+        }
+      }
+    }
+  }
+  return found;
+}
+
+// --------------------------------------------------- a particle's world
+
+/// No application makes particles in a world it never hands them.
+///
+/// **A spark falls by the world it is in** (`ParticleSystem.world`), which is
+/// the standard one until a game says otherwise. A game that plays on a
+/// level's world or a genre's own (the platformer's 24 m/s², a level on the
+/// Moon) and leaves its particles on the standard one has sparks that fall
+/// at 9.81 and drift in no wind beside a runner at 24. The scan is by
+/// library: a library that sets or reads a world other than the standard
+/// one ([setsAWorld]) and makes a `ParticleSystem` hands it that world, as
+/// the dungeon does when its level loads. A library that sets no world, a
+/// showcase page with sparks and nothing else, is in the standard world on
+/// purpose.
+List<Finding> _particlesInTheirWorld() {
+  final found = <Finding>[];
+  for (final entry in apps.entries) {
+    for (final file in dartFilesIn(Directory('${entry.value.path}/lib'))) {
+      for (final line in particleSystemsWithoutWorldIn(
+        file.readAsStringSync(),
+      )) {
+        found.add(
+          Finding(
+            '${entry.key}/${relative(file, entry.value)}:$line',
+            'makes a ParticleSystem in a library that sets a world of its '
+                'own and never hands it that world: set `particles.world` where '
+                'the world is set (a loaded level\'s `collision.properties`)',
+          ),
+        );
+      }
+    }
+  }
+  return found;
+}
+
+// -------------------------------------------------- a property's reader
+
+/// Every property of a world and every group of a material has a reader.
+///
+/// **A number nobody reads is a promise nobody keeps.** `speedOfSound`
+/// existed for a release and no sound read it; the cloth fell by its own
+/// gravity beside a world that had one. Decision 20 of the readiness review:
+/// a public property of `WorldProperties` and a group of `PhysicalMaterial`
+/// each has a reader in the `lib/` of a package other than
+/// `flutter3d_matter` (tests, conformance and the testing kit not
+/// counting), and adding one means connecting its consumer in the same
+/// commit.
+///
+/// The members are read from the matter snapshot ([readableMembersIn],
+/// [materialGroupsIn]), so a property added to the API is a property this
+/// asks a reader for; [propertyReaders] names where each is read, and the
+/// file has to read it ([readsMember]). A name there that the API no longer
+/// has is reported too, so the list cannot outlive what it names.
+List<Finding> _everyPropertyHasAReader() {
+  final found = <Finding>[];
+  final snapshot = File(
+    '${repositoryRoot.path}/packages/flutter3d_matter/api/'
+    'flutter3d_matter.api',
+  );
+  if (!snapshot.existsSync()) {
+    return <Finding>[
+      Finding(_inRepository(snapshot), 'the matter snapshot is not there'),
+    ];
+  }
+  final api = snapshot.readAsStringSync();
+  final members = <String>{
+    for (final name in readableMembersIn(api, 'WorldProperties'))
+      'WorldProperties.$name',
+    for (final name in materialGroupsIn(api)) 'PhysicalMaterial.$name',
+  };
+  for (final member in members) {
+    final reader = propertyReaders[member];
+    if (reader != null && propertyReadersPending.containsKey(member)) {
+      found.add(
+        Finding(
+          'propertyReadersPending → $member',
+          'has a reader now ($reader); take it off the pending list',
+        ),
+      );
+    }
+    if (reader == null && propertyReadersPending.containsKey(member)) {
+      continue;
+    }
+    if (reader == null) {
+      found.add(
+        Finding(
+          member,
+          'has no reader: connect what consumes it in a package other than '
+          'flutter3d_matter, and name that library in `propertyReaders`',
+        ),
+      );
+      continue;
+    }
+    final owner = reader.split('/').first;
+    if (owner == 'flutter3d_matter' ||
+        owner == 'flutter3d_testing' ||
+        owner.startsWith('flutter3d_conformance') ||
+        !reader.contains('/lib/')) {
+      found.add(
+        Finding(
+          'propertyReaders → $member',
+          'names $reader, which is not a library of another package: matter, '
+              'the testing kit, conformance and tests do not count',
+        ),
+      );
+      continue;
+    }
+    final dir = packages[owner] ?? apps[owner];
+    final file = dir == null
+        ? null
+        : File('${dir.path}/${reader.substring(owner.length + 1)}');
+    if (file == null || !file.existsSync()) {
+      found.add(
+        Finding('propertyReaders → $member', 'names $reader, not there'),
+      );
+      continue;
+    }
+    final name = member.split('.').last;
+    if (!readsMember(file.readAsStringSync(), name)) {
+      found.add(
+        Finding(
+          'propertyReaders → $member',
+          '$reader no longer reads `.$name`: name the library that does',
+        ),
+      );
+    }
+  }
+  for (final member in <String>{
+    ...propertyReaders.keys,
+    ...propertyReadersPending.keys,
+  }) {
+    if (!members.contains(member)) {
+      found.add(
+        Finding(
+          'propertyReaders → $member',
+          'the API has no such property any more; take it off the list',
+        ),
+      );
+    }
+  }
   return found;
 }
 
@@ -5140,6 +5315,38 @@ List<Finding> _formatFixtures() {
           ),
         );
       }
+    }
+    // A section the format added, held to a fixture of every version since.
+    for (final MapEntry(key: section, value: held)
+        in (formatSectionFixtures[name] ??
+                const <String, ({int since, String fixture})>{})
+            .entries) {
+      for (final version in versionsWithoutFixture(
+        held.fixture,
+        since: held.since,
+        current: current,
+        exists: (String path) =>
+            File('${repositoryRoot.path}/$path').existsSync(),
+      )) {
+        found.add(
+          Finding(
+            held.fixture.replaceAll('<N>', '$version'),
+            'is missing: $name has carried $section since version '
+            '${held.since}, and only a file of version $version holding it '
+            'shows it still reads',
+          ),
+        );
+      }
+    }
+  }
+  for (final name in formatSectionFixtures.keys) {
+    if (!versionedFormats.containsKey(name)) {
+      found.add(
+        Finding(
+          'formatSectionFixtures → $name',
+          'names a format `versionedFormats` does not list',
+        ),
+      );
     }
   }
 
