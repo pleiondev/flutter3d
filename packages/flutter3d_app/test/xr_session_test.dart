@@ -134,6 +134,7 @@ void main() {
       expect(layer.views, hasLength(2));
       expect(layer.image.depthOrArrayLayers, 2);
     }
+    expect(session.framesWaited, greaterThanOrEqualTo(ended.length));
     final swapchain = session.swapchains.single;
     expect(swapchain.acquired, swapchain.released);
     expect(swapchain.acquired, ended.length);
@@ -261,7 +262,7 @@ void main() {
         final depth = EnvironmentDepth(
           width: 2,
           height: 1,
-          metres: Float32List.fromList(<double>[1.5, 2.5]),
+          meters: Float32List.fromList(<double>[1.5, 2.5]),
         );
         final session = FakeXrSession(
           frameAt: (session, index) {
@@ -354,6 +355,7 @@ void main() {
         await settle();
         expect(drawn, 2);
         expect(driver.projection.target, isNull, reason: 'handed back');
+        expect(driver.framesEnded, 4);
         expect(EnvironmentDepthNode.id.name, 'environment_depth');
         await driver.dispose();
         expect(session.state, XrSessionState.ended);
@@ -367,7 +369,7 @@ void main() {
       final store = <String, XrAnchor>{};
       final first = FakeXrSession(anchorStore: store);
       await first.start(const XrSessionRequest());
-      final anchor = await first.createAnchor(
+      final anchor = await first.placeAnchor(
         XrAnchorRequest(
           pose: XrPose(
             position: Vector3(0.4, 0.9, -1.2),
@@ -399,7 +401,7 @@ void main() {
       );
       await session.start(const XrSessionRequest());
       await expectLater(
-        session.createAnchor(XrAnchorRequest(pose: XrPose.identity())),
+        session.placeAnchor(XrAnchorRequest(pose: XrPose.identity())),
         throwsA(
           isA<UnsupportedCapabilityException>().having(
             (e) => e.feature,
@@ -430,6 +432,12 @@ void main() {
       bare.restoreAnchor('a'),
       throwsA(isA<UnsupportedCapabilityException>()),
     );
+    final settings = XrSettings(
+      session: bare,
+      mainLight: LightNode(),
+    ).copyWith(clearMainLight: true, near: 0.1);
+    expect(settings.mainLight, isNull);
+    expect(settings.near, 0.1);
     unawaited(bare.end());
   });
 }

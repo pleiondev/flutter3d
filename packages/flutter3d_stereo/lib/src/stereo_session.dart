@@ -3,7 +3,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart'
@@ -17,6 +16,7 @@ import 'package:flutter3d_app/flutter3d_app.dart'
         XrSessionState,
         XrSpace,
         XrView;
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_sim/flutter3d_sim.dart' show XrPose, XrPoseSources;
 
 import 'head_pose.dart';
@@ -26,7 +26,7 @@ import 'stereo_viewer.dart';
 
 /// A phone in a holder, or held up, as an inline XR session: the head from
 /// a [HeadTracker], the eyes [interpupillaryDistance] apart, and each eye's
-/// frustum from the holder's lenses ([viewer] over [screen]) or a centred
+/// frustum from the holder's lenses ([viewer] over [screen]) or a centered
 /// pair [fovY] tall at [aspect] without one.
 ///
 /// **The same boundary as a headset's.** A view, a lesson or a game that
@@ -64,13 +64,14 @@ final class HolderXrSession extends XrSession {
   /// Each eye's vertical field of view without a [viewer], radians.
   final double fovY;
 
-  /// Each eye's width over its height without a [viewer].
+  /// Each eye's width over its height without a [viewer], a unitless
+  /// ratio.
   final double aspect;
 
   /// Seconds between the frames' display times.
   final double period;
 
-  /// How far above the session's floor the head is, metres: a sensor that
+  /// How far above the session's floor the head is, meters: a sensor that
   /// knows only a rotation puts the head here.
   final double eyeHeight;
 
@@ -155,10 +156,10 @@ final class HolderXrSession extends XrSession {
       null => OffAxisProjection.symmetric(fovY: fovY, aspect: aspect),
     };
     return XrFieldOfView(
-      left: math.atan(projection.tanLeft),
-      right: math.atan(projection.tanRight),
-      up: math.atan(projection.tanUp),
-      down: math.atan(projection.tanDown),
+      left: Portable.atan(projection.tanLeft),
+      right: Portable.atan(projection.tanRight),
+      up: Portable.atan(projection.tanUp),
+      down: Portable.atan(projection.tanDown),
     );
   }
 

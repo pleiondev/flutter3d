@@ -167,12 +167,12 @@ final class XrHandJoint {
 }
 
 /// Where a tracked thing is and which way it is turned: a position in
-/// metres and an orientation, in the space a runtime reports it in.
+/// meters and an orientation, in the space a runtime reports it in.
 ///
 /// The shape both runtimes hand over (OpenXR's `XrPosef`, WebXR's
 /// `XRRigidTransform`). Immutable: the vectors are copied in and out.
 final class XrPose {
-  /// [position] in metres, turned by [orientation].
+  /// [position] in meters, turned by [orientation].
   XrPose({required Vector3 position, required Quaternion orientation})
     : _position = position.clone(),
       _orientation = orientation.clone();
@@ -185,7 +185,7 @@ final class XrPose {
   final Vector3 _position;
   final Quaternion _orientation;
 
-  /// Where it is, in metres.
+  /// Where it is, in meters.
   Vector3 get position => _position.clone();
 
   /// Which way it is turned.
@@ -225,7 +225,7 @@ final class XrPose {
   }
 
   /// This pose as input from [source] for the step it is fed to: seven
-  /// numbers with no unit (metres and a unit quaternion), predicted for
+  /// numbers with no unit (meters and a unit quaternion), predicted for
   /// [displayTime] on the runtime's clock, which goes on the tape as the
   /// reading's source time.
   ///
@@ -421,13 +421,15 @@ final class XrControlReading {
   /// Touched, where the control can tell.
   final bool touched;
 
-  /// How far it is pulled, from nought to one: a trigger's travel.
+  /// How far it is pulled, a fraction from nought to one: a trigger's
+  /// travel.
   final double value;
 
-  /// A stick's or a pad's first axis, from −1 (left) to 1 (right).
+  /// A stick's or a pad's first axis, a fraction from −1 (left) to 1
+  /// (right).
   final double x;
 
-  /// Its second axis, from −1 (back, down) to 1 (forward, up).
+  /// Its second axis, a fraction from −1 (back, down) to 1 (forward, up).
   final double y;
 
   @override

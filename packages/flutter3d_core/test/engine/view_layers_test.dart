@@ -244,13 +244,13 @@ void main() {
     depth.depth = EnvironmentDepth(
       width: 4,
       height: 2,
-      metres: Float32List.fromList(<double>[1, 2, 3, 4, 5, 6, 7, 8]),
+      meters: Float32List.fromList(<double>[1, 2, 3, 4, 5, 6, 7, 8]),
     );
     draw();
     expect(occluder.seen.last.width, 4);
     expect(occluder.seen.last.height, 2);
     expect(
-      () => EnvironmentDepth(width: 2, height: 2, metres: Float32List(3)),
+      () => EnvironmentDepth(width: 2, height: 2, meters: Float32List(3)),
       throwsArgumentError,
     );
     for (var i = 0; i < 6; i++) {

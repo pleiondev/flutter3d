@@ -9,7 +9,7 @@ import 'package:flutter3d_core/flutter3d_core.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapabilityException;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
-    show DeviceFeature, GraphicsDevice, TextureHandle;
+    show DeviceFeature, TextureHandle;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Registration;
 import 'package:flutter3d_sim/flutter3d_sim.dart'
@@ -59,11 +59,35 @@ final class XrSettings {
   /// standalone headset's recommended size.
   final XrSwapchainRequest? swapchain;
 
-  /// Each eye's near clip plane, metres.
+  /// Each eye's near clip plane, meters.
   final double near;
 
-  /// Each eye's far clip plane, metres.
+  /// Each eye's far clip plane, meters.
   final double far;
+
+  /// These settings with the fields given replaced; [clearSwapchain] and
+  /// [clearMainLight] set those two back to null.
+  XrSettings copyWith({
+    XrSession? session,
+    XrSessionRequest? request,
+    List<XrPanel>? panels,
+    Map<String, InputAction<Object>>? actions,
+    XrSwapchainRequest? swapchain,
+    bool clearSwapchain = false,
+    double? near,
+    double? far,
+    LightNode? mainLight,
+    bool clearMainLight = false,
+  }) => XrSettings(
+    session: session ?? this.session,
+    request: request ?? this.request,
+    panels: panels ?? this.panels,
+    actions: actions ?? this.actions,
+    swapchain: clearSwapchain ? null : swapchain ?? this.swapchain,
+    near: near ?? this.near,
+    far: far ?? this.far,
+    mainLight: clearMainLight ? null : mainLight ?? this.mainLight,
+  );
 }
 
 /// Drives one XR session for one renderer: waits for the runtime's frames,
@@ -132,7 +156,8 @@ final class XrDriver {
   bool _running = false;
   bool _asking = false;
 
-  /// How many frames have been ended.
+  /// How many frames have been ended: what a frame panel shows beside the
+  /// runtime's own count, and a test reads.
   int get framesEnded => _framesEnded;
   int _framesEnded = 0;
 
@@ -142,9 +167,6 @@ final class XrDriver {
   /// The views the frame is drawn through: one per view of the runtime's
   /// last frame, side by side in the target, each through its eye.
   List<RenderView> get views => List<RenderView>.unmodifiable(_views);
-
-  /// Whether a frame from the runtime is waiting for [beginFrame].
-  bool get hasFrame => _pending != null;
 
   /// Starts the session, makes its swapchain when it is immersive, adds the
   /// nodes the frame needs, and asks for the first frame. Throws the
@@ -349,7 +371,4 @@ final class XrDriver {
       await session.end();
     }
   }
-
-  /// The device the frames are drawn on.
-  GraphicsDevice get device => renderer.device;
 }

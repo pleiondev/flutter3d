@@ -223,7 +223,7 @@ void main() {
         width: 2.0,
         depth: 0.0,
       ).toCollider().bounds;
-      // Mutation: lay the plane out unturned and x spans two metres.
+      // Mutation: lay the plane out unturned and x spans two meters.
       expect(wall.max.x - wall.min.x, lessThan(0.05));
       expect(wall.max.z - wall.min.z, closeTo(2.0, 1e-6));
     });

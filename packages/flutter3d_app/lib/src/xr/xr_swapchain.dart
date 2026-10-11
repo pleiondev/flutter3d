@@ -26,7 +26,7 @@ final class XrSwapchainRequest {
 
   /// The images' format, which the frame's picture must share, since each
   /// view is copied in (`ProjectionLayerNode`); null for the drawing
-  /// device's own colour format (`GraphicsDevice.defaultColorFormat`),
+  /// device's own color format (`GraphicsDevice.defaultColorFormat`),
   /// which `XrDriver` fills in before the session is asked.
   final TextureFormat? format;
 

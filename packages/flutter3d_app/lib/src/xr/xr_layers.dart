@@ -46,7 +46,7 @@ final class XrProjectionLayer extends XrLayer {
   final List<XrView> views;
 }
 
-/// A flat rectangle of [width] by [height] metres at [pose], showing
+/// A flat rectangle of [width] by [height] meters at [pose], showing
 /// [image]: a panel of crisp text, composed by the runtime at the display's
 /// own resolution rather than resampled through the scene.
 final class XrQuadLayer extends XrLayer {
@@ -59,7 +59,7 @@ final class XrQuadLayer extends XrLayer {
     required this.image,
   }) : super._(space);
 
-  /// Its centre and turn; it faces along the pose's +z.
+  /// Its center and turn; it faces along the pose's +z.
   final XrPose pose;
 
   /// Metres across.
@@ -72,8 +72,8 @@ final class XrQuadLayer extends XrLayer {
   final TextureHandle image;
 }
 
-/// A band of a cylinder around [pose], of [radius] metres, [centralAngle]
-/// radians wide and [height] metres tall, showing [image] on its inside: a
+/// A band of a cylinder around [pose], of [radius] meters, [centralAngle]
+/// radians wide and [height] meters tall, showing [image] on its inside: a
 /// wide panel that stays the same distance from the eyes.
 final class XrCylinderLayer extends XrLayer {
   /// A cylinder band in [space].
@@ -86,7 +86,7 @@ final class XrCylinderLayer extends XrLayer {
     required this.image,
   }) : super._(space);
 
-  /// The cylinder's centre and turn; the band is centred on the pose's −z.
+  /// The cylinder's center and turn; the band is centered on the pose's −z.
   final XrPose pose;
 
   /// Metres from the axis.
@@ -146,7 +146,7 @@ final class XrPanelShape {
 /// blurs. The widget is drawn again when [invalidate] is called, not every
 /// frame.
 final class XrPanel {
-  /// [child] shown [width] metres wide at [pose] in the session's space.
+  /// [child] shown [width] meters wide at [pose] in the session's space.
   XrPanel({
     required this.child,
     required this.pose,
@@ -161,7 +161,7 @@ final class XrPanel {
   /// What it shows.
   final Widget child;
 
-  /// Where it is: a quad's centre, a cylinder's axis.
+  /// Where it is: a quad's center, a cylinder's axis.
   XrPose pose;
 
   /// Metres across: a quad's width, a cylinder's arc length.
@@ -179,7 +179,7 @@ final class XrPanel {
   /// Flat or curved.
   final XrPanelShape shape;
 
-  /// A cylinder's radius, in metres; a quad has none.
+  /// A cylinder's radius, in meters; a quad has none.
   final double radius;
 
   int _generation = 0;

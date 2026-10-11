@@ -67,7 +67,7 @@ final class XrPlaneOrientation {
 }
 
 /// A flat surface the runtime found: a rectangle of [width] by [depth]
-/// metres centred at [pose], lying in the pose's x-z plane with its normal
+/// meters centered at [pose], lying in the pose's x-z plane with its normal
 /// along the pose's +y.
 final class XrPlane {
   /// The plane [id], as the runtime keeps it from frame to frame.
@@ -87,13 +87,13 @@ final class XrPlane {
   /// The runtime's id, stable for as long as the plane is tracked.
   final String id;
 
-  /// Its centre and turn, in the session's space.
+  /// Its center and turn, in the session's space.
   final XrPose pose;
 
-  /// Its extent along the pose's x, in metres.
+  /// Its extent along the pose's x, in meters.
   final double width;
 
-  /// Its extent along the pose's z, in metres.
+  /// Its extent along the pose's z, in meters.
   final double depth;
 
   /// Which way it faces.
@@ -146,14 +146,14 @@ final class XrPlane {
   }
 
   /// A static collider over the plane: the axis-aligned box around it,
-  /// [thickness] metres deep below its surface.
+  /// [thickness] meters deep below its surface.
   ///
   /// **Exact for a floor or a table, a bound for anything turned.** The
   /// collision world's boxes do not turn, so a wall at an angle collides as
   /// the box around it; the rectangle's own corners are what is bounded.
   Collider toCollider({double thickness = 0.02}) {
     final turn = pose.orientation.asRotationMatrix();
-    final centre = pose.position;
+    final center = pose.position;
     final min = Vector3.all(double.infinity);
     final max = Vector3.all(double.negativeInfinity);
     for (final (x, y, z) in <(double, double, double)>[
@@ -162,7 +162,7 @@ final class XrPlane {
           for (final sy in <double>[0.0, -thickness])
             (sx * width, sy, sz * depth),
     ]) {
-      final corner = turn.transformed(Vector3(x, y, z))..add(centre);
+      final corner = turn.transformed(Vector3(x, y, z))..add(center);
       Vector3.min(min, corner, min);
       Vector3.max(max, corner, max);
     }
@@ -198,7 +198,7 @@ final class XrSceneMesh {
   /// Where its vertices' space sits in the session's.
   final XrPose pose;
 
-  /// x, y, z of each vertex, in metres.
+  /// x, y, z of each vertex, in meters.
   final Float32List vertices;
 
   /// Three a triangle, into [vertices]' triples.
@@ -260,19 +260,19 @@ final class XrSceneMesh {
   /// world does not have yet.
   Collider toCollider() {
     final turn = pose.orientation.asRotationMatrix();
-    final centre = pose.position;
+    final center = pose.position;
     final min = Vector3.all(double.infinity);
     final max = Vector3.all(double.negativeInfinity);
     for (var i = 0; i < vertices.length; i += 3) {
       final at = turn.transformed(
         Vector3(vertices[i], vertices[i + 1], vertices[i + 2]),
-      )..add(centre);
+      )..add(center);
       Vector3.min(min, at, min);
       Vector3.max(max, at, max);
     }
     if (vertices.isEmpty) {
-      min.setFrom(centre);
-      max.setFrom(centre);
+      min.setFrom(center);
+      max.setFrom(center);
     }
     return Collider(
       shape: CollisionBox.size(max - min),

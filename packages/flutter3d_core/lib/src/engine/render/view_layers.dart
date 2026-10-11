@@ -144,22 +144,22 @@ final class ProjectionLayerNode extends RenderNode {
 }
 
 /// How far away the real world is, from one view, as an AR runtime
-/// measures it: [width] × [height] distances in metres, row-major from the
+/// measures it: [width] × [height] distances in meters, row-major from the
 /// top left, for the view at [view].
 ///
 /// Infinity where the runtime saw nothing: nothing there occludes.
 final class EnvironmentDepth {
-  /// [metres] over [width] × [height], which must hold exactly as many.
+  /// [meters] over [width] × [height], which must hold exactly as many.
   EnvironmentDepth({
     required this.width,
     required this.height,
-    required this.metres,
+    required this.meters,
     this.view = 0,
   }) {
-    if (width < 1 || height < 1 || metres.length != width * height) {
+    if (width < 1 || height < 1 || meters.length != width * height) {
       throw ArgumentError(
         'a depth image of ${width}x$height holds ${width * height} '
-        'distances, not ${metres.length}',
+        'distances, not ${meters.length}',
       );
     }
   }
@@ -170,8 +170,8 @@ final class EnvironmentDepth {
   /// Distances down.
   final int height;
 
-  /// The distances, in metres.
-  final Float32List metres;
+  /// The distances, in meters.
+  final Float32List meters;
 
   /// Which of the frame's views it was measured from.
   final int view;
@@ -181,7 +181,7 @@ final class EnvironmentDepth {
 /// under [id] that a node occluding virtual things with real ones reads.
 ///
 /// **The frame's half of depth occlusion.** An AR session hands [depth]
-/// each frame; this uploads it as one `r32Float` texture of metres and
+/// each frame; this uploads it as one `r32Float` texture of meters and
 /// writes it under [id], before the opaque scene. A frame with no depth
 /// gets a single texel at infinity, so a reader never starves. The engine's
 /// own passes do not read it yet: a plugin's node or a material that
@@ -220,13 +220,13 @@ final class EnvironmentDepthNode extends RenderNode {
         EnvironmentDepth(
           width: 1,
           height: 1,
-          metres: Float32List.fromList(<double>[double.infinity]),
+          meters: Float32List.fromList(<double>[double.infinity]),
         );
     final texture = frame.device.createTextureFromPixels(
       width: image.width,
       height: image.height,
       format: TextureFormat.r32Float,
-      pixels: ByteData.sublistView(image.metres),
+      pixels: ByteData.sublistView(image.meters),
     );
     _uploaded.add((frame.device, texture));
     while (_uploaded.length > _kept) {

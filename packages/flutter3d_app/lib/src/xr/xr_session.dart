@@ -207,7 +207,7 @@ final class XrSpace {
   static const XrSpace localFloor = XrSpace._('localFloor');
 
   /// A room-scale space with its origin on the floor at the play area's
-  /// centre.
+  /// center.
   static const XrSpace stage = XrSpace._('stage');
 
   /// A space for walking far from where it began, whose origin may be
@@ -278,13 +278,20 @@ final class XrFieldOfView {
     required this.down,
   });
 
+  /// Radians from the axis to the left edge, negative to its left.
   final double left;
+
+  /// Radians from the axis to the right edge.
   final double right;
+
+  /// Radians from the axis to the top edge.
   final double up;
+
+  /// Radians from the axis to the bottom edge, negative below it.
   final double down;
 
   /// The asymmetric frustum these angles make, between [near] and [far]
-  /// metres.
+  /// meters.
   OffAxisProjection projection({double near = 0.05, double far = 500.0}) =>
       OffAxisProjection.fromAngles(
         left: left,
@@ -355,8 +362,8 @@ final class XrLightEstimate {
     this.intensity,
   }) : _direction = direction?.clone();
 
-  /// The colour of the light from all around, linear: what the runtime's
-  /// spherical harmonics or ambient colour amount to.
+  /// The color of the light from all around, linear: what the runtime's
+  /// spherical harmonics or ambient color amount to.
   final LinearColor ambient;
 
   /// How much light comes from all around, in lux.
@@ -368,13 +375,13 @@ final class XrLightEstimate {
   /// when there is none.
   Vector3? get direction => _direction?.clone();
 
-  /// The main light's colour, linear; null when there is none.
+  /// The main light's color, linear; null when there is none.
   final LinearColor? color;
 
   /// The main light's illuminance, in lux; null when there is none.
   final double? intensity;
 
-  /// Lights [scene] as the room is lit: its ambient colour and intensity,
+  /// Lights [scene] as the room is lit: its ambient color and intensity,
   /// and [main], when given and the runtime found a main light, turned to
   /// shine from [direction] in [color] at [intensity].
   void applyTo(Scene scene, {LightNode? main}) {
@@ -511,9 +518,16 @@ final class XrHaptic {
     this.frequency,
   });
 
+  /// Whose controller.
   final XrHand hand;
+
+  /// How strong, a fraction from nought to one.
   final double amplitude;
+
+  /// How long.
   final Duration duration;
+
+  /// Hertz, or null for the runtime's own.
   final double? frequency;
 }
 
@@ -575,7 +589,7 @@ abstract base class XrSession {
 
   /// Fixes a point to the real world, as [request] asks. Refused by
   /// default ([XrCapability.anchors]).
-  Future<XrAnchor> createAnchor(XrAnchorRequest request) =>
+  Future<XrAnchor> placeAnchor(XrAnchorRequest request) =>
       Future<XrAnchor>.error(refusal(XrCapability.anchors));
 
   /// The anchor kept under [id] in an earlier session, where the runtime

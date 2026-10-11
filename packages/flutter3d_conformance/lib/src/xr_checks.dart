@@ -11,7 +11,7 @@ import 'package:vector_math/vector_math.dart' show Vector4;
 
 import '../flutter3d_conformance.dart';
 
-/// The colour each view is cleared to: view 0 red, view 1 blue.
+/// The color each view is cleared to: view 0 red, view 1 blue.
 final List<Vector4> _viewColors = <Vector4>[
   Vector4(1.0, 0.0, 0.0, 1.0),
   Vector4(0.0, 0.0, 1.0, 1.0),

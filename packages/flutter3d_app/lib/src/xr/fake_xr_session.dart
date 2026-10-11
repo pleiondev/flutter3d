@@ -66,7 +66,8 @@ final class FakeXrSession extends XrSession {
   XrSessionRequest? get request => _request;
   XrSessionRequest? _request;
 
-  /// How many frames [waitFrame] has handed out.
+  /// How many frames [waitFrame] has handed out: what a test reads to see
+  /// the engine asked for no frame it did not end ([ended]).
   int get framesWaited => _next;
   int _next = 0;
 
@@ -123,7 +124,7 @@ final class FakeXrSession extends XrSession {
   }
 
   @override
-  Future<XrAnchor> createAnchor(XrAnchorRequest request) async {
+  Future<XrAnchor> placeAnchor(XrAnchorRequest request) async {
     if (!capabilities.contains(XrCapability.anchors)) {
       throw refusal(XrCapability.anchors);
     }
