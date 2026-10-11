@@ -79,7 +79,7 @@ final class EnumHint extends MaterialHintKind {
 /// given no label is its own label, which is the common case for a value that
 /// was already a word.
 final class EnumHintValue {
-  const EnumHintValue(this.value, [String? label]) : label = label ?? value;
+  const EnumHintValue(this.value, {String? label}) : label = label ?? value;
 
   final String value;
   final String label;
@@ -155,19 +155,22 @@ final Map<String, MaterialHint> builtInMaterialHints = <String, MaterialHint>{
   'alphaMode': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final mode in SurfaceAlphaMode.values)
-        EnumHintValue(mode.name, switch (mode) {
-          SurfaceAlphaMode.opaque => 'Opaque',
-          SurfaceAlphaMode.mask => 'Cut out at the threshold',
-          SurfaceAlphaMode.blend => 'Blended',
-          _ => mode.name,
-        }),
+        EnumHintValue(
+          mode.name,
+          label: switch (mode) {
+            SurfaceAlphaMode.opaque => 'Opaque',
+            SurfaceAlphaMode.mask => 'Cut out at the threshold',
+            SurfaceAlphaMode.blend => 'Blended',
+            _ => mode.name,
+          },
+        ),
     ]),
     label: 'Alpha',
   ),
   'lightingModel': MaterialHint(
     EnumHint(<EnumHintValue>[
       for (final model in LightingModel.builtIn)
-        EnumHintValue(model.shaderName, model.label),
+        EnumHintValue(model.shaderName, label: model.label),
     ]),
     label: 'Shader',
     help:

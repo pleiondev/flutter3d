@@ -42,8 +42,8 @@ const String pluginAuthorMcpSchemaVersion = '1.0.0';
 /// writes a package, the other two only run and read.
 const Map<String, ToolName> pluginAuthorToolNames = <String, ToolName>{
   'plugin.create': ToolName('plugin.create'),
-  'plugin.conformance': ToolName('plugin.conformance', ToolHints.reads),
-  'plugin.report': ToolName('plugin.report', ToolHints.reads),
+  'plugin.conformance': ToolName('plugin.conformance', hints: ToolHints.reads),
+  'plugin.report': ToolName('plugin.report', hints: ToolHints.reads),
 };
 
 /// The conformance suite [pluginConformanceChecks] make up, as

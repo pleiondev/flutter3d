@@ -183,7 +183,7 @@ abstract base class EntityKind {
       );
       return;
     }
-    if (travel.length < Tolerance.zeroLength) {
+    if (travel.length < GeometryTolerance.zeroLength) {
       out.add(
         LevelIssue(
           LevelIssueSeverity.warning,

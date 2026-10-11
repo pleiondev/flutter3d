@@ -685,7 +685,7 @@ final class _Catalogue {
     if (laws.isEmpty) return;
     final where = '${entry.id} $group.$name';
     final v = value.value as double;
-    final reference = MaterialState.at(
+    final reference = MatterState.at(
       temperature: entry.temperature,
       pressure: entry.pressure,
     );
@@ -1582,7 +1582,7 @@ final class _Catalogue {
 
   static String _inputDart(LawInput input) => input.low == null
       ? 'LawInput.temperature'
-      : 'LawInput(MaterialState.temperatureId, unit: Unit.kelvin, '
+      : 'LawInput(MatterState.temperatureId, unit: Unit.kelvin, '
             'low: ${_d(input.low!)}, high: ${_d(input.high!)})';
 
   static String _modelDart(Map<String, Object?> model) {

@@ -277,7 +277,7 @@ final class ParticleGradient
   void sampleInto(Vector4 out, double t)
 
 final class ParticleGravity extends ParticleAffector
-  const ParticleGravity([this.acceleration])
+  const ParticleGravity({this.acceleration})
   const ParticleGravity.world({this.scale = 1.0})
   final double scale
   final double? acceleration

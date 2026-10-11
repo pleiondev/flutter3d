@@ -86,7 +86,7 @@ final class ClothSettings {
   ClothSettings inWorld(
     WorldProperties world, {
     PhysicalMaterial? material,
-    MaterialState state = MaterialState.standard,
+    MatterState state = MatterState.standard,
   }) {
     final air = world.wind;
     final mu = material?.mechanical?.friction?.at(state);

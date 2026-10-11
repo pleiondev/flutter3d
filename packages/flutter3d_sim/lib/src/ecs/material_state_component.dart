@@ -2,7 +2,7 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 
 /// What the material of one entity's body is like now — hot, wet, half
-/// charred — as a component: a [MaterialState] on the entity.
+/// charred — as a component: a [MatterState] on the entity.
 ///
 /// **The material stays the reference.** A `PhysicalMaterial` is `const`
 /// and says what oak is; this says what this plank of it is, and a
@@ -29,7 +29,7 @@ final class MaterialStateComponent {
   const MaterialStateComponent._(this.state, this.unread, this._unknownFields);
 
   /// What the body's material is like now.
-  final MaterialState state;
+  final MatterState state;
 
   /// The quantities this build could not read, by id, as they were
   /// written: kept and written back so a later version's or a plugin's
@@ -42,7 +42,7 @@ final class MaterialStateComponent {
 
   /// This component holding [state] instead, with what it could not read
   /// kept but for the ids [state] now gives values to.
-  MaterialStateComponent withState(MaterialState state) =>
+  MaterialStateComponent withState(MatterState state) =>
       MaterialStateComponent._(
         state,
         Map<String, Object?>.unmodifiable(<String, Object?>{
@@ -53,7 +53,7 @@ final class MaterialStateComponent {
       );
 
   /// The component's codec: `{"quantities": {id: {"value", "unit"}, …},
-  /// "phase": …}`, as `MaterialState.toJson` writes it, ids in sorted order
+  /// "phase": …}`, as `MatterState.toJson` writes it, ids in sorted order
   /// with the [unread] ones among them where they sort.
   static final ComponentCodec<MaterialStateComponent> codec =
       ComponentCodec<MaterialStateComponent>.of(
@@ -96,22 +96,22 @@ final class MaterialStateComponent {
     for (final MapEntry(:key, :value) in quantities.entries) {
       if (key is! String) return null;
       try {
-        MaterialState.fromJson(<String, Object?>{
+        MatterState.fromJson(<String, Object?>{
           'quantities': <String, Object?>{key: value},
         });
         read[key] = value;
       } on MaterialFormatException {
         try {
-          MaterialState.checkedQuantityId(key);
+          MatterState.checkedQuantityId(key);
         } on MaterialFormatException {
           return null;
         }
         unread[key] = value;
       }
     }
-    final MaterialState state;
+    final MatterState state;
     try {
-      state = MaterialState.fromJson(<String, Object?>{
+      state = MatterState.fromJson(<String, Object?>{
         'quantities': read,
         'phase': ?json['phase'],
       });

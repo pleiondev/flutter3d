@@ -277,9 +277,9 @@ abstract base class TraceEvent {
     'clearBindings' => TraceClearBindings(asInt(j['pass'])),
     'draw' => TraceDraw(
       asInt(j['pass']),
-      asInt(j['instanceCount']),
-      j['firstIndex'] == null ? 0 : asInt(j['firstIndex']),
-      j['indexCount'] == null ? null : asInt(j['indexCount']),
+      instanceCount: asInt(j['instanceCount']),
+      firstIndex: j['firstIndex'] == null ? 0 : asInt(j['firstIndex']),
+      indexCount: j['indexCount'] == null ? null : asInt(j['indexCount']),
     ),
     'submit' => TraceSubmit(asInt(j['pass'])),
     'createStorageBuffer' => TraceCreateStorageBuffer(
@@ -1066,11 +1066,11 @@ final class TraceClearBindings extends TracePassEvent {
 
 final class TraceDraw extends TracePassEvent {
   const TraceDraw(
-    super.pass, [
+    super.pass, {
     this.instanceCount = 1,
     this.firstIndex = 0,
     this.indexCount,
-  ]);
+  });
   final int instanceCount;
 
   /// The window of the bound indices — `P7`. Written only when it is not the

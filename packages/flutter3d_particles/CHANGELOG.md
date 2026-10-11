@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `ParticleGravity` takes `acceleration:` by name.** An
+  optional positional argument could never have had a named one beside
+  it.
 - **Breaking: an effect's colours are `LinearColor`s**, the engine's one
   colour type: `ParticleEffect.color`, `GradientKey.color`,
   `ParticleGradient.constant`/`.linear` and `ParticleColorOverLife`. The

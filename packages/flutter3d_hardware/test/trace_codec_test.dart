@@ -195,7 +195,7 @@ List<TraceEvent> _everyEvent() => <TraceEvent>[
     sampler: SamplerDescriptor.nearestClamp,
   ),
   const TraceClearBindings(0),
-  const TraceDraw(0, 4, 3, 6),
+  const TraceDraw(0, instanceCount: 4, firstIndex: 3, indexCount: 6),
   const TraceSubmit(0),
   const TraceReadPixels(1),
   const TraceReadback(texture: 1, region: _rect),
@@ -252,7 +252,7 @@ void main() {
     // A trace recorded before windows existed has neither key, and has to
     // read as the draw it was without a new format version.
     final read = Trace.decode(
-      Trace(const <TraceEvent>[TraceDraw(0, 2)]).encode(),
+      Trace(const <TraceEvent>[TraceDraw(0, instanceCount: 2)]).encode(),
     );
     final draw = read.events.single as TraceDraw;
     expect(draw.instanceCount, 2);

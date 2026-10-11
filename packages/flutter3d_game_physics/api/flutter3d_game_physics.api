@@ -20,7 +20,7 @@ final class ElementCues
   static const String effectsAssets = 'packages/flutter3d_effects/assets'
 
 final class ElementSounds
-  ElementSounds([this.cues = ElementCues.near, this.bus])
+  ElementSounds({this.cues = ElementCues.near, this.bus})
   final AudioBus? bus
   final ElementCues cues
   int get held
@@ -92,7 +92,7 @@ final class ElementCues
   static const String effectsAssets = 'packages/flutter3d_effects/assets'
 
 final class ElementSounds
-  ElementSounds([this.cues = ElementCues.near, this.bus])
+  ElementSounds({this.cues = ElementCues.near, this.bus})
   final AudioBus? bus
   final ElementCues cues
   int get held

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show MaterialState, PropertyLaw;
+    show MatterState, PropertyLaw;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:vector_math/vector_math.dart';
@@ -83,7 +83,7 @@ final class SoundOcclusion {
   /// it is not known, for the laws of its acoustic group to be read at.
   /// Null, the default, reads every obstacle at its material's reference
   /// state.
-  final MaterialState? Function(Collider obstacle)? stateOf;
+  final MatterState? Function(Collider obstacle)? stateOf;
 
   /// How many walls are counted before the ray gives up. Four walls is
   /// [floor] anyway, and every raycast past that is spent on silence.

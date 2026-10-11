@@ -30,7 +30,7 @@ abstract final class Effects {
       speed: Range(1.2, 2.6),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-2.2),
+      const ParticleGravity(acceleration: -2.2),
       const ParticleDrag(3.4),
       const ParticleSizeOverLife(from: 0.7, to: 1.6),
       const ParticleFade(startsAt: 0.35),
@@ -48,7 +48,7 @@ abstract final class Effects {
       speed: Range(3.0, 6.5),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-3.0),
+      const ParticleGravity(acceleration: -3.0),
       const ParticleDrag(2.6),
       const ParticleSizeOverLife(from: 0.6, to: 2.0),
       const ParticleFade(),
@@ -83,7 +83,7 @@ abstract final class Effects {
       speed: Range(1.4, 3.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-3.5),
+      const ParticleGravity(acceleration: -3.5),
       const ParticleDrag(2.2),
       const ParticleFade(),
     ],
@@ -100,7 +100,7 @@ abstract final class Effects {
       speed: Range(3.0, 6.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-4.0),
+      const ParticleGravity(acceleration: -4.0),
       const ParticleDrag(2.0),
       const ParticleFade(),
     ],
@@ -117,7 +117,7 @@ abstract final class Effects {
       speed: Range(2.0, 4.5),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-1.2),
+      const ParticleGravity(acceleration: -1.2),
       const ParticleDrag(1.6),
       const ParticleFade(),
     ],
@@ -134,7 +134,7 @@ abstract final class Effects {
       speed: Range(2.5, 7.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-6.0),
+      const ParticleGravity(acceleration: -6.0),
       const ParticleDrag(1.4),
       const ParticleFade(),
     ],
@@ -152,7 +152,7 @@ abstract final class Effects {
       along: Vector3(0.0, -1.0, 0.0),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(-7.0),
+      const ParticleGravity(acceleration: -7.0),
       const ParticleFade(startsAt: 0.35),
     ],
   );
@@ -169,7 +169,7 @@ abstract final class Effects {
       speed: Range(0.20, 0.5),
     ),
     affectors: <ParticleAffector>[
-      const ParticleGravity(1.0),
+      const ParticleGravity(acceleration: 1.0),
       const ParticleDrag(2.6),
       const ParticleTurbulence(strength: 0.5, scale: 3.0),
       const ParticleFade(),

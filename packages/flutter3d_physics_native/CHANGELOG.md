@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`GpuUnavailable` is `GpuUnavailableException`.** A thrown type says
+  so in its name, so `on …Exception` reads as what it catches.
 - **A contact damps by what its bodies are made of.** A body takes a loss
   factor (`f3d_body_set_loss_factor`, `NativeWorld.setLossFactor`), and a
   contact bounces with no more of its approach than a spring and dashpot

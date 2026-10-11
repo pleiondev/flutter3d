@@ -9,16 +9,26 @@
 /// the folder, the software evaluator) refuses it by name rather than
 /// compiling it to something else.
 ///
-/// Mutation: make `MaterialExpression.accept` answer `visitConstant` for an
+/// Mutation: make `Expression.accept` answer `visitConstant` for an
 /// unknown kind, and the first test fails; take the `accept` override off
-/// `MaterialBinary`, and the counting visitor misses the operator.
+/// `ExpressionBinary`, and the counting visitor misses the operator.
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart'
     show AbsolutePixels, FrameFraction, ResourceSize, ResourceSizeVisitor;
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show CompiledExpression, ExpressionCodec;
+    show
+        CompiledExpression,
+        ExpressionCodec,
+        Expression,
+        ExpressionBinary,
+        ExpressionCall,
+        ExpressionConstant,
+        ExpressionConstruct,
+        ExpressionNegate,
+        ExpressionSwizzle,
+        ExpressionType;
 import 'package:test/test.dart';
 
 const String _source = '''
@@ -34,8 +44,8 @@ material Visited {
 
 /// A plugin's own expression: the length of the albedo, which no translator
 /// in the engine knows.
-final class _AlbedoLength extends MaterialExpression {
-  const _AlbedoLength() : super(MaterialType.float);
+final class _AlbedoLength extends Expression {
+  const _AlbedoLength() : super(ExpressionType.float);
 }
 
 /// A plugin's own statement.
@@ -53,7 +63,7 @@ final class _Census extends MaterialExpressionVisitor<String> {
   }
 
   @override
-  String visitConstant(MaterialConstant expression) => _saw('constant');
+  String visitConstant(ExpressionConstant expression) => _saw('constant');
 
   @override
   String visitInputRef(MaterialInputRef expression) => _saw('input');
@@ -65,7 +75,7 @@ final class _Census extends MaterialExpressionVisitor<String> {
   String visitLocalRef(MaterialLocalRef expression) => _saw('local');
 
   @override
-  String visitConstruct(MaterialConstruct expression) {
+  String visitConstruct(ExpressionConstruct expression) {
     for (final argument in expression.arguments) {
       argument.accept(this);
     }
@@ -73,26 +83,26 @@ final class _Census extends MaterialExpressionVisitor<String> {
   }
 
   @override
-  String visitSwizzle(MaterialSwizzle expression) {
+  String visitSwizzle(ExpressionSwizzle expression) {
     expression.target.accept(this);
     return _saw('swizzle');
   }
 
   @override
-  String visitNegate(MaterialNegate expression) {
+  String visitNegate(ExpressionNegate expression) {
     expression.operand.accept(this);
     return _saw('negate');
   }
 
   @override
-  String visitBinary(MaterialBinary expression) {
+  String visitBinary(ExpressionBinary expression) {
     expression.left.accept(this);
     expression.right.accept(this);
     return _saw('binary');
   }
 
   @override
-  String visitCall(MaterialCall expression) {
+  String visitCall(ExpressionCall expression) {
     for (final argument in expression.arguments) {
       argument.accept(this);
     }
@@ -106,7 +116,7 @@ final class _Census extends MaterialExpressionVisitor<String> {
   }
 
   @override
-  String visitUnknown(MaterialExpression expression) => _saw('unknown');
+  String visitUnknown(Expression expression) => _saw('unknown');
 }
 
 final class _SizeName extends ResourceSizeVisitor<String> {
@@ -168,12 +178,12 @@ void main() {
     final program = parseMaterial(_source);
     final foreign = _withBody(program, <MaterialStatement>[
       const MaterialReturn(
-        MaterialConstruct(<MaterialExpression>[
+        ExpressionConstruct(<Expression>[
           _AlbedoLength(),
           _AlbedoLength(),
           _AlbedoLength(),
           _AlbedoLength(),
-        ], MaterialType.vec4),
+        ], ExpressionType.vec4),
       ),
     ]);
     expect(

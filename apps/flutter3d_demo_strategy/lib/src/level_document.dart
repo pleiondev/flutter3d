@@ -123,7 +123,7 @@ final class StrategyStart {
   const StrategyStart({required this.match, required this.mine});
 
   /// The sides, the ground under them, and the finishing line.
-  final Match match;
+  final StrategyMatch match;
 
   /// The units side nought commands, which in the application is the mouse.
   final List<StrategyUnit> mine;
@@ -225,7 +225,7 @@ StrategyStart openMatch(StrategyMap map, {int? workers, int seed = 1}) {
   }
 
   return StrategyStart(
-    match: Match(
+    match: StrategyMatch(
       simulation: simulation,
       // Side nought is the one somebody is holding a mouse for; every other
       // camp gets a policy. The two are given orders through the same handles,

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `TraceDraw` and `RecordedCall` take named arguments.**
+  `TraceDraw(pass, instanceCount:, firstIndex:, indexCount:)` and
+  `RecordedCall(name, arguments:)`: an optional positional list can never
+  grow by a named argument.
 - **`RecordingDevice` forwards `createPipelineAsync` and
   `createComputePipelineAsync`** to the device it records, so a device that
   links off the thread still does under the recorder; the pipeline enters

@@ -1,5 +1,5 @@
 /// A strategy map read from a [Level]: the vocabulary a map document uses,
-/// and the pass that turns one into a [Match].
+/// and the pass that turns one into a [StrategyMatch].
 ///
 /// **In the package so that something other than the application can open
 /// a map.** The reader was the strategy demo's own, and a tool that plays a
@@ -42,7 +42,7 @@ final class StrategyOpening {
   const StrategyOpening({required this.match, required this.mine});
 
   /// The sides, the ground under them and the finishing line.
-  final Match match;
+  final StrategyMatch match;
 
   /// The units side nought opened with.
   final List<StrategyUnit> mine;
@@ -148,7 +148,7 @@ StrategyOpening openStrategyLevel(
   }
 
   return StrategyOpening(
-    match: Match(
+    match: StrategyMatch(
       simulation: simulation,
       bots: <Bot>[
         for (final MapEntry<String, Building> it in halls.entries)

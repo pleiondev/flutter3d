@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the facade exports `ExpressionType`, not `MaterialType`.**
+  `MaterialType` is also Flutter's, and a first game imports material
+  beside this package with no `hide`.
 - **Exports `WebDecodeWorker`**, so a web application starts the browser's
   decode worker (`WebDecodeWorker.use`) from the one import it loads models
   through.

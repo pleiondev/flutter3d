@@ -45,7 +45,7 @@ final class BrushIndex {
   /// Strictly: a point exactly on another brush's surface does not count, so
   /// two brushes that merely share a face both keep their faces.
   bool containsPoint(double x, double y, double z, Brush except) {
-    const epsilon = Tolerance.sameSurface;
+    const epsilon = GeometryTolerance.sameSurface;
     final bucket =
         _cells[((x / cellSize).floor() << 32) ^
             ((z / cellSize).floor() & 0xFFFFFFFF)];

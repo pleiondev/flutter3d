@@ -121,9 +121,9 @@ final class GpuParticles with NativeParticleCloud
   void emit(List<NativeParticle> particles)
   void step(ParticleForces forces, double dt, {int steps = 1})
 
-final class GpuUnavailable extends CapabilityException
+final class GpuUnavailableException extends CapabilityException
   String toString()
-  const GpuUnavailable(this.message)
+  const GpuUnavailableException(this.message)
   final String message
 
 final class GridSide
@@ -536,7 +536,7 @@ final class NativeMaterial
   static NativeMaterial charcoal()
   static NativeMaterial inert()
   static NativeMaterial oak()
-  static NativeMaterial of(PhysicalMaterial material, {MaterialState? state})
+  static NativeMaterial of(PhysicalMaterial material, {MatterState? state})
   static NativeMaterial paper()
   static NativeMaterial paperStack()
   static NativeMaterial paraffin()
@@ -548,7 +548,7 @@ final class NativeMaterial
   static NativeMaterial wood()
 
 final class NativeMaterialTracker
-  List<NativeLawProperty> update(MaterialState state)
+  List<NativeLawProperty> update(MatterState state)
   NativeMaterialTracker(this.world, this.body, this.material, {this.threshold = 1e-3})
   final NativeBody body
   final NativeWorld world

@@ -134,10 +134,10 @@ final class AdaptiveQualitySettings {
 /// the application's settings through [apply].
 final class AdaptiveQuality {
   AdaptiveQuality(
-    this.table, [
+    this.table, {
     this.settings = const AdaptiveQualitySettings(),
     this.policy,
-  ]) : _correction = List<double>.filled(table.rows.length, 1.0);
+  }) : _correction = List<double>.filled(table.rows.length, 1.0);
 
   /// A plugin's or an application's own rule for the next row, asked once
   /// the engine's has chosen and answering for it where it answers at all

@@ -211,14 +211,14 @@ final class RenderRequest {
 /// Named rather than left as a bare [ArgumentError]: the acceptance text asks
 /// for "a refusal that names the limit," which a caller reads out of
 /// [message] without parsing an arbitrary error string.
-final class RenderRefusal extends CapabilityException {
-  RenderRefusal(this.message);
+final class RenderRefusalException extends CapabilityException {
+  RenderRefusalException(this.message);
 
   @override
   final String message;
 
   @override
-  String toString() => 'RenderRefusal: $message';
+  String toString() => 'RenderRefusalException: $message';
 }
 
 /// Above this, a tile grid is the right answer — `RenderSnapshotJob` — and a
@@ -261,7 +261,7 @@ const int _maxRenderDimension = 1024;
 /// such case's reference pictures need regenerating, not only the ones a
 /// commit happens to check by eye.
 ///
-/// Throws [RenderRefusal] for a size outside 1×1..1024×1024, before
+/// Throws [RenderRefusalException] for a size outside 1×1..1024×1024, before
 /// [deviceFactory] is ever called.
 Future<Uint8List> renderProject(
   RenderRequest request, {
@@ -273,7 +273,7 @@ Future<Uint8List> renderProject(
       height < 1 ||
       width > _maxRenderDimension ||
       height > _maxRenderDimension) {
-    throw RenderRefusal(
+    throw RenderRefusalException(
       'renderProject draws from 1×1 up to '
       '$_maxRenderDimension×$_maxRenderDimension; asked for $width×$height.',
     );

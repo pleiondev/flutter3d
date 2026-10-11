@@ -239,7 +239,7 @@ void main() {
 NativeGpu? _openGpu() {
   try {
     return NativeGpu.open();
-  } on GpuUnavailable {
+  } on GpuUnavailableException {
     return null;
   }
 }

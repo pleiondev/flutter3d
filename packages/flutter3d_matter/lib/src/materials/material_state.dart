@@ -15,7 +15,7 @@ import 'physical_material.dart';
 /// **The material is the reference; this is the body.** A
 /// [PhysicalMaterial] is `const` and says what a substance is at its
 /// reference state. What a particular plank or puddle is like now — hot,
-/// wet, half charred — is a `MaterialState`, which a property's law reads
+/// wet, half charred — is a `MatterState`, which a property's law reads
 /// (`PropertyLaw.at`) to give the value there.
 ///
 /// **An open map, not a list of fields.** Each quantity is a [Quantity]
@@ -23,28 +23,25 @@ import 'physical_material.dart';
 /// `f3d.wetness` for the engine's, `<pluginId>.charring` for a plugin's. A
 /// quantity a later minor or a plugin adds is one more key, and a state that
 /// holds one this build does not know keeps it through [toJson] and
-/// [MaterialState.fromJson] untouched, as a format keeps unknown fields.
+/// [MatterState.fromJson] untouched, as a format keeps unknown fields.
 ///
 /// **Immutable, and compared by value**, so a component can hold one and a
 /// snapshot can compare two.
-final class MaterialState {
+final class MatterState {
   /// A state holding [quantities], in [phase] when one is given.
   ///
   /// The ids are not checked here, so a `const` state can be written; a
-  /// state read from a document is ([MaterialState.fromJson]).
-  const MaterialState({
-    this.quantities = const <String, Quantity>{},
-    this.phase,
-  });
+  /// state read from a document is ([MatterState.fromJson]).
+  const MatterState({this.quantities = const <String, Quantity>{}, this.phase});
 
   /// A state at [temperature], K, and [pressure], Pa, in [phase], with
   /// [also] beside them.
-  factory MaterialState.at({
+  factory MatterState.at({
     double temperature = standardAirTemperature,
     double pressure = standardAtmosphere,
     MaterialPhase? phase,
     Map<String, Quantity> also = const <String, Quantity>{},
-  }) => MaterialState(
+  }) => MatterState(
     quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
       ...also,
       temperatureId: Quantity(temperature, Unit.kelvin),
@@ -55,7 +52,7 @@ final class MaterialState {
 
   /// 20 °C and one standard atmosphere, the state the catalogue's numbers
   /// are quoted at unless an entry says otherwise.
-  static const MaterialState standard = MaterialState(
+  static const MatterState standard = MatterState(
     quantities: <String, Quantity>{
       temperatureId: Quantity(standardAirTemperature, Unit.kelvin),
       pressureId: Quantity(standardAtmosphere, Unit.pascal),
@@ -90,7 +87,7 @@ final class MaterialState {
       quantities[pressureId]?.valueIn(Unit.pascal) ?? standardAtmosphere;
 
   /// This state with [id] holding [value], every other quantity as it was.
-  MaterialState withQuantity(String id, Quantity value) => MaterialState(
+  MatterState withQuantity(String id, Quantity value) => MatterState(
     quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
       ...quantities,
       id: value,
@@ -99,7 +96,7 @@ final class MaterialState {
   );
 
   /// This state without [id].
-  MaterialState without(String id) => MaterialState(
+  MatterState without(String id) => MatterState(
     quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
       for (final MapEntry(:key, :value) in quantities.entries)
         if (key != id) key: value,
@@ -108,8 +105,8 @@ final class MaterialState {
   );
 
   /// This state in [phase].
-  MaterialState inPhase(MaterialPhase phase) =>
-      MaterialState(quantities: quantities, phase: phase);
+  MatterState inPhase(MaterialPhase phase) =>
+      MatterState(quantities: quantities, phase: phase);
 
   /// The state as a document holds it: `{"quantities": {"f3d.temperature":
   /// {"value": 300.0, "unit": "K"}, …}, "phase": "liquid"}`, the ids in
@@ -128,7 +125,7 @@ final class MaterialState {
   /// Throws a [MaterialFormatException] for an id that is not
   /// `<namespace>.<name>`, a quantity that is not one, or a phase that is
   /// not a word.
-  factory MaterialState.fromJson(Map<String, Object?> json) {
+  factory MatterState.fromJson(Map<String, Object?> json) {
     final quantities = switch (json['quantities']) {
       null => const <String, Object?>{},
       final Map<String, Object?> map => map,
@@ -136,7 +133,7 @@ final class MaterialState {
         'a material state\'s "quantities" must be an object, not $other',
       ),
     };
-    return MaterialState(
+    return MatterState(
       quantities: Map<String, Quantity>.unmodifiable(<String, Quantity>{
         for (final MapEntry(:key, :value) in quantities.entries)
           checkedQuantityId(key): _quantity(key, value),
@@ -174,7 +171,7 @@ final class MaterialState {
 
   @override
   bool operator ==(Object other) {
-    if (other is! MaterialState ||
+    if (other is! MatterState ||
         other.phase != phase ||
         other.quantities.length != quantities.length) {
       return false;
@@ -196,5 +193,5 @@ final class MaterialState {
 
   @override
   String toString() =>
-      'MaterialState(${[for (final MapEntry(:key, :value) in quantities.entries) '$key: $value', if (phase case final phase?) 'phase: ${phase.name}'].join(', ')})';
+      'MatterState(${[for (final MapEntry(:key, :value) in quantities.entries) '$key: $value', if (phase case final phase?) 'phase: ${phase.name}'].join(', ')})';
 }

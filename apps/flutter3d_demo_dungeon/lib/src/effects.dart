@@ -39,7 +39,7 @@ abstract final class Effects {
     ),
     affectors: <ParticleAffector>[
       // Upward, because hot air is the whole shape of a flame.
-      const ParticleGravity(1.1),
+      const ParticleGravity(acceleration: 1.1),
       const ParticleDrag(2.6),
       // A standing swirl, at a scale a little smaller than the flame itself so
       // a particle crosses two or three cells in its fifth of a second. Weak:
@@ -127,7 +127,7 @@ abstract final class Effects {
       // Enough drag that the fireball stops expanding almost at once, which is
       // what makes it read as a detonation rather than as fireworks.
       const ParticleDrag(6.0),
-      const ParticleGravity(-3.0),
+      const ParticleGravity(acceleration: -3.0),
       ParticleColorOverLife(
         LinearColor(3.2, 1.5, 0.45, 1.0),
         LinearColor(0.6, 0.15, 0.05, 1.0),

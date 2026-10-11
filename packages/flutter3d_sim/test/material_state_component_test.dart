@@ -31,7 +31,7 @@ MaterialStateComponent _read(Object? json) =>
 void main() {
   test('every quantity is kept, the ones it cannot read as they were '
       'written', () {
-    // Mutation: read the state whole with MaterialState.fromJson — one
+    // Mutation: read the state whole with MatterState.fromJson — one
     // unit nobody knows refuses the lot; or drop what it cannot read — the
     // plugin's ripeness and the later version's spectrum are gone.
     final component = _read(_fixture());
@@ -61,7 +61,7 @@ void main() {
     final plank = loop.world.spawn();
     loop.world.set(plank, _read(_fixture()));
     final before = loop.capture();
-    loop.world.set(plank, const MaterialStateComponent(MaterialState.standard));
+    loop.world.set(plank, const MaterialStateComponent(MatterState.standard));
     loop.restore(before);
     expect(
       _codec.encode(loop.world.get<MaterialStateComponent>(plank)!),

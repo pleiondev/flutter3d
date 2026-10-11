@@ -11,7 +11,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:test/test.dart';
 
-MaterialState _at(double kelvin) => MaterialState.at(temperature: kelvin);
+MatterState _at(double kelvin) => MatterState.at(temperature: kelvin);
 
 PropertyLaw _again(PropertyLaw law) =>
     PropertyLaw.fromJson(jsonDecode(jsonEncode(law.toJson())));
@@ -22,7 +22,7 @@ void main() {
     () {
       const law = ConstantLaw(998.2);
       expect(law.at(_at(200.0)), 998.2);
-      expect(law.at(const MaterialState()), 998.2);
+      expect(law.at(const MatterState()), 998.2);
       expect(law.dependsOnState, isFalse);
       expect(law.toJson(), 998.2);
       expect(PropertyLaw.fromJson(998.2), law);
@@ -103,7 +103,7 @@ void main() {
       expression: 'T',
       inputs: <String, LawInput>{
         'T': LawInput(
-          MaterialState.temperatureId,
+          MatterState.temperatureId,
           unit: Unit.kelvin,
           low: 273.15,
           high: 373.15,
@@ -119,13 +119,13 @@ void main() {
     const law = FormulaLaw(
       0.6,
       expression: '0.6 * (1.0 - 0.5 * w)',
-      inputs: <String, LawInput>{'w': LawInput(MaterialState.wetnessId)},
+      inputs: <String, LawInput>{'w': LawInput(MatterState.wetnessId)},
     );
-    expect(law.at(const MaterialState()), 0.6);
+    expect(law.at(const MatterState()), 0.6);
     expect(
       law.at(
-        const MaterialState().withQuantity(
-          MaterialState.wetnessId,
+        const MatterState().withQuantity(
+          MatterState.wetnessId,
           const Quantity(1.0, Unit.one),
         ),
       ),

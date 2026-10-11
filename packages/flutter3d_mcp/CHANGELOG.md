@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The modeller's tools take American spellings (schema 1.1.0).**
+  `paint.stroke` and `paint.vertexColor` take `color` and a sample's
+  `center`, and `object.setOrigin` takes `boundsCenter`; the British words
+  are still read, so no agent breaks.
+- **Breaking: `ToolName` takes its hints by name.**
+  `ToolName('level.save', hints: ToolHints.destroys)`: an optional
+  positional argument could never have a named one beside it.
 - **A plugin's tools are published under its namespace.**
   `McpTools.addTool` and `declareSchemaVersion` file a plugin's tools under
   `PluginManifest.namespace`, so the editor half of a package (`wind.editor`)

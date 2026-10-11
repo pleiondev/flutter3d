@@ -191,7 +191,7 @@ compute Copy {
       final source = KernelPixels(
         2,
         2,
-        Uint8List.fromList(<int>[for (var i = 0; i < 16; i++) i * 17]),
+        rgba: Uint8List.fromList(<int>[for (var i = 0; i < 16; i++) i * 17]),
       );
       final target = KernelPixels(2, 2);
       kernel.toDartKernel().dispatch(

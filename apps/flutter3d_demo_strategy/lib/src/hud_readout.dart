@@ -1,10 +1,10 @@
 /// Everything the HUD says, gathered once a frame.
 ///
 /// **Values, not the match.** The same split the racing game's readout makes
-/// and for the same reason: a widget handed a `Match` can reach through it to a
-/// unit, and the day a HUD is the reason a stockpile changed is a day nobody
-/// enjoys. What crosses this seam is a handful of numbers and a string, so the
-/// widgets below it cannot do anything but draw.
+/// and for the same reason: a widget handed a `StrategyMatch` can reach through
+/// it to a unit, and the day a HUD is the reason a stockpile changed is a day
+/// nobody enjoys. What crosses this seam is a handful of numbers and a string,
+/// so the widgets below it cannot do anything but draw.
 ///
 /// The other half of why this file exists is that it can be read without a
 /// window. Gathering is a function of a match and two facts about the pointer,
@@ -67,7 +67,7 @@ final class StrategyReadout {
 /// they are the two things on this HUD that no simulation knows: whom a player
 /// has picked out, and where they are pointing.
 StrategyReadout readoutOf(
-  Match match, {
+  StrategyMatch match, {
   required int side,
   int selected = 0,
   String? under,

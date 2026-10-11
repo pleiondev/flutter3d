@@ -22,7 +22,7 @@ const double _r = 0.001;
 /// A steel ball of radius [_r] let go in a vat of glycerol at [state],
 /// after [steps] fluid steps of [step] seconds: its vertical velocity.
 double _settle({
-  MaterialState? state,
+  MatterState? state,
   SimulationProfile profile = SimulationProfile.deterministic,
   int steps = 2000,
   double step = 1 / 2000,
@@ -66,7 +66,7 @@ void main() {
       FluidMedium.glycerol,
       FluidMedium.mercury,
     ]) {
-      final at = medium.at(MaterialState.standard);
+      final at = medium.at(MatterState.standard);
       expect(at.density, medium.density);
       expect(at.viscosity, medium.viscosity);
       expect(at.surfaceTension, medium.surfaceTension);
@@ -74,21 +74,21 @@ void main() {
   });
 
   test('warm water is lighter and thinner; numbers given are numbers kept', () {
-    final hot = FluidMedium.water.at(MaterialState.at(temperature: 333.15));
+    final hot = FluidMedium.water.at(MatterState.at(temperature: 333.15));
     expect(hot.density, lessThan(FluidMedium.water.density));
     expect(hot.viscosity, lessThan(0.5 * FluidMedium.water.viscosity));
     // A medium given as numbers has no laws to read.
     final given = FluidMedium.water.copyWith(viscosity: 0.002);
     expect(given.material, isNull);
-    expect(given.at(MaterialState.at(temperature: 333.15)), same(given));
+    expect(given.at(MatterState.at(temperature: 333.15)), same(given));
   });
 
   test('a ball sinks through warm glycerol as its viscosity there says', () {
     // Mutation: buoy and drag by the medium as quoted, not at the liquid's
     // state, and the two speeds are one.
-    final cold = _settle(state: MaterialState.standard);
-    final warm = _settle(state: MaterialState.at(temperature: 313.15));
-    final hot = FluidMedium.glycerol.at(MaterialState.at(temperature: 313.15));
+    final cold = _settle(state: MatterState.standard);
+    final warm = _settle(state: MatterState.at(temperature: 313.15));
+    final hot = FluidMedium.glycerol.at(MatterState.at(temperature: 313.15));
     final stokes = stokesSpeed(hot, _r, 7800, 9.81);
     // Stokes's speed at 40 °C, where Re reaches 0.4 and White's correlation
     // adds a few per cent of drag.
@@ -100,7 +100,7 @@ void main() {
     expect(_settle(steps: 200), _settle(steps: 200, state: null));
     expect(
       _settle(steps: 200),
-      _settle(steps: 200, state: MaterialState.standard),
+      _settle(steps: 200, state: MatterState.standard),
     );
   });
 

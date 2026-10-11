@@ -26,7 +26,7 @@ abstract final class Materials {
         expression: '998.2 [kg/m³] * (((751.59611 + (T / 1 [K]) * (1.8912304 + (T / 1 [K]) * (-0.0035873694)))) / 997.7228156533284)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 273.16,
             high: 372.16,
@@ -246,7 +246,7 @@ abstract final class Materials {
         expression: '1261.0 [kg/m³] * (((1416.36 + (T / 1 [K]) * ((-0.424394) + (T / 1 [K]) * (-0.000357806)))) / 1261.2001524079649)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 293.0,
             high: 373.0,
@@ -263,7 +263,7 @@ abstract final class Materials {
         expression: '1.412 [Pa·s] * ((pow(10.0, (-5.3996) + 788.87 / ((T / 1 [K]) - 151.0))) / 1.4124085035126235)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 273.15,
             high: 373.15,
@@ -354,7 +354,7 @@ abstract final class Materials {
         expression: '789.3 [kg/m³] * (((908.349 + (T / 1 [K]) * (0.0278084 + (T / 1 [K]) * (-0.00146961)))) / 790.207271784775)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 343.0,
@@ -371,7 +371,7 @@ abstract final class Materials {
         expression: '0.0012 [Pa·s] * ((exp((-12.4675) + 1676.03 / (T / 1 [K]))) / 0.0011706594649976841)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 343.0,
@@ -385,7 +385,7 @@ abstract final class Materials {
         expression: '0.0223 [N/m] * (((0.0467761 + (T / 1 [K]) * (-0.0000832))) / 0.022386020000000003)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 159.15,
             high: 351.15,
@@ -475,7 +475,7 @@ abstract final class Materials {
         expression: '911.0 [kg/m³] * (((1207.87 + (T / 1 [K]) * (-0.9994))) / 914.89589)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.15,
             high: 310.93,
@@ -620,7 +620,7 @@ abstract final class Materials {
         expression: '13546.0 [kg/m³] * (((14264.8 + (T / 1 [K]) * (-2.4518))) / 13546.05483)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 234.32,
             high: 373.15,
@@ -637,7 +637,7 @@ abstract final class Materials {
         expression: '0.00155 [Pa·s] * ((exp((-7.49745) + 304.609 / (T / 1 [K]))) / 0.0015673628324101207)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 234.0,
             high: 600.0,
@@ -1177,7 +1177,7 @@ abstract final class Materials {
             '2.65e-8 [Ω·m] * (((1.0 + 0.0039 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -1280,7 +1280,7 @@ abstract final class Materials {
         expression: '1.68e-8 [Ω·m] * (((1.0 + 0.00404 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -1399,7 +1399,7 @@ abstract final class Materials {
             '2.44e-8 [Ω·m] * (((1.0 + 0.0034 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -2824,7 +2824,7 @@ abstract final class Materials {
         expression: '1105.34 [kg/m³] * (((772.51891 + (T / 1 [K]) * (2.4391741 + (T / 1 [K]) * (-0.0044528366)))) / 1104.8997236156365)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 278.0,
             high: 373.0,
@@ -3065,7 +3065,7 @@ abstract final class Materials {
         expression: '791.012 [kg/m³] * (((1081.2751 + (T / 1 [K]) * ((-1.0346882) + (T / 1 [K]) * 0.00014790888))) / 790.6670881276219)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 187.0,
             high: 337.632,
@@ -3309,7 +3309,7 @@ abstract final class Materials {
         expression: '626.194 [kg/m³] * (((882.01028 + (T / 1 [K]) * ((-0.78845221) + (T / 1 [K]) * (-0.0002861531)))) / 626.2843978606652)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 145.0,
             high: 305.0,
@@ -3573,7 +3573,7 @@ abstract final class Materials {
         expression: '620.063 [kg/m³] * (((888.94165 + (T / 1 [K]) * ((-0.88947236) + (T / 1 [K]) * (-0.00008851259)))) / 620.5863280788958)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 114.0,
             high: 300.976,
@@ -3839,7 +3839,7 @@ abstract final class Materials {
         expression: '659.384 [kg/m³] * (((887.6544 + (T / 1 [K]) * ((-0.6510614) + (T / 1 [K]) * (-0.00043892951)))) / 659.0754993061671)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 179.0,
             high: 341.866,
@@ -4085,7 +4085,7 @@ abstract final class Materials {
         expression: '778.677 [kg/m³] * (((1001.3542 + (T / 1 [K]) * ((-0.58119288) + (T / 1 [K]) * (-0.0006084006)))) / 778.6934320168465)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 281.0,
             high: 353.0,
@@ -4102,7 +4102,7 @@ abstract final class Materials {
         expression: '0.000972513 [Pa·s] * ((exp((-11.98723) + 1481.098 / (T / 1 [K]))) / 0.0009732451541052555)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 281.0,
             high: 353.0,
@@ -4299,7 +4299,7 @@ abstract final class Materials {
         expression: '683.846 [kg/m³] * (((909.36934 + (T / 1 [K]) * ((-0.68013133) + (T / 1 [K]) * (-0.00030673338)))) / 683.6291179052769)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 184.0,
             high: 371.55,
@@ -4565,7 +4565,7 @@ abstract final class Materials {
         expression: '702.61 [kg/m³] * (((904.16953 + (T / 1 [K]) * ((-0.559043) + (T / 1 [K]) * (-0.00043628376)))) / 702.7931908788714)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 218.0,
             high: 398.0,
@@ -4829,7 +4829,7 @@ abstract final class Materials {
         expression: '718.03 [kg/m³] * (((929.631 + (T / 1 [K]) * ((-0.64539041) + (T / 1 [K]) * (-0.00025660555)))) / 718.3829100450802)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 221.0,
             high: 421.0,
@@ -5093,7 +5093,7 @@ abstract final class Materials {
         expression: '730.41 [kg/m³] * (((932.77021 + (T / 1 [K]) * ((-0.60459207) + (T / 1 [K]) * (-0.0002874922)))) / 730.8278497687455)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 245.0,
             high: 445.0,
@@ -5357,7 +5357,7 @@ abstract final class Materials {
         expression: '749.437 [kg/m³] * (((929.33426 + (T / 1 [K]) * ((-0.50953779) + (T / 1 [K]) * (-0.00035288389)))) / 749.6375013550714)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 265.0,
             high: 485.0,
@@ -5621,7 +5621,7 @@ abstract final class Materials {
         expression: '878.917 [kg/m³] * (((1136.1682 + (T / 1 [K]) * ((-0.70784881) + (T / 1 [K]) * (-0.00057855576)))) / 878.9430198394515)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 280.0,
             high: 352.0,
@@ -5638,7 +5638,7 @@ abstract final class Materials {
         expression: '0.000647384 [Pa·s] * ((exp((-11.49515) + 1217.887 / (T / 1 [K]))) / 0.0006486184312841307)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 280.0,
             high: 352.0,
@@ -5840,7 +5840,7 @@ abstract final class Materials {
         expression: '866.892 [kg/m³] * (((1133.6628 + (T / 1 [K]) * ((-0.87737355) + (T / 1 [K]) * (-0.00011371259)))) / 866.6886337833957)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 180.0,
             high: 380.0,
@@ -6104,7 +6104,7 @@ abstract final class Materials {
         expression: '1488.11 [kg/m³] * (((2063.0533 + (T / 1 [K]) * ((-1.6263243) + (T / 1 [K]) * (-0.0011378167)))) / 1488.5158658878943)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 163.0,
             high: 296.0,
@@ -6350,7 +6350,7 @@ abstract final class Materials {
         expression: '1575.11 [kg/m³] * (((2170.08 + (T / 1 [K]) * ((-1.6845807) + (T / 1 [K]) * (-0.0011783504)))) / 1574.981360792356)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 238.0,
             high: 318.0,
@@ -6367,7 +6367,7 @@ abstract final class Materials {
         expression: '0.000696245 [Pa·s] * ((exp((-11.20089) + 1152.626 / (T / 1 [K]))) / 0.0006967904997218938)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 238.0,
             high: 318.0,
@@ -6570,7 +6570,7 @@ abstract final class Materials {
         expression: '1476.68 [kg/m³] * (((2054.5279 + (T / 1 [K]) * ((-1.4402065) + (T / 1 [K]) * (-0.0018106952)))) / 1476.725791451478)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 201.0,
             high: 300.974,
@@ -6587,7 +6587,7 @@ abstract final class Materials {
         expression: '0.000442755 [Pa·s] * ((exp((-10.72224) + 884.175 / (T / 1 [K]))) / 0.00045006345605453474)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 201.0,
             high: 300.974,
@@ -6775,7 +6775,7 @@ abstract final class Materials {
         expression: '1243.5 [kg/m³] * (((1755.7121 + (T / 1 [K]) * ((-1.6256397) + (T / 1 [K]) * (-0.00041406857)))) / 1243.5720433352242)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 171.0,
             high: 304.0,
@@ -15887,7 +15887,7 @@ abstract final class Materials {
         expression: '786.35 [kg/m³] * (((949.27 + (T / 1 [K]) * ((-0.195402) + (T / 1 [K]) * (-0.00122883)))) / 786.386035224325)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 348.0,
@@ -15904,7 +15904,7 @@ abstract final class Materials {
         expression: '0.002381 [Pa·s] * ((exp((-15.0095) + 2628.07 / (T / 1 [K]))) / 0.002370706251881616)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 348.0,
@@ -15918,7 +15918,7 @@ abstract final class Materials {
         expression: '0.02132 [N/m] * (((0.0444515 + (T / 1 [K]) * (-0.0000789))) / 0.021321965000000002)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 183.65,
             high: 355.55,
@@ -16012,7 +16012,7 @@ abstract final class Materials {
         expression: '809.8 [kg/m³] * (((977.006 + (T / 1 [K]) * ((-0.32779) + (T / 1 [K]) * (-0.000826668)))) / 809.87305765077)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 373.0,
@@ -16029,7 +16029,7 @@ abstract final class Materials {
         expression: '0.002899 [Pa·s] * ((exp((-13.6683) + 2291.75 / (T / 1 [K]))) / 0.002878085780817401)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 373.0,
@@ -16043,7 +16043,7 @@ abstract final class Materials {
         expression: '0.02538 [N/m] * (((0.0517089 + (T / 1 [K]) * (-0.0000898))) / 0.025384030000000005)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 183.65,
             high: 390.85,
@@ -16137,7 +16137,7 @@ abstract final class Materials {
         expression: '791.16 [kg/m³] * (((1053.02 + (T / 1 [K]) * ((-0.661183) + (T / 1 [K]) * (-0.000792138)))) / 791.120301634695)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 323.0,
@@ -16154,7 +16154,7 @@ abstract final class Materials {
         expression: '0.0003221 [Pa·s] * ((exp((-10.9737) + 860.29 / (T / 1 [K]))) / 0.0003226123755154771)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 323.0,
@@ -16168,7 +16168,7 @@ abstract final class Materials {
         expression: '0.0237 [N/m] * (((0.0568528 + (T / 1 [K]) * (-0.000112))) / 0.024020000000000007)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 179.15,
             high: 329.15,
@@ -16262,7 +16262,7 @@ abstract final class Materials {
         expression: '1113.5 [kg/m³] * (((1269.68 + (T / 1 [K]) * ((-0.373816) + (T / 1 [K]) * (-0.000541777)))) / 1113.5371915387177)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 273.0,
             high: 373.0,
@@ -16279,7 +16279,7 @@ abstract final class Materials {
         expression: '0.02074 [Pa·s] * ((pow(10.0, (-4.5945) + 441.86 / ((T / 1 [K]) - 141.38))) / 0.020743357891109294)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 263.15,
             high: 373.15,
@@ -16293,7 +16293,7 @@ abstract final class Materials {
         expression: '0.04843 [N/m] * (((0.0745203 + (T / 1 [K]) * (-0.000089))) / 0.04842995)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 260.55,
             high: 470.45,
@@ -16387,7 +16387,7 @@ abstract final class Materials {
         expression: '1036.1 [kg/m³] * (((1195.02 + (T / 1 [K]) * ((-0.330423) + (T / 1 [K]) * (-0.000718715)))) / 1036.3923422954126)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 263.0,
             high: 373.0,
@@ -16404,7 +16404,7 @@ abstract final class Materials {
         expression: '0.05761 [Pa·s] * ((pow(10.0, (-4.8464) + 480.89 / ((T / 1 [K]) - 159.66))) / 0.05702195860601148)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 263.15,
             high: 373.15,
@@ -16498,7 +16498,7 @@ abstract final class Materials {
         expression: '713.4 [kg/m³] * (((1010.41 + (T / 1 [K]) * ((-0.816951) + (T / 1 [K]) * (-0.000660447)))) / 714.1640316956425)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 303.0,
@@ -16515,7 +16515,7 @@ abstract final class Materials {
         expression: '0.0002372 [Pa·s] * ((exp((-11.0428) + 791.93 / (T / 1 [K]))) / 0.00023845016285246233)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 303.0,
@@ -16529,7 +16529,7 @@ abstract final class Materials {
         expression: '0.0171 [N/m] * (((0.043722 + (T / 1 [K]) * (-0.0000908))) / 0.01710398)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 157.15,
             high: 307.75,
@@ -16603,7 +16603,7 @@ abstract final class Materials {
         expression: '1047.8 [kg/m³] * (((1273.52 + (T / 1 [K]) * ((-0.51086) + (T / 1 [K]) * (-0.000885051)))) / 1047.7028318044524)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 293.0,
             high: 383.0,
@@ -16620,7 +16620,7 @@ abstract final class Materials {
         expression: '0.001202 [Pa·s] * ((exp((-11.2247) + 1319.98 / (T / 1 [K]))) / 0.0012041829816280183)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 293.0,
             high: 383.0,
@@ -16634,7 +16634,7 @@ abstract final class Materials {
         expression: '0.02759 [N/m] * (((0.0567311 + (T / 1 [K]) * (-0.0000994))) / 0.02759199)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 289.85,
             high: 391.15,
@@ -16722,7 +16722,7 @@ abstract final class Materials {
         expression: '1487.9 [kg/m³] * (((1899.15 + (T / 1 [K]) * ((-0.937211) + (T / 1 [K]) * (-0.00153436)))) / 1492.5484189429003)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 328.0,
@@ -16739,7 +16739,7 @@ abstract final class Materials {
         expression: '0.0005668 [Pa·s] * ((exp((-10.5469) + 900.97 / (T / 1 [K]))) / 0.0005679424398400063)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 328.0,
@@ -16753,7 +16753,7 @@ abstract final class Materials {
         expression: '0.02732 [N/m] * (((0.0652829 + (T / 1 [K]) * (-0.0001295))) / 0.027319975000000003)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 209.55,
             high: 334.25,
@@ -16837,7 +16837,7 @@ abstract final class Materials {
         expression: '1325.5 [kg/m³] * (((1758.38 + (T / 1 [K]) * ((-1.06168) + (T / 1 [K]) * (-0.00140181)))) / 1326.6812706702751)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 308.0,
@@ -16854,7 +16854,7 @@ abstract final class Materials {
         expression: '0.0004334 [Pa·s] * ((exp((-10.6101) + 840.22 / (T / 1 [K]))) / 0.00043336844684463004)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 233.0,
             high: 308.0,
@@ -16868,7 +16868,7 @@ abstract final class Materials {
         expression: '0.02784 [N/m] * (((0.0654825 + (T / 1 [K]) * (-0.0001284))) / 0.02784204)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 178.15,
             high: 313.15,
@@ -16937,7 +16937,7 @@ abstract final class Materials {
         expression: '1594.0 [kg/m³] * (((2012.45 + (T / 1 [K]) * ((-1.02201) + (T / 1 [K]) * (-0.00139604)))) / 1592.8763872131)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 343.0,
@@ -16954,7 +16954,7 @@ abstract final class Materials {
         expression: '0.0009739 [Pa·s] * ((exp((-11.2344) + 1260.01 / (T / 1 [K]))) / 0.0009719317186595272)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.0,
             high: 343.0,
@@ -16968,7 +16968,7 @@ abstract final class Materials {
         expression: '0.02704 [N/m] * (((0.0629236 + (T / 1 [K]) * (-0.0001224))) / 0.027042040000000003)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.15,
             high: 349.85,
@@ -17052,7 +17052,7 @@ abstract final class Materials {
         expression: '1100.0 [kg/m³] * (((1353.4 + (T / 1 [K]) * ((-0.750897) + (T / 1 [K]) * (-0.000375009)))) / 1101.0474250801976)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 293.0,
             high: 373.0,
@@ -17069,7 +17069,7 @@ abstract final class Materials {
         expression: '0.002187 [Pa·s] * ((exp((-11.5415) + 1582.61 / (T / 1 [K]))) / 0.002148759695392125)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 293.0,
             high: 373.0,
@@ -17148,7 +17148,7 @@ abstract final class Materials {
         expression: '861.0 [kg/m³] * (((1047.92 + (T / 1 [K]) * ((-0.442759) + (T / 1 [K]) * (-0.000667975)))) / 860.7214833430626)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 288.0,
             high: 373.0,
@@ -17165,7 +17165,7 @@ abstract final class Materials {
         expression: '0.0006444 [Pa·s] * ((exp((-11.06) + 1088.9 / (T / 1 [K]))) / 0.0006454780462647591)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 288.0,
             high: 373.0,
@@ -17179,7 +17179,7 @@ abstract final class Materials {
         expression: '0.02854 [N/m] * (((0.0600263 + (T / 1 [K]) * (-0.0001074))) / 0.028541990000000003)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 286.15,
             high: 411.15,
@@ -17253,7 +17253,7 @@ abstract final class Materials {
         expression: '1220.0 [kg/m³] * (((1474.42 + (T / 1 [K]) * ((-0.524092) + (T / 1 [K]) * (-0.00117403)))) / 1219.889905077325)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.0,
             high: 373.0,
@@ -17270,7 +17270,7 @@ abstract final class Materials {
         expression: '0.001785 [Pa·s] * ((exp((-11.9545) + 1646.63 / (T / 1 [K]))) / 0.0017687574269271247)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.0,
             high: 373.0,
@@ -17284,7 +17284,7 @@ abstract final class Materials {
         expression: '0.03767 [N/m] * (((0.0698619 + (T / 1 [K]) * (-0.0001098))) / 0.037674030000000004)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 281.15,
             high: 374.15,
@@ -17403,7 +17403,7 @@ abstract final class Materials {
         expression: '0.001249 [Pa·s] * ((exp((-11.8199) + 1505.2 / (T / 1 [K]))) / 0.0012491059099073573)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 273.15,
             high: 293.15,
@@ -17461,7 +17461,7 @@ abstract final class Materials {
         expression: '1064.9 [kg/m³] * (((1061.28 + (T / 1 [K]) * (0.54759 + (T / 1 [K]) * (-0.0018286)))) / 1064.6617520165)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.15,
             high: 373.15,
@@ -17478,7 +17478,7 @@ abstract final class Materials {
         expression: '0.003693 [Pa·s] * ((pow(10.0, (-4.5058) + 309.73 / ((T / 1 [K]) - 144.33))) / 0.0037621757588219115)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.15,
             high: 373.15,
@@ -17495,7 +17495,7 @@ abstract final class Materials {
         expression: '3312.0 [J/(kg·K)] * (((683.033 + (T / 1 [K]) * (12.7268 + (T / 1 [K]) * (-0.012805)))) / 3313.4721273874998)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.15,
             high: 373.15,
@@ -17509,7 +17509,7 @@ abstract final class Materials {
         expression: '0.389 [W/(m·K)] * (((0.193947 + (T / 1 [K]) * (0.00071782 + (T / 1 [K]) * (-1.75344e-7)))) / 0.38930740926116)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 253.15,
             high: 373.15,
@@ -17545,7 +17545,7 @@ abstract final class Materials {
         expression: '730.8 [kg/m³] * (((1000.95 + (T / 1 [K]) * (-0.9233))) / 730.284605)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 280.37,
             high: 319.26,
@@ -17761,7 +17761,7 @@ abstract final class Materials {
         expression: '830.8 [kg/m³] * (((1027.23 + (T / 1 [K]) * (-0.6702))) / 830.7608700000001)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.15,
             high: 413.15,
@@ -17952,7 +17952,7 @@ abstract final class Materials {
         expression: '795.0 [kg/m³] * (((1088.53 + (T / 1 [K]) * (-1.0015))) / 794.9402749999999)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 274.26,
             high: 297.59,
@@ -18174,7 +18174,7 @@ abstract final class Materials {
         expression: '879.8 [kg/m³] * (((1090.7 + (T / 1 [K]) * (-0.7207))) / 879.4267950000001)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.15,
             high: 413.15,
@@ -18251,7 +18251,7 @@ abstract final class Materials {
         expression: '914.5 [kg/m³] * (((1096.09 + (T / 1 [K]) * (-0.6179))) / 914.9526149999999)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.15,
             high: 413.15,
@@ -18333,7 +18333,7 @@ abstract final class Materials {
         expression: '916.9 [kg/m³] * (((1106.02 + (T / 1 [K]) * (-0.6409))) / 918.140165)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.15,
             high: 413.15,
@@ -18415,7 +18415,7 @@ abstract final class Materials {
         expression: '965.0 [kg/m³] * (((1255.88 + (T / 1 [K]) * (-0.9925))) / 964.9286250000001)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 283.15,
             high: 296.48,
@@ -18890,7 +18890,7 @@ abstract final class Materials {
         expression: '6076.9 [kg/m³] * (((6262.08 + (T / 1 [K]) * (-0.611))) / 6076.85535)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 303.0,
             high: 1500.0,
@@ -18907,7 +18907,7 @@ abstract final class Materials {
         expression: '0.001685 [Pa·s] * ((exp((-7.93586) + 469.796 / (T / 1 [K]))) / 0.001677453480325432)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 304.0,
             high: 800.0,
@@ -18921,7 +18921,7 @@ abstract final class Materials {
         expression: '0.724 [N/m] * (((0.745827 + (T / 1 [K]) * (-0.000072))) / 0.7240002)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 303.0,
             high: 800.0,
@@ -18943,7 +18943,7 @@ abstract final class Materials {
         expression: '28.42 [W/(m·K)] * (((6.6247 + (T / 1 [K]) * 0.071896)) / 28.4199724)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 303.0,
             high: 850.0,
@@ -18980,7 +18980,7 @@ abstract final class Materials {
         expression: '2.592e-7 [Ω·m] * (((2.15827e-7 + (T / 1 [K]) * 1.43234e-10)) / 2.592483871e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 302.85,
             high: 573.15,
@@ -19005,7 +19005,7 @@ abstract final class Materials {
         expression: '6353.0 [kg/m³] * (((6583.23 + (T / 1 [K]) * (-0.787))) / 6352.520949999999)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 293.0,
             high: 493.0,
@@ -19022,7 +19022,7 @@ abstract final class Materials {
         expression: '0.00215 [Pa·s] * ((exp((-7.73278) + 466.827 / (T / 1 [K]))) / 0.002088131388073863)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 299.0,
             high: 598.0,
@@ -19045,7 +19045,7 @@ abstract final class Materials {
             '24.6 [W/(m·K)] * (((11.098 + (T / 1 [K]) * 0.04616)) / 24.629804)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 292.0,
             high: 598.0,
@@ -19067,7 +19067,7 @@ abstract final class Materials {
         expression: '3.07e-7 [Ω·m] * (((1.7351e-7 + (T / 1 [K]) * 4.563e-10)) / 3.07274345e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 291.0,
             high: 723.0,
@@ -19222,7 +19222,7 @@ abstract final class Materials {
         expression: '87.22 [W/(m·K)] * (((124.67 + (T / 1 [K]) * ((-0.11381) + (T / 1 [K]) * (0.000055226 + (T / 1 [K]) * (-1.1842e-8))))) / 87.224272)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 371.0,
             high: 1500.0,
@@ -19268,7 +19268,7 @@ abstract final class Materials {
         expression: '1.075e-7 [Ω·m] * (((2.49727e-8 + (T / 1 [K]) * (8.41382e-11 + (T / 1 [K]) * 3.05451e-13))) / 1.0750014000000001e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 370.15,
             high: 1073.15,
@@ -19295,7 +19295,7 @@ abstract final class Materials {
         expression: '10609.0 [kg/m³] * (((11441.0 + (T / 1 [K]) * (-1.2795))) / 10609.325)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 600.6,
             high: 2021.0,
@@ -19312,7 +19312,7 @@ abstract final class Materials {
         expression: '0.002356 [Pa·s] * ((exp(1069.0 / (T / 1 [K]))) / 5.179017593992116)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 600.6,
             high: 1473.0,
@@ -19327,7 +19327,7 @@ abstract final class Materials {
             '0.4525 [N/m] * (((0.5259 + (T / 1 [K]) * (-0.000113))) / 0.45245)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 600.6,
             high: 1300.0,
@@ -19386,7 +19386,7 @@ abstract final class Materials {
         expression: '16.35 [W/(m·K)] * (((9.2 + (T / 1 [K]) * 0.011)) / 16.349999999999998)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 600.6,
             high: 1300.0,
@@ -19420,7 +19420,7 @@ abstract final class Materials {
             '1793.0 [m/s] * (((1953.0 + (T / 1 [K]) * (-0.246))) / 1793.1)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 600.6,
             high: 2000.0,
@@ -19437,7 +19437,7 @@ abstract final class Materials {
         expression: '9.762e-7 [Ω·m] * (((6.7e-7 + (T / 1 [K]) * 4.71e-10)) / 9.7615e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 600.6,
             high: 1273.0,
@@ -19463,7 +19463,7 @@ abstract final class Materials {
         expression: '10453.0 [kg/m³] * (((11065.0 + (T / 1 [K]) * (-1.293))) / 10453.21705)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 398.0,
             high: 1927.0,
@@ -19480,7 +19480,7 @@ abstract final class Materials {
         expression: '0.002432 [Pa·s] * ((exp(754.1 / (T / 1 [K]))) / 4.922351313990251)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 398.0,
             high: 1300.0,
@@ -19494,7 +19494,7 @@ abstract final class Materials {
         expression: '0.4107 [N/m] * (((0.4485 + (T / 1 [K]) * (-0.0000799))) / 0.410695315)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 398.0,
             high: 1400.0,
@@ -19553,7 +19553,7 @@ abstract final class Materials {
         expression: '10.42 [W/(m·K)] * (((3.284 + (T / 1 [K]) * (0.01617 + (T / 1 [K]) * (-0.000002305)))) / 10.4188130236375)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 398.0,
             high: 1200.0,
@@ -19583,7 +19583,7 @@ abstract final class Materials {
             '1755.0 [m/s] * (((1855.0 + (T / 1 [K]) * (-0.212))) / 1754.6922)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 400.0,
             high: 1100.0,
@@ -19600,7 +19600,7 @@ abstract final class Materials {
         expression: '0.000001136 [Ω·m] * (((9.09e-7 + (T / 1 [K]) * 4.8e-10)) / 0.000001136112)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 400.0,
             high: 1100.0,
@@ -19628,7 +19628,7 @@ abstract final class Materials {
             '6949.7 [kg/m³] * (((7308.31 + (T / 1 [K]) * (-0.652))) / 6949.71)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 506.0,
             high: 1950.0,
@@ -19645,7 +19645,7 @@ abstract final class Materials {
         expression: '0.001646 [Pa·s] * ((exp(790.7 / (T / 1 [K]))) / 4.210731407642875)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 506.0,
             high: 1280.0,
@@ -19659,7 +19659,7 @@ abstract final class Materials {
         expression: '0.5559 [N/m] * (((0.606 + (T / 1 [K]) * (-0.000091))) / 0.5559499999999999)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 505.0,
             high: 1300.0,
@@ -19719,7 +19719,7 @@ abstract final class Materials {
             '29.67 [W/(m·K)] * (((13.9 + (T / 1 [K]) * 0.02868)) / 29.674)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 505.0,
             high: 1200.0,
@@ -19757,7 +19757,7 @@ abstract final class Materials {
             '2463.0 [m/s] * (((2605.0 + (T / 1 [K]) * (-0.258))) / 2463.1)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 505.0,
             high: 1500.0,
@@ -19774,7 +19774,7 @@ abstract final class Materials {
         expression: '4.848e-7 [Ω·m] * (((3.43476e-7 + (T / 1 [K]) * 2.56947e-10)) / 4.8479685e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 505.15,
             high: 1273.15,
@@ -19801,7 +19801,7 @@ abstract final class Materials {
         expression: '2365.0 [kg/m³] * (((2667.31 + (T / 1 [K]) * (-0.311))) / 2364.66035)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 933.47,
             high: 1270.0,
@@ -19818,7 +19818,7 @@ abstract final class Materials {
         expression: '0.00124 [Pa·s] * ((exp((-8.59417) + 1850.1 / (T / 1 [K]))) / 0.0012395284719467973)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 933.0,
             high: 1270.0,
@@ -19832,7 +19832,7 @@ abstract final class Materials {
         expression: '0.8602 [N/m] * (((1.00229 + (T / 1 [K]) * (-0.000146))) / 0.8602101)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 933.47,
             high: 1500.0,
@@ -19908,7 +19908,7 @@ abstract final class Materials {
             '0.12 * ((((-0.0422) + (T / 1 [K]) * 0.000167)) / 0.12031605)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 933.47,
             high: 1273.0,
@@ -19975,7 +19975,7 @@ abstract final class Materials {
         expression: '7024.0 [kg/m³] * (((8711.95 + (T / 1 [K]) * (-0.926))) / 7023.713100000001)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1809.0,
             high: 2480.0,
@@ -19992,7 +19992,7 @@ abstract final class Materials {
         expression: '0.005719 [Pa·s] * ((exp((-8.56769) + 6205.35 / (T / 1 [K]))) / 0.005718504539613351)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1809.0,
             high: 2480.0,
@@ -20007,7 +20007,7 @@ abstract final class Materials {
             '1.899 [N/m] * (((2.84664 + (T / 1 [K]) * (-0.00052))) / 1.898602)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1803.0,
             high: 2100.0,
@@ -20030,7 +20030,7 @@ abstract final class Materials {
         expression: '36.47 [W/(m·K)] * (((18.926 + (T / 1 [K]) * 0.0096207)) / 36.465979205)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1815.0,
             high: 2050.0,
@@ -20068,7 +20068,7 @@ abstract final class Materials {
             '3966.0 [m/s] * (((4876.0 + (T / 1 [K]) * (-0.499))) / 3966.24815)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1811.0,
             high: 2000.0,
@@ -20100,7 +20100,7 @@ abstract final class Materials {
             '7962.0 [kg/m³] * (((9109.01 + (T / 1 [K]) * (-0.819))) / 7962.41)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1356.0,
             high: 2500.0,
@@ -20117,7 +20117,7 @@ abstract final class Materials {
         expression: '0.003744 [Pa·s] * ((exp((-7.87945) + 3208.42 / (T / 1 [K]))) / 0.00374354809575666)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1356.0,
             high: 1970.0,
@@ -20131,7 +20131,7 @@ abstract final class Materials {
         expression: '1.363 [N/m] * (((1.72712 + (T / 1 [K]) * (-0.00026))) / 1.3631199999999999)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1358.0,
             high: 1900.0,
@@ -20155,7 +20155,7 @@ abstract final class Materials {
             '153.5 [W/(m·K)] * (((54.889 + (T / 1 [K]) * 0.07041)) / 153.463)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1358.0,
             high: 1700.0,
@@ -20193,7 +20193,7 @@ abstract final class Materials {
             '3462.0 [m/s] * (((4093.0 + (T / 1 [K]) * (-0.451))) / 3461.6)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1358.0,
             high: 1900.0,
@@ -20210,7 +20210,7 @@ abstract final class Materials {
         expression: '2.046e-7 [Ω·m] * (((6.09991e-8 + (T / 1 [K]) * 1.02598e-10)) / 2.0463629999999998e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1356.15,
             high: 1873.15,
@@ -20238,7 +20238,7 @@ abstract final class Materials {
             '512.0 [kg/m³] * (((562.0 + (T / 1 [K]) * (-0.1))) / 512.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 453.7,
             high: 1600.0,
@@ -20254,7 +20254,7 @@ abstract final class Materials {
         expression: '0.000523 [Pa·s] * ((exp(5521.0 / (8.3144 * (T / 1 [K])))) / 3.773705259635677)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 453.7,
             high: 1000.0,
@@ -20268,7 +20268,7 @@ abstract final class Materials {
         expression: '0.392 [N/m] * (((0.467048 + (T / 1 [K]) * (-0.00015))) / 0.392048)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 453.7,
             high: 1600.0,
@@ -20286,7 +20286,7 @@ abstract final class Materials {
         expression: '45.42 [W/(m·K)] * (((21.874 + (T / 1 [K]) * (0.056255 + (T / 1 [K]) * (-0.000018325)))) / 45.420249999999996)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 453.7,
             high: 1600.0,
@@ -20327,7 +20327,7 @@ abstract final class Materials {
         expression: '2.669e-7 [Ω·m] * (((2.256e-8 + (T / 1 [K]) * (6.665e-10 + (T / 1 [K]) * ((-4.255e-13) + (T / 1 [K]) * 1.398e-16)))) / 2.6691e-7)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 453.7,
             high: 1600.0,
@@ -20361,7 +20361,7 @@ abstract final class Materials {
         expression: '937.2 [J/(kg·K)] * (((970.688 + (T / 1 [K] - 273.15) * ((-0.369029) + (T / 1 [K] - 273.15) * 0.000343088))) / 937.21598)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 273.15,
             high: 1073.15,
@@ -20375,7 +20375,7 @@ abstract final class Materials {
         expression: '23.25 [W/(m·K)] * (((21.4 + (T / 1 [K] - 273.15) * (0.0207 + (T / 1 [K] - 273.15) * (-0.000022)))) / 24.009999999999998)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 423.15,
             high: 953.15,
@@ -20406,7 +20406,7 @@ abstract final class Materials {
         expression: '1899.0 [kg/m³] * (((2263.72 + (T / 1 [K]) * (-0.636))) / 1899.1965999999998)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 533.15,
             high: 873.15,
@@ -20423,7 +20423,7 @@ abstract final class Materials {
         expression: '0.003263 [Pa·s] * (((0.022714 + (T / 1 [K] - 273.15) * ((-0.00012) + (T / 1 [K] - 273.15) * (2.281e-7 + (T / 1 [K] - 273.15) * (-1.474e-10))))) / 0.003263200000000001)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 533.15,
             high: 873.15,
@@ -20440,7 +20440,7 @@ abstract final class Materials {
         expression: '1495.0 [J/(kg·K)] * (((1396.02 + (T / 1 [K]) * 0.172)) / 1494.6018)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 533.15,
             high: 873.15,
@@ -20454,7 +20454,7 @@ abstract final class Materials {
         expression: '0.5 [W/(m·K)] * (((0.391101 + (T / 1 [K]) * 0.00019)) / 0.4999995)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 533.15,
             high: 873.15,
@@ -20481,7 +20481,7 @@ abstract final class Materials {
             '1973.0 [kg/m³] * (((2413.0 + (T / 1 [K]) * (-0.4884))) / 1973.44)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 732.0,
             high: 1673.0,
@@ -20544,7 +20544,7 @@ abstract final class Materials {
         expression: '1.08 [W/(m·K)] * (((0.63 + (T / 1 [K]) * 0.0005)) / 1.08)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 732.0,
             high: 1673.0,
@@ -20581,7 +20581,7 @@ abstract final class Materials {
         expression: '1542.0 [kg/m³] * (((2139.1 + (T / 1 [K]) * (-0.543))) / 1541.7999999999997)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1073.85,
             high: 1300.15,
@@ -20598,7 +20598,7 @@ abstract final class Materials {
         expression: '0.0009891 [Pa·s] * ((exp(21209.3 / (8.314459848 * (T / 1 [K])))) / 10.165441890543061)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1081.15,
             high: 1249.0,
@@ -20612,7 +20612,7 @@ abstract final class Materials {
         expression: '0.1136 [N/m] * (((0.19905 + (T / 1 [K]) * (-0.0000777))) / 0.11358)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1073.0,
             high: 1273.0,
@@ -20629,7 +20629,7 @@ abstract final class Materials {
         expression: '1215.0 [J/(kg·K)] * (((1806.96 + (T / 1 [K]) * (-0.538365))) / 1214.7585)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 1100.0,
             high: 1300.0,
@@ -20855,7 +20855,7 @@ abstract final class Materials {
         expression: '0.215 [Pa·s] * ((exp(44860.0 / (8.314462618 * (T / 1 [K])))) / 98441502.07754311)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 278.15,
             high: 328.15,
@@ -20994,7 +20994,7 @@ abstract final class Materials {
             '9.7e-8 [Ω·m] * (((1.0 + 0.005 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21111,7 +21111,7 @@ abstract final class Materials {
             '1.59e-8 [Ω·m] * (((1.0 + 0.0038 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21221,7 +21221,7 @@ abstract final class Materials {
             '2.2e-7 [Ω·m] * (((1.0 + 0.0039 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21329,7 +21329,7 @@ abstract final class Materials {
             '6.99e-8 [Ω·m] * (((1.0 + 0.006 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21444,7 +21444,7 @@ abstract final class Materials {
             '5.9e-8 [Ω·m] * (((1.0 + 0.0037 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21546,7 +21546,7 @@ abstract final class Materials {
             '1.09e-7 [Ω·m] * (((1.0 + 0.0045 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21656,7 +21656,7 @@ abstract final class Materials {
             '4.2e-7 [Ω·m] * (((1.0 + 0.0038 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21757,7 +21757,7 @@ abstract final class Materials {
             '5.6e-8 [Ω·m] * (((1.0 + 0.0045 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -21942,7 +21942,7 @@ abstract final class Materials {
         expression: '1.06e-7 [Ω·m] * (((1.0 + 0.00392 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -22500,7 +22500,7 @@ abstract final class Materials {
         expression: '896.0 [J/(kg·K)] * (((903.0 + (T / 1 [K] - 273.15) * 0.41)) / 911.2)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 0.0,
             high: 500.0,
@@ -23030,7 +23030,7 @@ abstract final class Materials {
         expression: '0.0000011 [Ω·m] * (((1.0 + 0.0004 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 400.0,
@@ -24613,7 +24613,7 @@ abstract final class Materials {
         expression: '2097.0 [J/(kg·K)] * (((152.5 + (T / 1 [K]) * 7.122)) / 2097.8742999999995)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 273.15,
@@ -24678,7 +24678,7 @@ abstract final class Materials {
         expression: '2097.0 [J/(kg·K)] * (((152.5 + (T / 1 [K]) * 7.122)) / 2097.8742999999995)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 200.0,
             high: 273.15,
@@ -24775,7 +24775,7 @@ abstract final class Materials {
         expression: '0.11 [W/(m·K)] * (((1.0 + 0.0025 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.0,
             high: 370.0,
@@ -24851,7 +24851,7 @@ abstract final class Materials {
         expression: '0.18 [W/(m·K)] * (((1.0 + 0.0025 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.0,
             high: 370.0,
@@ -24927,7 +24927,7 @@ abstract final class Materials {
         expression: '0.18 [W/(m·K)] * (((1.0 + 0.0025 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.0,
             high: 370.0,
@@ -25003,7 +25003,7 @@ abstract final class Materials {
         expression: '0.14 [W/(m·K)] * (((1.0 + 0.0025 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.0,
             high: 370.0,
@@ -25079,7 +25079,7 @@ abstract final class Materials {
         expression: '0.12 [W/(m·K)] * (((1.0 + 0.0025 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.0,
             high: 370.0,
@@ -25155,7 +25155,7 @@ abstract final class Materials {
         expression: '0.055 [W/(m·K)] * (((1.0 + 0.0025 * ((T / 1 [K]) - 293.15))) / 1.0)',
         inputs: <String, LawInput>{
           'T': LawInput(
-            MaterialState.temperatureId,
+            MatterState.temperatureId,
             unit: Unit.kelvin,
             low: 250.0,
             high: 370.0,

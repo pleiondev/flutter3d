@@ -32,7 +32,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_core/formats.dart';
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 import 'package:flutter3d_modeler/src/ui/theme.dart';
 import 'package:flutter3d_modeler/src/ui/timeline_panel.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -89,7 +89,7 @@ final class BrushSample {
 /// How a sample changes a vertex's weight at `paintWeights`' own `joint`.
 ///
 /// A `final class` with `static const` instances rather than an `enum` —
-/// the same choice `BlendMode`/`DriverAxis` already make in this package,
+/// the same choice `PaintBlendMode`/`DriverAxis` already make in this package,
 /// and for the same reason: a fixed, small domain that does not want a
 /// fourth case added by accident.
 final class PaintWeightsMode {

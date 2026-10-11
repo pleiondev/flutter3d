@@ -13,10 +13,12 @@ void main() {
   group('SaveSchema', () {
     // Version 0 kept health as a number; version 1 split it into hearts;
     // version 2 renamed `keys` to `keyRing`.
-    final schema = SaveSchema(<SaveMigration>[
-      (run) => run..['hearts'] = ((run.remove('health') as num?) ?? 0) ~/ 10,
-      (run) => run..['keyRing'] = run.remove('keys'),
-    ]);
+    final schema = SaveSchema(
+      migrations: <SaveMigration>[
+        (run) => run..['hearts'] = ((run.remove('health') as num?) ?? 0) ~/ 10,
+        (run) => run..['keyRing'] = run.remove('keys'),
+      ],
+    );
 
     test('the version is the number of migrations', () {
       // Mutation: a version kept beside the list. It can be raised without a
@@ -62,9 +64,9 @@ void main() {
       // Mutation: let the throw out. `SaveFile.read` promises never to throw,
       // and a launch that crashes on somebody's save is the worst version of
       // "the save could not be read".
-      final broken = SaveSchema(<SaveMigration>[
-        (run) => throw StateError('no such field'),
-      ]);
+      final broken = SaveSchema(
+        migrations: <SaveMigration>[(run) => throw StateError('no such field')],
+      );
 
       final refused = broken.upgrade(<String, Object?>{}, 0);
       expect(refused, isA<SaveRefused>());
@@ -93,7 +95,7 @@ void main() {
 
       final read = SaveRecord.read(
         written.toJson(),
-        SaveSchema(<SaveMigration>[(run) => run]),
+        SaveSchema(migrations: <SaveMigration>[(run) => run]),
       );
 
       expect(read, isA<SaveFound>());
@@ -115,9 +117,11 @@ void main() {
           'level': 'a.json',
           'run': <String, Object?>{'version': 1, 'health': 20},
         },
-        SaveSchema(<SaveMigration>[
-          (run) => run..['hearts'] = (run.remove('health')! as num) ~/ 10,
-        ]),
+        SaveSchema(
+          migrations: <SaveMigration>[
+            (run) => run..['hearts'] = (run.remove('health')! as num) ~/ 10,
+          ],
+        ),
       );
 
       final found = read as SaveFound;

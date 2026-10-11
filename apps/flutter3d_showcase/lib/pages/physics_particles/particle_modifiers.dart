@@ -37,7 +37,7 @@ final class ParticleModifiersDemo extends ShowcaseDemo {
 
     // #region affectors
     _affectors = <ParticleAffector>[
-      const ParticleGravity(-4.0),
+      const ParticleGravity(acceleration: -4.0),
       const ParticleDrag(0.4),
       ParticleWind(Vector3(0.6, 0.0, 0.0)),
       const ParticleTurbulence(strength: 1.5, scale: 0.8),

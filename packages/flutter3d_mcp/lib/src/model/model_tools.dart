@@ -36,6 +36,13 @@ ListSchema _vector(String about, {String unit = 'in metres'}) => ListSchema(
   maxItems: 3,
 );
 
+/// The description of an argument spelled the British way, which a tool
+/// still reads beside the American [american] so that an agent written
+/// against an earlier version keeps working. One of the two is given.
+String _britishAlias(String american) =>
+    'the same as $american, the spelling earlier versions read; $american '
+    'wins when both are given';
+
 /// Sixteen numbers, column-major — `Matrix4.storage` — for the two commands
 /// that take a whole transform rather than a friendlier vector or angle.
 ListSchema _matrix16(String about) => ListSchema(
@@ -375,8 +382,16 @@ List<ModelTool> get _commandTools => <ModelTool>[
         properties: <String, Schema>{
           'id': IntegerSchema(description: 'the object'),
           'to': UntitledSingleSelectEnumSchema(
-            description: 'boundsCentre (default), boundsBottom or worldOrigin',
-            values: <String>[for (final p in OriginPlacement.values) p.wire],
+            description:
+                'boundsCenter (default), boundsBottom or worldOrigin; '
+                'boundsCentre, the spelling earlier versions read, is the '
+                'same as boundsCenter',
+            values: <String>{
+              for (final p in OriginPlacement.values) ...<String>[
+                p.name,
+                p.wire,
+              ],
+            }.toList(),
           ),
         },
         required: <String>['id'],
@@ -3721,18 +3736,23 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'one or more brush hits making up this stroke',
             items: ObjectSchema(
               properties: <String, Schema>{
-                'centre': _vector(
+                'center': _vector(
                   'where the brush touched, in the object\'s own space',
                 ),
+                'centre': _vector(_britishAlias('center')),
                 'radius': NumberSchema(
                   description: 'how far the hit reaches, in metres',
                 ),
               },
-              required: <String>['centre', 'radius'],
+              required: <String>['radius'],
             ),
           ),
-          'colour': ListSchema(
+          'color': ListSchema(
             description: 'straight-alpha RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'colour': ListSchema(
+            description: _britishAlias('color'),
             items: NumberSchema(),
           ),
           'layer': IntegerSchema(
@@ -3755,7 +3775,7 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'read the mask the other way up',
           ),
         },
-        required: <String>['objectId', 'samples', 'colour'],
+        required: <String>['objectId', 'samples'],
       ),
     ),
     _command('paintStroke'),
@@ -3801,23 +3821,28 @@ List<ModelTool> get _rigPipelineTools => <ModelTool>[
             description: 'one or more brush hits making up this stroke',
             items: ObjectSchema(
               properties: <String, Schema>{
-                'centre': _vector(
+                'center': _vector(
                   'where the brush touched, in the object\'s own space',
                 ),
+                'centre': _vector(_britishAlias('center')),
                 'radius': NumberSchema(
                   description: 'how far the hit reaches, in metres',
                 ),
               },
-              required: <String>['centre', 'radius'],
+              required: <String>['radius'],
             ),
           ),
-          'colour': ListSchema(
+          'color': ListSchema(
             description: 'straight RGBA, four numbers 0..1',
+            items: NumberSchema(),
+          ),
+          'colour': ListSchema(
+            description: _britishAlias('color'),
             items: NumberSchema(),
           ),
           'strength': NumberSchema(description: 'how hard, 0..1; default 1'),
         },
-        required: <String>['objectId', 'samples', 'colour'],
+        required: <String>['objectId', 'samples'],
       ),
     ),
     _command('paintVertexColour'),

@@ -361,7 +361,7 @@ final class Solid
   Solid.sphere(double radius, {required NativeMaterial material, required double density})
   double get mass
   factory Solid.compound(List<NativeCompoundPart> parts, {required NativeMaterial material, required double density})
-  factory Solid.of(NativeShape shape, PhysicalMaterial material, {MaterialState? state, double? wall})
+  factory Solid.of(NativeShape shape, PhysicalMaterial material, {MatterState? state, double? wall})
   final List<NativeCompoundPart>? parts
   final NativeMaterial material
   final NativeShape shape

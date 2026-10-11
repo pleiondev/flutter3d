@@ -915,7 +915,7 @@ final class NativeMaterial {
   /// it. For a built-in this is its preset to the bit. What only the fire
   /// model reads — how a flame creeps, how a char grows — is the preset's,
   /// and a plugin sets it with [copyWith].
-  static NativeMaterial of(PhysicalMaterial material, {MaterialState? state}) {
+  static NativeMaterial of(PhysicalMaterial material, {MatterState? state}) {
     final base = switch (material.id) {
       'f3d.wood' => wood(),
       'f3d.oak' => oak(),

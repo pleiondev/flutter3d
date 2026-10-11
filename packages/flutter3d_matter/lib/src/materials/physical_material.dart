@@ -172,7 +172,7 @@ final class PhysicalMaterial {
 
   /// The state its numbers are quoted at: its [temperature] and [pressure],
   /// in its [phase]. Every law of the entry gives its value there.
-  MaterialState get referenceState => MaterialState.at(
+  MatterState get referenceState => MatterState.at(
     temperature: temperature,
     pressure: pressure,
     phase: phase,

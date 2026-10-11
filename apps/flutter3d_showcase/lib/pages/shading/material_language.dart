@@ -43,9 +43,12 @@ material RimLight {
     // #region specialise
     _specialised = specializeMaterial(
       program,
-      const MaterialVariant('RimLight_sharp', {
-        'rimPower': <double>[_rimPower],
-      }),
+      const MaterialVariant(
+        'RimLight_sharp',
+        values: {
+          'rimPower': <double>[_rimPower],
+        },
+      ),
     );
     _glsl = emitMaterialFragment(_specialised);
     // #endregion specialise

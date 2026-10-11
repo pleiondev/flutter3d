@@ -31,7 +31,7 @@ typedef SaveMigration = Map<String, Object?> Function(Map<String, Object?> run);
 
 /// A game's save schema: the migrations from version 0 to now.
 final class SaveSchema {
-  const SaveSchema([this.migrations = const <SaveMigration>[]]);
+  const SaveSchema({this.migrations = const <SaveMigration>[]});
 
   /// `migrations[n]` takes a version-`n` run to version `n + 1`.
   final List<SaveMigration> migrations;

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 4c2391e0f8610248
+# table-stamp: abd735fe8b1740da
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -362,3 +362,27 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'TextureBudgetUsage'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-RenderRefusal-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'RenderRefusal'
+    changes:
+      - kind: 'rename'
+        newName: 'RenderRefusalException'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-Key-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'Key'
+    changes:
+      - kind: 'rename'
+        newName: 'Keyframe'
+  - title: 'flutter3d 1.0.0-rc.1: rc-model_core-BlendMode-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_model_core/flutter3d_model_core.dart']
+      class: 'BlendMode'
+    changes:
+      - kind: 'rename'
+        newName: 'PaintBlendMode'

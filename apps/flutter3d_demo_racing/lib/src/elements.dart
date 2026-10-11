@@ -960,7 +960,7 @@ final class TrackElements {
       color: LinearColor(0.62, 0.53, 0.40, 0.45),
       affectors: <ParticleAffector>[
         const ParticleDrag(1.6),
-        const ParticleGravity(0.25),
+        const ParticleGravity(acceleration: 0.25),
         const ParticleTurbulence(strength: 0.6, scale: 2.0),
         ParticleSizeCurve(ParticleCurve.linear(1.0, 3.4)),
         const ParticleFade(startsAt: 0.3),
@@ -982,7 +982,7 @@ final class TrackElements {
       color: LinearColor(0.92, 0.95, 1.0, 0.18),
       affectors: <ParticleAffector>[
         const ParticleDrag(2.5),
-        const ParticleGravity(-2.0),
+        const ParticleGravity(acceleration: -2.0),
         ParticleSizeCurve(ParticleCurve.linear(1.0, 2.6)),
         const ParticleFade(startsAt: 0.2),
       ],
@@ -1005,7 +1005,7 @@ final class TrackElements {
     color: LinearColor(0.88, 0.88, 0.9, 0.42),
     affectors: <ParticleAffector>[
       const ParticleDrag(1.8),
-      const ParticleGravity(0.5),
+      const ParticleGravity(acceleration: 0.5),
       const ParticleTurbulence(strength: 0.5, scale: 1.5),
       ParticleSizeCurve(ParticleCurve.linear(1.0, 3.8)),
       const ParticleFade(startsAt: 0.25),

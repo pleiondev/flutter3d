@@ -3519,9 +3519,9 @@ PaintStack? _paintFrom(Object? json) {
       PaintLayer(
         tilesX: tilesX,
         tilesY: tilesY,
-        blendMode: BlendMode.values.firstWhere(
-          (BlendMode it) => it.name == row['blend'],
-          orElse: () => BlendMode.normal,
+        blendMode: PaintBlendMode.values.firstWhere(
+          (PaintBlendMode it) => it.name == row['blend'],
+          orElse: () => PaintBlendMode.normal,
         ),
         tiles: tiles,
       ),

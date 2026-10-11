@@ -2,6 +2,8 @@
 /// samplers (D21).
 library;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show ExpressionType;
 import 'material_ast.dart';
 
 /// One member of a uniform block of a material's own, where std140 puts it.
@@ -14,7 +16,7 @@ final class MaterialBlockMember {
   });
 
   final String name;
-  final MaterialType type;
+  final ExpressionType type;
 
   /// What the member is when a material sets nothing for it: the value its
   /// source declares (`uniform(Hair) float shift = 0.1;`), as many numbers

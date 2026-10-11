@@ -20338,3 +20338,307 @@ entries:
     reason: >-
       It returns the same box under its new name, `FittedCuboid`; the
       rename of the type carries the fix, and a call needs none.
+
+  # ---- Public names: exceptions say so, records that grow are classes,
+  # constructors take named arguments, and a failure throws.
+
+  - id: rc-model_core-RenderRefusal-rename
+    package: flutter3d_model_core
+    symbol: RenderRefusal
+    kind: rename
+    to: RenderRefusalException
+    wave: 4
+    guidance: >-
+      A type that is thrown says so in its name, so `on …Exception` reads as
+      what it catches: `RenderRefusal` is `RenderRefusalException`, with the
+      same `message`.
+
+  - id: rc-core-MaterialType-rename
+    package: flutter3d_core
+    symbol: MaterialType
+    kind: rename
+    to: ExpressionType
+    wave: 4
+    guidance: >-
+      `MaterialType` was a second name of `ExpressionType`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionType`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialBinary-rename
+    package: flutter3d_core
+    symbol: MaterialBinary
+    kind: rename
+    to: ExpressionBinary
+    wave: 4
+    guidance: >-
+      `MaterialBinary` was a second name of `ExpressionBinary`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionBinary`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialBuiltin-rename
+    package: flutter3d_core
+    symbol: MaterialBuiltin
+    kind: rename
+    to: ExpressionBuiltin
+    wave: 4
+    guidance: >-
+      `MaterialBuiltin` was a second name of `ExpressionBuiltin`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionBuiltin`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialCall-rename
+    package: flutter3d_core
+    symbol: MaterialCall
+    kind: rename
+    to: ExpressionCall
+    wave: 4
+    guidance: >-
+      `MaterialCall` was a second name of `ExpressionCall`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionCall`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialConstant-rename
+    package: flutter3d_core
+    symbol: MaterialConstant
+    kind: rename
+    to: ExpressionConstant
+    wave: 4
+    guidance: >-
+      `MaterialConstant` was a second name of `ExpressionConstant`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionConstant`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialConstruct-rename
+    package: flutter3d_core
+    symbol: MaterialConstruct
+    kind: rename
+    to: ExpressionConstruct
+    wave: 4
+    guidance: >-
+      `MaterialConstruct` was a second name of `ExpressionConstruct`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionConstruct`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialExpression-rename
+    package: flutter3d_core
+    symbol: MaterialExpression
+    kind: rename
+    to: Expression
+    wave: 4
+    guidance: >-
+      `MaterialExpression` was a second name of `Expression`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `Expression`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialNegate-rename
+    package: flutter3d_core
+    symbol: MaterialNegate
+    kind: rename
+    to: ExpressionNegate
+    wave: 4
+    guidance: >-
+      `MaterialNegate` was a second name of `ExpressionNegate`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionNegate`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-core-MaterialSwizzle-rename
+    package: flutter3d_core
+    symbol: MaterialSwizzle
+    kind: rename
+    to: ExpressionSwizzle
+    wave: 4
+    guidance: >-
+      `MaterialSwizzle` was a second name of `ExpressionSwizzle`, the expression
+      language's own, and `MaterialType` is also a Flutter widget's name:
+      the type is spelled once now, `ExpressionSwizzle`, from
+      `flutter3d_foundation`, which the facades export.
+
+  - id: rc-model_core-Key-rename
+    package: flutter3d_model_core
+    symbol: Key
+    kind: rename
+    to: Keyframe
+    wave: 4
+    guidance: >-
+      `Key` is a Flutter widget's identity, which every file that imports
+      material and this package had to `hide`: a key of a `KeyTable` is a
+      `Keyframe`, with the same `time`, `values` and tangents.
+
+  - id: rc-model_core-BlendMode-rename
+    package: flutter3d_model_core
+    symbol: BlendMode
+    kind: rename
+    to: PaintBlendMode
+    wave: 4
+    guidance: >-
+      `BlendMode` is `dart:ui`'s, which Flutter's painting library exports:
+      the mode a paint layer composites with is `PaintBlendMode`, with the
+      same constants and `blendChannel`.
+
+  - id: rc-sim-Tolerance-rename
+    package: flutter3d_sim
+    symbol: Tolerance
+    kind: rename
+    to: GeometryTolerance
+    wave: 4
+    guidance: >-
+      `Tolerance` is a Flutter physics type that material exports: the
+      simulation's named epsilons are `GeometryTolerance`, with the same
+      constants.
+
+  - id: rc-game_strategy-Match-rename
+    package: flutter3d_game_strategy
+    symbol: Match
+    kind: rename
+    to: StrategyMatch
+    wave: 4
+    guidance: >-
+      `Match` is `dart:core`'s regular-expression match, which a library
+      that names its own silently shadows: a strategy match is
+      `StrategyMatch`, with the same constructor and members.
+
+  - id: rc-core-AdaptiveQuality-named
+    package: flutter3d_core
+    symbol: AdaptiveQuality.AdaptiveQuality
+    kind: manual
+    wave: 4
+    guidance: >-
+      The settings and the policy are named arguments, so the constructor
+      can take another one: write `AdaptiveQuality(table, settings: …)`
+      where the second argument was positional.
+
+  - id: rc-build-AssetManifest-named
+    package: flutter3d_build
+    symbol: AssetManifest.AssetManifest
+    kind: manual
+    wave: 4
+    guidance: >-
+      The rules, the device classes and the shader selection are named
+      arguments: write `AssetManifest(rules: …, classes: …)` where they
+      were positional.
+
+  - id: rc-core-EnumHintValue-named
+    package: flutter3d_core
+    symbol: EnumHintValue.EnumHintValue
+    kind: manual
+    wave: 4
+    guidance: >-
+      The label is a named argument: write `EnumHintValue('opaque',
+      label: 'Opaque')` where the label was the second positional
+      argument.
+
+  - id: rc-core-MaterialVariant-named
+    package: flutter3d_core
+    symbol: MaterialVariant.MaterialVariant
+    kind: manual
+    wave: 4
+    guidance: >-
+      The values are a named argument: write `MaterialVariant('Rim',
+      values: {…})` where the map was the second positional argument.
+
+  - id: rc-hardware-TraceDraw-named
+    package: flutter3d_hardware
+    symbol: TraceDraw.TraceDraw
+    kind: manual
+    wave: 4
+    guidance: >-
+      The instance count is a named argument, beside `firstIndex` and
+      `indexCount`: write `TraceDraw(pass, instanceCount: n)` where it was
+      the second positional argument.
+
+  - id: rc-particles-ParticleGravity-named
+    package: flutter3d_particles
+    symbol: ParticleGravity.ParticleGravity
+    kind: manual
+    wave: 4
+    guidance: >-
+      The acceleration is a named argument: write
+      `ParticleGravity(acceleration: -9.8)` where it was positional.
+
+  - id: rc-core-MaterialInput-type-typed
+    package: flutter3d_core
+    symbol: MaterialInput.type
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-core-MaterialLet-value-typed
+    package: flutter3d_core
+    symbol: MaterialLet.value
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-core-MaterialParameter-type-typed
+    package: flutter3d_core
+    symbol: MaterialParameter.type
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-core-MaterialReturn-value-typed
+    package: flutter3d_core
+    symbol: MaterialReturn.value
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-core-broadcastArguments-typed
+    package: flutter3d_core
+    symbol: broadcastArguments
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-model_core-KeyTable-keys-typed
+    package: flutter3d_model_core
+    symbol: KeyTable.keys
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-model_core-PaintLayer-PaintLayer-typed
+    package: flutter3d_model_core
+    symbol: PaintLayer.PaintLayer
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.
+
+  - id: rc-model_core-PaintLayer-blendMode-typed
+    package: flutter3d_model_core
+    symbol: PaintLayer.blendMode
+    kind: none
+    wave: 4
+    reason: >-
+      Only a type it names was renamed (a name Flutter or Dart also
+      declares); the type's rename carries its own fix, and a call needs
+      none.

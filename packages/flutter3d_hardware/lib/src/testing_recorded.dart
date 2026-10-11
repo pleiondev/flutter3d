@@ -178,7 +178,7 @@ final class RecordedStencilReference extends Recorded {
 /// that cares asks for [name] and reads [arguments], which is whatever value
 /// the call was handed (a descriptor, a record of its parameters).
 final class RecordedCall extends Recorded {
-  const RecordedCall(this.name, [this.arguments]);
+  const RecordedCall(this.name, {this.arguments});
 
   /// The member's name, as the contract spells it.
   final String name;

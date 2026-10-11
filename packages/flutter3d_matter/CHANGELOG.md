@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`MaterialState` is `MatterState`.** Flutter's material library still
+  exports a `MaterialState`, so a widget beside a body's state read an
+  ambiguous name. Same fields and methods.
 - **`lorenzNumber`, the Wiedemann–Franz law's constant.** 2.44 × 10⁻⁸
   W·Ω/K², the Sommerfeld value: a metal whose heat its electrons carry
   conducts k = L·T/ρ, which the native core reads for a material that

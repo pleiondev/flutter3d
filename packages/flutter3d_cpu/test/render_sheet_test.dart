@@ -170,7 +170,7 @@ void main() {
         height: 512,
         deviceFactory: _cpuDevice,
       ),
-      throwsA(isA<RenderRefusal>()),
+      throwsA(isA<RenderRefusalException>()),
     );
   });
 }

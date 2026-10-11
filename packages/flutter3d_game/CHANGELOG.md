@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the facade exports `ExpressionType`, not `MaterialType`.**
+  `MaterialType` is also Flutter's, and a first game imports material
+  beside this package with no `hide`.
 - **A scrub shows where it went at once.** `RunTimeline.scrubTo`,
   `returnToPresent`, `releaseAt`, `swapLevel` and `tracks` leave the
   loop's `published` at the state they put the loop at, a keyframe with

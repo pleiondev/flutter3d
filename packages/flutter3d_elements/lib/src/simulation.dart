@@ -10,7 +10,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show MaterialState, PhysicalMaterial;
+    show MatterState, PhysicalMaterial;
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -228,7 +228,7 @@ final class Solid {
   factory Solid.of(
     NativeShape shape,
     PhysicalMaterial material, {
-    MaterialState? state,
+    MatterState? state,
     double? wall,
   }) {
     final law = material.mechanical?.density;

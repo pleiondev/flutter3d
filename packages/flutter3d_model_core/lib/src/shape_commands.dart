@@ -282,9 +282,9 @@ List<ProjectTrack>? _withComponentDropped(ProjectTrack track, int dropped) {
   final shrunk = KeyTable(
     componentCount: table.componentCount - 1,
     interpolation: table.interpolation,
-    keys: <Key>[
+    keys: <Keyframe>[
       for (final key in table.keys)
-        Key(
+        Keyframe(
           time: key.time,
           values: without(key.values)!,
           inTangent: without(key.inTangent),

@@ -12,7 +12,7 @@ library;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show CompiledExpression, ExpressionScope, ExpressionType, parseExpression;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show MaterialState, Materials;
+    show MatterState, Materials;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
@@ -27,7 +27,7 @@ void main() {
   test('loads once, and has no GPU', () async {
     expect(physicsCoreLoaded, isTrue);
     await loadPhysicsCore(url: 'nowhere');
-    expect(NativeGpu.open, throwsA(isA<GpuUnavailable>()));
+    expect(NativeGpu.open, throwsA(isA<GpuUnavailableException>()));
   });
 
   test('a crate falls onto a floor and rests there', () {
@@ -270,7 +270,7 @@ void main() {
         <double>[t],
       ]);
       expect(answer.single, law.at(t));
-      expect(law.at(t), viscosity.at(MaterialState.at(temperature: t)));
+      expect(law.at(t), viscosity.at(MatterState.at(temperature: t)));
     }
     final wave = NativeExpression(
       parseExpression(

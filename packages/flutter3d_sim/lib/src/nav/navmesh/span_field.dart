@@ -240,8 +240,9 @@ final class SpanField {
     );
 
     int floorVoxel(double y) =>
-        math.max(0, (((y - minY) / ch) + Tolerance.gridBias).floor());
-    int topVoxel(double y) => (((y - minY) / ch) - Tolerance.gridBias).ceil();
+        math.max(0, (((y - minY) / ch) + GeometryTolerance.gridBias).floor());
+    int topVoxel(double y) =>
+        (((y - minY) / ch) - GeometryTolerance.gridBias).ceil();
 
     // Compared as a ratio rather than as an angle, so the only transcendental
     // in the whole bake is this one portable tangent.
@@ -261,19 +262,31 @@ final class SpanField {
       // `NavGrid` buckets them; then only those in the window.
       final x0 = math.max(
         w.x0,
-        _clamp(((lo.x - minX) / cs + Tolerance.gridBias).floor(), grid.columns),
+        _clamp(
+          ((lo.x - minX) / cs + GeometryTolerance.gridBias).floor(),
+          grid.columns,
+        ),
       );
       final x1 = math.min(
         w.x1 - 1,
-        _clamp(((hi.x - minX) / cs - Tolerance.gridBias).floor(), grid.columns),
+        _clamp(
+          ((hi.x - minX) / cs - GeometryTolerance.gridBias).floor(),
+          grid.columns,
+        ),
       );
       final z0 = math.max(
         w.z0,
-        _clamp(((lo.z - minZ) / cs + Tolerance.gridBias).floor(), grid.rows),
+        _clamp(
+          ((lo.z - minZ) / cs + GeometryTolerance.gridBias).floor(),
+          grid.rows,
+        ),
       );
       final z1 = math.min(
         w.z1 - 1,
-        _clamp(((hi.z - minZ) / cs - Tolerance.gridBias).floor(), grid.rows),
+        _clamp(
+          ((hi.z - minZ) / cs - GeometryTolerance.gridBias).floor(),
+          grid.rows,
+        ),
       );
 
       for (var cz = z0; cz <= z1; cz++) {

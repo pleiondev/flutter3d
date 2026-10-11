@@ -276,7 +276,7 @@ void main() {
       addTearDown(core.dispose);
       for (final t in _temperatures(law)) {
         // The law written as an expression of the temperature is the law.
-        final dart = law.at(MaterialState.at(temperature: t));
+        final dart = law.at(MatterState.at(temperature: t));
         expect(_bits(compiled.at(t)), _bits(dart), reason: '$where at $t K');
         final answer = core.variables.isEmpty
             ? core.run(const <List<double>>[])
@@ -314,7 +314,7 @@ void main() {
     expect(world.materialOf(body).specificHeat, _f32(law.at(_f32(900))));
     expect(
       law.at(900),
-      steel.thermal!.specificHeat!.at(MaterialState.at(temperature: 900)),
+      steel.thermal!.specificHeat!.at(MatterState.at(temperature: 900)),
     );
     // Taken off, it keeps the value last written.
     world
@@ -346,7 +346,7 @@ void main() {
       ..gravity = Vector3.zero()
       ..setMaterial(body, NativeMaterial.of(damp));
     final tracker = NativeMaterialTracker(world, body, damp);
-    MaterialState wet(double w) => MaterialState(
+    MatterState wet(double w) => MatterState(
       quantities: <String, Quantity>{'bog.wetness': Quantity(w, Unit.one)},
     );
     expect(tracker.update(wet(0.5)), hasLength(2));

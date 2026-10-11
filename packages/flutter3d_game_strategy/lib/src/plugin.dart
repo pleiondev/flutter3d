@@ -14,19 +14,18 @@ import 'step_phases.dart';
 ///
 /// * **[stepSystem] in `LoopPhase.physics`**, stepping [simulation] by the
 ///   loop's `dt`: the bots decide, then the simulation steps, as
-///   [Match.step] always has. The step's own order — orders, jobs, walk,
-///   fight, shove, production, fog, then `StrategySimulation.afterStep` —
-///   is the genre's and stays inside the one system, because a recorded
-///   match is that order and nothing may run between its parts. A game's
-///   rule hangs at the genre's own moments, [StrategyPhases], through
-///   `StrategySimulation.addSystem`, as it does in every genre.
-///   `afterStep` stays where it is for the same reason: a map's world hangs
-///   on it, and a replay that steps the simulation without a loop finds it
-///   there.
+/// [StrategyMatch.step] always has. The step's own order — orders, jobs, walk,
+/// fight, shove, production, fog, then `StrategySimulation.afterStep` — is the
+/// genre's and stays inside the one system, because a recorded match is that
+/// order and nothing may run between its parts. A game's rule hangs at the
+/// genre's own moments, [StrategyPhases], through
+/// `StrategySimulation.addSystem`, as it does in every genre. `afterStep` stays
+/// where it is for the same reason: a map's world hangs on it, and a replay
+/// that steps the simulation without a loop finds it there.
 /// * **[UnitFired] and [MatchDecided]**, declared, and published by the
-///   match onto the bus from inside its step ([Match.publishTo]), as every
-///   genre's run publishes its own.
-/// * **The run in the loop's snapshots**, under [id]: [Match.save].
+/// match onto the bus from inside its step ([StrategyMatch.publishTo]), as
+/// every genre's run publishes its own.
+/// * **The run in the loop's snapshots**, under [id]: [StrategyMatch.save].
 /// * **The level's entity kinds**, when an `EntityKinds` registry is among
 ///   the engine's: [kinds] — [strategyLevelKinds] unless the application
 ///   hands its own, as the shipped game does, since the document a match is
@@ -48,7 +47,7 @@ import 'step_phases.dart';
 /// a strategy has no body the stick walks, so its selection is sent by
 /// orders written into the input, and a run played that way replays as any
 /// other does.
-final class StrategyPlugin extends GenrePlugin<Match> {
+final class StrategyPlugin extends GenrePlugin<StrategyMatch> {
   /// A plugin adding [kinds] to the engine's entity kinds when installed.
   StrategyPlugin({
     Iterable<EntityKind>? kinds,
@@ -89,30 +88,30 @@ final class StrategyPlugin extends GenrePlugin<Match> {
       );
   }
 
-  /// The bots decide and the simulation steps, as [Match.step] always has;
-  /// the match publishes what the step left onto the bus it was pointed at
+  /// The bots decide and the simulation steps, as [StrategyMatch.step] always
+  /// has; the match publishes what the step left onto the bus it was pointed at
   /// ([publishEvents]).
   @override
-  void stepSimulation(Match playing, LoopContext context) =>
+  void stepSimulation(StrategyMatch playing, LoopContext context) =>
       playing.step(context.dt, context: context);
 
   /// The match's events go onto the bus while it is this genre's run: see
-  /// [Match.publishTo].
+  /// [StrategyMatch.publishTo].
   @override
-  Registration publishEvents(Match simulation, EventRegistry bus) =>
+  Registration publishEvents(StrategyMatch simulation, EventRegistry bus) =>
       simulation.publishTo(bus);
 
-  /// The run in the loop's snapshots: [Match.save].
+  /// The run in the loop's snapshots: [StrategyMatch.save].
   @override
-  Snapshot captureSimulation(Match simulation) => simulation.save();
+  Snapshot captureSimulation(StrategyMatch simulation) => simulation.save();
 
-  /// [Match.restore].
+  /// [StrategyMatch.restore].
   @override
-  void restoreSimulation(Match simulation, Snapshot state) =>
+  void restoreSimulation(StrategyMatch simulation, Snapshot state) =>
       simulation.restore(state);
 
   /// The crowd's world, published.
   @override
-  EcsWorld? publishedWorldOf(Match simulation) =>
+  EcsWorld? publishedWorldOf(StrategyMatch simulation) =>
       simulation.simulation.entities;
 }

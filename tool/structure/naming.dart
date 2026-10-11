@@ -12,6 +12,8 @@
 /// Plain Dart over text, like `api.dart`: the scan runs before `pub get`.
 library;
 
+import 'dart:convert';
+
 import 'api.dart';
 
 /// A declaration and what is wrong with its name.
@@ -123,6 +125,134 @@ List<NamingProblem> britishIdentifiersIn(String snapshot) => <NamingProblem>[
             '`${britishSpellings[word]}`, as Flutter and Dart spell theirs',
       ),
 ];
+
+/// Each British word an MCP snapshot ([mcp], an `api/<package>.mcp`) names
+/// as a tool, an argument, a property of an argument's or an answer's
+/// schema, or a value an enum argument takes, as `server/tool/word`.
+///
+/// **A tool's argument is an identifier an agent types**, and the snapshot
+/// of the Dart API was the only one this read, so `paint.stroke` took a
+/// `colour` while its Dart side took a `color`. An `alias` line is an old
+/// name kept so that callers written before keep working, and is not read;
+/// a British argument kept beside its American one for the same reason is
+/// listed in `britishSpellingAllowed`.
+List<NamingProblem> britishSchemaWordsIn(String mcp) {
+  final out = <NamingProblem>[];
+  var server = '';
+  var tool = '';
+  void word(String w) {
+    if (britishWordIn(w) case final british?) {
+      out.add((
+        subject: '$server/$tool/$w',
+        what:
+            'spells `$british` the British way; a tool\'s argument is '
+            'spelled `${britishSpellings[british]}`, as the Dart API is. Keep '
+            'the old word beside the new one, so callers keep working',
+      ));
+    }
+  }
+
+  void walk(Object? schema) {
+    if (schema is Map<String, Object?>) {
+      if (schema['properties'] case final Map<String, Object?> properties) {
+        for (final MapEntry(:key, :value) in properties.entries) {
+          word(key);
+          walk(value);
+        }
+      }
+      if (schema['enum'] case final List<Object?> values) {
+        for (final value in values.whereType<String>()) {
+          word(value);
+        }
+      }
+      walk(schema['items']);
+      walk(schema['additionalProperties']);
+    }
+  }
+
+  for (final line in mcp.split('\n')) {
+    if (line.startsWith('server ')) {
+      server = line.substring(7).trim();
+      tool = '';
+    } else if (line.startsWith('tool ')) {
+      tool = line.substring(5).trim();
+      word(tool.split('.').last);
+    } else if (RegExp(r'^  (arg|out) ').firstMatch(line) case final m?) {
+      final rest = line.substring(m.end);
+      final brace = rest.indexOf('{');
+      if (brace < 0) continue;
+      if (m.group(1) == 'arg') word(rest.split(' ').first);
+      try {
+        walk(jsonDecode(rest.substring(brace)));
+      } on FormatException {
+        continue;
+      }
+    }
+  }
+  return out;
+}
+
+// ------------------------------------------------------------- collisions
+
+/// The names each library of `tool/structure/sdk_names.txt` exports, by its
+/// URI: a `[uri]` line opens a library, then one name a line; `#` starts a
+/// comment.
+Map<String, Set<String>> sdkNamesFrom(String text) {
+  final out = <String, Set<String>>{};
+  Set<String>? current;
+  for (final raw in text.split('\n')) {
+    final line = raw.trim();
+    if (line.isEmpty || line.startsWith('#')) continue;
+    if (line.startsWith('[') && line.endsWith(']')) {
+      current = out[line.substring(1, line.length - 1)] = <String>{};
+    } else {
+      current?.add(line);
+    }
+  }
+  return out;
+}
+
+/// Each type [snapshot] declares under a name one of the [sdk] libraries
+/// exports too (A.8): a game that imports both reads an ambiguous name, or
+/// silently the other one, and needs a `hide` to say which.
+///
+/// **Types only**, the declarations a caller names in a signature or a
+/// constructor call: a class, an enum, a mixin, an extension type or a
+/// typedef. A member is reached through its type, and a top-level function
+/// of the same name as Flutter's is rare enough to be read in review.
+List<NamingProblem> nameCollisionsIn(
+  String snapshot,
+  Map<String, Set<String>> sdk,
+) {
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final bare = splitAnnotations(block.header).rest;
+      if (!RegExp(
+        r'^(?:(?:abstract|base|final|interface|sealed|mixin)\s+)*'
+        r'(class|enum|mixin|typedef|extension type)\s',
+      ).hasMatch(bare)) {
+        continue;
+      }
+      if (!seen.add(type)) continue;
+      final where = <String>[
+        for (final MapEntry(key: uri, value: names) in sdk.entries)
+          if (names.contains(type)) uri,
+      ];
+      if (where.isEmpty) continue;
+      out.add((
+        subject: type,
+        what:
+            'is also a name ${where.map((String u) => '`$u`').join(' and ')} '
+            'exports: a program that imports both has to `hide` one. Name '
+            'it for what it is in this engine, with a rename migration',
+      ));
+    }
+  }
+  return out;
+}
 
 // ------------------------------------------------------------------ verbs
 
@@ -249,39 +379,11 @@ typedef SignatureParameter = ({String name, String type, bool named});
 
 /// The parameters of the signature on [line], or none for a field.
 List<SignatureParameter> parametersOf(String line) {
-  final bare = splitAnnotations(
-    line,
-  ).rest.replaceAll(RegExp(r"'(?:[^'\\]|\\.)*'"), "''");
-  // The parameter list is the outermost parentheses after the declared
-  // name, so a record return type or a `Function(...)` type before it is
-  // skipped.
-  final name = memberName(line);
-  final short = name.contains('.') ? name.split('.').last : name;
-  var at = -1;
-  for (final m in RegExp(
-    '\\b${RegExp.escape(short)}\\s*(<[^()]*>)?\\(',
-  ).allMatches(bare)) {
-    at = m.end - 1;
-  }
-  if (at < 0) return const <SignatureParameter>[];
-  var depth = 0;
-  var end = -1;
-  for (var i = at; i < bare.length; i++) {
-    final c = bare[i];
-    if ('([{<'.contains(c)) depth++;
-    if (')]}>'.contains(c) && !(c == '>' && i > 0 && bare[i - 1] == '=')) {
-      depth--;
-    }
-    if (depth == 0) {
-      end = i;
-      break;
-    }
-  }
-  if (end < 0) return const <SignatureParameter>[];
-  final inner = bare.substring(at + 1, end);
+  final inner = parameterListOf(line);
+  if (inner == null) return const <SignatureParameter>[];
   final out = <SignatureParameter>[];
   var named = false;
-  depth = 0;
+  var depth = 0;
   var current = StringBuffer();
   void flush() {
     var text = current.toString().trim();
@@ -319,6 +421,205 @@ List<SignatureParameter> parametersOf(String line) {
     current.write(c);
   }
   flush();
+  return out;
+}
+
+/// Whether the signature on [line] has optional positional parameters
+/// (`[…]` at the top of its parameter list).
+bool hasOptionalPositional(String line) {
+  final inner = parameterListOf(line);
+  if (inner == null) return false;
+  var depth = 0;
+  for (var i = 0; i < inner.length; i++) {
+    final c = inner[i];
+    if (depth == 0 && c == '[') return true;
+    if ('(<{'.contains(c)) depth++;
+    if (')>}'.contains(c) && !(c == '>' && i > 0 && inner[i - 1] == '=')) {
+      depth--;
+    }
+  }
+  return false;
+}
+
+/// The text between the parentheses of the signature on [line], or null
+/// for a field.
+String? parameterListOf(String line) {
+  final bare = splitAnnotations(
+    line,
+  ).rest.replaceAll(RegExp(r"'(?:[^'\\]|\\.)*'"), "''");
+  // The parameter list is the outermost parentheses after the declared
+  // name, so a record return type or a `Function(...)` type before it is
+  // skipped.
+  final name = memberName(line);
+  final short = name.contains('.') ? name.split('.').last : name;
+  var at = -1;
+  for (final m in RegExp(
+    '\\b${RegExp.escape(short)}\\s*(<[^()]*>)?\\(',
+  ).allMatches(bare)) {
+    at = m.end - 1;
+  }
+  if (at < 0) return null;
+  var depth = 0;
+  var end = -1;
+  for (var i = at; i < bare.length; i++) {
+    final c = bare[i];
+    if ('([{<'.contains(c)) depth++;
+    if (')]}>'.contains(c) && !(c == '>' && i > 0 && bare[i - 1] == '=')) {
+      depth--;
+    }
+    if (depth == 0) {
+      end = i;
+      break;
+    }
+  }
+  if (end < 0) return null;
+  return bare.substring(at + 1, end);
+}
+
+// ------------------------------------------------- records in contracts
+
+/// The names [snapshot] declares as a record typedef
+/// (`typedef Answer = ({bool did, String says});`).
+Set<String> recordTypedefsIn(String snapshot) => <String>{
+  for (final m in RegExp(
+    r'^typedef ([A-Za-z_$][\w$]*)(?:<[^=]*>)? = \(',
+    multiLine: true,
+  ).allMatches(snapshot))
+    m.group(1)!,
+};
+
+/// Whether [line], a member of a snapshot, names a record type: an inline
+/// one (`({Vector3 normal, double depth})?`, `List<(int, int)>`) or one of
+/// [typedefs].
+///
+/// An inline record is a parenthesis that does not follow a name, so a
+/// parameter list (`touch(`) and a function type (`Function(`) are not
+/// read as one.
+bool namesRecord(String line, Set<String> typedefs) {
+  final bare = splitAnnotations(
+    line,
+  ).rest.replaceAll(RegExp(r"'(?:[^'\\]|\\.)*'"), "''");
+  // A default value is the caller's business, not the type's.
+  final code = bare.replaceAll(RegExp(r'=\s*[^,)}\]]*'), '');
+  for (var i = 0; i < code.length; i++) {
+    if (code[i] != '(') continue;
+    var j = i - 1;
+    while (j >= 0 && code[j] == ' ') {
+      j--;
+    }
+    // `operator [](`, `operator []=(`: an operator's parameter list.
+    if (RegExp(r'operator\s*\S+$').hasMatch(code.substring(0, j + 1))) {
+      continue;
+    }
+    if (j >= 0 && RegExp(r'[\w$>?]').hasMatch(code[j])) {
+      // A keyword before it (`abstract (int, int) get pair`) is no name.
+      final word = RegExp(r'([\w$]+)\s*$').firstMatch(code.substring(0, i));
+      if (!_recordKeywords.contains(word?.group(1))) continue;
+    }
+    return true;
+  }
+  for (final name in typedefs) {
+    if (RegExp(
+      '(?<![\\w\$.])${RegExp.escape(name)}(?![\\w\$])',
+    ).hasMatch(code)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/// Words a record type can follow in a declaration.
+const Set<String> _recordKeywords = <String>{
+  'abstract',
+  'static',
+  'final',
+  'const',
+  'external',
+  'covariant',
+  'required',
+  'late',
+  'factory',
+};
+
+/// The members of the types an outside author implements or extends in
+/// [snapshot] that name a record, as `Type.member` (A.1, A.5).
+///
+/// **A record cannot gain a field.** A result that grows — an answer that
+/// later wants a picture, a hit that later wants a material — has to be a
+/// class with named, defaulted fields; a record in an abstract member's
+/// signature freezes what every implementation returns or takes for the
+/// life of the major. The types read are the ones a minor's new member
+/// would reach: `abstract base`, `base mixin`, `interface` and plain
+/// `abstract` classes.
+List<NamingProblem> recordsInContractsIn(
+  String snapshot,
+  Set<String> typedefs,
+) {
+  final out = <NamingProblem>[];
+  final seen = <String>{};
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      final header = splitAnnotations(block.header).rest;
+      if (!RegExp(
+        r'^(abstract base (mixin )?class|base mixin|abstract interface class|'
+        r'interface class|abstract class|abstract mixin class) ',
+      ).hasMatch(header)) {
+        continue;
+      }
+      for (final line in block.members) {
+        if (!namesRecord(line, typedefs)) continue;
+        final name = memberName(line);
+        final short = name.contains('.') ? name.split('.').last : name;
+        final subject = '$type.$short';
+        if (!seen.add(subject)) continue;
+        out.add((
+          subject: subject,
+          what:
+              'is a member of a type an outside author implements, and '
+              'names a record: a record never gains a field, so what it '
+              'carries is frozen for every implementation. Make it a final '
+              'class with named fields (a recordToClass migration), or say '
+              'in `recordInContractAllowed` why it never grows',
+        ));
+      }
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------- growing constructors
+
+/// Each constructor in [snapshot] that takes optional positional
+/// parameters (`Type(a, [b])`), as `Type.Type` or `Type.named` (E.5).
+///
+/// **A positional list cannot grow by name.** A minor that wants one more
+/// argument after `[b]` can only add a third position, which a caller then
+/// passes by counting, and an optional positional and a named parameter
+/// cannot sit in one list: the constructor is frozen at the shape it has.
+/// A named parameter is added with a default and breaks nobody.
+List<NamingProblem> optionalPositionalConstructorsIn(String snapshot) {
+  final out = <NamingProblem>[];
+  for (final library in parseApi(snapshot).values) {
+    for (final MapEntry(key: type, value: block)
+        in library.declarations.entries) {
+      for (final line in block.members) {
+        final bare = splitAnnotations(line).rest;
+        final m = RegExp(
+          '^(?:const\\s+)?(?:factory\\s+)?${RegExp.escape(type)}'
+          r'(?:\.([A-Za-z_$][\w$]*))?\(',
+        ).firstMatch(bare);
+        if (m == null || !hasOptionalPositional(line)) continue;
+        out.add((
+          subject: '$type.${m.group(1) ?? type}',
+          what:
+              'takes optional positional parameters, which a minor can never '
+              'add a named one beside: make them named, with a parameters '
+              'migration',
+        ));
+      }
+    }
+  }
   return out;
 }
 
@@ -636,6 +937,107 @@ List<(String, String)> proveNamingDetectorsWork() {
         britishWordIn('checkerboard') == null,
     "a word in a string, `EntityRegistry`, `materialIssues`, `checkerboard`",
     'a wire word is not an identifier, and a word inside another is not one',
+  );
+
+  // Spelling in a tool's schema.
+  final schema = britishSchemaWordsIn(
+    'server s\n  alias paintColour -> paint.color\n\ntool paint.recolour\n'
+    '  says Paint a colour.\n'
+    '  arg colour required {"type":"array"}\n'
+    '  arg samples {"items":{"properties":{"centre":{"type":"array"}},'
+    '"type":"object"},"type":"array"}\n'
+    '  arg to {"enum":["boundsCentre","worldOrigin"],"type":"string"}\n'
+    '  arg color {"type":"array"}\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'British spelling in a tool schema',
+    schema.containsAll(<String>{
+      's/paint.recolour/recolour',
+      's/paint.recolour/colour',
+      's/paint.recolour/centre',
+      's/paint.recolour/boundsCentre',
+    }),
+    'a tool, an argument, a nested property and an enum value spelled British',
+  );
+  quiet(
+    'British spelling in a tool schema',
+    schema.length == 4,
+    'an alias, a description, `color` and `worldOrigin`',
+    'an alias keeps an old name on purpose, and a sentence is not a name',
+  );
+
+  // Collisions with the SDK.
+  final sdk = sdkNamesFrom(
+    '# names\n[package:flutter/material.dart]\nKey\nMaterialType\n\n'
+    '[dart:core]\nMatch\n',
+  );
+  final collisions = nameCollisionsIn(
+    '${lib}final class Key\n  final double time\n\n'
+    'typedef MaterialType = ExpressionType;\n\n'
+    'final class Keyframe\n  final Key key\n\nabstract final class Match\n',
+    sdk,
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'name collisions',
+    collisions.containsAll(<String>{'Key', 'MaterialType', 'Match'}),
+    'a class, a typedef and an abstract class named as Flutter and Dart '
+        'name theirs',
+  );
+  quiet(
+    'name collisions',
+    collisions.length == 3,
+    '`Keyframe`, and a member whose type is `Key`',
+    'only a declared type is a name a caller imports',
+  );
+
+  // Records in what an outside author implements.
+  const recordApi =
+      '${lib}typedef Answer = ({bool did, String says});\n\n'
+      'abstract base class Sink\n'
+      '  abstract Future<Answer> deliver(Upload upload)\n'
+      '  abstract ({Vector3 normal, double depth})? touch(Vector3 at)\n'
+      '  void take(List<(int, int)> pairs)\n'
+      '  abstract double operator [](int index)\n'
+      '  void Function(int) get onStep\n'
+      '  Answer2 other(int x)\n\n'
+      'final class Plain\n  Answer answer()\n';
+  final records = recordsInContractsIn(
+    recordApi,
+    recordTypedefsIn(recordApi),
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'records in contracts',
+    records.containsAll(<String>{'Sink.deliver', 'Sink.touch', 'Sink.take'}),
+    'a record typedef, an inline record after `abstract`, a record in a '
+        'type argument',
+  );
+  quiet(
+    'records in contracts',
+    records.length == 3,
+    'an operator, a function type, a name that only starts like a typedef, '
+        'a final class',
+    'a parameter list is not a record, and a final class is nobody\'s to '
+        'implement',
+  );
+
+  // Constructors that cannot grow.
+  final positional = optionalPositionalConstructorsIn(
+    '${lib}final class ToolName\n'
+    '  const ToolName(this.name, [this.hints = const <String>{}])\n'
+    '  factory ToolName.parse(String text, [int at = 0])\n'
+    '  void rename(String to, [bool loud = false])\n\n'
+    'final class Pair\n  const Pair(this.a, this.b, {this.c = const [1]})\n',
+  ).map((NamingProblem p) => p.subject).toSet();
+  fires(
+    'optional positional constructors',
+    positional.containsAll(<String>{'ToolName.ToolName', 'ToolName.parse'}),
+    'a constructor and a factory with an optional positional list',
+  );
+  quiet(
+    'optional positional constructors',
+    positional.length == 2,
+    'a method, and a list literal inside a named default',
+    'only a constructor is frozen by its positions here',
   );
 
   // Verbs.

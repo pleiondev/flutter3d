@@ -194,9 +194,12 @@ void main() {
         MaterialProgramStage(
           _program(
             _rimSource,
-            const MaterialVariant('Rim', <String, List<double>>{
-              'rimColor': <double>[0, 0.2, 0.9],
-            }),
+            const MaterialVariant(
+              'Rim',
+              values: <String, List<double>>{
+                'rimColor': <double>[0, 0.2, 0.9],
+              },
+            ),
           ),
         ),
       ),
@@ -239,9 +242,12 @@ void main() {
         MaterialProgramStage(
           _program(
             _rimSource,
-            const MaterialVariant('Rim', <String, List<double>>{
-              'rimColor': <double>[0, 0, 0],
-            }),
+            const MaterialVariant(
+              'Rim',
+              values: <String, List<double>>{
+                'rimColor': <double>[0, 0, 0],
+              },
+            ),
           ),
         ),
       ),

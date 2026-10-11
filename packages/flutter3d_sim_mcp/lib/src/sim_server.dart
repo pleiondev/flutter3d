@@ -27,16 +27,16 @@ const String simMcpSchemaVersion = '1.0.0';
 /// What each of the simulation's tools is published as, `area.verb`, and
 /// what it does to the run. The written name stays an alias until 2.0.
 const Map<String, ToolName> simToolNames = <String, ToolName>{
-  'bisect': ToolName('run.bisect', ToolHints.reads),
-  'digest': ToolName('run.digest', ToolHints.reads),
-  'expect': ToolName('run.expect', ToolHints.writes),
-  'frame': ToolName('view.frame', ToolHints.reads),
-  'open': ToolName('level.open', ToolHints.writes),
-  'order': ToolName('game.order', ToolHints.writes),
-  'snapshot': ToolName('state.snapshot', ToolHints.reads),
-  'step': ToolName('run.step', ToolHints.writes),
-  'verify': ToolName('run.verify', ToolHints.reads),
-  'writeRun': ToolName('run.write', ToolHints.writes),
+  'bisect': ToolName('run.bisect', hints: ToolHints.reads),
+  'digest': ToolName('run.digest', hints: ToolHints.reads),
+  'expect': ToolName('run.expect', hints: ToolHints.writes),
+  'frame': ToolName('view.frame', hints: ToolHints.reads),
+  'open': ToolName('level.open', hints: ToolHints.writes),
+  'order': ToolName('game.order', hints: ToolHints.writes),
+  'snapshot': ToolName('state.snapshot', hints: ToolHints.reads),
+  'step': ToolName('run.step', hints: ToolHints.writes),
+  'verify': ToolName('run.verify', hints: ToolHints.reads),
+  'writeRun': ToolName('run.write', hints: ToolHints.writes),
 };
 
 /// A level of whatever game [SimSession.game] is, offered to an agent as a

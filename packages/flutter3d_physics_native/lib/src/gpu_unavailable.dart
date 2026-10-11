@@ -10,12 +10,12 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
 /// **A capability missing, not a failure** — the passes have a CPU path,
 /// and a game that asked for the GPU falls back to it, saying [message]
 /// where a player reporting a slow frame will see it.
-final class GpuUnavailable extends CapabilityException {
-  const GpuUnavailable(this.message);
+final class GpuUnavailableException extends CapabilityException {
+  const GpuUnavailableException(this.message);
 
   @override
   final String message;
 
   @override
-  String toString() => 'GpuUnavailable: $message';
+  String toString() => 'GpuUnavailableException: $message';
 }

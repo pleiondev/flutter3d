@@ -49,9 +49,9 @@
 ///
 /// So there are two ways to win and neither replaces the other: bring home what
 /// the match was set at, or be the only side with anything left to act with.
-/// See [Match].
+/// See [StrategyMatch].
 ///
-/// **And a match can be written down.** [Match.save] and
+/// **And a match can be written down.** [StrategyMatch.save] and
 /// [StrategySimulation.save] answer the same [Snapshot] the other three genres
 /// answer, which is what makes an order tape, a replay and a session possible
 /// here rather than a fourth thing to invent. The crowd lives in an [EcsWorld]

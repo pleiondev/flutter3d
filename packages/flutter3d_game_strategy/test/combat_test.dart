@@ -499,7 +499,7 @@ void main() {
           type: UnitType.soldier,
         ),
       );
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: const <Bot>[],
         goal: const MatchGoal(delivered: 10000.0),
@@ -534,7 +534,7 @@ void main() {
       );
       sim.addResource(ResourceNode(at: Vector3(30.0, 0.0, 8.0), amount: 90.0));
       sim.add(StrategyUnit(position: Vector3(12.0, 0.0, 8.0)));
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: const <Bot>[],
         goal: const MatchGoal(delivered: 10000.0),
@@ -572,7 +572,7 @@ void main() {
           type: UnitType.soldier,
         ),
       );
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: const <Bot>[],
         goal: const MatchGoal(delivered: 10000.0),
@@ -624,7 +624,7 @@ void main() {
         ),
       );
       sim.add(StrategyUnit(position: Vector3(28.0, 0.0, 8.0), side: 1));
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: const <Bot>[],
         goal: const MatchGoal(delivered: 100.0),
@@ -647,7 +647,9 @@ void main() {
     /// the exhaustion rule would judge a world in which the policy has not had
     /// a single thought. It is placed away from the camp and every plan below
     /// that uses it asks for no diggers, so nothing ever takes any of it.
-    ({Match match, StrategySimulation sim, Bot bot}) camp(ArmyPlan plan) {
+    ({StrategyMatch match, StrategySimulation sim, Bot bot}) camp(
+      ArmyPlan plan,
+    ) {
       final sim = _world();
       final base = sim.build(
         Building(
@@ -662,7 +664,7 @@ void main() {
       sim.stock[0].amount = 200.0;
       final bot = Bot(side: 0, base: base, plan: plan);
       return (
-        match: Match(
+        match: StrategyMatch(
           simulation: sim,
           bots: <Bot>[bot],
           goal: const MatchGoal(delivered: 10000.0),
@@ -704,7 +706,7 @@ void main() {
       final theirs = sim.add(
         StrategyUnit(position: Vector3(100.0, 0.0, 100.0), side: 1),
       );
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: <Bot>[
           Bot(
@@ -749,7 +751,7 @@ void main() {
       final theirs = sim.add(
         StrategyUnit(position: Vector3(22.0, 0.0, 10.0), side: 1),
       );
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: <Bot>[
           Bot(
@@ -866,7 +868,7 @@ void main() {
           ),
         );
       }
-      final match = Match(
+      final match = StrategyMatch(
         simulation: sim,
         bots: <Bot>[
           Bot(

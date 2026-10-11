@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Key` is `Keyframe`, `BlendMode` is `PaintBlendMode`, and
+  `RenderRefusal` is `RenderRefusalException`.** The first two are names
+  Flutter's material library exports too, which every file importing both
+  had to `hide`; a thrown type says so in its name. Same members; `dart
+  fix` renames each use.
+- **A paint command reads `color` and `center`.** `paintStroke` and
+  `paintVertexColour` read `color` and a sample's `center` where they are
+  given, and `colour` and `centre`, the words a journal holds, otherwise;
+  `setOrigin` reads `boundsCenter` as well as `boundsCentre`.
 - **A project says who made it and on what terms, and what its materials
   are made of.** `ModelProject.rights` (a `DocumentAsset` holding the
   copyright, the author and the licence; `copyWith(rights:,

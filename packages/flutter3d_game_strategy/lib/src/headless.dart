@@ -112,7 +112,7 @@ final class StrategyHeadlessGame extends OrderedGame {
 final class _StrategyRun extends RestorableRun {
   _StrategyRun(this.match, this.input);
 
-  final Match match;
+  final StrategyMatch match;
   final InputState input;
 
   /// The selected units' entity indices, in the order they were picked.

@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`ElementSounds` takes `cues:` and `bus:` by name**, so it can take
+  another in a minor.
 - **The wrecks are drawn from what they publish.** `BurningWrecks` is the
   simulation's half alone: made over an `ElementsSimulation`, with no
   device, it places, lights and lets go the wrecks and publishes each as a

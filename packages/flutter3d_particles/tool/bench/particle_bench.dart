@@ -66,7 +66,7 @@ ParticleEffect flame() => ParticleEffect(
   size: const Range(0.10, 0.19),
   color: LinearColor(2.4, 1.1, 0.35, 1.0),
   affectors: <ParticleAffector>[
-    const ParticleGravity(1.1),
+    const ParticleGravity(acceleration: 1.1),
     const ParticleDrag(2.6),
     ParticleColorOverLife(
       LinearColor(2.4, 1.1, 0.35, 1.0),

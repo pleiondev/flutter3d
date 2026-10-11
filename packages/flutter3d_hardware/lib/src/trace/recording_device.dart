@@ -877,7 +877,14 @@ final class _RecordingEncoder extends PassEncoder with CommandEncoder {
 
   @override
   void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
-    _events.add(TraceDraw(_pass, instanceCount, firstIndex, indexCount));
+    _events.add(
+      TraceDraw(
+        _pass,
+        instanceCount: instanceCount,
+        firstIndex: firstIndex,
+        indexCount: indexCount,
+      ),
+    );
     _inner.draw(
       instanceCount: instanceCount,
       firstIndex: firstIndex,

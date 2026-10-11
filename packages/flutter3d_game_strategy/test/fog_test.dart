@@ -155,7 +155,7 @@ void main() {
 
   group('a bot in the dark', () {
     /// A camp with its only seam well outside anybody's sight.
-    ({Match match, StrategyUnit worker, ResourceNode seam}) camp() {
+    ({StrategyMatch match, StrategyUnit worker, ResourceNode seam}) camp() {
       final sim = StrategySimulation(
         random: GameRandom(1),
         ground: _flat(samples: 21),
@@ -178,7 +178,7 @@ void main() {
         ),
       );
       return (
-        match: Match(
+        match: StrategyMatch(
           simulation: sim,
           bots: <Bot>[Bot(side: 0, base: base)],
           goal: const MatchGoal(delivered: 10000.0),

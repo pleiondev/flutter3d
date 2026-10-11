@@ -211,10 +211,11 @@ class _MapState extends State<_Map> with SingleTickerProviderStateMixin {
   MatchDemoFile? _demos;
 
   /// The match being written down: its start — a `StrategySimulation`
-  /// snapshot rather than a `Match` one, see `test/demo_test.dart`'s own doc
-  /// comment for why — its order tape, hung on `StrategySimulation.orders`
-  /// directly because this genre records orders rather than input, its
-  /// checkpoints, and where the crowd stood. Null once written.
+  /// snapshot rather than a `StrategyMatch` one, see `test/demo_test.dart`'s
+  /// own doc comment for why — its order tape, hung on
+  /// `StrategySimulation.orders` directly because this genre records orders
+  /// rather than input, its checkpoints, and where the crowd stood. Null once
+  /// written.
   MatchRecording? _recording;
 
   /// Starts writing the match down, from the state the crowd is in now.

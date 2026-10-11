@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `AssetManifest` takes its rules, classes and shaders by
+  name.** `AssetManifest(rules:, classes:, shaders:)`: an optional
+  positional list can never grow by a named argument.
 - **A web build's shader bundle carries a WebGPU section.** The hook
   writes, beside the WebGL2 sources, the project's stages in WGSL with
   their reflection, made by glslang and naga as `flutter3d_webgpu`'s own

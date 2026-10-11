@@ -157,17 +157,6 @@ final class MapCameraSettings
   final double minDistance
   final double pitch
 
-final class Match
-  Match({required this.simulation, required this.bots, this.goal = const MatchGoal()})
-  Registration publishTo(EventRegistry bus)
-  Snapshot save()
-  Standing get standing
-  final List<Bot> bots
-  final MatchGoal goal
-  final StrategySimulation simulation
-  void restore(Snapshot snapshot)
-  void step(double dt, {LoopContext? context})
-
 final class MatchDecided extends GameEvent
   String get name
   const MatchDecided(this.winner)
@@ -313,11 +302,22 @@ abstract final class StrategyLevelTypes
   static const String stockpile = 'stockpile'
   static const String worker = 'worker'
 
+final class StrategyMatch
+  Registration publishTo(EventRegistry bus)
+  Snapshot save()
+  Standing get standing
+  StrategyMatch({required this.simulation, required this.bots, this.goal = const MatchGoal()})
+  final List<Bot> bots
+  final MatchGoal goal
+  final StrategySimulation simulation
+  void restore(Snapshot snapshot)
+  void step(double dt, {LoopContext? context})
+
 final class StrategyOpening
   StrategySimulation get simulation
   const StrategyOpening({required this.match, required this.mine})
   final List<StrategyUnit> mine
-  final Match match
+  final StrategyMatch match
 
 abstract final class StrategyOrder
   abstract Map<String, Object?> toJson()
@@ -333,18 +333,18 @@ abstract final class StrategyPhases
   static const LoopPhase begin = LoopPhase.step('strategy.begin')
   static const LoopPhase end = LoopPhase.step('strategy.end')
 
-final class StrategyPlugin extends GenrePlugin<Match>
-  EcsWorld? publishedWorldOf(Match simulation)
+final class StrategyPlugin extends GenrePlugin<StrategyMatch>
+  EcsWorld? publishedWorldOf(StrategyMatch simulation)
   PluginManifest get manifest
-  Registration publishEvents(Match simulation, EventRegistry bus)
-  Snapshot captureSimulation(Match simulation)
+  Registration publishEvents(StrategyMatch simulation, EventRegistry bus)
+  Snapshot captureSimulation(StrategyMatch simulation)
   StrategyPlugin({Iterable<EntityKind>? kinds, super.replaceKinds, super.headless = const StrategyHeadlessGame()})
   String get systemName
   static const String id = 'flutter3d_game_strategy'
   static const String stepSystem = 'strategy.step'
   void declareEvents(EventRegistry events)
-  void restoreSimulation(Match simulation, Snapshot state)
-  void stepSimulation(Match playing, LoopContext context)
+  void restoreSimulation(StrategyMatch simulation, Snapshot state)
+  void stepSimulation(StrategyMatch playing, LoopContext context)
 
 final class StrategySimulation
   Building build(Building building)

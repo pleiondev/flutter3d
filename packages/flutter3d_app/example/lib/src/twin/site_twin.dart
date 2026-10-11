@@ -63,7 +63,7 @@ final class SiteTwin {
         ..set<MaterialStateComponent>(
           entity,
           MaterialStateComponent(
-            MaterialState.at(
+            MatterState.at(
               temperature: const Quantity(
                 startCelsius,
                 Unit.celsius,
@@ -75,7 +75,7 @@ final class SiteTwin {
           entity,
           Probe(
             id: probe,
-            quantity: MaterialState.temperatureId,
+            quantity: MatterState.temperatureId,
             unit: Unit.celsius,
           ),
         );
@@ -94,7 +94,7 @@ final class SiteTwin {
                 .get<MaterialStateComponent>(entity)!
                 .state
                 .withQuantity(
-                  MaterialState.temperatureId,
+                  MatterState.temperatureId,
                   Quantity(kelvin, Unit.kelvin),
                 ),
           ),

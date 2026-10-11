@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 4c2391e0f8610248
+# table-stamp: abd735fe8b1740da
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -85,3 +85,11 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'StrategyUnit'
+  - title: 'flutter3d 1.0.0-rc.1: rc-game_strategy-Match-rename'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game_strategy/flutter3d_game_strategy.dart']
+      class: 'Match'
+    changes:
+      - kind: 'rename'
+        newName: 'StrategyMatch'

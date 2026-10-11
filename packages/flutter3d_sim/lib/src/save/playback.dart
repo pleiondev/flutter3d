@@ -33,7 +33,7 @@ final class Playback {
     final a = frames[index];
     final b = frames[index + 1];
     final span = b.time - a.time;
-    final t = span > Tolerance.divisor ? (time - a.time) / span : 0.0;
+    final t = span > GeometryTolerance.divisor ? (time - a.time) / span : 0.0;
 
     // The two beyond the segment. Curved rather than straight between samples:
     // at fifteen a second and forty metres a second the samples are nearly
@@ -76,7 +76,7 @@ final class Playback {
       ..scale(1.0 - t)
       ..addScaled(b.up, t);
     final length = out.up.length;
-    if (length > Tolerance.divisor) out.up.scale(1.0 / length);
+    if (length > GeometryTolerance.divisor) out.up.scale(1.0 / length);
 
     return true;
   }

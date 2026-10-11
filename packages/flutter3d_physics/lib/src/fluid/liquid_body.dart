@@ -123,7 +123,7 @@ final class LiquidBody with JetReceiver {
   /// The state this body of liquid is in — its temperature, its pressure —
   /// or null for the state its media were quoted at. Set by whoever follows
   /// it: a heater, a level's material state, a plugin's.
-  MaterialState? state;
+  MatterState? state;
 
   /// [medium] at [state] (`FluidMedium.at`): what a body floating or sinking
   /// in it is lifted and dragged by. [medium] itself while [state] is null,

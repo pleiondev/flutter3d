@@ -57,9 +57,9 @@ final class FluidMedium {
   ///
   /// **The same numbers at the reference state**: a law at the state its
   /// value was quoted at answers that value, so a medium of the catalogue
-  /// at `MaterialState.standard` is this one. A medium with no [material]
+  /// at `MatterState.standard` is this one. A medium with no [material]
   /// has no laws, and is itself at every state.
-  FluidMedium at(MaterialState state) {
+  FluidMedium at(MatterState state) {
     final m = material;
     if (m == null) return this;
     return FluidMedium(

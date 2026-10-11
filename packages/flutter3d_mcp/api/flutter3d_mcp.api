@@ -371,7 +371,7 @@ final class ToolImage extends ToolContent
   final Uint8List bytes
 
 final class ToolName
-  const ToolName(this.name, [this.hints = ToolHints.writes])
+  const ToolName(this.name, {this.hints = ToolHints.writes})
   final String name
   final ToolHints hints
   static final RegExp pattern
@@ -476,7 +476,7 @@ List<EditorTool> get editorTools
 
 const Map<String, Object?> modelAnswerSchema = …
 
-const String modelMcpSchemaVersion = '1.0.0'
+const String modelMcpSchemaVersion = '1.1.0'
 
 const String modelMcpUsage = …
 
@@ -627,7 +627,7 @@ final class ToolImage extends ToolContent
   final Uint8List bytes
 
 final class ToolName
-  const ToolName(this.name, [this.hints = ToolHints.writes])
+  const ToolName(this.name, {this.hints = ToolHints.writes})
   final String name
   final ToolHints hints
   static final RegExp pattern
@@ -891,7 +891,7 @@ String describeType({required String family, String? kind})
 
 const Map<String, Object?> modelAnswerSchema = …
 
-const String modelMcpSchemaVersion = '1.0.0'
+const String modelMcpSchemaVersion = '1.1.0'
 
 const String modelMcpUsage = …
 

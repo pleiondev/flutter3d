@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Match` is `StrategyMatch`.** `Match` is `dart:core`'s
+  regular-expression match, which a library naming its own silently
+  shadows. Same constructor and members; `dart fix` renames each use.
 - **Breaking: `StrategyOrder` is `abstract final` rather than sealed.**
   Every order is still one this package wrote and can read back from a tape;
   a new one, which is a new simulation version, may come in a minor, so a

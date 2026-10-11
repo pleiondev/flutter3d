@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`ExpressionToken` takes `number:` by name**, so a token can carry more
+  than its number in a minor.
 - **`internal.dart` names the expression bytecode** (`ExpressionBytecode`
   and its version) for `flutter3d_physics_native`, whose C core runs it:
   still internal, not covered by semver for applications, its format

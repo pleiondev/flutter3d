@@ -86,7 +86,7 @@ final class ClothMesh
   final int particleCount
   final int rows
   late final double meanRestEdge
-  static double particleMassOf(PhysicalMaterial material, {required double thickness, required double spacing, MaterialState state = MaterialState.standard})
+  static double particleMassOf(PhysicalMaterial material, {required double thickness, required double spacing, MatterState state = MatterState.standard})
 
 final class ClothObstacle
   const ClothObstacle(this.shape, this.position)
@@ -95,7 +95,7 @@ final class ClothObstacle
 
 final class ClothSettings
   ClothSettings copyWith({SimulationProfile? profile, double? gravity, int? substeps, int? iterations, double? distanceCompliance, double? bendCompliance, double? shearCompliance, double? damping, WindSettings? wind, double? collisionThickness, double? friction, bool? selfCollision, double? selfCollisionThickness, double? selfCollisionFriction, bool clearSelfCollisionThickness = false})
-  ClothSettings inWorld(WorldProperties world, {PhysicalMaterial? material, MaterialState state = MaterialState.standard})
+  ClothSettings inWorld(WorldProperties world, {PhysicalMaterial? material, MatterState state = MatterState.standard})
   const ClothSettings({this.gravity = standardGravity, this.substeps = 8, this.iterations = 2, this.distanceCompliance = 0.0, this.bendCompliance = 1e-3, this.shearCompliance = 5e-2, this.damping = 0.02, this.wind = const WindSettings(), this.collisionThickness = 0.01, this.friction = 0.0, this.selfCollision = true, this.selfCollisionThickness, this.selfCollisionFriction = 0.1, this.profile = SimulationProfile.deterministic})
   final SimulationProfile profile
   final WindSettings wind
@@ -404,7 +404,7 @@ final class FloatingBody
   final RigidBody body
 
 final class FluidMedium
-  FluidMedium at(MaterialState state)
+  FluidMedium at(MatterState state)
   FluidMedium copyWith({String? name, double? density, double? viscosity, double? surfaceTension, double? contactAngle})
   String toString()
   const FluidMedium({required this.name, required this.density, required this.viscosity, required this.surfaceTension, this.contactAngle = 0.0, this.material})
@@ -547,7 +547,7 @@ final class LiquidBody with JetReceiver
   List<LiquidLayer> drawAt(Vector3 point, double amount)
   List<LiquidLayer> get layers
   List<double> layerTops()
-  MaterialState? state
+  MatterState? state
   Spill step(double dt, {required Vector3 gravity, FluidSolver solver = const DartFluid()})
   Vector3 get up
   Vector3 load(Vector3 gravity)

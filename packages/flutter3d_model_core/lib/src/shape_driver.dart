@@ -40,7 +40,7 @@ import 'project_animation.dart';
 /// Which local axis of a joint's rotation a [ShapeDriver] reads.
 ///
 /// A `final class` with `static const` instances rather than an `enum` —
-/// the same choice `BlendMode` beside `PaintLayer` makes and for the same
+/// the same choice `PaintBlendMode` beside `PaintLayer` makes and for the same
 /// reason: this is a published package, and an `enum` there is a promise
 /// nobody adds a fourth axis later. Its own [vector] is computed from three
 /// `const`-compatible doubles rather than stored as a `Vector3` field,

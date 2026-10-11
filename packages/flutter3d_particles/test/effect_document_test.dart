@@ -404,7 +404,7 @@ void main() {
           color: LinearColor(3.2, 1.5, 0.45, 1.0),
           affectors: <ParticleAffector>[
             const ParticleDrag(6.0),
-            const ParticleGravity(-3.0),
+            const ParticleGravity(acceleration: -3.0),
             ParticleColorOverLife(
               LinearColor(3.2, 1.5, 0.45, 1.0),
               LinearColor(0.6, 0.15, 0.05, 1.0),

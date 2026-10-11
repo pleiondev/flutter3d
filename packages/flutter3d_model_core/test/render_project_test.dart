@@ -37,7 +37,7 @@ void main() {
         },
       ),
       throwsA(
-        isA<RenderRefusal>().having(
+        isA<RenderRefusalException>().having(
           (e) => e.message,
           'message',
           contains('1024'),

@@ -1102,6 +1102,12 @@ abstract base class GenrePlugin<S extends Object> extends Flutter3dPlugin
   void install(PluginHost host)
   void uninstall(PluginHost host)
 
+abstract final class GeometryTolerance
+  static const double divisor = 1e-9
+  static const double gridBias = 1e-6
+  static const double sameSurface = 1e-4
+  static const double zeroLength = 1e-6
+
 final class GivenOrder
   String toString()
   const GivenOrder(this.verb, this.arguments)
@@ -1808,12 +1814,12 @@ final class ManualTime extends TimeSource
   void reset()
 
 final class MaterialStateComponent
-  MaterialStateComponent withState(MaterialState state)
+  MaterialStateComponent withState(MatterState state)
   String toString()
   bool operator ==(Object other)
   const MaterialStateComponent(this.state)
   final Map<String, Object?> unread
-  final MaterialState state
+  final MatterState state
   int get hashCode
   static final ComponentCodec<MaterialStateComponent> codec
 
@@ -2503,7 +2509,7 @@ final class SaveResolution
 
 final class SaveSchema
   SaveUpgrade upgrade(Map<String, Object?> run, int from)
-  const SaveSchema([this.migrations = const <SaveMigration>[]])
+  const SaveSchema({this.migrations = const <SaveMigration>[]})
   final List<SaveMigration> migrations
   int get version
 
@@ -2949,12 +2955,6 @@ abstract base class TimeSource
   factory TimeSource.manual()
   factory TimeSource.scaled(double factor)
   void reset()
-
-abstract final class Tolerance
-  static const double divisor = 1e-9
-  static const double gridBias = 1e-6
-  static const double sameSurface = 1e-4
-  static const double zeroLength = 1e-6
 
 final class TrackSample
   Map<String, Object?> toJson()

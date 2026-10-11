@@ -57,8 +57,11 @@ void main() {
 
   test('a look of its own is not the world', () {
     expect(
-      _heightAfterASecond(moon, const ParticleGravity(1.0)),
-      _heightAfterASecond(WorldProperties.standard, const ParticleGravity(1.0)),
+      _heightAfterASecond(moon, const ParticleGravity(acceleration: 1.0)),
+      _heightAfterASecond(
+        WorldProperties.standard,
+        const ParticleGravity(acceleration: 1.0),
+      ),
     );
   });
 

@@ -44,17 +44,22 @@ final class PaintSample {
   };
 
   /// A [PaintSample] from its own [toJson], or null.
+  ///
+  /// `center` is read where it is given and `centre`, the word [toJson]
+  /// writes, otherwise.
   static PaintSample? fromJson(Object? json) {
     if (json is! Map<String, Object?>) return null;
     return switch (json) {
-      {'centre': final Object? centreJson, 'radius': final num radius} =>
-        switch (_doubles(centreJson, 3)) {
-          final List<double> center => PaintSample(
-            center: Vector3(center[0], center[1], center[2]),
-            radius: radius.toDouble(),
-          ),
-          null => null,
-        },
+      {'radius': final num radius} => switch (_doubles(
+        json['center'] ?? json['centre'],
+        3,
+      )) {
+        final List<double> center => PaintSample(
+          center: Vector3(center[0], center[1], center[2]),
+          radius: radius.toDouble(),
+        ),
+        null => null,
+      },
       _ => null,
     };
   }

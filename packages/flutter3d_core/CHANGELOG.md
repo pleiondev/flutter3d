@@ -1,5 +1,18 @@
 ## 1.0.0-rc.1
 
+- **Breaking: the material language's types are spelled once.**
+  `MaterialType`, `MaterialExpression`, `MaterialConstant`,
+  `MaterialConstruct`, `MaterialSwizzle`, `MaterialNegate`,
+  `MaterialBinary`, `MaterialCall` and `MaterialBuiltin` were second names
+  of the expression language's `ExpressionType`, `Expression` and the rest,
+  and `MaterialType` is also a Flutter widget's: a program that imported
+  material and a facade had to `hide` it. The aliases are gone; `dart fix`
+  renames each use.
+- **Breaking: `AdaptiveQuality`, `EnumHintValue` and `MaterialVariant`
+  take named arguments.** `AdaptiveQuality(table, settings:, policy:)`,
+  `EnumHintValue(value, label:)` and `MaterialVariant(name, values:)`: an
+  optional positional list can never take a named argument beside it, so
+  these constructors could not have grown in a minor.
 - **A plugin's lit model draws its defaults where a material sets
   nothing.** `MaterialBlockMember.defaultValue` (new) carries the value a
   member's source declares; the renderer binds every block of a model's

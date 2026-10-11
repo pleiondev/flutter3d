@@ -4,7 +4,7 @@
 /// own file.
 library;
 
-import 'package:flutter3d_model_core/flutter3d_model_core.dart' hide Key;
+import 'package:flutter3d_model_core/flutter3d_model_core.dart';
 
 /// [TimelinePanel.onSetKey]'s own tap — track [trackIndex] of [clip], at
 /// [time] seconds — resolved into the one [PoseJoint] it means: the joint

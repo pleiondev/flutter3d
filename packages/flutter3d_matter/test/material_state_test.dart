@@ -12,50 +12,48 @@ import 'package:test/test.dart';
 
 void main() {
   test('an empty state is the standard world: 20 °C and one atmosphere', () {
-    const empty = MaterialState();
+    const empty = MatterState();
     expect(empty.temperature, standardAirTemperature);
     expect(empty.pressure, standardAtmosphere);
-    expect(MaterialState.standard.temperature, standardAirTemperature);
-    expect(MaterialState.standard.pressure, standardAtmosphere);
+    expect(MatterState.standard.temperature, standardAirTemperature);
+    expect(MatterState.standard.pressure, standardAtmosphere);
     expect(empty.phase, isNull);
   });
 
   test('temperature and pressure read in their SI units from any unit', () {
-    final state = const MaterialState()
+    final state = const MatterState()
         .withQuantity(
-          MaterialState.temperatureId,
+          MatterState.temperatureId,
           const Quantity(100.0, Unit.celsius),
         )
-        .withQuantity(MaterialState.pressureId, const Quantity(2.0, Unit.bar));
+        .withQuantity(MatterState.pressureId, const Quantity(2.0, Unit.bar));
     expect(state.temperature, closeTo(373.15, 1e-9));
     expect(state.pressure, closeTo(2e5, 1e-6));
   });
 
   test("a plugin's quantity survives the document untouched", () {
-    final state = MaterialState.at(
+    final state = MatterState.at(
       temperature: 600.0,
       phase: MaterialPhase.solid,
       also: <String, Quantity>{
         'forge.charring': const Quantity(0.25, Unit.one),
-        MaterialState.wetnessId: const Quantity(0.5, Unit.percent),
+        MatterState.wetnessId: const Quantity(0.5, Unit.percent),
       },
     );
     final text = jsonEncode(state.toJson());
-    final read = MaterialState.fromJson(
-      jsonDecode(text) as Map<String, Object?>,
-    );
+    final read = MatterState.fromJson(jsonDecode(text) as Map<String, Object?>);
     expect(read, state);
     expect(read['forge.charring'], const Quantity(0.25, Unit.one));
-    expect(read[MaterialState.wetnessId]!.unit, Unit.percent);
+    expect(read[MatterState.wetnessId]!.unit, Unit.percent);
     expect(read.phase, MaterialPhase.solid);
     expect(jsonEncode(read.toJson()), text);
   });
 
   test('equal states are equal, whatever order they were built in', () {
-    final a = const MaterialState()
+    final a = const MatterState()
         .withQuantity('a.x', const Quantity(1.0, Unit.meter))
         .withQuantity('b.y', const Quantity(2.0, Unit.second));
-    final b = const MaterialState()
+    final b = const MatterState()
         .withQuantity('b.y', const Quantity(2.0, Unit.second))
         .withQuantity('a.x', const Quantity(1.0, Unit.meter));
     expect(a, b);
@@ -66,7 +64,7 @@ void main() {
 
   test('a document with a bad id or quantity is refused, saying which', () {
     expect(
-      () => MaterialState.fromJson(<String, Object?>{
+      () => MatterState.fromJson(<String, Object?>{
         'quantities': <String, Object?>{
           'temperature': <String, Object?>{'value': 300.0, 'unit': 'K'},
         },
@@ -80,7 +78,7 @@ void main() {
       ),
     );
     expect(
-      () => MaterialState.fromJson(<String, Object?>{
+      () => MatterState.fromJson(<String, Object?>{
         'quantities': <String, Object?>{'f3d.temperature': 'hot'},
       }),
       throwsA(

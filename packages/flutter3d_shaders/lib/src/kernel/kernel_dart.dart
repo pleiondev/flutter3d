@@ -63,7 +63,7 @@ abstract base class KernelImage {
 final class KernelPixels extends KernelTexture implements KernelImage {
   /// [width] × [height] texels over [rgba], four bytes each; zeros when
   /// [rgba] is not given.
-  KernelPixels(this.width, this.height, [Uint8List? rgba])
+  KernelPixels(this.width, this.height, {Uint8List? rgba})
     : rgba = rgba ?? Uint8List(width * height * 4) {
     if (this.rgba.length != width * height * 4) {
       throw ArgumentError(

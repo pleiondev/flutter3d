@@ -256,7 +256,6 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         MaterialSurfaceValues,
         MaterialSyntaxException,
         MaterialTextureSlot,
-        MaterialType,
         MaterialVariant,
         MemoryBudget,
         MemoryBudgetCrossing,
@@ -568,6 +567,7 @@ export 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show
         AssetNotFoundException,
         CapabilityException,
+        ExpressionType,
         Flutter3dException,
         Flutter3dFormatException,
         LinearColor,

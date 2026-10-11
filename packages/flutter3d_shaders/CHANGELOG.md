@@ -1,5 +1,7 @@
 ## 1.0.0-rc.1
 
+- **`KernelPixels` takes `rgba:` by name**, so it can take another in a
+  minor.
 - **A kernel's WGSL gives the Dart kernel's bytes on Dawn too.** Chrome
   compiles under Metal's relaxed math, which folds `0.0 + x`; a sum
   starting at zero then wrapped one `f3d_exact` straight in another, and

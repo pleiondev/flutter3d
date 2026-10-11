@@ -30,7 +30,7 @@ StrategyMap _map() =>
     StrategyMap.parse(File('assets/levels/map_a.json').readAsStringSync());
 
 /// A match with a small crowd, and the post that commands side [viewerSide].
-({Match match, CommandPost command}) _open({int workers = 4}) {
+({StrategyMatch match, CommandPost command}) _open({int workers = 4}) {
   final StrategyStart start = openMatch(_map(), workers: workers);
   return (
     match: start.match,
@@ -45,7 +45,7 @@ StrategyMap _map() =>
 /// not asked for, and on this side the screen is what asks. A test that steps
 /// the match alone watches a camp that never grows, which is a different game
 /// from the one the demo plays.
-double _play(Match match, double seconds, {CommandPost? command}) {
+double _play(StrategyMatch match, double seconds, {CommandPost? command}) {
   for (var i = 0; i < (seconds * 30).round(); i++) {
     command?.restock();
     match.step(1.0 / 30.0);

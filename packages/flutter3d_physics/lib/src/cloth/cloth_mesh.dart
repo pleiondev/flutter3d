@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart'
-    show MaterialState, PhysicalMaterial;
+    show MatterState, PhysicalMaterial;
 
 /// A grid of particles and the constraints between them, as flat arrays —
 /// the shape every hot loop in this package walks without an allocation.
@@ -113,7 +113,7 @@ final class ClothMesh {
     PhysicalMaterial material, {
     required double thickness,
     required double spacing,
-    MaterialState state = MaterialState.standard,
+    MatterState state = MatterState.standard,
   }) {
     final density =
         material.mechanical?.density?.at(state) ??

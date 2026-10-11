@@ -253,7 +253,7 @@ void main() {
     expect(
       NativeMaterial.of(
         alloy,
-        state: MaterialState.at(temperature: 600.0),
+        state: MatterState.at(temperature: 600.0),
       ).conductivity,
       _f32(lorenzNumber * 600.0 / 1.0e-7),
     );

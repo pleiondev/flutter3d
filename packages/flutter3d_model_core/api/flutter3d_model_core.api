@@ -415,17 +415,6 @@ final class BindWeightsJobRequest
   final int maxInfluences
   final int objectId
 
-final class BlendMode
-  String toString()
-  double blendChannel(double top, double bottom)
-  final String name
-  static const BlendMode add = BlendMode._('add', _add)
-  static const BlendMode multiply = BlendMode._('multiply', _multiply)
-  static const BlendMode normal = BlendMode._('normal', _normal)
-  static const BlendMode overlay = BlendMode._('overlay', _overlay)
-  static const BlendMode screen = BlendMode._('screen', _screen)
-  static const List<BlendMode> values = <BlendMode>[normal, multiply, add, overlay, screen]
-
 final class BlendTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
   Map<String, Object?> toJson()
@@ -917,15 +906,6 @@ final class JournalReplay
   final ModelHistory? history
   final String? refused
 
-final class Key
-  Key withTangents({List<double>? inTangent, List<double>? outTangent})
-  Key withTime(double newTime)
-  const Key({required this.time, required this.values, this.inTangent, this.outTangent})
-  final List<double> values
-  final List<double>? inTangent
-  final List<double>? outTangent
-  final double time
-
 final class KeyShape extends ModelCommand
   Map<String, Object?> get arguments
   Outcome apply(ModelProject project, ProjectSelection selection)
@@ -939,8 +919,8 @@ final class KeyShape extends ModelCommand
 final class KeyTable
   AnimationInterpolation interpolation
   AnimationTrack toAnimationTrack({required int nodeIndex, required AnimationPath path})
-  KeyTable({required this.componentCount, this.interpolation = AnimationInterpolation.linear, List<Key>? keys})
-  List<Key> get keys
+  KeyTable({required this.componentCount, this.interpolation = AnimationInterpolation.linear, List<Keyframe>? keys})
+  List<Keyframe> get keys
   double get duration
   factory KeyTable.fromAnimationTrack(AnimationTrack track)
   final int componentCount
@@ -954,6 +934,15 @@ final class KeyTable
   void setInterpolation(AnimationInterpolation next)
   void setKey(double time, List<double> values, {List<double>? inTangent, List<double>? outTangent})
   void setTangent(int index, {List<double>? inTangent, List<double>? outTangent})
+
+final class Keyframe
+  Keyframe withTangents({List<double>? inTangent, List<double>? outTangent})
+  Keyframe withTime(double newTime)
+  const Keyframe({required this.time, required this.values, this.inTangent, this.outTangent})
+  final List<double> values
+  final List<double>? inTangent
+  final List<double>? outTangent
+  final double time
 
 final class LevelsTextureNode extends TextureNode
   Map<String, MaterialHint> get hints
@@ -1286,12 +1275,23 @@ final class PackAtlas extends ModelCommand
   final List<int> objectIds
   final double margin
 
+final class PaintBlendMode
+  String toString()
+  double blendChannel(double top, double bottom)
+  final String name
+  static const List<PaintBlendMode> values = <PaintBlendMode>[normal, multiply, add, overlay, screen]
+  static const PaintBlendMode add = PaintBlendMode._('add', _add)
+  static const PaintBlendMode multiply = PaintBlendMode._('multiply', _multiply)
+  static const PaintBlendMode normal = PaintBlendMode._('normal', _normal)
+  static const PaintBlendMode overlay = PaintBlendMode._('overlay', _overlay)
+  static const PaintBlendMode screen = PaintBlendMode._('screen', _screen)
+
 final class PaintLayer
   PaintLayer paintTile(int tx, int ty, Uint8List pixels)
-  PaintLayer({required this.tilesX, required this.tilesY, this.blendMode = BlendMode.normal, Map<int, PaintTile>? tiles})
+  PaintLayer({required this.tilesX, required this.tilesY, this.blendMode = PaintBlendMode.normal, Map<int, PaintTile>? tiles})
   PaintTile? tileAt(int tx, int ty)
-  final BlendMode blendMode
   final Map<int, PaintTile> tiles
+  final PaintBlendMode blendMode
   final int tilesX
   final int tilesY
 
@@ -1709,8 +1709,8 @@ final class RenderProjectView
   static const RenderProjectView right = RenderProjectView._('right', math.pi / 2, 0.0)
   static const RenderProjectView top = RenderProjectView._('top', 0.0, _maxPitch)
 
-final class RenderRefusal extends CapabilityException
-  RenderRefusal(this.message)
+final class RenderRefusalException extends CapabilityException
+  RenderRefusalException(this.message)
   String toString()
   final String message
 

@@ -27,8 +27,8 @@ Pointer<T> _at<T extends NativeType>(int address) =>
 final class NativeGpu {
   NativeGpu._(this._gpu);
 
-  /// The best adapter there is. Throws [GpuUnavailable] saying why when
-  /// there is none: no GPU, a driver wgpu cannot use, or no GPU library in
+  /// The best adapter there is. Throws [GpuUnavailableException] saying why
+  /// when there is none: no GPU, a driver wgpu cannot use, or no GPU library in
   /// this build — wgpu-native could not be fetched for the target, or the
   /// platform has none.
   static NativeGpu open() {
@@ -36,19 +36,19 @@ final class NativeGpu {
     try {
       abi = g.f3d_gpu_abi_version();
     } on ArgumentError {
-      throw const GpuUnavailable(
+      throw const GpuUnavailableException(
         'there is no GPU library in this build: wgpu-native was not fetched '
         'for this target',
       );
     }
     if (abi != g.gpuAbiVersion) {
-      throw GpuUnavailable(
+      throw GpuUnavailableException(
         'the GPU library speaks ABI $abi and this build ${g.gpuAbiVersion}',
       );
     }
     final gpu = g.f3d_gpu_create();
     if (gpu == nullptr) {
-      throw const GpuUnavailable(
+      throw const GpuUnavailableException(
         'wgpu-native found no adapter it can use on this machine',
       );
     }

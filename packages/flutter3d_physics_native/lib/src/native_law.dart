@@ -109,7 +109,7 @@ final class NativeLawProperty {
 /// body's temperature alone, compiled to bytecode.
 ///
 /// **What the core knows of a body's state is its temperature.** An input
-/// of [law] that is the temperature (`MaterialState.temperatureId`) is the
+/// of [law] that is the temperature (`MatterState.temperatureId`) is the
 /// body's, held to the input's valid range as `LawInput.read` holds it; any
 /// other — the pressure, a plugin's quantity — is what `LawInput.read`
 /// gives a state that does not hold it (the standard atmosphere for a
@@ -165,7 +165,7 @@ Expression? lawExpression(PropertyLaw law) => switch (law) {
 };
 
 /// A state that holds no quantity: what an input not the temperature reads.
-const MaterialState _empty = MaterialState();
+const MatterState _empty = MatterState();
 
 const ExpressionType _bool = ExpressionType.boolean;
 
@@ -193,7 +193,7 @@ Expression _held(LawInput input, ExpressionType type) {
   return x;
 }
 
-bool _isTemperature(LawInput input) => input.id == MaterialState.temperatureId;
+bool _isTemperature(LawInput input) => input.id == MatterState.temperatureId;
 
 /// `TableLaw.interpolate` written out: the ends, then the segment of the
 /// last point at or below the input, `y0 + (y1 - y0) * ((x - x0) / (x1 -
@@ -350,7 +350,7 @@ final class NativeMaterialTracker {
 
   /// Evaluates the laws at [state] and passes those that moved; returns
   /// the properties it passed.
-  List<NativeLawProperty> update(MaterialState state) {
+  List<NativeLawProperty> update(MatterState state) {
     final passed = <NativeLawProperty>[];
     for (final property in NativeLawProperty.ofBody) {
       final law = property.of(material);

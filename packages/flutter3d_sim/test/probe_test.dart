@@ -19,7 +19,7 @@ void _warm(LoopContext context) {
       entity,
       MaterialStateComponent(
         state.withQuantity(
-          MaterialState.temperatureId,
+          MatterState.temperatureId,
           Quantity(state.temperature + 1, Unit.kelvin),
         ),
       ),
@@ -33,7 +33,7 @@ void _warm(LoopContext context) {
   loop.world
     ..set<MaterialStateComponent>(
       plate,
-      MaterialStateComponent(MaterialState.at(temperature: 300)),
+      MaterialStateComponent(MatterState.at(temperature: 300)),
     )
     ..set<Probe>(plate, probe);
   loop.addSystem('test.warm', LoopPhase.fields, _warm);
@@ -45,7 +45,7 @@ void main() {
     final (loop, _) = _plate(
       Probe(
         id: 'plate.t',
-        quantity: MaterialState.temperatureId,
+        quantity: MatterState.temperatureId,
         unit: Unit.celsius,
       ),
     );
@@ -61,7 +61,7 @@ void main() {
   test('a derived expression is published instead, compiled once', () {
     final probe = Probe(
       id: 'plate.rise',
-      quantity: MaterialState.temperatureId,
+      quantity: MatterState.temperatureId,
       unit: Unit.kelvin,
       derived: 'x - 300 [K] + t * 0 [K/s]',
     );
@@ -142,10 +142,10 @@ void main() {
 
   test('a probe leaves the world as the step left it', () {
     final (probed, plate) = _plate(
-      Probe(id: 't', quantity: MaterialState.temperatureId, unit: Unit.kelvin),
+      Probe(id: 't', quantity: MatterState.temperatureId, unit: Unit.kelvin),
     );
     final (bare, other) = _plate(
-      Probe(id: 't', quantity: MaterialState.temperatureId, unit: Unit.kelvin),
+      Probe(id: 't', quantity: MatterState.temperatureId, unit: Unit.kelvin),
     );
     bare.world.remove<Probe>(other);
     probed.runSteps(5);
@@ -158,7 +158,7 @@ void main() {
 
   test('a trace keeps every step\'s readings in step order', () {
     final (loop, _) = _plate(
-      Probe(id: 't', quantity: MaterialState.temperatureId, unit: Unit.kelvin),
+      Probe(id: 't', quantity: MatterState.temperatureId, unit: Unit.kelvin),
     );
     final trace = ProbeTrace()..record(loop);
     loop.runSteps(3);

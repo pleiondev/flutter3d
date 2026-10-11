@@ -122,7 +122,8 @@ const Map<String, String> manualAllowlist = <String, String>{
       'colour, or the old unit to lux); no kind rewrites an argument\'s value',
   '2b-model_core-ProjectLight':
       'a value\'s type and encoding change (an sRGB vector to a linear '
-      'colour, or the old unit to lux); no kind rewrites an argument\'s value',  '2s-game-PadInput-device':
+      'colour, or the old unit to lux); no kind rewrites an argument\'s value',
+  '2s-game-PadInput-device':
       'an argument and a returned element change type from a device '
       'package\'s to the game\'s own; no kind rewrites an argument\'s '
       'expression or the type a comparison is written against',
@@ -132,7 +133,20 @@ const Map<String, String> manualAllowlist = <String, String>{
   '2s-game-DesktopInput-capture':
       'an argument changes type from a device package\'s pointer lock to '
       'the game\'s own capture; no kind rewrites an argument\'s expression',
+  'rc-core-AdaptiveQuality-named': _positionalToNamed,
+  'rc-build-AssetManifest-named': _positionalToNamed,
+  'rc-core-EnumHintValue-named': _positionalToNamed,
+  'rc-core-MaterialVariant-named': _positionalToNamed,
+  'rc-hardware-TraceDraw-named': _positionalToNamed,
+  'rc-particles-ParticleGravity-named': _positionalToNamed,
 };
+
+/// Why a constructor whose optional positional arguments became named is
+/// carried by hand: no kind moves an argument from a position to a name
+/// yet. When `parameters` learns to, these become `parameters` entries.
+const String _positionalToNamed =
+    'optional positional arguments become named ones, so the constructor '
+    'can grow; no kind moves an argument from a position to a name yet';
 
 /// Words in what a person reads that belong to the work behind the release,
 /// not to the user: a wave, a plan file, a review's decision number.

@@ -161,7 +161,9 @@ abstract base class Mover extends Mechanism {
 
     // A zero-length trip would divide by zero and is meaningless anyway; the
     // validator warns about it, and here it simply arrives.
-    final rate = _span < Tolerance.zeroLength ? double.infinity : speed / _span;
+    final rate = _span < GeometryTolerance.zeroLength
+        ? double.infinity
+        : speed / _span;
     final next = approach(_progress, goal, rate * dt);
 
     _at(next, _candidate);

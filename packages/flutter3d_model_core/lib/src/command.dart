@@ -1486,7 +1486,7 @@ _modelCommandReaders =
       'paintVertexColour': (json) => switch ((
         json['objectId'],
         json['samples'],
-        _doubleListFrom(json['colour']),
+        _doubleListFrom(json['color'] ?? json['colour']),
       )) {
         (
           final int objectId,
@@ -1514,7 +1514,7 @@ _modelCommandReaders =
       'paintStroke': (json) => switch ((
         json['objectId'],
         json['samples'],
-        _doubleListFrom(json['colour']),
+        _doubleListFrom(json['color'] ?? json['colour']),
       )) {
         (
           final int objectId,
@@ -1809,10 +1809,15 @@ List<Vector2>? _points(Object? json) {
 
 /// Where [json] puts an origin, the middle of the bounds by default, or null.
 /// See [_pivot] for why an unknown word is null rather than the default.
+///
+/// The value's [OriginPlacement.name] is read as well as its wire word, so
+/// an agent may write `boundsCenter` where a journal writes `boundsCentre`.
 OriginPlacement? _placement(Object? json) => json == null
     ? OriginPlacement.boundsCenter
     : OriginPlacement.values
-          .where((OriginPlacement each) => each.wire == json)
+          .where(
+            (OriginPlacement each) => each.wire == json || each.name == json,
+          )
           .firstOrNull;
 
 /// The space [json] names, [TransformSpace.global] by default, or null. See

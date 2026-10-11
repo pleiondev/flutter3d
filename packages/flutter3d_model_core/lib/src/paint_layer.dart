@@ -1,9 +1,9 @@
 /// [PaintLayer]/[PaintStack]: a stack of paintable layers over one texture,
 /// composited with a fixed set of blend modes — `pro-pt-01`'s own shape.
 ///
-/// **Five modes and no others**, the plan's own list: [BlendMode.normal],
-/// [BlendMode.multiply], [BlendMode.add], [BlendMode.overlay],
-/// [BlendMode.screen] — the same "fixed set, compiler-checked" choice
+/// **Five modes and no others**, the plan's own list: [PaintBlendMode.normal],
+/// [PaintBlendMode.multiply], [PaintBlendMode.add], [PaintBlendMode.overlay],
+/// [PaintBlendMode.screen] — the same "fixed set, compiler-checked" choice
 /// `TextureGraph` (`mat-10`) already made over a node kind, made here over a
 /// blend formula instead.
 ///
@@ -50,8 +50,8 @@ const int paintTileSize = 64;
 /// [LightingModel] is a fixed set of shaders, and that row's own answer is
 /// the shape used here: a `final class` with named `const` instances, the
 /// blend formula itself carried as a field rather than read off a `switch`.
-final class BlendMode {
-  const BlendMode._(this.name, this._blendChannel);
+final class PaintBlendMode {
+  const PaintBlendMode._(this.name, this._blendChannel);
 
   /// Shown in a status line or a test failure; not read by anything that
   /// changes behavior on it.
@@ -78,23 +78,26 @@ final class BlendMode {
 
   /// Plain alpha compositing: this layer's own color, mixed in by its own
   /// alpha over what is beneath it.
-  static const BlendMode normal = BlendMode._('normal', _normal);
+  static const PaintBlendMode normal = PaintBlendMode._('normal', _normal);
 
   /// `top * bottom`, per channel.
-  static const BlendMode multiply = BlendMode._('multiply', _multiply);
+  static const PaintBlendMode multiply = PaintBlendMode._(
+    'multiply',
+    _multiply,
+  );
 
   /// `top + bottom`, clamped to 1, per channel.
-  static const BlendMode add = BlendMode._('add', _add);
+  static const PaintBlendMode add = PaintBlendMode._('add', _add);
 
   /// `bottom < 0.5 ? 2*top*bottom : 1 - 2*(1-top)*(1-bottom)`, per channel —
   /// multiply where the base is dark, screen where it is light.
-  static const BlendMode overlay = BlendMode._('overlay', _overlay);
+  static const PaintBlendMode overlay = PaintBlendMode._('overlay', _overlay);
 
   /// `1 - (1-top)*(1-bottom)`, per channel.
-  static const BlendMode screen = BlendMode._('screen', _screen);
+  static const PaintBlendMode screen = PaintBlendMode._('screen', _screen);
 
   /// Every mode this class defines, for a picker to offer.
-  static const List<BlendMode> values = <BlendMode>[
+  static const List<PaintBlendMode> values = <PaintBlendMode>[
     normal,
     multiply,
     add,
@@ -103,7 +106,7 @@ final class BlendMode {
   ];
 
   @override
-  String toString() => 'BlendMode.$name';
+  String toString() => 'PaintBlendMode.$name';
 }
 
 /// One straight-alpha RGBA8 [paintTileSize]×[paintTileSize] tile.
@@ -126,12 +129,12 @@ final class PaintTile {
 const List<double> _transparent = <double>[0, 0, 0, 0];
 
 /// One layer of a [PaintStack]: a sparse grid of [PaintTile]s and the
-/// [BlendMode] it composites with.
+/// [PaintBlendMode] it composites with.
 final class PaintLayer {
   PaintLayer({
     required this.tilesX,
     required this.tilesY,
-    this.blendMode = BlendMode.normal,
+    this.blendMode = PaintBlendMode.normal,
     Map<int, PaintTile>? tiles,
   }) : tiles = tiles == null
            ? <int, PaintTile>{}
@@ -142,7 +145,7 @@ final class PaintLayer {
   final int tilesX;
   final int tilesY;
 
-  final BlendMode blendMode;
+  final PaintBlendMode blendMode;
 
   /// Keyed by `ty * tilesX + tx`. Read through [tileAt] rather than
   /// directly; the key encoding is this class's own business.
@@ -236,11 +239,11 @@ final class PaintStack {
   final List<PaintLayer> layers;
 
   /// [top] composited over [bottom] by straight-alpha "over" — each color
-  /// channel run through [mode]'s own [BlendMode.blendChannel] first, alpha
-  /// composited the same way regardless of [mode], using [top]'s own alpha
-  /// as coverage.
+  /// channel run through [mode]'s own [PaintBlendMode.blendChannel] first,
+  /// alpha composited the same way regardless of [mode], using [top]'s own
+  /// alpha as coverage.
   static List<double> _over(
-    BlendMode mode,
+    PaintBlendMode mode,
     List<double> top,
     List<double> bottom,
   ) {

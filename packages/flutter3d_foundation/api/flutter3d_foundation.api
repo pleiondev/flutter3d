@@ -611,7 +611,7 @@ base class ExpressionParser
 
 final class ExpressionToken
   String toString()
-  const ExpressionToken(this.kind, this.text, this.line, this.column, [this.number])
+  const ExpressionToken(this.kind, this.text, this.line, this.column, {this.number})
   final String kind
   final String text
   final double? number

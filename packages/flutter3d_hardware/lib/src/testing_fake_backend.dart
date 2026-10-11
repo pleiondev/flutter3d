@@ -141,7 +141,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   @override
   void releaseStorageBuffer(StorageBuffer buffer) {
     _live.remove(buffer);
-    calls.add(RecordedCall('releaseStorageBuffer', buffer));
+    calls.add(RecordedCall('releaseStorageBuffer', arguments: buffer));
   }
 
   static UnsupportedCapabilityException _noCompute() =>
@@ -161,11 +161,14 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     features.require(DeviceFeature.mappedBuffers, backend: _name);
     final size = sizeInBytes ?? buffer.lengthInBytes - offsetInBytes;
     calls.add(
-      RecordedCall('mapBuffer', (
-        mode: mode,
-        offsetInBytes: offsetInBytes,
-        sizeInBytes: size,
-      )),
+      RecordedCall(
+        'mapBuffer',
+        arguments: (
+          mode: mode,
+          offsetInBytes: offsetInBytes,
+          sizeInBytes: size,
+        ),
+      ),
     );
     return FakeMapping(ByteData(size));
   }
@@ -327,7 +330,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     if (descriptor.usage.contains(TextureUsage.storage)) {
       features.require(DeviceFeature.storageTextures, backend: _name);
     }
-    calls.add(RecordedCall('createTexture', descriptor));
+    calls.add(RecordedCall('createTexture', arguments: descriptor));
     return _born(
       wrapTexture(
         owner: this,
@@ -358,12 +361,15 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   }) {
     features.require(DeviceFeature.textureWrites, backend: _name);
     calls.add(
-      RecordedCall('writeTexture', (
-        target: target,
-        bytes: data.lengthInBytes,
-        region: region,
-        mipLevel: mipLevel,
-      )),
+      RecordedCall(
+        'writeTexture',
+        arguments: (
+          target: target,
+          bytes: data.lengthInBytes,
+          region: region,
+          mipLevel: mipLevel,
+        ),
+      ),
     );
   }
 
@@ -376,7 +382,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
     if (descriptor.usage.contains(BufferUsage.storage)) {
       features.require(DeviceFeature.renderStageStorage, backend: _name);
     }
-    calls.add(RecordedCall('createBuffer', descriptor));
+    calls.add(RecordedCall('createBuffer', arguments: descriptor));
     final serial = _serial++;
     GeometryBuffer? view(BufferUsage usage) => descriptor.usage.contains(usage)
         ? wrapGeometry(
@@ -409,17 +415,22 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
       );
     }
     calls.add(
-      RecordedCall('writeBuffer', (
-        offsetInBytes: offsetInBytes,
-        lengthInBytes: bytes.lengthInBytes,
-      )),
+      RecordedCall(
+        'writeBuffer',
+        arguments: (
+          offsetInBytes: offsetInBytes,
+          lengthInBytes: bytes.lengthInBytes,
+        ),
+      ),
     );
   }
 
   @override
   QuerySet createQuerySet(QueryType type, int count) {
     features.require(type.feature, backend: _name);
-    calls.add(RecordedCall('createQuerySet', (type: type, count: count)));
+    calls.add(
+      RecordedCall('createQuerySet', arguments: (type: type, count: count)),
+    );
     return _born(
       wrapQuerySet(
         owner: this,
@@ -441,7 +452,7 @@ final class FakeBackend extends GraphicsDevice with SynchronousBufferReadback {
   @override
   void releaseQuerySet(QuerySet querySet) {
     _live.remove(querySet);
-    calls.add(RecordedCall('releaseQuerySet', querySet));
+    calls.add(RecordedCall('releaseQuerySet', arguments: querySet));
   }
 
   @override

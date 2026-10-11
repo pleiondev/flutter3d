@@ -6,15 +6,15 @@
 /// is too short to point anywhere" and as "nudge this off the grid line", and
 /// those are different questions that happen to have the same answer today.
 ///
-/// **Named `Tolerance` rather than `Nearly`** because this package imports
-/// `flutter3d_physics`, which has a `Nearly` of its own with a different set —
-/// and two identical names for two different sets is how a caller ends up
-/// asking the wrong question in the right units.
+/// **Named `GeometryTolerance` rather than `Nearly`** because this package
+/// imports `flutter3d_physics`, which has a `Nearly` of its own with a
+/// different set — and two identical names for two different sets is how a
+/// caller ends up asking the wrong question in the right units.
 ///
 /// The values are exactly what they were. What is new is that a reader can see
 /// which question is being asked, and that somebody changing one of them
 /// changes it for the question rather than for the file.
-abstract final class Tolerance {
+abstract final class GeometryTolerance {
   /// A vector too short to point anywhere.
   ///
   /// Normalising below this divides by noise and gives a direction that is

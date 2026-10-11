@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `Tolerance` is `GeometryTolerance`, and `SaveSchema` takes
+  `migrations:` by name.** `Tolerance` is a Flutter physics type material
+  exports; `dart fix` renames each use. Same constants.
 - **A rewind that stays put can say where it is.** `EngineLoop.republish`
   reads the probes again and publishes the state as it stands, outside a
   step, so a scrub to a keyframe or a return to the present reaches the

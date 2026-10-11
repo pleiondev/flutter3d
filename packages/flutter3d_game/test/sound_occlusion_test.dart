@@ -213,7 +213,7 @@ void main() {
       final hot = SoundOcclusion(
         _walled(_softening),
         floor: 0.0,
-        stateOf: (Collider wall) => MaterialState.at(temperature: 373.15),
+        stateOf: (Collider wall) => MatterState.at(temperature: 373.15),
       );
       final unknown = SoundOcclusion(
         _walled(_softening),
