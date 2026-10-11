@@ -429,7 +429,32 @@ abstract base class WebGpuRecorder extends PassEncoder {
   void _landBlock(WebGpuBlock block, ByteData data) => _blocks.putIfAbsent(
     block.group,
     () => <int, WebGpuSlice>{},
-  )[block.binding] = _device.uniformArena.write(data);
+  )[block.binding] = _device.uniformArena.write(
+    block.isPacked ? _packed(block, data) : data,
+  );
+
+  /// The whole binding a packed block of a material's own shares with the
+  /// others (`packMaterialBlocks`): [data] laid in at the block's place,
+  /// beside what the others were last filled with, so binding the blocks
+  /// one at a time by name fills the one buffer the stage reads.
+  ByteData _packed(WebGpuBlock block, ByteData data) {
+    final key = (block.group, block.binding);
+    final whole = switch (_packs[key]) {
+      final Uint8List kept when kept.length == block.bindingSizeInBytes =>
+        kept,
+      _ => _packs[key] = Uint8List(block.bindingSizeInBytes),
+    };
+    whole.setRange(
+      block.offsetInBinding,
+      block.offsetInBinding + data.lengthInBytes,
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+    return ByteData.sublistView(whole);
+  }
+
+  /// The packs of a material's own blocks being filled, by group and
+  /// binding; emptied with the bindings.
+  final Map<(int, int), Uint8List> _packs = <(int, int), Uint8List>{};
 
   static WebGpuBlockMember _memberOf(WebGpuBlock block, String name) {
     for (final member in block.members) {
@@ -541,6 +566,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
     _indexBuffer = null;
     _indexCount = 0;
     _blocks.clear();
+    _packs.clear();
     _views.clear();
     _samplers.clear();
   }

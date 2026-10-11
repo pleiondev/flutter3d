@@ -913,7 +913,7 @@ final class WebGpuDevice extends GraphicsDevice
           resource: GPUBufferBinding(
             buffer: buffer,
             offset: 0,
-            size: block.sizeInBytes,
+            size: block.bindingSizeInBytes,
           ),
         ),
       );
