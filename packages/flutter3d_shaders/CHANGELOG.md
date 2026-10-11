@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A material's own blocks and textures are numbered after the engine's
+  on WebGPU.** `prepareStage(ownBindings:)` takes the names of a
+  material's slot table, its blocks and then its textures, and numbers
+  them after every block and sampler of the engine's, in that order rather
+  than by name, as "The shader ABI" in `docs/CONTRACTS.md` says. Empty by
+  default, which numbers every engine stage as before.
 - **The section writers refuse a bundle whose stages disagree.**
   `encodeWebGlSection` and `wgslSectionDocument` hold every vertex stage to
   the fragment stage its name pairs it with (`<F>Vertex` and its

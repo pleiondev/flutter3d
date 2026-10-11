@@ -302,11 +302,21 @@ const int maxInterStageVariables = 16;
 /// because both are already positional by nature: the vertex layout mirrors the
 /// `in` declarations byte for byte, and a fragment output's slot is the colour
 /// attachment it writes.
+///
+/// **A material's own blocks and textures come last** (D21, "The shader ABI"
+/// in `docs/CONTRACTS.md`). [ownBindings] names them, as a material's slot
+/// table lists them: its blocks, then its textures by binding name. They take
+/// the bindings after every block and sampler of the engine's, in that order
+/// rather than by name, so the engine's numbering in a material's stage is the
+/// numbering it has everywhere and the material's own follow it in the order
+/// its source declares them. A name the stage does not declare is skipped;
+/// empty, which is every engine stage, numbers as above.
 PreparedStage prepareStage(
   String resolved, {
   required String from,
   required bool fragment,
   required Map<String, int> varyingLocations,
+  List<String> ownBindings = const <String>[],
 }) {
   final lines = resolved.split('\n');
   final scan = _Scan(from: from, fragment: fragment);
@@ -314,24 +324,37 @@ PreparedStage prepareStage(
 
   final group = fragment ? fragmentGroup : vertexGroup;
   var binding = 0;
+  int ownIndex(_Named found) => ownBindings.indexOf(found.name);
+  final engineBlocks = scan.blocks.where((b) => ownIndex(b) < 0).toList()
+    ..sort(_byName);
+  final engineSamplers = scan.samplers.where((s) => ownIndex(s) < 0).toList()
+    ..sort(_byName);
+  final own = <_Named>[
+    ...scan.blocks.where((b) => ownIndex(b) >= 0),
+    ...scan.samplers.where((s) => ownIndex(s) >= 0),
+  ]..sort((a, b) => ownIndex(a).compareTo(ownIndex(b)));
 
   final blocks = <PreparedBlock>[];
-  for (final found in scan.blocks.toList()..sort(_byName)) {
-    blocks.add(
-      _layOutBlock(found, group: group, binding: binding++, from: from),
-    );
+  final samplers = <PreparedSampler>[];
+  void number(_Named found) {
+    if (found is _Block) {
+      blocks.add(
+        _layOutBlock(found, group: group, binding: binding++, from: from),
+      );
+    } else if (found is _Sampler) {
+      samplers.add((
+        name: found.name,
+        group: group,
+        textureBinding: binding++,
+        samplerBinding: binding++,
+        dimension: found.dimension,
+      ));
+    }
   }
 
-  final samplers = <PreparedSampler>[];
-  for (final found in scan.samplers.toList()..sort(_byName)) {
-    samplers.add((
-      name: found.name,
-      group: group,
-      textureBinding: binding++,
-      samplerBinding: binding++,
-      dimension: found.dimension,
-    ));
-  }
+  engineBlocks.forEach(number);
+  engineSamplers.forEach(number);
+  own.forEach(number);
 
   for (final found in scan.varyings) {
     if (!varyingLocations.containsKey(found.name)) {
