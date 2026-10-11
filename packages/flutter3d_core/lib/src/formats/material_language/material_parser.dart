@@ -98,13 +98,9 @@
 library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
-    show
-        ExpressionParser,
-        ExpressionScope,
-        ExpressionSyntax,
-        ExpressionSyntaxException,
-        ExpressionToken,
-        tokenizeExpression;
+    show ExpressionScope, ExpressionSyntax, ExpressionSyntaxException;
+import 'package:flutter3d_foundation/internal.dart'
+    show ExpressionParser, ExpressionToken, tokenizeExpression;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dFormatException, FormatSpec;
 import 'package:flutter3d_shaders/backend.dart' show uniformBlocks;

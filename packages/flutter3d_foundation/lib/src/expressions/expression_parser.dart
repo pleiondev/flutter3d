@@ -21,8 +21,9 @@
 /// arguments its rule refuses is an [ExpressionSyntaxException] that says
 /// where.
 ///
-/// **A host language stands on it.** [ExpressionParser] is a `base class`
-/// with a cursor over the tokens and two hooks, [ExpressionParser.resolveName]
+/// **A host language stands on it.** [ExpressionParser], in
+/// `package:flutter3d_foundation/internal.dart` with its tokens, is a `base
+/// class` with a cursor over the tokens and two hooks, [ExpressionParser.resolveName]
 /// and [ExpressionParser.parseSpecialCall]: the material language extends it,
 /// reads its declarations and blocks itself, and hands every expression to
 /// [ExpressionParser.parseExpression], so its expressions are this

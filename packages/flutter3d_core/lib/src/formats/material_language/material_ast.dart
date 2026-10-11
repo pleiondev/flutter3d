@@ -33,9 +33,9 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
         ExpressionVariable,
         ExpressionVisitor,
         Expression,
-        Flutter3dFormatException,
-        applyExpressionOperator,
-        broadcastExpressionArguments;
+        Flutter3dFormatException;
+import 'package:flutter3d_foundation/internal.dart'
+    show applyExpressionOperator, broadcastExpressionArguments;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart'
     show CompareFunction;
 

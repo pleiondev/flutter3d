@@ -100,6 +100,11 @@ List<(String, String, String)> restrictedLibraryProblems(
 /// code, and why.
 const Map<String, Map<String, String>> restrictedLibraryUsers =
     <String, Map<String, String>>{
+      'package:flutter3d_foundation/internal.dart': <String, String>{
+        'flutter3d_core':
+            'the material language extends the expression language\'s '
+            'parser and evaluates through its operator arithmetic',
+      },
       'package:flutter3d_shaders/internal.dart': <String, String>{
         'flutter3d_core':
             'the renderer fills the engine\'s own uniform blocks, typed',

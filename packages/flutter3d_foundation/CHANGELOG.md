@@ -10,10 +10,17 @@
   bits on every platform, with values taken as `Quantity`s by name;
   `ExpressionCodec` writes the canonical text a document stores;
   `ExpressionVisitor` (with `visitUnknown`) is how a translator reads the
-  tree, and `ExpressionParser` is a `base class` a host language extends,
-  as the material language does. `ExpressionBuiltin` lists the functions,
-  each with its unit rule; `Unit.coherent` names the coherent unit of a
-  dimension.
+  tree. `ExpressionBuiltin` lists the functions, each with its unit rule;
+  `Unit.coherent` names the coherent unit of a dimension.
+- **`package:flutter3d_foundation/internal.dart`: what a host language
+  stands on, outside the API.** `ExpressionParser`, the `base class` the
+  material language extends, its `ExpressionToken`s and
+  `tokenizeExpression`, and the operator arithmetic every evaluator shares
+  (`applyExpressionOperator`, `broadcastExpressionArguments`). For the
+  engine's own packages, as `flutter3d_shaders`' `internal.dart` is: a
+  minor that grows the grammar may change them, so an application reads
+  expressions through `parseExpression` and the types the main library
+  names.
 - **A refusal of bad bytes is still a `FormatException`.**
   `Flutter3dFormatException` implements it, so code that catches
   `on FormatException`, as 0.8 code does, keeps catching the engine's

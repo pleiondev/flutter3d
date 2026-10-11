@@ -605,11 +605,12 @@ final class ExpressionConditional extends Expression {
 /// A binary operator on two values, with GLSL's broadcasting: a
 /// one-component value beside a wider one is spread across it.
 ///
-/// Public because every reader that evaluates — the closure compiler, the
-/// material language's software stage — computes the same operators, and a
-/// second implementation of "what does vec3 * float mean" is exactly the
-/// drift this language exists to remove. A comparison or a logical
-/// operator answers one for true and nought for false.
+/// Shared, through `package:flutter3d_foundation/internal.dart`, because
+/// every reader that evaluates — the closure compiler, the material
+/// language's software stage — computes the same operators, and a second
+/// implementation of "what does vec3 * float mean" is exactly the drift
+/// this language exists to remove. A comparison or a logical operator
+/// answers one for true and nought for false.
 List<double> applyExpressionOperator(
   String op,
   List<double> a,

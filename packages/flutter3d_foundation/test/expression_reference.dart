@@ -1,13 +1,14 @@
 /// The reference evaluator: the tree walked once per evaluation, every node
 /// computed where it stands.
 ///
-/// **Internal, and kept as the yardstick.** The closure compiler and the
-/// bytecode interpreter are what runs; this is the plainest reading of the
-/// tree there is, and the tests hold both of them to its answers, bit for
-/// bit, on every fixture.
+/// **A test's yardstick, and nothing the package ships.** The closure
+/// compiler and the bytecode interpreter are what runs; this is the
+/// plainest reading of the tree there is, and the tests hold both of them
+/// to its answers, bit for bit, on every fixture.
 library;
 
-import 'expression_ast.dart';
+import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_foundation/internal.dart';
 
 /// The value of [expression], given each variable's components by name in
 /// coherent units.
