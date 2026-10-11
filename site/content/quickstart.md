@@ -52,6 +52,8 @@ runtime and names as an asset.
 <p>That bundle is still generated, gitignored and tied to the Flutter version. A fresh checkout has none, and the symptom is a missing-asset error at startup, not a build failure. Run the script again after <code>flutter upgrade</code>. It has not moved onto the hook because it is the demo's own bundle, separate from the canonical one <code>ap-06</code> covers; that entry's "Not done" says why.</p>
 </div>
 
+A project of your own does not link the whole canonical bundle. Its build hook (`flutter3d_build`'s `buildAssets`) compiles the stages the project needs, for the SDK that builds it, into `flutter3d_generated/shaders/` ([the engine's shaders](/reference/asset-pipeline/#shaders)). On `flutter3d_app`'s example that is 3.7 MB with 95 of 105 stages, against 8.5 MB for all of them; the WebGL2 sources of the same set are 0.40 MB gzipped, against 0.84 MB (Flutter 3.47.0, 2026-10-11, measured with `flutter3d shaders`). The release sizes of the whole application are measured on hardware for the release.
+
 The script calls `impellerc` directly instead of going through Native Assets, and prints the compiled binding table on the way out. Read that table once. The compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
 
 ## Run something

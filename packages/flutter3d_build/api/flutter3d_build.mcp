@@ -19,7 +19,7 @@ tool plugin.create
   says Write a new flutter3d plugin package from a template: a pubspec with the discovery marker, the plugin, a test that installs it and the conformance suite.
   hints writes
   arg directory required {"type":"string"}
-  arg kind required {"enum":["render-step","effect","genre","element","tool"],"type":"string"}
+  arg kind required {"enum":["render-step","effect","genre","element","tool","backend"],"type":"string"}
   arg name required {"type":"string"}
 
 tool plugin.report

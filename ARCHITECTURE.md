@@ -81,8 +81,12 @@ Flutter GPU off unless the engine is given `--enable-flutter-gpu`, so
 GLES backend compiles our shaders as GLSL ES 1.00 and refuses the ones that
 read `gl_VertexID`. That was on Mesa's software rasteriser (llvmpipe), and a
 real GPU may behave otherwise. A Linux build that draws through Impeller
-needs that switch set by the runner, and full-screen passes that do not
-depend on `gl_VertexID`.
+needs that switch set by the runner. Since 1.0.0-rc.1 no stage reads a
+built-in index on that target: `lib/vertex_index.glsl` and
+`lib/instance_index.glsl` make it an attribute under
+`IMPELLER_TARGET_OPENGLES`, which the Impeller backend feeds from a buffer of
+0, 1, 2 … in a slot after the pipeline's own, and `tool/ci.sh` runs the
+conformance harness through Impeller under Xvfb on Linux.
 
 Android has been played on a real handset — the platformer on a Galaxy A55,
 where Impeller picked Vulkan by itself, rendered clean, and the on-screen
@@ -386,7 +390,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 82 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 83 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -3666,7 +3670,7 @@ storage.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **14394 tests** across 61 packages and 17 applications |
-| Structure rules | 82, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 83, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary

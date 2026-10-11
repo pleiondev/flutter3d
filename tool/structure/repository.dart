@@ -1376,6 +1376,12 @@ const Map<String, String> accessibleUis = <String, String>{
   'flutter3d_game_ui':
       'every widget around a game: the heads-up display, the touch '
       'controls, the settings, the screens, photo mode and sharing',
+  'flutter3d_lesson_viewer':
+      'the lesson viewer for the laboratory audience: Semantics on every '
+      'control, the textScaler, the focus order and the reduced-motion flag',
+  'flutter3d_lab_pendulum':
+      'the pendulum laboratory: its length as a slider a screen reader and '
+      'a keyboard reach, the pause for reduced motion',
 };
 
 /// Where a package of [accessibleUis] may type a colour in, by file under
@@ -1394,15 +1400,7 @@ const Map<String, String> accessibleColorsAllowed = <String, String>{
 /// **A to-do list, not an exemption**, like [propertyReadersPending]: the
 /// rule fails on an entry that already carries
 /// `test/accessibility_test.dart`, so it moves to [accessibleUis] the day it can be held.
-const Map<String, String> accessibleUisPending = <String, String>{
-  'flutter3d_lesson_viewer':
-      'Semantics on every control, the textScaler, the focus order and the '
-      'reduced-motion flag for the laboratory audience in rc.1; WCAG AA in '
-      'full with the viewers\' move to Flutter3dView in rc.2',
-  'flutter3d_lab_pendulum':
-      'the same, for the laboratory panel: rc.1 for its controls, rc.2 for '
-      'the rest',
-};
+const Map<String, String> accessibleUisPending = <String, String>{};
 
 /// Fixtures a format's reader is held to beyond its one per version: a
 /// section added at a version, which a file of every version since has to
