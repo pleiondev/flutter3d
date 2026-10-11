@@ -51,7 +51,16 @@ final class ConstitutiveModel
   static const String ogden = 'ogden'
   static const String prony = 'prony'
 
-typedef ContactProperties = ({double friction, double restitution, double rollingResistance});
+final class ContactProperties
+  String toString()
+  bool operator ==(Object other)
+  const ContactProperties({required this.friction, required this.restitution, required this.rollingResistance, this.confidence, required this.source})
+  final Confidence? confidence
+  final String source
+  final double friction
+  final double restitution
+  final double rollingResistance
+  int get hashCode
 
 final class ElectricalProperties extends PropertyGroup
   Map<String, Object?> toJson()
@@ -139,7 +148,12 @@ base class MaterialCatalog extends PluginRegistry
   Registration addPair(MaterialPair pair)
   Registration watch(void Function(PhysicalMaterial material) added)
   factory MaterialCatalog.builtIn()
+  static const double defaultConductivity = 1.0
+  static const double defaultEmissivity = 0.9
   static const double defaultFriction = 0.6
+  static const double defaultPoissonRatio = 0.25
+  static const double defaultSpecificHeat = 1000.0
+  static const double defaultYoungsModulus = 5e10
 
 final class MaterialFormatException extends Flutter3dFormatException
   String toString()

@@ -150,17 +150,61 @@ final class MaterialPair {
   String toString() => 'MaterialPair($first, $second)';
 }
 
-/// What two bodies meeting do: what a solver reads at a contact.
-typedef ContactProperties = ({
+/// What two bodies meeting do: what a solver reads at a contact, and how
+/// far to trust it.
+///
+/// **An estimate says so here too.** A pair measured on a tribometer and a
+/// pair whose friction is the geometric mean of two guesses give the same
+/// kind of number; [confidence] and [source] are what tell them apart, so
+/// what reads [friction] does not take the second for the first.
+final class ContactProperties {
+  const ContactProperties({
+    required this.friction,
+    required this.restitution,
+    required this.rollingResistance,
+    this.confidence,
+    required this.source,
+  });
+
   /// The one coefficient of friction. No unit.
-  double friction,
+  final double friction;
 
   /// The coefficient of restitution. No unit, nought to one.
-  double restitution,
+  final double restitution;
 
   /// The coefficient of rolling resistance. No unit.
-  double rollingResistance,
-});
+  final double rollingResistance;
+
+  /// How [friction] was come by: the measured pair's confidence, or the
+  /// least trusted of the two materials' own — [Confidence.estimate] when
+  /// either is one or either material says none and [MaterialCatalog.
+  /// defaultFriction] was taken. Null when a value it was made of does not
+  /// say.
+  final Confidence? confidence;
+
+  /// Where [friction] comes from: the measured pair's source, or how it was
+  /// combined and from which materials' values.
+  final String source;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ContactProperties &&
+      other.friction == friction &&
+      other.restitution == restitution &&
+      other.rollingResistance == rollingResistance &&
+      other.confidence == confidence &&
+      other.source == source;
+
+  @override
+  int get hashCode =>
+      Object.hash(friction, restitution, rollingResistance, confidence, source);
+
+  @override
+  String toString() =>
+      'ContactProperties(friction $friction${confidence == null ? '' : ', '
+                '${confidence!.name}'}, restitution $restitution, rolling '
+      'resistance $rollingResistance)';
+}
 
 /// A material or a pair a [MaterialCatalog] would not take: an id already
 /// taken, a plugin's id outside its namespace, an entry whose numbers
@@ -301,12 +345,40 @@ base class MaterialCatalog extends PluginRegistry {
   ///
   /// A material that does not say takes [defaultFriction], no bounce and no
   /// rolling resistance.
+  ///
+  /// What the friction is made of is said with it
+  /// ([ContactProperties.confidence], [ContactProperties.source]), so an
+  /// estimate combined with a measurement reads as the estimate it is.
   ContactProperties contact(PhysicalMaterial a, PhysicalMaterial b) {
     final pair = pairOf(a.id, b.id);
     final ma = a.mechanical, mb = b.mechanical;
-    return (
+    final measured = pair?.friction;
+    final (Confidence?, String) said;
+    if (measured != null) {
+      said = (pair!.confidence, pair.source);
+    } else {
+      (Confidence?, String) own(PhysicalMaterial m) =>
+          switch (m.mechanical?.friction) {
+            final law? => (law.confidence, law.source ?? m.mechanical!.source),
+            null => (
+              Confidence.estimate,
+              'none of its own, so MaterialCatalog.defaultFriction',
+            ),
+          };
+      final ofA = own(a), ofB = own(b);
+      said = a.id == b.id
+          ? (ofA.$1, "${a.id}'s own: ${ofA.$2}")
+          : (
+              _leastTrusted(ofA.$1, ofB.$1),
+              "the geometric mean of ${a.id}'s (${ofA.$2}) and ${b.id}'s "
+                  '(${ofB.$2})',
+            );
+    }
+    return ContactProperties(
+      confidence: said.$1,
+      source: said.$2,
       friction:
-          pair?.friction ??
+          measured ??
           math.sqrt(
             (ma?.friction?.value ?? defaultFriction) *
                 (mb?.friction?.value ?? defaultFriction),
@@ -326,9 +398,51 @@ base class MaterialCatalog extends PluginRegistry {
     );
   }
 
+  /// The less trusted of [a] and [b]: an estimate whenever either is one;
+  /// otherwise null when either does not say, or names a confidence this
+  /// version does not rank; otherwise the later of the two in
+  /// [Confidence.values].
+  static Confidence? _leastTrusted(Confidence? a, Confidence? b) {
+    if (a == Confidence.estimate || b == Confidence.estimate) {
+      return Confidence.estimate;
+    }
+    final ia = a == null ? -1 : Confidence.values.indexOf(a);
+    final ib = b == null ? -1 : Confidence.values.indexOf(b);
+    if (ia < 0 || ib < 0) return null;
+    return Confidence.values[ia > ib ? ia : ib];
+  }
+
   /// The coefficient of friction of a body whose material says none: 0.6,
   /// what a `RigidBody` is made with. No unit.
   static const double defaultFriction = 0.6;
+
+  /// The emissivity of a surface whose material says none: 0.9, that of
+  /// most rough, non-metallic surfaces (Incropera and colleagues,
+  /// Fundamentals of Heat and Mass Transfer, 6th ed., 2007, table A.11). No
+  /// unit. What every material preset of the native core starts from.
+  static const double defaultEmissivity = 0.9;
+
+  /// The thermal conductivity of a body whose material says none: one watt
+  /// per metre kelvin, W/(m·K), between an insulator's tenths and a metal's
+  /// hundreds — of the order of glass and stone (Incropera and colleagues,
+  /// 2007, table A.3). What every native preset starts from.
+  static const double defaultConductivity = 1.0;
+
+  /// Young's modulus of a body whose material says none, Pa: 5e10, a stiff
+  /// solid's, of the order of glass and stone (Ashby, Materials Selection in
+  /// Mechanical Design, 4th ed., 2011, chart 1). What every native preset
+  /// starts from.
+  static const double defaultYoungsModulus = 5e10;
+
+  /// Poisson's ratio of a body whose material says none: 0.25, a stiff
+  /// solid's, of glass and stone (Ashby, 2011). No unit. What every native
+  /// preset starts from.
+  static const double defaultPoissonRatio = 0.25;
+
+  /// The specific heat of a body whose material says none: a kilojoule per
+  /// kilogram kelvin, J/(kg·K), of the order of stone and glass (Incropera
+  /// and colleagues, 2007, table A.3). The native core's inert preset's.
+  static const double defaultSpecificHeat = 1000.0;
 
   /// Calls [added] with every material added from now on, until the
   /// returned registration is cancelled: how a keeper of copies — the

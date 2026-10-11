@@ -6,12 +6,14 @@
   `PropertyLaw?` where they were `double?`: `value` is the number at the
   material's reference state, as before, and `at(MaterialState)` the
   number for a body in another state. A law is a `ConstantLaw`, a
-  `TableLaw` (one interpolation formula, so every core gives the same
-  bits) or a `FormulaLaw` of the expression language, whose unit is
-  checked as it is read; `FormulaLaw.andrade`, `.arrhenius` and
-  `.polynomial` write the handbook forms. Code that read a number reads
-  `.value`; a constructor that took a number takes `ConstantLaw(number)`.
-  `PhysicalMaterial.density` stays a number, the reference state's.
+  `TableLaw` (one interpolation formula, written down) or a `FormulaLaw`
+  of the expression language, whose unit is checked as it is read;
+  `FormulaLaw.andrade`, `.arrhenius` and `.polynomial` write the handbook
+  forms. Code that read a number reads `.value`; a constructor that took a
+  number takes `ConstantLaw(number)`. `PhysicalMaterial.density` stays a
+  number, the reference state's. The laws are read in Dart; the native
+  core does not evaluate them yet and takes every property's value at the
+  reference state, whatever a body's temperature.
 - **`MaterialState`**: what one body of a material is like now, an open
   map of namespaced quantity ids (`f3d.temperature`, `f3d.pressure`,
   `f3d.wetness`, a plugin's own) to `Quantity`, and a phase. Unknown
@@ -29,11 +31,27 @@
   where it is not given.
 - **The catalogue is generated from verified data**: 238 entries, every
   value with its source and confidence, about 550 of them with a law in
-  temperature; the 33 entries it had keep their numbers. Every solid has a
-  coefficient of friction, an estimate marked as one where no source
-  measured it; molten basalt has a thermal group. A coverage table on this
+  temperature; the 33 entries it had keep their numbers, and their data
+  says each value's confidence rather than leaving it to be read out of
+  the source's wording. Every solid has a coefficient of friction, an
+  estimate marked as one where no source measured it: the median of its
+  family's measured ones, never of other estimates, or the engine's
+  default where its family has none. A law scaled onto the value quoted at
+  the reference state says by how much in its source; molten basalt has a
+  thermal group. A coverage table on this
   README says which values change with temperature. Reference values for
   simulation, not for design or safety calculations.
+- **`MaterialCatalog.contact` says how its friction was come by.**
+  `ContactProperties` is a class rather than a record, and carries a
+  `confidence` and a `source` beside the three coefficients: the measured
+  pair's, or the less trusted of the two materials' own with how they were
+  combined, so a friction made of an estimate does not read as a
+  measurement.
+- **The defaults a material that says none takes are on
+  `MaterialCatalog`**, each with its source: `defaultEmissivity`,
+  `defaultConductivity`, `defaultYoungsModulus`, `defaultPoissonRatio` and
+  `defaultSpecificHeat`, beside `defaultFriction`. The native core's
+  presets start from them.
 - **`checkMaterialCatalog`** holds a catalogue to its shape: each law at
   its reference state gives its value exactly, a formula measures its
   property's unit (`propertyUnits`), every value says its confidence.

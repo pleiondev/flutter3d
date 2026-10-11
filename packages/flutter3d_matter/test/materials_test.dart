@@ -214,4 +214,31 @@ void main() {
       closeTo(MaterialCatalog.defaultFriction, 1e-12),
     );
   });
+
+  test('a contact says how its friction was come by', () {
+    final catalogue = MaterialCatalog.builtIn();
+    // Mutation: drop the confidence, or take the pair's when the rule was
+    // used, and an estimate reads as a measurement.
+    final measured = catalogue.contact(Materials.concrete, Materials.rubber);
+    final pair = catalogue.pairOf('f3d.concrete', 'f3d.rubber')!;
+    expect(measured.confidence, pair.confidence);
+    expect(measured.source, pair.source);
+    // A material with an estimated friction makes any contact of it an
+    // estimate, whatever the other side's.
+    final guessed = Materials.all.firstWhere(
+      (m) => m.mechanical?.friction?.confidence == Confidence.estimate,
+    );
+    expect(
+      Materials.steel.mechanical!.friction!.confidence,
+      isNot(Confidence.estimate),
+    );
+    final contact = catalogue.contact(guessed, Materials.steel);
+    expect(contact.confidence, Confidence.estimate);
+    expect(contact.source, contains(guessed.id));
+    expect(contact.source, contains('f3d.steel'));
+    // And a material that says none takes the default, an estimate.
+    final none = catalogue.contact(Materials.honey, Materials.honey);
+    expect(none.confidence, Confidence.estimate);
+    expect(none.source, contains('defaultFriction'));
+  });
 }
