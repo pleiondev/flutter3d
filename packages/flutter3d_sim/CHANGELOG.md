@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **Contacts are events.** `ContactEvent` (`physics.contact`) carries a
+  `StepContact` as plain values — the bodies by their world ids, the
+  materials by catalogue id, point, normal, impulse, relative velocity and
+  phase — with a codec, so it is digested on the tape and decoded on a
+  view like `ActorHurt`. `declareSimulationEvents` declares it, and
+  `ContactEvent.publishAll` publishes a step's contacts in order.
+- **A body's material state is a component.** `MaterialStateComponent`
+  holds a `MaterialState` on an entity, registered and published on every
+  `EngineLoop`; a quantity it cannot read, a plugin's or a later
+  version's, is kept as written through saves, snapshots and the wire.
 - **A level material carries its instance's values and their version.**
   `LevelMaterial.parameters` (a name to its components) and
   `LevelMaterial.materialVersion` (the version of the material they were

@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A step says what it touched.** `RigidDynamics.contacts` (empty by
+  default) lists the last step's contacts as `StepContact`s: the two
+  colliders and their world ids, the face, where they met, the normal, the
+  impulse over the step, the velocity they met at before gravity or a
+  contact acted, and a `ContactPhase` (`begin`, `persist`, `end`, an open
+  class). `Dynamics` fills it, sorted by the world's ids so every backend
+  reports the same order; a sleeping pair persists and a removed body ends
+  its contacts. `ContactLedger` tells phases for a backend whose solver
+  keeps no contacts of its own. Nothing the solver computes moves.
 - **Breaking: `CollisionShape` is an `abstract base class`, no longer
   `sealed`.** A shape of a game's own extends it directly and says its
   bounds, its planes and its support; every pair method defaults to the GJK

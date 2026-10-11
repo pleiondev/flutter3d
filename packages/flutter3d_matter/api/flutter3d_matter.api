@@ -82,6 +82,28 @@ final class MaterialRegistrationException extends PluginException
   String toString()
   const MaterialRegistrationException(super.message)
 
+final class MaterialState
+  Map<String, Object?> toJson()
+  MaterialState inPhase(MaterialPhase phase)
+  MaterialState withQuantity(String id, Quantity value)
+  MaterialState without(String id)
+  Quantity? operator [](String id)
+  String toString()
+  bool operator ==(Object other)
+  const MaterialState({this.quantities = const <String, Quantity>{}, this.phase})
+  double get pressure
+  double get temperature
+  factory MaterialState.at({double temperature = standardAirTemperature, double pressure = standardAtmosphere, MaterialPhase? phase, Map<String, Quantity> also = const <String, Quantity>{}})
+  factory MaterialState.fromJson(Map<String, Object?> json)
+  final Map<String, Quantity> quantities
+  final MaterialPhase? phase
+  int get hashCode
+  static String checkedQuantityId(String id)
+  static const MaterialState standard = …
+  static const String pressureId = 'f3d.pressure'
+  static const String temperatureId = 'f3d.temperature'
+  static const String wetnessId = 'f3d.wetness'
+
 abstract final class Materials
   static const List<MaterialPair> pairs = …
   static const List<PhysicalMaterial> all = …

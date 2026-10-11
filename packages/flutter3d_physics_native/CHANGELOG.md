@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **The core reports its contacts.** `f3d_world_read_contact_reports`
+  gives one report a manifold, begun, persisting or ended, with the
+  impulse summed over the substeps and the bounce and the velocity the
+  bodies met at; `NativeDynamics.contacts` makes `StepContact`s of them in
+  the reference's order, and its phases hold across a restore. The solver's
+  numbers, the snapshot layout and the ABI number are unchanged; the
+  WebAssembly modules are rebuilt.
 - **wgpu-native is fetched where the compute sidecar fetches it.** The
   hook's pinned release, checksums and unpacking moved to
   `flutter3d_wgpu`'s `wgpu_native_hook.dart`, which this hook imports, so
