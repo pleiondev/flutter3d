@@ -6,6 +6,10 @@
 /// wants; a [ShadowTechnique] says what the renderer does about it.
 library;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ScreenRect, TextureHandle;
+import 'package:vector_math/vector_math.dart' as vm;
+
 import '../scene/camera_node.dart';
 import 'render_node.dart';
 import 'shadow_settings.dart';
@@ -15,7 +19,11 @@ import 'shadow_settings.dart';
 /// engine fitted, the atlas rows a cube light holds — rather than a list of
 /// parameters that grows.
 final class ShadowProducerContext {
-  const ShadowProducerContext({required this.settings, this.camera});
+  const ShadowProducerContext({
+    required this.settings,
+    this.camera,
+    this.cascades,
+  });
 
   /// The frame's shadow settings.
   final ShadowSettings settings;
@@ -23,6 +31,64 @@ final class ShadowProducerContext {
   /// The camera the cascades are split along — the first view's — or null
   /// for a frame with none.
   final CameraNode? camera;
+
+  /// What the engine fitted and laid out for the directional map this
+  /// frame, which [ShadowTechnique.shadowMapProducer]'s node draws into;
+  /// null where the frame asks of a producer with nothing fitted.
+  final ShadowCascades? cascades;
+}
+
+/// The directional map as the engine fitted and laid it out for one frame:
+/// what a technique's own producer draws into (D22).
+///
+/// **The atlas is the engine's, and so is its layout.** [atlas] holds one
+/// square tile of [resolution] texels per cascade, side by side
+/// ([tileOf]), and the lit stages read tile `i` through the matrix the
+/// engine fitted for it. A producer draws cascade `i` with
+/// [viewProjections] `[i]` into [tileOf] `(i)`, with [depth] as its depth
+/// attachment, and writes what the engine's `ShadowDepth` stage writes: the
+/// stored depth in red, the far plane where nothing is — one where
+/// [reversed] is false, nought where it is true, in red and in the depth
+/// alike. It clears what it does not draw: nothing of an earlier frame is
+/// kept for it.
+final class ShadowCascades {
+  const ShadowCascades({
+    required this.atlas,
+    required this.depth,
+    required this.resolution,
+    required this.viewProjections,
+    required this.lightDirection,
+    required this.reversed,
+  });
+
+  /// The colour target the lit stages sample as the directional map.
+  final TextureHandle atlas;
+
+  /// A depth attachment the size of [atlas], for the producer's pass.
+  final TextureHandle depth;
+
+  /// One tile's side, in texels.
+  final int resolution;
+
+  /// Each cascade's view and projection as this device draws with it —
+  /// its depth range, and turned round where [reversed] says so.
+  final List<vm.Matrix4> viewProjections;
+
+  /// Which way the light travels, unit length, in world space.
+  final vm.Vector3 lightDirection;
+
+  /// Whether the map stores depth turned round, the far plane at nought.
+  final bool reversed;
+
+  /// How many cascades the atlas holds, one to three.
+  int get count => viewProjections.length;
+
+  /// Where cascade [index] lies in [atlas].
+  ScreenRect tileOf(int index) => ScreenRect(
+    x: index * resolution,
+    width: resolution,
+    height: resolution,
+  );
 }
 
 /// The lookup the lit draws make into the directional map, and its
@@ -214,9 +280,11 @@ abstract base class ShadowTechnique {
   /// `shadowMap` among its writes. Null by default, which is every built-in
   /// technique.
   ///
-  /// The renderer asks this once the shadow pass hands a producer the
-  /// cascades it fitted; until then a technique's producer is not drawn
-  /// (`docs/CONTRACTS.md`, "The shader ABI", says where that stands).
+  /// The renderer asks this each frame the map is drawn, once it has fitted
+  /// the cascades and laid out the atlas, with both in
+  /// [ShadowProducerContext.cascades], and runs the node's
+  /// [RenderNode.execute] where it would have drawn the casters. A frame
+  /// the shadows are off in, or with nothing to cast, asks nothing.
   RenderNode? shadowMapProducer(ShadowProducerContext context) => null;
 
   /// For a technique an application or a plugin writes: a node that

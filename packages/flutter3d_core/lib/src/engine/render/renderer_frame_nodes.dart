@@ -333,6 +333,7 @@ final class _ShadowMapNode extends RenderNode {
       casterIndex: casterIndex,
       camera: camera,
       reversed: _renderer._reversedFor(frame.settings),
+      frame: frame,
     );
     if (!drew) return;
     frame.resources.provide(

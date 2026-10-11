@@ -672,6 +672,7 @@ extension _ShadowPasses on Renderer {
     required int casterIndex,
     CameraNode? camera,
     bool reversed = false,
+    RenderFrame? frame,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
@@ -745,274 +746,27 @@ extension _ShadowPasses on Renderer {
           extensions.thickness > 0.0;
     }
 
-    // Casters only. The last cascade is fitted to this, so anything counted
-    // here that cannot cast a shadow spends texels on nothing: a sky dome or a
-    // camera-locked backdrop would blow the volume out to its own radius and
-    // coarsen every shadow in the level without contributing a single one.
-    final bounds = scene.computeBounds(castersOnly: true);
-    if (!bounds.min.x.isFinite) return false;
-
-    final sceneCentre = (bounds.min + bounds.max)..scale(0.5);
-    final sceneRadius = ((bounds.max - bounds.min)..scale(0.5)).length;
-    if (sceneRadius <= 0.0) return false;
-
-    // The light's aim, taken from the packed buffer so the pass sees the same
-    // direction the shading does.
-    final aim = vm.Vector3(
-      _frameLights.directions[casterIndex * 4],
-      _frameLights.directions[casterIndex * 4 + 1],
-      _frameLights.directions[casterIndex * 4 + 2],
+    // Fitted first and drawn after, so a technique's own producer can draw
+    // into what the engine fitted (D22): see [_fitShadowMap].
+    final fit = _fitShadowMap(
+      resources: resources,
+      scene: scene,
+      settings: settings,
+      casterIndex: casterIndex,
+      camera: camera,
+      reversed: reversed,
     );
-    if (aim.length2 < 1e-12) return false;
-    aim.normalize();
-
-    // **How deep the casters are along the light, which is not how wide.**
-    // The box's own extent along the aim, half of it: the sphere round the
-    // casters is the right width for a map that has to hold them whichever
-    // way it turns, and too deep by the ratio of the two. A valley 880 m
-    // square under a sun 40° up is 620 m to its corners and 360 m along the
-    // light, and the depth one stored step stands for, the bias's floor, is
-    // in proportion. Only depth is fitted to it; the tiles keep the sphere.
-    final half = (bounds.max - bounds.min)..scale(0.5);
-    final sceneDepth = math.min(
-      aim.x.abs() * half.x + aim.y.abs() * half.y + aim.z.abs() * half.z,
-      sceneRadius,
-    );
-
-    // Any up vector that is not parallel to the aim will do; the choice only
-    // rotates the map, and a rotated map shadows identically.
-    final up = aim.y.abs() > 0.99
-        ? vm.Vector3(0.0, 0.0, 1.0)
-        : vm.Vector3(0.0, 1.0, 0.0);
-    final padding = math.max(settings.depthPadding, 1.0);
-    final resolution = settings.resolution.clamp(
-      ShadowSettings.minResolution,
-      ShadowSettings.maxResolution,
-    );
-    // The technique's count, which is `settings.cascades` for every
-    // built-in filter.
-    final count = settings.directionalTechnique
-        .cascadesFor(settings)
-        .clamp(1, 3);
-
-    // Where each cascade looks, and how much it covers.
-    //
-    // **The last one is always the whole scene**, which is what makes this safe
-    // rather than clever: a fragment the near cascades do not reach falls
-    // through to a map that is exactly the one this renderer has always drawn,
-    // so nothing is ever left unshadowed by a gap between volumes.
-    final centers = <vm.Vector3>[];
-    final radii = <double>[];
-    final splits = <double>[0.0, 0.0];
-
-    final orthographic = switch (camera?.projection) {
-      final OrthographicProjection projection => projection,
-      _ => null,
-    };
-    if (count > 1 && camera != null && orthographic != null) {
-      // `P7`: **slabs along the view axis, for a lens whose rays are
-      // parallel.** The spheres below grow with distance from the eye because
-      // a perspective view widens with it; an orthographic one is as wide at
-      // every depth, so a near cascade sized by distance covered the air in
-      // front of the camera and everything fell to the last, softest one.
-      // Here each cascade is a slab of the view's box, from where the casters
-      // begin: even in depth — a texel covers the same world at every depth,
-      // so there is nothing for a logarithm to follow — and as wide as the
-      // frame's half-diagonal, from the frame's own aspect. `shadow.glsl` picks one by depth along
-      // the axis to match.
-      final eyeAt = camera.readViewOrigin();
-      final forward = camera.readForward();
-      final aspect = resources.frameHeight > 0
-          ? resources.frameWidth / resources.frameHeight
-          : 1.0;
-      final halfHeight = orthographic.height * 0.5;
-      final across = halfHeight * math.sqrt(1.0 + aspect * aspect);
-      // The depth the casters span *within the frame*, not the scene's: an
-      // orthographic camera is usually stood well back from a level far
-      // larger than its view, and slabs from its near plane, or across the
-      // whole level, spend the near cascades on air and on ground nobody can
-      // see. Read off five rays down the view's axis — through its middle
-      // and its four corners — each clipped by the casters' box. Something
-      // standing between the rays and outside their depths still falls
-      // through to the last cascade, so this costs sharpness, never coverage.
-      final m = camera.worldMatrix.storage;
-      final right = vm.Vector3(m[0], m[1], m[2])..normalize();
-      final up = vm.Vector3(m[4], m[5], m[6])..normalize();
-      final halfWidth = halfHeight * aspect;
-      final seen = <(double, double)>[
-        for (final (x, y) in const <(double, double)>[
-          (0.0, 0.0),
-          (-1.0, -1.0),
-          (1.0, -1.0),
-          (-1.0, 1.0),
-          (1.0, 1.0),
-        ])
-          ?_rayThroughBox(
-            eyeAt + right.scaled(x * halfWidth) + up.scaled(y * halfHeight),
-            forward,
-            bounds.min,
-            bounds.max,
-          ),
-      ];
-      final centreDepth = (sceneCentre - eyeAt).dot(forward);
-      final (nearest, furthest) = seen.isEmpty
-          ? (centreDepth - sceneRadius, centreDepth + sceneRadius)
-          : seen.reduce((a, b) => (math.min(a.$1, b.$1), math.max(a.$2, b.$2)));
-      final start = math.max(orthographic.near, nearest);
-      final end = math.max(
-        math.min(
-          math.min(orthographic.far, furthest),
-          start + math.max(settings.viewDistance, 1.0),
-        ),
-        start + 1.0,
-      );
-      // All of it to the near slabs: the last cascade is the whole scene
-      // either way, and a fragment the frame shows should not need it.
-      final slabs = count - 1;
-      for (var i = 0; i < slabs; i++) {
-        final from = start + (end - start) * i / slabs;
-        final to = start + (end - start) * (i + 1) / slabs;
-        splits[i] = to;
-        final half = (to - from) * 0.5;
-        centers.add(eyeAt + forward.scaled(from + half));
-        radii.add(math.sqrt(across * across + half * half));
-      }
-    } else if (count > 1 && camera != null) {
-      final eyeAt = camera.readViewOrigin();
-      final forward = camera.readForward();
-      final near = 1.0;
-      final far = math.min(
-        math.min(sceneRadius * 2.0, Renderer._cameraFar(camera)),
-        math.max(settings.viewDistance, near * 2.0),
-      );
-
-      for (var i = 1; i < count; i++) {
-        final ratio = i / count;
-        // Between an even split and a logarithmic one. Perspective wants the
-        // logarithm — a texel covers more world the further away it is — and
-        // pure logarithm puts the first split so close that the near cascade
-        // covers the player's feet and nothing else.
-        final even = near + (far - near) * ratio;
-        final logarithmic = near * math.pow(far / near, ratio).toDouble();
-        final atEnd = even + (logarithmic - even) * settings.cascadeSplit;
-        splits[i - 1] = atEnd;
-
-        // A sphere on the line of sight rather than a fitted frustum: what is
-        // outside it is picked up by the next cascade, and the arithmetic that
-        // fits a frustum exactly is arithmetic that has to be right about the
-        // aspect ratio, which this pass does not know.
-        centers.add(eyeAt + forward.scaled(atEnd * 0.55));
-        radii.add(atEnd * 0.9);
-      }
-    }
-    centers.add(sceneCentre);
-    radii.add(sceneRadius);
-    _shadowCascadeRadii
-      ..clear()
-      ..addAll(radii);
-
-    // One matrix per cascade, plus the copy each backend needs to *draw* with.
-    final drawMatrices = <vm.Matrix4>[];
-    final shaderMatrices = <vm.Matrix4>[];
-    // And the volume each one covers, for `gfx-63n`'s caster cull. Built from
-    // the unremapped matrix, because that is the one in the clip space the
-    // planes are extracted for; the drawing copy has been through the backend's
-    // depth convention and the shader copy may have had its y flipped.
-    final cascadeFrusta = <vm.Frustum>[];
-    // The engine's own, unadjusted: what the frusta and a scroll's strips
-    // are cut from.
-    final rawMatrices = <vm.Matrix4>[];
-
-    for (var i = 0; i < centers.length; i++) {
-      final radius = radii[i];
-      var center = centers[i];
-
-      // Snapped to whole texels, in the light's own space. Without this a
-      // camera that moves by half a texel redraws every shadow edge in a
-      // slightly different place and the whole level crawls — the single most
-      // recognisable artefact cascades have.
-      //
-      // **The frame has to be fixed, and the first version of this got it
-      // wrong.** Building the light view from the centre puts the centre at
-      // that view's own origin, so its x and y are zero, snapping zero to a
-      // texel gives zero, and the whole thing is an expensive no-op — which is
-      // exactly what the mutation test reported when deleting it changed
-      // nothing. A rotation about the world origin depends on the light's
-      // direction alone, and a point's coordinates in it move when the point
-      // does.
-      final texelWorld = radius * 2.0 * padding / resolution;
-      final snapFrame = Renderer._lookAt(vm.Vector3.zero(), aim, up);
-      final inLight = snapFrame.transformed3(center.clone());
-      // All three, not just the two the map is indexed by. Depth along the
-      // light axis does not shimmer — the volume has padding to spare — but a
-      // centre that slides in z is a centre that slides, and the point of
-      // quantising is that the whole thing either stays put or moves by a whole
-      // texel. Snapping two of three leaves it sliding along the third, which
-      // is what the test caught.
-      inLight
-        ..x = (inLight.x / texelWorld).floorToDouble() * texelWorld
-        ..y = (inLight.y / texelWorld).floorToDouble() * texelWorld
-        ..z = (inLight.z / texelWorld).floorToDouble() * texelWorld;
-      final back = vm.Matrix4.copy(snapFrame)..invert();
-      center = back.transformed3(inLight);
-
-      if (i == 0) _shadowCascadeCentres.clear();
-      _shadowCascadeCentres.add(center.clone());
-
-      // **A near cascade reaches back to the furthest caster towards the
-      // light.** Its volume is a sphere around what the camera sees, and its
-      // depth ran from that sphere's own light-side edge: a tree or a wall
-      // standing further out towards the sun than the sphere reaches was cut
-      // by the near plane, and the ground inside the tile it shades came back
-      // lit while the next cascade out had the shadow. The last cascade is the
-      // whole caster set and needs nothing. The reach is rounded up to whole
-      // texels so a camera walking along does not slide the depth under a
-      // still scene; the bias is converted below to keep its distance.
-      final ownReach = radius * padding;
-      final last = i == centers.length - 1;
-      // The last cascade is as deep as the casters are along the light; a
-      // near one is its own sphere's depth on this side of its centre.
-      final ownDepth = last ? sceneDepth * padding : ownReach;
-      var distance = ownDepth;
-      if (!last) {
-        final reach = (center - sceneCentre).dot(aim) + sceneDepth;
-        if (reach > distance) {
-          distance = (reach / texelWorld).ceilToDouble() * texelWorld;
-        }
-      }
-      // The bias keeps the metres it has always had — `ShadowSettings.bias`
-      // of the sphere's own depth — whatever range the cascade is drawn over.
-      final range = distance + ownDepth - 0.01;
-      _shadowCascadeBiasScale[i] = (ownReach + ownReach - 0.01) / range;
-      _shadowCascadeDepthRange[i] = range;
-      final eye = center - aim.scaled(distance);
-      final view = Renderer._lookAt(eye, center, up);
-      final projection = OrthographicProjection(
-        height: radius * 2.0 * padding,
-        near: 0.01,
-        far: distance + ownDepth,
-      ).toMatrix(1.0);
-
-      final matrix = vm.Matrix4.copy(projection)..multiply(view);
-      // `A2.8`: drawn turned round when the map stores it so, and only drawn:
-      // what the lit stages and the static tiles' scrolls compute with stays
-      // the ordinary matrix, and `lib/shadow_storage.glsl` turns the stored
-      // depth back.
-      drawMatrices.add(
-        toDepthRange(
-          reversed ? toReversedDepth(matrix) : matrix,
-          device.depthRange,
-        ),
-      );
-      shaderMatrices.add(toFramebufferOrigin(matrix, device.framebufferOrigin));
-      cascadeFrusta.add(vm.Frustum.matrix(matrix));
-      rawMatrices.add(matrix);
-    }
-
-    _shadowMatrix.setFrom(shaderMatrices.first);
-    _shadowMatrixFar.setFrom(shaderMatrices[math.min(1, count - 1)]);
-    _shadowMatrixFarthest.setFrom(shaderMatrices[count - 1]);
-    _shadowDrawMatrix.setFrom(drawMatrices.first);
+    if (fit == null) return false;
+    final _ShadowFit(
+      :aim,
+      :count,
+      :resolution,
+      :splits,
+      :drawMatrices,
+      :shaderMatrices,
+      :cascadeFrusta,
+      :rawMatrices,
+    ) = fit;
 
     // Two matrices per cascade, and they have to differ. The reason is subtle
     // enough to have cost a session. The shadow pass stores `gl_FragCoord.z`,
@@ -1157,6 +911,68 @@ extension _ShadowPasses on Renderer {
         _shadowCaustics != caustics ||
         _shadowReversed != reversed ||
         _shadowFormat != atlasFormat;
+    RenderTargetDescriptor atlasSpec() => RenderTargetDescriptor(
+      width: atlasWidth,
+      height: resolution,
+      format: atlasFormat,
+    );
+    if (fresh) {
+      // Sampled by the lighting pass, so devicePrivate rather than transient.
+      // The one it replaces goes back to the device once no frame in flight
+      // can still be sampling it — dropping it was a free on one backend and a
+      // driver object leaked per resolution or cascade change on WebGL2.
+      _destroyAfterFrame(_shadowMap);
+      _shadowMap = device.createTexture(atlasSpec());
+      _destroyAfterFrame(_shadowMapStatic);
+      _shadowMapStatic = null;
+      _destroyAfterFrame(_shadowMapStaticSpare);
+      _shadowMapStaticSpare = null;
+      // Its own depth, for as long as the atlas lives. See [_shadowDepth].
+      _destroyAfterFrame(_shadowDepth);
+      _shadowDepth = device.createTexture(
+        RenderTargetDescriptor(
+          width: atlasWidth,
+          height: resolution,
+          format: device.defaultDepthStencilFormat,
+          storageMode: StorageMode.deviceTransient,
+        ),
+      );
+      _shadowResolution = resolution;
+      _shadowCascadeCount = count;
+      _shadowTransmits = transmits;
+      _shadowCaustics = caustics;
+      _shadowReversed = reversed;
+      _shadowFormat = atlasFormat;
+    }
+
+    // D22: a technique's own producer draws the casters, into the atlas laid
+    // out above and with the matrices fitted above, which the lit stages read
+    // as they read the engine's. The engine's tiles are left unbaked, so the
+    // frame after the producer goes draws every caster again.
+    final producer = frame == null
+        ? null
+        : settings.directionalTechnique.shadowMapProducer(
+            ShadowProducerContext(
+              settings: settings,
+              camera: camera,
+              cascades: ShadowCascades(
+                atlas: _shadowMap!,
+                depth: _shadowDepth!,
+                resolution: resolution,
+                viewProjections: List<vm.Matrix4>.unmodifiable(drawMatrices),
+                lightDirection: aim.clone(),
+                reversed: reversed,
+              ),
+            ),
+          );
+    if (producer != null) {
+      _directionalBaked.fillRange(0, _directionalBaked.length, null);
+      producer.execute(frame!);
+      _shadowMapVersion++;
+      publishShadowParams();
+      return true;
+    }
+
     final staticFresh = fresh || _shadowMapStatic == null;
     // `S1`: the static casters keyed as a whole rather than per tile, since
     // a tile that scrolls gains the casters its new strip holds without any
@@ -1248,39 +1064,6 @@ extension _ShadowPasses on Renderer {
       }
     }
 
-    RenderTargetDescriptor atlasSpec() => RenderTargetDescriptor(
-      width: atlasWidth,
-      height: resolution,
-      format: atlasFormat,
-    );
-    if (fresh) {
-      // Sampled by the lighting pass, so devicePrivate rather than transient.
-      // The one it replaces goes back to the device once no frame in flight
-      // can still be sampling it — dropping it was a free on one backend and a
-      // driver object leaked per resolution or cascade change on WebGL2.
-      _destroyAfterFrame(_shadowMap);
-      _shadowMap = device.createTexture(atlasSpec());
-      _destroyAfterFrame(_shadowMapStatic);
-      _shadowMapStatic = null;
-      _destroyAfterFrame(_shadowMapStaticSpare);
-      _shadowMapStaticSpare = null;
-      // Its own depth, for as long as the atlas lives. See [_shadowDepth].
-      _destroyAfterFrame(_shadowDepth);
-      _shadowDepth = device.createTexture(
-        RenderTargetDescriptor(
-          width: atlasWidth,
-          height: resolution,
-          format: device.defaultDepthStencilFormat,
-          storageMode: StorageMode.deviceTransient,
-        ),
-      );
-      _shadowResolution = resolution;
-      _shadowCascadeCount = count;
-      _shadowTransmits = transmits;
-      _shadowCaustics = caustics;
-      _shadowReversed = reversed;
-      _shadowFormat = atlasFormat;
-    }
     if (split && staticModes.any((mode) => mode != _StaticTile.keep)) {
       _shadowMapStaticSpare ??= device.createTexture(atlasSpec());
     }
@@ -1346,13 +1129,7 @@ extension _ShadowPasses on Renderer {
       pass.bindBlock(stage, _frameInfo);
       _bindMorph(pass, stage, node.morph);
       if (own != null) {
-        _bindMaterialVertex(
-          pass,
-          own,
-          node.material,
-          drawMatrix,
-          node: node,
-        );
+        _bindMaterialVertex(pass, own, node.material, drawMatrix, node: node);
       }
       if (instanced != null) {
         _bindInstanceMorph(pass, stage, instanced);
@@ -2095,6 +1872,305 @@ extension _ShadowPasses on Renderer {
     return true;
   }
 
+  /// Where the directional map looks this frame: the casters' bounds, the
+  /// light's aim, the cascades along the view and one matrix for each,
+  /// written into the fields the lit draws read. Null when there is nothing
+  /// to fit — no casters, a scene of no size, a light with no aim.
+  ///
+  /// **Apart from the drawing so a producer can take the drawing's place**
+  /// (D22): [_renderShadowMap] fits with this and then either draws the
+  /// casters itself or hands the fit to the technique's
+  /// `ShadowTechnique.shadowMapProducer`. Moved, not rewritten: every number
+  /// is the one the single method computed.
+  _ShadowFit? _fitShadowMap({
+    required FrameResources resources,
+    required Scene scene,
+    required ShadowSettings settings,
+    required int casterIndex,
+    required CameraNode? camera,
+    required bool reversed,
+  }) {
+    // Casters only. The last cascade is fitted to this, so anything counted
+    // here that cannot cast a shadow spends texels on nothing: a sky dome or a
+    // camera-locked backdrop would blow the volume out to its own radius and
+    // coarsen every shadow in the level without contributing a single one.
+    final bounds = scene.computeBounds(castersOnly: true);
+    if (!bounds.min.x.isFinite) return null;
+
+    final sceneCentre = (bounds.min + bounds.max)..scale(0.5);
+    final sceneRadius = ((bounds.max - bounds.min)..scale(0.5)).length;
+    if (sceneRadius <= 0.0) return null;
+
+    // The light's aim, taken from the packed buffer so the pass sees the same
+    // direction the shading does.
+    final aim = vm.Vector3(
+      _frameLights.directions[casterIndex * 4],
+      _frameLights.directions[casterIndex * 4 + 1],
+      _frameLights.directions[casterIndex * 4 + 2],
+    );
+    if (aim.length2 < 1e-12) return null;
+    aim.normalize();
+
+    // **How deep the casters are along the light, which is not how wide.**
+    // The box's own extent along the aim, half of it: the sphere round the
+    // casters is the right width for a map that has to hold them whichever
+    // way it turns, and too deep by the ratio of the two. A valley 880 m
+    // square under a sun 40° up is 620 m to its corners and 360 m along the
+    // light, and the depth one stored step stands for, the bias's floor, is
+    // in proportion. Only depth is fitted to it; the tiles keep the sphere.
+    final half = (bounds.max - bounds.min)..scale(0.5);
+    final sceneDepth = math.min(
+      aim.x.abs() * half.x + aim.y.abs() * half.y + aim.z.abs() * half.z,
+      sceneRadius,
+    );
+
+    // Any up vector that is not parallel to the aim will do; the choice only
+    // rotates the map, and a rotated map shadows identically.
+    final up = aim.y.abs() > 0.99
+        ? vm.Vector3(0.0, 0.0, 1.0)
+        : vm.Vector3(0.0, 1.0, 0.0);
+    final padding = math.max(settings.depthPadding, 1.0);
+    final resolution = settings.resolution.clamp(
+      ShadowSettings.minResolution,
+      ShadowSettings.maxResolution,
+    );
+    // The technique's count, which is `settings.cascades` for every
+    // built-in filter.
+    final count = settings.directionalTechnique
+        .cascadesFor(settings)
+        .clamp(1, 3);
+
+    // Where each cascade looks, and how much it covers.
+    //
+    // **The last one is always the whole scene**, which is what makes this safe
+    // rather than clever: a fragment the near cascades do not reach falls
+    // through to a map that is exactly the one this renderer has always drawn,
+    // so nothing is ever left unshadowed by a gap between volumes.
+    final centers = <vm.Vector3>[];
+    final radii = <double>[];
+    final splits = <double>[0.0, 0.0];
+
+    final orthographic = switch (camera?.projection) {
+      final OrthographicProjection projection => projection,
+      _ => null,
+    };
+    if (count > 1 && camera != null && orthographic != null) {
+      // `P7`: **slabs along the view axis, for a lens whose rays are
+      // parallel.** The spheres below grow with distance from the eye because
+      // a perspective view widens with it; an orthographic one is as wide at
+      // every depth, so a near cascade sized by distance covered the air in
+      // front of the camera and everything fell to the last, softest one.
+      // Here each cascade is a slab of the view's box, from where the casters
+      // begin: even in depth — a texel covers the same world at every depth,
+      // so there is nothing for a logarithm to follow — and as wide as the
+      // frame's half-diagonal, from the frame's own aspect. `shadow.glsl` picks one by depth along
+      // the axis to match.
+      final eyeAt = camera.readViewOrigin();
+      final forward = camera.readForward();
+      final aspect = resources.frameHeight > 0
+          ? resources.frameWidth / resources.frameHeight
+          : 1.0;
+      final halfHeight = orthographic.height * 0.5;
+      final across = halfHeight * math.sqrt(1.0 + aspect * aspect);
+      // The depth the casters span *within the frame*, not the scene's: an
+      // orthographic camera is usually stood well back from a level far
+      // larger than its view, and slabs from its near plane, or across the
+      // whole level, spend the near cascades on air and on ground nobody can
+      // see. Read off five rays down the view's axis — through its middle
+      // and its four corners — each clipped by the casters' box. Something
+      // standing between the rays and outside their depths still falls
+      // through to the last cascade, so this costs sharpness, never coverage.
+      final m = camera.worldMatrix.storage;
+      final right = vm.Vector3(m[0], m[1], m[2])..normalize();
+      final up = vm.Vector3(m[4], m[5], m[6])..normalize();
+      final halfWidth = halfHeight * aspect;
+      final seen = <(double, double)>[
+        for (final (x, y) in const <(double, double)>[
+          (0.0, 0.0),
+          (-1.0, -1.0),
+          (1.0, -1.0),
+          (-1.0, 1.0),
+          (1.0, 1.0),
+        ])
+          ?_rayThroughBox(
+            eyeAt + right.scaled(x * halfWidth) + up.scaled(y * halfHeight),
+            forward,
+            bounds.min,
+            bounds.max,
+          ),
+      ];
+      final centreDepth = (sceneCentre - eyeAt).dot(forward);
+      final (nearest, furthest) = seen.isEmpty
+          ? (centreDepth - sceneRadius, centreDepth + sceneRadius)
+          : seen.reduce((a, b) => (math.min(a.$1, b.$1), math.max(a.$2, b.$2)));
+      final start = math.max(orthographic.near, nearest);
+      final end = math.max(
+        math.min(
+          math.min(orthographic.far, furthest),
+          start + math.max(settings.viewDistance, 1.0),
+        ),
+        start + 1.0,
+      );
+      // All of it to the near slabs: the last cascade is the whole scene
+      // either way, and a fragment the frame shows should not need it.
+      final slabs = count - 1;
+      for (var i = 0; i < slabs; i++) {
+        final from = start + (end - start) * i / slabs;
+        final to = start + (end - start) * (i + 1) / slabs;
+        splits[i] = to;
+        final half = (to - from) * 0.5;
+        centers.add(eyeAt + forward.scaled(from + half));
+        radii.add(math.sqrt(across * across + half * half));
+      }
+    } else if (count > 1 && camera != null) {
+      final eyeAt = camera.readViewOrigin();
+      final forward = camera.readForward();
+      final near = 1.0;
+      final far = math.min(
+        math.min(sceneRadius * 2.0, Renderer._cameraFar(camera)),
+        math.max(settings.viewDistance, near * 2.0),
+      );
+
+      for (var i = 1; i < count; i++) {
+        final ratio = i / count;
+        // Between an even split and a logarithmic one. Perspective wants the
+        // logarithm — a texel covers more world the further away it is — and
+        // pure logarithm puts the first split so close that the near cascade
+        // covers the player's feet and nothing else.
+        final even = near + (far - near) * ratio;
+        final logarithmic = near * math.pow(far / near, ratio).toDouble();
+        final atEnd = even + (logarithmic - even) * settings.cascadeSplit;
+        splits[i - 1] = atEnd;
+
+        // A sphere on the line of sight rather than a fitted frustum: what is
+        // outside it is picked up by the next cascade, and the arithmetic that
+        // fits a frustum exactly is arithmetic that has to be right about the
+        // aspect ratio, which this pass does not know.
+        centers.add(eyeAt + forward.scaled(atEnd * 0.55));
+        radii.add(atEnd * 0.9);
+      }
+    }
+    centers.add(sceneCentre);
+    radii.add(sceneRadius);
+    _shadowCascadeRadii
+      ..clear()
+      ..addAll(radii);
+
+    // One matrix per cascade, plus the copy each backend needs to *draw* with.
+    final drawMatrices = <vm.Matrix4>[];
+    final shaderMatrices = <vm.Matrix4>[];
+    // And the volume each one covers, for `gfx-63n`'s caster cull. Built from
+    // the unremapped matrix, because that is the one in the clip space the
+    // planes are extracted for; the drawing copy has been through the backend's
+    // depth convention and the shader copy may have had its y flipped.
+    final cascadeFrusta = <vm.Frustum>[];
+    // The engine's own, unadjusted: what the frusta and a scroll's strips
+    // are cut from.
+    final rawMatrices = <vm.Matrix4>[];
+
+    for (var i = 0; i < centers.length; i++) {
+      final radius = radii[i];
+      var center = centers[i];
+
+      // Snapped to whole texels, in the light's own space. Without this a
+      // camera that moves by half a texel redraws every shadow edge in a
+      // slightly different place and the whole level crawls — the single most
+      // recognisable artefact cascades have.
+      //
+      // **The frame has to be fixed, and the first version of this got it
+      // wrong.** Building the light view from the centre puts the centre at
+      // that view's own origin, so its x and y are zero, snapping zero to a
+      // texel gives zero, and the whole thing is an expensive no-op — which is
+      // exactly what the mutation test reported when deleting it changed
+      // nothing. A rotation about the world origin depends on the light's
+      // direction alone, and a point's coordinates in it move when the point
+      // does.
+      final texelWorld = radius * 2.0 * padding / resolution;
+      final snapFrame = Renderer._lookAt(vm.Vector3.zero(), aim, up);
+      final inLight = snapFrame.transformed3(center.clone());
+      // All three, not just the two the map is indexed by. Depth along the
+      // light axis does not shimmer — the volume has padding to spare — but a
+      // centre that slides in z is a centre that slides, and the point of
+      // quantising is that the whole thing either stays put or moves by a whole
+      // texel. Snapping two of three leaves it sliding along the third, which
+      // is what the test caught.
+      inLight
+        ..x = (inLight.x / texelWorld).floorToDouble() * texelWorld
+        ..y = (inLight.y / texelWorld).floorToDouble() * texelWorld
+        ..z = (inLight.z / texelWorld).floorToDouble() * texelWorld;
+      final back = vm.Matrix4.copy(snapFrame)..invert();
+      center = back.transformed3(inLight);
+
+      if (i == 0) _shadowCascadeCentres.clear();
+      _shadowCascadeCentres.add(center.clone());
+
+      // **A near cascade reaches back to the furthest caster towards the
+      // light.** Its volume is a sphere around what the camera sees, and its
+      // depth ran from that sphere's own light-side edge: a tree or a wall
+      // standing further out towards the sun than the sphere reaches was cut
+      // by the near plane, and the ground inside the tile it shades came back
+      // lit while the next cascade out had the shadow. The last cascade is the
+      // whole caster set and needs nothing. The reach is rounded up to whole
+      // texels so a camera walking along does not slide the depth under a
+      // still scene; the bias is converted below to keep its distance.
+      final ownReach = radius * padding;
+      final last = i == centers.length - 1;
+      // The last cascade is as deep as the casters are along the light; a
+      // near one is its own sphere's depth on this side of its centre.
+      final ownDepth = last ? sceneDepth * padding : ownReach;
+      var distance = ownDepth;
+      if (!last) {
+        final reach = (center - sceneCentre).dot(aim) + sceneDepth;
+        if (reach > distance) {
+          distance = (reach / texelWorld).ceilToDouble() * texelWorld;
+        }
+      }
+      // The bias keeps the metres it has always had — `ShadowSettings.bias`
+      // of the sphere's own depth — whatever range the cascade is drawn over.
+      final range = distance + ownDepth - 0.01;
+      _shadowCascadeBiasScale[i] = (ownReach + ownReach - 0.01) / range;
+      _shadowCascadeDepthRange[i] = range;
+      final eye = center - aim.scaled(distance);
+      final view = Renderer._lookAt(eye, center, up);
+      final projection = OrthographicProjection(
+        height: radius * 2.0 * padding,
+        near: 0.01,
+        far: distance + ownDepth,
+      ).toMatrix(1.0);
+
+      final matrix = vm.Matrix4.copy(projection)..multiply(view);
+      // `A2.8`: drawn turned round when the map stores it so, and only drawn:
+      // what the lit stages and the static tiles' scrolls compute with stays
+      // the ordinary matrix, and `lib/shadow_storage.glsl` turns the stored
+      // depth back.
+      drawMatrices.add(
+        toDepthRange(
+          reversed ? toReversedDepth(matrix) : matrix,
+          device.depthRange,
+        ),
+      );
+      shaderMatrices.add(toFramebufferOrigin(matrix, device.framebufferOrigin));
+      cascadeFrusta.add(vm.Frustum.matrix(matrix));
+      rawMatrices.add(matrix);
+    }
+
+    _shadowMatrix.setFrom(shaderMatrices.first);
+    _shadowMatrixFar.setFrom(shaderMatrices[math.min(1, count - 1)]);
+    _shadowMatrixFarthest.setFrom(shaderMatrices[count - 1]);
+    _shadowDrawMatrix.setFrom(drawMatrices.first);
+
+    return _ShadowFit(
+      aim: aim,
+      count: count,
+      resolution: resolution,
+      splits: splits,
+      drawMatrices: drawMatrices,
+      shaderMatrices: shaderMatrices,
+      cascadeFrusta: cascadeFrusta,
+      rawMatrices: rawMatrices,
+    );
+  }
+
   /// The directional atlas into blurred exponential moments — `S2`.
   ///
   /// Two passes of [filter], the stage [prefilter] names, over the whole
@@ -2294,4 +2370,42 @@ final class _Scroll {
     leave = math.min(leave, math.max(a, b));
   }
   return enter <= leave ? (enter, leave) : null;
+}
+
+/// What [Renderer._fitShadowMap] decided for one frame's directional map.
+final class _ShadowFit {
+  const _ShadowFit({
+    required this.aim,
+    required this.count,
+    required this.resolution,
+    required this.splits,
+    required this.drawMatrices,
+    required this.shaderMatrices,
+    required this.cascadeFrusta,
+    required this.rawMatrices,
+  });
+
+  /// The light's direction, unit length.
+  final vm.Vector3 aim;
+
+  /// Cascades, one to three, side by side in the atlas.
+  final int count;
+
+  /// One tile's side, in texels.
+  final int resolution;
+
+  /// Where along the view the near cascades end.
+  final List<double> splits;
+
+  /// Each cascade's matrix as the device draws with it.
+  final List<vm.Matrix4> drawMatrices;
+
+  /// Each cascade's matrix as the lit stages read it.
+  final List<vm.Matrix4> shaderMatrices;
+
+  /// The volume each cascade covers, for the caster cull.
+  final List<vm.Frustum> cascadeFrusta;
+
+  /// The engine's own matrices, unadjusted for the device.
+  final List<vm.Matrix4> rawMatrices;
 }

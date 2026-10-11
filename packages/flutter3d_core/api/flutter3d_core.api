@@ -4627,6 +4627,17 @@ final class ShadowCandidate
   final double priority
   final int bakeKey
 
+final class ShadowCascades
+  ScreenRect tileOf(int index)
+  const ShadowCascades({required this.atlas, required this.depth, required this.resolution, required this.viewProjections, required this.lightDirection, required this.reversed})
+  final List<vm.Matrix4> viewProjections
+  final TextureHandle atlas
+  final TextureHandle depth
+  final bool reversed
+  final int resolution
+  final vm.Vector3 lightDirection
+  int get count
+
 enum ShadowCasterFaces
   values: front, back, both
 
@@ -4683,8 +4694,9 @@ final class ShadowPrefilter
   int get hashCode
 
 final class ShadowProducerContext
-  const ShadowProducerContext({required this.settings, this.camera})
+  const ShadowProducerContext({required this.settings, this.camera, this.cascades})
   final CameraNode? camera
+  final ShadowCascades? cascades
   final ShadowSettings settings
 
 final class ShadowSettings

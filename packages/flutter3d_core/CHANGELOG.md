@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **A shadow technique's own producer draws the directional map.** The
+  shadow pass fits the cascades first and draws after, and between the two
+  it asks `ShadowTechnique.shadowMapProducer` with the fit in
+  `ShadowProducerContext.cascades`: a `ShadowCascades` with the atlas, its
+  depth attachment, the tile size, each cascade's matrix as the device
+  draws with it, the light's direction and the depth convention. A node it
+  returns draws the casters in place of the engine's, and the engine draws
+  its own again the frame after it is gone. Every built-in filter answers
+  null, and draws what it drew.
+- **A data plugin's material on WebGPU reaches a registered compiler with
+  its WGSL.** `runtimeMaterialBundle` hands a WebGPU compiler the stage
+  written from the material's tree under the `webGpuStages` option.
 - **A photo's tiles are the photo's own pixels.** `RenderViewSettings.window`
   takes a `FrameWindow`, the larger frame a target is one window of, and
   `capturePhoto` draws every tile as a window of the photo rather than
