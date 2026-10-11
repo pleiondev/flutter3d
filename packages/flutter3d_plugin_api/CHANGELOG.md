@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **A plugin may touch only tooling.** `PluginTouches.tooling` (new) is a
+  plugin for the editor and its tools: it leaves `SimulationVersion` alone
+  as a view plugin does, and the hosts refuse it a step phase, a step
+  system or subscription, a subsystem, a render step or node and shader
+  stages, so a game need not install it.
+- **One namespace for every name, the editor's and the agent's too.**
+  `PluginManifest.qualify` (new) answers a name in the plugin's namespace,
+  `<namespace>.<name>` for a bare one, and refuses one in another namespace
+  with the `PluginException` `nameProblem` words; the editor's pieces and
+  panels and a plugin's MCP tools are filed by it.
 - **A plugin describes its fields to an editor without depending on one.**
   `package:flutter3d_plugin_api/editor.dart` (new) holds `FieldHint` (a
   field's control: a number with ends, a step and a unit, a toggle, a
