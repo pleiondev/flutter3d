@@ -18,9 +18,12 @@
 @TestOn('browser')
 library;
 
+import 'dart:js_interop';
+
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/src/webgpu_device.dart';
+import 'package:flutter3d_webgpu/src/webgpu_interop.dart';
 import 'package:flutter3d_webgpu/src/webgpu_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -187,5 +190,37 @@ void main() {
       );
     }
     webgpu.dispose();
+  });
+
+  // M3. Mutation: open without `requiredLimits`, and a device on an adapter
+  // with more than WebGPU's minimum keeps 16 textures a stage.
+  test('asks the adapter for what one stage may bind', () async {
+    final GraphicsDevice device;
+    try {
+      device = await WebGpuDevice.open(width: 8, height: 8);
+    } on DeviceUnavailableException {
+      markTestSkipped('no WebGPU in this browser');
+      return;
+    }
+    // The adapter `open` asks for, asked again.
+    final adapter = await gpuNavigator.gpu!
+        .requestAdapter(
+          GPURequestAdapterOptions(powerPreference: 'high-performance'),
+        )
+        .toDart;
+    final limits = webgpuRequiredLimits(adapter!.limits);
+    expect(
+      device.limits.maxSampledTexturesPerShaderStage,
+      limits['maxSampledTexturesPerShaderStage'],
+    );
+    expect(
+      device.limits.maxSamplersPerShaderStage,
+      limits['maxSamplersPerShaderStage'],
+    );
+    expect(
+      device.limits.maxUniformBuffersPerShaderStage,
+      limits['maxUniformBuffersPerShaderStage'],
+    );
+    (device as WebGpuDevice).dispose();
   });
 }

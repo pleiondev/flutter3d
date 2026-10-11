@@ -439,6 +439,19 @@ texture it names none for at a white texel, so a material written before a
 model grew a member draws the same on every backend. The render check
 `render.lit model defaults` holds each backend to it.
 
+**The budget.** One stage binds at most 16 textures, 16 samplers and 12
+uniform blocks, the engine's bindings and the material's own together
+(`MaterialStageBudget`): WebGPU's guaranteed minimums, where a texture is a
+texture and a sampler, and the tightest of the four backends. A lit model's
+stage carries the engine's lighting bindings (the shadow maps, the
+irradiance, the light list, the material maps it reads), so its own
+textures and blocks get what those leave. The WebGPU section writer every
+build and `RuntimeShaders` call refuses a stage over the budget, naming the
+stage and the count, so the material fails on its author's machine and not
+at its first draw on a device. A WebGPU device is opened with the adapter's
+own stage limits, which may be higher; a bundle counts only on the
+minimums.
+
 ### Light codes
 
 The light row the lit stages read (four `vec4`s a light: position and type

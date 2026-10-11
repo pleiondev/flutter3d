@@ -583,6 +583,14 @@ final class WebGpuDevice extends GraphicsDevice
   /// answers from `_gpuDevice.features` — what was granted — rather than from
   /// this list, because the two are not the same thing.
   ///
+  /// **The stage-binding limits are the adapter's own** (M3): a device asked
+  /// for none keeps WebGPU's minimums, 16 sampled textures and 16 samplers a
+  /// stage, and the engine's `Pbr` stage alone binds most of them, so a lit model's
+  /// own textures ran into a pipeline-layout limit the adapter did not have.
+  /// [webgpuRequiredLimits] asks for what the adapter reports, which it
+  /// always grants; what a bundle may count on everywhere is the minimum
+  /// (`MaterialStageBudget`), which the build holds a material to.
+  ///
   /// `GpuFeature.requested` is the list: filtering of 32-bit float textures,
   /// the full-precision depth-stencil format, the three block-compression
   /// families a KTX2 asset arrives in, timestamps, and since 1.0 everything
@@ -621,6 +629,9 @@ final class WebGpuDevice extends GraphicsDevice
           GPUDeviceDescriptor(
             label: 'flutter3d',
             requiredFeatures: gpuStrings(wanted),
+            requiredLimits: gpuRequiredLimits(
+              webgpuRequiredLimits(adapter.limits),
+            ),
           ),
         )
         .toDart;
@@ -2637,3 +2648,16 @@ extension WebGpuDeviceInternals on WebGpuDevice {
     GPURenderPipelineDescriptor Function() descriptor,
   ) => _pipelineForDraw(handle, signature, descriptor);
 }
+
+/// The limits [WebGpuDevice.open] asks a device for: the [adapter]'s own
+/// value of each limit on what one stage binds, so a lit model's own
+/// textures and blocks have the room the adapter has rather than WebGPU's
+/// minimum. An adapter grants every value it reports, so the request never
+/// fails a device that would otherwise open.
+Map<String, int> webgpuRequiredLimits(
+  GPUSupportedLimits adapter,
+) => <String, int>{
+  'maxSampledTexturesPerShaderStage': adapter.maxSampledTexturesPerShaderStage,
+  'maxSamplersPerShaderStage': adapter.maxSamplersPerShaderStage,
+  'maxUniformBuffersPerShaderStage': adapter.maxUniformBuffersPerShaderStage,
+};

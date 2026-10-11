@@ -39,6 +39,7 @@ import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
 
 import 'glsl_to_wgsl.dart';
+import 'stage_budget.dart';
 import 'stage_interface.dart';
 
 /// The shape of the document this writer produces.
@@ -84,11 +85,31 @@ typedef PackedStage = ({String wgsl, PreparedStage prepared});
 ///
 /// Throws a [StageAgreementException] when a vertex stage and the fragment
 /// stage its name pairs it with ([pairedFragmentStage]) disagree, read from
-/// the GLSL each was prepared from.
+/// the GLSL each was prepared from, and a [WgslSectionException] naming the
+/// stage and the count when one binds more than [MaterialStageBudget]
+/// allows.
 String wgslSectionDocument({
   required Map<String, PackedStage> vertex,
   required Map<String, PackedStage> fragment,
 }) {
+  // A texture of the material language is a texture and a sampler here.
+  // Mutation: count blocks against the texture budget, and a stage of
+  // thirteen blocks is let through.
+  for (final MapEntry(:key, :value) in <MapEntry<String, PackedStage>>[
+    ...vertex.entries,
+    ...fragment.entries,
+  ]) {
+    final textures = value.prepared.samplers.length;
+    if (MaterialStageBudget.problem(
+          key,
+          textures: textures,
+          samplers: textures,
+          uniformBlocks: value.prepared.blocks.length,
+        )
+        case final problem?) {
+      throw WgslSectionException(problem);
+    }
+  }
   requireBundleAgreement(
     vertex: <String, String>{
       for (final MapEntry(:key, :value) in vertex.entries)
