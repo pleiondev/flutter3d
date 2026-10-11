@@ -83,9 +83,10 @@ final class AudioPlugin extends Flutter3dPlugin
 final class AudioScene
   AudioEmitter attach(SoundDef sound, PoseSource pose, {AudioBus? bus})
   AudioEmitter play(SoundDef sound, Vector3 at, {AudioBus? bus, PoseSource? follow})
-  AudioScene({required this.backend, this.maxVoices = 24, this.occlusion, Mixer? mixer, math.Random? random, this.spatial = const EqualPowerPanner()})
+  AudioScene({required this.backend, this.maxVoices = 24, this.occlusion, Mixer? mixer, math.Random? random, this.spatial = const EqualPowerPanner(), WorldProperties? world})
   Future<void> preload(Iterable<SoundDef> bank)
   List<AudioEmitter> get emitters
+  WorldProperties world
   final AudioBackend backend
   final Mixer mixer
   final SpatialRenderer spatial
@@ -124,9 +125,10 @@ final class DuckRule
 
 final class EqualPowerPanner extends SpatialRenderer
   EqualPowerPanner.inWorld(WorldProperties world, {double dopplerFactor = 0.0})
-  const EqualPowerPanner({this.dopplerFactor = 0.0, this.speedOfSound = speedOfSoundInAir})
+  const EqualPowerPanner({this.dopplerFactor = 0.0, this.speedOfSound})
+  double speedOfSoundIn(WorldProperties world)
   final double dopplerFactor
-  final double speedOfSound
+  final double? speedOfSound
   static ({double left, double right}) gains(double pan)
   void render(SpatialQuery query, SpatialResult out)
 
@@ -287,7 +289,8 @@ final class SoundDef
 final class SpatialQuery
   AudioEmitter emitter
   AudioListener listener
-  SpatialQuery({required this.listener, required this.emitter, this.occlusion})
+  SpatialQuery({required this.listener, required this.emitter, this.occlusion, WorldProperties? world})
+  WorldProperties world
   double Function(Vector3 from, Vector3 to)? occlusion
 
 abstract base class SpatialRenderer
