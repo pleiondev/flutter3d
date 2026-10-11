@@ -19,7 +19,7 @@
 /// already written, and its section goes into the bundle, a fifth backend's
 /// beside the three above or in place of one of them. A compiler whose
 /// section the build writes with a tool of its own
-/// (`MaterialCompiler.buildWritesSection`) and that refuses leaves that
+/// (`MaterialCompiler.isSectionWrittenByBuild`) and that refuses leaves that
 /// section as the build wrote it, which is what Impeller's does, since
 /// `impellerc` runs here; any other refusal fails the build with its
 /// sentence.
@@ -390,7 +390,7 @@ ShaderBundle compileMaterial(
         // tool of its own stays as written: Impeller's refuses because
         // `impellerc`, which it names, ran above. Any other refusal is the
         // build's failure, whatever this build wrote under the section.
-        if (compiler.buildWritesSection &&
+        if (compiler.isSectionWrittenByBuild &&
             sections.containsKey(compiler.bundleSection)) {
           continue;
         }

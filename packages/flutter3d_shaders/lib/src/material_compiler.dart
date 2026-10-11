@@ -139,7 +139,7 @@ abstract base class MaterialCompiler {
   /// A build that asks such a compiler and is refused keeps the section it
   /// wrote; a refusal from any other compiler fails the build with its
   /// sentence, whatever the build wrote under the same section.
-  bool get buildWritesSection => false;
+  bool get isSectionWrittenByBuild => false;
 
   /// The section [request] compiles to. Throws a [MaterialCompileException]
   /// for a source this backend cannot draw, saying why.

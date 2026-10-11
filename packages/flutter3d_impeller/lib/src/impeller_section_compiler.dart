@@ -29,7 +29,7 @@ final class ImpellerSectionCompiler extends MaterialCompiler {
   /// `impellerc` writes the section in the build, so a build that asks
   /// [compile] anyway keeps what it wrote.
   @override
-  bool get buildWritesSection => true;
+  bool get isSectionWrittenByBuild => true;
 
   @override
   MaterialCompileResult compile(MaterialCompileRequest request) =>

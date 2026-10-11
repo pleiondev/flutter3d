@@ -71,7 +71,7 @@ final class _Fifth extends MaterialCompiler {
   String get bundleSection => section;
 
   @override
-  bool get buildWritesSection => buildWrites;
+  bool get isSectionWrittenByBuild => buildWrites;
 
   @override
   MaterialCompileResult compile(MaterialCompileRequest request) {

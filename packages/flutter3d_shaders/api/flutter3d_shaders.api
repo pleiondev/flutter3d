@@ -18,6 +18,7 @@ final class MaterialCompileRequest
   final String name
   final String source
   final bool atRunTime
+  static const String webGpuStagesOption = 'webGpuStages'
 
 final class MaterialCompileResult
   const MaterialCompileResult({required this.section, this.notes = const <String>[]})
@@ -30,6 +31,7 @@ abstract base class MaterialCompiler
   abstract String get backend
   abstract String get bundleSection
   bool get compilesAtRunTime
+  bool get isSectionWrittenByBuild
   const MaterialCompiler()
 
 final class MaterialCompilerRegistry

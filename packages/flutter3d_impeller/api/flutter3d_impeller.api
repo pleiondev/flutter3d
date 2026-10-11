@@ -68,6 +68,7 @@ final class ImpellerSectionCompiler extends MaterialCompiler
   MaterialCompileResult compile(MaterialCompileRequest request)
   String get backend
   String get bundleSection
+  bool get isSectionWrittenByBuild
   const ImpellerSectionCompiler()
 
 final class ShaderBundleBuildException extends ResourceException

@@ -51,6 +51,7 @@ final class GpuFrame {
       _passes[index] = (label: label, micros: _now() - began);
     };
   }
+
   /// Passes opened and not yet submitted.
   ///
   /// **Counted apart from [outstanding], which it used to share.** One number
