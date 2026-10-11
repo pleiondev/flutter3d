@@ -7,7 +7,9 @@ library;
 
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart' show CollisionWorld;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:test/test.dart';
@@ -184,4 +186,112 @@ void main() {
       expect(input.moveAxis.length, 0.0);
     });
   });
+
+  group('the room', () {
+    final table = XrPlane(
+      id: 'table-1',
+      pose: XrPose(
+        position: Vector3(0.5, 0.75, -1.0),
+        orientation: Quaternion.identity(),
+      ),
+      width: 1.2,
+      depth: 0.8,
+      orientation: XrPlaneOrientation.horizontalUp,
+    );
+
+    test('a plane is input and back, and a collider under its top', () {
+      final back = XrPlane.fromInput(
+        ExternalStateInput.fromJson(
+          jsonDecode(jsonEncode(table.toInput(displayTime: 2.0).toJson())),
+        ),
+      );
+      expect(back.id, 'table-1');
+      expect(back.pose, table.pose);
+      expect(back.orientation, XrPlaneOrientation.horizontalUp);
+      final bounds = table.toCollider().bounds;
+      expect(bounds.max.y, closeTo(0.75, 1e-6), reason: 'the top is the top');
+      expect(bounds.min.y, closeTo(0.73, 1e-6));
+      expect(bounds.min.x, closeTo(-0.1, 1e-6));
+      expect(bounds.max.z, closeTo(-0.6, 1e-6));
+      // A wall turned a quarter about y is bounded by its turned corners.
+      final wall = XrPlane(
+        id: 'wall',
+        pose: XrPose(
+          position: Vector3.zero(),
+          orientation: Quaternion(0.0, math.sqrt1_2, 0.0, math.sqrt1_2),
+        ),
+        width: 2.0,
+        depth: 0.0,
+      ).toCollider().bounds;
+      // Mutation: lay the plane out unturned and x spans two metres.
+      expect(wall.max.x - wall.min.x, lessThan(0.05));
+      expect(wall.max.z - wall.min.z, closeTo(2.0, 1e-6));
+    });
+
+    test('a scene mesh is input and back, and collides as its box', () {
+      final mesh = XrSceneMesh(
+        id: 'sofa',
+        pose: XrPose.identity(),
+        vertices: Float32List.fromList(<double>[0, 0, 0, 2, 0, 0, 0, 0.5, 1]),
+        indices: Uint32List.fromList(<int>[0, 1, 2]),
+      );
+      final back = XrSceneMesh.fromInput(mesh.toInput());
+      expect(back.vertices, mesh.vertices);
+      expect(back.indices, mesh.indices);
+      final bounds = back.toCollider().bounds;
+      expect(bounds.max.x, closeTo(2.0, 1e-6));
+      expect(bounds.max.y, closeTo(0.5, 1e-6));
+    });
+
+    test('a recorded session puts the same colliders in the same steps', () {
+      List<int> colliders(EngineLoop loop, CollisionWorld world) => <int>[
+        for (var i = 0; i < 4; i++) (loop..runSteps(1)).collidersIn(world),
+      ];
+      final world = CollisionWorld();
+      final live = EngineLoop(input: InputState())
+        ..addAssimilation(XrSceneColliders.systemName, XrSceneColliders(world));
+      final recorder = InputTapeRecorder(seed: 3);
+      live.recorders.add(recorder);
+      var step = 0;
+      live.onStepInput((input) {
+        switch (step++) {
+          case 0:
+            input.feedExternal(table.toInput());
+          case 1:
+            input.feedExternal(
+              XrPlane(
+                id: 'floor',
+                pose: XrPose.identity(),
+                width: 4,
+                depth: 4,
+              ).toInput(),
+            );
+          case 2:
+            input.feedExternal(XrPlane.lost('table-1'));
+        }
+      });
+      // Mutation: skip `XrPlane.lost` and the table is never taken away.
+      final counts = colliders(live, world);
+      expect(counts, <int>[1, 2, 1, 1]);
+
+      final replayWorld = CollisionWorld();
+      final replay = EngineLoop(input: InputState())
+        ..playback = InputTapePlayback(
+          InputTape.fromJson(
+            jsonDecode(jsonEncode(recorder.tape.toJson()))
+                as Map<String, Object?>,
+          ),
+        )
+        ..addAssimilation(
+          XrSceneColliders.systemName,
+          XrSceneColliders(replayWorld),
+        );
+      expect(colliders(replay, replayWorld), counts);
+    });
+  });
+}
+
+extension on EngineLoop {
+  /// How many static colliders [world] holds after this step.
+  int collidersIn(CollisionWorld world) => world.statics.length;
 }
