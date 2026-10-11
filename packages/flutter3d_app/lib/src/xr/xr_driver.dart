@@ -32,7 +32,14 @@ final class XrSettings {
     this.swapchain,
     this.near = 0.05,
     this.far = 500.0,
+    this.mainLight,
   });
+
+  /// The light a runtime's measured main light drives
+  /// (`XrLightEstimate.applyTo`), or null to leave the scene's lights alone;
+  /// the scene's ambient light follows the room's either way, on a frame
+  /// that measured it.
+  final LightNode? mainLight;
 
   /// The runtime.
   final XrSession session;
@@ -213,6 +220,9 @@ final class XrDriver {
     _actions?.apply(frame.controlReadings);
     _placeEyes(frame);
     environmentDepth.depth = frame.depth;
+    if ((frame.light, origin.scene) case (final light?, final scene?)) {
+      light.applyTo(scene, main: settings.mainLight);
+    }
     final swapchain = _swapchain;
     if (swapchain != null && frame.shouldRender) {
       _image = projection.target = swapchain.acquire(renderer.device);

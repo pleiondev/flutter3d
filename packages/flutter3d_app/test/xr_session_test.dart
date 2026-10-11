@@ -253,7 +253,10 @@ void main() {
         final device = _device();
         final scene = Scene();
         final origin = SceneNode(name: 'stage');
-        scene.add(origin);
+        final sun = LightNode();
+        scene
+          ..add(origin)
+          ..add(sun);
         final renderer = Renderer.create(device: device);
         final depth = EnvironmentDepth(
           width: 2,
@@ -277,7 +280,12 @@ void main() {
                   depth: 4,
                 ),
               ],
-              light: XrLightEstimate(ambient: const LinearColor(0.2, 0.2, 0.2)),
+              light: XrLightEstimate(
+                ambient: const LinearColor(1.0, 0.8, 0.6),
+                ambientIntensity: 120.0,
+                direction: Vector3(0.0, 1.0, 0.0),
+                intensity: 20000.0,
+              ),
             );
           },
         );
@@ -296,6 +304,7 @@ void main() {
               optional: <XrCapability>{XrCapability.depthOcclusion},
             ),
             swapchain: const XrSwapchainRequest(width: 16, height: 16),
+            mainLight: sun,
           ),
           renderer: renderer,
           origin: origin,
@@ -332,6 +341,13 @@ void main() {
         final band = last.last as XrCylinderLayer;
         expect(band.centralAngle, closeTo(panel.width / panel.radius, 1e-12));
         expect(drawn, 1, reason: 'drawn once, not every frame');
+        // The room's light: the ambient follows it, and the sun shines
+        // down from where the runtime says the light is.
+        expect(scene.ambientIntensity, 120.0);
+        expect(scene.ambientColor, const LinearColor(1.0, 0.8, 0.6));
+        expect(sun.intensity, 20000.0);
+        final shines = sun.worldMatrix.storage;
+        expect(-shines[9], closeTo(-1.0, 1e-6), reason: 'down, along -y');
         panel.invalidate();
         driver.beginFrame(input);
         await driver.endFrame();

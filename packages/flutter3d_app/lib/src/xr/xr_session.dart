@@ -12,7 +12,7 @@
 library;
 
 import 'package:flutter3d_core/flutter3d_core.dart'
-    show EnvironmentDepth, OffAxisProjection;
+    show EnvironmentDepth, LightNode, OffAxisProjection, Scene;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Capability, LinearColor, UnsupportedCapabilityException;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
@@ -344,18 +344,23 @@ final class XrInputSource {
 /// The room's light as the runtime measured it, for the frame's
 /// environment.
 final class XrLightEstimate {
-  /// Light from all around at [ambient], with a main light from
-  /// [direction] at [intensity] in [color], when the runtime finds one.
+  /// Light from all around in [ambient] at [ambientIntensity], with a main
+  /// light from [direction] at [intensity] in [color], when the runtime
+  /// finds one.
   XrLightEstimate({
     required this.ambient,
+    required this.ambientIntensity,
     Vector3? direction,
     this.color,
     this.intensity,
   }) : _direction = direction?.clone();
 
-  /// The light from all around: what the runtime's spherical harmonics or
-  /// ambient intensity amount to, linear.
+  /// The colour of the light from all around, linear: what the runtime's
+  /// spherical harmonics or ambient colour amount to.
   final LinearColor ambient;
+
+  /// How much light comes from all around, in lux.
+  final double ambientIntensity;
 
   final Vector3? _direction;
 
@@ -368,6 +373,21 @@ final class XrLightEstimate {
 
   /// The main light's illuminance, in lux; null when there is none.
   final double? intensity;
+
+  /// Lights [scene] as the room is lit: its ambient colour and intensity,
+  /// and [main], when given and the runtime found a main light, turned to
+  /// shine from [direction] in [color] at [intensity].
+  void applyTo(Scene scene, {LightNode? main}) {
+    scene
+      ..ambientColor = ambient
+      ..ambientIntensity = ambientIntensity;
+    final from = _direction;
+    if (main == null || from == null) return;
+    main
+      ..color = color ?? main.color
+      ..intensity = intensity ?? main.intensity
+      ..lookAt(main.readWorldPosition() - from);
+  }
 }
 
 /// One frame of a session: when it will be shown, where the eyes and the
