@@ -2240,11 +2240,9 @@ const Map<String, String> slowTestsPending = <String, String>{
   'packages/flutter3d_build/test/migration_kinds_regroup_test.dart':
       'a migration kind applied to its fixture and the result analysed',
   'packages/flutter3d_demo_content/test/sim_mcp/fixtures/sim_mcp_server.dart':
-      'the server a test starts in a process of its own, alive long enough '
-      'for a client to connect, open a level and step it; killed before '
-      'this runs out',
-  'packages/flutter3d_demo_content/test/sim_mcp/sim_mcp_test.dart':
-      'an MCP client against a simulation server in another process',
+      'the server the suite starts once in a process of its own, alive long '
+      'enough for each of its tests to connect, open a level and step it; '
+      'killed before this runs out',
   'packages/flutter3d_game/test/run_timeline_extensions_test.dart':
       'a fixture game started under `flutter run` and driven through its '
       'VM service',

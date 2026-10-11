@@ -10,6 +10,15 @@ library;
 ///     dart test test/sim_mcp/sim_mcp_test.dart
 ///
 /// `@TestOn('vm')`: spawns a real process and opens a real socket.
+///
+/// **One server for the file, a connection for each test.** Starting the
+/// server is a `flutter test` of its own, and nearly all of that is the
+/// compile of every genre it can play: 42 of the 60 seconds it took to say
+/// its port under load. Started once a test, five of those put the file
+/// past five minutes and two of its tests past their minute; started once,
+/// the file ran in 34 seconds under the same load. Each connection is a
+/// session of its own on the server (`sim_mcp_server.dart`), so a test
+/// still starts from a server that has opened nothing.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -29,6 +38,8 @@ final String _crypt = File(
 Future<({Process process, int port})> _startServer() async {
   final process = await Process.start('flutter', <String>[
     'test',
+    // Resolved already: this suite is running.
+    '--no-pub',
     '--reporter=silent',
     'test/sim_mcp/fixtures/sim_mcp_server.dart',
   ], workingDirectory: Directory.current.path);
@@ -57,15 +68,20 @@ Future<({Process process, int port})> _startServer() async {
 
 void main() {
   late Process process;
+  late int port;
   late Socket socket;
   late MCPClient client;
   late ServerConnection connection;
   late Directory workspace;
 
+  setUpAll(() async {
+    (:process, :port) = await _startServer();
+  });
+
+  tearDownAll(() => process.kill());
+
   setUp(() async {
-    final server = await _startServer();
-    process = server.process;
-    socket = await Socket.connect(InternetAddress.loopbackIPv4, server.port);
+    socket = await Socket.connect(InternetAddress.loopbackIPv4, port);
 
     client = MCPClient(
       Implementation(name: 'the suite', version: simMcpVersion),
@@ -93,7 +109,6 @@ void main() {
   tearDown(() async {
     await client.shutdown();
     await socket.close();
-    process.kill();
     workspace.deleteSync(recursive: true);
   });
 
@@ -209,7 +224,7 @@ void main() {
     );
     expect(demo.tape.steps, 60);
     expect(demo.checkpoints.steps, isNotEmpty);
-  }, timeout: const Timeout(Duration(seconds: 60)));
+  });
 
   test(
     'an agent bisects two runs to the step and the field they part on',
@@ -245,7 +260,6 @@ void main() {
       expect(found.says, contains('part at step 31'));
       expect(found.says, contains('step 30 had different input'));
     },
-    timeout: const Timeout(Duration(seconds: 60)),
   );
 
   test(
@@ -309,6 +323,5 @@ void main() {
       expect(both.did, isFalse);
       expect(both.says, contains('one of the two'));
     },
-    timeout: const Timeout(Duration(seconds: 90)),
   );
 }

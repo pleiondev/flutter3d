@@ -119,9 +119,9 @@ void main() {
       );
     });
 
-    // Long enough for a client to connect, open a level, step it and hang
-    // up; the test that started this process kills it well before this
-    // runs out rather than waiting for it.
-    await Future<void>.delayed(const Duration(seconds: 60));
-  }, timeout: const Timeout(Duration(seconds: 90)));
+    // Long enough for every test of the suite to connect, open a level, step
+    // it and hang up, each on a session of its own; the suite kills this
+    // process when its last test is done rather than waiting for it.
+    await Future<void>.delayed(const Duration(minutes: 3));
+  }, timeout: const Timeout(Duration(minutes: 4)));
 }
