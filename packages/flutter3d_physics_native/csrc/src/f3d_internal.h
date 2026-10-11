@@ -881,10 +881,12 @@ typedef struct F3dLane {
   int failed;
 } F3dLane;
 
-/* One property of one body's material read through a law: the program
- * the world loaded from its bytecode, run at the body's temperature. */
+/* One property of one body's material, or of one shallow liquid, read
+ * through a law: the program the world loaded from its bytecode, run at
+ * the body's or the liquid's temperature. [water] is nought for a body's. */
 typedef struct F3dLawBinding {
   F3dBody body;
+  F3dShallow water;
   uint32_t property;
   F3dProgram *program;
 } F3dLawBinding;
@@ -993,8 +995,9 @@ struct F3dWorld {
    * when the world grows. None of it outlives a step. */
   void *scratch;
   size_t scratch_bytes;
-  /* The laws bodies' materials are read through (f3d_body_set_law), in the
-   * order they were set: each step writes each one's value at its body's
+  /* The laws bodies' materials and shallow liquids are read through
+   * (f3d_body_set_law, f3d_shallow_set_law), in the order they were set:
+   * each step writes each one's value at its body's or liquid's
    * temperature into the material before anything reads it. Not in a
    * snapshot: like a body's material preset, they are what the world is
    * set up with, and a restored world reads them at the temperatures it
@@ -1005,8 +1008,11 @@ struct F3dWorld {
 };
 
 /* Writes every law's value at its body's temperature into that body's
- * material (f3d_expr.c). */
+ * material, and at its liquid's into that liquid (f3d_expr.c). */
 void f3d_apply_laws(F3dWorld *world);
+
+/* [water]'s slot while it is live, or null (f3d_shallow.c). */
+F3dShallowSlot *f3d_shallow_slot(const F3dWorld *world, F3dShallow water);
 
 /* Frees every law the world holds. */
 void f3d_clear_laws(F3dWorld *world);

@@ -104,6 +104,10 @@ static F3dShallowSlot *water_of(const F3dWorld *world, F3dShallow water) {
   return w->live ? w : NULL;
 }
 
+F3dShallowSlot *f3d_shallow_slot(const F3dWorld *world, F3dShallow water) {
+  return water_of(world, water);
+}
+
 /* Water changed from outside: stepped again from the next step on. */
 static void wake(F3dShallowSlot *w) {
   w->calm = F3D_R(0.0);
@@ -646,6 +650,15 @@ int f3d_shallow_set_fluid(F3dWorld *world, F3dShallow water, f3d_real density,
   w->viscosity = viscosity;
   w->tension = tension;
   wake(w);
+  return 1;
+}
+
+int f3d_shallow_get_fluid(const F3dWorld *world, F3dShallow water, f3d_real *out) {
+  const F3dShallowSlot *w = water_of(world, water);
+  if (w == NULL || out == NULL) return 0;
+  out[0] = w->density;
+  out[1] = w->viscosity;
+  out[2] = w->tension;
   return 1;
 }
 

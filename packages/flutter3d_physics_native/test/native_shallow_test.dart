@@ -3,9 +3,14 @@
 /// pond made, fed, read and taken away, and a float held up in it.
 library;
 
+import 'dart:typed_data';
+
+import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
+
+double _f32(double value) => (Float32List(1)..[0] = value)[0];
 
 void main() {
   late NativeWorld world;
@@ -206,6 +211,68 @@ void main() {
     // Ten kilograms in a ball of 33 litres: under three tenths of it is
     // under water, so it rides with its centre above the surface.
     expect(world.positionOf(ball).y, inInclusiveRange(1.0, 1.2));
+  });
+
+  test('a liquid reads its density, viscosity and tension through its '
+      'laws at its temperature, from the next step', () {
+    // Glycerol at 60 °C is a seventeenth as viscous as at 20: the core
+    // evaluates the catalogue's laws at the liquid's own temperature.
+    // Mutation: skip the waters in `f3d_apply_laws` and the properties stay
+    // as set; read the law at the air's temperature and they are 20 °C's.
+    final glycerol = Materials.glycerol;
+    final pool = world.createShallowLiquid(
+      nx: 4,
+      nz: 4,
+      cell: 0.25,
+      origin: Vector3.zero(),
+      ground: List<double>.filled(16, 0.0),
+    );
+    world
+      ..setShallowProperties(pool, NativeLiquidProperties.of(glycerol))
+      ..setShallowHeat(
+        pool,
+        NativeLiquidHeat.of(glycerol, temperature: 333.15),
+      );
+    final set = world.setShallowLaws(pool, glycerol);
+    expect(set, contains(NativeLawProperty.viscosity));
+    // Not before the step: the liquid is still as set.
+    expect(world.shallowPropertiesOf(pool).viscosity, _f32(1.412));
+    world.step(1 / 60);
+    final read = world.shallowPropertiesOf(pool);
+    for (final property in set) {
+      final law = NativeLaw.of(property.of(glycerol)!)!;
+      final value = switch (property) {
+        NativeLawProperty.density => read.density,
+        NativeLawProperty.viscosity => read.viscosity,
+        _ => read.tension,
+      };
+      expect(value, _f32(law.at(_f32(333.15))), reason: '$property');
+    }
+    expect(read.viscosity, closeTo(0.0853, 1e-4));
+    // Taken off, it keeps the value last written.
+    world
+      ..setShallowLaw(pool, NativeLawProperty.viscosity, null)
+      ..setShallowHeat(pool, NativeLiquidHeat.of(glycerol))
+      ..step(1 / 60);
+    expect(world.shallowPropertiesOf(pool).viscosity, read.viscosity);
+    // A body's property is not a liquid's, nor a liquid's a body's.
+    expect(
+      () => world.setShallowLaw(
+        pool,
+        NativeLawProperty.specificHeat,
+        NativeLaw.of(const ConstantLaw(1000.0)),
+      ),
+      throwsArgumentError,
+    );
+    final body = world.addBody(position: Vector3(5, 5, 5));
+    expect(
+      () => world.setLaw(
+        body,
+        NativeLawProperty.density,
+        NativeLaw.of(const ConstantLaw(1000.0)),
+      ),
+      throwsArgumentError,
+    );
   });
 
   test('a weir lets out what a spring brings, and walls hold', () {

@@ -383,6 +383,12 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber viscosity,
     JSNumber tension,
   );
+  @JS('f3d_shallow_get_fluid')
+  external JSNumber f3d_shallow_get_fluid(
+    JSNumber world,
+    JSNumber water,
+    JSNumber out,
+  );
   @JS('f3d_shallow_set_heat')
   external JSNumber f3d_shallow_set_heat(
     JSNumber world,
@@ -1299,6 +1305,14 @@ extension type _Exports(JSObject _) implements JSObject {
     JSNumber bytes,
     JSNumber length,
   );
+  @JS('f3d_shallow_set_law')
+  external JSNumber f3d_shallow_set_law(
+    JSNumber world,
+    JSNumber water,
+    JSNumber property,
+    JSNumber bytes,
+    JSNumber length,
+  );
   @JS('f3d_body_set_temperature__w')
   external JSNumber f3d_body_set_temperature(
     JSNumber world,
@@ -1903,6 +1917,8 @@ int f3d_shallow_set_fluid(
       tension.toJS,
     )
     .toDartInt;
+int f3d_shallow_get_fluid(int world, int water, int out) =>
+    _x.f3d_shallow_get_fluid(world.toJS, water.toJS, out.toJS).toDartInt;
 int f3d_shallow_set_heat(
   int world,
   int water,
@@ -3095,6 +3111,21 @@ int f3d_body_set_law(
       world.toJS,
       lowHalf(body).toJS,
       highHalf(body).toJS,
+      property.toJS,
+      bytes.toJS,
+      length.toJS,
+    )
+    .toDartInt;
+int f3d_shallow_set_law(
+  int world,
+  int water,
+  int property,
+  int bytes,
+  int length,
+) => _x
+    .f3d_shallow_set_law(
+      world.toJS,
+      water.toJS,
       property.toJS,
       bytes.toJS,
       length.toJS,

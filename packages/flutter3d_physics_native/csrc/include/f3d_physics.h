@@ -875,6 +875,12 @@ F3D_API int f3d_shallow_set_fluid(F3dWorld *world, F3dShallow water,
                                 f3d_real density, f3d_real viscosity,
                                 f3d_real tension);
 
+/* What the water is now, into [out]: its density, kg/m³, viscosity, Pa·s,
+ * and surface tension, N/m — as f3d_shallow_set_fluid set them, with what
+ * its laws (f3d_shallow_set_law) last wrote over them. */
+F3D_API int f3d_shallow_get_fluid(const F3dWorld *world, F3dShallow water,
+                                  f3d_real *out);
+
 /* What heat sees of the water: its [temperature], K; its [specific_heat],
  * J/(kg K), [conductivity], W/(m K), and volumetric [expansion], 1/K —
  * water's at 20 °C as it starts, 4182, 0.598 and 2.07e-4, at the air's
@@ -1979,11 +1985,16 @@ F3D_API uint32_t f3d_program_result_width(const F3dProgram *program);
 F3D_API uint32_t f3d_program_run(F3dProgram *program, const double *inputs,
                                  double *out);
 
-/* Which value of a body's material a law gives. */
+/* Which value a law gives: of a body's material (specific heat,
+ * conductivity, emissivity: f3d_body_set_law), or of a shallow liquid
+ * (density, viscosity, surface tension: f3d_shallow_set_law). */
 typedef enum F3dLawProperty {
   F3D_LAW_SPECIFIC_HEAT = 0,
   F3D_LAW_CONDUCTIVITY = 1,
   F3D_LAW_EMISSIVITY = 2,
+  F3D_LAW_DENSITY = 3,
+  F3D_LAW_VISCOSITY = 4,
+  F3D_LAW_SURFACE_TENSION = 5,
 } F3dLawProperty;
 
 /* Reads [property] of [body]'s material through the law [bytes] hold, a
@@ -1994,11 +2005,27 @@ typedef enum F3dLawProperty {
  * or conductivity not above nought, an emissivity outside nought to one,
  * anything not finite) leaves the one before. Null [bytes] takes the law
  * off, leaving the value last written. 0 for a stale body, a property
- * there is none of, a program that is not one of one input and one
- * answer, or no memory. A world nobody gave a law steps as before. */
+ * there is none of (a liquid's: f3d_shallow_set_law), a program that is
+ * not one of one input and one answer, or no memory. A world nobody gave
+ * a law steps as before. */
 F3D_API int f3d_body_set_law(F3dWorld *world, F3dBody body,
                              F3dLawProperty property, const uint8_t *bytes,
                              uint32_t length);
+
+/* Reads [property] of [water] — F3D_LAW_DENSITY, F3D_LAW_VISCOSITY or
+ * F3D_LAW_SURFACE_TENSION — through the law [bytes] hold, as
+ * f3d_body_set_law reads a body's: a program of one input, the water's
+ * temperature in K (f3d_shallow_set_heat), or of none, and one answer in
+ * the property's SI unit. Every step begins by writing its value at that
+ * temperature over what f3d_shallow_set_fluid set, so warm glycerol runs
+ * and cold honey creeps; a value not finite and above nought leaves the
+ * one before. Null [bytes] takes the law off, leaving the value last
+ * written. 0 for a water that is not one, a property a water has not, a
+ * program that is not one of one input and one answer, or no memory. A
+ * water nobody gave a law is what f3d_shallow_set_fluid made it. */
+F3D_API int f3d_shallow_set_law(F3dWorld *world, F3dShallow water,
+                                F3dLawProperty property, const uint8_t *bytes,
+                                uint32_t length);
 
 /* Kelvin: the body's mean, what the heat in it says. Set, the body is that
  * temperature all through, and it does not light a fire or put one out

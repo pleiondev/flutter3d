@@ -3092,6 +3092,83 @@ final class NativeWorld {
     }
   }
 
+  /// What [water] is now: as [setShallowProperties] set it, with what its
+  /// laws ([setShallowLaw]) last wrote over it, in the core's f32.
+  NativeLiquidProperties shallowPropertiesOf(NativeShallowLiquid water) {
+    if (c.f3d_shallow_get_fluid(_live, water.id, _out) == 0) {
+      throw ArgumentError.value(water, 'water', 'not in this world');
+    }
+    return NativeLiquidProperties(
+      density: _out[0],
+      viscosity: _out[1],
+      tension: _out[2],
+    );
+  }
+
+  /// Reads [property] of [water] — [NativeLawProperty.ofLiquid]: its
+  /// density, viscosity or surface tension — through [law] from now on:
+  /// the core evaluates it at the liquid's temperature ([setShallowHeat])
+  /// at the start of each step and writes the value over what
+  /// [setShallowProperties] set, a value not above nought leaving the one
+  /// before. Null takes the law off, leaving the value last written.
+  ///
+  /// **Off unless set**, as a body's laws are ([setLaw]): a liquid nobody
+  /// gives a law is the numbers it was given, which is what the recorded
+  /// runs are made of. Throws an [ArgumentError] for a property a liquid
+  /// has not, or a law the core refuses.
+  void setShallowLaw(
+    NativeShallowLiquid water,
+    NativeLawProperty property,
+    NativeLaw? law,
+  ) {
+    if (law == null) {
+      if (c.f3d_shallow_set_law(_live, water.id, property.code, 0, 0) == 0) {
+        throw ArgumentError.value(property, 'property', 'not a liquid\'s');
+      }
+      return;
+    }
+    final bytes = law.bytecode;
+    final at = c.coreAlloc(bytes.length);
+    try {
+      c.setU8s(at, bytes);
+      if (c.f3d_shallow_set_law(
+            _live,
+            water.id,
+            property.code,
+            at,
+            bytes.length,
+          ) ==
+          0) {
+        throw ArgumentError(
+          '$property of a liquid through ${law.law}: not a liquid\'s, or '
+          'not a law of its temperature',
+        );
+      }
+    } finally {
+      c.coreFree(at);
+    }
+  }
+
+  /// Reads [water]'s density, viscosity and surface tension
+  /// ([NativeLawProperty.ofLiquid]) through [material]'s laws of them where
+  /// they change with the state, so a liquid heated with [setShallowHeat]
+  /// runs as the catalogue says it does at that temperature: glycerol at
+  /// 60 °C a seventeenth as viscous as at 20. A value [material] has no law of,
+  /// or a law the same at every state, is left as [setShallowProperties]
+  /// wrote it. Returns the properties it set.
+  List<NativeLawProperty> setShallowLaws(
+    NativeShallowLiquid water,
+    PhysicalMaterial material,
+  ) {
+    final laws = <NativeLawProperty, NativeLaw>{
+      for (final property in NativeLawProperty.ofLiquid)
+        if (property.of(material) case final law? when law.dependsOnState)
+          property: ?NativeLaw.of(law),
+    };
+    laws.forEach((property, law) => setShallowLaw(water, property, law));
+    return laws.keys.toList();
+  }
+
   /// What heat sees of [water]: [NativeLiquidHeat.water] at the air's
   /// temperature, as it starts. A hot spring, a pool of molten rock that
   /// sets fire to the wood dropped in it, a quench tank.
@@ -3930,7 +4007,7 @@ final class NativeWorld {
   }
 
   /// Reads each of [body]'s material's values the core can read through a
-  /// law ([NativeLawProperty.values]) through [material]'s law of it, where
+  /// law ([NativeLawProperty.ofBody]) through [material]'s law of it, where
   /// that law changes with the state: its specific heat, conductivity and
   /// emissivity follow the body's temperature as `PropertyLaw.at` says. A
   /// value [material] has no law of, or a law the same at every state, is
@@ -3940,7 +4017,7 @@ final class NativeWorld {
     PhysicalMaterial material,
   ) {
     final set = <NativeLawProperty>[];
-    for (final property in NativeLawProperty.values) {
+    for (final property in NativeLawProperty.ofBody) {
       final law = property.of(material);
       if (law == null || !law.dependsOnState) continue;
       final compiled = NativeLaw.of(law);

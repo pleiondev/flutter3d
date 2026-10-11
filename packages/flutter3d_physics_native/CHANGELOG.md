@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **A shallow liquid follows its temperature through its laws.** The core
+  reads a liquid's density, viscosity and surface tension through the
+  catalogue's laws at the liquid's own temperature, at the start of every
+  step, as it reads a body's specific heat (`f3d_shallow_set_law`,
+  `NativeWorld.setShallowLaw`, `setShallowLaws`): glycerol heated to 60 °C
+  with `setShallowHeat` runs at 0.085 Pa·s, a seventeenth of its 1.412
+  at 20.
+  `NativeLawProperty` gains `density`, `viscosity` and `surfaceTension`,
+  with `ofBody` and `ofLiquid` naming which each takes;
+  `f3d_shallow_get_fluid` and `NativeWorld.shallowPropertiesOf` read what a
+  liquid is now. A liquid given no law steps to the same bits as before,
+  and F3D_ABI_VERSION stays 39: nothing that was there changed meaning.
 - **A joint's soft limit stiffens past the limit as tissue does.** Past a
   limit by δ it holds back (k0 / b)(e^(bδ) − 1) N·m rather than k0 δ,
   with k0 the stiffness at each limit — a twist's or a hinge's lower and

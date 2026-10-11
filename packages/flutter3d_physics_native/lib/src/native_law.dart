@@ -17,8 +17,9 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'core/core.dart' as c;
 import 'native_world.dart';
 
-/// Which value of a body's material a law gives in the core —
-/// `F3dLawProperty`.
+/// Which value a law gives in the core — `F3dLawProperty`: of a body's
+/// material ([ofBody], `NativeWorld.setLaw`) or of a shallow liquid
+/// ([ofLiquid], `NativeWorld.setShallowLaw`).
 ///
 /// **Open**: a class of constants, so a property a later core reads through
 /// a law is added without breaking a `switch` written against these.
@@ -43,24 +44,61 @@ final class NativeLawProperty {
     'emissivity',
   );
 
-  /// The ones the core reads through a law, in their order.
+  /// kg/m³: a liquid's `MechanicalProperties.density`.
+  static const NativeLawProperty density = NativeLawProperty._(3, 'density');
+
+  /// Pa·s: a liquid's `FluidProperties.viscosity`.
+  static const NativeLawProperty viscosity = NativeLawProperty._(
+    4,
+    'viscosity',
+  );
+
+  /// N/m: a liquid's `FluidProperties.surfaceTension`.
+  static const NativeLawProperty surfaceTension = NativeLawProperty._(
+    5,
+    'surfaceTension',
+  );
+
+  /// Every one the core reads through a law, in their order.
   static const List<NativeLawProperty> values = <NativeLawProperty>[
+    specificHeat,
+    conductivity,
+    emissivity,
+    density,
+    viscosity,
+    surfaceTension,
+  ];
+
+  /// The ones a body's material is read through.
+  static const List<NativeLawProperty> ofBody = <NativeLawProperty>[
     specificHeat,
     conductivity,
     emissivity,
   ];
 
+  /// The ones a shallow liquid is read through.
+  static const List<NativeLawProperty> ofLiquid = <NativeLawProperty>[
+    density,
+    viscosity,
+    surfaceTension,
+  ];
+
   /// `F3dLawProperty`'s number.
   final int code;
 
-  /// The property's name in `ThermalProperties`.
+  /// The property's name in its group of `PhysicalMaterial`.
   final String name;
 
-  /// [material]'s law of this property, or null.
+  /// [material]'s law of this property, or null; null too for a code a
+  /// later core reads that this one does not know.
   PropertyLaw? of(PhysicalMaterial material) => switch (code) {
     0 => material.thermal?.specificHeat,
     1 => material.thermal?.conductivity,
-    _ => material.thermal?.emissivity,
+    2 => material.thermal?.emissivity,
+    3 => material.mechanical?.density,
+    4 => material.fluid?.viscosity,
+    5 => material.fluid?.surfaceTension,
+    _ => null,
   };
 
   @override
@@ -281,7 +319,7 @@ final class _Bind extends ExpressionVisitor<Expression> {
 /// here and passing the numbers.
 ///
 /// **Only when they move.** [update] evaluates each of
-/// [NativeLawProperty.values]' laws at the state and passes a value only
+/// [NativeLawProperty.ofBody]'s laws at the state and passes a value only
 /// when it is more than [threshold] (a share of the value last passed) from
 /// it, so a body whose state creeps does not cost a call a step. A value
 /// is passed as a law of that one number ([NativeWorld.setLaw]), which the
@@ -314,7 +352,7 @@ final class NativeMaterialTracker {
   /// the properties it passed.
   List<NativeLawProperty> update(MaterialState state) {
     final passed = <NativeLawProperty>[];
-    for (final property in NativeLawProperty.values) {
+    for (final property in NativeLawProperty.ofBody) {
       final law = property.of(material);
       if (law == null) continue;
       final value = law.at(state);

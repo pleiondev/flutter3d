@@ -1113,17 +1113,20 @@ static int law_value_ok(uint32_t property, double value) {
       return value > 0.0;
     case F3D_LAW_EMISSIVITY:
       return value >= 0.0 && value <= 1.0;
+    case F3D_LAW_DENSITY:
+    case F3D_LAW_VISCOSITY:
+    case F3D_LAW_SURFACE_TENSION:
+      return value > 0.0;
     default:
       return 0;
   }
 }
 
-int f3d_body_set_law(F3dWorld *world, F3dBody body, F3dLawProperty property,
-                     const uint8_t *bytes, uint32_t length) {
-  const uint32_t which = (uint32_t)property;
-  if (world == NULL || f3d_slot_of(world, body) == NULL || which > F3D_LAW_EMISSIVITY) {
-    return 0;
-  }
+/* Binds [which] of [body] (water nought) or of [water] to the law [bytes]
+ * hold, or takes it off for null [bytes]; the caller has checked the two
+ * and the property. */
+static int bind_law(F3dWorld *world, F3dBody body, F3dShallow water, uint32_t which,
+                    const uint8_t *bytes, uint32_t length) {
   F3dProgram *program = NULL;
   if (bytes != NULL) {
     program = f3d_program_load(bytes, length);
@@ -1137,7 +1140,7 @@ int f3d_body_set_law(F3dWorld *world, F3dBody body, F3dLawProperty property,
   }
   for (uint32_t i = 0; i < world->law_count; i++) {
     F3dLawBinding *law = &world->laws[i];
-    if (law->body != body || law->property != which) continue;
+    if (law->body != body || law->water != water || law->property != which) continue;
     f3d_program_free(law->program);
     if (program != NULL) {
       law->program = program;
@@ -1162,14 +1165,61 @@ int f3d_body_set_law(F3dWorld *world, F3dBody body, F3dLawProperty property,
   }
   F3dLawBinding *law = &world->laws[world->law_count++];
   law->body = body;
+  law->water = water;
   law->property = which;
   law->program = program;
   return 1;
 }
 
+int f3d_body_set_law(F3dWorld *world, F3dBody body, F3dLawProperty property,
+                     const uint8_t *bytes, uint32_t length) {
+  const uint32_t which = (uint32_t)property;
+  if (world == NULL || f3d_slot_of(world, body) == NULL || which > F3D_LAW_EMISSIVITY) {
+    return 0;
+  }
+  return bind_law(world, body, 0u, which, bytes, length);
+}
+
+int f3d_shallow_set_law(F3dWorld *world, F3dShallow water, F3dLawProperty property,
+                        const uint8_t *bytes, uint32_t length) {
+  const uint32_t which = (uint32_t)property;
+  if (world == NULL || f3d_shallow_slot(world, water) == NULL || which < F3D_LAW_DENSITY ||
+      which > F3D_LAW_SURFACE_TENSION) {
+    return 0;
+  }
+  return bind_law(world, 0u, water, which, bytes, length);
+}
+
+/* A liquid's law: its value at the liquid's temperature over what it is,
+ * waking it when that changes what it is. */
+static void apply_water_law(F3dWorld *world, const F3dLawBinding *law) {
+  /* A water taken away keeps its law until it is taken off, as a body's
+   * does; its number is never given again, so nothing is read or
+   * written. */
+  F3dShallowSlot *w = f3d_shallow_slot(world, law->water);
+  if (w == NULL) return;
+  const double temperature = (double)w->temperature;
+  double value = 0.0;
+  if (f3d_program_run(law->program, &temperature, &value) != 1u) return;
+  if (!law_value_ok(law->property, value)) return;
+  const f3d_real held = (f3d_real)value;
+  f3d_real *into = law->property == F3D_LAW_DENSITY     ? &w->density
+                   : law->property == F3D_LAW_VISCOSITY ? &w->viscosity
+                                                        : &w->tension;
+  if (*into == held) return;
+  *into = held;
+  /* Stepped again, as f3d_shallow_set_fluid would. */
+  w->calm = F3D_R(0.0);
+  w->resting = 0u;
+}
+
 void f3d_apply_laws(F3dWorld *world) {
   for (uint32_t i = 0; i < world->law_count; i++) {
     const F3dLawBinding *law = &world->laws[i];
+    if (law->water != 0u) {
+      apply_water_law(world, law);
+      continue;
+    }
     /* A body gone since keeps its law until it is taken off: its handle
      * names no slot, so nothing is read or written. */
     F3dSlot *s = f3d_slot_of(world, law->body);

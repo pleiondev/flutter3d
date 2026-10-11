@@ -1096,6 +1096,22 @@ int f3d_shallow_set_fluid(
   tension,
 );
 
+@Native<Int32 Function(Pointer<Void>, Uint32, Pointer<Void>)>(
+  symbol: 'f3d_shallow_get_fluid',
+  isLeaf: true,
+)
+external int _f3d_shallow_get_fluid(
+  Pointer<Void> world,
+  int water,
+  Pointer<Void> out,
+);
+int f3d_shallow_get_fluid(int world, int water, int out) =>
+    _f3d_shallow_get_fluid(
+      Pointer.fromAddress(world),
+      water,
+      Pointer.fromAddress(out),
+    );
+
 @Native<
   Int32 Function(Pointer<Void>, Uint32, Float, Float, Float, Float, Int32)
 >(symbol: 'f3d_shallow_set_heat', isLeaf: true)
@@ -3535,6 +3551,31 @@ int f3d_body_set_law(
 ) => _f3d_body_set_law(
   Pointer.fromAddress(world),
   body,
+  property,
+  Pointer.fromAddress(bytes),
+  length,
+);
+
+@Native<Int32 Function(Pointer<Void>, Uint32, Int32, Pointer<Void>, Uint32)>(
+  symbol: 'f3d_shallow_set_law',
+  isLeaf: true,
+)
+external int _f3d_shallow_set_law(
+  Pointer<Void> world,
+  int water,
+  int property,
+  Pointer<Void> bytes,
+  int length,
+);
+int f3d_shallow_set_law(
+  int world,
+  int water,
+  int property,
+  int bytes,
+  int length,
+) => _f3d_shallow_set_law(
+  Pointer.fromAddress(world),
+  water,
   property,
   Pointer.fromAddress(bytes),
   length,
