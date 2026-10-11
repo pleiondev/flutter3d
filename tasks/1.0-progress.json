@@ -34,10 +34,14 @@
     "2.2/2K": "done",
     "2.2/2X1": "done",
     "2.2/2X2": "done",
-    "2.2/2X3": "active",
+    "2.2/2X3": "done",
     "3.0/3E0": "done",
-    "3.1/3A": "active",
-    "3.1/3K": "active"
+    "3.1/3A": "done",
+    "3.1/3K": "done",
+    "3.2/3B": "active",
+    "3.2/3C": "active",
+    "3.2/3D": "active",
+    "3.2/3F": "active"
   },
   "notes": {
     "0/0.5": "dart-apitool installed; the impeller runner is still to set up",
@@ -49,8 +53,10 @@
     "2.2/2K": "in 1.0.0; compute placement, kernel language, wgpu sidecar, shared textures, multiview",
     "2.2/2X1": "in 1.0.0; hooks and names frozen; 2 contract tests fixed after merge",
     "2.2/2X2": "in 1.0.0; compilers per backend, stage agreement, plugin light codes skipped, SkinningHook on compute, ComputeStep wired",
-    "2.2/2X3": "2.2 leftovers: plugin binding plans and conformance on 4 backends, cube-atlas producer, build hook registry",
-    "3.0/3E0": "in 1.0.0; language, closure evaluator, internal bytecode, .f3dmat v3 with versions and updates; .f3d version to 3D, lift in the loader to 3G"
+    "2.2/2X3": "in 1.0.0; plugin checks drawn on CPU, on the other three backends still to run on the Mac",
+    "3.0/3E0": "in 1.0.0; language, closure evaluator, internal bytecode, .f3dmat v3 with versions and updates; .f3d version to 3D, lift in the loader to 3G",
+    "3.1/3A": "in 1.0.0; laws, MaterialState, 238 materials verified against sources (recalled 245 -> 3), restitution for 34 pairs",
+    "3.1/3K": "in 1.0.0; ContactEvent published by every loop; Dart and C contact events identical step for step"
   },
   "goals": {
     "P1": "todo",
