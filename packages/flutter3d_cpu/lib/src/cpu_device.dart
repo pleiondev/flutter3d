@@ -28,6 +28,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'cpu_compute_encoder.dart';
 import 'cpu_encoder.dart';
+import 'cpu_raster_scratch.dart';
 import 'cpu_render_bundle.dart';
 import 'cpu_resources.dart';
 import 'cpu_shader.dart';
@@ -821,8 +822,13 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback {
       support: textureFormatSupport,
       clock: _clock,
       refusals: pipelineRefusals,
+      scratch: _rasterScratch,
     );
   }
+
+  /// The lists every pass of this device rasterises in, kept rather than made
+  /// per draw and per triangle.
+  final CpuRasterScratch _rasterScratch = CpuRasterScratch();
 
   // ------------------------------------------------------------------ 1.0
 

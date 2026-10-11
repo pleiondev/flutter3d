@@ -58,6 +58,7 @@ import 'package:flutter3d_shaders/backend.dart';
 import 'engine_compute_shaders.dart';
 import 'webgpu_bundle_section.dart';
 import 'webgpu_compute_stage.dart';
+import 'webgpu_pipeline_cache.dart' show webgpuVertexLayoutFingerprint;
 
 /// Turns WGSL text into whatever the backend's module object is.
 ///
@@ -383,6 +384,13 @@ final class WebGpuPipeline {
 
   /// The fragment stage's module, held for the reason above.
   final Object fragmentModule;
+
+  /// [layout] as `webgpuVertexLayoutFingerprint` renders it, rendered once.
+  ///
+  /// Every draw keys the pipeline cache with it, and it was rendered at every
+  /// draw: a string a buffer and an attribute long, built and dropped per
+  /// draw, where the cache's own comment said once per pipeline.
+  late final String layoutFingerprint = webgpuVertexLayoutFingerprint(layout);
 
   /// Every buffer this pipeline reads vertices from, slot *n* at index *n*.
   final List<WebGpuVertexBuffer> buffers;
