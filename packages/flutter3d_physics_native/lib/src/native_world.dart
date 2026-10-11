@@ -864,6 +864,12 @@ final class NativeMaterial {
   /// of combustion where it has one (`effectiveHeatOfCombustion`, a tyre
   /// fire's), else its heat of combustion.
   ///
+  /// **A metal that says how it conducts electricity and not heat** conducts
+  /// heat by its electrons: where [material] has a resistivity
+  /// (`ElectricalProperties.resistivity`) and no conductivity, the
+  /// conductivity is the Wiedemann–Franz law's, `lorenzNumber · T / ρ` at
+  /// its temperature. A measured conductivity is always the one read.
+  ///
   /// **At a state.** Given [state], each value is its law at that state
   /// (`PropertyLaw.at`) — the body's temperature, a plugin's quantity —
   /// rather than its value at the reference state: what the Dart side
@@ -902,9 +908,20 @@ final class NativeMaterial {
       return (Float32List(1)..[0] = value)[0];
     }
 
+    // The Wiedemann–Franz law, for a material that gives its resistivity
+    // and no conductivity: k = L·T/ρ.
+    double? electronic() {
+      final resistivity = material.electrical?.resistivity;
+      if (resistivity == null) return null;
+      final rho = state == null ? resistivity.value : resistivity.at(state);
+      if (!(rho > 0.0)) return null;
+      final temperature = state?.temperature ?? material.temperature;
+      return (Float32List(1)..[0] = lorenzNumber * temperature / rho)[0];
+    }
+
     return base.copyWith(
       specificHeat: f32(heat?.specificHeat),
-      conductivity: f32(heat?.conductivity),
+      conductivity: f32(heat?.conductivity) ?? electronic(),
       emissivity: f32(heat?.emissivity),
       ignitionTemperature: f32(
         heat?.glowTemperature ?? heat?.ignitionTemperature,

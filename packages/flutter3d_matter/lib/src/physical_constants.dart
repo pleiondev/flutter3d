@@ -22,6 +22,14 @@ const double stefanBoltzmann = 5.670374419e-8;
 /// The Boltzmann constant, J/K. Exact by the SI's definition (2019).
 const double boltzmannConstant = 1.380649e-23;
 
+/// The Sommerfeld value of the Lorenz number, W·Ω/K²: π²/3 · (k_B/e)²,
+/// 2.44 × 10⁻⁸. The Wiedemann–Franz law's constant: a metal whose heat is
+/// carried by its electrons conducts k = L·T/ρ at a temperature T and a
+/// resistivity ρ (Kittel, Introduction to Solid State Physics, 8th ed.,
+/// ch. 6), within about ten per cent for the common metals near room
+/// temperature.
+const double lorenzNumber = 2.44e-8;
+
 /// The molar gas constant, J/(mol·K): the Boltzmann constant times
 /// Avogadro's, both exact since 2019 (CODATA 2018).
 const double molarGasConstant = 8.314462618;

@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A metal that gives its resistivity and no conductivity conducts heat
+  by its electrons.** `NativeMaterial.of` reads the electrical group: where
+  a material has `ElectricalProperties.resistivity` and no thermal
+  conductivity, the conductivity is the Wiedemann–Franz law's,
+  `lorenzNumber · T / ρ` at its temperature or the state given. Every
+  built-in metal has a measured conductivity, which is still the one read.
 - **A shallow liquid follows its temperature through its laws.** The core
   reads a liquid's density, viscosity and surface tension through the
   catalogue's laws at the liquid's own temperature, at the start of every

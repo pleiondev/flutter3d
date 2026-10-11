@@ -225,4 +225,43 @@ void main() {
       stefanBoltzmann.toString(),
     );
   });
+
+  test('a metal that gives its resistivity and no conductivity conducts '
+      'heat by its electrons', () {
+    // Mutation: leave the electrical group unread in `NativeMaterial.of`.
+    // A plugin's alloy with a measured resistivity and no thermal number
+    // conducts heat as an inert stone does, a hundred times too slowly.
+    const alloy = PhysicalMaterial(
+      id: 'forge.alloy',
+      name: 'alloy',
+      phase: MaterialPhase.solid,
+      thermal: ThermalProperties(
+        specificHeat: ConstantLaw(450.0),
+        source: 'test',
+      ),
+      electrical: ElectricalProperties(
+        resistivity: ConstantLaw(1.0e-7),
+        source: 'test',
+      ),
+    );
+    // The Wiedemann–Franz law at the material's 293.15 K: k = L·T/ρ.
+    expect(
+      NativeMaterial.of(alloy).conductivity,
+      _f32(lorenzNumber * 293.15 / 1.0e-7),
+    );
+    // At a state, at its temperature.
+    expect(
+      NativeMaterial.of(
+        alloy,
+        state: MaterialState.at(temperature: 600.0),
+      ).conductivity,
+      _f32(lorenzNumber * 600.0 / 1.0e-7),
+    );
+    // A measured conductivity is the material's, whatever its resistivity.
+    expect(NativeMaterial.of(Materials.copper).conductivity, isNot(0.0));
+    expect(
+      NativeMaterial.of(Materials.copper).conductivity,
+      _f32(Materials.copper.thermal!.conductivity!.value),
+    );
+  });
 }

@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **`lorenzNumber`, the Wiedemann–Franz law's constant.** 2.44 × 10⁻⁸
+  W·Ω/K², the Sommerfeld value: a metal whose heat its electrons carry
+  conducts k = L·T/ρ, which the native core reads for a material that
+  gives a resistivity and no conductivity.
 - **A world says what its numbers promise and where it is.**
   `WorldProperties.profile` (a `SimulationProfile`, deterministic by
   default) and `WorldProperties.geoOrigin`, both in `copyWith`, the JSON
