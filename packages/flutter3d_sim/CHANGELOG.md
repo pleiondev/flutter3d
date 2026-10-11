@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **A plugin that touches only tooling is held to it.** The loop refuses a
+  `PluginTouches.tooling` plugin a step phase, a step system, a step
+  subscription and a subsystem, whether or not its profile runs it.
 - **A placed thing keeps what its source said about it.**
   `PrefabAttributes` reads a row's own attributes (`attributes`) and a
   model row's attributes of its nodes by node path (`nodeAttributes`), as

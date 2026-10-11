@@ -121,6 +121,38 @@ void main() {
     expect(frost.nameProblem('Acme_frost.haze', what: 'a step'), isNotNull);
   });
 
+  test('a name is qualified into the namespace, or refused outside it', () {
+    final editor = _manifest('acme_frost.editor');
+    // Mutation: prefix a bare name with the whole id. The editor half of a
+    // package would publish `acme_frost.editor.stoke` beside its runtime
+    // half's `acme_frost.haze`, two namespaces for one package.
+    expect(editor.qualify('stoke', what: 'the command'), 'acme_frost.stoke');
+    expect(
+      editor.qualify('acme_frost.stoke', what: 'the command'),
+      'acme_frost.stoke',
+    );
+    // Mutation: accept any dotted name as given. A plugin could publish a
+    // command under another package's namespace.
+    expect(
+      () => editor.qualify('acme_lamps.stoke', what: 'the command'),
+      throwsA(
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('"acme_lamps.stoke"'), contains('the command')),
+        ),
+      ),
+    );
+    expect(
+      () => _manifest('f3d.lamps').qualify('lamp', what: 'the gizmo'),
+      throwsA(isA<PluginException>()),
+    );
+    expect(
+      () => editor.qualify('', what: 'the command'),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
   test('the engine\'s own packages register the engine\'s names', () {
     final sky = _manifest('flutter3d_addon_atmosphere.sky');
     expect(sky.isEngine, isTrue);

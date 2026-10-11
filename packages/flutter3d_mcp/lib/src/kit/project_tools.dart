@@ -1,5 +1,5 @@
 /// The tools plugins bring, merged into one project's MCP servers under each
-/// plugin's id.
+/// plugin's namespace.
 library;
 
 import 'dart:async';
@@ -34,7 +34,8 @@ final class ProjectTool {
 
   final ProjectToolRun run;
 
-  /// The plugin's id, or the namespace the application named.
+  /// The plugin's namespace (`PluginManifest.namespace`), or the namespace
+  /// the application named.
   final String namespace;
 
   /// Who added it, as a refusal says it: `plugin "wind"` or `the
@@ -55,7 +56,7 @@ final class ProjectTool {
   }
 }
 
-/// MCP tools, merged into the project's servers as `<plugin id>.<tool>`:
+/// MCP tools, merged into the project's servers as `<namespace>.<tool>`:
 /// the slot [McpTools] fills, `host.registry<McpTools>()`.
 ///
 /// **Declared by the package that fills it.** It was a marker in
@@ -66,14 +67,16 @@ abstract base class McpToolRegistry extends PluginRegistry {
 }
 
 /// The [McpToolRegistry] a project fills: the MCP tools its plugins bring,
-/// each under the plugin's id.
+/// each under the plugin's namespace.
 ///
 /// **Decision 19 of the plugin plan: a plugin brings everything, its tools
 /// for an agent included.** A plugin's `install` asks the host for this type,
 /// `host.registry<McpTools>()`, and gets a view scoped to the plugin: a tool
-/// added through it is published as `<plugin id>.<name>` — `wind.gust` — so
+/// added through it is published as `<namespace>.<name>` — `wind.gust` — so
 /// two plugins can each have a `reset` and neither shadows the other or a
-/// server's own. Switching the plugin off withdraws its tools; a running
+/// server's own. The namespace is `PluginManifest.namespace`, the plugin's
+/// id up to its first dot, as every other name a plugin registers is in: the
+/// editor half of a package (`wind.editor`) publishes under `wind.` too. Switching the plugin off withdraws its tools; a running
 /// server hears it and tells its client the list changed.
 ///
 /// ```dart
@@ -156,34 +159,42 @@ final class McpTools extends McpToolRegistry {
 
   /// Adds [tool], to be run by [run], published as `<namespace>.<name>`.
   ///
-  /// Through a plugin's view the namespace is the plugin's id, and
-  /// [namespace] must be left out or be that id. Through the root the
-  /// application names one; the root refuses a tool without it.
+  /// Through a plugin's view the namespace is the plugin's
+  /// (`PluginManifest.namespace`), and [namespace] must be left out or be
+  /// that one. Through the root the application names one; the root refuses
+  /// a tool without it.
   ///
   /// Throws an [ArgumentError] for a name that is not letters, digits, `_`
   /// and `-`, for a published name longer than [maxNameLength], and for one
   /// already added — naming who added it. Throws a [PluginException] when a
-  /// plugin whose manifest does not list [PluginPermission.tools] adds one.
+  /// plugin whose manifest does not list [PluginPermission.tools] adds one,
+  /// and when a plugin names another [namespace] than its own.
   Registration addTool(ToolSpec tool, ProjectToolRun run, {String? namespace}) {
     final scope = _scope;
     final String space;
     if (scope != null) {
-      final id = scope.manifest.id;
-      if (!scope.manifest.permissions.contains(PluginPermission.tools)) {
+      final manifest = scope.manifest;
+      final id = manifest.id;
+      if (!manifest.permissions.contains(PluginPermission.tools)) {
         throw PluginException(
           'plugin "$id" adds the MCP tool "${tool.name}" without asking for '
           'the `tools` permission: list PluginPermission.tools in its '
           'manifest, so whoever installs it sees that it talks to agents',
         );
       }
-      if (namespace != null && namespace != id) {
-        throw ArgumentError.value(
-          namespace,
-          'namespace',
-          'plugin "$id" adds its tools under its own id, not "$namespace"',
+      space = manifest.namespace;
+      if (namespace != null && namespace != space) {
+        // Refused as the plugin's other names outside its namespace are,
+        // naming the tool as it would have been published.
+        throw PluginException(
+          manifest.nameProblem(
+                '$namespace.${tool.name}',
+                what: 'the MCP tool',
+              ) ??
+              'plugin "$id" adds its tools under its namespace, "$space", '
+                  'not "$namespace"',
         );
       }
-      space = id;
     } else {
       if (namespace == null) {
         throw ArgumentError.value(
@@ -258,7 +269,7 @@ final class McpTools extends McpToolRegistry {
   }
 
   /// Gives the schema version of the tools under this view's namespace — the
-  /// plugin's id, or [namespace] through the root — by the rule a server's
+  /// plugin's, or [namespace] through the root — by the rule a server's
   /// schema version follows: a new tool or optional argument is a minor, a
   /// removed tool or a new required argument a major.
   ///
@@ -266,7 +277,9 @@ final class McpTools extends McpToolRegistry {
   /// before it are given the version in their `_meta` too, and a running
   /// server offers them again with it, so a plugin that declares after
   /// adding is not left announcing nothing. Through a plugin's view
-  /// [namespace] must be left out.
+  /// [namespace] must be left out or be the plugin's own, and the version
+  /// is the one of every tool under it, whichever plugin of the package
+  /// added them.
   ///
   /// Returns the [Registration] that withdraws the declaration. Through a
   /// plugin's view it is also withdrawn when the plugin is switched off, as
@@ -274,7 +287,7 @@ final class McpTools extends McpToolRegistry {
   /// tools are gone.
   Registration declareSchemaVersion(String version, {String? namespace}) {
     final scope = _scope;
-    final space = scope?.manifest.id ?? namespace;
+    final space = scope?.manifest.namespace ?? namespace;
     if (space == null) {
       throw ArgumentError.value(
         version,
@@ -283,10 +296,10 @@ final class McpTools extends McpToolRegistry {
       );
     }
     if (scope != null && namespace != null && namespace != space) {
-      throw ArgumentError.value(
-        namespace,
-        'namespace',
-        'plugin "$space" declares its own namespace\'s version only',
+      throw PluginException(
+        'plugin "${scope.manifest.id}" declared the schema version of the '
+        'namespace "$namespace": a plugin declares its own namespace\'s, '
+        '"$space", only',
       );
     }
     if (!RegExp(r'^\d+\.\d+\.\d+$').hasMatch(version)) {

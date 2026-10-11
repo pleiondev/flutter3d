@@ -55,20 +55,21 @@ void main() {
       containsAll(<String>['type:ember', 'acme_sample.heat']),
     );
     expect(pieces.materialHint('acme_sample_Hair', 'gloss'), isNotNull);
-    // A command, a gizmo and an entry are under the plugin's id, as its MCP
-    // tools are; a hint is under its namespace, as its component's codec is.
-    expect(pieces.argumentsOf('acme_sample.editor.stoke').single.key, 'by');
+    // A command, a gizmo and an entry are under the package's namespace, as
+    // its MCP tools, its hints and the runtime half's names are: the editor
+    // half publishes no namespace of its own.
+    expect(pieces.argumentsOf('acme_sample.stoke').single.key, 'by');
 
     final editing = _harbour();
     final stoke = pieces.readCommand(<String, Object?>{
-      'command': 'acme_sample.editor.stoke',
+      'command': 'acme_sample.stoke',
     })!;
-    expect(stoke.toJson()['command'], 'acme_sample.editor.stoke');
+    expect(stoke.toJson()['command'], 'acme_sample.stoke');
     expect(editing.history.run(stoke), isTrue);
     expect(editing.level.entities.single.number('heat'), 1000.0);
 
     final ring = pieces.marksFor(editing.level).single;
-    expect(ring.gizmo, 'acme_sample.editor.reach');
+    expect(ring.gizmo, 'acme_sample.reach');
     final pulled = pieces.dragged(
       ring,
       editing.level,
@@ -83,7 +84,7 @@ void main() {
 
     expect(
       pieces.assetEntryFor('more.embers')?.name,
-      'acme_sample.editor.embers',
+      'acme_sample.embers',
     );
   });
 
@@ -120,6 +121,9 @@ void main() {
       plugins: <Flutter3dPlugin>[AcmeEditorPlugin()],
     );
     expect(loop.plugins.isEnabled('acme_sample.editor'), isTrue);
+    // It touches only tooling: a run made with it carries nothing of it.
+    expect(AcmeEditorPlugin().manifest.touches, PluginTouches.tooling);
+    expect(loop.simulationVersion.plugins, isNot(contains('acme_sample.editor')));
   });
 
   test(

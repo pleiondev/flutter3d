@@ -1,7 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A plugin's panel is published under its namespace**,
+  `<namespace>.<id>` (`PluginManifest.namespace`), not under its whole id;
+  an id in another namespace is refused with a `PluginException`.
 - **A plugin adds panels and docks.** `EditorPanels` (new) is the registry
-  a plugin adds an `EditorPanel` to, published as `<plugin id>.<id>`:
+  a plugin adds an `EditorPanel` to, published as `<namespace>.<id>`:
   docked to a side, or, with no side, a main-screen panel shown in the
   picture's place. A panel is built with an `EditorPanelContext`: the open
   document as JSON, the selection (`PanelSelection`), and `run`, which

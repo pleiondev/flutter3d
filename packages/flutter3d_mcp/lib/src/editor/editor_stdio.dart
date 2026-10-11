@@ -24,7 +24,7 @@ import 'plugin_commands.dart';
 /// to an [EngineLoop]; this one is built only to install them and is never
 /// run, since the server edits a document and plays nothing. The registry is
 /// handed to the server as `projectTools`, so each tool is listed as
-/// `<plugin id>.<tool>` and withdrawn if its plugin is switched off.
+/// `<namespace>.<tool>` and withdrawn if its plugin is switched off.
 ///
 /// **This package compiles in no plugins of its own.** `dart run
 /// flutter3d_mcp:editor_mcp` installs none, because which plugins a
@@ -81,7 +81,7 @@ EditorMcpServer serveEditorMcp(
     // (`CliExit.failure`): a file it could not read.
     exit(1);
   }
-  // Each plugin command is a tool of its own as well, `<plugin id>.<name>`,
+  // Each plugin command is a tool of its own as well, `<namespace>.<name>`,
   // with its argument hints as its schema; kept for the life of the process.
   shareCommands(pieces, tools, session);
   return EditorMcpServer(

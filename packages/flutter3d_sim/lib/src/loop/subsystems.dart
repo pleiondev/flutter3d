@@ -115,6 +115,16 @@ final class _LoopSubsystems extends SubsystemRegistry {
         case final problem?) {
       throw PluginException(problem);
     }
+    // A solver is the simulation's whether or not this profile runs it: a
+    // plugin a game ships without may not bring one.
+    if (_scope?.manifest case final manifest?
+        when manifest.touches == PluginTouches.tooling) {
+      throw PluginException(
+        'plugin "${manifest.id}" declares that it touches only tooling, and '
+        'registered the subsystem "$id", which a profile may run in the '
+        'step. Declare touches: PluginTouches.simulation',
+      );
+    }
     if (_declared.any((d) => d.id == id)) {
       throw ArgumentError.value(
         id,

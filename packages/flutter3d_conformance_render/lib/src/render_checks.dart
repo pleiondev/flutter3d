@@ -55,6 +55,7 @@ final class PluginRenderPoints {
 const List<String> pluginRenderCheckNames = <String>[
   'render.nodes',
   'render.lit model',
+  'render.lit model defaults',
   'render.light type',
   'render.decal',
   'render.velocity',
@@ -347,6 +348,49 @@ Future<List<PluginCheckOutcome>> checkPluginRender(
                     'blocks and ${model.slots.textures.length} textures of '
                     'its own reaching it'
               : 'nothing changed the picture through ${unreached.join(', ')}',
+        );
+      }),
+    if (points.litModel case final model?)
+      await guarded('render.lit model defaults', (stage) async {
+        // A material that sets none of the model's own blocks and names
+        // none of its textures: every slot is bound anyway, each member at
+        // the default its source declares and each texture to white, so
+        // the box is the one drawn with those values given outright.
+        final bare = stage.scene(material: RenderMaterial(lighting: model));
+        if (pictures != null) {
+          stage.render(bare);
+          return outcome(
+            'render.lit model defaults',
+            false,
+            pictures,
+            declined: true,
+          );
+        }
+        final drawn = await stage.picture(bare);
+        final white = stage.texel(255);
+        final given = await stage.picture(
+          stage.scene(
+            material: RenderMaterial(
+              lighting: model,
+              parameters: <String, Float32List>{
+                for (final block in model.slots.blocks)
+                  for (final m in block.members)
+                    if (m.defaultValue.isNotEmpty)
+                      m.name: Float32List.fromList(m.defaultValue),
+              },
+              extraTextures: <String, TextureHandle>{
+                for (final t in model.slots.textures) t.binding: white,
+              },
+            ),
+          ),
+        );
+        return outcome(
+          'render.lit model defaults',
+          _same(drawn, given),
+          _same(drawn, given)
+              ? '"${model.shaderName}" with nothing set drew its defaults'
+              : 'a box through "${model.shaderName}" with nothing set is not '
+                    'the one drawn with its defaults given',
         );
       }),
     if (points.lightType case final type?)

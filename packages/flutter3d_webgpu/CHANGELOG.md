@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A plugin's lit model fits the guaranteed 8 dynamic uniform buffers.**
+  The blocks of a material's own (`MaterialParams` and every
+  `uniform(Name) …` block) are packed into one binding of their group when
+  a stage is compiled, and filled block by block by name as before; a lit
+  model with a block of its own no longer asks for 9 beside the engine's
+  mesh stage.
 - **A draw in a new state does not stall the frame once the canvas shows
   one.** The draw path builds a pipeline it has not met through
   `createRenderPipelineAsync` and skips the draw until it arrives; a draw a

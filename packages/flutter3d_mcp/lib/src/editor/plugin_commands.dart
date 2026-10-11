@@ -9,7 +9,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
 import 'editor_session.dart';
 
 /// Offers every command the plugins added to [pieces] as a tool of [tools],
-/// `<pluginId>.<name>`, that runs it on [session]'s document; keeps the
+/// `<namespace>.<name>`, that runs it on [session]'s document; keeps the
 /// offer in step while plugins are switched on and off, until the
 /// registration it returns is cancelled.
 ///
@@ -64,7 +64,7 @@ Registration shareCommands(
           final (:did, :says) = session.run(read);
           return ToolResult.text(says, isError: !did);
         },
-        namespace: command.plugin,
+        namespace: command.namespace,
       );
     }
   }

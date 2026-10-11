@@ -13,8 +13,12 @@
 /// `MaterialState` (S1), the contact event heard from the bus (S2), a field
 /// declared and written (S3), and a solver registered as a subsystem with
 /// what it reads and writes (S4), switched on by a profile of its own, so
-/// installing the plugin leaves the default simulation, its tapes and its
-/// matches alone.
+/// installing the plugin leaves what the default simulation computes alone:
+/// its digests step for step. **Not its version**: the plugin touches the
+/// simulation, so its number joins `SimulationVersion.plugins` under every
+/// profile, and a run recorded with it installed is refused where it is not.
+/// A manifest that names the profiles a plugin simulates under would lift
+/// that, and is an addition for a later minor.
 library;
 
 import 'dart:collection';

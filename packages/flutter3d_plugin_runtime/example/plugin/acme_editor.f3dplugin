@@ -6,7 +6,7 @@
   "manifest": {
     "id": "acme_sample.editor_data",
     "apiVersion": "1.0",
-    "touches": "view",
+    "touches": "tooling",
     "description": "The editor hints of acme_sample, as data."
   },
   "editor": {

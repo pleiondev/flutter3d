@@ -83,7 +83,9 @@ final class WebGpuBlock {
     required this.binding,
     required this.sizeInBytes,
     required this.members,
-  });
+    this.offsetInBinding = 0,
+    int? bindingSizeInBytes,
+  }) : bindingSizeInBytes = bindingSizeInBytes ?? sizeInBytes;
 
   final String name;
   final int group;
@@ -93,6 +95,18 @@ final class WebGpuBlock {
   final int sizeInBytes;
 
   final List<WebGpuBlockMember> members;
+
+  /// Where the block starts in the buffer its [binding] reads: nought, but
+  /// for a block of a material's own packed with the others beside it into
+  /// one binding (`packMaterialBlocks`).
+  final int offsetInBinding;
+
+  /// The bytes its [binding] reads: [sizeInBytes], or the whole pack for a
+  /// packed block.
+  final int bindingSizeInBytes;
+
+  /// Whether the block shares its binding with others of a material's own.
+  bool get isPacked => bindingSizeInBytes != sizeInBytes;
 }
 
 /// Which shape of texture a sampler reads.

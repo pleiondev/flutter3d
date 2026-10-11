@@ -16,6 +16,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
         PluginException,
         PluginRegistry,
         PluginScope,
+        PluginTouches,
         Registration,
         RenderAnchor,
         RenderStepRegistry,
@@ -454,6 +455,13 @@ final class Renderer with RenderServices {
   /// history; a view's is given back when it is disposed.
   _ViewState _viewState = _ViewState();
   final Expando<_ViewState> _viewStates = Expando<_ViewState>('view state');
+
+  /// The floats each member of a lighting model's own block is bound at
+  /// when a material leaves it unset (D21), made once per member rather
+  /// than once per draw.
+  final Expando<Float32List> _slotDefaults = Expando<Float32List>(
+    'slot default',
+  );
   final Set<_ViewState> _allViewStates = <_ViewState>{};
 
   /// How many [render] calls a view's state outlives the last one that drew

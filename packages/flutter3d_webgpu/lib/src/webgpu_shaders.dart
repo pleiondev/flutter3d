@@ -186,6 +186,9 @@ final class WebGpuShader {
 /// Shared by the engine's library and a loaded one, because a stage that failed
 /// to compile and came back null would look exactly like a stage the sidecar
 /// never had, and the two need different fixes.
+///
+/// The stage's own blocks of a material are packed into one binding first
+/// ([packMaterialBlocks]).
 ShaderHandle compileWebGpuStage(
   WgslModuleCompiler compiler,
   String name,
@@ -194,17 +197,125 @@ ShaderHandle compileWebGpuStage(
   StageBindings? kept,
   Map<String, Map<String, UniformMemberLayout>>? layouts,
   void Function(ShaderHandle handle)? release,
-}) => wrapShader(
-  kept: kept,
-  layouts: layouts,
-  release: release,
-  backend: WebGpuShader(
+}) {
+  final packed = packMaterialBlocks(stage);
+  return wrapShader(
+    kept: kept,
+    layouts: layouts,
+    release: release,
+    backend: WebGpuShader(
+      name: name,
+      isVertex: isVertex,
+      code: (stage: packed, module: compiler.compileModule(name, packed.wgsl)),
+    ),
     name: name,
-    isVertex: isVertex,
-    code: (stage: stage, module: compiler.compileModule(name, stage.wgsl)),
-  ),
-  name: name,
-);
+  );
+}
+
+/// One member of a pack: the block's struct at its reflected size, on the
+/// 16-byte boundary the uniform address space wants of a struct.
+String _packedMember(int index, int size, String type) =>
+    '    @align(16) @size($size) m$index: $type,';
+
+/// The block names the engine's own stages bind, which a material's own
+/// may not take: every one but `MaterialParams`, the block a material's
+/// plain uniforms are members of.
+final Set<String> _engineBlockNames = <String>{
+  for (final stage in stageBindings.values) ...stage.blocks,
+}..remove('MaterialParams');
+
+/// [stage] with the uniform blocks of a material's own (D21) — its
+/// `MaterialParams` and every block its source names, `uniform(Strands) …`
+/// — packed into one binding of their group, or [stage] itself where it
+/// has fewer than two of them in a group, or its WGSL does not declare
+/// them in the shape this reads.
+///
+/// **Why one binding.** Every uniform block here is bound with a dynamic
+/// offset (`WebGpuBindingLayouts`), and WebGPU guarantees 8 dynamic
+/// uniform buffers per pipeline layout. The engine's mesh stage binds 2
+/// and its lit stages 5, so a lit model with a block of its own beside
+/// `MaterialParams` asks for 9, and a device at the guaranteed limit
+/// refuses the layout. Packed, the material's blocks count as one,
+/// whatever number of them its source declares.
+///
+/// **How.** The WGSL's declarations of those blocks become members of one
+/// struct, each on a 16-byte boundary at the size its reflection gives,
+/// and each read of a block reads its member; the reflection keeps every
+/// block by its own name, at the shared binding, with its place in it
+/// ([WebGpuBlock.offsetInBinding]) and the size of the whole
+/// ([WebGpuBlock.bindingSizeInBytes]). The encoder fills each block's
+/// bytes where they go and binds the whole, so the renderer binds by name
+/// as it does on every backend.
+WebGpuStage packMaterialBlocks(WebGpuStage stage) {
+  final byGroup = <int, List<WebGpuBlock>>{};
+  for (final block in stage.blocks) {
+    if (_engineBlockNames.contains(block.name)) continue;
+    (byGroup[block.group] ??= <WebGpuBlock>[]).add(block);
+  }
+  var wgsl = stage.wgsl;
+  final replaced = <String, WebGpuBlock>{};
+  for (final MapEntry(key: group, value: own) in byGroup.entries) {
+    if (own.length < 2) continue;
+    own.sort((a, b) => a.binding.compareTo(b.binding));
+    final declarations = <RegExpMatch>[];
+    for (final block in own) {
+      final found = RegExp(
+        '@group\\($group\\)\\s*@binding\\(${block.binding}\\)\\s*'
+        r'var<uniform>\s+(\w+)\s*:\s*(\w+)\s*;',
+      ).firstMatch(wgsl);
+      if (found == null) return stage;
+      declarations.add(found);
+    }
+    final type = 'F3dMaterialBlocks$group';
+    final variable = 'f3d_material_blocks_$group';
+    final first = own.first.binding;
+    final total = own.fold<int>(0, (sum, b) => sum + b.sizeInBytes);
+    final names = <String>[for (final d in declarations) d.group(1)!];
+    // The declarations out, last first so the earlier offsets hold.
+    final ordered = [...declarations]
+      ..sort((a, b) => b.start.compareTo(a.start));
+    for (final found in ordered) {
+      wgsl = wgsl.replaceRange(found.start, found.end, '');
+    }
+    for (final (index, name) in names.indexed) {
+      wgsl = wgsl.replaceAll(
+        RegExp('(?<![\\w.])${RegExp.escape(name)}(?!\\w)'),
+        '$variable.m$index',
+      );
+    }
+    final members = <String>[
+      for (final (index, found) in declarations.indexed)
+        _packedMember(index, own[index].sizeInBytes, found.group(2)!),
+    ];
+    wgsl =
+        'struct $type {\n${members.join('\n')}\n}\n'
+        '@group($group) @binding($first) \n'
+        'var<uniform> $variable: $type;\n'
+        '$wgsl';
+    var offset = 0;
+    for (final block in own) {
+      replaced[block.name] = WebGpuBlock(
+        name: block.name,
+        group: group,
+        binding: first,
+        sizeInBytes: block.sizeInBytes,
+        members: block.members,
+        offsetInBinding: offset,
+        bindingSizeInBytes: total,
+      );
+      offset += block.sizeInBytes;
+    }
+  }
+  if (replaced.isEmpty) return stage;
+  return WebGpuStage(
+    wgsl: wgsl,
+    attributes: stage.attributes,
+    blocks: <WebGpuBlock>[
+      for (final block in stage.blocks) replaced[block.name] ?? block,
+    ],
+    samplers: stage.samplers,
+  );
+}
 
 /// A [ShaderLibrary] over a sidecar's stages, compiled on first use.
 ///

@@ -85,7 +85,7 @@ final class EditorPanel {
     this.dock,
   });
 
-  /// Its id, published as `<pluginId>.<id>`: what a stored arrangement
+  /// Its id, published as `<namespace>.<id>`: what a stored arrangement
   /// remembers it by.
   final String id;
 
@@ -103,11 +103,14 @@ final class EditorPanel {
 /// The panels plugins bring to an editor: the registry a plugin finds with
 /// `host.registry<EditorPanels>()`, and the editor hands its plugin host.
 ///
-/// **Published under the plugin's id**, as its commands and tools are: a
-/// panel `tide` of the `boats` plugin is `boats.tide`, so a panel the editor
-/// adds in a minor never takes a plugin's place in a stored arrangement.
-/// Through the root the application names its panels as it likes, without
-/// a dot. Switching a plugin off withdraws its panels; [listen] hears it.
+/// **Published under the plugin's namespace** (`PluginManifest.namespace`),
+/// as its commands and tools are: a panel `tide` of the `boats.editor`
+/// plugin is `boats.tide`, so a panel the editor adds in a minor never takes
+/// a plugin's place in a stored arrangement. An id given whole in the
+/// namespace is taken as it is; one in another namespace is refused with a
+/// `PluginException`. Through the root the application names its panels as
+/// it likes, without a dot. Switching a plugin off withdraws its panels;
+/// [listen] hears it.
 ///
 /// What is added comes back out in order: the application's first, then
 /// each plugin's in install order, and within one owner as added.
@@ -122,26 +125,31 @@ final class EditorPanels extends PluginRegistry {
   final _PanelStore _store;
   final PluginScope? _scope;
 
-  /// Adds [panel], its id published as `<pluginId>.<id>` through a plugin's
+  /// Adds [panel], its id published as `<namespace>.<id>` through a plugin's
   /// view.
   ///
-  /// Throws an [ArgumentError] for an empty or dotted id, and for an id
-  /// another owner already added, naming it.
+  /// Throws an [ArgumentError] for an empty id, for a dotted one through
+  /// the root or with a dot of its own after the namespace's, and for an id
+  /// another owner already added, naming it; a [PluginException] for an id
+  /// in another namespace than the plugin's.
   Registration addPanel(EditorPanel panel) {
     final written = panel.id;
     if (written.isEmpty) {
       throw ArgumentError.value(written, 'id', 'a panel needs an id');
     }
-    if (written.contains('.')) {
+    final scope = _scope;
+    final id = scope == null
+        ? written
+        : scope.manifest.qualify(written, what: 'the panel');
+    if (id.indexOf('.') != (scope == null ? -1 : id.lastIndexOf('.'))) {
       throw ArgumentError.value(
         written,
         'id',
-        'has a dot, which is the namespace\'s: a plugin\'s panels are '
-            'published as `<plugin id>.<id>` for it',
+        'has a dot of its own, which is the namespace\'s: a plugin\'s panels '
+            'are published as `<namespace>.<id>`, the application\'s without '
+            'one',
       );
     }
-    final scope = _scope;
-    final id = scope == null ? written : '${scope.manifest.id}.$written';
     final owner = scope == null
         ? 'the application'
         : 'plugin "${scope.manifest.id}"';

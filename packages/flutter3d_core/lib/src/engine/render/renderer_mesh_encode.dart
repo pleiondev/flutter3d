@@ -378,13 +378,35 @@ extension _MeshEncode on Renderer {
                 state.coverageAvailable)) &&
         _opaqueStageFor(material.lighting) != null;
     // The stage the pipeline is built with; see where `FrameInfo` is bound.
+    // A model that lists its own instanced variant (D22b) draws a batch
+    // through it, as `_pipelineStages` links it; the engine's otherwise.
     final activeVertexShader = batched
-        ? _instancedVertexShader
+        ? _materialVariantStage(
+                material.lighting,
+                VertexStageVariant.instanced,
+              ) ??
+              _instancedVertexShader
         : _vertexShaderFor(
             material.lighting,
             skinned: skinned,
             lightmapped: lightmapped,
           );
+    // Whether that stage is the material's own: its plain one, or the
+    // instanced or lightmapped variant its model lists. Its declarations are
+    // then the material's to fill, whichever variant drew.
+    final ownStage = switch ((batched, lightmapped)) {
+      (true, _) =>
+        material.lighting.vertexVariants.contains(
+              VertexStageVariant.instanced,
+            ) &&
+            material.lighting.vertexShaderName != null,
+      (false, true) =>
+        material.lighting.vertexVariants.contains(
+              VertexStageVariant.lightmapped,
+            ) &&
+            material.lighting.vertexShaderName != null,
+      (false, false) => material.lighting.vertexShaderName != null,
+    };
     if (predraw) {
       encoder.bindPipeline(
         _predrawPipelines[activeVertexShader] ??= device.createPipeline(
@@ -542,7 +564,7 @@ extension _MeshEncode on Renderer {
     encoder.bindBlock(activeVertexShader, _frameInfo);
     // Version 2's vertex block: the view-projection its `world` output is
     // projected through. Its parameters are bound below with the rest.
-    if (!batched && !lightmapped) {
+    if (ownStage) {
       _bindMaterialVertex(
         encoder,
         activeVertexShader,
@@ -569,8 +591,6 @@ extension _MeshEncode on Renderer {
     // 0.7.2 keyed this on whether the node morphed instead, which left a stage
     // written from `mesh.vert` without its block on every plain mesh. Asking
     // the node is the wrong question: a stage declares what it declares.
-    final ownStage =
-        !batched && !lightmapped && material.lighting.vertexShaderName != null;
     if (_keepsBlock(
       activeVertexShader,
       _kMorphInfoBlock,
@@ -598,9 +618,9 @@ extension _MeshEncode on Renderer {
     // stage the material brought: the engine's own read `FrameInfo` and
     // nothing else, and a material naming no vertex stage draws exactly as it
     // did, which is why no golden could move.
-    if (node.parametersFor(material).isNotEmpty &&
-        material.lighting.vertexShaderName != null &&
-        !batched) {
+    if ((node.parametersFor(material).isNotEmpty ||
+            material.lighting.slots.blocks.isNotEmpty) &&
+        ownStage) {
       _bindMaterialBlocks(
         encoder,
         activeVertexShader,
@@ -1083,7 +1103,13 @@ extension _MeshEncode on Renderer {
     // that can see the difference. That is the contract as of today, and it
     // cuts the way an author wants: a parameter renamed in the GLSL and not in
     // the Dart used to draw with a zero in its place, on Impeller only.
-    if (node.parametersFor(material).isNotEmpty) {
+    //
+    // A lighting model with blocks of its own (D21) binds them whether the
+    // material sets anything or not, each member it leaves out at its
+    // default: the stage declares them, and WebGPU refuses a draw that
+    // leaves a declared block unbound.
+    if (node.parametersFor(material).isNotEmpty ||
+        material.lighting.slots.blocks.isNotEmpty) {
       _bindMaterialBlocks(
         encoder,
         fragmentShader,
@@ -1098,6 +1124,7 @@ extension _MeshEncode on Renderer {
     for (final slot in material.extraTextures.entries) {
       encoder.bindTexture(fragmentShader, slot.key, slot.value);
     }
+    _bindSlotTextures(encoder, fragmentShader, material);
 
     if (readsEnvironment && environment != null) {
       encoder.bindTexture(
@@ -1474,7 +1501,10 @@ extension _MeshEncode on Renderer {
   /// Binds [parameters] to [stage]: as `RenderMaterial.parameterBlock`, as
   /// it always was, or — for a model whose stage declares blocks of its own
   /// (`LightingModel.slots`, D21) — each block with the members that belong
-  /// to it, in the table's order.
+  /// to it, in the table's order, and every member [parameters] leaves out
+  /// at the default its source declares: each block of the table is bound
+  /// on every draw, so a material that sets none of them draws as its
+  /// source says rather than with a slot left empty.
   void _bindMaterialBlocks(
     PassEncoder encoder,
     ShaderHandle stage,
@@ -1489,11 +1519,33 @@ extension _MeshEncode on Renderer {
     for (final block in blocks) {
       final members = <String, Float32List>{
         for (final member in block.members)
-          member.name: ?parameters[member.name],
+          member.name: ?(parameters[member.name] ?? _slotDefault(member)),
       };
       if (members.isNotEmpty) {
         encoder.bindUniformBlock(stage, block.name, members);
       }
+    }
+  }
+
+  /// [member]'s default as the floats a block is filled from, made once per
+  /// member of a lighting model's table and kept with it; null for a member
+  /// whose source declares none.
+  Float32List? _slotDefault(MaterialBlockMember member) {
+    if (member.defaultValue.isEmpty) return null;
+    return _slotDefaults[member] ??= Float32List.fromList(member.defaultValue);
+  }
+
+  /// The textures of [material]'s lighting model of its own
+  /// (`LightingModel.slots`, D21) that the material names none for, bound
+  /// to a white texel on [stage], as an engine slot nobody filled is.
+  void _bindSlotTextures(
+    PassEncoder encoder,
+    ShaderHandle stage,
+    RenderMaterial material,
+  ) {
+    for (final slot in material.lighting.slots.textures) {
+      if (material.extraTextures.containsKey(slot.binding)) continue;
+      encoder.bindTexture(stage, slot.binding, fallbackAlbedo);
     }
   }
 

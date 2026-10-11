@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A plugin's pieces are published under its namespace.**
+  `EditorPieces.addCommand`, `addComponent`, `addGizmo`, `addImporter` and
+  `addAssetEntry` file a piece of the `boats.editor` plugin as `boats.sink`,
+  not `boats.editor.sink`, as its quantities, fields and render steps are; a
+  name given whole in the namespace is taken as it is, and one in another
+  namespace is refused with a `PluginException`.
+  `PluginCommandInfo.namespace` (new) says which.
 - **The editor's plugin contract, whole.** `EditorPieces` brings
   `EditorHints` (the editor's `EditorHintRegistry`) along as a companion,
   and builds from a plugin's hints the inspector sections of its

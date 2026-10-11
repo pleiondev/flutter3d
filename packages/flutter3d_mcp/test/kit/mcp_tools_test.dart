@@ -121,6 +121,37 @@ void main() {
     expect(wind.kept, hasLength(1));
   });
 
+  test('a plugin\'s tools are published under its namespace, which the '
+      'halves of one package share, and so is their schema version', () {
+    final tools = McpTools();
+    final editor = tools.forPlugin(_Scope('boats.editor', 1));
+    // Mutation: publish under the whole plugin id. The editor half of
+    // `boats` would offer `boats.editor.sink` beside the runtime half's
+    // `boats.raise`, two namespaces an agent reads as two packages.
+    editor
+      ..addTool(_tool('sink'), (_) => _says('sank'))
+      ..addTool(_tool('moor'), (_) => _says(''), namespace: 'boats')
+      ..declareSchemaVersion('1.2.0');
+    tools
+        .forPlugin(_Scope('boats', 0))
+        .addTool(_tool('raise'), (_) => _says('raised'));
+    expect(tools.tools.map((ProjectTool t) => t.name), <String>[
+      'boats.raise',
+      'boats.sink',
+      'boats.moor',
+    ]);
+    expect(tools.named('boats.sink')!.namespace, 'boats');
+    expect(tools.schemaVersions, <String, String>{'boats': '1.2.0'});
+    expect(
+      tools.named('boats.raise')!.spec.meta['flutter3d/schemaVersion'],
+      '1.2.0',
+    );
+    expect(
+      () => editor.declareSchemaVersion('1.0.0', namespace: 'ships'),
+      throwsA(isA<PluginException>()),
+    );
+  });
+
   test('a name, a namespace or a second claim that cannot be is refused, '
       'naming who holds it', () {
     final tools = McpTools();
@@ -151,10 +182,16 @@ void main() {
       throwsArgumentError,
     );
     // Mutation: let a plugin name another namespace. It could publish
-    // under somebody else's id.
+    // under somebody else's package, and is refused as its other names are.
     expect(
       () => wind.addTool(_tool('calm'), (_) => _says(''), namespace: 'heat'),
-      throwsArgumentError,
+      throwsA(
+        isA<PluginException>().having(
+          (PluginException e) => e.message,
+          'message',
+          allOf(contains('"heat.calm"'), contains('"wind.<name>"')),
+        ),
+      ),
     );
     // Mutation: default the application's namespace. Its tools would read
     // as nobody's.
