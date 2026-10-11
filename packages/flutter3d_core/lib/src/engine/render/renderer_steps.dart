@@ -83,6 +83,20 @@ final class RendererSteps extends RenderStepRegistry {
     if (problem != null) throw PluginException(problem);
   }
 
+  /// Refuses, with a [PluginException], [what] from a plugin that declares
+  /// it touches only tooling (`PluginTouches.tooling`): a game ships without
+  /// such a plugin, so nothing it adds may be part of the frame the game
+  /// draws.
+  void _notTooling(String what) {
+    final manifest = _scope?.manifest;
+    if (manifest == null || manifest.touches != PluginTouches.tooling) return;
+    throw PluginException(
+      'plugin "${manifest.id}" declares that it touches only tooling, and '
+      'added $what to the frame, which a game draws without it. Add it from '
+      'a plugin that touches the view',
+    );
+  }
+
   /// The steps added to this renderer, in the order they were added.
   List<RenderStep> get added => List<RenderStep>.unmodifiable(<RenderStep>[
     for (final entry in _store.steps) entry.step,
@@ -118,6 +132,7 @@ final class RendererSteps extends RenderStepRegistry {
   /// Through a plugin's view, a [PluginException] for a step named outside
   /// the plugin's namespace, `<namespace>.<name>` (D23).
   Registration addStep(RenderStep step) {
+    _notTooling('the render step "${step.name}"');
     _inNamespace(step.name, 'the render step');
     if (step.isBuiltIn) {
       throw ArgumentError.value(
@@ -175,6 +190,7 @@ final class RendererSteps extends RenderStepRegistry {
     List<String> before = const <String>[],
   }) {
     final anchor = at ?? node.defaultAnchor;
+    _notTooling('the node "${node.name}"');
     _inNamespace(node.name, 'the node');
     for (final desc in NodeDeclarations.of(node).created) {
       _inNamespace(desc.id.name, 'the resource');
@@ -588,6 +604,7 @@ final class RendererSteps extends RenderStepRegistry {
   /// **The one way in, since 1.0.** `Renderer.addMaterials` and
   /// `removeMaterials` did the same without the registration.
   Registration addMaterials(ShaderLibrary library) {
+    _notTooling('stages');
     final renderer = _store.renderer!.._addMaterials(library);
     final registration = Registration(() => renderer._removeMaterials(library));
     _scope?.track(registration);

@@ -455,6 +455,7 @@ final class PluginManifest
   List<String> get dependencyIds
   Map<String, Object?> toJson()
   String get namespace
+  String qualify(String name, {required String what})
   String toString()
   String? get idProblem
   String? nameProblem(String name, {required String what})
@@ -512,6 +513,7 @@ final class PluginTouches
   int get hashCode
   static PluginTouches named(String name)
   static const PluginTouches simulation = PluginTouches._('simulation')
+  static const PluginTouches tooling = PluginTouches._('tooling')
   static const PluginTouches view = PluginTouches._('view')
 
 final class PluginVersion implements Comparable<PluginVersion>

@@ -63,7 +63,7 @@ final class EditorSession {
   final PlaySession play;
 
   /// The commands this editor reads: its own, and those the project's
-  /// plugins added, each published as `<pluginId>.<name>`. What the
+  /// plugins added, each published as `<namespace>.<name>`. What the
   /// `command.run` tool reads a name through, so an agent reaches a plugin's
   /// command by the same door as a built-in one.
   final EditorPieces pieces;

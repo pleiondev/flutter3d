@@ -213,6 +213,22 @@ void main() {
       expect(PluginTouches.named('view'), PluginTouches.view);
     });
 
+    test('a plugin that touches only tooling is known and simulates '
+        'nothing', () {
+      // Mutation: leave `tooling` out of `named`. A manifest read back
+      // would be an unknown kind, held to the simulation's rules, and an
+      // editor plugin would enter every run's version.
+      final manifest = PluginManifest.fromJson(<String, Object?>{
+        'id': 'acme_boats.editor',
+        'apiVersion': '1.0',
+        'touches': 'tooling',
+      });
+      expect(manifest.touches, PluginTouches.tooling);
+      expect(manifest.touches.isKnown, isTrue);
+      expect(manifest.touches.simulates, isFalse);
+      expect(manifest.toJson()['touches'], 'tooling');
+    });
+
     test('keeps keys it does not know, and writes them back', () {
       // Mutation: drop `extra` from toJson. A tool that rewrites a manifest
       // strips a later minor's fields.

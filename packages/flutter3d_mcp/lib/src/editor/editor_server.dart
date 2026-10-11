@@ -24,7 +24,11 @@ const String editorMcpVersion = '1.0.0-rc.1';
 /// 1.1.0 with `plugin.list` and `asset.import`, the editor's plugin
 /// contract seen by an agent, and the `experiment.*` tools that edit an
 /// experiment document beside the level.
-const String editorMcpSchemaVersion = '1.1.0';
+///
+/// 1.2.0 with a plugin's commands, gizmos, importers and asset-browser
+/// entries offered under its namespace (`boats.sink` for the `boats.editor`
+/// plugin), as its other names are, rather than under its whole id.
+const String editorMcpSchemaVersion = '1.2.0';
 
 /// What each of [editorTools] is published as, `area.verb`, and what it does
 /// to the document. The name a tool is written under — the editor command's
@@ -207,7 +211,7 @@ each thing has, `selection.set` one of them, then the verbs that change it.
 `level.place`, `brush.add` and `light.add` do not need a selection;
 everything else does. Deleting renumbers what follows it, so call
 `level.list` again afterwards rather than counting. `command.run` runs any
-command the editor knows by name, a plugin's (`<plugin id>.<name>`)
+command the editor knows by name, a plugin's (`<namespace>.<name>`)
 included; `plugin.list` says what the project's plugins brought, and each
 plugin command is a tool of its own too.
 

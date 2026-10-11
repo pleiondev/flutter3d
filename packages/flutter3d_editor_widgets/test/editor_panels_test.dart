@@ -41,18 +41,42 @@ EditorPanel _tide({DockSide? dock = DockSide.right}) => EditorPanel(
 );
 
 void main() {
-  test('a plugin\'s panel is published under its id and withdrawn with it', () {
+  test('a plugin\'s panel is published under its namespace and withdrawn '
+      'with it', () {
     final panels = EditorPanels();
     var heard = 0;
     panels.listen(() => heard++);
-    final scope = _Scope('boats', 0);
+    final scope = _Scope('boats.editor', 0);
     panels.forPlugin(scope).addPanel(_tide());
-    // Mutation: publish the id as written.
+    // Mutation: publish the id as written, or under the whole plugin id
+    // (`boats.editor.tide`), a namespace of its own beside the package's.
     expect(panels.panels.single.id, 'boats.tide');
     expect(heard, 1);
+    // Mutation: refuse a dotted id with an ArgumentError, or take it as
+    // given. Another package's panel is refused as its other names are.
     expect(
       () => panels
           .forPlugin(_Scope('ships', 1))
+          .addPanel(
+            EditorPanel(
+              id: 'boats.tide',
+              title: 'Tide',
+              builder: (EditorPanelContext panel) => const SizedBox(),
+            ),
+          ),
+      throwsA(
+        isA<PluginException>().having(
+          (e) => e.message,
+          'message',
+          contains('the panel "boats.tide"'),
+        ),
+      ),
+    );
+    // The same package's runtime half, naming the panel whole, meets the
+    // one already there.
+    expect(
+      () => panels
+          .forPlugin(_Scope('boats', 1))
           .addPanel(
             EditorPanel(
               id: 'boats.tide',

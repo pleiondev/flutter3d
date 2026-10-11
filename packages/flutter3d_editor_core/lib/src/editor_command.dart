@@ -80,10 +80,10 @@ abstract final class DocumentCommand {
 /// here it does not reverse itself: [EditorHistory] keeps the document it
 /// changed.
 ///
-/// **Its [name] is the published one, `<pluginId>.<name>`**: the reader is
+/// **Its [name] is the published one, `<namespace>.<name>`**: the reader is
 /// registered as `addCommand('sink', …)` and `EditorPieces` files it under the
-/// plugin's id, so the command writes `boats.sink` under `command`, and that
-/// is what reads it back.
+/// plugin's namespace, so the command writes `boats.sink` under `command`,
+/// and that is what reads it back.
 ///
 /// `base`, so a member added here in a 1.x release arrives with a body.
 abstract base class PluginCommand extends DocumentCommand {

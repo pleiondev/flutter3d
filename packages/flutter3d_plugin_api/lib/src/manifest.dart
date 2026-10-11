@@ -1,3 +1,6 @@
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show PluginException;
+
 import 'host.dart';
 import 'plugin_version.dart';
 import 'version.dart';
@@ -12,12 +15,15 @@ import 'version.dart';
 /// and an older build may open the run regardless.
 ///
 /// The host holds a view plugin to its word: it may not add a step phase,
-/// a system to a step phase, or a subscriber to the step channel.
+/// a system to a step phase, or a subscriber to the step channel. A
+/// [tooling] plugin is held to the same, and further: it registers no
+/// subsystem and no render step, node or shader stage, since a game ships
+/// without it.
 ///
 /// An open value class rather than an enum (ARCHITECTURE.md §13.1), so a
-/// later minor may name a third kind; anything that is not [view] is
-/// treated as touching the simulation, the safe reading of a kind this
-/// build does not know.
+/// later minor may name another kind; anything that is not [view] or
+/// [tooling] is treated as touching the simulation, the safe reading of a
+/// kind this build does not know.
 final class PluginTouches {
   const PluginTouches._(this.name);
 
@@ -28,6 +34,13 @@ final class PluginTouches {
   /// editor pieces.
   static const PluginTouches view = PluginTouches._('view');
 
+  /// Runs only in the tools around a game: the editor's pieces, panels and
+  /// hints, and the tools it offers an agent. Leaves `SimulationVersion`
+  /// alone, as a [view] plugin does, and adds no subsystem, render step,
+  /// node or shader stage, so an application that is not an editor need not
+  /// install it at all: nothing a game draws or steps depends on it.
+  static const PluginTouches tooling = PluginTouches._('tooling');
+
   /// Reads a name back. A name this build does not know is kept as it was
   /// written, so a manifest read and written again says what it said, and
   /// it is treated as [simulation] — the kind held to every rule — until a
@@ -35,17 +48,19 @@ final class PluginTouches {
   static PluginTouches named(String name) => switch (name) {
     'view' => view,
     'simulation' => simulation,
+    'tooling' => tooling,
     _ => PluginTouches._(name),
   };
 
   final String name;
 
-  /// Whether this build knows the kind: [simulation] or [view].
-  bool get isKnown => name == simulation.name || name == view.name;
+  /// Whether this build knows the kind: [simulation], [view] or [tooling].
+  bool get isKnown =>
+      name == simulation.name || name == view.name || name == tooling.name;
 
   /// Whether a plugin of this kind may change the simulation: every kind but
-  /// [view], an unknown one included.
-  bool get simulates => this != view;
+  /// [view] and [tooling], an unknown one included.
+  bool get simulates => this != view && this != tooling;
 
   @override
   bool operator ==(Object other) =>
@@ -123,8 +138,9 @@ final class PluginManifest {
   /// The plugin's name, unique among the plugins of one engine: lower case
   /// letters, digits, `_`, `.` and `-`, starting with a letter.
   ///
-  /// Also the namespace its MCP tools and editor pieces are filed under, so
-  /// it should be the package's name or start with it.
+  /// Up to its first dot, also the [namespace] everything it registers is
+  /// filed under, its MCP tools and editor pieces included, so it should be
+  /// the package's name or start with it.
   final String id;
 
   /// The plugin API this plugin was written against. See [PluginApiVersion].
@@ -234,6 +250,24 @@ final class PluginManifest {
     return 'plugin "$id" registered $what "$name": every name a plugin '
         'registers is in its namespace, "$prefix<name>", so a name the engine '
         'or another plugin adds later cannot be one it already took';
+  }
+
+  /// [name] as this plugin publishes it: `<namespace>.<name>` for a bare
+  /// name, [name] itself when it is already in the namespace. What the
+  /// editor's pieces and panels and a plugin's MCP tools are filed under,
+  /// so the editor half of a package (`acme_boats.editor`) and its runtime
+  /// half (`acme_boats`) publish into one namespace, as their quantities,
+  /// fields and render steps already are.
+  ///
+  /// Throws an [ArgumentError] for an empty name, and a [PluginException]
+  /// naming both for a name outside the namespace ([nameProblem]).
+  String qualify(String name, {required String what}) {
+    if (name.isEmpty) throw ArgumentError.value(name, what, 'needs a name');
+    final whole = name.contains('.') ? name : '$namespace.$name';
+    if (nameProblem(whole, what: what) case final problem?) {
+      throw PluginException(problem);
+    }
+    return whole;
   }
 
   /// The engine's own namespace: `f3d.`, which no plugin from outside the

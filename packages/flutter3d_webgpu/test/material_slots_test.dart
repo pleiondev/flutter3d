@@ -24,7 +24,9 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_shaders/compile.dart';
+import 'package:flutter3d_webgpu/engine_shaders.dart';
 import 'package:flutter3d_webgpu/src/webgpu_bundle_section.dart';
+import 'package:flutter3d_webgpu/src/webgpu_shaders.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The sample plugin's hair model: a uniform in `MaterialParams`, two in a
@@ -171,4 +173,103 @@ void main() {
         ? null
         : 'glslang and naga are not on PATH',
   );
+
+  test(
+    'packed, the material\'s own blocks share one binding naga reads, and '
+    'a pipeline over the engine\'s mesh stage stays within 8 dynamic blocks',
+    () {
+      final compiled = compileStage(
+        prepared.glsl,
+        name: 'acme_sample_Hair',
+        fragment: true,
+      );
+      final document = wgslSectionDocument(
+        vertex: const <String, PackedStage>{},
+        fragment: <String, PackedStage>{
+          'acme_sample_Hair': (wgsl: compiled.wgsl, prepared: prepared),
+        },
+      );
+      final stage = decodeWebGpuSection(
+        Uint8List.fromList(utf8.encode(document)).buffer.asByteData(),
+      ).fragment['acme_sample_Hair']!;
+      // Mutation: give each block of the material's own a binding of its
+      // own. With the mesh stage's two and the engine's five, the pipeline
+      // asks for 9 dynamic uniform buffers, and WebGPU guarantees 8.
+      final packed = packMaterialBlocks(stage);
+      final params = packed.blocks.singleWhere(
+        (b) => b.name == 'MaterialParams',
+      );
+      final strands = packed.blocks.singleWhere((b) => b.name == 'Strands');
+      expect(
+        (strands.group, strands.binding),
+        (params.group, params.binding),
+      );
+      expect(params.offsetInBinding, 0);
+      expect(strands.offsetInBinding, params.sizeInBytes);
+      expect(
+        params.bindingSizeInBytes,
+        params.sizeInBytes + strands.sizeInBytes,
+      );
+      // The engine's blocks are where they were.
+      for (final block in stage.blocks) {
+        if (block.name == 'MaterialParams' || block.name == 'Strands') continue;
+        final kept = packed.blocks.singleWhere((b) => b.name == block.name);
+        expect((kept.binding, kept.bindingSizeInBytes), (
+          block.binding,
+          block.sizeInBytes,
+        ));
+      }
+      final dynamicBlocks = <(int, int)>{
+        for (final b in webGpuEngineShaders.vertex['MeshVertex']!.blocks)
+          (b.group, b.binding),
+        for (final b in packed.blocks) (b.group, b.binding),
+      };
+      expect(dynamicBlocks.length, lessThanOrEqualTo(8));
+
+      // And the text is WGSL naga takes, with one uniform where there
+      // were two.
+      expect(
+        RegExp(r'var<uniform>').allMatches(packed.wgsl).length,
+        RegExp(r'var<uniform>').allMatches(stage.wgsl).length - 1,
+      );
+      final scratch = Directory.systemTemp.createTempSync('packed');
+      try {
+        final file = File('${scratch.path}/packed.wgsl')
+          ..writeAsStringSync(packed.wgsl);
+        final validated = Process.runSync(nagaExecutable, <String>[
+          file.path,
+        ]);
+        expect(
+          validated.exitCode,
+          0,
+          reason: '${validated.stdout}${validated.stderr}',
+        );
+      } finally {
+        scratch.deleteSync(recursive: true);
+      }
+    },
+    skip: _answers(glslangExecutable) && _answers(nagaExecutable)
+        ? null
+        : 'glslang and naga are not on PATH',
+  );
+
+  test('a stage with fewer than two blocks of the material\'s own is left '
+      'as it is', () {
+    const alone = WebGpuStage(
+      wgsl: '@group(1) @binding(3) \nvar<uniform> material_params: '
+          'MaterialParams;\n',
+      attributes: <WebGpuAttribute>[],
+      blocks: <WebGpuBlock>[
+        WebGpuBlock(
+          name: 'MaterialParams',
+          group: 1,
+          binding: 3,
+          sizeInBytes: 16,
+          members: <WebGpuBlockMember>[],
+        ),
+      ],
+      samplers: <WebGpuSampler>[],
+    );
+    expect(packMaterialBlocks(alone), same(alone));
+  });
 }

@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`render.lit model defaults`** (new, 7 checks): a box drawn through a
+  plugin's lit model by a material that sets nothing is the box drawn with
+  every member at its declared default and every texture of its own white.
 - **The render checks run on a GPU backend.** `device:` is a
   `RenderCheckDevice`, which may open with an `await` as WebGPU does, and
   `materials:` (a `RenderCheckMaterials`) hands the renderer the plugin's

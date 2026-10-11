@@ -1332,6 +1332,11 @@ final class EngineLoop extends LoopRegistry {
   }
 }
 
+/// What a plugin that does not simulate says it touches only, as a refusal
+/// names it: `the view`, or `tooling`.
+String _touchesOnly(PluginTouches touches) =>
+    touches == PluginTouches.tooling ? 'tooling' : 'the view';
+
 final class _ScopedLoop extends LoopRegistry {
   _ScopedLoop(this._loop, this._scope);
 
@@ -1339,6 +1344,10 @@ final class _ScopedLoop extends LoopRegistry {
   final PluginScope _scope;
 
   bool get _viewOnly => !_scope.manifest.touches.simulates;
+
+  /// What the plugin says it touches only, as a refusal names it: `the
+  /// view`, or `tooling`.
+  String get _only => _touchesOnly(_scope.manifest.touches);
 
   @override
   Registration addPhase(
@@ -1348,8 +1357,8 @@ final class _ScopedLoop extends LoopRegistry {
   }) {
     if (_viewOnly && phase.kind == PhaseKind.step) {
       throw PluginException(
-        'plugin "${_scope.manifest.id}" declares that it touches only the '
-        'view, and added the step phase "${phase.name}". Add a frame phase, '
+        'plugin "${_scope.manifest.id}" declares that it touches only '
+        '$_only, and added the step phase "${phase.name}". Add a frame phase, '
         'or declare touches: PluginTouches.simulation',
       );
     }
@@ -1366,8 +1375,8 @@ final class _ScopedLoop extends LoopRegistry {
   }) {
     if (_viewOnly && phase.kind == PhaseKind.step) {
       throw PluginException(
-        'plugin "${_scope.manifest.id}" declares that it touches only the '
-        'view, and added the system "$name" to the step phase '
+        'plugin "${_scope.manifest.id}" declares that it touches only '
+        '$_only, and added the system "$name" to the step phase '
         '"${phase.name}". Run it in a frame phase, or declare touches: '
         'PluginTouches.simulation',
       );
@@ -1384,8 +1393,8 @@ final class _ScopedLoop extends LoopRegistry {
   }) {
     if (_viewOnly) {
       throw PluginException(
-        'plugin "${_scope.manifest.id}" declares that it touches only the '
-        'view, and added the assimilation "$name", which writes the world '
+        'plugin "${_scope.manifest.id}" declares that it touches only '
+        '$_only, and added the assimilation "$name", which writes the world '
         'inside the step. Declare touches: PluginTouches.simulation',
       );
     }

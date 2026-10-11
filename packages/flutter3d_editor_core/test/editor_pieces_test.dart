@@ -44,6 +44,29 @@ final class _Scope extends PluginScope {
   }
 }
 
+/// A gizmo that draws nothing: what is under test is its name.
+final class _NoMarks extends EditorGizmo {
+  const _NoMarks();
+
+  @override
+  List<GizmoMark> marksFor(GizmoContext context) => const <GizmoMark>[];
+}
+
+/// An importer that brings nothing in: what is under test is its name.
+final class _NoImport extends EditorImporter {
+  const _NoImport();
+
+  @override
+  String get label => 'Hull';
+
+  @override
+  List<String> get suffixes => const <String>['.hull'];
+
+  @override
+  Future<ImportResult> import(ImportRequest request) async =>
+      const ImportResult();
+}
+
 /// A plugin's command: lifts the selection by [by] metres.
 final class _Lift extends PluginCommand {
   const _Lift(this.by);
@@ -329,7 +352,7 @@ void main() {
     });
   });
 
-  test('a plugin\'s pieces are published under its id, so a later '
+  test('a plugin\'s pieces are published under its namespace, so a later '
       'built-in of the same name cannot collide', () {
     final pieces = EditorPieces();
     // Mutation: register a plugin's command under its bare name. A command
@@ -340,8 +363,73 @@ void main() {
       pieces.commandNames,
       containsAll(<String>['boats.lift', 'cranes.lift']),
     );
+  });
+
+  test('the editor half of a package publishes into the package\'s '
+      'namespace, and nowhere else', () {
+    final pieces = EditorPieces();
+    final editor = pieces.forPlugin(_Scope('boats.editor', 0));
+    // Mutation: prefix with the whole plugin id. The command would be
+    // `boats.editor.sink` while the runtime half's names are `boats.*`.
+    editor
+      ..addCommand('sink', _Lift.read)
+      ..addCommand('boats.lift', _Lift.read)
+      ..addGizmo('ring', const _NoMarks())
+      ..addImporter('hull', const _NoImport())
+      ..addAssetEntry(
+        'hulls',
+        const AssetBrowserEntry(label: 'Hulls', suffixes: <String>['.hull']),
+      )
+      ..addComponent(const EditorComponent(kind: 'wake', title: 'Wake'));
+    expect(pieces.pluginCommands.map((c) => c.name), <String>[
+      'boats.sink',
+      'boats.lift',
+    ]);
+    expect(pieces.pluginCommands.first.bareName, 'sink');
+    expect(pieces.pluginCommands.first.plugin, 'boats.editor');
+    expect(pieces.gizmoNames, <String>['boats.ring']);
+    expect(pieces.importers.single.name, 'boats.hull');
+    expect(pieces.assetEntries.first.name, 'boats.hulls');
+    expect(pieces.components.single.kind, 'boats.wake');
+    // Mutation: refuse a dotted name with an ArgumentError, or accept it.
+    // Outside the namespace each is refused as the plugin's other names
+    // are, with a PluginException that names the piece and the name.
+    for (final (what, add) in <(String, void Function())>[
+      ('the command', () => editor.addCommand('cranes.lift', _Lift.read)),
+      ('the gizmo', () => editor.addGizmo('cranes.ring', const _NoMarks())),
+      (
+        'the importer',
+        () => editor.addImporter('cranes.hull', const _NoImport()),
+      ),
+      (
+        'the asset entry',
+        () => editor.addAssetEntry(
+          'cranes.hulls',
+          const AssetBrowserEntry(label: 'Hulls', suffixes: <String>['.h']),
+        ),
+      ),
+      (
+        'the component',
+        () => editor.addComponent(
+          const EditorComponent(kind: 'cranes.wake', title: 'Wake'),
+        ),
+      ),
+    ]) {
+      expect(
+        add,
+        throwsA(
+          isA<PluginException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains(what), contains('"boats.<name>"')),
+          ),
+        ),
+        reason: what,
+      );
+    }
+    // A name inside the namespace holds one dot, the namespace's.
     expect(
-      () => pieces.forPlugin(_Scope('boats', 0)).addCommand('a.b', _Lift.read),
+      () => editor.addCommand('boats.a.b', _Lift.read),
       throwsA(isA<ArgumentError>()),
     );
   });

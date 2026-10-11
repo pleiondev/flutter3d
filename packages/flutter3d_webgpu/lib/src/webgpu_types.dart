@@ -268,7 +268,7 @@ final class WebGpuBindingLayouts {
             // group, and a frame of forty materials builds forty copies of the
             // camera.
             hasDynamicOffset: true,
-            minBindingSize: bound.block.sizeInBytes,
+            minBindingSize: bound.block.bindingSizeInBytes,
           ),
         ),
     ];

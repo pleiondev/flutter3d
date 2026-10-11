@@ -431,7 +431,13 @@ sampler2D material_<name>;`. A backend binds them:
 
 The renderer binds each block from `RenderMaterial.parameters`, the members
 that belong to it, and each texture from `RenderMaterial.extraTextures`
-under its binding name.
+under its binding name. **Every slot is bound on every draw**: a member the
+material leaves unset is bound at the default its source declares
+(`MaterialBlockMember.defaultValue`) — in the fragment stage, the material's
+own vertex stage and its instanced and lightmapped variants alike — and a
+texture it names none for at a white texel, so a material written before a
+model grew a member draws the same on every backend. The render check
+`render.lit model defaults` holds each backend to it.
 
 ### Light codes
 

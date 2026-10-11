@@ -252,9 +252,10 @@ final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
                 '"${handle.name}", which is already in use',
           );
         }
+        final packed = packMaterialBlocks(stage);
         fresh[handle] = (
-          stage: stage,
-          module: _compiler.compileModule(handle.name, stage.wgsl),
+          stage: packed,
+          module: _compiler.compileModule(handle.name, packed.wgsl),
         );
       }
     } on StateError catch (error) {

@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A plugin's tools are published under its namespace.**
+  `McpTools.addTool` and `declareSchemaVersion` file a plugin's tools under
+  `PluginManifest.namespace`, so the editor half of a package (`wind.editor`)
+  offers `wind.gust` beside the runtime half's tools, and one schema version
+  covers them; a plugin naming another namespace is refused with a
+  `PluginException`. `shareCommands` offers a plugin's editor command under
+  the same name. The editor server's schema version is 1.2.0.
 - **A plugin's editor command is a tool of its own.** `shareCommands`
   (new, in `editor.dart`) offers every command a plugin added to
   `EditorPieces` as a project tool, `<plugin id>.<name>`, its argument

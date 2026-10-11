@@ -184,6 +184,24 @@ void main() {
       }
       expect(_warmth(installed), 0.0);
     });
+
+    test('but the version names the plugin, as every simulating plugin\'s '
+        'does', () {
+      // What the library's comment says, held: the digests are the
+      // default's, the version is not. A plugin that touches the
+      // simulation is counted under every profile.
+      final plain = _loop(
+        profile: SimulationProfile.deterministic,
+        withPlugin: false,
+      );
+      final installed = _loop(profile: SimulationProfile.deterministic);
+      expect(plain.simulationVersion.plugins, isNot(contains('outside')));
+      expect(installed.simulationVersion.plugins['outside'], 1);
+      expect(
+        installed.simulationVersion.refusalOn(plain.simulationVersion),
+        isNotNull,
+      );
+    });
   });
 
   group('in the frame, on the software rasteriser', () {

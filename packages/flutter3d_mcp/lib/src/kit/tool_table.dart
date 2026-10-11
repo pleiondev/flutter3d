@@ -65,7 +65,7 @@ final class OfferedPrompt {
 /// **One naming scheme across every server**: the thing acted on, a dot, and
 /// what is done to it — `brush.add`, `capture.open`, `run.write`. A list of
 /// two hundred tools sorts into groups an agent can read, and a plugin's
-/// tools (`<plugin id>.<name>`) read the same way.
+/// tools (`<namespace>.<name>`) read the same way.
 ///
 /// A server is handed these by the name its tools are written under; the
 /// written name stays answerable as an alias until the next major release,
@@ -281,7 +281,7 @@ base class ToolTableServer<S, A> {
   final void Function(String clientName)? onInitialize;
 
   /// The tools the project's plugins bring, offered after this server's own
-  /// [tools] and [aliases] under their published names, `<plugin id>.<name>`
+  /// [tools] and [aliases] under their published names, `<namespace>.<name>`
   /// — decision 19 of the plugin plan. Null offers none, which is every
   /// server this repository starts on its own: what `api/<package>.mcp`
   /// snapshots is a server built without them.
