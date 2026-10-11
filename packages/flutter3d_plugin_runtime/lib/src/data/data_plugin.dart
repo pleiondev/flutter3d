@@ -66,6 +66,22 @@ final class DataEventDeclaration {
   };
 }
 
+/// One section of a document a registered reader read: the [DataSection]
+/// that read it and what its `read` returned.
+///
+/// A class rather than a record, so a later minor can say more of a read
+/// section — where in the document it was, what it required — without
+/// breaking the code that reads [reader] and [section].
+final class DataPluginSection {
+  const DataPluginSection({required this.reader, required this.section});
+
+  /// The subsystem's reader that took the section.
+  final DataSection reader;
+
+  /// What [DataSection.read] made of it, which [reader] writes back.
+  final Object section;
+}
+
 /// A plugin written as data: what a `.f3dplugin` file holds.
 ///
 /// **Decision 4 of `tasks/0.9-plugins.md`: some plugins load while the game
@@ -77,7 +93,8 @@ final class DataEventDeclaration {
 /// **What the runtime reads itself** is what every engine has, a server that
 /// replays a run included:
 ///
-/// * `phases` — loop phases, step or frame, ordered by `after`/`before`;
+/// * `phases` — loop phases, step or frame, ordered by `after`/`before`,
+///   added to the loop as `<plugin id>.<name>`;
 /// * `events` — the events its systems publish, declared on the bus as
 ///   `<plugin id>.<name>` ([PluginDataEvent]);
 /// * `wasm` — step systems in Wasm under ABI [wasmPluginAbi];
@@ -99,7 +116,7 @@ final class DataEventDeclaration {
 ///
 /// ```json
 /// {
-///   "format": "f3d.plugin", "version": 3,
+///   "format": "f3d.plugin", "version": 4,
 ///   "manifest": {"id": "gusts", "apiVersion": "1.0", "touches": "simulation"},
 ///   "phases": [{"name": "weather", "kind": "step",
 ///               "after": ["physics"], "before": ["elements"]}],
@@ -126,7 +143,7 @@ final class DataPluginDocument {
     this.events = const <DataEventDeclaration>[],
     this.wasm = const <WasmSystemSpec>[],
     this.expressions = const <ExpressionSystemSpec>[],
-    this.sections = const <String, ({DataSection reader, Object section})>{},
+    this.sections = const <String, DataPluginSection>{},
     this.extra = const <String, Object?>{},
   });
 
@@ -142,14 +159,77 @@ final class DataPluginDocument {
   /// way to the expression language, and a version-2 `scripts` entry is read
   /// as an expression system with its `source` kept. A version-2 build
   /// refuses a version-3 document rather than keep its systems unread.
-  static const int formatVersion = 3;
+  ///
+  /// **4 files a phase under the plugin**, as its events and Wasm systems
+  /// already were: a phase named `weather` in `phases` is the loop's
+  /// `<id>.weather`, and so is `weather` wherever the document orders a
+  /// phase or places a system against one of its own (`after`, `before`,
+  /// `wasm[].phase`, `expressions[].phase`). A name that is not one of the
+  /// document's phases — the engine's `physics`, another plugin's — is the
+  /// loop's name as written. In version 3 a phase was the loop's name as
+  /// written, a bare one the engine could add in a minor; the lift takes
+  /// `<id>.` off a version-3 name that already carried it, so it is not
+  /// filed twice. A version-3 build refuses a version-4 document rather
+  /// than add its phases under names the plugin does not own.
+  static const int formatVersion = 4;
 
   /// Entry `i` lifts a document from version `i + 1` to `i + 2`. 1 → 2 is the
   /// identity: [FormatSpec.open] has read the version from `f3dplugin`.
   static const List<FormatMigration> _migrations = <FormatMigration>[
     _identity,
     _scriptsToExpressions,
+    _ownPhasesBare,
   ];
+
+  /// 3 → 4: a phase of the document's own written as `<id>.<name>`, and
+  /// each reference to it, becomes `<name>`, which version 4 files under
+  /// `<id>.` at install. Every other name stays as written.
+  static Map<String, Object?> _ownPhasesBare(Map<String, Object?> document) {
+    final id = switch (document['manifest']) {
+      {'id': final String id} => id,
+      _ => null,
+    };
+    final phases = document['phases'];
+    if (id == null || phases is! List<Object?>) return document;
+    final prefix = '$id.';
+    final own = <String>{
+      for (final phase in phases)
+        if (phase case {'name': final String name}) name,
+    };
+    Object? bare(Object? name) =>
+        name is String && name.startsWith(prefix) && own.contains(name)
+        ? name.substring(prefix.length)
+        : name;
+    Object? names(Object? list) => switch (list) {
+      final List<Object?> names => <Object?>[for (final n in names) bare(n)],
+      _ => list,
+    };
+    Object? entries(Object? list, Set<String> keys) => switch (list) {
+      final List<Object?> entries => <Object?>[
+        for (final entry in entries)
+          if (entry is Map<String, Object?>)
+            <String, Object?>{
+              for (final MapEntry(:key, :value) in entry.entries)
+                key: !keys.contains(key)
+                    ? value
+                    : key == 'after' || key == 'before'
+                    ? names(value)
+                    : bare(value),
+            }
+          else
+            entry,
+      ],
+      _ => list,
+    };
+    return <String, Object?>{
+      for (final MapEntry(:key, :value) in document.entries)
+        key: switch (key) {
+          'phases' => entries(value, const <String>{'name', 'after', 'before'}),
+          'wasm' || 'expressions' => entries(value, const <String>{'phase'}),
+          _ => value,
+        },
+    };
+  }
 
   static Map<String, Object?> _identity(Map<String, Object?> document) =>
       document;
@@ -226,7 +306,7 @@ final class DataPluginDocument {
 
   /// The sections a registered reader read, by name: each with the
   /// [DataSection] that read it and what its [DataSection.read] returned.
-  final Map<String, ({DataSection reader, Object section})> sections;
+  final Map<String, DataPluginSection> sections;
 
   /// Top-level keys this build does not know, kept as they were read.
   final Map<String, Object?> extra;
@@ -237,7 +317,7 @@ final class DataPluginDocument {
   List<String> get resources => <String>{
     for (final system in wasm) system.module,
     for (final system in expressions) ?system.source,
-    for (final (:reader, :section) in sections.values)
+    for (final DataPluginSection(:reader, :section) in sections.values)
       ...reader.resources(section),
   }.toList(growable: false);
 
@@ -387,11 +467,14 @@ final class DataPluginDocument {
     }
 
     final context = DataSectionContext(plugin: id);
-    final sections = <String, ({DataSection reader, Object section})>{
+    final sections = <String, DataPluginSection>{
       for (final key in json.keys)
         if (!DataSections.runtimeKeys.contains(key))
           if (registry?[key] case final DataSection reader)
-            key: (reader: reader, section: reader.read(json[key], context)),
+            key: DataPluginSection(
+              reader: reader,
+              section: reader.read(json[key], context),
+            ),
     };
 
     return DataPluginDocument(
@@ -400,10 +483,7 @@ final class DataPluginDocument {
       events: List<DataEventDeclaration>.unmodifiable(events),
       wasm: List<WasmSystemSpec>.unmodifiable(wasm),
       expressions: List<ExpressionSystemSpec>.unmodifiable(expressions),
-      sections:
-          Map<String, ({DataSection reader, Object section})>.unmodifiable(
-            sections,
-          ),
+      sections: Map<String, DataPluginSection>.unmodifiable(sections),
       extra: Map<String, Object?>.unmodifiable(
         FormatDocument.unknownIn(
           json,
@@ -417,7 +497,7 @@ final class DataPluginDocument {
   Map<String, Object?> toJson() => <String, Object?>{
     ...format.envelope(
       requires: <String>{
-        for (final (:reader, section: _) in sections.values)
+        for (final DataPluginSection(:reader) in sections.values)
           ?reader.requirement,
       }.toList(),
     ),
@@ -431,7 +511,7 @@ final class DataPluginDocument {
     if (wasm.isNotEmpty) 'wasm': <Object?>[for (final w in wasm) w.toJson()],
     if (expressions.isNotEmpty)
       'expressions': <Object?>[for (final e in expressions) e.toJson()],
-    for (final MapEntry(key: name, value: (:reader, :section))
+    for (final MapEntry(key: name, value: DataPluginSection(:reader, :section))
         in sections.entries)
       name: reader.write(section),
   };
@@ -543,7 +623,10 @@ final class DataPluginLoader {
     final Map<String, Object> loaded;
     try {
       loaded = <String, Object>{
-        for (final MapEntry(key: name, value: (:reader, :section))
+        for (final MapEntry(
+              key: name,
+              value: DataPluginSection(:reader, :section),
+            )
             in document.sections.entries)
           name: reader.load(section, context),
       };
@@ -672,8 +755,18 @@ final class DataPlugin extends Flutter3dPlugin {
         'plugin on a build that evaluates them',
       );
     }
+    // A phase of the document's own is filed under the plugin, wherever it
+    // is named; any other is the loop's name as written.
+    final own = <String>{for (final phase in document.phases) phase.name};
+    String inLoop(String phase) => own.contains(phase) ? '$id.$phase' : phase;
     for (final phase in document.phases) {
-      host.loop.addPhase(phase.phase, after: phase.after, before: phase.before);
+      host.loop.addPhase(
+        phase.kind == PhaseKind.frame
+            ? LoopPhase.frame(inLoop(phase.name))
+            : LoopPhase.step(inLoop(phase.name)),
+        after: phase.after.map(inLoop).toList(),
+        before: phase.before.map(inLoop).toList(),
+      );
     }
     for (final event in document.events) {
       host.events.declare<PluginDataEvent>(
@@ -686,7 +779,16 @@ final class DataPlugin extends Flutter3dPlugin {
       _wasmSystems.add(
         installWasmSystem(
           host,
-          spec,
+          WasmSystemSpec(
+            module: spec.module,
+            system: spec.system,
+            phase: inLoop(spec.phase),
+            after: spec.after,
+            before: spec.before,
+            fields: spec.fields,
+            events: spec.events,
+            limits: spec.limits,
+          ),
           _modules[spec.system]!,
           runtime: _wasmRuntime,
         ),
@@ -731,7 +833,7 @@ final class DataPlugin extends Flutter3dPlugin {
       numbersOf: numbersOfDataEvent,
       note: _notes.add,
     );
-    for (final MapEntry(key: name, value: (:reader, section: _))
+    for (final MapEntry(key: name, value: DataPluginSection(:reader))
         in document.sections.entries) {
       reader.install(host, _sections[name]!, context);
     }

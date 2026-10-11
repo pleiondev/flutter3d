@@ -97,7 +97,7 @@ List<Map<String, Object?>> _written(DataPluginDocument document, String name) =>
 
 void main() {
   group('the document', () {
-    for (final version in <int>[1, 2, 3]) {
+    for (final version in <int>[1, 2, 3, 4]) {
       test('the v$version fixture reads, every key in its place', () {
         // Mutation: drop a key from `_read` or a section's `read`, or read
         // `present` as false. The fixture holds every key its version has,
@@ -113,9 +113,20 @@ void main() {
           'frame shimmer',
         ]);
         expect(document.events.single.name, 'gust');
-        final kinds =
-            document.sections['entityKinds']!.section as List<DataEntityKind>;
-        expect(kinds.map((k) => k.type), <String>['vent', 'wind_marker']);
+        // A class, not a record, so a later minor can say more of a section
+        // read than its reader and its value.
+        final read = document.sections['entityKinds']!;
+        expect(read, isA<DataPluginSection>());
+        expect(read.reader, same(entityKindsSection));
+        final kinds = read.section as List<DataEntityKind>;
+        // From version 4 a plugin's entity types are in its namespace, as
+        // its install refuses any other.
+        expect(
+          kinds.map((k) => k.type),
+          version < 4
+              ? <String>['vent', 'wind_marker']
+              : <String>['glow.vent', 'glow.wind_marker'],
+        );
         expect(kinds.first.requires, <String>['size', 'strength']);
         expect(kinds.first.collider, ColliderKind.trigger);
         expect(
@@ -320,7 +331,7 @@ void main() {
       expect(blow.writes, <String>['wind']);
       expect(document.extra, isEmpty);
       final written = document.toJson();
-      expect(written['version'], 3);
+      expect(written['version'], DataPluginDocument.formatVersion);
       expect(written.containsKey('scripts'), isFalse);
       expect(written['expressions'], hasLength(1));
       expect(document.resources, <String>['blow.dart']);
@@ -538,7 +549,7 @@ void main() {
               <String, Object?>{'name': 'gust'},
             ],
             'entityKinds': <Object?>[
-              <String, Object?>{'type': 'vent', 'collider': 'trigger'},
+              <String, Object?>{'type': 'gusts.vent', 'collider': 'trigger'},
             ],
           }),
           _files(const <String, String>{}),
@@ -553,7 +564,7 @@ void main() {
           'input',
           'movers',
           'physics',
-          'weather',
+          'gusts.weather',
           'fields',
           'rules',
           'publish',
@@ -563,18 +574,127 @@ void main() {
         expect(loop.events.declared.where(ours).map((d) => d.name), <String>[
           'gusts.gust',
         ]);
-        expect(kinds.registry()['vent'], isA<DataEntityKind>());
+        expect(kinds.registry()['gusts.vent'], isA<DataEntityKind>());
 
         loop.plugins.disable('gusts');
         loop.runSteps(1);
         expect(
           loop.phases(PhaseKind.step).map((p) => p.name),
-          isNot(contains('weather')),
+          isNot(contains('gusts.weather')),
         );
         expect(loop.events.declared.where(ours), isEmpty);
-        expect(kinds.registry()['vent'], isNull);
+        expect(kinds.registry()['gusts.vent'], isNull);
       },
     );
+
+    test('a phase is filed under the plugin, and so is every reference '
+        'to it', () async {
+      // Mutation: add the phase under the name the document gives it, or
+      // prefix the Wasm system's phase but not the phase itself. The loop
+      // then holds a bare `weather` (refused: it is outside the namespace)
+      // or a system in a phase that is not there.
+      final plugin = await const DataPluginLoader().load(
+        jsonEncode(<String, Object?>{
+          'format': 'f3d.plugin',
+          'version': DataPluginDocument.formatVersion,
+          'manifest': <String, Object?>{'id': 'gusts', 'apiVersion': '1.0'},
+          'phases': <Object?>[
+            <String, Object?>{
+              'name': 'weather',
+              'after': <String>['physics'],
+            },
+            <String, Object?>{
+              'name': 'calm',
+              'after': <String>['weather'],
+              'before': <String>['fields'],
+            },
+          ],
+          'wasm': <Object?>[
+            <String, Object?>{
+              'module': 'gusts.wasm',
+              'system': 'blow',
+              'phase': 'calm',
+              'fields': <Object?>[
+                <String, Object?>{'name': 'wind', 'write': true},
+              ],
+            },
+          ],
+        }),
+        MemoryPluginSource(<String, Uint8List>{'gusts.wasm': _gusts()}),
+      );
+      final wind = Float64List(1);
+      final loop = EngineLoop(
+        input: InputState(),
+        registries: <PluginRegistry>[
+          WorldFields(<WorldField>[ListWorldField('wind', wind)]),
+        ],
+        plugins: <Flutter3dPlugin>[plugin],
+      );
+      expect(loop.phases(PhaseKind.step).map((p) => p.name), <String>[
+        'input',
+        'movers',
+        'physics',
+        'gusts.weather',
+        'gusts.calm',
+        'fields',
+        'rules',
+        'publish',
+      ]);
+      expect(loop.systemsIn(const LoopPhase.step('gusts.calm')), <String>[
+        'gusts.blow',
+      ]);
+      // Written back as the author wrote it: the prefix is the install's.
+      expect(
+        (plugin.document.toJson()['phases']! as List<Object?>).map(
+          (p) => (p! as Map<String, Object?>)['name'],
+        ),
+        <String>['weather', 'calm'],
+      );
+    });
+
+    test('a version 3 phase already in the namespace is not filed twice', () {
+      // Mutation: lift 3 → 4 by the identity. A version 3 document that
+      // named its phase `gusts.weather` to pass the namespace check would
+      // install `gusts.gusts.weather`, and its Wasm system would land in a
+      // phase no other plugin can order against by the name it wrote.
+      final document = DataPluginDocument.fromJson(<String, Object?>{
+        'format': 'f3d.plugin',
+        'version': 3,
+        'manifest': <String, Object?>{'id': 'gusts', 'apiVersion': '1.0'},
+        'phases': <Object?>[
+          <String, Object?>{
+            'name': 'gusts.weather',
+            'after': <String>['physics'],
+          },
+          <String, Object?>{
+            'name': 'still',
+            'after': <String>['gusts.weather'],
+            'before': <String>['other.phase'],
+          },
+        ],
+        'wasm': <Object?>[
+          <String, Object?>{
+            'module': 'gusts.wasm',
+            'system': 'blow',
+            'phase': 'gusts.weather',
+          },
+        ],
+        'expressions': <Object?>[
+          <String, Object?>{
+            'system': 'sway',
+            'phase': 'gusts.weather',
+            'text': 'wind[0] = 1',
+          },
+        ],
+      });
+      expect(document.phases.map((p) => p.name), <String>['weather', 'still']);
+      expect(document.phases.last.after, <String>['weather']);
+      // Another plugin's phase, and the engine's, are named as written.
+      expect(document.phases.last.before, <String>['other.phase']);
+      expect(document.phases.first.after, <String>['physics']);
+      expect(document.wasm.single.phase, 'weather');
+      expect(document.expressions.single.phase, 'weather');
+    });
 
     test('a Wasm system from the document steps the world', () async {
       // Mutation: decode the module at install rather than at load. A module

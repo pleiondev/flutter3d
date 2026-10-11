@@ -1,6 +1,6 @@
 {
   "format": "f3d.plugin",
-  "version": 3,
+  "version": 4,
   "requires": [],
   "generator": "flutter3d",
   "manifest": {
