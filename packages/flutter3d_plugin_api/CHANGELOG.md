@@ -1,5 +1,21 @@
 ## 1.0.0-rc.1
 
+- **The engine is a list of packages, not a prefix.** `isEngine` reads
+  `PluginManifest.engineNamespaces` (new), the packages this repository
+  publishes and the ones it published before 1.0.0 under other names, so a
+  package somebody else calls `flutter3d_frost` registers in its namespace
+  like any plugin from outside.
+- **A plugin may not be named after an area of the engine.** `idProblem`
+  refuses a plugin from outside whose namespace is one of
+  `PluginManifest.reservedAreas` (new): the areas of the engine's MCP
+  tools, VM extensions and events (`light`, `render`, `physics`, …) and
+  the ones a minor is expected to bring, so a tool or an extension the
+  engine adds to an area never shadows a plugin's.
+- **A simulation keeps what a newer build wrote.** `SimulationVersion.extra`
+  (new) holds the keys `fromJson` does not know and `toJson` writes them
+  back; `==` and `refusalOn` compare them, so a run or a hello from a
+  simulation with a part this build has no field for is refused with the
+  key named rather than read as this build's.
 - **A plugin may touch only tooling.** `PluginTouches.tooling` (new) is a
   plugin for the editor and its tools: it leaves `SimulationVersion` alone
   as a view plugin does, and the hosts refuse it a step phase, a step

@@ -473,6 +473,8 @@ final class PluginManifest
   final String id
   final String? description
   final int simulationVersion
+  static const Set<String> engineNamespaces = …
+  static const Set<String> reservedAreas = …
   static const String reservedNamespace = 'f3d'
 
 final class PluginPermission
@@ -775,8 +777,9 @@ final class SimulationVersion
   String toString()
   String? refusalOn(SimulationVersion running)
   bool operator ==(Object other)
-  const SimulationVersion({this.engine = engineVersion, this.genre, this.genreVersion = 1, this.otherGenres = const <String, int>{}, this.plugins = const <String, int>{}, this.profile = SimulationProfile.deterministic, this.subsystems = const <String, int>{}})
+  const SimulationVersion({this.engine = engineVersion, this.genre, this.genreVersion = 1, this.otherGenres = const <String, int>{}, this.plugins = const <String, int>{}, this.profile = SimulationProfile.deterministic, this.subsystems = const <String, int>{}, this.extra = const <String, Object?>{}})
   factory SimulationVersion.fromJson(Map<String, Object?> json, {Iterable<SimulationProfile> profiles = SimulationProfile.values})
+  final Map<String, Object?> extra
   final Map<String, int> otherGenres
   final Map<String, int> plugins
   final Map<String, int> subsystems

@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1743 places,
+only in a major version. To get there, 0.8's API changed in 1744 places,
 361 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -190,7 +190,7 @@ the game reads every version of them as before.
 | `f3d.inputTape` | `.tape.json` | `flutter3d_sim` | v1–v2 | kept below v2, at the lowest version that holds it |
 | `f3d.telemetry` | `.upload.json` | `flutter3d_sim` | v1 | nothing to lift |
 | `f3d.effect` | `.f3dfx` | `flutter3d_particles` | v1–v2 | lifted to v2 through its chain |
-| `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v3 | lifted to v3 through its chain |
+| `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v4 | lifted to v4 through its chain |
 | `f3d.physicalMaterial` | `.material.json` | `flutter3d_matter` | v1–v2 | lifted to v2 through its chain |
 | `f3d.voxelWorld` | `.voxels.json` | `flutter3d_voxel` | v1 | nothing to lift |
 | `f3d.experiment` | `.f3d.experiment` | `flutter3d_education` | v1 | nothing to lift |
@@ -222,7 +222,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1743 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 119 `migrate`, 361 by hand, 333 nothing to do, 459 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1744 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 119 `migrate`, 361 by hand, 334 nothing to do, 459 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -1562,6 +1562,10 @@ carried out:
 - <a id="physics-pushOutsideObstacle"></a>**`pushOutsideObstacle`** (`dart fix`). `pushOutsideObstacle` is imported from `package:flutter3d_physics/flutter3d_physics.dart`.
 - <a id="physics-pushParticleOutside"></a>**`pushParticleOutside`** (`dart fix`). `pushParticleOutside` is imported from `package:flutter3d_physics/flutter3d_physics.dart`.
 - <a id="physics-readNumber"></a>**`readNumber`** (`dart fix`). `readNumber` is imported from `package:flutter3d_physics/flutter3d_physics.dart`.
+
+### `flutter3d_plugin_api`
+
+- <a id="4z-plugin_api-PluginManifest-nameProblem"></a>**`PluginManifest.nameProblem`** (nothing to do). Every registry a plugin reaches through its host now asks it: a component codec, an event, a loop phase or system, a snapshot part, a data section, a world field, an entity kind, a behavior kind, a probe sampler, a question, an element's event kind and switch. A plugin from outside the engine that registers a bare name (`health`) is refused at install with a `PluginException` naming the name and the namespace it belongs in (`acme.health`), so a name the engine adds in a minor never meets one a plugin took. The engine is the packages this repository publishes (`PluginManifest.engineNamespaces`), not anything starting `flutter3d_`, and a plugin id may not be one of the engine's areas (`PluginManifest.reservedAreas`). No call changes; the names a plugin registers do, and the refusal says which.
 
 ### `flutter3d_plugin_runtime`
 

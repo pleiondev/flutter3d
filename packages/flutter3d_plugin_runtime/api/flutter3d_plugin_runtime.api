@@ -31,18 +31,18 @@ final class DataPlugin extends Flutter3dPlugin
 final class DataPluginDocument
   List<String> get resources
   Map<String, Object?> toJson()
-  const DataPluginDocument({required this.manifest, this.phases = const <DataPhase>[], this.events = const <DataEventDeclaration>[], this.wasm = const <WasmSystemSpec>[], this.expressions = const <ExpressionSystemSpec>[], this.sections = const <String, ({DataSection reader, Object section})>{}, this.extra = const <String, Object?>{}})
+  const DataPluginDocument({required this.manifest, this.phases = const <DataPhase>[], this.events = const <DataEventDeclaration>[], this.wasm = const <WasmSystemSpec>[], this.expressions = const <ExpressionSystemSpec>[], this.sections = const <String, DataPluginSection>{}, this.extra = const <String, Object?>{}})
   factory DataPluginDocument.fromJson(Map<String, Object?> document, {DataSectionRegistry? sections})
   factory DataPluginDocument.parse(String text, {DataSectionRegistry? sections})
   final List<DataEventDeclaration> events
   final List<DataPhase> phases
   final List<ExpressionSystemSpec> expressions
   final List<WasmSystemSpec> wasm
-  final Map<String, ({DataSection reader, Object section})> sections
+  final Map<String, DataPluginSection> sections
   final Map<String, Object?> extra
   final PluginManifest manifest
   static const FormatSpec format = …
-  static const int formatVersion = 3
+  static const int formatVersion = 4
 
 final class DataPluginFormatException extends Flutter3dFormatException
   String toString()
@@ -57,6 +57,11 @@ final class DataPluginLoader
   final Future<Uint8List> Function(Uri url)? fetch
   final PluginGrants grants
   final WasmRuntime wasmRuntime
+
+final class DataPluginSection
+  const DataPluginSection({required this.reader, required this.section})
+  final DataSection reader
+  final Object section
 
 final class DataSections extends DataSectionRegistry
   DataSection? operator [](String name)
@@ -174,10 +179,6 @@ final class WasmLimits
   final int memoryPages
 
 final class WasmModule
-  final List<CompiledFunction> functions
-  final List<DataSegment> data
-  final List<FunctionType> functionTypes
-  final List<ModuleGlobal> globals
   final List<String> importNames
   final List<int> imports
   final Map<String, int> functionExports
