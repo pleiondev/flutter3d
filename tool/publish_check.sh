@@ -118,7 +118,7 @@ done
 # **The API against what pub.dev has.** `dart_apitool` compares each
 # published package with its latest version there and holds the pubspec's
 # version to what changed. It is not installed by anything here, so on a
-# machine without it, or offline, the script says it skipped and passes; see
+# machine without it, or offline, the script fails and says why; see
 # tool/api_against_pub.sh for what it hands the tool and why.
 echo ""
 echo "── api against pub.dev"

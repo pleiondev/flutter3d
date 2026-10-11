@@ -15,13 +15,16 @@
 # and a release is the wrong moment to find out which. So this runs as the
 # last step of `tool/publish_check.sh`.
 #
-# **It skips, saying so, when it cannot ask.** `dart-apitool` is not a
-# dependency of this repository and nothing here installs global tools; and
-# pub.dev may be out of reach. In either case it prints why, compares nothing,
-# and exits 0 — a check that cannot run is not a check that failed. To have
-# it run:
+# **It fails, saying why, when it cannot ask.** A check that did not run
+# is not a check that passed, and a release gate that prints "skipped" and
+# exits 0 reads as green in a log nobody opens. So a missing `dart-apitool`
+# and an unreachable pub.dev both exit 2, naming what is missing.
+# `dart-apitool` is not a dependency of this repository; install it once:
 #
 #   dart pub global activate dart_apitool
+#
+# It is looked for on PATH, then in pub's global bin (`~/.pub-cache/bin`),
+# where that command puts it and where PATH often does not reach.
 #
 # **What it hands the tool.** A copy of the package with `resolution:
 # workspace` taken out and a `pubspec_overrides.yaml` pointing every sibling
@@ -31,16 +34,20 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-if ! command -v dart-apitool >/dev/null 2>&1; then
-  echo "api against pub.dev: skipped, dart-apitool is not installed."
-  echo "  Install it with \`dart pub global activate dart_apitool\` to compare"
-  echo "  each package with its published version. Nothing was compared."
-  exit 0
+APITOOL="$(command -v dart-apitool || true)"
+if [ -z "$APITOOL" ] && [ -x "${PUB_CACHE:-$HOME/.pub-cache}/bin/dart-apitool" ]; then
+  APITOOL="${PUB_CACHE:-$HOME/.pub-cache}/bin/dart-apitool"
+fi
+if [ -z "$APITOOL" ]; then
+  echo "api against pub.dev: FAILED, dart-apitool is not installed." >&2
+  echo "  Install it with \`dart pub global activate dart_apitool\` and run" >&2
+  echo "  this again. Nothing was compared." >&2
+  exit 2
 fi
 
 if ! curl -sf --max-time 5 -o /dev/null https://pub.dev/api/packages/flutter3d; then
-  echo "api against pub.dev: skipped, pub.dev is not reachable. Nothing was compared."
-  exit 0
+  echo "api against pub.dev: FAILED, pub.dev is not reachable. Nothing was compared." >&2
+  exit 2
 fi
 
 WORK="$(mktemp -d)"
@@ -72,7 +79,8 @@ while read -r name dir <&3; do
     continue
   fi
   if [ "$status" != 200 ]; then
-    printf '%-28s skipped, pub.dev answered %s\n' "$name" "$status"
+    printf '%-28s FAILED, pub.dev answered %s; nothing compared\n' "$name" "$status"
+    FAILED=1
     continue
   fi
 
@@ -99,7 +107,7 @@ while read -r name dir <&3; do
 
   # `fully`: a break needs a major, an addition a minor, as pub.dev's latest
   # version and the pubspec's say.
-  out="$(dart-apitool diff --old "pub://$name" --new "$copy" \
+  out="$("$APITOOL" diff --old "pub://$name" --new "$copy" \
     --version-check-mode=fully 2>&1)"
   if [ $? -ne 0 ]; then
     printf '%-28s FAILED\n' "$name"
