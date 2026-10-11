@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **`dielectricF0`: a dielectric's F0, written once.** 0.04, the
+  reflectance head-on of an index of 1.5. The GLSL reads it as
+  `kDielectricF0` from `shaders/lib/shading_constants.glsl`, which
+  `tool/gen_shading_constants.dart` writes from the Dart constant; the
+  metal-rough base, the coat's Fresnel, lobe and ambient, the iridescence's
+  start and the reflections' Schlick term no longer write the literal. The
+  compiled stages are the ones they were: the WGSL translation is
+  unchanged to the byte.
 - **A material's own binding names are one name space.** `prepareStage`
   refuses, with a `WgslPrepareException` naming the source, an
   `ownBindings` list that names one block or texture twice, or that takes

@@ -154,4 +154,10 @@ void main() {
       expect(lightOverflowOf(const SceneLighting()), 0);
     });
   });
+
+  test('a new project is exposed as any frame is by default', () {
+    // Mutation: write the engine's 1.6 here again, and a change to the
+    // engine's default leaves every new project behind.
+    expect(const SceneLighting().exposure, RenderSettings.defaultExposure);
+  });
 }

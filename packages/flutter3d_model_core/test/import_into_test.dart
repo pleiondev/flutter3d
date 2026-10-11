@@ -44,6 +44,8 @@ _Doc oneCube({
   String name = 'cube',
   bool withTexture = true,
   double roughness = 0.25,
+  String? physicalMaterial,
+  int? materialVersion,
 }) => _Doc(
   surfaces: <ModelSurface>[
     ModelSurface(
@@ -72,6 +74,8 @@ _Doc oneCube({
       baseColorTexture: withTexture
           ? const TextureBinding(imageIndex: 0)
           : null,
+      physicalMaterial: physicalMaterial,
+      materialVersion: materialVersion,
     ),
   ],
   images: withTexture
@@ -224,6 +228,19 @@ void main() {
         1,
       );
     });
+  });
+
+  test('a material keeps what it is made of and its version', () {
+    final result = importInto(
+      const ModelProject(),
+      oneCube(physicalMaterial: 'f3d.steel', materialVersion: 2),
+    );
+
+    // Mutation: drop either from the remapped copy and the imported
+    // material is made of nothing named, at version 1.
+    final surface = result.project.materials.single.surface;
+    expect(surface.physicalMaterial, 'f3d.steel');
+    expect(surface.materialVersion, 2);
   });
 
   group('hierarchy: a root and its child both come in as roots of nothing '

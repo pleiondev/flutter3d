@@ -20284,3 +20284,13 @@ entries:
     reason: >-
       It extends `Expression`, which `MaterialExpression` now names; `slot`,
       `uv`, the constructor and `visitSample` are unchanged.
+
+  - id: 3d-model_core-SceneLighting
+    package: flutter3d_model_core
+    symbol: SceneLighting
+    kind: none
+    wave: 3
+    reason: >-
+      The `exposure` default is written as `RenderSettings.defaultExposure`
+      where it was the literal 1.6; the value is the same, so every call
+      still compiles and draws as it did.

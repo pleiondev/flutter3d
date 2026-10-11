@@ -1,6 +1,7 @@
 /// Writes what makes a `.f3d` a whole asset: lights, cameras and the nodes
 /// that carry them, each material's lighting model, material language
-/// programs, prefab documents and files carried whole.
+/// programs, prefab documents, files carried whole, and what each material
+/// is made of.
 ///
 /// **A part of `f3d_writer.dart`, not a file of its own**, for the reason the
 /// other parts give: every writer here calls the string and blob helpers
@@ -152,6 +153,46 @@ extension _F3dWriteBundle on F3dWriter {
     for (final MapEntry(:key, :value) in prefabs.entries)
       key: jsonEncode(value),
   });
+
+  (Uint8List, int) _writePhysicalMaterials() =>
+      _writeNamedTexts(<String, String>{
+        for (final MapEntry(:key, :value) in physicalMaterials.entries)
+          key: jsonEncode(value),
+      });
+
+  /// Section 37: one record per material that names a physical material or
+  /// a program version, in material order.
+  (Uint8List, int) _writeMaterialReferences() {
+    final materials = document.materials;
+    final referring = <int>[
+      for (var i = 0; i < materials.length; i++)
+        if (materials[i].physicalMaterial != null ||
+            materials[i].materialVersion != null)
+          i,
+    ];
+    final table = Uint8List(referring.length * F3dRecord.materialReference);
+    final view = ByteData.view(table.buffer);
+    for (final (r, index) in referring.indexed) {
+      final material = materials[index];
+      final o = r * F3dRecord.materialReference;
+      final (idOffset, idLength) = _string(material.physicalMaterial);
+      final version = material.materialVersion;
+      // Nought is the record's "not said"; a version starts at one.
+      if (version != null && version < 1) {
+        throw ArgumentError.value(
+          version,
+          'materialVersion',
+          'of material $index is below 1',
+        );
+      }
+      view
+        ..setUint32(o, index, Endian.little)
+        ..setUint32(o + 4, idOffset, Endian.little)
+        ..setUint32(o + 8, idLength, Endian.little)
+        ..setUint32(o + 12, version ?? 0, Endian.little);
+    }
+    return (table, referring.length);
+  }
 
   (Uint8List, int) _writeFiles() {
     final table = Uint8List(files.length * F3dRecord.file);

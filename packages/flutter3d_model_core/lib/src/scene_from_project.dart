@@ -507,5 +507,6 @@ RenderMaterial _materialOf(ModelProject project, ModelObject object) {
         surface.emissiveStrength * RenderMaterial.defaultEmissiveStrength,
     doubleSided: surface.doubleSided,
     extensions: surface.extensions,
+    physicalMaterial: surface.physicalMaterial,
   );
 }

@@ -821,6 +821,8 @@ SurfaceMaterial _surfaceWith(
   extensions: identical(extensions, _unset)
       ? s.extensions
       : extensions as MaterialExtensions?,
+  physicalMaterial: s.physicalMaterial,
+  materialVersion: s.materialVersion,
 );
 
 /// [s] with [field] set to [value], or null when [field] is not a field or

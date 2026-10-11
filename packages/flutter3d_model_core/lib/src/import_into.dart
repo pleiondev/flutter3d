@@ -176,5 +176,7 @@ SurfaceMaterial _remapMaterial(SurfaceMaterial surface, Map<int, int> imageAt) {
     doubleSided: surface.doubleSided,
     unlit: surface.unlit,
     extensions: surface.extensions?.mapTextures(remap),
+    physicalMaterial: surface.physicalMaterial,
+    materialVersion: surface.materialVersion,
   );
 }

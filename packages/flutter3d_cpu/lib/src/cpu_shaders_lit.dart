@@ -6,6 +6,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show dielectricF0;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
@@ -213,7 +214,10 @@ final class _Layers {
     required this.filmThickness,
   }) : coatThrough =
            1.0 -
-           coat * (0.04 + 0.96 * math.pow(1.0 - coatNDotV, 5.0).toDouble());
+           coat *
+               (dielectricF0 +
+                   (1.0 - dielectricF0) *
+                       math.pow(1.0 - coatNDotV, 5.0).toDouble());
 
   /// `ReadLayers`, from the `LayerInfo` block and the coat map, on [s] as it
   /// is before the normal map bends it.
@@ -497,7 +501,7 @@ final class _Layers {
       _infinite ? 0.0 : (ior - 1.0) * 0.025 * dispersion;
 
   /// Filled by [readOnMaps].
-  Vector3 iridFresnel = Vector3.all(0.04);
+  Vector3 iridFresnel = Vector3.all(dielectricF0);
 
   /// The sheen lobe's directional albedo at this view, nought to one.
   double sheenAlbedoAtView = 0.0;
@@ -574,7 +578,7 @@ final class PbrShader extends CpuFragmentShader {
         corners,
       );
       return ltc.x *
-          (0.04 * ltc.y + 0.96 * ltc.z) *
+          (dielectricF0 * ltc.y + (1.0 - dielectricF0) * ltc.z) *
           specularStrength /
           math.max(light.nDotL, 1e-6);
     }
@@ -585,7 +589,9 @@ final class PbrShader extends CpuFragmentShader {
     final nDotH = math.max(layers.coatNormal.dot(h), 0.0);
     final d = _dGgx(nDotH, alpha);
     final vis = _vSmith(layers.coatNDotV, nDotL, alpha);
-    final f = 0.04 + 0.96 * math.pow(1.0 - light.vDotH, 5.0).toDouble();
+    final f =
+        dielectricF0 +
+        (1.0 - dielectricF0) * math.pow(1.0 - light.vDotH, 5.0).toDouble();
     return d * vis * f * specularStrength * nDotL / math.max(light.nDotL, 1e-6);
   }
 
@@ -715,10 +721,11 @@ final class PbrShader extends CpuFragmentShader {
     final eon = b.vec4('FragInfo', 'ambient_sky', Vector4.zero()).w > 0.5;
     // Plain metal-rough reflects four per cent head-on and all of it at
     // grazing; the layered stage takes both from its layers. Doubles, not a
-    // `Vector3`: its float32 lanes would round the plain stage's 0.04.
+    // `Vector3`: its float32 lanes would round the plain stage's
+    // [dielectricF0].
     final (d0x, d0y, d0z) = switch (layers?.f0Dielectric) {
       final Vector3 f0 => (f0.x, f0.y, f0.z),
-      null => (0.04, 0.04, 0.04),
+      null => (dielectricF0, dielectricF0, dielectricF0),
     };
 
     final lit = accumulateLights(
@@ -979,7 +986,7 @@ final class PbrShader extends CpuFragmentShader {
         coatAmbient =
             Vector3(coatPrefiltered.x, coatPrefiltered.y, coatPrefiltered.z)
               ..scale(
-                (0.04 * coatAb.x + coatAb.y) *
+                (dielectricF0 * coatAb.x + coatAb.y) *
                     layers.coat *
                     strength *
                     s.occlusion,

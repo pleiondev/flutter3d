@@ -6,6 +6,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_shaders/flutter3d_shaders.dart' show dielectricF0;
 import 'package:vector_math/vector_math.dart';
 
 import 'cpu_shader.dart';
@@ -197,8 +198,10 @@ final class ReflectionsShader extends CpuFragmentShader {
       travelled += stride;
     }
 
-    // Schlick, F0 = 0.04, as the GLSL.
-    final fresnel = 0.04 + 0.96 * math.pow(1.0 - facing, 5.0).toDouble();
+    // Schlick, F0 = [dielectricF0], as the GLSL.
+    final fresnel =
+        dielectricF0 +
+        (1.0 - dielectricF0) * math.pow(1.0 - facing, 5.0).toDouble();
     final reflection = hitColour * (hit * intensity * polish * fresnel);
     // The share of the hit that is used, intensity included, as the GLSL.
     final confidence = hit * intensity * polish;

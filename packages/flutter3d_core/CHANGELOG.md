@@ -20,6 +20,28 @@
   key nothing reads survives a write; `DocumentAsset.copyWith`. The glTF
   reader reads all four and the writer writes them back. `DocumentAsset`'s
   hash no longer reads its `extras`, which compare by value.
+- **The sun is 0.2666° in radius.** `ShadowSettings.sunAngularRadius` is
+  0.004653 rad, the value its documentation always gave; it read 0.00465,
+  which is 0.2664°. The sky's disc and a soft shadow's penumbra read it,
+  so both grow by about 0.06 %.
+- **A render material says what it is made of, and an instance its
+  version.** `SurfaceMaterial.physicalMaterial` and
+  `RenderMaterial.physicalMaterial` name a material of the engine's
+  `MaterialCatalog` by id (`f3d.oak`, a plugin's `<pluginId>.<name>`);
+  `SurfaceMaterial.materialVersion` is the version of the program its
+  lighting model names that the instance was written for, null meaning 1.
+  A `.fmat` writes them as `physicalMaterial` and `materialVersion`. A
+  `.f3d` carries both in section 37, `materialReferences` (one record per
+  material that says either), and the physical materials the catalog does
+  not ship, whole, in section 36, `physicalMaterials`
+  (`F3dDocument.physicalMaterials`, `F3dWriter(physicalMaterials:)`, kept
+  by `F3dWriter.carrying`). Neither section is must-understand, so the file
+  stays version 1 and a 0.8 reader skips them;
+  `test/fixtures/v2/physical.f3d` is their fixture, laid out as version 2.
+- **`Photometric.luminousEfficacy`: 683 lm/W, written once.** The
+  candela's defining constant, what a spectrum weighted by the eye's
+  luminosity function is multiplied by to come out in lumens; the fire's
+  blackbody light reads it.
 - **`FramePassNames`: the passes code outside the renderer names.**
   `decals`, `cameraVelocity` and `objectVelocity`, the strings
   `FrameResult.passes` reports, spelled once: the nodes, their

@@ -92,13 +92,21 @@
 ///   own path;
 /// * **files carried whole** ([F3dSection.files]), by path,
 ///   `F3dDocument.files`: the models, `.fmat` materials and textures a prefab
-///   names when the bundle was made from a scene rather than one model.
+///   names when the bundle was made from a scene rather than one model;
+/// * **what its materials are made of** ([F3dSection.materialReferences]):
+///   each material's physical material by id and the version of its program
+///   it was written for, read back as `SurfaceMaterial.physicalMaterial` and
+///   `SurfaceMaterial.materialVersion`, and the **physical materials** the
+///   catalog does not ship, carried whole ([F3dSection.physicalMaterials]),
+///   `F3dDocument.physicalMaterials`.
 ///
-/// `F3dWriter` writes the first two from the document and the last three
-/// from its `programs`, `prefabs` and `files`. Every one is optional and
-/// none is must-understand: a reader that skips one opens a poorer asset
-/// (no lights, base parameters instead of a program, no prefab), never a
-/// different one, so they arrived without a version bump and a file without
+/// `F3dWriter` writes the lights, cameras, lighting models and references
+/// from the document, and the rest from its `programs`, `prefabs`, `files`
+/// and `physicalMaterials`. Every one is optional and none is
+/// must-understand: a reader that skips one opens a poorer asset (no
+/// lights, base parameters instead of a program, no prefab, no physical
+/// material named), never a different one, so they arrived without a
+/// version bump and a file without
 /// them is the bytes it always was. They live in the registry as the same
 /// format, `f3d.model`.
 ///
@@ -328,6 +336,25 @@ abstract final class F3dSection {
   /// from a scene rather than from one model.
   static const int files = 35;
 
+  // ------------------------------------------- what it is made of (1.0.0-rc.1)
+
+  /// Physical materials the file carries whole, by id —
+  /// `F3dDocument.physicalMaterials`: each one's document as
+  /// `flutter3d_matter` writes it (`"format": "f3d.physicalMaterial"`),
+  /// for a material the engine's catalog does not ship. A material the
+  /// catalog has is named, not carried. Not must-understand: a reader that
+  /// skips it draws the same model and its physics falls back to the
+  /// catalog, or to the defaults where the catalog has no such id.
+  static const int physicalMaterials = 36;
+
+  /// What each material refers to, sparse, one record per material that
+  /// says anything: the id of the physical material it is made of
+  /// (`SurfaceMaterial.physicalMaterial`) and the version of its program it
+  /// was written for (`SurfaceMaterial.materialVersion`). A reader that
+  /// skips it reads every material as made of nothing named, at version 1:
+  /// a poorer asset, never a different picture.
+  static const int materialReferences = 37;
+
   /// Every kind above, the ones this build reads. A must-understand section
   /// of any other kind is refused unless the caller understands it.
   static const Set<int> known = <int>{
@@ -366,6 +393,8 @@ abstract final class F3dSection {
     programs,
     prefabs,
     files,
+    physicalMaterials,
+    materialReferences,
   };
 }
 
@@ -525,6 +554,11 @@ abstract final class F3dRecord {
   /// u32 pathOffset, u32 pathLength into the strings section, u32
   /// dataOffset, u32 dataLength into the blob
   static const int file = 16;
+
+  /// u32 materialIndex, u32 idOffset, u32 idLength into the strings section
+  /// (a length of 0: no physical material named), u32 materialVersion (0:
+  /// not said, read as 1)
+  static const int materialReference = 16;
 }
 
 /// Bit positions inside a `surfaceAttributes` record — one per name

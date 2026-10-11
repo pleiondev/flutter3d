@@ -38,10 +38,25 @@ final class F3dWriter {
     Map<String, Map<String, Object?>> prefabs =
         const <String, Map<String, Object?>>{},
     Map<String, Uint8List> files = const <String, Uint8List>{},
+    Map<String, Map<String, Object?>> physicalMaterials =
+        const <String, Map<String, Object?>>{},
   }) : extraSections = List<F3dExtraSection>.unmodifiable(extraSections),
        programs = Map<String, String>.unmodifiable(programs),
        prefabs = Map<String, Map<String, Object?>>.unmodifiable(prefabs),
-       files = Map<String, Uint8List>.unmodifiable(files) {
+       files = Map<String, Uint8List>.unmodifiable(files),
+       physicalMaterials = Map<String, Map<String, Object?>>.unmodifiable(
+         physicalMaterials,
+       ) {
+    for (final MapEntry(:key, :value) in physicalMaterials.entries) {
+      if (value['id'] != key) {
+        throw ArgumentError.value(
+          key,
+          'physicalMaterials',
+          'is the key of a material whose document says its id is '
+              '"${value['id']}"',
+        );
+      }
+    }
     for (final extra in extraSections) {
       if (F3dSection.known.contains(extra.kind)) {
         throw ArgumentError.value(
@@ -54,7 +69,8 @@ final class F3dWriter {
   }
 
   /// A writer for [document] that carries everything a `.f3d` it was read
-  /// from carried: its programs, prefabs, files and every section of a kind
+  /// from carried: its programs, prefabs, files, physical materials and
+  /// every section of a kind
   /// the engine does not write itself, flags included. A document from any
   /// other reader carries nothing beyond the model.
   ///
@@ -66,6 +82,7 @@ final class F3dWriter {
       programs: bundle.programs,
       prefabs: bundle.prefabs,
       files: bundle.files,
+      physicalMaterials: bundle.physicalMaterials,
       extraSections: bundle.extraSections,
     ),
     _ => F3dWriter(document),
@@ -84,6 +101,13 @@ final class F3dWriter {
   /// Files to carry whole, by the path a prefab names them by —
   /// [F3dSection.files].
   final Map<String, Uint8List> files;
+
+  /// Physical materials to carry whole, by id, each the document
+  /// `flutter3d_matter` writes for one (`PhysicalMaterial.toJson`) —
+  /// [F3dSection.physicalMaterials]. For a material the catalog does not
+  /// ship; a material's [SurfaceMaterial.physicalMaterial] names either.
+  /// The constructor refuses a document whose `id` is not its key.
+  final Map<String, Map<String, Object?>> physicalMaterials;
 
   /// Sections written after the engine's own, as they are: a tool's data under
   /// a [f3dVendorKindStart] kind, or a section a newer engine reads.
@@ -193,6 +217,8 @@ final class F3dWriter {
     final (programTable, programCount) = _writePrograms();
     final (prefabTable, prefabCount) = _writePrefabs();
     final (fileTable, fileCount) = _writeFiles();
+    final (physicalTable, physicalCount) = _writePhysicalMaterials();
+    final (referenceTable, referenceCount) = _writeMaterialReferences();
 
     final sections = <(int kind, Uint8List data, int count)>[
       (F3dSection.layouts, layoutTable, _layouts.length),
@@ -248,6 +274,10 @@ final class F3dWriter {
       if (programCount > 0) (F3dSection.programs, programTable, programCount),
       if (prefabCount > 0) (F3dSection.prefabs, prefabTable, prefabCount),
       if (fileCount > 0) (F3dSection.files, fileTable, fileCount),
+      if (physicalCount > 0)
+        (F3dSection.physicalMaterials, physicalTable, physicalCount),
+      if (referenceCount > 0)
+        (F3dSection.materialReferences, referenceTable, referenceCount),
       (F3dSection.strings, _strings.toBytes(), 0),
       (F3dSection.blob, _blob.toBytes(), 0),
       for (final extra in extraSections) (extra.kind, extra.bytes, extra.count),

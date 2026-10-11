@@ -5,6 +5,14 @@
   the document, and the same three keys, when present, in `--json` and
   `--report`. A `.f3d` file has no field for them yet, so the report says
   they were dropped from it.
+- **A MaterialX material is made of what the catalog knows it as.** The
+  converter looks the material's name, its shader's and, for a document of
+  one material, the document's up in `MaterialCatalog.byExternal('MaterialX',
+  …)`: a material it finds is written with `physicalMaterial` naming it,
+  and a program written for its graph reflects with that material's optical
+  F0 (soda-lime glass 0.0426) where it wrote 0.04. A material the catalog
+  does not know is said so in the report and reflects as `dielectricF0`,
+  the shaders' constant.
 - **The project's plugin list is a plugin group.** `lib/plugins.g.dart`
   defines `installedPlugins` as a `PluginGroup` (its `plugins` is the list
   an engine takes), and the application's own `flutter3d_plugins:` adjusts

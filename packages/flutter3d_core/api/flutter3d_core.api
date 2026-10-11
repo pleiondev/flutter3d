@@ -1300,6 +1300,7 @@ final class F3dDocument extends ModelDocument
   late final List<String> warnings
   late final List<SurfaceMaterial> materials
   late final List<int> roots
+  late final Map<String, Map<String, Object?>> physicalMaterials
   late final Map<String, Map<String, Object?>> prefabs
   late final Map<String, String> programs
   late final Map<String, Uint8List> files
@@ -1354,6 +1355,7 @@ abstract final class F3dRecord
   static const int material = 132
   static const int materialExtensions = 12
   static const int materialLighting = 12
+  static const int materialReference = 16
   static const int mesh = 24
   static const int meshName = 8
   static const int morphTarget = 32
@@ -1398,6 +1400,7 @@ abstract final class F3dSection
   static const int lods = 21
   static const int materialExtensions = 22
   static const int materialLighting = 32
+  static const int materialReferences = 37
   static const int materials = 5
   static const int meshNames = 18
   static const int meshes = 3
@@ -1405,6 +1408,7 @@ abstract final class F3dSection
   static const int morphWeights = 16
   static const int nodeAttachments = 31
   static const int nodes = 7
+  static const int physicalMaterials = 36
   static const int pointerTracks = 24
   static const int prefabs = 34
   static const int programs = 33
@@ -1421,10 +1425,11 @@ abstract final class F3dSectionFlags
   static const int mustUnderstand = 1 << 0
 
 final class F3dWriter
-  F3dWriter(this.document, {List<F3dExtraSection> extraSections = const <F3dExtraSection>[], Map<String, String> programs = const <String, String>{}, Map<String, Map<String, Object?>> prefabs = const <String, Map<String, Object?>>{}, Map<String, Uint8List> files = const <String, Uint8List>{}})
+  F3dWriter(this.document, {List<F3dExtraSection> extraSections = const <F3dExtraSection>[], Map<String, String> programs = const <String, String>{}, Map<String, Map<String, Object?>> prefabs = const <String, Map<String, Object?>>{}, Map<String, Uint8List> files = const <String, Uint8List>{}, Map<String, Map<String, Object?>> physicalMaterials = const <String, Map<String, Object?>>{}})
   Uint8List write()
   factory F3dWriter.carrying(ModelDocument document)
   final List<F3dExtraSection> extraSections
+  final Map<String, Map<String, Object?>> physicalMaterials
   final Map<String, Map<String, Object?>> prefabs
   final Map<String, String> programs
   final Map<String, Uint8List> files
@@ -3631,6 +3636,7 @@ final class PhotoPlan
 
 abstract final class Photometric
   static const double bulbAtOneMeter = 63.66197723675813
+  static const double luminousEfficacy = 683.0
   static double fromLumens(double lumens, {LightType type = LightType.point, double outerConeAngle = math.pi / 4.0})
   static double toLumens(double intensity, {LightType type = LightType.point, double outerConeAngle = math.pi / 4.0})
 
@@ -4017,7 +4023,7 @@ final class RenderMaterial
   MaterialBlendMode blendMode
   MaterialExtensions? extensions
   RenderMaterial copy()
-  RenderMaterial({this.name, this.lighting = LightingModel.pbr, LinearColor baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.albedo, this.albedoSampler, this.normal, this.normalSampler, this.normalScale = 1.0, this.metallicRoughness, this.metallicRoughnessSampler, this.occlusion, this.occlusionSampler, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissiveSampler, this.emissive = LinearColor.black, this.emissiveStrength = defaultEmissiveStrength, this.alphaMode = MaterialAlphaMode.opaque, this.alphaCutoff = 0.5, this.alphaToCoverage = false, this.doubleSided = false, this.fogged = true, this.extensions, this.coatMap, this.coatMapSampler, this.sheenMap, this.sheenMapSampler, Map<MaterialMap, TextureTransform>? textureTransforms, this.drawBucket = 0, this.depthWrite, this.depthCompare, this.parameterBlock = 'MaterialParams', Map<String, Float32List>? parameters, Map<String, TextureHandle>? extraTextures, this.blendMode = MaterialBlendMode.alpha, this.depthLayer = 0, this.effectsDepth = false})
+  RenderMaterial({this.name, this.lighting = LightingModel.pbr, LinearColor baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.albedo, this.albedoSampler, this.normal, this.normalSampler, this.normalScale = 1.0, this.metallicRoughness, this.metallicRoughnessSampler, this.occlusion, this.occlusionSampler, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissiveSampler, this.emissive = LinearColor.black, this.emissiveStrength = defaultEmissiveStrength, this.alphaMode = MaterialAlphaMode.opaque, this.alphaCutoff = 0.5, this.alphaToCoverage = false, this.doubleSided = false, this.fogged = true, this.extensions, this.coatMap, this.coatMapSampler, this.sheenMap, this.sheenMapSampler, Map<MaterialMap, TextureTransform>? textureTransforms, this.drawBucket = 0, this.depthWrite, this.depthCompare, this.parameterBlock = 'MaterialParams', Map<String, Float32List>? parameters, Map<String, TextureHandle>? extraTextures, this.blendMode = MaterialBlendMode.alpha, this.depthLayer = 0, this.effectsDepth = false, this.physicalMaterial})
   SamplerDescriptor? albedoSampler
   SamplerDescriptor? coatMapSampler
   SamplerDescriptor? emissiveSampler
@@ -4026,6 +4032,7 @@ final class RenderMaterial
   SamplerDescriptor? normalSampler
   SamplerDescriptor? occlusionSampler
   SamplerDescriptor? sheenMapSampler
+  String? physicalMaterial
   TextureHandle? albedo
   TextureHandle? coatMap
   TextureHandle? emissiveTexture
@@ -4754,7 +4761,7 @@ final class ShadowSettings
   final int cubeResolution
   final int evsmBlurRadius
   final int resolution
-  static const double sunAngularRadius = 0.00465
+  static const double sunAngularRadius = 0.004653
   static const int minCubeTile = 128
   static const int minResolution = 256
   static int get maxCubeTile
@@ -5114,13 +5121,14 @@ final class SurfaceAlphaMode
 
 final class SurfaceMaterial
   String toString()
-  SurfaceMaterial({this.name, this.baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.baseColorTexture, this.metallicRoughnessTexture, this.normalTexture, this.normalScale = 1.0, this.occlusionTexture, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissive = LinearColor.black, this.emissiveStrength = 1.0, this.alphaMode = SurfaceAlphaMode.opaque, this.alphaCutoff = 0.5, this.doubleSided = false, this.unlit = false, this.lightingModel, this.extensions, this.extras})
+  SurfaceMaterial({this.name, this.baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.baseColorTexture, this.metallicRoughnessTexture, this.normalTexture, this.normalScale = 1.0, this.occlusionTexture, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissive = LinearColor.black, this.emissiveStrength = 1.0, this.alphaMode = SurfaceAlphaMode.opaque, this.alphaCutoff = 0.5, this.doubleSided = false, this.unlit = false, this.lightingModel, this.extensions, this.extras, this.physicalMaterial, this.materialVersion})
   final LightingModel? lightingModel
   final LinearColor baseColor
   final LinearColor emissive
   final Map<String, Object?>? extras
   final MaterialExtensions? extensions
   final String? name
+  final String? physicalMaterial
   final SurfaceAlphaMode alphaMode
   final TextureBinding? baseColorTexture
   final TextureBinding? emissiveTexture
@@ -5135,6 +5143,7 @@ final class SurfaceMaterial
   final double normalScale
   final double occlusionStrength
   final double roughness
+  final int? materialVersion
 
 final class TangentMethod
   String toString()
@@ -6318,6 +6327,7 @@ final class F3dDocument extends ModelDocument
   late final List<String> warnings
   late final List<SurfaceMaterial> materials
   late final List<int> roots
+  late final Map<String, Map<String, Object?>> physicalMaterials
   late final Map<String, Map<String, Object?>> prefabs
   late final Map<String, String> programs
   late final Map<String, Uint8List> files
@@ -6372,6 +6382,7 @@ abstract final class F3dRecord
   static const int material = 132
   static const int materialExtensions = 12
   static const int materialLighting = 12
+  static const int materialReference = 16
   static const int mesh = 24
   static const int meshName = 8
   static const int morphTarget = 32
@@ -6416,6 +6427,7 @@ abstract final class F3dSection
   static const int lods = 21
   static const int materialExtensions = 22
   static const int materialLighting = 32
+  static const int materialReferences = 37
   static const int materials = 5
   static const int meshNames = 18
   static const int meshes = 3
@@ -6423,6 +6435,7 @@ abstract final class F3dSection
   static const int morphWeights = 16
   static const int nodeAttachments = 31
   static const int nodes = 7
+  static const int physicalMaterials = 36
   static const int pointerTracks = 24
   static const int prefabs = 34
   static const int programs = 33
@@ -6439,10 +6452,11 @@ abstract final class F3dSectionFlags
   static const int mustUnderstand = 1 << 0
 
 final class F3dWriter
-  F3dWriter(this.document, {List<F3dExtraSection> extraSections = const <F3dExtraSection>[], Map<String, String> programs = const <String, String>{}, Map<String, Map<String, Object?>> prefabs = const <String, Map<String, Object?>>{}, Map<String, Uint8List> files = const <String, Uint8List>{}})
+  F3dWriter(this.document, {List<F3dExtraSection> extraSections = const <F3dExtraSection>[], Map<String, String> programs = const <String, String>{}, Map<String, Map<String, Object?>> prefabs = const <String, Map<String, Object?>>{}, Map<String, Uint8List> files = const <String, Uint8List>{}, Map<String, Map<String, Object?>> physicalMaterials = const <String, Map<String, Object?>>{}})
   Uint8List write()
   factory F3dWriter.carrying(ModelDocument document)
   final List<F3dExtraSection> extraSections
+  final Map<String, Map<String, Object?>> physicalMaterials
   final Map<String, Map<String, Object?>> prefabs
   final Map<String, String> programs
   final Map<String, Uint8List> files
@@ -7453,13 +7467,14 @@ final class SurfaceAlphaMode
 
 final class SurfaceMaterial
   String toString()
-  SurfaceMaterial({this.name, this.baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.baseColorTexture, this.metallicRoughnessTexture, this.normalTexture, this.normalScale = 1.0, this.occlusionTexture, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissive = LinearColor.black, this.emissiveStrength = 1.0, this.alphaMode = SurfaceAlphaMode.opaque, this.alphaCutoff = 0.5, this.doubleSided = false, this.unlit = false, this.lightingModel, this.extensions, this.extras})
+  SurfaceMaterial({this.name, this.baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.baseColorTexture, this.metallicRoughnessTexture, this.normalTexture, this.normalScale = 1.0, this.occlusionTexture, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissive = LinearColor.black, this.emissiveStrength = 1.0, this.alphaMode = SurfaceAlphaMode.opaque, this.alphaCutoff = 0.5, this.doubleSided = false, this.unlit = false, this.lightingModel, this.extensions, this.extras, this.physicalMaterial, this.materialVersion})
   final LightingModel? lightingModel
   final LinearColor baseColor
   final LinearColor emissive
   final Map<String, Object?>? extras
   final MaterialExtensions? extensions
   final String? name
+  final String? physicalMaterial
   final SurfaceAlphaMode alphaMode
   final TextureBinding? baseColorTexture
   final TextureBinding? emissiveTexture
@@ -7474,6 +7489,7 @@ final class SurfaceMaterial
   final double normalScale
   final double occlusionStrength
   final double roughness
+  final int? materialVersion
 
 final class TextureBinding
   const TextureBinding({required this.imageIndex, this.texCoordSet = 0, this.sampling = const TextureSampling(), this.transform})

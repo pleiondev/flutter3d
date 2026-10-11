@@ -15,6 +15,8 @@
 /// Kept in step with the manifest by a test, not by discipline.
 library;
 
+export 'src/shading_constants.dart' show dielectricF0;
+
 /// One entry point the engine requires.
 typedef RequiredShader = ({String name, bool fragment});
 

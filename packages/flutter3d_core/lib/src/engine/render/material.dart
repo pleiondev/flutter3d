@@ -4,7 +4,6 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
-
 /// How a material treats the alpha channel, mirroring glTF's `alphaMode`.
 ///
 /// The renderer uses this to split draws into the opaque and transparent halves
@@ -147,6 +146,7 @@ final class RenderMaterial {
     this.blendMode = MaterialBlendMode.alpha,
     this.depthLayer = 0,
     this.effectsDepth = false,
+    this.physicalMaterial,
   }) : _baseColor = baseColor, // ignore: prefer_initializing_formals
        parameters = parameters ?? <String, Float32List>{},
        textureTransforms =
@@ -505,6 +505,17 @@ final class RenderMaterial {
   /// surface stays out of the buffer as before.
   bool effectsDepth;
 
+  /// The id of the physical material the surface is made of, in the
+  /// engine's `MaterialCatalog` (`flutter3d_matter`): `f3d.oak`, or a
+  /// plugin's `<pluginId>.<name>`. Null when nothing said.
+  ///
+  /// **The renderer never reads it.** The look is this material's own; the
+  /// id is for what a hit on the surface asks next — what a footstep
+  /// sounds like, how a bullet bounces, how much it weighs — answered by
+  /// the catalog. A `.fmat` or a `.f3d` names it
+  /// (`SurfaceMaterial.physicalMaterial`), and a loader carries it here.
+  String? physicalMaterial;
+
   bool get isTransparent => alphaMode == MaterialAlphaMode.blend;
 
   /// An independent copy: the vectors are cloned, the textures are shared.
@@ -569,6 +580,7 @@ final class RenderMaterial {
           blendMode: blendMode,
           depthLayer: depthLayer,
           effectsDepth: effectsDepth,
+          physicalMaterial: physicalMaterial,
         )
         ..lightmap = lightmap
         ..lightmapSampler = lightmapSampler;

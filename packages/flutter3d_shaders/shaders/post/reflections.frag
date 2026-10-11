@@ -24,6 +24,7 @@ precision highp float;
 
 #include <lib/frag_coord_info.glsl>
 #include <lib/blue_noise.glsl>
+#include <lib/shading_constants.glsl>
 
 in vec2 v_uv;
 
@@ -288,11 +289,12 @@ void main() {
     travelled += stride;
   }
 
-  // Schlick's Fresnel for a dielectric, F0 = 0.04: four percent head-on, all
-  // of it at grazing. The buffer carries no metalness to tint it with. This
-  // used to floor at fifteen percent with a fourth power, which put nearly
-  // four times the reflection on a floor seen from above.
-  float fresnel = 0.04 + 0.96 * pow(1.0 - facing, 5.0);
+  // Schlick's Fresnel for a dielectric, F0 = kDielectricF0: four percent
+  // head-on, all of it at grazing. The buffer carries no metalness to tint it
+  // with. This used to floor at fifteen percent with a fourth power, which put
+  // nearly four times the reflection on a floor seen from above.
+  float fresnel =
+      kDielectricF0 + (1.0 - kDielectricF0) * pow(1.0 - facing, 5.0);
   vec3 reflection = hitColor * hit * intensity * polish * fresnel;
   // The share of the hit that is used, [intensity] included: a reflection
   // dialled down to seventy percent takes the sky's place in the same
