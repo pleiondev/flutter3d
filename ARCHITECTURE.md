@@ -209,7 +209,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-59 packages and 17 applications in one pub workspace, with the
+60 packages and 17 applications in one pub workspace, with the
 packages' examples beside them — one `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -254,6 +254,7 @@ point of §3.3.
 | `flutter3d_matter` | What a world is made of, with nothing that moves it: `WorldProperties` (gravity, air, wind, medium; the step rate is the loop's), the standard world, the constants of nature, and the `MaterialCatalog` of `PhysicalMaterial`s the native core's C header is generated from. Out of `flutter3d_physics` in 1.0.0-rc.1, so the audio core and the particles read the air and gravity without the collision world. Plain Dart |
 | `flutter3d_physics_native` | The physics core in C11, compiled from source by a build hook: rigid bodies stepped through `dart:ffi` natively and as WebAssembly in the browser, the water and fire `flutter3d_elements` steps and `flutter3d_effects` draws. `flutter3d_physics` is its reference |
 | `flutter3d_foundation` | The values every package speaks, under all of them: `Flutter3dException` and its four families, `WorldPosition`, `LinearColor` and their crossings into `vector_math`, `Issue`, the file envelope (`FormatSpec`, `FormatDocument`), `Registration`, `Portable`, and `Unit` and `Quantity`, the units every number is measured in. Depends on `vector_math` alone. Out of `flutter3d_plugin_api` and `flutter3d_physics` in 1.0.0-rc.1. Plain Dart |
+| `flutter3d_hub` | The model hub's client contract: the reference format `<uuid>@<n>` with an optional `#sha256=`, fixed for good and read by one function, the refusals, the cache policy, and the server protocol with its version and schemas, snapshotted in `api/flutter3d_hub.hub`. No network code in 1.0.0-rc.1. Over `flutter3d_foundation` alone, so the core can name a hub model as an asset source without a network client. Plain Dart |
 | `flutter3d_plugin_api` | What a plugin is written against: `Flutter3dPlugin` and its manifest, the `PluginHost` and its registries, the loop's phases, the event bus's types, what a step publishes (`PublishedState`), and `PluginManager`, which checks versions, orders dependencies and switches plugins at step boundaries ([§12](#12-extension-points)). Its own API version; depends on `flutter3d_foundation` alone and re-exports the foundation types its signatures name. The registries a package fills are declared by that package (`DecoderRegistry` in the core, `EntityKindRegistry` and the simulation handle in the simulation, `EditorRegistry` in the editor's core, `McpToolRegistry` in `flutter3d_mcp`). Plain Dart |
 | `flutter3d_plugin_runtime` | Plugins loaded while a game runs: data plugins read from a `.f3dplugin` document, sandboxed Wasm modules stepped by a deterministic interpreter, and expression systems, read but refused at install until the expression language evaluates them ([§12.1](#121-plugins)). Reads every other section through the plugin API's `DataSectionRegistry`, and depends on the plugin API alone |
 | `flutter3d_post` | Post-processing as plugins, one library per family (`light`, `shading`, `reflections`, `atmosphere`, `motion`, `style`), each effect a `RenderStepAddon` that is the switch of its render step, and `standard.dart`, all six in one list. One `flutter3d_plugins:` marker per library. The passes are still drawn by `flutter3d_core` ([§12](#12-extension-points)). Seven packages until 1.0.0-rc.1. Plain Dart |
@@ -384,7 +385,7 @@ a caller for that cannot supply a Flutter SDK.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces 78 rules
+`tool/structure.dart` walks `packages/` and `apps/` and enforces 79 rules
 as the first step of CI. All but two read source text in under a second; the
 two snapshot rules run `tool/api` over every published package (its API, and
 the tools it offers agents — see §16), and CI asks for both again by name once
@@ -3663,8 +3664,8 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **13984 tests** across 59 packages and 17 applications |
-| Structure rules | 78, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **14037 tests** across 60 packages and 17 applications |
+| Structure rules | 79, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 ### 13.1 The published-enum boundary
@@ -4750,7 +4751,7 @@ constraint on the first moved. `flutter3d_samples` kept a line of its own until
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  59 packages, the unpublished ones included — `pub publish
+  60 packages, the unpublished ones included — `pub publish
   --dry-run` is what `tool/publish_check.sh` asks of every one of them, so a
   package is ready on the day it is written rather than on release day.
 - **`dart format` is a CI step**, second in the order and reported by
@@ -4776,7 +4777,7 @@ the same layer first:
 
 1. L0: `flutter3d_foundation`, `flutter3d_lints`, `flutter3d_samples`,
    `pad_input`, `pointer_lock`
-2. L1: `flutter3d_hardware`, `flutter3d_plugin_api`
+2. L1: `flutter3d_hardware`, `flutter3d_plugin_api`, `flutter3d_hub`
 3. L2: `flutter3d_matter`, `flutter3d_shaders`
 4. L3: `flutter3d_core`, `flutter3d_audio_core`, `flutter3d_cpu`,
    `flutter3d_impeller`, `flutter3d_physics`, `flutter3d_webgl`,

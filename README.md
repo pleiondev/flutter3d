@@ -64,6 +64,7 @@ browser at <https://models.pleion.dev>, with its own
 | [`packages/flutter3d_testing`](packages/flutter3d_testing) | Pixel regression tests for a game built on this engine, with no GPU: draw a frame through the software backend and hold it to a reference image. Nothing else on this platform can do it without a real device |
 | [`packages/flutter3d_conformance`](packages/flutter3d_conformance) | The contract every backend must pass, as runnable checks rather than a document |
 | [`packages/flutter3d_conformance_render`](packages/flutter3d_conformance_render) | A plugin's points in the frame, drawn through the renderer on a backend and checked |
+| [`packages/flutter3d_hub`](packages/flutter3d_hub) | A model on models.pleion.dev named in code: the reference `<uuid>@<n>` with an optional checksum, the refusals, the cache policy and the server protocol. Plain Dart; the client that downloads arrives on top of it |
 | [`packages/flutter3d_shaders`](packages/flutter3d_shaders) | The GLSL, and the headers an extension package includes |
 | [`packages/flutter3d_particles`](packages/flutter3d_particles) | One pool, one draw call, whatever is in it. Plain Dart, so a model can bake a particle system with no window |
 | [`packages/flutter3d_elements`](packages/flutter3d_elements) | Water, fire and bodies in the native physics core's world, stepped with nothing that draws them: flames held to bodies until they catch, waters poured over a ground, the game's objects followed in, and plugin elements over the world's heat, water, wind and forces. A server replays it with no renderer; `flutter3d_effects` draws it. Plain Dart |
@@ -207,7 +208,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 13984 tests across 59 packages and 17 applications. The
+There are 14037 tests across 60 packages and 17 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
@@ -259,7 +260,7 @@ binary has not got, and binding a slot a compiled shader does not have takes
 the frame down. The message names nothing that leads back to the file that was
 edited.
 
-So `dart run tool/structure.dart` checks it: one of its 78 rules compares
+So `dart run tool/structure.dart` checks it: one of its 79 rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run. `impellerc` is not there to build one, and a rule
