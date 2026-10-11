@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A device opened without sources draws with the project's own stages.**
+  `WebGlDevice.open` reads the `webgl` section of the bundle
+  `flutter3d_build`'s hook writes (`EngineBundleStamp.projectAsset`), through
+  the new `loadAsset` or the application's assets, and loads the compiled
+  table only where there is none. The table is a deferred part of a web
+  build, so a project with its bundle no longer downloads the whole
+  engine's GLSL; a bundle that is there and cannot be read is a
+  `ShaderBundleException` naming the asset.
 - **`createPipelineAsync` links on the driver's threads where the browser
   offers `KHR_parallel_shader_compile`.** The program is linked and its
   status read only once `COMPLETION_STATUS_KHR` says, without waiting, that

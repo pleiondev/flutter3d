@@ -74,7 +74,7 @@ final class WebGpuDevice extends GraphicsDevice with WgslModuleCompiler, Encoded
   late final DeviceFeatures features
   late final DeviceLimits limits
   late final String viewType
-  static Future<WebGpuDevice> open({required int width, required int height, WebGpuSectionStages? stages})
+  static Future<WebGpuDevice> open({required int width, required int height, WebGpuSectionStages? stages, Future<ByteData?> Function(String key)? loadAsset})
   static const int warmStateLimit = 32
   void applyCanvasStyle({BoxFit fit = BoxFit.fill, FilterQuality quality = FilterQuality.none})
   void beginFrame()

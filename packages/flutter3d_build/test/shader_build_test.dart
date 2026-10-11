@@ -14,6 +14,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter3d_build/flutter3d_build.dart';
 import 'package:flutter3d_build_hooks/flutter3d_build_hooks.dart';
@@ -81,13 +82,21 @@ done
     ),
     bool full = false,
     ShaderBuildTarget target = ShaderBuildTarget.any,
+    WgslStageCompiler? wgsl,
   }) => runShaderBuild(
     project,
     plugins: plugins,
     log: log,
     full: full,
     target: target,
-    compilers: stub(),
+    compilers: switch (stub()) {
+      final tools when wgsl != null => MaterialCompilers(
+        impellerc: tools.impellerc,
+        sdk: tools.sdk,
+        wgsl: wgsl,
+      ),
+      final tools => tools,
+    },
     engine: engine,
     engineRevision: 'abc123',
   );
@@ -145,6 +154,86 @@ done
       EngineBundleStamp.section,
     ]);
   });
+
+  Map<String, Object?> webGpuDocument() =>
+      jsonDecode(
+            utf8.decode(
+              bundle()
+                  .section(ShaderBundle.webgpuSection)!
+                  .buffer
+                  .asUint8List(),
+            ),
+          )
+          as Map<String, Object?>;
+
+  Set<String> webGpuStages() => <String>{
+    ...(webGpuDocument()['vertex']! as Map<String, Object?>).keys,
+    ...(webGpuDocument()['fragment']! as Map<String, Object?>).keys,
+  };
+
+  test('a web build carries the WebGPU section beside the WebGL2 one, with '
+      'the stages the project keeps', () {
+    // Mutation: leave `webGpu` off `ShaderBuildTarget.web`, and the section
+    // is not written; hand `_webgpu` every stage of the engine, and the
+    // section holds the stages the project left out.
+    final report = build(target: ShaderBuildTarget.web, wgsl: _stubWgsl);
+    expect(bundle().sections.keys, <String>[
+      ShaderBundle.webglSection,
+      ShaderBundle.webgpuSection,
+      EngineBundleStamp.section,
+    ]);
+    expect(webGpuStages(), report.stages.toSet());
+    final fragment = webGpuDocument()['fragment']! as Map<String, Object?>;
+    expect(
+      (fragment['PbrOpaque']! as Map<String, Object?>)['wgsl'],
+      '// PbrOpaque',
+    );
+    expect(engine.stages['PbrOpaque']!.fragment, isTrue);
+  });
+
+  test('without glslang and naga a web build writes no WebGPU section, says '
+      'so, and writes one once they are there', () {
+    build(target: ShaderBuildTarget.web);
+    expect(bundle().section(ShaderBundle.webgpuSection), isNull);
+    expect(log.text, contains('no glslangValidator or naga'));
+
+    final later = build(target: ShaderBuildTarget.web, wgsl: _stubWgsl);
+    expect(later.written, isTrue, reason: 'the cache key names the section');
+    expect(bundle().section(ShaderBundle.webgpuSection), isNotNull);
+  });
+
+  test('a native build asks no WGSL compiler', () {
+    build(
+      target: ShaderBuildTarget.native,
+      wgsl: (stage, {required name, required fragment}) =>
+          fail('$name was compiled to WGSL for a native build'),
+    );
+    expect(bundle().section(ShaderBundle.webgpuSection), isNull);
+  });
+
+  test('each WebGPU stage is the stage of the table the device was compiled '
+      'with', () {
+    // Mutation: number each stage's varyings on its own rather than over the
+    // engine's manifest, and its `@location`s move away from the table's,
+    // whose stages the frame pairs it with.
+    manifest('shaders: [toon]\n');
+    build(
+      target: ShaderBuildTarget.web,
+      wgsl: (stage, {required name, required fragment}) =>
+          compileStage(stage.glsl, name: name, fragment: fragment),
+    );
+    final table = File(
+      '../flutter3d_webgpu/lib/engine_shaders.dart',
+    ).readAsStringSync();
+    final document = webGpuDocument();
+    for (final kind in const <String>['vertex', 'fragment']) {
+      for (final MapEntry(key: name, value: stage)
+          in (document[kind]! as Map<String, Object?>).entries) {
+        final wgsl = (stage! as Map<String, Object?>)['wgsl']! as String;
+        expect(table, contains("r'''\n$wgsl'''"), reason: name);
+      }
+    }
+  }, skip: _noWgslCompilers());
 
   test('the manifest\'s needs bring their stages', () {
     manifest('shaders: [toon]\n');
@@ -269,6 +358,36 @@ done
       throwsA(isA<PluginDiscoveryException>()),
     );
   });
+}
+
+/// A WGSL compiler that compiles nothing: it names the stage it was handed,
+/// and answers the offsets the reflection already holds.
+CompiledStage _stubWgsl(
+  PreparedStage stage, {
+  required String name,
+  required bool fragment,
+}) => CompiledStage(
+  spirv: Uint8List(0),
+  target: ShaderTarget.wgsl,
+  text: '// $name',
+  offsets: <String, Map<String, int>>{
+    for (final block in stage.blocks)
+      block.name: <String, int>{
+        for (final member in block.members) member.name: member.offsetInBytes,
+      },
+  },
+);
+
+/// Why the real compilers cannot run here, or null when they can.
+String? _noWgslCompilers() {
+  for (final program in <String>[glslangExecutable, nagaExecutable]) {
+    try {
+      Process.runSync(program, const <String>['--version']);
+    } on ProcessException {
+      return '$program is not on PATH';
+    }
+  }
+  return null;
 }
 
 final class _Log implements IOSink {

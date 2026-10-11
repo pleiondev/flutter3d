@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **A device opened without stages draws with the project's own.**
+  `WebGpuDevice.open` reads the `webgpu` section of the bundle
+  `flutter3d_build`'s hook writes (`EngineBundleStamp.projectAsset`), through
+  the new `loadAsset` or the application's assets, and loads the compiled
+  table only where there is none (a build without glslang and naga writes
+  none). The table is a deferred part of a web build, so a project with its
+  bundle no longer downloads the whole engine's WGSL; a bundle that is there
+  and cannot be read is a `ShaderBundleException` naming the asset, and a
+  section newer than this reader is refused as stale.
 - **A draw in a new state does not stall the frame once the canvas shows
   one.** The draw path builds a pipeline it has not met through
   `createRenderPipelineAsync` and skips the draw until it arrives; a draw a

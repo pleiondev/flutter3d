@@ -67,11 +67,14 @@ final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
     ByteData bytes,
   ) {
     final bundle = ShaderBundle.decode(bytes);
-    return WebGpuLoadedShaderLibrary._(compiler, bundle.name, _stagesOf(bundle))
+    return WebGpuLoadedShaderLibrary._(compiler, bundle.name, stagesOf(bundle))
       .._kernels.addAll(kernelsOf(bundle));
   }
 
-  static WebGpuSectionStages _stagesOf(ShaderBundle bundle) {
+  /// The stages of [bundle]'s `webgpu` section, or a [ShaderBundleException]
+  /// for a bundle with none, or one this reader cannot read. The device reads
+  /// the project's own bundle through this too.
+  static WebGpuSectionStages stagesOf(ShaderBundle bundle) {
     final section = bundle.section(ShaderBundle.webgpuSection);
     // 1.0: a bundle of kernels alone has nothing in WGSL yet; each kernel is
     // translated as it is asked for.
@@ -201,7 +204,7 @@ final class WebGpuLoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
   @override
   void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
-    final stages = _stagesOf(bundle);
+    final stages = stagesOf(bundle);
     final kernels = kernelsOf(bundle);
 
     // Every stage already handed out is compiled from the new text *before*

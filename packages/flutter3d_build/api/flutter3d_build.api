@@ -527,9 +527,10 @@ final class ShaderBuildTarget
   final String name
   final bool impeller
   final bool webGl
-  static const ShaderBuildTarget any = ShaderBuildTarget._('any', impeller: true, webGl: true)
-  static const ShaderBuildTarget native = ShaderBuildTarget._('native', impeller: true, webGl: false)
-  static const ShaderBuildTarget web = ShaderBuildTarget._('web', impeller: false, webGl: true)
+  final bool webGpu
+  static const ShaderBuildTarget any = ShaderBuildTarget._('any', impeller: true, webGl: true, webGpu: true)
+  static const ShaderBuildTarget native = ShaderBuildTarget._('native', impeller: true, webGl: false, webGpu: false)
+  static const ShaderBuildTarget web = ShaderBuildTarget._('web', impeller: false, webGl: true, webGpu: true)
 
 final class ShaderSelection
   const ShaderSelection({this.needs = const <String>[], this.full = false})

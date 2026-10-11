@@ -1,5 +1,11 @@
 ## 1.0.0-rc.1
 
+- **A web build's shader bundle carries a WebGPU section.** The hook
+  writes, beside the WebGL2 sources, the project's stages in WGSL with
+  their reflection, made by glslang and naga as `flutter3d_webgpu`'s own
+  table is and numbered against the whole engine, so each stage is the
+  table's; `ShaderBuildTarget.webGpu` says which targets carry it. A machine
+  without glslang or naga writes the bundle without it and says so.
 - **An impostor bakes in a twentieth of the time.** The bake draws its
   views without shadows, which its unlit and normals pictures never read;
   the sun's cascades, keyed again for every view, were most of the work.
