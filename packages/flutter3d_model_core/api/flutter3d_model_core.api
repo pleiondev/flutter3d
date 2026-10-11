@@ -1154,13 +1154,14 @@ final class ModelObject
 final class ModelProject with ModelProjectView
   ModelObject? operator [](int id)
   ModelProject added(ModelObject Function(int id) build)
-  ModelProject copyWith({ProjectProfile? profile, List<ProjectMaterial>? materials, List<EncodedImage>? images, List<ProjectSkeleton>? skeletons, List<ProjectClip>? clips, SceneLighting? lighting, Map<String, Map<String, Object?>>? animationGraphs, Map<String, Object?>? unknown})
+  ModelProject copyWith({ProjectProfile? profile, List<ProjectMaterial>? materials, List<EncodedImage>? images, List<ProjectSkeleton>? skeletons, List<ProjectClip>? clips, SceneLighting? lighting, Map<String, Map<String, Object?>>? animationGraphs, Map<String, Object?>? unknown, DocumentAsset? rights, bool clearRights = false})
   ModelProject removed(int id)
   ModelProject withObject(ModelObject object)
   String toString()
   bool holds(int id)
   bool isVisible(int id)
-  const ModelProject({this.profile = const ProjectProfile(), this.objects = const <ModelObject>[], this.materials = const <ProjectMaterial>[], this.images = const <EncodedImage>[], this.nextId = 1, this.skeletons = const <ProjectSkeleton>[], this.clips = const <ProjectClip>[], this.lighting = const SceneLighting(), this.animationGraphs = const <String, Map<String, Object?>>{}, this.unknown = const <String, Object?>{}})
+  const ModelProject({this.profile = const ProjectProfile(), this.objects = const <ModelObject>[], this.materials = const <ProjectMaterial>[], this.images = const <EncodedImage>[], this.nextId = 1, this.skeletons = const <ProjectSkeleton>[], this.clips = const <ProjectClip>[], this.lighting = const SceneLighting(), this.animationGraphs = const <String, Map<String, Object?>>{}, this.unknown = const <String, Object?>{}, this.rights})
+  final DocumentAsset? rights
   final List<EncodedImage> images
   final List<ModelObject> objects
   final List<ProjectClip> clips

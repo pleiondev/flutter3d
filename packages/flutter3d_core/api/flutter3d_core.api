@@ -1365,6 +1365,7 @@ abstract final class F3dMorphFlags
 abstract final class F3dRecord
   static const int animation = 16
   static const int asset = 8
+  static const int assetRights = 24
   static const int attribute = 12
   static const int camera = 32
   static const int clusters = 16
@@ -1410,6 +1411,7 @@ abstract final class F3dSection
   static const Set<int> known = …
   static const int animations = 9
   static const int asset = 19
+  static const int assetRights = 38
   static const int attributes = 2
   static const int blob = 13
   static const int cameras = 30
@@ -4363,6 +4365,7 @@ final class RendererSteps extends RenderStepRegistry
   List<SettingsSlot<Object>> get settings
   List<String> nodesAt(RenderAnchor anchor)
   Registration addAnchor(RenderAnchor anchor)
+  Registration addFieldUpload(FieldUpload upload, ComputeExecutors executors, {RenderAnchor? at, RenderStep? owner, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addMaterials(ShaderLibrary library)
   Registration addNode(RenderNode node, {RenderAnchor? at, RenderStep? step, List<String> after = const <String>[], List<String> before = const <String>[]})
   Registration addSettings(SettingsSlot<Object> slot)
@@ -6430,6 +6433,7 @@ abstract final class F3dMorphFlags
 abstract final class F3dRecord
   static const int animation = 16
   static const int asset = 8
+  static const int assetRights = 24
   static const int attribute = 12
   static const int camera = 32
   static const int clusters = 16
@@ -6475,6 +6479,7 @@ abstract final class F3dSection
   static const Set<int> known = …
   static const int animations = 9
   static const int asset = 19
+  static const int assetRights = 38
   static const int attributes = 2
   static const int blob = 13
   static const int cameras = 30

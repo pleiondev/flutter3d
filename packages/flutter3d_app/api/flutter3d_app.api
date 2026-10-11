@@ -746,6 +746,7 @@ final class WidgetTexture
 final class XrAnchor
   EntityDef toEntity()
   String toString()
+  WorldPosition? placeIn(WorldProperties world)
   XrAnchor({required this.id, required this.pose, this.space = XrSpace.localFloor, this.geo})
   factory XrAnchor.fromEntity(EntityDef entity)
   final GeoOrigin? geo

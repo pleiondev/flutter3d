@@ -168,7 +168,7 @@ the game reads every version of them as before.
 
 <!-- data-formats:start -->
 
-*Generated from the `FormatSpec`s `migrate --data` loads — 22 formats, and 10 it leaves to the package that reads them.*
+*Generated from the `FormatSpec`s `migrate --data` loads — 23 formats, and 10 it leaves to the package that reads them.*
 
 | Format | Files | Package | This build reads | `migrate --data` |
 |---|---|---|---|---|
@@ -177,6 +177,7 @@ the game reads every version of them as before.
 | `f3d.materialLanguage` | `.f3dmat` | `flutter3d_core` | v1–v3 | read as it is: its version is in its own header |
 | `f3d.splat` | `.f3dsplat` | `flutter3d_core` | v1 | read as it is: its version is in its own header |
 | `f3d.frameCapture` | `.capture.json` | `flutter3d_core` | v1–v2 | lifted to v2 through its chain |
+| `f3d.pipeline` | `.pipeline.json` | `flutter3d_core` | v1 | nothing to lift |
 | `f3d.shaderBundle` | `.f3dshaders` | `flutter3d_hardware` | v1 | read as it is: its version is in its own header |
 | `f3d.trace` | `.f3dtrace` | `flutter3d_hardware` | v1 | read as it is: its version is in its own header |
 | `f3d.project` | `.f3dproj` | `flutter3d_model_core` | v1–v2 | read as it is: its version is in its own header |

@@ -33,6 +33,7 @@ final class ActionInput
   void sourcePair(InputSource source, double x, double y)
   void sourceUp(InputSource source)
   void sourceValue(InputSource source, double value)
+  void xrControls(Map<String, XrControlReading> readings)
 
 final class ActionMap extends FormatDocument
   ActionMap copy()
@@ -556,6 +557,7 @@ final class InputSource
   factory InputSource.padStick(String side)
   factory InputSource.pointer(int button)
   factory InputSource.touch(String control)
+  factory InputSource.xr(XrHand hand, XrControl control)
   final String id
   int get hashCode
   static const InputSource none = InputSource('')

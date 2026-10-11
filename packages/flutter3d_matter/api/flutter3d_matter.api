@@ -681,6 +681,8 @@ const double boltzmannConstant = 1.380649e-23
 
 List<String> checkMaterialCatalog(MaterialCatalog catalog, {bool frictionForSolids = false})
 
+const double lorenzNumber = 2.44e-8
+
 const DataSection materialPairsSection = _MaterialPairsSection()
 
 const double molarGasConstant = 8.314462618

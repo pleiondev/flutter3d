@@ -436,10 +436,15 @@ final class NativeLawProperty
   String toString()
   final String name
   final int code
-  static const List<NativeLawProperty> values = <NativeLawProperty>[specificHeat, conductivity, emissivity]
+  static const List<NativeLawProperty> ofBody = <NativeLawProperty>[specificHeat, conductivity, emissivity]
+  static const List<NativeLawProperty> ofLiquid = <NativeLawProperty>[density, viscosity, surfaceTension]
+  static const List<NativeLawProperty> values = <NativeLawProperty>[specificHeat, conductivity, emissivity, density, viscosity, surfaceTension]
   static const NativeLawProperty conductivity = NativeLawProperty._(1, 'conductivity')
+  static const NativeLawProperty density = NativeLawProperty._(3, 'density')
   static const NativeLawProperty emissivity = NativeLawProperty._(2, 'emissivity')
   static const NativeLawProperty specificHeat = NativeLawProperty._(0, 'specificHeat')
+  static const NativeLawProperty surfaceTension = NativeLawProperty._(5, 'surfaceTension')
+  static const NativeLawProperty viscosity = NativeLawProperty._(4, 'viscosity')
 
 final class NativeLiquid extends FluidSolver
   const NativeLiquid()
@@ -655,6 +660,7 @@ final class NativeWorld
   List<NativeFire> fires()
   List<NativeHit> rayCastAll(Vector3 origin, Vector3 direction, double maxDistance, {int mask = 0xffffffff, NativeBody? ignore})
   List<NativeLawProperty> setMaterialLaws(NativeBody body, PhysicalMaterial material)
+  List<NativeLawProperty> setShallowLaws(NativeShallowLiquid water, PhysicalMaterial material)
   List<NativeWheelState> wheelsOf(NativeVehicle vehicle)
   Matrix3 inertiaTensorOf(NativeBody body)
   NativeBody addBody({required Vector3 position, NativeBodyType type = NativeBodyType.dynamic, double mass = 1.0})
@@ -665,6 +671,7 @@ final class NativeWorld
   NativeHull createHull(List<Vector3> points)
   NativeJoint createDistanceJoint(NativeBody a, NativeBody b, {required Vector3 anchorA, required Vector3 anchorB})
   NativeJoint createJoint(NativeJointType type, NativeBody a, NativeBody b, {required Vector3 anchor, Vector3? axis})
+  NativeLiquidProperties shallowPropertiesOf(NativeShallowLiquid water)
   NativeMaterial materialOf(NativeBody body)
   NativeMesh createMesh(List<Vector3> vertices, List<int> indices)
   NativeMultibody createMultibody(NativeBody root)
@@ -793,6 +800,7 @@ final class NativeWorld
   void setShallowEdge(NativeShallowLiquid water, GridSide side, NativeEdgeFlow edge)
   void setShallowGround(NativeShallowLiquid water, List<double> ground)
   void setShallowHeat(NativeShallowLiquid water, NativeLiquidHeat heat)
+  void setShallowLaw(NativeShallowLiquid water, NativeLawProperty property, NativeLaw? law)
   void setShallowOutlet(NativeShallowLiquid water, int index, NativeOutlet? outlet)
   void setShallowProperties(NativeShallowLiquid water, NativeLiquidProperties fluid)
   void setShallowRoughness(NativeShallowLiquid water, List<double> roughness)
