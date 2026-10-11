@@ -1630,6 +1630,11 @@ final class FramePass
   final int triangles
   final int? gpuMicros
 
+abstract final class FramePassNames
+  static const String cameraVelocity = 'camera velocity'
+  static const String decals = 'decals'
+  static const String objectVelocity = 'object velocity'
+
 final class FramePassSkipped extends BusEvent
   String get name
   const FramePassSkipped(this.pass)
@@ -2673,7 +2678,7 @@ final class MaterialProgram
   String? get vertexStageName
   bool get isLit
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = 1, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = 1, this.updates = const <MaterialUpdate>[]})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[]})
   final (int, int) workgroupSize
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
@@ -4135,7 +4140,7 @@ final class RenderStep
   static const RenderStep caustics = RenderStep._('caustics', _causticsOff, _causticsOn, needs: <RenderStep>{shadows})
   static const RenderStep colorGrade = RenderStep._('color grade', _gradeOff, _gradeOn)
   static const RenderStep contactShadows = RenderStep._('contact shadows', _contactOff, _contactOn, passes: <String>{'contact shadows', 'contact shadow resolve'})
-  static const RenderStep decals = RenderStep._('decals', _decalsOff, _decalsOn, passes: <String>{'decals'})
+  static const RenderStep decals = RenderStep._('decals', _decalsOff, _decalsOn, passes: <String>{FramePassNames.decals})
   static const RenderStep depthOfField = RenderStep._('depth of field', _dofOff, _dofOn, passes: <String>{'depth of field'})
   static const RenderStep edgeSmoothing = RenderStep._('edge smoothing', _edgesOff, _edgesOn, passes: <String>{'antialias'})
   static const RenderStep fog = RenderStep._('fog', _fogOff, _fogOn)
@@ -4158,7 +4163,7 @@ final class RenderStep
   static const RenderStep temporalAntiAliasing = …
   static const RenderStep tonemap = RenderStep._('tonemap', _tonemapOff, _tonemapOn)
   static const RenderStep transparent = RenderStep._('transparent', _transparentOff, _transparentOn, passes: <String>{'transparent'})
-  static const RenderStep velocity = RenderStep._('velocity', null, null, passes: <String>{'camera velocity', 'object velocity'})
+  static const RenderStep velocity = RenderStep._('velocity', null, null, passes: <String>{FramePassNames.cameraVelocity, FramePassNames.objectVelocity})
   static const RenderStep viewportShading = RenderStep._('viewport shading', _shadingOff, _shadingOn, passes: <String>{'viewport shading'})
   static const RenderStep vignetteAndGrain = RenderStep._('vignette and grain', _filmOff, _filmOn)
   static const RenderStep volumetricFog = RenderStep._('volumetric fog', _volumetricOff, _volumetricOn, passes: <String>{'volumetric fog'})
@@ -5640,6 +5645,8 @@ const FormatSpec f3dsplatFormat = …
 
 AssetUriResolver fileUriResolver(String baseDirectory)
 
+const int firstMaterialVersion = 1
+
 Rgba8Image fitRgba8Image(Rgba8Image image, {required int maxDimension})
 
 const FormatSpec fmatFormat = FormatSpec(id: 'f3d.fmat', version: fmatVersion, suffixes: <String>['.fmat'], fixture: 'test/fixtures/v<N>/brass.fmat', legacyVersionKey: 'fmat')
@@ -5735,6 +5742,12 @@ Map<String, Object?> materialExtensionsToJson(MaterialExtensions e, {required Ob
 const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', MaterialType.vec2, 'v_uv'), MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth')]
 
 const List<MaterialInput> materialInputs = …
+
+const int materialLanguageFirstVersion = 1
+
+const int materialLanguageStagesVersion = 2
+
+const int materialLanguageUpdatesVersion = 3
 
 const int materialLanguageVersion = 3
 
@@ -6860,7 +6873,7 @@ final class MaterialProgram
   String? get vertexStageName
   bool get isLit
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = 1, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = 1, this.updates = const <MaterialUpdate>[]})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[]})
   final (int, int) workgroupSize
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
@@ -7685,6 +7698,8 @@ const FormatSpec f3dmatFormat = …
 
 const FormatSpec f3dsplatFormat = …
 
+const int firstMaterialVersion = 1
+
 const FormatSpec fmatFormat = FormatSpec(id: 'f3d.fmat', version: fmatVersion, suffixes: <String>['.fmat'], fixture: 'test/fixtures/v<N>/brass.fmat', legacyVersionKey: 'fmat')
 
 const int fmatVersion = 1
@@ -7750,6 +7765,12 @@ Map<String, Object?> materialExtensionsToJson(MaterialExtensions e, {required Ob
 const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', MaterialType.vec2, 'v_uv'), MaterialInput('sceneDepth', MaterialType.float, 'f3d_scene_depth')]
 
 const List<MaterialInput> materialInputs = …
+
+const int materialLanguageFirstVersion = 1
+
+const int materialLanguageStagesVersion = 2
+
+const int materialLanguageUpdatesVersion = 3
 
 const int materialLanguageVersion = 3
 

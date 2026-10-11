@@ -1492,6 +1492,19 @@ const Map<String, String> readsSimulationWorld = <String, String>{
 /// Version constants that number something other than a file a reader opens,
 /// by `path#constant`, with the reason.
 const Map<String, String> notAVersionedFormat = <String, String>{
+  'packages/flutter3d_core/lib/src/formats/material_language/material_ast.dart#materialLanguageFirstVersion':
+      'a version of `.f3dmat` that `f3dmatFormat` already lists, the one a '
+      'file with no version line is; its fixture is v1/rim_glow.f3dmat',
+  'packages/flutter3d_core/lib/src/formats/material_language/material_parser.dart#materialLanguageStagesVersion':
+      'the `.f3dmat` version that brought the stages, one `f3dmatFormat` '
+      'already lists; its fixture is v2/rim_glow.f3dmat',
+  'packages/flutter3d_core/lib/src/formats/material_language/material_parser.dart#materialLanguageUpdatesVersion':
+      'the `.f3dmat` version that brought a material\'s own version, one '
+      '`f3dmatFormat` already lists; its fixture is v3/rim_glow.f3dmat',
+  'packages/flutter3d_core/lib/src/formats/material_language/material_ast.dart#firstMaterialVersion':
+      'a material\'s own version counts its parameters\' changes, written '
+      'inside the `.f3dmat` file and beside an instance in a level, and is '
+      'no file a reader opens',
   'packages/flutter3d_foundation/lib/src/expressions/expression_bytecode.dart#expressionBytecodeVersion':
       'the version of an internal bytecode no file carries in 1.0: it is '
       'compiled in memory and run there, and becomes a format, with '

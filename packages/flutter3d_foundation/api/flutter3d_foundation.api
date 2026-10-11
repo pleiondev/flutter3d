@@ -167,39 +167,6 @@ final class ExpressionNot extends Expression
   const ExpressionNot(this.operand)
   final Expression operand
 
-base class ExpressionParser
-  Expression binary(ExpressionToken op, Expression left, Expression right)
-  Expression call(ExpressionBuiltin builtin, ExpressionToken token)
-  Expression comparison(ExpressionToken op, Expression left, Expression right)
-  Expression construct(ExpressionType type, ExpressionToken token)
-  Expression logical(ExpressionToken op, Expression left, Expression right)
-  Expression parseAnd()
-  Expression parseComparison()
-  Expression parseConditional()
-  Expression parseExpression()
-  Expression parseOr()
-  Expression parsePostfix()
-  Expression parsePrimary()
-  Expression parseProduct()
-  Expression parseSum()
-  Expression parseUnary()
-  Expression quantity(ExpressionToken number, ExpressionToken unitToken)
-  Expression resolveName(ExpressionToken name)
-  Expression swizzle(Expression target, ExpressionToken field)
-  Expression? parseSpecialCall(ExpressionToken name)
-  ExpressionBuiltin? builtinNamed(String name)
-  ExpressionParser(this.tokens, {this.scope = const ExpressionScope(), this.syntax = ExpressionSyntax.standard})
-  ExpressionToken expectToken(String kind, String what)
-  ExpressionToken get current
-  List<Expression> arguments()
-  Never fail(String message, [ExpressionToken? where])
-  bool skipIf(String kind)
-  bool skipWordIf(String word)
-  final ExpressionScope scope
-  final ExpressionSyntax syntax
-  final List<ExpressionToken> tokens
-  int position
-
 final class ExpressionScope
   const ExpressionScope({this.variables = const <String, ExpressionType>{}, this.builtins = ExpressionBuiltin.all, this.units = const <Unit>[]})
   factory ExpressionScope.quantities(Map<String, Unit> variables, {List<ExpressionBuiltin> builtins = ExpressionBuiltin.all, List<Unit> units = const <Unit>[]})
@@ -225,15 +192,6 @@ final class ExpressionSyntaxException extends Flutter3dFormatException
   String toString()
   const ExpressionSyntaxException(this.message, this.line, this.column)
   final String message
-  final int column
-  final int line
-
-final class ExpressionToken
-  String toString()
-  const ExpressionToken(this.kind, this.text, this.line, this.column, [this.number])
-  final String kind
-  final String text
-  final double? number
   final int column
   final int line
 
@@ -587,12 +545,56 @@ final class WorldPosition
 extension WorldPositionVector on WorldPosition
   Vector3 toVector3Relative(WorldPosition origin)
 
+Expression parseExpression(String source, {ExpressionScope scope = const ExpressionScope(), ExpressionSyntax syntax = ExpressionSyntax.standard})
+
+library package:flutter3d_foundation/internal.dart
+
+base class ExpressionParser
+  Expression binary(ExpressionToken op, Expression left, Expression right)
+  Expression call(ExpressionBuiltin builtin, ExpressionToken token)
+  Expression comparison(ExpressionToken op, Expression left, Expression right)
+  Expression construct(ExpressionType type, ExpressionToken token)
+  Expression logical(ExpressionToken op, Expression left, Expression right)
+  Expression parseAnd()
+  Expression parseComparison()
+  Expression parseConditional()
+  Expression parseExpression()
+  Expression parseOr()
+  Expression parsePostfix()
+  Expression parsePrimary()
+  Expression parseProduct()
+  Expression parseSum()
+  Expression parseUnary()
+  Expression quantity(ExpressionToken number, ExpressionToken unitToken)
+  Expression resolveName(ExpressionToken name)
+  Expression swizzle(Expression target, ExpressionToken field)
+  Expression? parseSpecialCall(ExpressionToken name)
+  ExpressionBuiltin? builtinNamed(String name)
+  ExpressionParser(this.tokens, {this.scope = const ExpressionScope(), this.syntax = ExpressionSyntax.standard})
+  ExpressionToken expectToken(String kind, String what)
+  ExpressionToken get current
+  List<Expression> arguments()
+  Never fail(String message, [ExpressionToken? where])
+  bool skipIf(String kind)
+  bool skipWordIf(String word)
+  final ExpressionScope scope
+  final ExpressionSyntax syntax
+  final List<ExpressionToken> tokens
+  int position
+
+final class ExpressionToken
+  String toString()
+  const ExpressionToken(this.kind, this.text, this.line, this.column, [this.number])
+  final String kind
+  final String text
+  final double? number
+  final int column
+  final int line
+
 List<double> applyExpressionOperator(String op, List<double> a, List<double> b)
 
 List<List<double>> broadcastExpressionArguments(List<List<double>> arguments, ExpressionBuiltin builtin)
 
 const List<String> expressionOperators = <String>['||', '&&', '<', '<=', '>', '>=', '==', '!=', '+', '-', '*', '/']
-
-Expression parseExpression(String source, {ExpressionScope scope = const ExpressionScope(), ExpressionSyntax syntax = ExpressionSyntax.standard})
 
 List<ExpressionToken> tokenizeExpression(String source, {ExpressionSyntax syntax = ExpressionSyntax.standard})
