@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 // scan of the type names a file uses would read the bare name as that one.
 import 'package:flutter/widgets.dart' as widgets;
 
+import 'lab_theme.dart';
+
 /// `edu-04`'s panel of parameters: the one number a student's own tap
 /// changes — the pendulum's length. Buttons rather than a slider or a text
 /// field, `wg-01`'s own honest limit: only a tap is proven to reach a widget
@@ -39,7 +41,7 @@ final class PendulumLabPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF15181C),
+      color: LabTheme.panel,
       child: Padding(
         padding: const EdgeInsets.all(14.0),
         child: widgets.FittedBox(
@@ -56,7 +58,7 @@ final class PendulumLabPanel extends StatelessWidget {
                         'STRING LENGTH',
                         semanticsLabel: 'String length',
                         style: TextStyle(
-                          color: Color(0xFF8FA0B3),
+                          color: LabTheme.panelLabel,
                           fontFamily: 'monospace',
                           fontSize: 20.0,
                           letterSpacing: 2.0,
@@ -66,7 +68,7 @@ final class PendulumLabPanel extends StatelessWidget {
                       Text(
                         '${length.toStringAsFixed(2)} m',
                         style: const TextStyle(
-                          color: Color(0xFFE7C46E),
+                          color: LabTheme.panelReadout,
                           fontFamily: 'monospace',
                           fontSize: 44.0,
                           fontWeight: FontWeight.bold,
@@ -130,13 +132,13 @@ final class _PanelButton extends StatelessWidget {
           height: 68.0,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: const Color(0xFF283040),
+            color: LabTheme.panelButton,
             borderRadius: BorderRadius.circular(12.0),
           ),
           child: Text(
             label,
             style: const TextStyle(
-              color: Color(0xFFE6EAF0),
+              color: LabTheme.panelButtonText,
               fontSize: 34.0,
               fontWeight: FontWeight.bold,
             ),

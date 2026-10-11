@@ -20,6 +20,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_education/lab.dart';
 
 import 'src/lab_loading_screen.dart';
+import 'src/lab_theme.dart';
 import 'src/pendulum_lab_controls.dart';
 import 'src/pendulum_lab_panel.dart';
 
@@ -207,6 +208,12 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     _placeBob();
     _placeString();
 
+    // The controls pause the swing for reduced motion when they first
+    // build, which is after the ticker's first frame has stepped it; asked
+    // here, before the ticker starts, a student who wants less motion sees
+    // the bob at rest from the first frame.
+    if (!mounted) return;
+    if (MediaQuery.disableAnimationsOf(context)) _running.value = false;
     _ticker = createTicker(_onTick)..start();
     if (mounted) setState(() => _renderer = Renderer.create(device: device));
   }
@@ -326,29 +333,27 @@ class _PendulumLabScreenState extends State<PendulumLabScreen>
     if (initError != null) {
       return DidNotStart(
         initError,
-        background: const Color(0xFF14161A),
-        foreground: const Color(0xFFFF8A80),
+        background: LabTheme.background,
+        foreground: LabTheme.error,
       );
     }
     final renderer = _renderer;
     if (renderer == null) return const LabLoadingScreen();
     return Scaffold(
-      backgroundColor: const Color(0xFF14161A),
+      backgroundColor: LabTheme.background,
       body: PendulumLabControls(
         lengthMeters: _length,
         onChangeLength: _setLength,
         running: _running,
-        child: Listener(
-          onPointerDown: (PointerDownEvent event) =>
-              _tapPanel(event.localPosition),
-          child: SceneSurface(
-            renderer: renderer,
-            scene: _scene,
-            view: RenderView(camera: _camera),
-            settings: () => const RenderSettings(),
-            onBeforeFrame: () {},
-            presentFrame: presentFrame,
-          ),
+        onScenePointerDown: (PointerDownEvent event) =>
+            _tapPanel(event.localPosition),
+        child: SceneSurface(
+          renderer: renderer,
+          scene: _scene,
+          view: RenderView(camera: _camera),
+          settings: () => const RenderSettings(),
+          onBeforeFrame: () {},
+          presentFrame: presentFrame,
         ),
       ),
     );

@@ -33,11 +33,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_stereo/flutter3d_stereo.dart'
-    show LessonPlayer;
+import 'package:flutter3d_stereo/flutter3d_stereo.dart' show LessonPlayer;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'check_prompt.dart';
+import 'lesson_theme.dart';
 import 'orbit_cubit.dart';
 
 /// Wraps [SceneSurface] around a [LessonPlayer], with a "Previous"/"Next"
@@ -182,6 +182,11 @@ class _LessonViewState extends State<LessonView> {
     }
   }
 
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) _onScroll(event);
+    if (event is PointerScaleEvent) _onPointerScale(event);
+  }
+
   void _onScroll(PointerScrollEvent event) {
     // A wheel notch, for a mouse with no pinch to give it. `0.0015` is
     // `flutter3d_modeler`'s own `OrbitGestures.zoomPerScrollPixel` — one
@@ -240,51 +245,44 @@ class _LessonViewState extends State<LessonView> {
               child: FocusTraversalOrder(
                 order: const NumericFocusOrder(_FocusOrder.scene),
                 // A container, so the focus node's own flags land on the
-                // node that carries the name rather than on one beside it.
+                // node that carries the name rather than on one beside it;
+                // the pointer's way in sits under the same name as the
+                // keyboard's, since both turn the one scene.
                 child: Semantics(
                   container: true,
                   label: 'Lesson view',
                   hint: 'Arrow keys turn the view; plus and minus zoom.',
-                  child: Focus(
-                    focusNode: _sceneFocus,
-                    onKeyEvent: _onSceneKey,
-                    child: ListenableBuilder(
-                      listenable: _sceneFocus,
-                      builder: (BuildContext context, Widget? scene) => Stack(
-                        fit: StackFit.expand,
-                        children: <Widget>[
-                          scene!,
-                          if (_sceneFocus.hasFocus)
-                            const IgnorePointer(
-                              child: DecoratedBox(
-                                key: LessonView.focusRingKey,
-                                decoration: BoxDecoration(
-                                  border: Border.fromBorderSide(
-                                    BorderSide(color: Colors.white, width: 3.0),
-                                  ),
-                                ),
+                  child: Listener(
+                    onPointerSignal: _onPointerSignal,
+                    onPointerPanZoomUpdate: _onPanZoomUpdate,
+                    child: GestureDetector(
+                      // Opaque rather than the default `deferToChild`: the scene
+                      // surface underneath is a presented GPU frame (or, headless in
+                      // a test, nothing painted at all), and a drag anywhere over
+                      // the viewport should orbit the camera regardless of what
+                      // happens to be drawn at that exact pixel.
+                      behavior: HitTestBehavior.opaque,
+                      onScaleStart: (ScaleStartDetails details) =>
+                          _lastScale = 1.0,
+                      onScaleUpdate: _onScaleUpdate,
+                      child: Focus(
+                        focusNode: _sceneFocus,
+                        onKeyEvent: _onSceneKey,
+                        child: ListenableBuilder(
+                          listenable: _sceneFocus,
+                          builder: (BuildContext context, Widget? scene) =>
+                              Stack(
+                                fit: StackFit.expand,
+                                children: <Widget>[
+                                  scene!,
+                                  if (_sceneFocus.hasFocus)
+                                    const IgnorePointer(
+                                      child: _FocusRing(
+                                        key: LessonView.focusRingKey,
+                                      ),
+                                    ),
+                                ],
                               ),
-                            ),
-                        ],
-                      ),
-                      child: Listener(
-                        onPointerSignal: (PointerSignalEvent event) {
-                          if (event is PointerScrollEvent) _onScroll(event);
-                          if (event is PointerScaleEvent) {
-                            _onPointerScale(event);
-                          }
-                        },
-                        onPointerPanZoomUpdate: _onPanZoomUpdate,
-                        child: GestureDetector(
-                          // Opaque rather than the default `deferToChild`: the scene
-                          // surface underneath is a presented GPU frame (or, headless in
-                          // a test, nothing painted at all), and a drag anywhere over
-                          // the viewport should orbit the camera regardless of what
-                          // happens to be drawn at that exact pixel.
-                          behavior: HitTestBehavior.opaque,
-                          onScaleStart: (ScaleStartDetails details) =>
-                              _lastScale = 1.0,
-                          onScaleUpdate: _onScaleUpdate,
                           // Rebuilds this subtree on every `OrbitCubit` emit — the only
                           // reason it needs to. `SceneSurface` calls `renderer.render`
                           // from inside its own `build`
@@ -354,7 +352,7 @@ class _LessonViewState extends State<LessonView> {
                                 'Step ${player.index + 1} of ${player.steps.length}',
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: const Color(0xCC0E1013),
+                                color: LessonTheme.scrim,
                                 borderRadius: BorderRadius.circular(6.0),
                               ),
                               child: Padding(
@@ -365,7 +363,7 @@ class _LessonViewState extends State<LessonView> {
                                 child: Text(
                                   caption,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: LessonTheme.text,
                                     fontSize: 16.0,
                                     fontWeight: FontWeight.w600,
                                     decoration: TextDecoration.none,
@@ -428,4 +426,30 @@ class _LessonViewState extends State<LessonView> {
       ),
     );
   }
+}
+
+/// The ring round the scene while it has keyboard focus: [LessonTheme]'s
+/// light ring inside a dark rim, so one of the two stands out over any
+/// frame the lesson shows.
+class _FocusRing extends StatelessWidget {
+  const _FocusRing({super.key});
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.fromBorderSide(
+        BorderSide(color: LessonTheme.focusRingEdge, width: 2.0),
+      ),
+    ),
+    child: Padding(
+      padding: EdgeInsets.all(2.0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.fromBorderSide(
+            BorderSide(color: LessonTheme.focusRing, width: 3.0),
+          ),
+        ),
+      ),
+    ),
+  );
 }

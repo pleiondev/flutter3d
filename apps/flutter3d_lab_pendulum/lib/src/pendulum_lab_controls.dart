@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'lab_theme.dart';
+
 /// The lab's controls for a student who does not tap the panel in the
 /// scene: a keyboard, a screen reader, or a switch.
 ///
@@ -24,6 +26,7 @@ class PendulumLabControls extends StatefulWidget {
     required this.onChangeLength,
     required this.running,
     required this.child,
+    this.onScenePointerDown,
     this.step = 0.1,
     this.minLength = 0.2,
     this.maxLength = 3.0,
@@ -38,6 +41,10 @@ class PendulumLabControls extends StatefulWidget {
 
   /// The scene.
   final Widget child;
+
+  /// A pointer pressed on the scene, which the lab casts into it to reach
+  /// the panel there; null for none.
+  final PointerDownEventListener? onScenePointerDown;
 
   final double step;
   final double minLength;
@@ -81,6 +88,9 @@ class _PendulumLabControlsState extends State<PendulumLabControls> {
 
   static String _meters(double value) => '${value.toStringAsFixed(2)} m';
 
+  static const String _hint =
+      'Arrow keys or plus and minus change it; Space pauses the swing.';
+
   KeyEventResult _onSceneKey(FocusNode node, KeyEvent event) {
     if (event is KeyUpEvent) return KeyEventResult.ignored;
     final key = event.logicalKey;
@@ -113,6 +123,8 @@ class _PendulumLabControlsState extends State<PendulumLabControls> {
           order: const NumericFocusOrder(1),
           child: ValueListenableBuilder<double>(
             valueListenable: widget.lengthMeters,
+            // The pointer's way in, a tap on the panel in the scene, sits
+            // under the slider's name: it changes the same one number.
             builder: (context, length, scene) => Semantics(
               container: true,
               slider: true,
@@ -120,12 +132,13 @@ class _PendulumLabControlsState extends State<PendulumLabControls> {
               value: _meters(length),
               increasedValue: _meters(_nudged(widget.step)),
               decreasedValue: _meters(_nudged(-widget.step)),
-              hint:
-                  'Arrow keys or plus and minus change it; '
-                  'Space pauses the swing.',
+              hint: _hint,
               onIncrease: () => _nudge(widget.step),
               onDecrease: () => _nudge(-widget.step),
-              child: scene,
+              child: Listener(
+                onPointerDown: widget.onScenePointerDown,
+                child: scene,
+              ),
             ),
             child: Focus(
               focusNode: _sceneFocus,
@@ -138,13 +151,8 @@ class _PendulumLabControlsState extends State<PendulumLabControls> {
                     scene!,
                     if (_sceneFocus.hasFocus)
                       const IgnorePointer(
-                        child: DecoratedBox(
+                        child: _FocusRing(
                           key: PendulumLabControls.focusRingKey,
-                          decoration: BoxDecoration(
-                            border: Border.fromBorderSide(
-                              BorderSide(color: Colors.white, width: 3.0),
-                            ),
-                          ),
                         ),
                       ),
                   ],
@@ -164,16 +172,40 @@ class _PendulumLabControlsState extends State<PendulumLabControls> {
               builder: (context, running, _) => IconButton(
                 icon: Icon(running ? Icons.pause : Icons.play_arrow),
                 tooltip: running ? 'Pause the swing' : 'Start the swing',
-                color: Colors.white,
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xCC0E1013),
-                ),
+                color: LabTheme.onScrim,
+                style: IconButton.styleFrom(backgroundColor: LabTheme.scrim),
                 onPressed: _toggle,
               ),
             ),
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// The ring round the scene while it has keyboard focus: [LabTheme]'s
+/// light ring inside a dark rim, so one of the two stands out over any
+/// frame the lab shows.
+class _FocusRing extends StatelessWidget {
+  const _FocusRing({super.key});
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border.fromBorderSide(
+        BorderSide(color: LabTheme.focusRingEdge, width: 2.0),
+      ),
+    ),
+    child: Padding(
+      padding: EdgeInsets.all(2.0),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.fromBorderSide(
+            BorderSide(color: LabTheme.focusRing, width: 3.0),
+          ),
+        ),
+      ),
     ),
   );
 }

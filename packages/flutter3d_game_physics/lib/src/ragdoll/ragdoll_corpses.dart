@@ -44,6 +44,7 @@ final class RagdollCorpses with ActorCorpses {
     this.push = defaultPush,
     this.chest = 'Torso',
     this.mass = referenceBodyMass,
+    this.tone = MuscleTone.human,
   }) : _dynamics = NativeDynamics(world: world)..native.substeps = 8;
 
   final NativeDynamics _dynamics;
@@ -58,8 +59,21 @@ final class RagdollCorpses with ActorCorpses {
   /// The ragdoll body [push] lands on, by its profile name.
   final String chest;
 
+  /// How far up the [chest] bone the killing blow lands, as a share of its
+  /// length, read when an actor dies: 0.75 unless set, the upper chest,
+  /// where a shot hits and above the centre of mass at every height a rig
+  /// puts it, so the blow turns the body back over its feet. Nought is the
+  /// bone's root, the small of the back, below the centre of mass, where
+  /// the blow knocks the hips out from under the body.
+  double blowAt = 0.75;
+
   /// What a whole body weighs, kg.
   final double mass;
+
+  /// How a body's muscles hold it as it dies ([MuscleTone]): up at the
+  /// blow, so the body takes it as one, and fading as it falls; null for a
+  /// body limp from the start.
+  final MuscleTone? tone;
 
   /// The push a body gets unless a game says otherwise, N·s: the reference
   /// man ([referenceBodyMass]) thrown back at two metres a second, as a body
@@ -100,6 +114,7 @@ final class RagdollCorpses with ActorCorpses {
         world: _dynamics.native,
         dynamics: _dynamics,
         mass: mass,
+        tone: tone,
         previous: previous,
         dt: dt,
       );
@@ -117,10 +132,8 @@ final class RagdollCorpses with ActorCorpses {
     final from = pushedFrom?.call();
     final body = ragdoll.bodyNamed(chest);
     if (from == null || body == null) return;
-    // At the top of the chest, not its root: a bone's pose is its head, which
-    // for the chest is the small of the back, below the body's centre of
-    // mass, and a blow there knocks the hips out and sits the body down.
-    // Above it, the same blow turns the body back over its feet.
+    // [blowAt] up the bone from its pose, which is its head: for the chest,
+    // the small of the back.
     final pose = ragdoll.ragdoll.poseOf(body);
     final bone = ragdoll.ragdoll.bones[body];
     final at =
@@ -128,7 +141,7 @@ final class RagdollCorpses with ActorCorpses {
         turnBy(
           pose.orientation,
           turnBy(bone.orientation.conjugated(), bone.tail - bone.head),
-        ).scaled(_blowAlong);
+        ).scaled(blowAt);
     final away = Vector3(at.x - from.x, 0.0, at.z - from.z);
     if (away.length2 < 1e-6) return;
     away
@@ -194,8 +207,3 @@ final class RagdollCorpses with ActorCorpses {
     _dynamics.dispose();
   }
 }
-
-/// How far up the chest bone the killing blow lands, as a fraction of its
-/// length: the upper chest, where a shot hits, and above the centre of mass
-/// at every height a rig puts it, so the blow turns the body back.
-const double _blowAlong = 0.75;

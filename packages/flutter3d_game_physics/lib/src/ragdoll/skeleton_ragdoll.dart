@@ -32,6 +32,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
         BonePose,
         JointGroup,
         JointTissue,
+        MuscleTone,
         NativeDynamics,
         NativeRagdoll,
         NativeWorld,
@@ -252,7 +253,8 @@ final class RagdollProfile {
 final class SkeletonRagdoll {
   /// [skeleton] gone limp in [world] from the pose it holds now, [mass]
   /// kilograms in all — the reference man's ([referenceBodyMass]) unless
-  /// given. [tissue] is what every joint is made of; see [NativeRagdoll].
+  /// given. [tissue] is what every joint is made of and [tone] how its
+  /// muscles hold it as it goes limp, null for none; see [NativeRagdoll].
   /// The profile's [RagdollSwing]s are measured against the figure's own
   /// forward and up at bind, read off its skeleton as [lying] reads them. [meshWorld] is the skinned mesh's world matrix, which
   /// the skeleton's bind pose is in. With [previous] — every joint's world
@@ -266,6 +268,7 @@ final class SkeletonRagdoll {
     List<Matrix4>? previous,
     double dt = 1.0 / 60.0,
     JointTissue tissue = JointTissue.human,
+    MuscleTone? tone = MuscleTone.human,
     NativeDynamics? dynamics,
     int layer = 1,
     int mask = 0xffffffff,
@@ -392,6 +395,7 @@ final class SkeletonRagdoll {
       velocity: velocity,
       spin: spin,
       tissue: tissue,
+      tone: tone,
       forward: _forwardAtBind,
       up: _upAtBind,
       dynamics: dynamics,

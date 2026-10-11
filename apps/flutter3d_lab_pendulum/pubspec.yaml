@@ -49,5 +49,11 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # `Wcag` and `ContrastPair`, which `test/theme_contrast_test.dart` holds
+  # `LabTheme`'s pairs to over any frame: the arithmetic the game's own
+  # screens are held by, not a second copy of it.
+  flutter3d_game_ui:
+    path: ../../packages/flutter3d_game_ui
+
 flutter:
   uses-material-design: true

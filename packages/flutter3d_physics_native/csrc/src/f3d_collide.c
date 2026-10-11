@@ -326,6 +326,19 @@ static void islands(F3dWorld *world, uint32_t *parent) {
       if (s->still < world->s.sleep_time) state[root] |= 1u;
     }
   }
+  /* A joint whose drive is still fading keeps its island awake, as one
+   * moving would: asleep, a body knocked out would keep for good the tone
+   * it had when it lay still, and never go limp. */
+  for (uint32_t i = 0; i < world->s.joint_used; i++) {
+    const F3dJointSlot *j = &world->joints[i];
+    if (!j->live || !j->driven || !(j->drive_fade > F3D_R(0.0))) continue;
+    if (!(f3d_abs(j->drive_level - j->drive_floor) > F3D_R(1e-3))) continue;
+    const F3dSlot *sb = f3d_slot_of(world, j->b);
+    const F3dSlot *sa = f3d_slot_of(world, j->a);
+    const F3dSlot *s = sb != NULL && sb->type == F3D_BODY_DYNAMIC ? sb : sa;
+    if (s == NULL || s->type != F3D_BODY_DYNAMIC) continue;
+    state[find(parent, (uint32_t)(s - world->slots))] |= 1u;
+  }
   for (uint32_t i = 0; i < used; i++) {
     F3dSlot *s = &world->slots[i];
     if (!s->live || s->type != F3D_BODY_DYNAMIC) continue;

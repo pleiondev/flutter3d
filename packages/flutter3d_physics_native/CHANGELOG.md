@@ -1,5 +1,22 @@
 ## 1.0.0-rc.1
 
+- **A ragdoll holds itself with its muscles' tone, then goes limp.** A
+  joint takes a drive (`f3d_joint_set_drive`, `NativeWorld.setJointDrive`,
+  `JointDrive`): a ball joint or a hinge pulled towards a turn with a
+  stiffness and a damping, never more than a most torque, solved
+  implicitly and never stiffer than the substep holds; its level fades to
+  a floor over a time constant (`f3d_joint_set_drive_fade`,
+  `setJointDriveFade`), the joint's bodies kept awake until it is there,
+  and is read back (`f3d_joint_get_drive_level`, `jointDriveLevel`).
+  F3D_ABI_VERSION is 40; a joint's snapshot record grows at its end, and a
+  joint without a drive steps to the same bits. `NativeRagdoll` takes
+  `tone:` (`MuscleTone`, `JointGroupTone`; `MuscleTone.human` by default,
+  null for none), which pulls each joint towards the posture the body had
+  when it went limp, with stiffness from trunk, neck and elbow studies and
+  the most torque from tables of voluntary strength, fading over 0.2 s to
+  5 %, and reads `toneLevel`. Struck hard at the top of the chest, a spine
+  with its tone up bends half a radian and stops, where on its tissue
+  alone it went 0.3 rad past its range.
 - **A metal that gives its resistivity and no conductivity conducts heat
   by its electrons.** `NativeMaterial.of` reads the electrical group: where
   a material has `ElectricalProperties.resistivity` and no thermal

@@ -135,6 +135,13 @@ final class GridSide
   static const GridSide south = GridSide._(2, 'south')
   static const GridSide west = GridSide._(0, 'west')
 
+final class JointDrive
+  const JointDrive({required this.target, required this.stiffness, this.damping = 0.0, required this.maxTorque})
+  final Quaternion target
+  final double damping
+  final double maxTorque
+  final double stiffness
+
 final class JointGroup
   String toString()
   bool operator ==(Object other)
@@ -157,6 +164,13 @@ final class JointGroupStiffness
   final double lateral
   final double medial
   final double twist
+
+final class JointGroupTone
+  const JointGroupTone(this.group, {required this.stiffness, required this.damping, required this.maxTorque})
+  final JointGroup group
+  final double damping
+  final double maxTorque
+  final double stiffness
 
 final class JointLimitStiffness
   const JointLimitStiffness({this.growth = 0.0, this.lower = 0.0, this.upper = 0.0, this.forward = 0.0, this.back = 0.0, this.toSide = 0.0, this.fromSide = 0.0})
@@ -187,6 +201,17 @@ final class JointTissue
   final double limitGrowth
   final double limitStiffness
   static const JointTissue human = …
+
+final class MuscleTone
+  JointGroupTone toneOf(JointGroup? group)
+  const MuscleTone({required this.stiffness, required this.damping, required this.maxTorque, this.groups = const <JointGroupTone>[], this.floor = 0.0, this.fade = 0.0})
+  final List<JointGroupTone> groups
+  final double damping
+  final double fade
+  final double floor
+  final double maxTorque
+  final double stiffness
+  static const MuscleTone human = …
 
 extension type const NativeBody(int raw)
   int get generation
@@ -578,9 +603,10 @@ final class NativeRagdoll
   BonePose poseOf(int index)
   NativeBody bodyOf(int index)
   NativeJoint? jointOf(int index)
-  NativeRagdoll(this.world, List<RagdollBone> rest, {List<BonePose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
+  NativeRagdoll(this.world, List<RagdollBone> rest, {List<BonePose>? pose, List<Vector3>? velocity, List<Vector3>? spin, JointTissue tissue = JointTissue.human, MuscleTone? tone = MuscleTone.human, Vector3? forward, Vector3? up, NativeDynamics? dynamics, int layer = 1, int mask = 0xffffffff})
   RagdollJoint? heldAs(int index)
   bool get isAsleep
+  double get toneLevel
   final List<RagdollBone> bones
   final NativeWorld world
   void dispose()
@@ -715,6 +741,7 @@ final class NativeWorld
   double get airTemperature
   double get gravityMagnitude
   double heatReleaseOf(NativeBody body)
+  double jointDriveLevel(NativeJoint joint)
   double jointSwing(NativeJoint joint)
   double jointValue(NativeJoint joint)
   double massOf(NativeBody body)
@@ -775,6 +802,8 @@ final class NativeWorld
   void setJointCollide(NativeJoint joint, {required bool collide})
   void setJointCone(NativeJoint joint, double? angle)
   void setJointDamping(NativeJoint joint, double? damping)
+  void setJointDrive(NativeJoint joint, JointDrive? drive)
+  void setJointDriveFade(NativeJoint joint, {required double floor, required double seconds})
   void setJointFriction(NativeJoint joint, double? torque)
   void setJointLength(NativeJoint joint, {required double length, required double least, required double most})
   void setJointLimitSoftness(NativeJoint joint, ({double stiffness, double ratio})? softness)

@@ -280,6 +280,7 @@ void main() {
     final leg = NativeRagdoll(
       world,
       rest,
+      tone: null,
       tissue: JointTissue(
         damping: 0.0,
         limitStiffness: 0.0,
@@ -442,6 +443,7 @@ void main() {
       final arm = NativeRagdoll(
         world,
         rest,
+        tone: null,
         tissue: JointTissue(
           damping: 2.0,
           limitStiffness: 1e5,
@@ -544,7 +546,7 @@ void main() {
         joint: RagdollHinge(axis: Vector3(1.0, 0.0, 0.0), lower: -2, upper: 2),
       ),
     ];
-    final limb = NativeRagdoll(world, rest);
+    final limb = NativeRagdoll(world, rest, tone: null);
     addTearDown(limb.dispose);
     world.createJoint(
       NativeJointType.fixed,
@@ -595,7 +597,7 @@ void main() {
           ),
         ),
       ];
-      final body = NativeRagdoll(world, rest, tissue: tissue);
+      final body = NativeRagdoll(world, rest, tissue: tissue, tone: null);
       final post = world.addBody(
         position: Vector3(0.0, 2.8, 0.0),
         type: NativeBodyType.fixed,
@@ -768,5 +770,167 @@ void main() {
     final rest = figure();
     final wrong = <RagdollBone>[rest[1], rest[0]];
     expect(() => NativeRagdoll(dynamics.native, wrong), throwsArgumentError);
+  });
+
+  group("a ragdoll's muscle tone", () {
+    test('the world drives a hinge towards a turn with at most its torque, '
+        'and refuses a drive a joint does not take', () {
+      // A kilogram a metre long along +x from a fixed post, on a hinge about
+      // z: its weight's moment is g / 2 N m, 4.9. Driven level with room
+      // above that, it holds; with 3 N m at most, it falls until the moment
+      // is 3. Mutation: pass the most torque as the damping — held level at
+      // 3 too.
+      double held(double most) {
+        final world = NativeWorld()..substeps = 4;
+        addTearDown(world.dispose);
+        final post = world.addBody(
+          position: Vector3(0.0, 2.0, 0.0),
+          type: NativeBodyType.fixed,
+          mass: 0.0,
+        );
+        final limb = world.addBody(position: Vector3(0.5, 2.0, 0.0), mass: 1.0);
+        world.setShape(limb, NativeShape.box(Vector3(0.5, 0.05, 0.05)));
+        final hinge = world.createJoint(
+          NativeJointType.revolute,
+          post,
+          limb,
+          anchor: Vector3(0.0, 2.0, 0.0),
+          axis: Vector3(0.0, 0.0, 1.0),
+        );
+        world
+          ..setJointDamping(hinge, 0.5)
+          ..setJointDrive(
+            hinge,
+            JointDrive(
+              target: Quaternion.identity(),
+              stiffness: 1000.0,
+              damping: 20.0,
+              maxTorque: most,
+            ),
+          );
+        expect(world.jointDriveLevel(hinge), 1.0);
+        for (var i = 0; i < 720; i++) {
+          world.step(1.0 / 60.0);
+        }
+        final at = world.localPositionOf(limb);
+        return Portable.atan2(2.0 - at.y, at.x);
+      }
+
+      expect(held(6.0).abs(), lessThan(0.02));
+      expect(
+        standardGravity * 0.5 * Portable.cos(held(3.0)),
+        closeTo(3.0, 0.12),
+      );
+
+      final world = NativeWorld();
+      addTearDown(world.dispose);
+      final a = world.addBody(position: Vector3.zero(), mass: 1.0);
+      final b = world.addBody(position: Vector3(1.0, 0.0, 0.0), mass: 1.0);
+      final slider = world.createJoint(
+        NativeJointType.prismatic,
+        a,
+        b,
+        anchor: Vector3.zero(),
+        axis: Vector3(1.0, 0.0, 0.0),
+      );
+      final ball = world.createJoint(
+        NativeJointType.spherical,
+        a,
+        b,
+        anchor: Vector3.zero(),
+      );
+      final drive = JointDrive(
+        target: Quaternion.identity(),
+        stiffness: 1.0,
+        maxTorque: 1.0,
+      );
+      expect(() => world.setJointDrive(slider, drive), throwsArgumentError);
+      expect(
+        () => world.setJointDrive(
+          ball,
+          JointDrive(
+            target: Quaternion.identity(),
+            stiffness: -1.0,
+            maxTorque: 1.0,
+          ),
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => world.setJointDriveFade(ball, floor: 0.0, seconds: 1.0),
+        throwsArgumentError,
+        reason: 'no drive to fade',
+      );
+      expect(world.jointDriveLevel(ball), 0.0);
+      world
+        ..setJointDrive(ball, drive)
+        ..setJointDriveFade(ball, floor: 0.0, seconds: 1.0)
+        ..setJointDrive(ball, null);
+      expect(world.jointDriveLevel(ball), 0.0);
+    });
+
+    test('its tone fades from all of it to its floor', () {
+      // A fade of 0.2 s: after a second, e⁻⁵ of the way is left. Mutation:
+      // set the fade's floor and time the other way round — the level stays
+      // near 1.
+      final rest = figure();
+      final ragdoll = NativeRagdoll(
+        dynamics.native,
+        rest,
+        pose: posed(rest, Quaternion.identity(), Vector3(0.0, 0.05, 0.0)),
+        tone: MuscleTone.human,
+      );
+      expect(ragdoll.toneLevel, 1.0);
+      for (var i = 0; i < 60; i++) {
+        dynamics.step(1.0 / 60.0);
+      }
+      const floor = 0.05;
+      expect(
+        ragdoll.toneLevel,
+        closeTo(floor + (1.0 - floor) * Portable.exp(-1.0 / 0.2), 1e-4),
+      );
+      final limp = NativeRagdoll(dynamics.native, figure(), tone: null);
+      expect(limp.toneLevel, 0.0);
+    });
+
+    test('without tone it steps to the bits it stepped to before tone, and '
+        'a tone of no torque is none', () {
+      // Two ragdolls, each alone in a core of its own, dropped on their
+      // side: one made without tone, one whose every group's most torque is
+      // nought. Their bodies land on the same bits; the core's digests hold
+      // that a joint without a drive steps as before drives were.
+      List<double> dropped(MuscleTone? tone) {
+        final floor = CollisionWorld()
+          ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
+        final own = NativeDynamics(world: floor)..native.substeps = 8;
+        addTearDown(own.dispose);
+        own.step(1.0 / 60.0);
+        final rest = figure();
+        final ragdoll = NativeRagdoll(
+          own.native,
+          rest,
+          pose: posed(
+            rest,
+            Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), 1.4),
+            Vector3(0.0, 1.0, 0.0),
+          ),
+          tone: tone,
+        );
+        for (var i = 0; i < 90; i++) {
+          own.step(1.0 / 60.0);
+        }
+        return <double>[
+          for (var i = 0; i < rest.length; i++) ...<double>[
+            ...ragdoll.poseOf(i).position.storage,
+            ...ragdoll.poseOf(i).orientation.storage,
+          ],
+        ];
+      }
+
+      const none = MuscleTone(stiffness: 100.0, damping: 1.0, maxTorque: 0.0);
+      expect(dropped(none), dropped(null));
+      // And with tone it does not: a check that the comparison can fail.
+      expect(dropped(MuscleTone.human), isNot(dropped(null)));
+    });
   });
 }
