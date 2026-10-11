@@ -47,7 +47,10 @@ final class RequiredShader {
        ),
        kind =
            kind ??
-           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex);
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex),
+       fragment = kind == null
+           ? fragment
+           : identical(kind, ShaderStageKind.fragment);
 
   /// The name the engine asks a bundle for.
   final String name;
@@ -55,8 +58,9 @@ final class RequiredShader {
   /// What the entry point runs as.
   final ShaderStageKind kind;
 
-  /// Whether this is a fragment stage.
-  bool get fragment => identical(kind, ShaderStageKind.fragment);
+  /// Whether this is a fragment stage: [kind] is
+  /// [ShaderStageKind.fragment].
+  final bool fragment;
 
   @override
   bool operator ==(Object other) =>

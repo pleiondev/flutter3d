@@ -626,6 +626,7 @@ final class CpuDevice extends GraphicsDevice with SynchronousBufferReadback
   RenderBundleEncoder createRenderBundleEncoder(RenderBundleDescriptor descriptor)
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   Stream<DeviceLoss> get lost
+  String get backendId
   String get backendName
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat

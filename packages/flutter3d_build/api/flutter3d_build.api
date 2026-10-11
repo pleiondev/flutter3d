@@ -651,7 +651,7 @@ Future<int> runInit(List<String> arguments, {IOSink? out, IOSink? err, Directory
 
 MaterialBuildReport runMaterialBuild(Directory projectRoot, {IOSink? log, MaterialCompilers? compilers, ShaderSet? engine})
 
-ShaderBuildReport runShaderBuild(Directory projectRoot, {required PluginDiscovery plugins, IOSink? log, bool full = false, ShaderBuildTarget target = ShaderBuildTarget.any, MaterialCompilers? compilers, ShaderSet? engine, String? engineRevision})
+ShaderBuildReport runShaderBuild(Directory projectRoot, {required PluginDiscovery plugins, IOSink? log, bool full = false, ShaderBuildTarget target = ShaderBuildTarget.any, MaterialCompilers? compilers, ShaderSet? engine, String? engineRevision, MaterialCompilerRegistry? registry})
 
 ({List<DiscoveredPlugin> kept, List<DiscoveredPlugin> excluded, List<String> warnings}) selectPlugins(List<DiscoveredPlugin> plugins, {List<PluginSelector> without = const <PluginSelector>[], Map<PluginSelector, String> set = const <PluginSelector, String>{}, List<PluginSelector> add = const <PluginSelector>[]})
 

@@ -32,6 +32,7 @@ final class GpuRenderBackend extends GraphicsDevice
   ShaderLibrary get shaders
   StorageBuffer createBuffer(BufferDescriptor descriptor, {ByteData? contents})
   Stream<DeviceLoss> get lost
+  String get backendId
   String get backendName
   TextureFormat get defaultColorFormat
   TextureFormat get defaultDepthStencilFormat

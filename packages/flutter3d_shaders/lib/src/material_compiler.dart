@@ -25,7 +25,10 @@ final class MaterialStageSource {
        ),
        kind =
            kind ??
-           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex);
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex),
+       fragment = kind == null
+           ? fragment
+           : identical(kind, ShaderStageKind.fragment);
 
   /// The entry point's name: the material's, or `<name>Vertex` and
   /// `<name>VertexSkinned` for its vertex stages.
@@ -34,8 +37,9 @@ final class MaterialStageSource {
   /// What the stage runs as.
   final ShaderStageKind kind;
 
-  /// Whether this is a fragment stage.
-  bool get fragment => identical(kind, ShaderStageKind.fragment);
+  /// Whether this is a fragment stage: [kind] is
+  /// [ShaderStageKind.fragment].
+  final bool fragment;
 
   /// The stage as GLSL 4.60, its `#include`s of the engine's headers left
   /// in place for [MaterialCompileRequest.engineSources] to resolve.

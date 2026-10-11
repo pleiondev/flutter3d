@@ -20382,3 +20382,23 @@ entries:
       `kind` beside them that can say a stage other than vertex or fragment.
       A literal `(name: …, fragment: …)` becomes `RequiredShader(name: …,
       fragment: …)`.
+
+  - id: af3-hardware-ShaderBundleStage-kind
+    package: flutter3d_hardware
+    symbol: ShaderBundleStage.ShaderBundleStage
+    kind: none
+    wave: 4
+    reason: >-
+      `fragment:` is optional now, beside a new `kind:`, so every call that
+      passed it compiles and means what it did; a stage given neither is a
+      vertex stage.
+
+  - id: af3-hardware-ShaderBundle-formatVersion
+    package: flutter3d_hardware
+    symbol: ShaderBundle.formatVersion
+    kind: none
+    reason: >-
+      A bundle is version 2 now, which writes each stage's kind as a code;
+      `decode` still reads version 1, and a bundle is a build artifact the
+      build writes again, so no code has to change.
+    wave: 4

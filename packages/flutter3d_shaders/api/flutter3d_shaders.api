@@ -41,8 +41,15 @@ final class MaterialCompilerRegistry
   Registration register(MaterialCompiler compiler)
   Set<String> get backends
 
+abstract final class MaterialStageBudget
+  static String? problem(String stage, {required int textures, required int samplers, required int uniformBlocks})
+  static const int samplers = 16
+  static const int textures = 16
+  static const int uniformBlocks = 12
+
 final class MaterialStageSource
-  const MaterialStageSource({required this.name, required this.fragment, required this.glsl})
+  const MaterialStageSource({required this.name, bool fragment = false, ShaderStageKind? kind, required this.glsl})
+  final ShaderStageKind kind
   final String glsl
   final String name
   final bool fragment
@@ -115,7 +122,7 @@ String? pairedFragmentStage(String vertex, Set<String> fragments)
 
 void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
-const Map<String, ({Set<String> blocks, Set<String> samplers})> stageBindings = …
+const Map<String, StageBindings> stageBindings = …
 
 const Map<String, Map<String, Map<String, UniformMemberLayout>>> uniformBlocks = …
 
@@ -142,6 +149,12 @@ final class GlslTranslateException extends Flutter3dFormatException
   String toString()
   const GlslTranslateException(this.message)
   final String message
+
+abstract final class MaterialStageBudget
+  static String? problem(String stage, {required int textures, required int samplers, required int uniformBlocks})
+  static const int samplers = 16
+  static const int textures = 16
+  static const int uniformBlocks = 12
 
 typedef PackedStage = ({String wgsl, PreparedStage prepared});
 
@@ -221,7 +234,7 @@ List<StageMismatch> checkBundleAgreement({required Map<String, String> vertex, r
 
 void checkStd140Offsets(String name, PreparedStage prepared, Map<String, Map<String, int>> offsets)
 
-CompiledStage compileStage(String glsl, {required String name, required bool fragment, bool compute = false, ShaderTarget target = ShaderTarget.wgsl})
+CompiledStage compileStage(String glsl, {required String name, bool fragment = false, bool compute = false, ShaderStageKind? kind, ShaderTarget target = ShaderTarget.wgsl})
 
 const String cubeDimension = 'cube'
 
@@ -294,7 +307,14 @@ final class MissingShaderStageException extends ResourceException
   final String? detail
   final String? need
 
-typedef RequiredShader = ({String name, bool fragment});
+final class RequiredShader
+  String toString()
+  bool operator ==(Object other)
+  const RequiredShader({required this.name, bool fragment = false, ShaderStageKind? kind})
+  final ShaderStageKind kind
+  final String name
+  final bool fragment
+  int get hashCode
 
 final class ShaderStageNeed
   String toString()
@@ -939,6 +959,12 @@ final class GlslTranslateException extends Flutter3dFormatException
   String toString()
   const GlslTranslateException(this.message)
   final String message
+
+abstract final class MaterialStageBudget
+  static String? problem(String stage, {required int textures, required int samplers, required int uniformBlocks})
+  static const int samplers = 16
+  static const int textures = 16
+  static const int uniformBlocks = 12
 
 typedef PackedStage = ({String wgsl, PreparedStage prepared});
 
