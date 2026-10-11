@@ -452,9 +452,11 @@ final class PluginKind
   String toString()
   final String about
   final String name
+  final bool isPlugin
   final bool simulates
   static PluginKind named(String name)
-  static const List<PluginKind> values = <PluginKind>[renderStep, effect, genre, element, tool]
+  static const List<PluginKind> values = <PluginKind>[renderStep, effect, genre, element, tool, backend]
+  static const PluginKind backend = PluginKind._('backend', 'a graphics backend with no GPU yet, which passes conformance and grows ' 'into one for another API', simulates: false, isPlugin: false)
   static const PluginKind effect = PluginKind._('effect', 'something seen when an event arrives, aged once a displayed frame', simulates: false)
   static const PluginKind element = PluginKind._('element', 'a field of the world stepped in the elements phase with Portable ' 'arithmetic, saved and restored with the run', simulates: true)
   static const PluginKind genre = PluginKind._('genre', 'a step phase of its own between physics and elements, with a rule ' 'that scores and an event it publishes', simulates: true)

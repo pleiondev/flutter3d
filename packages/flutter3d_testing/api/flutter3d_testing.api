@@ -55,9 +55,11 @@ abstract base class ReplaySubject
 
 final double defaultFlipPpd
 
+Future<RenderedFrame> drawOnce({required GraphicsDevice device, required Renderer renderer, required FrameSubject subject, required int width, required int height, RenderSettings settings = const RenderSettings(), LinearColor? clearColor})
+
 Future<void> expectMatchesGolden(RenderedFrame frame, String path, {double tolerance = 0.0, int channel = 8, bool alpha = false, String? reason, bool? recordMissing, double? flipBudget})
 
-Future<void> expectReplayMatches(Demo demo, {required ReplayStarter start, Iterable<int>? digestAt, Iterable<int> goldensAt = const <int>[], String goldenDirectory = 'test/goldens', String goldenName = 'replay', int width = 320, int height = 180, double dt = 1.0 / 60.0, RenderSettings settings = const RenderSettings(), double tolerance = 0.0, bool? recordMissing, String label = 'the tape'})
+Future<void> expectReplayMatches(Demo demo, {required ReplayStarter start, BackendOpener? device, Iterable<int>? digestAt, Iterable<int> goldensAt = const <int>[], String goldenDirectory = 'test/goldens', String goldenName = 'replay', int width = 320, int height = 180, double dt = 1.0 / 60.0, RenderSettings settings = const RenderSettings(), double tolerance = 0.0, bool? recordMissing, String label = 'the tape'})
 
 FlipResult flip(Uint8List reference, Uint8List test, {required int width, required int height, int channels = 4, double? ppd})
 
@@ -71,10 +73,10 @@ String qualityTablesSource(Map<DeviceClass, ({List<QualityMeasurement> rows, boo
 
 Demo readTape(String path)
 
-Future<RenderedFrame> renderFrame({required int width, required int height, required FrameBuilder build, RenderSettings settings = const RenderSettings(), LinearColor? clearColor})
+Future<RenderedFrame> renderFrame({required int width, required int height, required FrameBuilder build, RenderSettings settings = const RenderSettings(), LinearColor? clearColor, BackendOpener? device})
 
 Future<void> replayGolden({required Demo demo, required int atStep, required InputState input, required void Function(double dt) onStep, required int width, required int height, required FrameBuilder frame, required String goldenPath, double dt = 1.0 / 60.0, double tolerance = 0.0, String? reason})
 
 Future<PacingReport> replayPacing({required Demo demo, required InputState input, required void Function(double dt) onStep, required Future<void> Function(int frame) drawFrame, void Function()? rewind, int repeats = 1, int warmUpFrames = 0, double dt = 1.0 / 60.0, double limit = 0.05, int Function()? clock})
 
-void testReplay(String tapePath, {required ReplayStarter start, Iterable<int>? digestAt, Iterable<int> goldensAt = const <int>[], String goldenDirectory = 'test/goldens', int width = 320, int height = 180, double dt = 1.0 / 60.0, RenderSettings settings = const RenderSettings(), double tolerance = 0.0, bool? recordMissing, String? description, Object? skip})
+void testReplay(String tapePath, {required ReplayStarter start, BackendOpener? device, Iterable<int>? digestAt, Iterable<int> goldensAt = const <int>[], String goldenDirectory = 'test/goldens', int width = 320, int height = 180, double dt = 1.0 / 60.0, RenderSettings settings = const RenderSettings(), double tolerance = 0.0, bool? recordMissing, String? description, Object? skip})

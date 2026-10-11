@@ -13,8 +13,12 @@ final class PluginRenderPoints
   final ShadowTechnique? shadows
   final String? velocityReader
 
-Future<List<PluginCheckOutcome>> checkPluginRender(Flutter3dPlugin Function() create, {required GraphicsDevice Function() device, required PluginRenderPoints points, required String backend})
+typedef RenderCheckDevice = FutureOr<GraphicsDevice> Function();
+
+typedef RenderCheckMaterials = FutureOr<ShaderLibrary?> Function(GraphicsDevice device);
+
+Future<List<PluginCheckOutcome>> checkPluginRender(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials})
 
 const List<String> pluginRenderCheckNames = <String>['render.nodes', 'render.lit model', 'render.light type', 'render.decal', 'render.velocity', 'render.shadows']
 
-void runPluginRenderConformance(Flutter3dPlugin Function() create, {required GraphicsDevice Function() device, required PluginRenderPoints points, required String backend})
+void runPluginRenderConformance(Flutter3dPlugin Function() create, {required RenderCheckDevice device, required PluginRenderPoints points, required String backend, RenderCheckMaterials? materials})
