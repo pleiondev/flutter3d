@@ -36,12 +36,18 @@ dependencies:
   # dependency joined to get there.
   flutter3d_core: ^1.0.0-rc.1
 
+  # `EditorPanels`, the registry a plugin's panel is added through, is a
+  # `PluginRegistry` and tracks a plugin's `Registration`s. The contract is
+  # plain Dart over the foundation, so nothing of the editor arrives with it.
+  flutter3d_plugin_api: ^1.0.0-rc.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# **`flutter` and `flutter3d_core`, and nothing past them, on purpose.**
+# **`flutter`, `flutter3d_core` and the plugin contract, and nothing past
+# them, on purpose.**
 # Not `flutter3d_editor_core` — the `.fmat` gate stays there — and not
 # `flutter3d_model_core`, whose own `ParamHint`/`EnumHint` are a different
 # type from anything a widget here reads. A widget that seems to need one of

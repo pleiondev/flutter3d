@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **An actor is drawn through the scene binding of its body.**
+  `ActorVisuals` binds `ActorCodecs.body` to the kind of node `f3d.actor`
+  (`ActorVisuals.nodeKind`) in the `SceneBindings` it is given
+  (`bindings:`, its own by default) and makes each actor's node through
+  that kind, as a plugin's component is shown; the binding's lifetime is
+  the entity's, so a corpse keeps its node until the actor is removed. A
+  game that binds the body to a kind of its own first draws its actors as
+  that kind makes them, its `update` told the body's fields (the published
+  row, or the body's own) after the node is placed; a model still replaces
+  what the kind made. `dispose` takes the visuals' own binding away again,
+  and a second set of visuals over one registry is refused.
 - **A headset's controllers drive the action map.** `InputSource.xr(hand,
   control)` spells a control as an XR session reports it
   (`xr:<hand>/<control>`), so a rebinding is saved beside the keyboard's

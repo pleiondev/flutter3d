@@ -8,13 +8,8 @@
 /// than another.
 library;
 
-/// One member of a uniform block.
-typedef UniformMemberLayout = ({
-  int offset,
-  int byteLength,
-  int elements,
-  String type,
-});
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show UniformMemberLayout;
 
 const Map<String, Map<String, Map<String, UniformMemberLayout>>>
 uniformBlocks = <String, Map<String, Map<String, UniformMemberLayout>>>{

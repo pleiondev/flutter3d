@@ -1457,6 +1457,100 @@ final class WebGpuDevice extends GraphicsDevice
   int _warmed = 0;
   int _warmRefused = 0;
 
+  /// Whether a draw that meets a state no pipeline was built in yet builds
+  /// it off the frame, through `createRenderPipelineAsync`, and is skipped
+  /// until it arrives — for one frame at most, after which it is built in
+  /// place (`WebGpuPipelineCache.forDraw`).
+  ///
+  /// **Null, the default, defers once this device has shown a frame**
+  /// ([copyToCanvas]). Before that nothing is on the screen to stutter, and
+  /// a frame drawn once and read back — a golden, a thumbnail, a capture —
+  /// would come back without the draws it met first; after it, a level that
+  /// brings in a new material no longer stalls the frame that draws it
+  /// first. True defers from the first frame and false never does.
+  bool? deferPipelineBuilds;
+
+  /// What [deferPipelineBuilds] decides for the frame being drawn.
+  bool get defersPipelineBuilds => deferPipelineBuilds ?? _presented;
+
+  /// Whether [copyToCanvas] has run.
+  bool _presented = false;
+
+  /// The frame being drawn, counted by [beginFrame], which is how a draw
+  /// waiting on a build knows a frame has gone by.
+  int _frame = 0;
+
+  /// How many draws were skipped while their pipeline was built off the
+  /// frame, and how many of those builds arrived before the fallback, for
+  /// a test.
+  int get debugDeferredDraws => _deferredDraws;
+  int get debugDeferredBuilds => _deferredBuilds;
+  int _deferredDraws = 0;
+  int _deferredBuilds = 0;
+
+  /// The pipeline a draw uses for [signature], built for [handle]'s pair
+  /// from [descriptor]: built, sent off the frame, or built in place when
+  /// the frame that sent it has passed. Null skips the draw.
+  GPURenderPipeline? _pipelineForDraw(
+    PipelineHandle handle,
+    WebGpuPipelineSignature signature,
+    GPURenderPipelineDescriptor Function() descriptor,
+  ) {
+    final built = _pipelines.forDraw(
+      signature,
+      frame: _frame,
+      defer: defersPipelineBuilds,
+      build: () => _guardPipeline(
+        handle,
+        signature,
+        () => _gpuDevice.createRenderPipeline(descriptor()),
+      ),
+      buildLater: () => _buildLater(handle, signature, descriptor()),
+    );
+    if (built == null) _deferredDraws++;
+    return built;
+  }
+
+  /// Builds [descriptor] through `createRenderPipelineAsync` and offers it
+  /// to the cache; a refusal goes to [pipelineRefusals] against [handle], as
+  /// one on the error scope does, and the state stops being waited for.
+  void _buildLater(
+    PipelineHandle handle,
+    WebGpuPipelineSignature signature,
+    GPURenderPipelineDescriptor descriptor,
+  ) {
+    unawaited(
+      _gpuDevice
+          .createRenderPipelineAsync(descriptor)
+          .toDart
+          .then(
+            (GPURenderPipeline built) {
+              // Not waited for any more: built in place by the fallback, or its
+              // pipeline was given back meanwhile (`releasePipeline`).
+              if (_disposed || !_pipelines.isPending(signature)) return;
+              _pipelines.offer(signature, built);
+              _deferredBuilds++;
+            },
+            onError: (Object error) {
+              if (_disposed || !_pipelines.isPending(signature)) return;
+              _pipelines.settle(signature);
+              pipelineRefusals.report(
+                handle,
+                PipelineRefusedException(
+                  pipeline: handle.name,
+                  backend: _backend,
+                  reason: _isLost
+                      ? PipelineRefusalReason.deviceLost
+                      : PipelineRefusalReason.link,
+                  detail: '$error',
+                  cause: error,
+                ),
+              );
+            },
+          ),
+    );
+  }
+
   /// The bundle's own WGSL, compiled by this device, as a library that can be
   /// reloaded.
   ///
@@ -1607,6 +1701,7 @@ final class WebGpuDevice extends GraphicsDevice
   /// whether or not this one is refused.
   @override
   void beginFrame() {
+    _frame++;
     _timer.endFrame(_timingListener);
     _uniformArena.reset();
     _vertexArena.reset();
@@ -1667,6 +1762,7 @@ final class WebGpuDevice extends GraphicsDevice
   /// submitted immediately — the same one GPU copy the WebGL2 backend's
   /// presenting blit is, arrived at from the other side.
   void copyToCanvas(TextureHandle frame) {
+    _presented = true;
     // **The canvas takes the frame's size, and the clamp below is no longer the
     // thing that reconciles them.** A frame is as big as the surface asked for
     // — `SceneSurface` renders at the layout size times the device pixel ratio
@@ -2510,9 +2606,9 @@ extension WebGpuDeviceInternals on WebGpuDevice {
       _bindingsFor(pipeline);
   void rememberDrawState(WebGpuDrawState state) => _rememberDrawState(state);
   T guard<T>(String what, T Function() body) => _guard(what, body);
-  GPURenderPipeline guardPipeline(
+  GPURenderPipeline? pipelineForDraw(
     PipelineHandle handle,
     WebGpuPipelineSignature signature,
-    GPURenderPipeline Function() body,
-  ) => _guardPipeline(handle, signature, body);
+    GPURenderPipelineDescriptor Function() descriptor,
+  ) => _pipelineForDraw(handle, signature, descriptor);
 }

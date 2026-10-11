@@ -130,10 +130,10 @@ String uniformBlocksSource(
     ..writeln('/// than another.')
     ..writeln('library;')
     ..writeln()
-    ..writeln('/// One member of a uniform block.')
+    // The member's record has one home, the hardware contract.
     ..writeln(
-      'typedef UniformMemberLayout = '
-      '({int offset, int byteLength, int elements, String type});',
+      "import 'package:flutter3d_hardware/flutter3d_hardware.dart' "
+      'show UniformMemberLayout;',
     )
     ..writeln()
     ..writeln(

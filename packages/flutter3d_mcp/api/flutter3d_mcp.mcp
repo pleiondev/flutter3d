@@ -3,7 +3,7 @@
 # A change here is a semver decision: see "Tools for agents are a contract too" in CONTRIBUTING.md.
 
 server flutter3d.editor
-  schema 1.0.0
+  schema 1.1.0
   alias addBrush -> brush.add
   alias addLight -> light.add
   alias applyOverrides -> prefab.applyOverrides
@@ -61,6 +61,13 @@ server flutter3d.editor
   alias unpackPrefab -> prefab.unpack
   alias validate -> level.validate
 
+tool asset.import
+  says Bring a file into the project through the plugin importer its suffix names: the files it writes land in the project, and what it places in the level is one step of undo each.
+  hints writes
+  arg at {"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"}
+  arg path required {"type":"string"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
 tool behavior.remove
   says Take a behaviour tree out of the level.
   hints writes
@@ -114,6 +121,36 @@ tool cutscene.set
   arg at {"items":{"type":"number"},"maxItems":3,"minItems":3,"type":"array"}
   arg name required {"type":"string"}
   arg sequence required {"properties":{},"type":"object"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool experiment.edit
+  says Change the open experiment by one edit, named under `edit` with its own arguments: setExperimentField, setSubstance, removeSubstance, setParameter, removeParameter, setProbe, removeProbe, setStep, removeStep, moveStep, setExpectation, removeExpectation.
+  hints writes
+  arg arguments {"properties":{},"type":"object"}
+  arg edit required {"enum":["setExperimentField","setSubstance","removeSubstance","setParameter","removeParameter","setProbe","removeProbe","setStep","removeStep","moveStep","setExpectation","removeExpectation"],"type":"string"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool experiment.list
+  says The open experiment, one line per substance, parameter, probe and step, each step with what it sets, how long it runs and what it expects each probe to read.
+  hints readOnly
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool experiment.open
+  says Open an experiment document (.f3d.experiment) inside the project for the other experiment tools, and list what is in it: its substances, parameters, probes and the steps of its scenario.
+  hints writes
+  arg path required {"type":"string"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool experiment.save
+  says Write the open experiment over the file it came from, or to a path inside the project.
+  hints destructive
+  arg path {"type":"string"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool experiment.undo
+  says Take back the open experiment's last edit, or with redo true make the last one taken back again.
+  hints writes
+  arg redo {"type":"boolean"}
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 
 tool flutter3d.schema
@@ -249,6 +286,11 @@ tool play.swap
   says Swap the running game's code after it changed, the way flutter run does on r: the game keeps its state and picks up the new code, shaders and models.
   hints writes
   arg restart {"type":"boolean"}
+  out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
+
+tool plugin.list
+  says What the project's plugins brought to this editor: their commands with the arguments each takes (each is also a tool of its own, `<plugin id>.<name>`), the fields they hint for components, entity kinds and materials, their gizmos, their importers and the kinds of file they list.
+  hints readOnly
   out {"properties":{"did":{"type":"boolean"},"hasPicture":{"type":"boolean"},"says":{"type":"string"},"selection":{"type":"string"}},"required":["did","hasPicture","says","selection"],"type":"object"}
 
 tool prefab.applyOverrides

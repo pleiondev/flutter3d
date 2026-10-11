@@ -20294,3 +20294,47 @@ entries:
       The `exposure` default is written as `RenderSettings.defaultExposure`
       where it was the literal 1.6; the value is the same, so every call
       still compiles and draws as it did.
+
+  - id: 4e-editor_core-orderedSteps
+    package: flutter3d_editor_core
+    symbol: orderedSteps
+    kind: moved
+    to: package:flutter3d_education/lesson.dart
+    wave: 4
+    guidance: >-
+      Reading a lesson's steps in order is what a lesson viewer needs as
+      much as an editor, and a viewer does not depend on an editor, so it is
+      `flutter3d_education`'s `lesson.dart` now. The function is the same;
+      the import and the dependency on `flutter3d_education` change.
+
+  - id: 4e-sim-LightmapBaker
+    package: flutter3d_sim
+    symbol: LightmapBaker
+    kind: moved
+    to: package:flutter3d_build/lightmap.dart
+    wave: 4
+    guidance: >-
+      A lightmap is baked once, before a level ships, and no step reads the
+      baker, so it is a build step: `flutter3d_build`'s `lightmap.dart`, and
+      `dart run flutter3d_build:lightmap` for the command. `Lightmap`
+      and `LightmapLayout`, which the loader reads, stay in `flutter3d_sim`.
+
+  - id: 4e-mesh-FittedBox
+    package: flutter3d_mesh
+    symbol: FittedBox
+    kind: rename
+    to: FittedCuboid
+    wave: 4
+    guidance: >-
+      A public name does not shadow one of Flutter's, and `FittedBox` is a
+      Flutter widget: the box `fitBoxByInertia` answers is `FittedCuboid`,
+      with the same fields.
+
+  - id: 4e-mesh-fitBoxByInertia
+    package: flutter3d_mesh
+    symbol: fitBoxByInertia
+    kind: none
+    wave: 4
+    reason: >-
+      It returns the same box under its new name, `FittedCuboid`; the
+      rename of the type carries the fix, and a call needs none.

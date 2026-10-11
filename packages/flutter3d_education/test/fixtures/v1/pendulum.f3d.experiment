@@ -1,0 +1,153 @@
+{
+  "format": "f3d.experiment",
+  "version": 1,
+  "requires": [],
+  "generator": "flutter3d",
+  "name": "pendulum",
+  "title": "A pendulum's period and its length",
+  "level": "pendulum.level.json",
+  "substances": [
+    {
+      "id": "f3d.steel",
+      "role": "bob"
+    },
+    {
+      "id": "f3d.air",
+      "role": "medium"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "length",
+      "value": {
+        "value": 1.0,
+        "unit": "m"
+      },
+      "min": {
+        "value": 0.2,
+        "unit": "m"
+      },
+      "max": {
+        "value": 2.0,
+        "unit": "m"
+      }
+    },
+    {
+      "id": "startAngle",
+      "value": {
+        "value": 0.1,
+        "unit": "rad"
+      }
+    },
+    {
+      "id": "damping",
+      "value": {
+        "value": 0.0,
+        "unit": "1/s"
+      }
+    }
+  ],
+  "probes": [
+    {
+      "id": "angle",
+      "quantity": "f3d.angle",
+      "unit": "rad",
+      "region": {
+        "kind": "body"
+      },
+      "on": "bob"
+    },
+    {
+      "id": "period",
+      "quantity": "f3d.education.period",
+      "unit": "s",
+      "region": {
+        "kind": "body"
+      },
+      "on": "bob"
+    }
+  ],
+  "scenario": {
+    "steps": [
+      {
+        "name": "release",
+        "title": "Let the bob go from 0.1 rad on a metre of string",
+        "set": {
+          "length": {
+            "value": 1.0,
+            "unit": "m"
+          }
+        },
+        "run": {
+          "value": 20.0,
+          "unit": "s"
+        },
+        "expect": [
+          {
+            "probe": "period",
+            "value": {
+              "value": 2.007664,
+              "unit": "s"
+            },
+            "tolerance": {
+              "value": 0.001,
+              "unit": "s"
+            }
+          }
+        ]
+      },
+      {
+        "name": "shorten",
+        "title": "Shorten the string to a quarter",
+        "set": {
+          "length": {
+            "value": 0.25,
+            "unit": "m"
+          }
+        },
+        "run": {
+          "value": 10.0,
+          "unit": "s"
+        },
+        "expect": [
+          {
+            "probe": "period",
+            "value": {
+              "value": 1.003832,
+              "unit": "s"
+            },
+            "tolerance": {
+              "value": 0.001,
+              "unit": "s"
+            }
+          }
+        ],
+        "check": {
+          "question": "How did the period change when the string became a quarter as long?",
+          "answers": [
+            "halved",
+            "half",
+            "it halved"
+          ],
+          "attempts": 2
+        }
+      }
+    ]
+  },
+  "unknowns": [
+    {
+      "parameter": "length",
+      "min": {
+        "value": 0.2,
+        "unit": "m"
+      },
+      "max": {
+        "value": 2.0,
+        "unit": "m"
+      },
+      "prior": {
+        "kind": "uniform"
+      }
+    }
+  ]
+}

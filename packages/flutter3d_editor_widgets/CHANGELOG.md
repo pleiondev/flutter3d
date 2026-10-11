@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A plugin adds panels and docks.** `EditorPanels` (new) is the registry
+  a plugin adds an `EditorPanel` to, published as `<plugin id>.<id>`:
+  docked to a side, or, with no side, a main-screen panel shown in the
+  picture's place. A panel is built with an `EditorPanelContext`: the open
+  document as JSON, the selection (`PanelSelection`), and `run`, which
+  changes the document by a command. A panel that throws shows the error in
+  its place. The package depends on `flutter3d_plugin_api` for it.
 - **Breaking: `NumberUnit` is an open set**, a class with constants rather
   than an enum, so a unit a later minor adds breaks no `switch`. The
   constants, `values` and `name` are as they were.

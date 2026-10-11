@@ -37,6 +37,6 @@ export 'src/material_compiler.dart';
 export 'src/shader_target.dart';
 export 'src/stage_bindings.dart';
 export 'src/stage_interface.dart';
-// The layout record is `UniformMemberLayout` from flutter3d_hardware, the
-// same shape; this file's own typedef of it stays private to the table.
+// The layout record is `UniformMemberLayout` from flutter3d_hardware, which
+// the table names; it has no second declaration here.
 export 'src/uniform_blocks.dart' show uniformBlocks;

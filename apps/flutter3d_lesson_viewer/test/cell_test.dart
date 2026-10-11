@@ -40,7 +40,7 @@ Future<LessonReady> _opened() async {
 void _advance(LessonReady ready, int count) {
   for (var i = 0; i < count; i++) {
     ready.player.next();
-    ready.player.applyCurrent(ready.camera, nodes: ready.nodes);
+    ready.player.applyCurrentTo(ready.camera, nodes: ready.nodes);
   }
 }
 

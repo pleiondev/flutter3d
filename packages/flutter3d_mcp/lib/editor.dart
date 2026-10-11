@@ -40,3 +40,4 @@ export 'src/editor/editor_stdio.dart';
 export 'src/editor/editor_tools.dart';
 export 'src/editor/level_view.dart';
 export 'src/editor/play_session.dart';
+export 'src/editor/plugin_commands.dart';

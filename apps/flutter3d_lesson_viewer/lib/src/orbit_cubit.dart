@@ -17,9 +17,9 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart'
+    show applyLessonStepTo;
 import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'lesson_player.dart';
 
 /// A snapshot of [OrbitController]'s own numbers.
 final class OrbitPose {
@@ -75,7 +75,7 @@ class OrbitCubit extends Cubit<OrbitPose> {
   }
 
   /// Places [step] exactly where `edu-00` says it stands
-  /// (`applyLessonStepToCamera`, unchanged), then rebuilds the turntable
+  /// (`applyLessonStepTo`, unchanged), then rebuilds the turntable
   /// around the resulting position — the origin is the assumed subject, the
   /// same convention the shipped tour's own pedestal already stands on —
   /// so a drag afterward orbits from where the step actually landed rather
@@ -86,7 +86,7 @@ class OrbitCubit extends Cubit<OrbitPose> {
     Map<String, Vector3> restPositions = const <String, Vector3>{},
   }) {
     if (step != null) {
-      applyLessonStepToCamera(
+      applyLessonStepTo(
         orbit.node,
         step,
         nodes: nodes,

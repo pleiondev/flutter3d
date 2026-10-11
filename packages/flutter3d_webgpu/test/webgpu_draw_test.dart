@@ -1287,4 +1287,96 @@ void main() {
     expect(await scene.device.debugDrainErrors('present'), isNull);
     scene.device.dispose();
   });
+
+  group('a draw in a state nothing was built in', () {
+    /// One frame of the textured quad into [target], read back.
+    Future<ByteData> drawFrame(_Scene scene, TextureHandle target) async {
+      scene.device.beginFrame();
+      final pass = scene.device.beginRenderPass(
+        RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+      )..bindPipeline(scene.pipeline);
+      scene.bindQuad(
+        pass,
+        where: placedAt(),
+        sampler: SamplerDescriptor.nearestClamp,
+      );
+      pass
+        ..draw()
+        ..submit();
+      return scene.device.readback(target);
+    }
+
+    test('waits for its build off the frame, and draws when it came', () async {
+      // Mutation: build in place on the draw path, as before 1.0 — the first
+      // frame comes back drawn and nothing was deferred.
+      final scene = await _scene();
+      if (scene == null) return;
+      scene.device.deferPipelineBuilds = true;
+      final target = scene.target();
+
+      final first = await drawFrame(scene, target);
+      expect(_texel(first, 4, 0, 1), _black, reason: 'skipped, not stalled');
+      expect(scene.device.debugDeferredDraws, 1);
+
+      // The answer arrives between frames.
+      for (var i = 0; i < 200 && scene.device.pipelines.length == 0; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+      expect(scene.device.debugDeferredBuilds, 1);
+
+      final second = await drawFrame(scene, target);
+      expect(_texel(second, 4, 0, 1), _red);
+      expect(_texel(second, 4, 3, 1), _green);
+      expect(scene.device.debugDeferredDraws, 1);
+      expect(scene.device.pipelines.length, 1);
+      expect(await scene.device.debugDrainErrors('deferred'), isNull);
+      scene.device.dispose();
+    });
+
+    test(
+      'is built in place a frame later when the build is still out',
+      () async {
+        // The one-frame fallback. Mutation: keep waiting while the build is
+        // out — the second frame comes back black as well.
+        final scene = await _scene();
+        if (scene == null) return;
+        scene.device.deferPipelineBuilds = true;
+        final target = scene.target();
+        scene.device.beginFrame();
+        final pass = scene.device.beginRenderPass(
+          RenderPassDescriptor(colors: <ColorTarget>[_clearTo(target)]),
+        )..bindPipeline(scene.pipeline);
+        scene.bindQuad(pass, where: placedAt());
+        pass
+          ..draw()
+          ..submit();
+        // No turn of the event loop between the two frames, so the build
+        // sent off the first cannot have answered.
+        final second = await drawFrame(scene, target);
+        expect(_texel(second, 4, 0, 1), _red);
+        expect(scene.device.debugDeferredDraws, 1);
+        expect(await scene.device.debugDrainErrors('fallback'), isNull);
+        scene.device.dispose();
+      },
+    );
+
+    test('is built in place until the canvas has shown a frame', () async {
+      // A frame drawn once and read back is every golden; deferring there
+      // would take the first draw of each state out of the picture.
+      // Mutation: make the default defer — the first frame comes back black.
+      final scene = await _scene();
+      if (scene == null) return;
+      final target = scene.target();
+      expect(scene.device.defersPipelineBuilds, isFalse);
+      final first = await drawFrame(scene, target);
+      expect(_texel(first, 4, 0, 1), _red);
+      expect(scene.device.debugDeferredDraws, 0);
+
+      scene.device.copyToCanvas(target);
+      expect(scene.device.defersPipelineBuilds, isTrue);
+      scene.device.deferPipelineBuilds = false;
+      expect(scene.device.defersPipelineBuilds, isFalse);
+      scene.device.dispose();
+    });
+  });
 }

@@ -1,5 +1,32 @@
 ## 1.0.0-rc.1
 
+- **The heat on a body, from the field.** `ElementFields.radiantFluxOn` and
+  `FieldQuantity.radiantFlux` (W/m²): each fire's radiant heat, Modak's
+  point source at the middle of its flame, on the point of the body a ray
+  from there meets first, and nothing from a fire something else stands
+  in front of. What a game's character is burnt by, read rather than
+  worked out beside the world.
+- **A burner fed what was spilt.** `Fires.setBurner(body, burner, fuel:)`
+  feeds a burner that many kilograms and no more: it goes out by itself
+  when they are burnt, told as `burnerOut`, and `Fires.fuelLeft` and the
+  snapshot keep what is left.
+- **A body weighed from the catalogue.** `Solid.of(shape, material)` makes
+  a solid of a catalogue material, as heat sees it and as dense as the
+  catalogue says, at its reference state or a `MaterialState`; `wall:`
+  makes it hollow, displacing all of its shape and weighing its shell.
+  `Solid.at(kelvin)` puts a solid in the world at a temperature of its
+  own — a bomb from its melt — which `addBody` sets.
+- **A throw aimed by the core's own flight.** `Ballistics.aim(world, solid,
+  from:, to:, elevation:)` finds the velocity whose flight through the
+  world's gravity, air and wind, flown by the core at the game's step,
+  comes down on the mark: no vacuum formula and no number to make up for
+  the drag.
+- **Brands a fire lofts.** `Firebrands` lofts a share of the fuel each
+  fire burns as brands of a game's solid, deterministically, from the top
+  of the flame up its plume at McCaffrey's centreline speed and with the
+  wind, as hot as the flame; the core burns them and lets them light what
+  they come down on. A budget (`most`) and what it held back (`skipped`),
+  and a save.
 - **`ElementFields` has a body for every member**: what a backend does not
   override is refused with an `UnsupportedCapabilityException` naming the member,
   so a member added in a minor breaks no backend.

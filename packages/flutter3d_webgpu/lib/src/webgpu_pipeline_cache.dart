@@ -318,6 +318,10 @@ final class WebGpuPipelineSignature {
 final class WebGpuPipelineCache<T extends Object> {
   final Map<WebGpuPipelineSignature, T> _built = <WebGpuPipelineSignature, T>{};
 
+  /// The states sent to be built off the frame, by the frame that sent each.
+  final Map<WebGpuPipelineSignature, int> _pending =
+      <WebGpuPipelineSignature, int>{};
+
   /// How many distinct pipelines have been built. What `dispose` drops, and
   /// what a test asserts a cache hit by.
   int get length => _built.length;
@@ -327,6 +331,51 @@ final class WebGpuPipelineCache<T extends Object> {
   T get(WebGpuPipelineSignature signature, T Function() build) =>
       _built[signature] ??= build();
 
+  /// The pipeline a draw in [frame] uses for [signature], or null when the
+  /// draw is skipped while the pipeline is built off the frame.
+  ///
+  /// **The browser compiles a new state on its own threads, and the frame
+  /// does not wait for it.** `createRenderPipeline` hands back an object at
+  /// once and stalls the queue at the first draw with it until the driver
+  /// has compiled it, which on a phone is tens of milliseconds a state; a
+  /// level that brings in a new material paid it in the frame that drew the
+  /// material first. So where [defer] is true, the first draw in a state
+  /// calls [buildLater] (`createRenderPipelineAsync`, whose answer arrives
+  /// through [offer] or [settle]) and is skipped, as is every draw in that
+  /// state until the answer comes.
+  ///
+  /// **The fallback is one frame.** A draw in a later frame than the one
+  /// that sent the build, which still finds no answer, builds in place with
+  /// [build], and the late answer is then dropped by [offer]: a draw is
+  /// missing from one frame at most, never from as many as a slow compiler
+  /// takes. Where [defer] is false — a frame drawn once and read back, which
+  /// is every golden — the draw builds in place, as [get] does.
+  T? forDraw(
+    WebGpuPipelineSignature signature, {
+    required int frame,
+    required bool defer,
+    required T Function() build,
+    required void Function() buildLater,
+  }) {
+    final built = _built[signature];
+    if (built != null) return built;
+    final sent = _pending[signature];
+    if (!defer || (sent != null && sent < frame)) {
+      _pending.remove(signature);
+      return _built[signature] = build();
+    }
+    if (sent == null) {
+      _pending[signature] = frame;
+      buildLater();
+    }
+    return null;
+  }
+
+  /// Whether a build for [signature] was sent off the frame and has not
+  /// answered.
+  bool isPending(WebGpuPipelineSignature signature) =>
+      _pending.containsKey(signature);
+
   /// Whether a pipeline for [signature] is built.
   bool contains(WebGpuPipelineSignature signature) =>
       _built.containsKey(signature);
@@ -334,8 +383,15 @@ final class WebGpuPipelineCache<T extends Object> {
   /// Keeps [pipeline] for [signature] unless one is already there — how a
   /// pipeline built asynchronously arrives, after a draw may have built the
   /// same one in the meantime, which then stands. Answers the one kept.
-  T offer(WebGpuPipelineSignature signature, T pipeline) =>
-      _built.putIfAbsent(signature, () => pipeline);
+  T offer(WebGpuPipelineSignature signature, T pipeline) {
+    _pending.remove(signature);
+    return _built.putIfAbsent(signature, () => pipeline);
+  }
+
+  /// Stops waiting for a build of [signature] sent off the frame, which the
+  /// browser refused: the next draw in that state asks again rather than
+  /// taking the fallback and building what was just refused.
+  void settle(WebGpuPipelineSignature signature) => _pending.remove(signature);
 
   /// Forgets the pipeline built for [signature], so the next draw that asks
   /// builds it again: what a pipeline the browser refused on its error scope
@@ -345,13 +401,21 @@ final class WebGpuPipelineCache<T extends Object> {
   /// Forgets every pipeline built from [stages], in whatever draw state:
   /// what `releasePipeline` leaves once no handle over them is left. Answers
   /// how many went.
+  ///
+  /// A build of those stages still out off the frame stops being waited
+  /// for, so what it brings back is dropped rather than cached for a
+  /// pipeline nobody holds.
   int forgetStages(WebGpuStages stages) {
+    bool built(WebGpuPipelineSignature signature) =>
+        identical(signature.vertexModule, stages.vertexModule) &&
+        identical(signature.fragmentModule, stages.fragmentModule) &&
+        signature.vertexLayout == stages.vertexLayout;
     final before = _built.length;
     _built.removeWhere(
-      (WebGpuPipelineSignature signature, T _) =>
-          identical(signature.vertexModule, stages.vertexModule) &&
-          identical(signature.fragmentModule, stages.fragmentModule) &&
-          signature.vertexLayout == stages.vertexLayout,
+      (WebGpuPipelineSignature signature, T _) => built(signature),
+    );
+    _pending.removeWhere(
+      (WebGpuPipelineSignature signature, int _) => built(signature),
     );
     return before - _built.length;
   }
@@ -359,7 +423,10 @@ final class WebGpuPipelineCache<T extends Object> {
   /// Forgets everything. Called from `dispose`, where the device that owns the
   /// pipelines is going: a `GPURenderPipeline` has no `destroy` of its own and
   /// dies with its device.
-  void clear() => _built.clear();
+  void clear() {
+    _built.clear();
+    _pending.clear();
+  }
 }
 
 /// What a pipeline handle stands for in the cache: its two modules, compared

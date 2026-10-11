@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1739 places,
+only in a major version. To get there, 0.8's API changed in 1743 places,
 361 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -168,7 +168,7 @@ the game reads every version of them as before.
 
 <!-- data-formats:start -->
 
-*Generated from the `FormatSpec`s `migrate --data` loads — 23 formats, and 10 it leaves to the package that reads them.*
+*Generated from the `FormatSpec`s `migrate --data` loads — 24 formats, and 10 it leaves to the package that reads them.*
 
 | Format | Files | Package | This build reads | `migrate --data` |
 |---|---|---|---|---|
@@ -193,6 +193,7 @@ the game reads every version of them as before.
 | `f3d.plugin` | `.f3dplugin` | `flutter3d_plugin_runtime` | v1–v3 | lifted to v3 through its chain |
 | `f3d.physicalMaterial` | `.material.json` | `flutter3d_matter` | v1–v2 | lifted to v2 through its chain |
 | `f3d.voxelWorld` | `.voxels.json` | `flutter3d_voxel` | v1 | nothing to lift |
+| `f3d.experiment` | `.f3d.experiment` | `flutter3d_education` | v1 | nothing to lift |
 | `f3d.assets` | `flutter3d_assets.yaml` | `flutter3d_build` | v1 | nothing to lift |
 | `f3d.convertReport` | `.report.json` | `flutter3d_build` | v1 | nothing to lift |
 | `f3d.settings` | `.settings.json` | `flutter3d_game` | every version | left as it is: its package needs Flutter, and the game reads every version |
@@ -221,7 +222,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1739 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 119 `migrate`, 361 by hand, 332 nothing to do, 456 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1743 entries from 0.8.5 to 1.0.0-rc.1, 361 by hand: 119 `migrate`, 361 by hand, 333 nothing to do, 459 `dart fix`, 380 gone internal, 91 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -920,6 +921,7 @@ carried out:
 - <a id="4a-editor_core-kLight"></a>**`kLight`** (`dart fix`). `kLight` is `paletteLight`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="4a-editor_core-kLooksFile"></a>**`kLooksFile`** (`dart fix`). `kLooksFile` is `looksFile`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="editor_core-meshDataOf"></a>**`meshDataOf`** (`dart fix`). `meshDataOf` is imported from `package:flutter3d_level_scene/flutter3d_level_scene.dart`. Building a scene from a level left the editor's core for `flutter3d_level_scene`, which the application's level loader and the editor both stand on. `dart fix` changes the import, and `migrate` adds the dependency.
+- <a id="4e-editor_core-orderedSteps"></a>**`orderedSteps`** (`dart fix`). `orderedSteps` is imported from `package:flutter3d_education/lesson.dart`. Reading a lesson's steps in order is what a lesson viewer needs as much as an editor, and a viewer does not depend on an editor, so it is `flutter3d_education`'s `lesson.dart` now. The function is the same; the import and the dependency on `flutter3d_education` change.
 
 ### `flutter3d_editor_mcp`
 
@@ -1367,14 +1369,15 @@ carried out:
 - <a id="4a-mesh-EditMesh-setColour"></a>**`EditMesh.setColour`** (`dart fix`). `EditMesh.setColour` is `setColor`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="2s-mesh-ElementLevel-open"></a>**`ElementLevel`** (`migrate`, with a TODO). `ElementLevel` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `ElementLevel` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is not.
 - <a id="4a-mesh-FaceTriangulator-fannedLastFace"></a>**`FaceTriangulator.fannedLastFace`** (`dart fix`). `FaceTriangulator.fannedLastFace` is `didFanLastFace`. A boolean getter reads as a question in 1.0: it starts with is, has, can, uses, supports, did or was, as Effective Dart asks. The value is the same under the new name.
+- <a id="4e-mesh-FittedBox"></a>**`FittedBox`** (`dart fix`). `FittedBox` is `FittedCuboid`. A public name does not shadow one of Flutter's, and `FittedBox` is a Flutter widget: the box `fitBoxByInertia` answers is `FittedCuboid`, with the same fields.
 - <a id="b1-mesh-ImportReport"></a>**`ImportReport`** (`dart fix`). `ImportReport` is `MeshImportReport`. What `importMeshData` reports about one mesh's weld is `MeshImportReport`; `ImportReport` is `flutter3d_model_core`'s, about a whole document imported into a project.
 - <a id="4a-mesh-ImportReport-worthReporting"></a>**`ImportReport.worthReporting`** (`dart fix`). `ImportReport.worthReporting` is `isWorthReporting`. A boolean getter reads as a question in 1.0: it starts with is, has, can, uses, supports, did or was, as Effective Dart asks. The value is the same under the new name.
 - <a id="2s-mesh-IssueSeverity-open"></a>**`IssueSeverity`** (`migrate`, with a TODO). `IssueSeverity` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `IssueSeverity` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is there too.
 - <a id="4a-mesh-JournalledFloats"></a>**`JournalledFloats`** (`dart fix`). `JournalledFloats` is `JournaledFloats`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-mesh-JournalledInts"></a>**`JournalledInts`** (`dart fix`). `JournalledInts` is `JournaledInts`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-mesh-MergeReport-worthReporting"></a>**`MergeReport.worthReporting`** (`dart fix`). `MergeReport.worthReporting` is `isWorthReporting`. A boolean getter reads as a question in 1.0: it starts with is, has, can, uses, supports, did or was, as Effective Dart asks. The value is the same under the new name.
-- <a id="4a-mesh-MeshAttribute"></a>**`MeshAttribute`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
 - <a id="2s-mesh-MeshAttribute-open"></a>**`MeshAttribute`** (`migrate`, with a TODO). `MeshAttribute` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `MeshAttribute` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is not.
+- <a id="4a-mesh-MeshAttribute"></a>**`MeshAttribute`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
 - <a id="mesh-MeshBvh"></a>**`MeshBvh`** (nothing to do). Only the float32 ray in its signature changed: `Ray` is `LocalRay` (`core-Ray-LocalRay` renames it).
 - <a id="2s-mesh-MeshDomain-open"></a>**`MeshDomain`** (`migrate`, with a TODO). `MeshDomain` is a class: a `switch` over it that names every value gains `_ => throw UnimplementedError()`. `MeshDomain` is an open set since 1.0, a class with constants rather than an enum, so a value a later minor adds does not break your code: a `switch` over it needs a `_ =>` case. The constants, `values`, `name` (the same words the enum wrote) and `byName` are there; `index` is not.
 - <a id="4a-mesh-MeshLayoutPlan-fannedAnyFace"></a>**`MeshLayoutPlan.fannedAnyFace`** (`dart fix`). `MeshLayoutPlan.fannedAnyFace` is `didFanAnyFace`. A boolean getter reads as a question in 1.0: it starts with is, has, can, uses, supports, did or was, as Effective Dart asks. The value is the same under the new name.
@@ -1386,6 +1389,7 @@ carried out:
 - <a id="mesh-SculptMeshBvh"></a>**`SculptMeshBvh`** (nothing to do). Only the float32 ray in its signature changed: `Ray` is `LocalRay` (`core-Ray-LocalRay` renames it).
 - <a id="b1-mesh-applyBrushStroke"></a>**`applyBrushStroke`** (nothing to do). It takes the same brush under its new name, `MeshBrush`; a call that passed a `Brush` passes the renamed one, which `dart fix` writes.
 - <a id="4a-mesh-bevelledCube"></a>**`bevelledCube`** (`dart fix`). `bevelledCube` is `beveledCube`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
+- <a id="4e-mesh-fitBoxByInertia"></a>**`fitBoxByInertia`** (nothing to do). It returns the same box under its new name, `FittedCuboid`; the rename of the type carries the fix, and a call needs none.
 - <a id="b1-mesh-importMeshData"></a>**`importMeshData`** (nothing to do). The record it returns holds the same report under its new name, `MeshImportReport`; a pattern that named the type is renamed by `dart fix`.
 - <a id="4a-mesh-projectBrush"></a>**`projectBrush`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
 - <a id="4a-mesh-simplifyMesh"></a>**`simplifyMesh`** (nothing to do). Only a type its declaration names was renamed; that rename's own fix carries every use.
@@ -1648,6 +1652,7 @@ carried out:
 - <a id="sim-Lightmap-exception"></a>**`Lightmap.fromBytes`** (by hand). An unreadable lightmap throws `LightmapFormatException`, not `dart:core`'s `FormatException`: catch it (or `Flutter3dFormatException`).
 - <a id="4a-sim-Lightmap-kScale"></a>**`Lightmap.kScale`** (`dart fix`). `Lightmap.kScale` is `irradianceScale`. A public constant is lowerCamelCase in 1.0, as Effective Dart asks, without the k prefix. The value is the same under the new name.
 - <a id="4a-sim-Lightmap-texelsPerMetre"></a>**`Lightmap.texelsPerMetre`** (`dart fix`). `Lightmap.texelsPerMetre` is `texelsPerMeter`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
+- <a id="4e-sim-LightmapBaker"></a>**`LightmapBaker`** (`dart fix`). `LightmapBaker` is imported from `package:flutter3d_build/lightmap.dart`. A lightmap is baked once, before a level ships, and no step reads the baker, so it is a build step: `flutter3d_build`'s `lightmap.dart`, and `dart run flutter3d_build:lightmap` for the command. `Lightmap` and `LightmapLayout`, which the loader reads, stay in `flutter3d_sim`.
 - <a id="4a-sim-LightmapBaker-LightmapBaker"></a>**`LightmapBaker.LightmapBaker`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-sim-LightmapBaker-texelsPerMetre"></a>**`LightmapBaker.texelsPerMetre`** (`dart fix`). `LightmapBaker.texelsPerMetre` is `texelsPerMeter`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="sim-LightmapLayout-maxSize"></a>**`LightmapLayout.maxSize`** (nothing to do). A getter where it was a constant, with the same value: a read is unchanged. Only a `const` expression that used it stops compiling; write the number there, or drop the `const`.

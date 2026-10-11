@@ -25,6 +25,7 @@ void main() {
       'create',
       'flutter3d',
       'init',
+      'lightmap',
       'lights',
       'migrate',
       'plugin_mcp',

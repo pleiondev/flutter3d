@@ -38,7 +38,8 @@
 /// **The cameras.** `CameraRig`, `PhotoCamera` and `RigSettings` place a view,
 /// which no step reads, so they live in `flutter3d_camera` beside the virtual
 /// cameras that drive them. What stays here looks like the view and is not:
-/// a lightmap is a level asset baked from the level's geometry, a sequence
+/// a lightmap is a level asset read beside the level (its baker is
+/// `flutter3d_build`'s, a step before the level ships), a sequence
 /// player steps in the simulation and directs its actors, and a light's
 /// flicker is level data the step reads.
 library;
@@ -92,7 +93,6 @@ export 'src/level/level_patch.dart';
 export 'src/level/level_validator.dart';
 export 'src/level/level_visibility.dart';
 export 'src/level/lightmap.dart';
-export 'src/level/lightmap_baker.dart';
 export 'src/level/lightmap_layout.dart';
 export 'src/level/spawn_context.dart';
 export 'src/level/surface_kinds.dart';

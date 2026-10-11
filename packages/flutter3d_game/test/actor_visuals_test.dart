@@ -22,6 +22,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show StringCodec;
 import 'package:flutter3d/flutter3d.dart' as engine show AnimationPose;
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show SceneBindingContext, SceneBindings, SceneNodeKind;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -604,6 +606,95 @@ void main() {
     });
   });
 
+  group('an actor is drawn through the scene binding of its body', () {
+    test('which the visuals add to the bindings they are given, and take '
+        'away again when they are let go', () {
+      // D37: the actors are a scene binding like any component a plugin
+      // binds — the body's codec bound to the kind of node `f3d.actor`.
+      // Mutation: make the node in `add` directly, not through the kind; the
+      // registry stays empty and the first expectation fails.
+      final bindings = SceneBindings();
+      final visuals = ActorVisuals(
+        Scene(),
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        bindings: bindings,
+      );
+
+      final spec = bindings.bindingOf(ActorCodecs.body.id);
+      expect(spec?.nodeKind, ActorVisuals.nodeKind);
+      expect(bindings.resolve(ActorCodecs.body.id)?.kind.name, 'f3d.actor');
+
+      visuals.dispose();
+      expect(bindings.bindings, isEmpty);
+      expect(bindings.kinds, isEmpty);
+    });
+
+    test('and a game that binds the body to a kind of its own draws its '
+        'actors as that kind makes them, told the body every frame', () {
+      // The point of drawing through a binding: a game replaces the capsule
+      // with what its own kind makes, and nothing in the visuals changes.
+      // Mutation: ignore the binding the registry already has and add the
+      // capsule's; the node in the scene is then the capsule, not the
+      // kind's.
+      final bindings = SceneBindings();
+      final kind = _Totem();
+      bindings
+        ..addKind(kind)
+        ..add(
+          SceneBindingSpec(
+            component: ActorCodecs.body.id,
+            nodeKind: 'game.totem',
+          ),
+        );
+      final scene = Scene();
+      final actor = _actor();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        bindings: bindings,
+      )..add(actor);
+
+      expect(kind.made, hasLength(1));
+      expect(kind.made.single.entity, actor.entity.packed);
+      expect(scene.root.childrenView.single.name, 'totem');
+
+      actor.body!.teleport(Vector3(3.0, 0.0, 0.0));
+      visuals.sync();
+      // Placed where the body is, and told its fields as its codec writes
+      // them.
+      expect(scene.root.childrenView.single.readPosition().x, closeTo(3, 1e-6));
+      expect(kind.updated, isNotEmpty);
+      expect(kind.updated.last['at'], <double>[3.0, 0.0, 0.0]);
+
+      visuals.dispose();
+      // The game's binding is the game's: left where it was.
+      expect(bindings.bindingOf(ActorCodecs.body.id), isNotNull);
+      expect(scene.root.childrenView, isEmpty);
+    });
+
+    test('and two visuals given one registry with no binding of the body is '
+        'refused, rather than one drawing through the other\'s capsules', () {
+      final bindings = SceneBindings();
+      ActorVisuals(
+        Scene(),
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        bindings: bindings,
+      );
+      expect(
+        () => ActorVisuals(
+          Scene(),
+          appearance: const _PlainLook(),
+          device: FakeBackend(),
+          bindings: bindings,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
   test('actors are dressed in the order they were added, whichever file is '
       'decoded first', () async {
     // Each model is decoded on an isolate of its own, so two finish in
@@ -663,6 +754,25 @@ void main() {
     expect(secondAt, greaterThan(firstAt));
     visuals.dispose();
   });
+}
+
+/// A game's own kind of node for an actor: an empty node called `totem`,
+/// remembering what it was asked to make and what it was told.
+final class _Totem extends SceneNodeKind {
+  final List<SceneBindingContext> made = <SceneBindingContext>[];
+  final List<Map<String, Object?>> updated = <Map<String, Object?>>[];
+
+  @override
+  String get name => 'game.totem';
+
+  @override
+  SceneNode create(SceneBindingContext context) {
+    made.add(context);
+    return SceneNode(name: 'totem');
+  }
+
+  @override
+  void update(SceneBindingContext context) => updated.add(context.fields);
 }
 
 /// Each actor in the model this table names for it.

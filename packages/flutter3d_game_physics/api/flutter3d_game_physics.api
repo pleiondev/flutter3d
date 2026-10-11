@@ -9,10 +9,13 @@ extension DaylightOnWater on Daylight
 
 final class ElementCues
   List<SoundDef> get all
-  const ElementCues({required this.fire, required this.falls, required this.splash})
+  SoundDef get wash
+  const ElementCues({required this.fire, required this.falls, required this.splash, SoundDef? wash, this.wading = WadingHearing.standard})
   final SoundDef falls
   final SoundDef fire
   final SoundDef splash
+  final WadingHearing wading
+  static const ElementCues circuit = …
   static const ElementCues near = …
   static const String effectsAssets = 'packages/flutter3d_effects/assets'
 
@@ -24,14 +27,46 @@ final class ElementSounds
   void hear(AudioScene scene, {Iterable<Audible> fires = const <Audible>[], Iterable<Audible> falls = const <Audible>[], Iterable<Audible> splashes = const <Audible>[], bool Function(Audible fire)? heldElsewhere})
   void play(AudioScene scene, PhysicsHearing hearing, {Iterable<Audible> splashes = const <Audible>[], bool Function(Audible fire)? heldElsewhere})
   void silence()
+  void wade(AudioScene scene, Iterable<Wader> waders, double dt)
+
+final class Wader
+  const Wader({required this.key, required this.at, required this.wet, required this.speed})
+  final Vector3 at
+  final bool wet
+  final double speed
+  final int key
+
+final class WadingHearing
+  const WadingHearing({required this.splashFrom, required this.washFrom, required this.loud, required this.washLoud, required this.washFast, this.hush = 0.4})
+  final double hush
+  final double loud
+  final double splashFrom
+  final double washFast
+  final double washFrom
+  final double washLoud
+  static const WadingHearing car = WadingHearing(splashFrom: 4.0, washFrom: 3.0, loud: 40.0, washLoud: 35.0, washFast: 60.0)
+  static const WadingHearing standard = WadingHearing(splashFrom: 1.4, washFrom: 0.7, loud: 6.0, washLoud: 6.0, washFast: 6.0)
 
 library package:flutter3d_game_physics/flutter3d_game_physics.dart
 
+final class BurningWreck
+  Map<String, Object?> toJson()
+  const BurningWreck({required this.body, required this.oil, required this.at, required this.turn, required this.burning})
+  final Quaternion turn
+  final Vector3 at
+  final bool burning
+  final bool oil
+  final int body
+  static BurningWreck? fromJson(Object? json)
+  static final ComponentCodec<BurningWreck> codec
+
 final class BurningWrecks
-  BurningWrecks(Elements elements, GraphicsDevice device, {Vector3? along, this.behind = defaultBehind})
+  BurningWrecks(ElementsSimulation simulation, {Vector3? along, this.behind = defaultBehind})
+  List<BurningWreck> get published
   List<TrackedBody> get bodies
   SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.wrecks'})
   final double behind
+  static Vector3 get slickHalf
   static const Igniter fireball = Igniter(flux: 1e5, area: 1.0, temperature: 1300.0, seconds: 4.5)
   static const double defaultBehind = 40.0
   static const double splinterDensity = 500.0
@@ -46,10 +81,13 @@ extension DaylightOnWater on Daylight
 
 final class ElementCues
   List<SoundDef> get all
-  const ElementCues({required this.fire, required this.falls, required this.splash})
+  SoundDef get wash
+  const ElementCues({required this.fire, required this.falls, required this.splash, SoundDef? wash, this.wading = WadingHearing.standard})
   final SoundDef falls
   final SoundDef fire
   final SoundDef splash
+  final WadingHearing wading
+  static const ElementCues circuit = …
   static const ElementCues near = …
   static const String effectsAssets = 'packages/flutter3d_effects/assets'
 
@@ -61,6 +99,14 @@ final class ElementSounds
   void hear(AudioScene scene, {Iterable<Audible> fires = const <Audible>[], Iterable<Audible> falls = const <Audible>[], Iterable<Audible> splashes = const <Audible>[], bool Function(Audible fire)? heldElsewhere})
   void play(AudioScene scene, PhysicsHearing hearing, {Iterable<Audible> splashes = const <Audible>[], bool Function(Audible fire)? heldElsewhere})
   void silence()
+  void wade(AudioScene scene, Iterable<Wader> waders, double dt)
+
+final class FuelCell
+  bool breaksAt(double deltaV)
+  const FuelCell({required this.standsTo})
+  final double standsTo
+  static const FuelCell racing = FuelCell(standsTo: 15.0)
+  static const FuelCell road = FuelCell(standsTo: 48.0 / 3.6)
 
 final class PartySession<G>
   Future<void> dispose()
@@ -148,6 +194,31 @@ final class SkeletonRagdoll
   late final NativeRagdoll ragdoll
   void apply({double weight = 1.0})
   void dispose()
+
+final class Wader
+  const Wader({required this.key, required this.at, required this.wet, required this.speed})
+  final Vector3 at
+  final bool wet
+  final double speed
+  final int key
+
+final class WadingHearing
+  const WadingHearing({required this.splashFrom, required this.washFrom, required this.loud, required this.washLoud, required this.washFast, this.hush = 0.4})
+  final double hush
+  final double loud
+  final double splashFrom
+  final double washFast
+  final double washFrom
+  final double washLoud
+  static const WadingHearing car = WadingHearing(splashFrom: 4.0, washFrom: 3.0, loud: 40.0, washLoud: 35.0, washFast: 60.0)
+  static const WadingHearing standard = WadingHearing(splashFrom: 1.4, washFrom: 0.7, loud: 6.0, washLoud: 6.0, washFast: 6.0)
+
+final class WreckLooks
+  MeshNode? slickOf(int body)
+  WreckLooks(this.scene, GraphicsDevice device)
+  final Scene scene
+  void dispose()
+  void show(Iterable<BurningWreck> wrecks)
 
 String partyCode(math.Random dice)
 
@@ -258,11 +329,24 @@ final class SkeletonRagdoll
 
 library package:flutter3d_game_physics/wrecks.dart
 
+final class BurningWreck
+  Map<String, Object?> toJson()
+  const BurningWreck({required this.body, required this.oil, required this.at, required this.turn, required this.burning})
+  final Quaternion turn
+  final Vector3 at
+  final bool burning
+  final bool oil
+  final int body
+  static BurningWreck? fromJson(Object? json)
+  static final ComponentCodec<BurningWreck> codec
+
 final class BurningWrecks
-  BurningWrecks(Elements elements, GraphicsDevice device, {Vector3? along, this.behind = defaultBehind})
+  BurningWrecks(ElementsSimulation simulation, {Vector3? along, this.behind = defaultBehind})
+  List<BurningWreck> get published
   List<TrackedBody> get bodies
   SnapshotPart snapshotPart({String id = 'flutter3d.game_physics.wrecks'})
   final double behind
+  static Vector3 get slickHalf
   static const Igniter fireball = Igniter(flux: 1e5, area: 1.0, temperature: 1300.0, seconds: 4.5)
   static const double defaultBehind = 40.0
   static const double splinterDensity = 500.0
@@ -271,3 +355,17 @@ final class BurningWrecks
   void oil(Vector3 at)
   void step(double distance)
   void timbers(Vector3 at)
+
+final class FuelCell
+  bool breaksAt(double deltaV)
+  const FuelCell({required this.standsTo})
+  final double standsTo
+  static const FuelCell racing = FuelCell(standsTo: 15.0)
+  static const FuelCell road = FuelCell(standsTo: 48.0 / 3.6)
+
+final class WreckLooks
+  MeshNode? slickOf(int body)
+  WreckLooks(this.scene, GraphicsDevice device)
+  final Scene scene
+  void dispose()
+  void show(Iterable<BurningWreck> wrecks)

@@ -54,6 +54,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' show MaterialHint;
 import 'package:flutter3d_editor_core/flutter3d_editor_core.dart';
 import 'package:flutter3d_editor_widgets/flutter3d_editor_widgets.dart';
+import 'package:flutter3d_plugin_api/editor.dart' show FieldHint;
 
 import 'editor_cubit.dart';
 
@@ -147,12 +148,27 @@ final class EditorInspector extends StatelessWidget {
     final others = editing.selection.length - 1;
 
     void write(String key, Object? value) {
+      // A plugin's hint refuses a value of the wrong shape — a word where its
+      // number goes — before the document sees it, and says why.
+      if (pieces?.refusalOf(kind, key, value, type: type)
+          case final String no) {
+        onChanged('not written: $no');
+        return;
+      }
       // Through the history, like every other change: one row written is one
       // step back, named after the field it wrote. `run` answers what
       // `setField` answers, so a value the format cannot read still rebuilds
       // nothing.
       if (editing.history.run(SetField(key, value))) onChanged(key);
     }
+
+    // **A plugin's hint is the control**, where the plugin gave one: its
+    // slider, its list, its file field, as a material's hint is.
+    MaterialHint? hintOf(String key) =>
+        switch (pieces?.fieldHint(kind, key, type: type)) {
+          final FieldHint hint => materialHintOf(hint),
+          null => null,
+        };
 
     // An entity's own properties can be taken away; the fields every entity
     // has cannot, and neither can anything of a brush or a light, whose
@@ -225,6 +241,7 @@ final class EditorInspector extends StatelessWidget {
                           key: ValueKey<String>('field:$key'),
                           name: key,
                           value: fields[key],
+                          hint: hintOf(key),
                           onWrite: (Object? value) => write(key, value),
                         ),
                       ),
@@ -240,6 +257,7 @@ final class EditorInspector extends StatelessWidget {
                         key: ValueKey<String>('field:$key'),
                         name: key,
                         value: absent[key],
+                        hint: hintOf(key),
                         // Dimmed, because what is shown is what the format
                         // would use rather than what the document says — and
                         // the difference matters to somebody reading a diff.

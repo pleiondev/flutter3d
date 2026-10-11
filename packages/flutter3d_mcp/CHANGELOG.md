@@ -1,5 +1,19 @@
 ## 1.0.0-rc.1
 
+- **A plugin's editor command is a tool of its own.** `shareCommands`
+  (new, in `editor.dart`) offers every command a plugin added to
+  `EditorPieces` as a project tool, `<plugin id>.<name>`, its argument
+  hints as its input schema, kept in step as plugins are switched on and
+  off; `serveEditorMcp` does it for the plugins it installs.
+- **The editor server lists what the plugins brought and runs their
+  importers.** `plugin.list` names their commands, hints, gizmos, importers
+  and asset-browser entries; `asset.import` runs an importer on a file
+  inside the project and writes only inside it.
+- **An experiment is edited beside the level.** `experiment.open`,
+  `experiment.list`, `experiment.edit`, `experiment.undo` and
+  `experiment.save` open an `f3d.experiment` inside the project, make one
+  `ExperimentEdit` at a time with the document reader's refusals as
+  answers, and write it back. The editor server's schema version is 1.1.0.
 - **Breaking: every file tool reads and writes inside one directory.**
   `ProjectRoot.resolve` (new, in `kit.dart`, with `PathOutsideRootException` under
   `ResourceException`) takes each path a tool is handed — the modeller's

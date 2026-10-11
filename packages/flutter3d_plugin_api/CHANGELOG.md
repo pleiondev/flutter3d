@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A plugin describes its fields to an editor without depending on one.**
+  `package:flutter3d_plugin_api/editor.dart` (new) holds `FieldHint` (a
+  field's control: a number with ends, a step and a unit, a toggle, a
+  choice, a colour, a vector, text, an asset path, an entity), `FieldKind`
+  (an open set), `ComponentHints`, `EntityKindHints` and `MaterialHints`,
+  each read and written as JSON, and `EditorHintRegistry`, the slot an
+  editor fills and a game's engine does not have:
+  `host.maybeRegistry<EditorHintRegistry>()`.
 - **A run recorded under an outside profile reads back.**
   `SimulationVersion.fromJson(profiles:)` reads a profile by its name among
   the ones given, this release's by default; a name none of them has is

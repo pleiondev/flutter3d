@@ -86,6 +86,34 @@ final class DockSide
   static const DockSide right = DockSide._('right', vertical: true, growsWith: -1.0, foldIcon: Icons.chevron_right)
   static const List<DockSide> values = <DockSide>[left, right, bottom]
 
+final class EditorPanel
+  const EditorPanel({required this.id, required this.title, required this.builder, this.icon = Icons.extension_outlined, this.dock})
+  final DockSide? dock
+  final IconData icon
+  final String id
+  final String title
+  final Widget Function(EditorPanelContext panel) builder
+
+final class EditorPanelContext
+  bool run(Map<String, Object?> command)
+  const EditorPanelContext({required this.context, required this.document, required this._run, this.selection = const <PanelSelection>[], this.path, this._say})
+  final BuildContext context
+  final List<PanelSelection> selection
+  final Map<String, Object?> document
+  final String? path
+  void say(String says)
+
+final class EditorPanels extends PluginRegistry
+  EditorPanels forPlugin(PluginScope scope)
+  EditorPanels()
+  List<DockPanel> dockPanels(EditorPanelContext Function(BuildContext context) contextOf)
+  List<EditorPanel> get docked
+  List<EditorPanel> get mainScreen
+  List<EditorPanel> get panels
+  Registration addPanel(EditorPanel panel)
+  Registration listen(void Function() onChange)
+  static Widget build(EditorPanel panel, EditorPanelContext context)
+
 @immutable final class EditorWidgetsTheme extends ThemeExtension<EditorWidgetsTheme>
   EdgeInsets fieldPadding({double horizontal = 9})
   EditorWidgetsTheme copyWith({double? rowHeight, double? labelWidth, double? fieldRadius, double? thumbnailSize})
@@ -166,6 +194,14 @@ final class PaletteCommand
   final String? shortcut
   final VoidCallback run
   final bool enabled
+
+final class PanelSelection
+  String toString()
+  bool operator ==(Object other)
+  const PanelSelection({required this.piece, required this.index})
+  final String piece
+  final int index
+  int get hashCode
 
 typedef PathOffers = List<String> Function(List<String> suffixes);
 

@@ -7,7 +7,6 @@ library package:flutter3d_demo_content/crypt.dart
 abstract final class CryptHarm
   static const double harmless = FireExposure.harmlessFlux
   static double dosePerSecond(double flux)
-  static double flux({required double power, required double radiantShare, required double sootTemperature, required double far})
   static double wadingShare(double depth, {double flow = 0.0, double g = standardGravity})
 
 abstract final class CryptLayer
@@ -134,11 +133,13 @@ final class MapWater
   final double z0
   final int nx
   final int nz
+  sim.Heightfield carve(sim.Heightfield ground, {required List<Building> halls, required List<ResourceNode> seams, double? cell})
 
 final class MapWorld
   List<NativeEvent> takeEvents()
+  List<RiverStone> get boulders
   List<Vector3> get fords
-  MapWorld(StrategySimulation simulation, {required this.water, required List<MapTree> trees, this.viewer = 0, WorldProperties? properties})
+  MapWorld(StrategySimulation simulation, {required this.water, required List<MapTree> trees, this.viewer = 0, WorldProperties? properties, sim.Heightfield? uncarved})
   Vector3 get wind
   double get clock
   final List<MapHall> halls
@@ -148,7 +149,6 @@ final class MapWorld
   final MapWater water
   final NativeWorld world
   final int viewer
-  late final List<RiverStone> boulders
   late final List<double> bed
   late final NativeShallowLiquid river
   static final NativeMaterial dry

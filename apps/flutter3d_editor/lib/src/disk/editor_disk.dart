@@ -44,6 +44,12 @@ abstract interface class EditorDisk {
   /// template asks before writing a project there.
   bool hasFilesUnder(String path);
 
+  /// Every file under the directory [path], at any depth, as a path
+  /// relative to it with `/` between its parts, sorted; empty when there is
+  /// no such directory. What the asset browser lists and where a project's
+  /// data plugins are found.
+  List<String> filesUnder(String path);
+
   Future<String> readText(String path);
   Future<Uint8List> readBytes(String path);
 

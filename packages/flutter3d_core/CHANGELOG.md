@@ -11,6 +11,43 @@
   material's name, and on Impeller the material is added from it; without
   one it is off, and `RuntimeShaders.refusals` holds the
   `MissingShaderStageException` that says so.
+- **A web build decodes models and panoramas on a Web Worker.**
+  `dart run flutter3d_core:decode_worker web/flutter3d_decode_worker.js`
+  compiles the decoders into a script of their own, and
+  `WebDecodeWorker.use(script)` sends `decodeModelInIsolate` and
+  `EnvironmentMap.fromEncoded` to it: the page reads the files (a glTF's
+  siblings when the worker asks), the worker parses or convolves them and
+  answers with an `.f3d` or the cube's faces. Where the browser does not
+  allow it, or the request cannot go (an application `ModelDecoder`, a
+  format the worker does not know, a model whose `.f3d` would drop
+  something, a file the worker could not read), the decode runs in place as
+  before and `WebDecodeWorker.inPlaceReason` says why; `decoded` counts what
+  the worker answered.
+- **A panorama file becomes a cube off the calling isolate.**
+  `EnvironmentMap.fromEncoded` decodes a Radiance `.hdr`, cuts the faces
+  and convolves the chain on an isolate of its own, and cuts and convolves
+  an image its decoder read there too; only the upload stays on the
+  caller's. A device without cube textures is refused before any of it,
+  and a `size` or `levels` below one is an `ArgumentError` at the call.
+- **The renderer gives back the pipelines it lets go of.**
+  `Renderer.dispose` disposes every pipeline its caches and passes hold,
+  and `relinkShaders` and a material bundle added or removed retire the
+  ones they drop through the frames-in-flight ring the textures and
+  meshes already use, so a backend with driver pipelines frees them
+  (`GraphicsDevice.releasePipeline`) instead of leaking a set per reload.
+- **`warmUpInSlices` links the scene's pipelines asynchronously.** Every
+  mesh's pipeline is asked of `GraphicsDevice.createPipelineAsync` at
+  once, one link per material variant, before the frames in flight are
+  drawn, so a device that compiles off the thread (WebGPU, WebGL2 with
+  `KHR_parallel_shader_compile`) compiles them side by side while the
+  loading screen answers. `onProgress` counts the links with the steps.
+- **A caster is read once a frame for the sun's shadow keys.** Each
+  cascade's key walked every caster again, reading its material, mesh,
+  morph, instances and joints, and the static tiles' key walked them once
+  more, so three cascades read the scene four times to decide whether to
+  draw. What a caster brings to a key is now worked out once a frame and
+  kept by its place in the scene; a cascade mixes in those of the casters
+  its volume holds. Which tiles are redrawn is decided as before.
 - **A headset's views go to their layers in the frame graph.**
   `ProjectionLayerNode` runs last, reads the finished picture and gives it
   back unchanged, and copies each of `FrameContext.views` into its own

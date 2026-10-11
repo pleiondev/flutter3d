@@ -100,6 +100,10 @@ dev_dependencies:
   test: ^1.25.0
   flutter_lints: ^6.0.0
 
+  # The experiment tools' test reads back what `experiment.save` wrote with
+  # the document's own reader.
+  flutter3d_education: ^1.0.0-rc.1
+
 # **A host starts this with `dart run`, and that is the whole of why every
 # package under it is plain Dart.** `dart run` cannot resolve a package that
 # depends on the Flutter SDK, so a single Flutter import anywhere in this graph

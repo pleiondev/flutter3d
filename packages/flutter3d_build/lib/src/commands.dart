@@ -2,8 +2,8 @@
 ///
 /// **Every entry point in `bin/` is this function.** `bin/flutter3d.dart`
 /// hands it the command line; `bin/convert.dart`, `bin/create.dart`,
-/// `bin/init.dart`, `bin/lights.dart`, `bin/migrate.dart`, `bin/plugins.dart`
-/// and `bin/shaders.dart` are the same commands under the names
+/// `bin/init.dart`, `bin/lightmap.dart`, `bin/lights.dart`, `bin/migrate.dart`,
+/// `bin/plugins.dart` and `bin/shaders.dart` are the same commands under the names
 /// `dart run flutter3d_build:<name>` reaches, each one line that puts its
 /// own name in front of the arguments. So the two spellings run the same code, and a
 /// command has one usage text, one exit code table and one `--json` shape.
@@ -20,6 +20,7 @@ import 'cli_contract.dart';
 import 'convert/command.dart' show runConvertCommand;
 import 'doctor.dart' show runDoctor;
 import 'init.dart' show runInit;
+import 'lightmap_command.dart' show runLightmap;
 import 'lights.dart' show runLights;
 import 'migrate/command.dart' show runMigrateCommand;
 import 'plugin_author_server.dart' show PluginWorkshop;
@@ -54,6 +55,8 @@ Future<int> runFlutter3d(List<String> arguments) async {
       return runMigrateCommand(rest);
     case 'lights':
       return runLights(rest);
+    case 'lightmap':
+      return runLightmap(rest);
     case 'help' || '-h' || '--help':
       if (rest.firstOrNull == '--surface') {
         stdout.write(cliSurface());
@@ -88,6 +91,8 @@ Future<int> _help(String? command) async {
       await runInit(const <String>['--help']);
     case 'lights':
       await runLights(const <String>['--help']);
+    case 'lightmap':
+      runLightmap(const <String>['--help']);
     case 'plugins':
       stdout.writeln(pluginsUsage);
     case 'shaders':

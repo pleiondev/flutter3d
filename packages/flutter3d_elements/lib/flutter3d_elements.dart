@@ -10,6 +10,11 @@
 /// [ElementEvent] and its kin; [ElementsSimulationPlugin] steps it in a
 /// loop's `fields` phase and puts its own state in the loop's snapshots.
 ///
+/// Beside it, what a game would otherwise keep a number for: a [Solid]
+/// made and weighed from the catalogue ([Solid.of]), a throw aimed by the
+/// core's own flight ([Ballistics]), and the brands a fire lofts
+/// ([Firebrands]).
+///
 /// **No renderer, no hardware layer, no shaders, no particles**: a server
 /// replaying a run, a headless test and a game's fixed step hold this and
 /// nothing else. `flutter3d_effects` draws and sounds it (`Elements`,
@@ -17,8 +22,10 @@
 /// side: a [TrackedBody] and a [WaterBody] name no scene node.
 library;
 
+export 'src/ballistics.dart';
 export 'src/element_events.dart';
 export 'src/element_hook.dart';
+export 'src/firebrands.dart';
 export 'src/simulation.dart';
 export 'src/smoke_plume.dart';
 export 'src/switches.dart';

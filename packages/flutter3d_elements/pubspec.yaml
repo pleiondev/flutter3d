@@ -39,6 +39,8 @@ dependencies:
   flutter3d_foundation: ^1.0.0-rc.1
   # The world the elements step: its bodies, waters, fires and events.
   flutter3d_physics_native: ^1.0.0-rc.1
+  # The catalogue a solid is weighed and made from (`Solid.of`).
+  flutter3d_matter: ^1.0.0-rc.1
   # The bus and the loop a plugin element is installed into: its step
   # phase, its events, the registries of switches and event kinds, and the
   # snapshot part the elements' own state travels in.

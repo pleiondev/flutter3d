@@ -49,6 +49,13 @@
   name (`flutter3d_metal` declares `MetalDevice` and
   `registerMetalBackend`). It passes every conformance check but the
   shader tier as written; a test holds the template to the example.
+- **`migrate --data` and `doctor` know `f3d.experiment`**, the experiment
+  document of `flutter3d_education`.
+- **New: the lightmap baker** (`lightmap.dart`, `LightmapBaker`) and the
+  `flutter3d lightmap` command (`dart run flutter3d_build:lightmap`), moved
+  from `flutter3d_sim` and its `bake_lightmap`: a bake is a build step, and
+  the command now has the usage and exit codes of the others. The library has no `dart:io` behind it, so a page
+  that bakes a small room as it is shown still compiles for the web.
 - **A conversion's report carries the model's author, licence and
   copyright.** `ConvertReport.author`, `license` and `copyright`, read from
   the document, and the same three keys, when present, in `--json` and

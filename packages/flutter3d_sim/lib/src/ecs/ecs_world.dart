@@ -624,47 +624,63 @@ final class _Query extends SimQuery {
   @override
   Iterable<Entity> get entities {
     final world = _world;
-    final required = <Type>{..._having, for (final (type, _) in _changed) type};
-    final List<int> candidates;
-    if (required.isEmpty) {
-      candidates = <int>[
-        for (var i = 0; i < world._generations.length; i++)
-          if (!world._free.contains(i)) i,
-      ];
-    } else {
-      ComponentStore? smallest;
-      for (final type in required) {
-        final store = world._stores[type];
-        if (store == null) return const <Entity>[];
-        if (smallest == null || store.values.length < smallest.values.length) {
-          smallest = store;
-        }
+    // The store with the fewest entries among those an entity has to be in,
+    // found by walking the two lists rather than gathering them into a set
+    // per query per step: a type named by both is looked at twice, which
+    // answers the same.
+    ComponentStore? smallest;
+    final required = _having.length + _changed.length;
+    for (var i = 0; i < required; i++) {
+      final store =
+          world._stores[i < _having.length
+              ? _having[i]
+              : _changed[i - _having.length].$1];
+      if (store == null) return const <Entity>[];
+      if (smallest == null || store.values.length < smallest.values.length) {
+        smallest = store;
       }
-      candidates = smallest!.values.keys.toList()..sort();
     }
     final out = <Entity>[];
-    for (final index in candidates) {
-      final entity = Entity.of(index, world._generations[index]);
-      if (!world.isAlive(entity)) continue;
-      if (!required.every(
-        (type) => world._stores[type]!.values.containsKey(index),
-      )) {
-        continue;
+    final count = world._generations.length;
+    // In index order either way. A store that holds a fair share of the
+    // world is cheaper to ask at every index than to sort the keys of, and
+    // a query that requires nothing asks no store at all.
+    if (smallest == null || smallest.values.length * 8 >= count) {
+      for (var index = 0; index < count; index++) {
+        if (smallest != null && !smallest.values.containsKey(index)) continue;
+        if (_admits(world, index)) {
+          out.add(Entity.of(index, world._generations[index]));
+        }
       }
-      if (_without.any(
-        (type) => world._stores[type]?.values.containsKey(index) ?? false,
-      )) {
-        continue;
+    } else {
+      final indices = smallest.values.keys.toList()..sort();
+      for (final index in indices) {
+        if (_admits(world, index)) {
+          out.add(Entity.of(index, world._generations[index]));
+        }
       }
-      if (!_changed.every((entry) {
-        final (type, since) = entry;
-        final at = world._stores[type]!.changedAt[index];
-        return at != null && at >= (since ?? world._changeStep);
-      })) {
-        continue;
-      }
-      out.add(entity);
     }
     return out;
+  }
+
+  /// Whether the live entity at [index] meets every condition, asked in
+  /// plain loops: a closure per condition captured the index and was made
+  /// again for every candidate.
+  bool _admits(EcsWorld world, int index) {
+    if (world._free.contains(index)) return false;
+    for (var i = 0; i < _having.length; i++) {
+      if (!world._stores[_having[i]]!.values.containsKey(index)) return false;
+    }
+    for (var i = 0; i < _without.length; i++) {
+      if (world._stores[_without[i]]?.values.containsKey(index) ?? false) {
+        return false;
+      }
+    }
+    for (var i = 0; i < _changed.length; i++) {
+      final (type, since) = _changed[i];
+      final at = world._stores[type]!.changedAt[index];
+      if (at == null || at < (since ?? world._changeStep)) return false;
+    }
+    return true;
   }
 }

@@ -91,6 +91,119 @@ extension _RendererResources on Renderer {
     bool lightmapped = false,
     bool opaque = false,
   }) {
+    final key = _pipelineKey(
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    // Timed, and over `FramePacing.stallThreshold` reported with what asked
+    // for it — `A1.7`. The stages are resolved inside the timing: finding
+    // and linking a material's stage is part of what the frame waits for.
+    return _pipelineCache.putIfAbsent(
+      key,
+      () => _timedBuild(
+        () {
+          final stages = _pipelineStages(
+            model,
+            skinned: skinned,
+            instanced: instanced,
+            lightmapped: lightmapped,
+            opaque: opaque,
+          );
+          return device.createPipeline(
+            stages.vertex,
+            stages.fragment,
+            layout: stages.layout,
+          );
+        },
+        material: model.shaderName,
+        vertexShader: model.vertexShaderName,
+        geometry: instanced
+            ? PipelineGeometry.instanced
+            : skinned
+            ? PipelineGeometry.skinned
+            : lightmapped
+            ? PipelineGeometry.lightmapped
+            : PipelineGeometry.plain,
+        opaque: opaque,
+      ),
+    );
+  }
+
+  /// [_pipelineFor] through `GraphicsDevice.createPipelineAsync`, for
+  /// [Renderer.warmUpInSlices]: where the device compiles off the thread
+  /// (WebGPU, WebGL2 with `KHR_parallel_shader_compile`) the link no longer
+  /// holds up the loading screen, and where it cannot the future is already
+  /// complete. Kept in the same cache under the same key; a pipeline a frame
+  /// linked while this one was compiling wins, and this one goes back.
+  Future<void> _pipelineForAsync(
+    LightingModel model, {
+    required bool skinned,
+    bool instanced = false,
+    bool lightmapped = false,
+    bool opaque = false,
+  }) {
+    final key = _pipelineKey(
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    if (_pipelineCache.containsKey(key)) return Future<void>.value();
+    final pending = _linking[key];
+    if (pending != null) return pending;
+    final link = _linkAsync(
+      key,
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    _linking[key] = link;
+    return link.whenComplete(() {
+      _linking.remove(key);
+    });
+  }
+
+  Future<void> _linkAsync(
+    String key,
+    LightingModel model, {
+    required bool skinned,
+    required bool instanced,
+    required bool lightmapped,
+    required bool opaque,
+  }) async {
+    final stages = _pipelineStages(
+      model,
+      skinned: skinned,
+      instanced: instanced,
+      lightmapped: lightmapped,
+      opaque: opaque,
+    );
+    final pipeline = await device.createPipelineAsync(
+      stages.vertex,
+      stages.fragment,
+      layout: stages.layout,
+    );
+    if (_pipelineCache.containsKey(key)) {
+      pipeline.dispose();
+    } else {
+      _pipelineCache[key] = pipeline;
+    }
+  }
+
+  /// The key [_pipelineFor] caches a pipeline under.
+  String _pipelineKey(
+    LightingModel model, {
+    required bool skinned,
+    required bool instanced,
+    required bool lightmapped,
+    required bool opaque,
+  }) {
     assert(!(skinned && instanced), 'a skinned batch is not a thing here');
     assert(
       !(lightmapped && (skinned || instanced)),
@@ -106,47 +219,40 @@ extension _RendererResources on Renderer {
         ? model.shaderName
         : '$vertex+${model.shaderName}';
     final staged = opaque ? '$name/opaque' : name;
-    final key = instanced
+    return instanced
         ? 'instanced/$staged'
         : skinned
         ? 'skinned/$staged'
         : lightmapped
         ? 'lightmapped/$staged'
         : staged;
-    // Timed, and over `FramePacing.stallThreshold` reported with what asked
-    // for it — `A1.7`. The stages are resolved inside the timing: finding
-    // and linking a material's stage is part of what the frame waits for.
-    return _pipelineCache.putIfAbsent(
-      key,
-      () => _timedBuild(
-        () => instanced
-            ? device.createPipeline(
-                _materialVariantStage(model, VertexStageVariant.instanced) ??
-                    _instancedVertexShader,
-                _fragmentShaderFor(model, opaque: opaque),
-                layout: _kInstancedLayout,
-              )
-            : device.createPipeline(
-                _vertexShaderFor(
-                  model,
-                  skinned: skinned,
-                  lightmapped: lightmapped,
-                ),
-                _fragmentShaderFor(model, opaque: opaque),
-              ),
-        material: model.shaderName,
-        vertexShader: vertex,
-        geometry: instanced
-            ? PipelineGeometry.instanced
-            : skinned
-            ? PipelineGeometry.skinned
-            : lightmapped
-            ? PipelineGeometry.lightmapped
-            : PipelineGeometry.plain,
-        opaque: opaque,
-      ),
-    );
   }
+
+  /// The stages and the layout [_pipelineFor] links.
+  ({ShaderHandle vertex, ShaderHandle fragment, VertexLayoutDescriptor? layout})
+  _pipelineStages(
+    LightingModel model, {
+    required bool skinned,
+    required bool instanced,
+    required bool lightmapped,
+    required bool opaque,
+  }) => instanced
+      ? (
+          vertex:
+              _materialVariantStage(model, VertexStageVariant.instanced) ??
+              _instancedVertexShader,
+          fragment: _fragmentShaderFor(model, opaque: opaque),
+          layout: _kInstancedLayout,
+        )
+      : (
+          vertex: _vertexShaderFor(
+            model,
+            skinned: skinned,
+            lightmapped: lightmapped,
+          ),
+          fragment: _fragmentShaderFor(model, opaque: opaque),
+          layout: null,
+        );
 
   /// The vertex stage this draw goes through — `gfx-75n`.
   ///

@@ -10,8 +10,9 @@ library;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_lesson_viewer/main.dart';
-import 'package:flutter3d_lesson_viewer/src/lesson_player.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
+import 'package:flutter3d_stereo/flutter3d_stereo.dart'
+    show applyLessonStepTo;
 import 'package:flutter_test/flutter_test.dart';
 
 GraphicsDevice _device() => CpuDevice(
@@ -84,7 +85,7 @@ void main() {
         'hidden': <String>['view-caption'],
       },
     );
-    applyLessonStepToCamera(camera, hideStep, nodes: state.nodes);
+    applyLessonStepTo(camera, hideStep, nodes: state.nodes);
     expect(panel!.isVisible, isFalse);
 
     final showStep = EntityDef(
@@ -93,7 +94,7 @@ void main() {
         'visible': <String>['view-caption'],
       },
     );
-    applyLessonStepToCamera(camera, showStep, nodes: state.nodes);
+    applyLessonStepTo(camera, showStep, nodes: state.nodes);
     expect(panel.isVisible, isTrue);
   });
 }

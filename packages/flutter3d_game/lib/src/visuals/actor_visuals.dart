@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
+import 'package:flutter3d_core/flutter3d_core.dart'
+    show SceneBinding, SceneBindingContext, SceneBindings, SceneNodeKind;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart' hide Pose;
@@ -44,6 +46,23 @@ export 'actor_graphs.dart';
 ///
 /// Without [published] it reads the actors directly, which is the same
 /// isolate's shortcut and what a test with no loop does.
+///
+/// ## What an actor is drawn as
+///
+/// **Through the scene binding of its body** (D37): the body's component
+/// (`ActorCodecs.body`) bound in [bindings] to a kind of node, as a plugin
+/// binds any component it publishes. The kind makes the node an actor stands
+/// as when it is [add]ed, and is told its body's fields — as its codec writes
+/// them, from the published row when there is [published] state — every
+/// [sync], after the node is placed. The binding's lifetime is the entity's:
+/// a dead actor keeps its node, as a corpse, until it is [remove]d.
+///
+/// When [bindings] holds no binding of the body, the visuals add their own —
+/// the kind [nodeKind], a capsule the size of the body in the game's
+/// [appearance] — and take it away again when they are [dispose]d. A game
+/// that binds the body to a kind of its own before making the visuals draws
+/// its actors as that kind makes them; a model an actor is dressed in
+/// ([ActorAppearance.modelFor]) replaces whatever the kind made.
 final class ActorVisuals {
   ActorVisuals(
     this.scene, {
@@ -55,9 +74,74 @@ final class ActorVisuals {
     this.graphs,
     this.simulated,
     this.published,
+    SceneBindings? bindings,
   }) : _meshes = SharedMeshes(device),
        _device = device,
-       onIssue = onIssue ?? printIssue;
+       onIssue = onIssue ?? printIssue,
+       bindings = bindings ?? SceneBindings() {
+    _binding = _bind();
+  }
+
+  /// The kind of node an actor's body is bound to when nothing else binds
+  /// it: a capsule the size of the body.
+  static const String nodeKind = 'f3d.actor';
+
+  /// Where the binding of the actors' bodies is: the visuals' own unless a
+  /// game gives the renderer's (`Renderer.sceneBindings`) or another.
+  ///
+  /// **One set of visuals to a registry** that holds no binding of the body:
+  /// a second given the same one is refused with an [ArgumentError], since
+  /// the capsules of the first are made from the first's actors.
+  final SceneBindings bindings;
+
+  /// The binding of the body the actors are drawn through.
+  late final SceneBinding _binding;
+
+  /// What the visuals added to [bindings], cancelled by [dispose].
+  final List<Registration> _bound = <Registration>[];
+
+  /// Whether [_binding] is the visuals' own capsules.
+  bool get _ownKind => _binding.kind is _CapsuleKind;
+
+  /// The binding of the body in [bindings], or the visuals' own added there.
+  SceneBinding _bind() {
+    final component = ActorCodecs.body.id;
+    if (bindings.resolve(component) case final bound?) {
+      if (bound.kind case _CapsuleKind(
+        :final visuals,
+      ) when !identical(visuals, this)) {
+        throw ArgumentError.value(
+          bindings,
+          'bindings',
+          'another ActorVisuals draws its actors through this registry',
+        );
+      }
+      return bound;
+    }
+    if (bindings.bindingOf(component) case final spec?) {
+      throw ArgumentError.value(
+        bindings,
+        'bindings',
+        'the body is bound to the kind "${spec.nodeKind}", which is not '
+            'registered',
+      );
+    }
+    _bound
+      ..add(bindings.addKind(_CapsuleKind(this)))
+      ..add(
+        bindings.add(
+          SceneBindingSpec(
+            component: component,
+            nodeKind: nodeKind,
+            // Smoothed here, stairs and all, rather than blended field by
+            // field.
+            interpolation: BindingInterpolation.step,
+            lifetime: BindingLifetime.entity,
+          ),
+        ),
+      );
+    return bindings.resolve(component)!;
+  }
 
   final Scene scene;
 
@@ -227,17 +311,29 @@ final class ActorVisuals {
     if (body == null) return;
 
     final model = appearance.modelFor(actor);
+    // What the binding's kind makes goes in first and, for an actor with a
+    // model, is replaced when the file arrives. The alternative — nothing
+    // until it loads — is a monster that walks up to you invisible, which is
+    // worse than one that is briefly a capsule.
+    _make(actor, body);
     if (model != null) {
-      // The capsule goes in first and is replaced when the file arrives. The
-      // alternative — nothing until it loads — is a monster that walks up to
-      // you invisible, which is worse than one that is briefly a capsule.
-      _addCapsule(actor, body);
       final dressing = _dress(actor, model);
       _dressing.add(dressing);
       unawaited(dressing.whenComplete(() => _dressing.remove(dressing)));
-      return;
     }
-    _addCapsule(actor, body);
+  }
+
+  /// The actors added, by their entity's packed number: what the capsule
+  /// kind is asked to make a node for.
+  final Map<int, Actor> _byEntity = <int, Actor>{};
+
+  /// [actor]'s body as its codec writes it: the published row when there is
+  /// published [state], the body's own when there is not; null when the step
+  /// published none.
+  static Map<String, Object?>? _fieldsOf(Actor actor, PublishedState? state) {
+    if (state == null) return actor.body?.save();
+    final row = state.components[ActorCodecs.body.id]?[actor.entity];
+    return row is Map ? row.cast<String, Object?>() : null;
   }
 
   /// Takes an actor's node out of the scene and forgets it.
@@ -249,6 +345,7 @@ final class ActorVisuals {
   /// nothing calls `ActorSystem.remove` today, which is the worst kind of
   /// latent: the first caller finds out in a frame rather than at a compile.
   void remove(Actor actor) {
+    _byEntity.remove(actor.entity.packed);
     if (_nodes.remove(actor) case final node?) {
       node.removeFromParent();
       _marks.forget(node);
@@ -297,6 +394,11 @@ final class ActorVisuals {
     _wasAlive.clear();
     _taken.clear();
     _declined.clear();
+    _byEntity.clear();
+    for (final registration in _bound) {
+      registration.cancel();
+    }
+    _bound.clear();
     corpses?.dispose();
     for (final pending in _models.values) {
       unawaited(pending.then((asset) => asset?.dispose()));
@@ -308,7 +410,32 @@ final class ActorVisuals {
   /// Bumped by [dispose], so a model that arrives late can tell.
   int _generation = 0;
 
-  void _addCapsule(Actor actor, CharacterController body) {
+  /// [actor]'s node, made by the binding's kind and put in the scene, on the
+  /// visuals' layers.
+  void _make(Actor actor, CharacterController body) {
+    _byEntity[actor.entity.packed] = actor;
+    final node = _binding.kind.create(
+      SceneBindingContext(
+        binding: _binding,
+        entity: actor.entity.packed,
+        fields: _fieldsOf(actor, null) ?? const <String, Object?>{},
+      ),
+    );
+    node.traverse((SceneNode drawn) {
+      if (drawn is MeshNode) drawn.layerMask = layerMask;
+    });
+    scene.add(node);
+    _nodes[actor] = node;
+  }
+
+  /// The capsule [entity]'s actor is drawn as: the capsule kind's node. An
+  /// entity the visuals were not given — a widget reading the same bindings
+  /// over a published world — gets an empty node, as nothing here knows its
+  /// size.
+  SceneNode _capsuleFor(int entity) {
+    final actor = _byEntity[entity];
+    final body = actor?.body;
+    if (actor == null || body == null) return SceneNode(name: nodeKind);
     // Straight off the body, so this works for anything with one. It used to
     // read a `MonsterDef`, which is how the renderer's bridge came to depend on
     // a shooter's idea of what walks about in a level.
@@ -319,11 +446,8 @@ final class ActorVisuals {
       'actor:$key',
       () => CapsuleShape(radius: radius, height: height),
     );
-
-    final node = MeshNode(mesh, appearance.materialFor(actor), name: key)
+    return MeshNode(mesh, appearance.materialFor(actor), name: key)
       ..layerMask = layerMask;
-    scene.add(node);
-    _nodes[actor] = node;
   }
 
   /// Swaps an actor's capsule for its model once the file has been read.
@@ -695,40 +819,84 @@ final class ActorVisuals {
       final position = _drawAt(actor, read.at, alpha);
 
       // Only a capsule takes the game's material; a model brings its own, and
-      // painting over it would make three monsters one colour.
-      if (node is MeshNode) node.material = appearance.materialFor(actor);
-
-      if (!read.isAlive && !_players.containsKey(actor)) {
-        // Laid on its side and sunk, which reads as a corpse without needing a
-        // death animation. It stays: an emptied corridor should show what
-        // happened in it.
-        node
-          ..setPosition(
-            position.x,
-            position.y - actor.body!.halfExtents.y * 0.64,
-            position.z,
-          )
-          ..setRotation(
-            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2.0),
-          );
-        continue;
+      // painting over it would make three monsters one colour, and a game's
+      // own kind of node is drawn as that kind made it.
+      if (node is MeshNode && _ownKind) {
+        node.material = appearance.materialFor(actor);
       }
-
-      // A capsule is a shape about its middle and sits on the body's centre;
-      // a model of somebody standing has its feet at its origin. The same two
-      // conventions the platformer reconciles every frame for its runner —
-      // rooted at the centre, a monster's model hovers half its height off
-      // the floor from the moment it replaces its capsule.
-      final isModel = node is! MeshNode;
-      final drop = isModel ? feetBelowCenter(actor) : 0.0;
-      node
-        ..setPosition(position.x, position.y - drop, position.z)
-        ..setRotation(
-          Quaternion.axisAngle(
-            Vector3(0.0, 1.0, 0.0),
-            isModel ? read.yaw + math.pi : read.yaw,
-          ),
-        );
+      _place(actor, node, read, position);
+      // A game's kind is told the body after the node is placed, as a binding
+      // tells its kind; a model the actor was dressed in is not the kind's.
+      if (!_ownKind && !_instances.containsKey(actor)) {
+        final fields = _fieldsOf(actor, state);
+        if (fields != null) {
+          _binding.kind.update(
+            SceneBindingContext(
+              binding: _binding,
+              entity: actor.entity.packed,
+              fields: fields,
+              node: node,
+            ),
+          );
+        }
+      }
     }
   }
+
+  /// [node] placed for [actor] at [position], as [read] has it: upright
+  /// and turned by its yaw, or laid down as a corpse.
+  void _place(
+    Actor actor,
+    SceneNode node,
+    ({Vector3 at, double yaw, bool isAlive, double steppedUp}) read,
+    Vector3 position,
+  ) {
+    if (!read.isAlive && !_players.containsKey(actor)) {
+      // Laid on its side and sunk, which reads as a corpse without needing a
+      // death animation. It stays: an emptied corridor should show what
+      // happened in it.
+      node
+        ..setPosition(
+          position.x,
+          position.y - actor.body!.halfExtents.y * 0.64,
+          position.z,
+        )
+        ..setRotation(
+          Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2.0),
+        );
+      return;
+    }
+
+    // A capsule is a shape about its middle and sits on the body's centre;
+    // a model of somebody standing has its feet at its origin. The same two
+    // conventions the platformer reconciles every frame for its runner —
+    // rooted at the centre, a monster's model hovers half its height off
+    // the floor from the moment it replaces its capsule. What a binding's
+    // kind made stands on the body's centre, as the capsule does.
+    final isModel = _instances.containsKey(actor);
+    final drop = isModel ? feetBelowCenter(actor) : 0.0;
+    node
+      ..setPosition(position.x, position.y - drop, position.z)
+      ..setRotation(
+        Quaternion.axisAngle(
+          Vector3(0.0, 1.0, 0.0),
+          isModel ? read.yaw + math.pi : read.yaw,
+        ),
+      );
+  }
+}
+
+/// The capsule an actor stands as when nothing else binds its body: the
+/// kind [ActorVisuals.nodeKind], made from the actor the visuals were given.
+final class _CapsuleKind extends SceneNodeKind {
+  _CapsuleKind(this.visuals);
+
+  final ActorVisuals visuals;
+
+  @override
+  String get name => ActorVisuals.nodeKind;
+
+  @override
+  SceneNode create(SceneBindingContext context) =>
+      visuals._capsuleFor(context.entity);
 }

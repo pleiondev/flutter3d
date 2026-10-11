@@ -1,68 +1,40 @@
 /// Wrecks that burn and sink.
 ///
-///     dart test test/burning_wrecks_test.dart
+///     dart test test/wrecks/burning_wrecks_test.dart
 ///
-/// In the physics core's elements on the software device: timbers lit by
-/// the fireball heat up and burn; the oil floats as a slick drawn black and
-/// glossy; a wreck far enough behind the player is let go, along whichever
-/// way the game travels; and clearing puts every fire out.
+/// In the physics core's elements, with no device: timbers lit by the
+/// fireball heat up and burn; the oil floats as a slick, published where it
+/// lies and drawn from that black and glossy; a
+/// wreck far enough behind the player is let go, along whichever way the
+/// game travels; a rewind puts the list back with the world; and clearing
+/// puts every fire out.
 library;
 
-import 'dart:io';
-import 'dart:typed_data';
+import 'dart:convert';
 
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_cpu/testing.dart';
-import 'package:flutter3d_effects/flutter3d_effects.dart';
+import 'package:flutter3d_elements/flutter3d_elements.dart';
 import 'package:flutter3d_game_physics/wrecks.dart';
-import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
-// What the effects package's build hook runs: its water bundle is built, not
-// committed, so this test builds it rather than hoping a build came first.
-import '../../../flutter3d_effects/hook/material_bundles.dart';
-
-/// A software device that takes the water's bundle, with an unlit stage in
-/// the water material's place: these tests are of what burns, not of how.
-GraphicsDevice _device() => CpuDevice(
-  width: 32,
-  height: 32,
-  shaders: CpuShaderLibrary(<String, CpuStage>{
-    ...builtinCpuShaders(),
-    'Liquid': cpuUnlitStage,
-  }),
-);
-
-Future<(Elements, GraphicsDevice)> _open() async {
-  final device = _device();
-  final elements = await Elements.open(
-    device: device,
-    renderer: Renderer.create(device: device),
-    scene: Scene(),
-    load: (_) async => ByteData.sublistView(
-      File('../flutter3d_effects/assets/liquid.f3dshaders').readAsBytesSync(),
-    ),
-    quality: ElementsQuality.of(phone: true),
-  );
-  return (elements, device);
+ElementsSimulation _open() {
+  final elements = ElementsSimulation.open();
+  addTearDown(elements.dispose);
+  return elements;
 }
 
-void _run(Elements elements, double seconds) {
+void _run(ElementsSimulation elements, double seconds) {
   for (var i = 0; i < seconds * 30; i++) {
-    elements.update(1 / 30, eye: Vector3(0.0, 2.0, 4.0));
+    elements.step(1 / 30);
   }
 }
 
 void main() {
-  setUpAll(() => buildMaterialBundles(Directory('../flutter3d_effects')));
-
-  test('timbers lit by the fireball heat up and burn', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
-    final wrecks = BurningWrecks(elements, device)
-      ..timbers(Vector3(0.0, 0.5, 0.0));
+  test('timbers lit by the fireball heat up and burn', () {
+    final elements = _open();
+    final wrecks = BurningWrecks(elements)..timbers(Vector3(0.0, 0.5, 0.0));
     final heap = wrecks.bodies.single;
     // Two seconds after the fireball has gone, the heap burns by itself.
     //
@@ -79,26 +51,45 @@ void main() {
     // Mutation: add the heap and never hold the fireball to it, and it
     // gives off nothing.
     expect(elements.world.heatReleaseOf(heap.native), greaterThan(1e5));
+    // And it is published burning.
+    expect(wrecks.published.single.burning, isTrue);
+    expect(wrecks.published.single.oil, isFalse);
   });
 
-  test('the oil is a slick drawn black and glossy', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
-    final wrecks = BurningWrecks(elements, device)
-      ..oil(Vector3(3.0, 7.0, -2.0));
+  test('the oil is a slick, published where it lies and drawn from that '
+      'black and glossy', () {
+    final elements = _open();
+    final wrecks = BurningWrecks(elements)..oil(Vector3(3.0, 7.0, -2.0));
     final slick = wrecks.bodies.single;
     // Laid on the water, wherever the blast was.
     expect(elements.world.positionOf(slick.native).y, closeTo(0.05, 1e-3));
-    final look = elements.lookOf(slick)! as MeshNode;
+
+    // The view draws from the rows alone: through their JSON, as another
+    // isolate would have them.
+    final rows = <BurningWreck>[
+      for (final row in wrecks.published)
+        BurningWreck.fromJson(jsonDecode(jsonEncode(row.toJson())))!,
+    ];
+    final scene = Scene();
+    final looks = WreckLooks(scene, FakeBackend())..show(rows);
+    addTearDown(looks.dispose);
+    final look = looks.slickOf(slick.native.raw)!;
     // Mutation: the hull's grey in place of the crude.
     expect(look.material.baseColor.toSrgb().r, lessThan(0.05));
     expect(look.material.roughness, lessThan(0.1));
+    // Placed where the step left it. Mutation: leave the slick where it was
+    // made — it does not follow the row.
+    expect(look.readPosition().x, closeTo(3.0, 1e-3));
+    expect(scene.meshes, hasLength(1));
+
+    // A wreck no longer published is no longer drawn.
+    looks.show(const <BurningWreck>[]);
+    expect(scene.meshes, isEmpty);
   });
 
-  test('a wreck far enough behind is let go', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
-    final wrecks = BurningWrecks(elements, device)
+  test('a wreck far enough behind is let go', () {
+    final elements = _open();
+    final wrecks = BurningWrecks(elements)
       ..timbers(Vector3(0.0, 0.5, -10.0))
       ..timbers(Vector3(0.0, 0.5, -60.0));
     wrecks.step(45.0);
@@ -114,16 +105,10 @@ void main() {
     );
   });
 
-  test('the way the game travels is its own', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
+  test('the way the game travels is its own', () {
+    final elements = _open();
     final wrecks =
-        BurningWrecks(
-            elements,
-            device,
-            along: Vector3(1.0, 0.0, 0.0),
-            behind: 5.0,
-          )
+        BurningWrecks(elements, along: Vector3(1.0, 0.0, 0.0), behind: 5.0)
           ..timbers(Vector3(2.0, 0.5, 0.0))
           ..timbers(Vector3(20.0, 0.5, 0.0));
     // Mutation: read the distance off −z whatever [along] says, and both
@@ -132,11 +117,9 @@ void main() {
     expect(wrecks.bodies, hasLength(1));
   });
 
-  test('a rewind puts the wrecks back with the world', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
-    final wrecks = BurningWrecks(elements, device)
-      ..timbers(Vector3(0.0, 0.5, -10.0));
+  test('a rewind puts the wrecks back with the world', () {
+    final elements = _open();
+    final wrecks = BurningWrecks(elements)..timbers(Vector3(0.0, 0.5, -10.0));
     final heap = wrecks.bodies.single;
     final part = wrecks.snapshotPart();
     final world = elements.world.snapshot();
@@ -153,21 +136,17 @@ void main() {
     part.restore(saved, part.version);
 
     // Mutation: restore nothing, and the list holds the slick the world no
-    // longer has while the heap the world has again burns undrawn and
-    // unheld.
+    // longer has while the heap the world has again burns unheld.
     final back = wrecks.bodies.single;
     expect(back.native.raw, heap.native.raw);
     expect(elements.world.contains(back.native), isTrue);
-    expect(elements.simulation.bodies, contains(back));
-    expect(elements.simulation.bodies, isNot(contains(slick)));
-    expect(elements.lookOf(slick), isNull);
+    expect(elements.bodies, contains(back));
+    expect(elements.bodies, isNot(contains(slick)));
   });
 
-  test('a slick let go since comes back drawn', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
-    final wrecks = BurningWrecks(elements, device)
-      ..oil(Vector3(0.0, 0.0, -10.0));
+  test('a slick let go since comes back published as oil', () {
+    final elements = _open();
+    final wrecks = BurningWrecks(elements)..oil(Vector3(0.0, 0.0, -10.0));
     final slick = wrecks.bodies.single;
     final part = wrecks.snapshotPart();
     final world = elements.world.snapshot();
@@ -178,18 +157,16 @@ void main() {
     elements.world.restore(world);
     part.restore(saved, part.version);
 
-    // Mutation: take a wreck back in without its look, and the slick burns
-    // on the water with nothing drawn for it.
-    final back = wrecks.bodies.single;
-    expect(back.native.raw, slick.native.raw);
-    final look = elements.lookOf(back)! as MeshNode;
-    expect(look.material.baseColor.toSrgb().r, lessThan(0.05));
+    // Mutation: take a wreck back in as timbers, and the slick burns on the
+    // water with nothing drawn for it.
+    final back = wrecks.published.single;
+    expect(back.body, slick.native.raw);
+    expect(back.oil, isTrue);
   });
 
-  test('clearing puts every fire out', () async {
-    final (elements, device) = await _open();
-    addTearDown(elements.dispose);
-    final wrecks = BurningWrecks(elements, device)
+  test('clearing puts every fire out', () {
+    final elements = _open();
+    final wrecks = BurningWrecks(elements)
       ..timbers(Vector3.zero())
       ..oil(Vector3(2.0, 0.0, 0.0));
     final lit = wrecks.bodies;

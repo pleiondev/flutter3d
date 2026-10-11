@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `FittedBox` is `FittedCuboid`.** A public name does not shadow
+  one of Flutter's, and `FittedBox` is a Flutter widget; the fields are the
+  same, and `dart fix` renames it.
 - **Breaking: `CsgOperation`, `ElementLevel`, `IssueSeverity`,
   `MeshAttribute`, `MeshDomain` and `RecipeCategory` are open sets, and
   `Modifier` and `ParametricShape` are `abstract final`.** Classes with
