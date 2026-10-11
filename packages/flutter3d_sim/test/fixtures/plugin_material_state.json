@@ -1,0 +1,11 @@
+{
+  "quantities": {
+    "acme.charring": {"value": 0.25, "unit": "1"},
+    "acme.ripeness": {"value": 3, "unit": "furlong"},
+    "f3d.temperature": {"value": 412.5, "unit": "K"},
+    "f3d.wetness": {"value": 0.5, "unit": "1"},
+    "later.spectrum": {"value": [0.1, 0.2, 0.3], "unit": "1"}
+  },
+  "phase": "solid",
+  "since": 7
+}

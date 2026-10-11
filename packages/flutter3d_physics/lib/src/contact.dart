@@ -362,25 +362,21 @@ void contactPointBetween(
     middle(aAt.y, ha.y, bAt.y, hb.y),
     middle(aAt.z, ha.z, bAt.z, hb.z),
   );
-  // Along it: half the depth out of the surface of the side that is not
-  // ground, whose bounds say nothing about where its surface is.
-  final double surface;
-  if (a is CollisionHeightfield) {
-    surface =
-        bAt.dot(normal) +
-        hb.x * normal.x.abs() +
-        hb.y * normal.y.abs() +
-        hb.z * normal.z.abs() -
-        depth * 0.5;
-  } else {
-    surface =
-        aAt.dot(normal) -
-        (ha.x * normal.x.abs() +
-            ha.y * normal.y.abs() +
-            ha.z * normal.z.abs()) +
-        depth * 0.5;
-  }
-  out.addScaled(normal, surface - out.dot(normal));
+  // Along it, in metres along the normal: half the depth out of the surface
+  // of the side that is not ground, whose bounds say nothing about where
+  // its surface is.
+  final halfway = a is CollisionHeightfield
+      ? bAt.dot(normal) +
+            hb.x * normal.x.abs() +
+            hb.y * normal.y.abs() +
+            hb.z * normal.z.abs() -
+            depth * 0.5
+      : aAt.dot(normal) -
+            (ha.x * normal.x.abs() +
+                ha.y * normal.y.abs() +
+                ha.z * normal.z.abs()) +
+            depth * 0.5;
+  out.addScaled(normal, halfway - out.dot(normal));
 }
 
 /// What became of a contact since the step before: it [begin]s, it
