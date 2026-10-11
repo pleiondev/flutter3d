@@ -104,6 +104,9 @@ const Map<String, Map<String, String>> restrictedLibraryUsers =
         'flutter3d_core':
             'the material language extends the expression language\'s '
             'parser and evaluates through its operator arithmetic',
+        'flutter3d_physics_native':
+            'the C core runs laws and expressions compiled to the internal '
+            'bytecode, so the Dart side compiles them to it',
       },
       'package:flutter3d_shaders/internal.dart': <String, String>{
         'flutter3d_core':

@@ -366,6 +366,7 @@ abstract final class Materials
   static const PhysicalMaterial oxygen = …
   static const PhysicalMaterial pXylene = …
   static const PhysicalMaterial paper = …
+  static const PhysicalMaterial paperStack = …
   static const PhysicalMaterial paraffin = …
   static const PhysicalMaterial particleboard = …
   static const PhysicalMaterial peek = …
@@ -583,12 +584,14 @@ final class ThermalProperties extends PropertyGroup
   Map<String, Object?> toJson()
   Map<String, PropertyLaw> get laws
   String get name
-  const ThermalProperties({this.specificHeat, this.conductivity, this.volumetricExpansion, this.meltingPoint, this.boilingPoint, this.latentHeatOfFusion, this.latentHeatOfVaporization, this.emissivity, this.ignitionTemperature, this.autoignitionTemperature, this.heatOfCombustion, this.radiantFraction, required super.source, super.unknown})
+  const ThermalProperties({this.specificHeat, this.conductivity, this.volumetricExpansion, this.meltingPoint, this.boilingPoint, this.latentHeatOfFusion, this.latentHeatOfVaporization, this.emissivity, this.ignitionTemperature, this.autoignitionTemperature, this.glowTemperature, this.heatOfCombustion, this.effectiveHeatOfCombustion, this.radiantFraction, required super.source, super.unknown})
   factory ThermalProperties.fromJson(Map<String, Object?> json)
   final PropertyLaw? autoignitionTemperature
   final PropertyLaw? boilingPoint
   final PropertyLaw? conductivity
+  final PropertyLaw? effectiveHeatOfCombustion
   final PropertyLaw? emissivity
+  final PropertyLaw? glowTemperature
   final PropertyLaw? heatOfCombustion
   final PropertyLaw? ignitionTemperature
   final PropertyLaw? latentHeatOfFusion
