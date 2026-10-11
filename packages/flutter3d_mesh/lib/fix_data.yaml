@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 121a4ddabd308b41
+# table-stamp: 4c2391e0f8610248
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -147,3 +147,11 @@ transforms:
         newElement:
           uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
           class: 'WeightPair'
+  - title: 'flutter3d 1.0.0-rc.1: 4e-mesh-FittedBox'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_mesh/flutter3d_mesh.dart']
+      class: 'FittedBox'
+    changes:
+      - kind: 'rename'
+        newName: 'FittedCuboid'

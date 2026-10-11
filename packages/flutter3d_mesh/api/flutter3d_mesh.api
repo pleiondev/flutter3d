@@ -237,18 +237,18 @@ final class FaceTriangulator
   bool get didFanLastFace
   int triangulate(List<Vector3> points, void Function(int a, int b, int c) emit)
 
-final class FittedBox
-  const FittedBox({required this.center, required this.orientation, required this.halfExtents})
-  final Matrix3 orientation
-  final Vector3 center
-  final Vector3 halfExtents
-
 final class FittedCapsule
   const FittedCapsule({required this.center, required this.axis, required this.radius, required this.height})
   final Vector3 axis
   final Vector3 center
   final double height
   final double radius
+
+final class FittedCuboid
+  const FittedCuboid({required this.center, required this.orientation, required this.halfExtents})
+  final Matrix3 orientation
+  final Vector3 center
+  final Vector3 halfExtents
 
 final class FittedSphere
   const FittedSphere({required this.center, required this.radius})
@@ -835,7 +835,7 @@ OpResult extrudeFaces(EditMesh mesh, Selection selection, {required double dista
 
 int fillHoles(EditMesh mesh)
 
-FittedBox fitBoxByInertia(EditMesh mesh)
+FittedCuboid fitBoxByInertia(EditMesh mesh)
 
 FittedCapsule fitCapsuleByInertia(EditMesh mesh)
 

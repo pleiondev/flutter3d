@@ -20329,3 +20329,12 @@ entries:
       A public name does not shadow one of Flutter's, and `FittedBox` is a
       Flutter widget: the box `fitBoxByInertia` answers is `FittedCuboid`,
       with the same fields.
+
+  - id: 4e-mesh-fitBoxByInertia
+    package: flutter3d_mesh
+    symbol: fitBoxByInertia
+    kind: none
+    wave: 4
+    reason: >-
+      It returns the same box under its new name, `FittedCuboid`; the
+      rename of the type carries the fix, and a call needs none.
