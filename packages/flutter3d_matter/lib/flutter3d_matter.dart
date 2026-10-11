@@ -29,6 +29,7 @@ library;
 export 'src/materials/material_catalog.dart';
 export 'src/materials/material_json.dart' show MaterialFormatException;
 export 'src/materials/material_sections.dart';
+export 'src/materials/material_state.dart';
 export 'src/materials/materials.dart';
 export 'src/materials/physical_material.dart';
 export 'src/materials/property_groups.dart';
