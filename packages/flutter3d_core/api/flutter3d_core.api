@@ -4668,6 +4668,22 @@ final class ShadowCastingMode
   static const ShadowCastingMode on = ShadowCastingMode._('on')
   static const ShadowCastingMode shadowsOnly = ShadowCastingMode._('shadowsOnly')
 
+final class ShadowCubeAtlas
+  ScreenRect tileOf(int row, int face)
+  const ShadowCubeAtlas({required this.atlas, required this.depth, required this.tile, required this.lights})
+  final List<ShadowCubeLight> lights
+  final TextureHandle atlas
+  final TextureHandle depth
+  final int tile
+
+final class ShadowCubeLight
+  bool get isSpot
+  const ShadowCubeLight({required this.row, required this.position, required this.range, required this.viewProjections})
+  final List<vm.Matrix4> viewProjections
+  final double range
+  final int row
+  final vm.Vector3 position
+
 final class ShadowFaceScheduler
   List<int> select(List<int?> signatures)
   ShadowFaceScheduler({required this.tileCount, this.budget = 0})
@@ -4709,9 +4725,10 @@ final class ShadowPrefilter
   int get hashCode
 
 final class ShadowProducerContext
-  const ShadowProducerContext({required this.settings, this.camera, this.cascades})
+  const ShadowProducerContext({required this.settings, this.camera, this.cascades, this.cubeAtlas})
   final CameraNode? camera
   final ShadowCascades? cascades
+  final ShadowCubeAtlas? cubeAtlas
   final ShadowSettings settings
 
 final class ShadowSettings

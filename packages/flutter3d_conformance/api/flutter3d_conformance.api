@@ -130,6 +130,32 @@ List<FuzzTransform> transformsFor(FuzzProgram program, int seed)
 
 const Map<String, String> unprobedFeatures = …
 
+library package:flutter3d_conformance/plugin_render.dart
+
+final class PluginCheckOutcome
+  String toString()
+  const PluginCheckOutcome({required this.check, required this.passed, required this.says, this.backend, this.declined = false})
+  final String check
+  final String says
+  final String? backend
+  final bool declined
+  final bool passed
+
+final class PluginRenderPoints
+  const PluginRenderPoints({this.nodes = const <String>[], this.litModel, this.lightType, this.decal, this.velocityReader, this.shadows})
+  final LightType? lightType
+  final LightingModel? decal
+  final LightingModel? litModel
+  final List<String> nodes
+  final ShadowTechnique? shadows
+  final String? velocityReader
+
+Future<List<PluginCheckOutcome>> checkPluginRender(Flutter3dPlugin Function() create, {required GraphicsDevice Function() device, required PluginRenderPoints points, required String backend})
+
+const List<String> pluginRenderCheckNames = <String>['render.nodes', 'render.lit model', 'render.light type', 'render.decal', 'render.velocity', 'render.shadows']
+
+void runPluginRenderConformance(Flutter3dPlugin Function() create, {required GraphicsDevice Function() device, required PluginRenderPoints points, required String backend})
+
 library package:flutter3d_conformance/plugins.dart
 
 final class PluginBudget

@@ -243,7 +243,7 @@ String packageRoot(String name, {String? from})
 
 String? pairedFragmentStage(String vertex, Set<String> fragments)
 
-PreparedStage prepareStage(String resolved, {required String from, required bool fragment, required Map<String, int> varyingLocations})
+PreparedStage prepareStage(String resolved, {required String from, required bool fragment, required Map<String, int> varyingLocations, List<String> ownBindings = const <String>[]})
 
 void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
@@ -960,7 +960,7 @@ const int maxInterStageVariables = 16
 
 String? pairedFragmentStage(String vertex, Set<String> fragments)
 
-PreparedStage prepareStage(String resolved, {required String from, required bool fragment, required Map<String, int> varyingLocations})
+PreparedStage prepareStage(String resolved, {required String from, required bool fragment, required Map<String, int> varyingLocations, List<String> ownBindings = const <String>[]})
 
 void requireBundleAgreement({required Map<String, String> vertex, required Map<String, String> fragment})
 
