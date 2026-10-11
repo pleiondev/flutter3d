@@ -57,6 +57,7 @@ workspace:
   - packages/flutter3d_plugin_api
   - packages/flutter3d_plugin_runtime
   - packages/flutter3d_plugin_runtime/example
+  - packages/flutter3d_plugin_runtime/example/gpu
   - packages/flutter3d_lints
   - packages/flutter3d_sim
   - packages/flutter3d_camera
@@ -107,6 +108,9 @@ workspace:
   # A plugin as somebody outside the repository writes one: published
   # libraries only, every engine package by path.
   - examples/outside_plugin
+  # A graphics backend as somebody outside the repository writes one, with
+  # no GPU: the reference `flutter3d create plugin --kind backend` copies.
+  - examples/flutter3d_backend_null
   # Not a package and not an application: a program this repository runs on
   # itself, kept where `tool/`'s other programs are. See its own pubspec for
   # why it is not in `packages/`.
