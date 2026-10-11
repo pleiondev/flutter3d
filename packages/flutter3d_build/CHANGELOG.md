@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A conversion's report carries the model's author, licence and
+  copyright.** `ConvertReport.author`, `license` and `copyright`, read from
+  the document, and the same three keys, when present, in `--json` and
+  `--report`. A `.f3d` file has no field for them yet, so the report says
+  they were dropped from it.
 - **The project's plugin list is a plugin group.** `lib/plugins.g.dart`
   defines `installedPlugins` as a `PluginGroup` (its `plugins` is the list
   an engine takes), and the application's own `flutter3d_plugins:` adjusts

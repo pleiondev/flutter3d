@@ -179,6 +179,6 @@ Usage: flutter3d help [<command>]
                                   api/flutter3d_build.cli
 
 == --json ==
-convert {output, dryRun, reports: [{input, format, outcome, error?, written, mapped, dropped, warnings}]}
+convert {output, dryRun, reports: [{input, format, outcome, error?, author?, license?, copyright?, written, mapped, dropped, warnings}]}
 doctor {checks: [{name, status, detail, fix?}]}
 plugins {check, path, current? (with --check), written? (without), plugins: [{package, import, class}], excluded: [{package, import, class}], warnings}

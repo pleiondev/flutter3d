@@ -1,5 +1,25 @@
 ## 1.0.0-rc.1
 
+- **An asset source says which version of a file it is, and its hash.**
+  `AssetSource.contentHash` (the SHA-256 of what `read` returns, when the
+  source knows it ahead) and `AssetSource.version` (the version in the
+  place it comes from), both null by default, so a source written against
+  1.0 says nothing and reads as before. The contract of `key` says a
+  source with a version puts it in the key, so two versions never share a
+  cache entry.
+- **New: `HubAssetSource`, a model on the hub named by its reference.**
+  `HubAssetSource(HubReference.parse('<uuid>@<n>'))`, with a
+  `HubCachePolicy`; its key is `hub:<uuid>@<n>`, its version and hash the
+  reference's, and it is sendable like any source. This release has no hub
+  client, so `read` refuses with `HubRefusal.offline` and says to vendor
+  the model; the client arrives as an addition.
+- **A loaded model says who made it and on what terms.**
+  `DocumentAsset.copyright` (glTF's `asset.copyright`), `author` and
+  `license` (the `dc:creator` and `dc:rights` of the document's
+  `KHR_xmp_json_ld` packet), and `xmp`, the packet itself kept whole so a
+  key nothing reads survives a write; `DocumentAsset.copyWith`. The glTF
+  reader reads all four and the writer writes them back. `DocumentAsset`'s
+  hash no longer reads its `extras`, which compare by value.
 - **`FramePassNames`: the passes code outside the renderer names.**
   `decals`, `cameraVelocity` and `objectVelocity`, the strings
   `FrameResult.passes` reports, spelled once: the nodes, their

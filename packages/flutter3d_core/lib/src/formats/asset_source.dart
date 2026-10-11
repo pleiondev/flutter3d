@@ -39,7 +39,29 @@ abstract base class AssetSource {
   const AssetSource();
 
   /// Stable identity, used as the cache key.
+  ///
+  /// **A source with a [version] puts it in the key**, so two versions of
+  /// one asset never share a cache entry: a level that moves a model from
+  /// version 3 to 4 gets the new file, not the one already decoded. Two
+  /// sources that differ only in [contentHash] name the same file and may
+  /// share a key.
   String get key;
+
+  /// The SHA-256 of the file [read] returns, as 64 lowercase hexadecimal
+  /// digits, when the source knows it ahead of reading; null when it does
+  /// not, which is every source that reads a file it did not publish.
+  ///
+  /// A promise about the bytes: a reader that checks it refuses bytes that
+  /// do not match rather than decoding them. Null by default, so a source
+  /// written against 1.0 says nothing and is read as before.
+  String? get contentHash => null;
+
+  /// The asset's version in the place it comes from (a model's version on
+  /// the hub, a store's revision), from 1; null for a source with no
+  /// versions, which is a file on disk or in a bundle.
+  ///
+  /// Part of [key] when it is not null. Null by default.
+  int? get version => null;
 
   /// The model file itself.
   Future<Uint8List> read();

@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **Exports the model hub's client types**: `HubAssetSource` from the core,
+  and `HubReference`, `HubReferenceFormatException`, `HubCachePolicy`,
+  `HubRefusal` and `HubRefusedException` from `flutter3d_hub`, by name.
 - **Exports `FrameWindow`**, the window of a larger frame a view can be
   drawn as (`RenderViewSettings.window`).
 - **`PipelineRefusedException`, `PipelineRefusalReason`, `PipelineRefusals` and

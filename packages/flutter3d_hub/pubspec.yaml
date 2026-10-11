@@ -1,0 +1,40 @@
+name: flutter3d_hub
+description: >-
+  The model hub's client contract for flutter3d: the reference format
+  `<uuid>@<n>`, the refusals, the cache policy and the server protocol with
+  its version. Plain Dart with no engine behind it.
+version: 1.0.0-rc.1
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - 3d
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+# Declared rather than left to pub.dev's detector: plain Dart that reaches
+# no `dart:io`, `dart:isolate` or `dart:ffi` from its libraries, so every
+# platform, the browser included.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
+# **The foundation and nothing else.** A refusal hangs from
+# `Flutter3dException` like every exception the engine throws, and a
+# malformed reference is a `Flutter3dFormatException`; that is all this
+# package needs. No engine package, so the renderer's core can name a hub
+# reference without taking a network client with it.
+dependencies:
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0

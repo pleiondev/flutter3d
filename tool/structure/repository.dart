@@ -1497,6 +1497,11 @@ const Map<String, String> readsSimulationWorld = <String, String>{
 /// Version constants that number something other than a file a reader opens,
 /// by `path#constant`, with the reason.
 const Map<String, String> notAVersionedFormat = <String, String>{
+  'packages/flutter3d_hub/lib/src/hub_reference.dart#maxVersion':
+      'the largest version of a model on the hub a reference can name, '
+      'which is no file a reader opens: the reference format itself has no '
+      'version and never gains one, and its fixture is '
+      'test/fixtures/references.json',
   'packages/flutter3d_core/lib/src/formats/material_language/material_ast.dart#materialLanguageFirstVersion':
       'a version of `.f3dmat` that `f3dmatFormat` already lists, the one a '
       'file with no version line is; its fixture is v1/rim_glow.f3dmat',

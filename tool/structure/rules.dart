@@ -188,6 +188,10 @@ List<Rule> get allRules => <Rule>[
     run: _schemaBreaksLabelled,
   ),
   (
+    name: 'a server protocol only grows within its major',
+    run: _protocolOnlyGrows,
+  ),
+  (
     name: 'the flutter3d command is the surface its package commits',
     run: _cliSurfaceCurrent,
   ),
@@ -4384,6 +4388,33 @@ List<Finding> _apiBreaksLabelled() => _breaksSinceRelease(
 List<Finding> _schemaBreaksLabelled() => _breaksSinceRelease(
   surface: 'the tools',
   snapshotsOf: (String name) => <String>['api/$name.mcp', 'api/$name.vm'],
+  classify: classifySchema,
+  diff: 'dart run api_snapshot:schema_snapshot --diff',
+  versionsIn: schemaVersions,
+);
+
+/// A server protocol, `api/<package>.hub`, only grows within its major
+/// since the last release: the tools rule above, over the model hub's
+/// exchanges.
+///
+/// **Its callers are a server and every client ever shipped.** A hub
+/// reference lives in other people's code for years, and the client that
+/// reads it is whatever release that code was built with, so a 1.0 client
+/// has to keep working against every later 1.x server. The snapshot lists
+/// what a client sends (`arg`) and what a server answers (`out`); a field
+/// gone or retyped from an answer, or a field newly required of a request,
+/// needs a new major of the protocol, whose `schema` line comes from
+/// `HubProtocol.version`, and a major of the package with a labelled
+/// CHANGELOG entry. An addition needs a minor of both. The snapshot itself
+/// is held current by `every MCP tool and VM extension is the snapshot its
+/// package commits`, which writes it beside the `.mcp` and `.vm`.
+///
+/// Mutation: drop `license` from the `resolve` answer in `HubProtocol`,
+/// regenerate the snapshot, and once a release carries the old one this
+/// asks for protocol 2.0, the package's major and the labelled entry.
+List<Finding> _protocolOnlyGrows() => _breaksSinceRelease(
+  surface: 'the server protocol',
+  snapshotsOf: (String name) => <String>['api/$name.hub'],
   classify: classifySchema,
   diff: 'dart run api_snapshot:schema_snapshot --diff',
   versionsIn: schemaVersions,

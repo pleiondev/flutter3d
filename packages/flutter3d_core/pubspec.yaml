@@ -36,6 +36,10 @@ dependencies:
   # fills (`RendererSteps`). Only the foundation beneath it, which this
   # package depends on anyway.
   flutter3d_plugin_api: ^1.0.0-rc.1
+  # The hub's client contract, for `HubAssetSource`: the reference, the
+  # refusals and the cache policy. Types only, over the foundation; the
+  # client that reaches the network is not this package's dependency.
+  flutter3d_hub: ^1.0.0-rc.1
   vector_math: ^2.2.0
 
 dev_dependencies:

@@ -60,6 +60,11 @@ dependencies:
   # the audio are not dependencies: a game names them, or `flutter3d_game`.
   flutter3d_foundation: ^1.0.0-rc.1
 
+  # The model hub's client contract, which lib/flutter3d.dart re-exports by
+  # name beside `HubAssetSource`: the reference, the refusals, the cache
+  # policy. Types only; already under `flutter3d_core`.
+  flutter3d_hub: ^1.0.0-rc.1
+
   # Not `flutter3d_build`. The converter's command is that package's own
   # `dart run flutter3d_build:convert`; a runtime engine that named it would put
   # `image`, `glob`, `yaml`, `crypto` and `hooks` under every game that draws a

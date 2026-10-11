@@ -24,7 +24,8 @@
 ///
 /// **Which packages.** Every published package with a `ToolTableServer`
 /// subclass in its `lib/` has an `.mcp`; every one that registers a VM
-/// service extension or posts a game event has a `.vm`. A snapshot left
+/// service extension or posts a game event has a `.vm`; every one
+/// `liveProtocols` names, a server protocol, has a `.hub`. A snapshot left
 /// behind by a package that no longer offers either is reported, so a
 /// surface cannot leave without somebody deciding it may.
 ///
@@ -146,6 +147,7 @@ Future<void> main(List<String> args) async {
     final made = <String, String?>{
       mcpSnapshotPathOf(name): await _mcp(name, home, work),
       vmSnapshotPathOf(name): _vm(name, home),
+      protocolSnapshotPathOf(name): _protocol(name),
       // A plugin's tools are checked from the plugin its snapshot names, and
       // left alone by --update without --plugin: which plugin class to build
       // is the snapshot's to say.
@@ -255,6 +257,12 @@ String? _vm(String package, Directory home) {
   if (surface.extensions.isEmpty && surface.events.isEmpty) return null;
   return renderVm(package, surface);
 }
+
+/// [package]'s `.hub`, or null when it declares no server protocol.
+String? _protocol(String package) => switch (liveProtocols[package]) {
+  final ServerSurface Function() surface => renderProtocol(package, surface()),
+  null => null,
+};
 
 String _where(Directory root, File file) =>
     file.absolute.path.substring(root.absolute.path.length + 1);

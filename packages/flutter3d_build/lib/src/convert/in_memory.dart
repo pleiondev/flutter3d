@@ -184,7 +184,10 @@ ConvertReport _rebased(ConvertReport report, String prefix) {
       .replaceAll(prefix.substring(0, prefix.length - 1), '.');
   final out = ConvertReport(clean(report.input), report.format)
     ..outcome = report.outcome
-    ..error = report.error == null ? null : clean(report.error!);
+    ..error = report.error == null ? null : clean(report.error!)
+    ..author = report.author
+    ..license = report.license
+    ..copyright = report.copyright;
   out.written.addAll(report.written);
   out.mapped.addAll(report.mapped.map(clean));
   out.dropped.addAll(report.dropped.map(clean));

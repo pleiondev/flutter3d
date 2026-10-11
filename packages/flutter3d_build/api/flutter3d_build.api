@@ -41,7 +41,10 @@ final class ConvertReport
   ConvertReport(this.input, this.format)
   Map<String, Object?> toJson()
   String describe()
+  String? author
+  String? copyright
   String? error
+  String? license
   final List<String> dropped
   final List<String> mapped
   final List<String> warnings
@@ -194,7 +197,10 @@ final class ConvertReport
   ConvertReport(this.input, this.format)
   Map<String, Object?> toJson()
   String describe()
+  String? author
+  String? copyright
   String? error
+  String? license
   final List<String> dropped
   final List<String> mapped
   final List<String> warnings

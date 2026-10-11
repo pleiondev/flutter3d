@@ -77,6 +77,19 @@ final class ConvertReport {
   /// Why it failed, when it did.
   String? error;
 
+  /// Who made the model, as its file names them (`DocumentAsset.author`);
+  /// null when it does not say.
+  String? author;
+
+  /// The terms the model may be used on, as its file states them
+  /// (`DocumentAsset.license`); null when it does not say, which is not
+  /// the same as free to use.
+  String? license;
+
+  /// The model's copyright notice (`DocumentAsset.copyright`); null when it
+  /// has none.
+  String? copyright;
+
   /// Every file this input produced, relative to the output directory.
   final List<String> written = <String>[];
 
@@ -110,6 +123,9 @@ final class ConvertReport {
     'format': format,
     'outcome': outcome.name,
     'error': ?error,
+    'author': ?author,
+    'license': ?license,
+    'copyright': ?copyright,
     'written': <String>[...written]..sort(),
     'mapped': mapped,
     'dropped': dropped,
@@ -120,6 +136,9 @@ final class ConvertReport {
   String describe() {
     final lines = <String>[
       '$input ($format): ${outcome.name}${error == null ? '' : ' — $error'}',
+      if (author != null) '  author   $author',
+      if (license != null) '  license  $license',
+      if (copyright != null) '  ©        $copyright',
       for (final path in <String>[...written]..sort()) '  wrote    $path',
       for (final line in mapped) '  mapped   $line',
       for (final line in warnings) '  approx   $line',

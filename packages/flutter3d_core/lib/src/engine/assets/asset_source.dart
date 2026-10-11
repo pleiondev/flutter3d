@@ -12,6 +12,10 @@ import '../platform/files.dart';
 // needs one.
 export 'package:flutter3d_core/formats.dart' show AssetSource;
 
+// A model on the hub: a reference rather than a path, readable once the
+// hub's client arrives.
+export 'hub_asset_source.dart';
+
 /// A model on the filesystem. Unavailable on web, which is why it is a separate
 /// source rather than a flag.
 final class FileAssetSource extends AssetSource {

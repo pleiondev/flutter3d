@@ -173,6 +173,10 @@ const Map<String, String> reexportsAllowed = <String, String>{
   'flutter3d -> flutter3d_foundation':
       'the colour, the position and the exception roots the shell\'s API '
       'and the core\'s are written in, named',
+  'flutter3d -> flutter3d_hub':
+      'the hub reference, its refusals and its cache policy that the core\'s '
+      '`HubAssetSource` is written in, named, so loading a model from the '
+      'hub takes the one import loading it from a bundle does',
   'flutter3d_plugin_api -> flutter3d_foundation':
       'the value types the contract\'s signatures name, so a plugin sees '
       'the contract from one import',

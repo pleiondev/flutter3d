@@ -212,6 +212,7 @@ export 'package:flutter3d_core/flutter3d_core.dart'
         HiZOcclusion,
         HighContrastSettings,
         HitResult,
+        HubAssetSource,
         ImageDecoder,
         ImageFormatException,
         ImpostorNode,
@@ -694,6 +695,17 @@ export 'package:flutter3d_hardware/flutter3d_hardware.dart'
         indexWindow,
         readbackFormats,
         readbackRegionOf;
+// The model hub's client contract: a model named by its reference rather than
+// a path, the refusals a load may meet, and how it may be cached. Named, so a
+// type the hub package adds for a server or a tool is not this package's API
+// until it is added here; `HubAssetSource` itself is the core's, above.
+export 'package:flutter3d_hub/flutter3d_hub.dart'
+    show
+        HubCachePolicy,
+        HubReference,
+        HubReferenceFormatException,
+        HubRefusal,
+        HubRefusedException;
 // The simulation, the physics and the audio are not re-exported: a game
 // that steps a level names `flutter3d_sim`, or takes `flutter3d_game`, the
 // one facade, which re-exports what a first game uses of them.

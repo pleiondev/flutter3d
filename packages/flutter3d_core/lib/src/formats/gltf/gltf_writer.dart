@@ -13,6 +13,7 @@ import 'gltf_accessor.dart';
 // For `toGltfFilters`, the exact inverse of `_decodeSampler`'s filter half —
 // kept beside the code it undoes rather than duplicated here.
 import 'gltf_loader.dart';
+import 'gltf_xmp.dart';
 
 // One phase per file, mirroring `gltf_loader.dart`'s own split: geometry,
 // scene hierarchy, materials, images. Every phase appends to the single
@@ -172,12 +173,28 @@ final class GltfWriter {
     if (document.variants.isNotEmpty) {
       _extensionsUsed.add('KHR_materials_variants');
     }
+    // Who made it and on what terms: the copyright on `asset`, the author
+    // and licence in the document's XMP packet, with the rest of the packet
+    // as it was read.
+    final asset = document.asset;
+    final xmp = packetToWrite(
+      asset?.xmp,
+      author: asset?.author,
+      license: asset?.license,
+    );
+    if (xmp != null) _extensionsUsed.add(xmpExtension);
 
     final json = <String, Object?>{
       'asset': <String, Object?>{
         'version': '2.0',
-        if (document.asset?.generator != null)
-          'generator': document.asset!.generator,
+        if (asset?.generator case final String generator)
+          'generator': generator,
+        if (asset?.copyright case final String copyright)
+          'copyright': copyright,
+        if (xmp != null)
+          'extensions': <String, Object?>{
+            xmpExtension: <String, Object?>{'packet': 0},
+          },
       },
       // The root document's own `extras`, not `asset`'s — see
       // `GltfLoader.load`'s own comment on the same distinction.
@@ -186,8 +203,12 @@ final class GltfWriter {
         'extensionsUsed': _extensionsUsed.toList(),
       if (_extensionsRequired.isNotEmpty)
         'extensionsRequired': _extensionsRequired.toList(),
-      if (lights.isNotEmpty || document.variants.isNotEmpty)
+      if (lights.isNotEmpty || document.variants.isNotEmpty || xmp != null)
         'extensions': <String, Object?>{
+          if (xmp != null)
+            xmpExtension: <String, Object?>{
+              'packets': <Object?>[xmp],
+            },
           if (lights.isNotEmpty)
             'KHR_lights_punctual': <String, Object?>{'lights': lights},
           if (document.variants.isNotEmpty)
