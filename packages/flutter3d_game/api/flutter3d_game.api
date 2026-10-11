@@ -98,7 +98,7 @@ abstract base mixin class ActorGraphs
   abstract void drive(Actor actor, AnimationGraph graph, ModelInstance model)
 
 final class ActorVisuals
-  ActorVisuals(this.scene, {required this.appearance, required GraphicsDevice device, IssueSink? onIssue, this.layerMask = 1, this.corpses, this.graphs, this.simulated, this.published})
+  ActorVisuals(this.scene, {required this.appearance, required GraphicsDevice device, IssueSink? onIssue, this.layerMask = 1, this.corpses, this.graphs, this.simulated, this.published, SceneBindings? bindings})
   AnimationGraph? graphOf(Actor actor)
   Future<void> get settled
   LinearColor? Function(Actor actor)? outlineOf
@@ -111,10 +111,12 @@ final class ActorVisuals
   final IssueSink onIssue
   final PublishedState Function()? published
   final Scene scene
+  final SceneBindings bindings
   final int layerMask
   static AnimationWrap wrapFor(Actor actor)
   static AnimationWrap wrapWhen({required bool isAlive})
   static Matrix4 modelMatrixAt(Actor actor, Vector3 center)
+  static const String nodeKind = 'f3d.actor'
   static double feetBelowCenter(Actor actor)
   static double yawFor(Actor actor, {required bool model})
   void add(Actor actor)
