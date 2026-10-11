@@ -243,6 +243,7 @@ void main() {
       Vector3 at,
       List<String> held, {
       JointTissue tissue = JointTissue.human,
+      MuscleTone? tone,
     }) async {
       final h = await hero(at: at);
       h.root.setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), turn));
@@ -252,6 +253,7 @@ void main() {
         world: dynamics.native,
         dynamics: dynamics,
         tissue: tissue,
+        tone: tone,
       );
       addTearDown(ragdoll.dispose);
       final world = dynamics.native;
@@ -284,48 +286,62 @@ void main() {
       )..normalize();
     }
 
+    /// The pelvis held standing, the chest struck at its top by [blow],
+    /// N·s along the way the figure faces, and stepped [steps] times: the
+    /// most the chest went the way it was struck, and where it ended, from
+    /// the skeleton's own up — the pelvis to the head at bind, which a
+    /// [RagdollSwing] is measured from, turned as the pelvis has turned
+    /// since — in the plane the figure faces along (+z is ahead).
+    Future<({double most, double last})> bend(
+      double blow,
+      JointTissue tissue,
+      MuscleTone? tone, {
+      int steps = 60,
+    }) async {
+      final ragdoll = await heldUp(
+        0.0,
+        Vector3(0.0, 1.0, 0.0),
+        <String>['Body'],
+        tissue: tissue,
+        tone: tone,
+      );
+      final bones = ragdoll.ragdoll.bones;
+      final pelvis = ragdoll.bodyNamed('Body')!;
+      final up = bones[ragdoll.bodyNamed('Head')!].head - bones[pelvis].head;
+      double lean(Vector3 d) => math.atan2(d.z, d.y);
+      double upright() => lean(
+        turnBy(
+          ragdoll.ragdoll.poseOf(pelvis).orientation *
+              bones[pelvis].orientation.conjugated(),
+          up,
+        ),
+      );
+      Vector3 at(String name) =>
+          ragdoll.ragdoll.poseOf(ragdoll.bodyNamed(name)!).position;
+      dynamics.native.applyImpulse(
+        ragdoll.ragdoll.bodyOf(ragdoll.bodyNamed('Torso')!),
+        Vector3(0.0, 0.0, blow),
+        at: at('Head'),
+      );
+      var most = 0.0, last = 0.0;
+      for (var i = 0; i < steps; i++) {
+        dynamics.step(1.0 / 60.0);
+        last = (lean(along(ragdoll, 'Torso')) - upright()) * blow.sign;
+        most = last > most ? last : most;
+      }
+      ragdoll.dispose();
+      return (most: most, last: last);
+    }
+
     test('the spine bends forward three times as far as back', () async {
-      // The pelvis held standing, the chest struck at its top forward, then
-      // back: how far the chest goes each way from the skeleton's own up —
-      // the pelvis to the head at bind, which a [RagdollSwing] is measured
-      // from, turned as the pelvis has turned since — in the plane the
-      // figure faces along (+z is ahead). AAOS: 80 degrees forward,
-      // 1.40 rad; 25 back, 0.44. Mutation: put back the symmetric cone of
-      // 0.5 rad — the chest stops at half a radian forward.
+      // The chest struck forward, then back, with no tone to hold it: how far
+      // it goes each way. AAOS: 80 degrees forward, 1.40 rad; 25 back, 0.44.
+      // Mutation: put back the symmetric cone of 0.5 rad — the chest stops
+      // at half a radian forward.
       Future<double> most(
         double blow, [
         JointTissue tissue = JointTissue.human,
-      ]) async {
-        final ragdoll = await heldUp(0.0, Vector3(0.0, 1.0, 0.0), <String>[
-          'Body',
-        ], tissue: tissue);
-        final bones = ragdoll.ragdoll.bones;
-        final pelvis = ragdoll.bodyNamed('Body')!;
-        final up = bones[ragdoll.bodyNamed('Head')!].head - bones[pelvis].head;
-        double lean(Vector3 d) => math.atan2(d.z, d.y);
-        double upright() => lean(
-          turnBy(
-            ragdoll.ragdoll.poseOf(pelvis).orientation *
-                bones[pelvis].orientation.conjugated(),
-            up,
-          ),
-        );
-        Vector3 at(String name) =>
-            ragdoll.ragdoll.poseOf(ragdoll.bodyNamed(name)!).position;
-        dynamics.native.applyImpulse(
-          ragdoll.ragdoll.bodyOf(ragdoll.bodyNamed('Torso')!),
-          Vector3(0.0, 0.0, blow),
-          at: at('Head'),
-        );
-        var most = 0.0;
-        for (var i = 0; i < 60; i++) {
-          dynamics.step(1.0 / 60.0);
-          final bent = (lean(along(ragdoll, 'Torso')) - upright()) * blow.sign;
-          most = bent > most ? bent : most;
-        }
-        ragdoll.dispose();
-        return most;
-      }
+      ]) async => (await bend(blow, tissue, null)).most;
 
       // The ranges, held hard: the tissue's give past them is its own.
       final hard = JointTissue(
@@ -352,6 +368,44 @@ void main() {
       final forward = await most(20.0), back = await most(-20.0);
       expect(forward, inInclusiveRange(1.40, 1.40 + 0.4));
       expect(back, inInclusiveRange(0.44 + 0.1, 0.44 + 0.4));
+    });
+
+    test('struck as hard with its tone up, the spine stays inside its range; '
+        'with the tone gone, it hangs as limp as on its tissue', () async {
+      // The blow above with the tone held up the whole second: the chest
+      // bends forward half a radian and stops, well inside the 1.40 of its
+      // range, where on its tissue alone it went a third of a radian past;
+      // struck back, it stops short of its 0.44. Mutation: give the spine
+      // the neck's most torque, 30 N·m — it bends on past a radian.
+      const held = MuscleTone(
+        stiffness: 50.0,
+        damping: 1.0,
+        maxTorque: 60.0,
+        groups: <JointGroupTone>[
+          JointGroupTone(
+            JointGroup.spine,
+            stiffness: 300.0,
+            damping: 11.0,
+            maxTorque: 200.0,
+          ),
+        ],
+      );
+      expect((await bend(20.0, JointTissue.human, held)).most, lessThan(0.8));
+      expect((await bend(-20.0, JointTissue.human, held)).most, lessThan(0.3));
+      // A human's tone fades over a fifth of a second: unstruck, the chest
+      // over its welded pelvis slumps forward as a limp one does, to where
+      // its tissue holds its weight past its range. Mutation: a fade of
+      // nought seconds, which keeps the tone up — the chest stays where it
+      // stood, 0.3 from the skeleton's up.
+      final limp = await bend(1e-9, JointTissue.human, null, steps: 180);
+      final faded = await bend(
+        1e-9,
+        JointTissue.human,
+        MuscleTone.human,
+        steps: 180,
+      );
+      expect(limp.last, greaterThan(1.40));
+      expect(faded.last, closeTo(limp.last, 0.05));
     });
 
     test('lying on its back, its arms cannot hang straight down behind '

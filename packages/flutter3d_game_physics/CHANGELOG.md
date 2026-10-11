@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A body dies with its tone up.** `SkeletonRagdoll` and
+  `RagdollCorpses` take `tone:` (`MuscleTone.human` by default, null for a
+  body limp from the start): the body takes the killing blow as one and
+  goes limp over a fifth of a second. Struck low in the back, at the root
+  of its chest bone, the dungeon's runner now ends lying, its head 0.1 m
+  up, where it sat propped on its elbows at 0.6. `RagdollCorpses.blowAt`
+  says how far up the chest bone the blow lands, 0.75 unless set.
+
 - **The Quaternius profile names each joint's group.** Its spine, neck,
   shoulders, elbows, hips and knees are of `JointGroup.spine` and the
   rest, so `JointTissue.human` holds each at the end of its range with the
