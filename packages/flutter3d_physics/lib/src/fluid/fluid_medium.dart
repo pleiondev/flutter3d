@@ -18,6 +18,7 @@ final class FluidMedium {
     required this.viscosity,
     required this.surfaceTension,
     this.contactAngle = 0.0,
+    this.material,
   });
 
   /// [material]'s density, viscosity and surface tension, meeting a wall at
@@ -41,6 +42,33 @@ final class FluidMedium {
       viscosity: viscosity,
       surfaceTension: tension,
       contactAngle: contactAngle ?? _onGlass(material.id) ?? 0.0,
+      material: material,
+    );
+  }
+
+  /// The material this medium is a view of, whose laws [at] reads; null
+  /// for a medium given as numbers, or changed from one by [copyWith].
+  final PhysicalMaterial? material;
+
+  /// This medium at [state]: its [material]'s density, viscosity and
+  /// surface tension as their laws give them there (`PropertyLaw.at`),
+  /// the [contactAngle] kept. Water at 60 °C is a little lighter than at
+  /// 20 and half as viscous, so a ball settles through it twice as fast.
+  ///
+  /// **The same numbers at the reference state**: a law at the state its
+  /// value was quoted at answers that value, so a medium of the catalogue
+  /// at `MaterialState.standard` is this one. A medium with no [material]
+  /// has no laws, and is itself at every state.
+  FluidMedium at(MaterialState state) {
+    final m = material;
+    if (m == null) return this;
+    return FluidMedium(
+      name: name,
+      density: m.mechanical?.density?.at(state) ?? density,
+      viscosity: m.fluid?.viscosity?.at(state) ?? viscosity,
+      surfaceTension: m.fluid?.surfaceTension?.at(state) ?? surfaceTension,
+      contactAngle: contactAngle,
+      material: m,
     );
   }
 
@@ -97,6 +125,9 @@ final class FluidMedium {
   /// surface tension outweighs gravity — about 2.7 mm for water on Earth.
   double capillaryLength(double g) => math.sqrt(surfaceTension / (density * g));
 
+  /// A copy with the given fields replaced. One that changes a density, a
+  /// viscosity or a surface tension is no longer its [material]'s, and
+  /// keeps none.
   FluidMedium copyWith({
     String? name,
     double? density,
@@ -109,6 +140,9 @@ final class FluidMedium {
     viscosity: viscosity ?? this.viscosity,
     surfaceTension: surfaceTension ?? this.surfaceTension,
     contactAngle: contactAngle ?? this.contactAngle,
+    material: density == null && viscosity == null && surfaceTension == null
+        ? material
+        : null,
   );
 
   @override

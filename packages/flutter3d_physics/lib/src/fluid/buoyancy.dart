@@ -2,8 +2,11 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:vector_math/vector_math.dart';
 
+import '../adaptive.dart';
 import '../collision_shape.dart';
 import '../rigid_body.dart';
 import 'fluid_medium.dart';
@@ -152,36 +155,38 @@ final class FloatingBody {
   /// [gravity], and returns the volume it displaces there. How much of it is
   /// under is worked out here; the push is [solver]'s — the reference unless
   /// a `FluidWorld` passes the run's.
+  ///
+  /// **The liquid as it is now**: its density and viscosity at the
+  /// liquid's state (`LiquidBody.mediumInState`), so a ball sinks faster
+  /// through warm glycerol than through cold.
+  ///
+  /// **Under a profile that allows adaptive steps** the push is not the
+  /// solver's implicit step but the velocity's own equation, lift, gravity
+  /// and drag at the speed it has, integrated through [dt] in Dart to a
+  /// relative error of 1e-10 with how much of the body is under held as
+  /// it was at the start of the step: a ball let go in a liquid reaches its
+  /// settling speed along the curve the drag law gives, not a step behind.
   double push(
     LiquidBody liquid,
     double dt,
     Vector3 gravity, {
     FluidSolver solver = const DartFluid(),
+    SimulationProfile profile = SimulationProfile.deterministic,
   }) {
     final under = submergedIn(liquid);
     if (under <= 0.0 || !body.isMovable) return under;
-    final medium = liquid.medium;
+    final medium = liquid.mediumInState;
     final g = gravity.length;
     if (g <= 0.0) return under;
     body.wake();
     final v = body.velocity;
     final bodies = Float64List.fromList([v.x, v.y, v.z, body.inverseMass]);
-    final (kind, a, b, c) = switch (body.collider.shape) {
-      CollisionSphere(:final radius) => (FloatPush.sphere, radius, 0.0, 0.0),
-      CollisionBox(:final halfExtents) => (
-        FloatPush.box,
-        halfExtents.x,
-        halfExtents.y,
-        halfExtents.z,
-      ),
-      CollisionCapsule(:final radius, :final halfHeight) => (
-        FloatPush.capsule,
-        radius,
-        halfHeight,
-        0.0,
-      ),
-      _ => (FloatPush.other, 0.0, 0.0, 0.0),
-    };
+    final (kind, a, b, c) = _sizes(body.collider.shape);
+    if (profile.allowsAdaptiveSteps) {
+      _integrate(bodies, kind, a, b, c, under, medium, gravity, dt);
+      v.setValues(bodies[0], bodies[1], bodies[2]);
+      return under;
+    }
     solver.pushBodies(
       FloatPush(
         bodies: bodies,
@@ -201,6 +206,74 @@ final class FloatingBody {
     );
     v.setValues(bodies[0], bodies[1], bodies[2]);
     return under;
+  }
+
+  /// The kind and the sizes of [shape], as `FloatPush` writes them.
+  static (int, double, double, double) _sizes(CollisionShape shape) =>
+      switch (shape) {
+        CollisionSphere(:final radius) => (FloatPush.sphere, radius, 0.0, 0.0),
+        CollisionBox(:final halfExtents) => (
+          FloatPush.box,
+          halfExtents.x,
+          halfExtents.y,
+          halfExtents.z,
+        ),
+        CollisionCapsule(:final radius, :final halfHeight) => (
+          FloatPush.capsule,
+          radius,
+          halfHeight,
+          0.0,
+        ),
+        _ => (FloatPush.other, 0.0, 0.0, 0.0),
+      };
+
+  /// The velocity in [state] (`x, y, z, 1/m`) carried through [dt] by its
+  /// own equation: lift and gravity, less the drag at the speed it has, the
+  /// step's gravity then taken back out for the body's own step to add.
+  static void _integrate(
+    Float64List state,
+    int kind,
+    double a,
+    double b,
+    double c,
+    double under,
+    FluidMedium medium,
+    Vector3 gravity,
+    double dt,
+  ) {
+    final w = state[3];
+    final share = (under / _wholeVolume(kind, a, b, c)).clamp(0.0, 1.0);
+    final gx = gravity.x, gy = gravity.y, gz = gravity.z;
+    final lift = medium.density * under * w;
+    final direction = Vector3.zero();
+    final v = Float64List.fromList(<double>[state[0], state[1], state[2]]);
+    DormandPrince().integrate(v, 0.0, dt, (
+      double t,
+      Float64List y,
+      Float64List dy,
+    ) {
+      var ax = gx - gx * lift, ay = gy - gy * lift, az = gz - gz * lift;
+      final speed = math.sqrt(y[0] * y[0] + y[1] * y[1] + y[2] * y[2]);
+      if (speed > 1e-12) {
+        direction.setValues(y[0] / speed, y[1] / speed, y[2] / speed);
+        final area = _frontalArea(kind, a, b, c, direction);
+        final diameter = math.sqrt(4.0 * area / math.pi);
+        final re = medium.density * speed * diameter / medium.viscosity;
+        final k =
+            0.5 * medium.density * sphereDrag(re) * area * share * speed * w;
+        ax -= k * y[0];
+        ay -= k * y[1];
+        az -= k * y[2];
+      }
+      dy
+        ..[0] = ax
+        ..[1] = ay
+        ..[2] = az;
+    });
+    state
+      ..[0] = v[0] - gx * dt
+      ..[1] = v[1] - gy * dt
+      ..[2] = v[2] - gz * dt;
   }
 }
 

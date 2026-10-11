@@ -120,6 +120,19 @@ final class LiquidBody with JetReceiver {
   FluidMedium get medium =>
       _layers.isEmpty ? surface.medium : _layers.last.medium;
 
+  /// The state this body of liquid is in — its temperature, its pressure —
+  /// or null for the state its media were quoted at. Set by whoever follows
+  /// it: a heater, a level's material state, a plugin's.
+  MaterialState? state;
+
+  /// [medium] at [state] (`FluidMedium.at`): what a body floating or sinking
+  /// in it is lifted and dragged by. [medium] itself while [state] is null,
+  /// so a liquid nobody heats pushes to the bits it always did.
+  FluidMedium get mediumInState {
+    final s = state;
+    return s == null ? medium : medium.at(s);
+  }
+
   /// How thick the vessel's wall is, for a stream that runs down its
   /// outside, in metres; nought for none.
   final double wallThickness;
