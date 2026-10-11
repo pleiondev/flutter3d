@@ -12,6 +12,14 @@
 /// [LoopbackParty] stand in for a network in a test, late and lossy as it
 /// asks.
 ///
+/// **Observing an authoritative simulation**, for twins and laboratories:
+/// [ObserverFeed] on the machine that runs it sends each observer
+/// ([SimulationObserver], over the relay's observer path, [observeParty])
+/// the tape to replay, telemetry and all, when its profile is bit-exact
+/// and the observer runs the same simulation, and the published state
+/// (poses, probe readings) otherwise, each filtered by what the observer
+/// asked for.
+///
 /// **On the 1.0 line.** These were `flame_multiplayer`'s before 1.0; the
 /// network core a 1.0 game depends on lives here, and `flame_multiplayer`
 /// (turns, a ghost's feed, a spectator's tape) is built on it.
@@ -21,6 +29,7 @@
 library;
 
 export 'src/engine_rollback.dart';
+export 'src/observer.dart';
 export 'src/party_join.dart';
 export 'src/peer_room.dart';
 export 'src/peer_wire.dart';

@@ -17,6 +17,13 @@
 /// - [PeerFeed] — each plays a game of its own and tells the other where it
 ///   is: a ghost, a rival's score.
 ///
+/// And one way to watch without playing: [ObserverFeed] and
+/// [SimulationObserver], `flutter3d_net`'s, for an authoritative
+/// simulation (a twin, a laboratory, a match) seen from elsewhere — its tape
+/// where the observer can replay it, its poses where it cannot. A
+/// [PartyTape] spectator replays a rollback party's settled steps; an
+/// observer watches one machine that is the authority.
+///
 /// [LoopbackWire] and [LoopbackParty] are wires in one process, late and
 /// lossy as a test asks. A wire to a real network is a [PeerWire] in the
 /// package that owns that network: `flutter3d_net`'s relay and WebRTC
@@ -41,9 +48,14 @@ export 'package:flutter3d_net/flutter3d_net.dart'
         LoopbackPair,
         LoopbackParty,
         LoopbackWire,
+        ObserverFeed,
+        ObserverFilter,
+        ObserverMode,
+        ObserverSnapshot,
         PeerRoom,
         PeerWire,
         RollbackSession,
+        SimulationObserver,
         WireHello,
         WireState;
 

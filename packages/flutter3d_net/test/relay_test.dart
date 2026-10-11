@@ -331,6 +331,52 @@ void main() {
       ),
     );
   }, timeout: const Timeout(Duration(seconds: 30)));
+
+  test('an observer speaks to the authority alone, is let in on another '
+      'simulation, and hears what is addressed to it', () async {
+    final relay = await _startRelay();
+    addTearDown(() => relay.process.kill());
+    final base = Uri.parse('ws://127.0.0.1:${relay.port}/');
+    final code = 'observed-${DateTime.now().microsecondsSinceEpoch}';
+    final authority = await joinParty(base, code, size: 2, simulation: _sim(1));
+    addTearDown(authority.socket.close);
+    final player = await joinParty(base, code, simulation: _sim(1));
+    addTearDown(player.socket.close);
+    // Another build: a player on it is turned away, an observer is not.
+    final first = await observeParty(
+      base,
+      code,
+      owner: authority.owner!,
+      simulation: _sim(2),
+    );
+    addTearDown(first.socket.close);
+    final second = await observeParty(base, code, owner: authority.owner!);
+    addTearDown(second.socket.close);
+
+    final heardByAuthority = <Map<String, Object?>>[];
+    final heardByPlayer = <Map<String, Object?>>[];
+    final heardBySecond = <Map<String, Object?>>[];
+    final firstGot = Completer<Map<String, Object?>>();
+    authority.wire.listen(heardByAuthority.add);
+    player.wire.listen(heardByPlayer.add);
+    second.wire.listen(heardBySecond.add);
+    first.wire.listen((m) {
+      if (!firstGot.isCompleted) firstGot.complete(m);
+    });
+
+    first.wire.send(const <String, Object?>{'ask': 'join'});
+    authority.wire.send(<String, Object?>{'to': first.slot, 'only': 'you'});
+    final got = await firstGot.future.timeout(const Duration(seconds: 5));
+    expect(got, <String, Object?>{'to': first.slot, 'only': 'you'});
+    // Mutation: forward an observer's message to everybody, or an addressed
+    // one to every observer.
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(heardByAuthority, <Map<String, Object?>>[
+      <String, Object?>{'ask': 'join'},
+    ]);
+    expect(heardByPlayer, isEmpty);
+    expect(heardBySecond, isEmpty);
+  }, timeout: const Timeout(Duration(seconds: 30)));
 }
 
 /// A racing game's simulation at genre version [n], as the relay is asked.

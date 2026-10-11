@@ -45,6 +45,16 @@ import 'package:flutter3d_net/flutter3d_net.dart' show WireHello;
 /// is five letters anybody can try. A party holds at most [_maxWatchers]
 /// watchers, and the relay at most [_maxCodes] rooms and parties at once.
 ///
+/// `/observe/<code>?owner=<token>` joins a party as an observer of an
+/// authoritative simulation (`ObserverFeed` in slot 0, `SimulationObserver`
+/// here): a watcher's slot, held to the same token and the same limit, but
+/// what it says reaches the authority alone, and it is let in whatever
+/// simulation it names, since a build that cannot replay the tape is sent
+/// poses. Its welcome says `"observing": true` and the party's
+/// `"simulation"`. A message the authority addresses with `"to": <slot>`,
+/// at its top level or in a party wire's envelope, reaches that slot
+/// alone: an observer's own filtered readings, not every observer's.
+///
 /// **Every request is served on its own.** A machine that is slow to
 /// upgrade, or never answers the close frame of a refusal, holds up its own
 /// request and nobody else's.
@@ -97,6 +107,14 @@ final class _Party {
   final String simulation;
   final List<WebSocket?> players = <WebSocket?>[];
   final List<WebSocket> watchers = <WebSocket>[];
+
+  /// The watchers that came by the observer path, each with its slot.
+  final Map<WebSocket, int> observers = <WebSocket, int>{};
+
+  /// The socket at [slot]: a player's, or an observer's.
+  WebSocket? at(int slot) => slot < players.length
+      ? players[slot]
+      : observers.entries.where((e) => e.value == slot).firstOrNull?.key;
 
   Iterable<WebSocket> get everyone => <WebSocket>[
     for (final player in players) ?player,
@@ -165,13 +183,16 @@ Future<void> main(List<String> args) async {
       return;
     }
     if (segments.length == 2 &&
-        (segments[0] == 'party' || segments[0] == 'watch') &&
+        (segments[0] == 'party' ||
+            segments[0] == 'watch' ||
+            segments[0] == 'observe') &&
         segments[1].isNotEmpty) {
       await _joinParty(
         request,
         parties,
         segments[1],
-        watching: segments[0] == 'watch',
+        watching: segments[0] != 'party',
+        observing: segments[0] == 'observe',
         crowded: crowded,
         dice: dice,
       );
@@ -254,6 +275,7 @@ Future<void> _joinParty(
   Map<String, _Party> parties,
   String code, {
   required bool watching,
+  bool observing = false,
   int? size,
   void Function()? onFull,
   required bool Function() crowded,
@@ -304,7 +326,7 @@ Future<void> _joinParty(
   );
   final refusal = room.terms != terms
       ? _otherTerms('party $code', room.terms, terms)
-      : room.simulation != simulation
+      : room.simulation != simulation && !observing
       ? _otherSimulation('party $code', room.simulation, simulation)
       : null;
   if (refusal != null) {
@@ -316,6 +338,7 @@ Future<void> _joinParty(
   if (watching) {
     slot = room.size + room.watchers.length;
     room.watchers.add(socket);
+    if (observing) room.observers[socket] = slot;
   } else {
     final free = room.players.indexOf(null);
     if (free < 0 && room.players.length >= room.size) {
@@ -338,6 +361,8 @@ Future<void> _joinParty(
       'slot': slot,
       'size': room.size,
       'watching': watching,
+      if (observing) 'observing': true,
+      if (observing) 'simulation': room.simulation,
       'code': code,
       'owner': ?(opening ? room.owner : null),
       'protocol': <int>[
@@ -356,11 +381,27 @@ Future<void> _joinParty(
   }
   socket.listen(
     (message) {
+      // An observer speaks to the authority alone.
+      if (observing) {
+        room.at(0)?.add(message);
+        return;
+      }
+      // A message the authority addresses to one slot goes there alone; it
+      // is parsed only where it could be one, so a game's frames pass as
+      // they always did.
+      if (slot == 0 && room.observers.isNotEmpty && message is String) {
+        final to = _addressee(message);
+        if (to != null) {
+          room.at(to)?.add(message);
+          return;
+        }
+      }
       for (final other in room.everyone) {
         if (!identical(other, socket)) other.add(message);
       }
     },
     onDone: () {
+      room.observers.remove(socket);
       if (watching) {
         room.watchers.remove(socket);
       } else {
@@ -372,6 +413,21 @@ Future<void> _joinParty(
       if (room.everyone.isEmpty) parties.remove(code);
     },
   );
+}
+
+/// The slot a message is addressed to, `{"to": k, …}` at its top level or
+/// in a party wire's envelope (`{"from": …, "body": {"to": k, …}}`), or
+/// null for one to everybody (or one that is not JSON).
+int? _addressee(String message) {
+  if (!message.contains('"to"')) return null;
+  try {
+    return switch (jsonDecode(message)) {
+      {'to': final int slot} || {'body': {'to': final int slot}} => slot,
+      _ => null,
+    };
+  } on FormatException {
+    return null;
+  }
 }
 
 /// A party's owner token: 128 random bits, URL-safe.

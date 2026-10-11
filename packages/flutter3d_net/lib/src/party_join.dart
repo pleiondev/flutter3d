@@ -72,6 +72,29 @@ Future<PartySeat> joinParty(
   timeout: timeout,
 );
 
+/// Joins the party [code] on the relay at [relay] as an observer of the
+/// authoritative simulation its slot 0 runs: the relay's observer path,
+/// let in by the [owner]'s token as a watcher is, whatever [simulation]
+/// it names. What it sends reaches the authority alone, and the
+/// authority's messages addressed to its slot reach it alone; a
+/// `SimulationObserver` on the seat's wire does the rest.
+Future<PartySeat> observeParty(
+  Uri relay,
+  String code, {
+  required String owner,
+  SimulationVersion? simulation,
+  void Function(int slot)? left,
+  Duration timeout = const Duration(seconds: 10),
+}) => _seat(
+  relay.replace(
+    pathSegments: <String>['observe', code],
+    queryParameters: <String, String>{'owner': owner, ..._versions(simulation)},
+  ),
+  code: code,
+  left: left,
+  timeout: timeout,
+);
+
 /// Finds a party of [size] for [game] on the relay at [relay] — one still
 /// filling with strangers who asked for the same, or a new one — and
 /// answers with this machine's seat in it. The seat's `code` is the
