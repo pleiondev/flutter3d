@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' show Color;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
+
 /// The numbers WCAG 2.2 at level AA asks of what this package draws, and
 /// the arithmetic they are checked with.
 ///
@@ -17,7 +19,9 @@ abstract final class Wcag {
   static const double textContrast = 4.5;
 
   /// The least contrast ratio large text needs (1.4.3): 18 points, or 14
-  /// bold, and up. A ratio, as [textContrast].
+  /// bold, and up. A ratio, as [textContrast]. No pair of this theme is
+  /// held to it, since a token is drawn at every size; it is for a game
+  /// that checks a title of its own with a [ContrastPair].
   static const double largeTextContrast = 3.0;
 
   /// The least contrast ratio the parts of a control a player needs to find
@@ -47,7 +51,7 @@ abstract final class Wcag {
   static double luminance(Color color) {
     double linear(double channel) => channel <= 0.04045
         ? channel / 12.92
-        : math.pow((channel + 0.055) / 1.055, 2.4).toDouble();
+        : Portable.pow((channel + 0.055) / 1.055, 2.4);
     return 0.2126 * linear(color.r) +
         0.7152 * linear(color.g) +
         0.0722 * linear(color.b);

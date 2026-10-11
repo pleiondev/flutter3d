@@ -12,5 +12,6 @@ import 'package:flutter/widgets.dart';
 double textScaledWidth(
   BuildContext context,
   double width, {
+  /// The size the column was measured at, in logical pixels.
   double fontSize = 14.0,
 }) => MediaQuery.textScalerOf(context).scale(fontSize) / fontSize * width;

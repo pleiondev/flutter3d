@@ -21,8 +21,8 @@
 /// - **the panel says what the game will do with reduced motion**;
 /// - **nothing flashes more than three times a second** (2.3.1).
 ///
-/// The same file, tagged `accessibility`, is what `tool/ci.sh` runs by tag in
-/// every package and application that makes the promise, and the structure
+/// A file of this name, `test/accessibility_test.dart`, is what `tool/ci.sh`
+/// runs on its own in every package and application that makes the promise, and the structure
 /// rule `a package that promises WCAG AA keeps it` holds the list.
 @Tags(<String>['accessibility'])
 library;
