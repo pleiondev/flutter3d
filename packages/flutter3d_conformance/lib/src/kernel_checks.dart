@@ -165,9 +165,10 @@ ByteData _uints(List<int> values) {
 /// all four; declines on a device without compute.
 Future<ShaderHandle> _kernel(GraphicsDevice device, String name) async {
   if (!device.features.has(DeviceFeature.compute)) {
-    throw const ConformanceDeclinedException(
-      'this device has no compute; a frame places its compute steps on the '
-      'wgpu sidecar or the CPU instead',
+    decline(
+      device,
+      'has no compute; a frame places its compute steps on the wgpu sidecar '
+      'or the CPU instead',
     );
   }
   final bundle = kernelBundle(
@@ -406,9 +407,7 @@ Future<void> checkKernelBlur(GraphicsDevice device) async {
   final stage = await _kernel(device, 'Blur');
   if (!device.features.has(DeviceFeature.storageTextures) ||
       !device.textureFormatSupport(TextureFormat.r8g8b8a8UNormInt).storage) {
-    throw const ConformanceDeclinedException(
-      'this device computes but writes no RGBA8 storage texture',
-    );
+    decline(device, 'computes but writes no RGBA8 storage texture');
   }
   const size = 16;
   final inputs = _Inputs();

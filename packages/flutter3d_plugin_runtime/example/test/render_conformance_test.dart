@@ -25,6 +25,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_conformance_render/flutter3d_conformance_render.dart';
 import 'package:flutter3d_cpu/builtin.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_plugin_runtime_example/acme_sample.dart';
 import 'package:test/test.dart';
@@ -92,6 +93,28 @@ void main() {
           'acme_sample_Decal': builtinCpuShaders()['Decal']!,
         }),
       ),
+    );
+  });
+
+  group('a device opened with an await, the stages handed beside it', () {
+    // How the GPU backends run the same checks: a device is opened with an
+    // await (WebGPU's adapter is a promise), and the plugin's stages arrive
+    // as a library of their own, loaded from its bundle, rather than inside
+    // the device's. Mutation: build the renderer without `materials`, and
+    // the lit model and the decal are names the device does not answer.
+    runPluginRenderConformance(
+      AcmeSamplePlugin.new,
+      backend: 'cpu, opened',
+      points: _points,
+      device: () async => CpuDevice(
+        width: 32,
+        height: 32,
+        shaders: CpuShaderLibrary(builtinCpuShaders()),
+      ),
+      materials: (GraphicsDevice device) => CpuShaderLibrary(<String, CpuStage>{
+        'acme_sample_Hair': const CpuStage.fragment(_HairStage()),
+        'acme_sample_Decal': builtinCpuShaders()['Decal']!,
+      }),
     );
   });
 

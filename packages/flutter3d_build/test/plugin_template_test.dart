@@ -49,8 +49,8 @@ PluginDiscovery _discover(Map<String, String> files) {
 }
 
 void main() {
-  group('every kind', () {
-    for (final kind in PluginKind.values) {
+  group('every plugin kind', () {
+    for (final kind in PluginKind.values.where((k) => k.isPlugin)) {
       test('$kind writes the package\'s eight files', () {
         // Mutation: drop the conformance test from the map. A plugin made
         // from the template would have no way to earn the badge.
@@ -132,29 +132,35 @@ void main() {
   });
 
   group('kinds', () {
-    test(
-      'are the five decision 20 names, simulation for genre and element',
-      () {
-        // Mutation: mark the genre a view kind. Its template would install
-        // a step phase from a plugin the host holds to the view.
-        expect(PluginKind.values.map((PluginKind k) => k.name), <String>[
-          'render-step',
-          'effect',
-          'genre',
-          'element',
-          'tool',
-        ]);
-        expect(
-          <String>[
-            for (final kind in PluginKind.values)
-              if (kind.simulates) kind.name,
-          ],
-          <String>['genre', 'element'],
-        );
-      },
-    );
+    test('are the five decision 20 names and a backend, simulation for genre '
+        'and element', () {
+      // Mutation: mark the genre a view kind. Its template would install
+      // a step phase from a plugin the host holds to the view.
+      expect(PluginKind.values.map((PluginKind k) => k.name), <String>[
+        'render-step',
+        'effect',
+        'genre',
+        'element',
+        'tool',
+        'backend',
+      ]);
+      expect(
+        <String>[
+          for (final kind in PluginKind.values)
+            if (!kind.isPlugin) kind.name,
+        ],
+        <String>['backend'],
+      );
+      expect(
+        <String>[
+          for (final kind in PluginKind.values)
+            if (kind.simulates) kind.name,
+        ],
+        <String>['genre', 'element'],
+      );
+    });
 
-    test('an unknown kind is refused, naming the five', () {
+    test('an unknown kind is refused, naming the six', () {
       // Mutation: fall back to a default kind. `--kind rendr-step` would
       // write an effect without a word.
       expect(
@@ -163,7 +169,7 @@ void main() {
           isA<ArgumentError>().having(
             (ArgumentError e) => '${e.message}',
             'message',
-            allOf(contains('render-step'), contains('tool')),
+            allOf(contains('render-step'), contains('backend')),
           ),
         ),
       );
@@ -177,6 +183,103 @@ void main() {
       expect(files.keys, contains('lib/my_glow.dart'));
       expect(files['pubspec.yaml'], startsWith('name: my_glow\n'));
       expect(files['lib/my_glow.dart'], contains('class MyGlowPlugin'));
+    });
+  });
+
+  group('a backend', () {
+    // The reference the template is written from, outside `packages/`.
+    final example = Directory('../../examples/flutter3d_backend_null');
+
+    test('is the null backend example, file for file, under its own name', () {
+      // Mutation: edit a line of `examples/flutter3d_backend_null` and not
+      // the template, or the other way round. A backend made from the
+      // template would no longer be the one conformance holds in CI.
+      final files = pluginTemplate(
+        name: 'flutter3d_backend_null',
+        kind: PluginKind.backend,
+      );
+      final copied = <String>[
+        for (final file in example.listSync(recursive: true).whereType<File>())
+          if (file.path.endsWith('.dart'))
+            file.path.substring(example.path.length + 1),
+      ]..sort();
+      expect(
+        files.keys.where((path) => path.endsWith('.dart')).toList()..sort(),
+        copied,
+      );
+      for (final path in copied) {
+        expect(
+          files[path],
+          File('${example.path}/$path').readAsStringSync(),
+          reason:
+              '$path differs from the example; the template is the example '
+              'with flutter3d_backend_null as {{name}}, Null as {{stem}}, '
+              'null as {{label}} and nullSection as {{lowerStem}}Section',
+        );
+      }
+    });
+
+    test('names its classes and files after the package', () {
+      // Mutation: leave a `Null` in a class name. Two backends made from the
+      // template would declare the same classes.
+      final files = pluginTemplate(name: 'my_vulkan', kind: PluginKind.backend);
+      expect(files.keys, <String>{
+        'pubspec.yaml',
+        'analysis_options.yaml',
+        'lib/my_vulkan.dart',
+        'lib/src/my_vulkan_device.dart',
+        'lib/src/my_vulkan_pass.dart',
+        'lib/src/my_vulkan_texels.dart',
+        'test/conformance_test.dart',
+        'test/my_vulkan_device_test.dart',
+        'README.md',
+        'CHANGELOG.md',
+        '.gitignore',
+      });
+      expect(
+        files['lib/src/my_vulkan_device.dart'],
+        allOf(
+          contains('final class MyVulkanDevice extends GraphicsDevice'),
+          contains("static const String name = 'my_vulkan';"),
+          isNot(contains('Null')),
+        ),
+      );
+      expect(files['lib/my_vulkan.dart'], contains('registerMyVulkanBackend'));
+      for (final MapEntry(key: path, value: text) in files.entries) {
+        expect(text, isNot(contains('{{')), reason: path);
+      }
+    });
+
+    test('drops the engine prefix and the word backend from its names', () {
+      final files = pluginTemplate(
+        name: 'flutter3d_metal_backend',
+        kind: PluginKind.backend,
+      );
+      expect(
+        files['lib/src/metal_device.dart'],
+        contains('final class MetalDevice'),
+      );
+    });
+
+    test('is published under its own topic and depends on what it names', () {
+      // Mutation: write the plugin marker into a backend's pubspec.
+      // Discovery would look for a `Flutter3dPlugin` the package does not
+      // declare.
+      final pubspec = pluginTemplate(
+        name: 'my_vulkan',
+        kind: PluginKind.backend,
+      )['pubspec.yaml']!;
+      expect(pubspec, contains('  - flutter3d-backend'));
+      expect(pubspec, isNot(contains('flutter3d_plugins:')));
+      for (final package in <String>[
+        'flutter3d_hardware',
+        'flutter3d_shaders',
+        'flutter3d_foundation',
+        'flutter3d_conformance',
+        'flutter3d_core',
+      ]) {
+        expect(pubspec, contains('  $package: ^1.0.0-rc.1'));
+      }
     });
   });
 }

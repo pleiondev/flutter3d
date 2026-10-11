@@ -288,7 +288,11 @@ Future<void> checkUniformMemberMismatchIsRefused(GraphicsDevice device) async {
     // not ask about, so a reader of the pass list can tell "checked" from
     // "does not apply here".
     pass.submit();
-    return;
+    decline(
+      device,
+      'reflects no shader, so it cannot tell a block a stage lacks from one '
+      'it has',
+    );
   }
 
   var threw = false;
@@ -362,7 +366,11 @@ Future<void> checkUndeclaredSamplerIsFalse(GraphicsDevice device) async {
   );
   if (!reflects) {
     pass.submit();
-    return;
+    decline(
+      device,
+      'reflects no shader, so it cannot tell a slot a stage lacks from one '
+      'it has',
+    );
   }
 
   final nowhere = pass.bindTexture(

@@ -25,9 +25,16 @@
 /// on this platform needs a real device for that, which means either a machine
 /// nobody wants to pay for or a check nobody runs.
 ///
+/// ## On another device
+///
+/// `renderFrame`, `testReplay` and `expectReplayMatches` take `device:`, the
+/// `BackendOpener` of any backend — a GPU one, or one written outside this
+/// repository — and draw the same frame there; `drawOnce` is the layer under
+/// them for a test that holds its own device and renderer.
+///
 /// ## What it does not do
 ///
-/// It does not compare against a *GPU* backend. The two golden sets in this
+/// It does not compare one backend against another. The two golden sets in this
 /// repository are deliberately separate — the same scene differs by a fraction
 /// of a percent between a rasteriser and a driver, and one shared set would need
 /// a tolerance, which is a threshold that stops watching. A game's reference
@@ -38,6 +45,7 @@
 /// picture alters it on both.
 library;
 
+export 'src/draw.dart';
 export 'src/flip.dart';
 export 'src/golden.dart';
 export 'src/quality_table_builder.dart';

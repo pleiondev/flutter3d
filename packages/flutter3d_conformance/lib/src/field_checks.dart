@@ -41,9 +41,10 @@ Future<void> checkFloatFieldSteps(GraphicsDevice device) async {
     TextureFormat.r32g32b32a32Float,
   ].where((TextureFormat f) => device.textureFormatSupport(f).sampled).toList();
   if (formats.isEmpty) {
-    throw const ConformanceDeclinedException(
-      'this device supports neither float format as a render target, so a '
-      'field has nowhere to live here',
+    decline(
+      device,
+      'supports neither float format as a render target, so a field has '
+      'nowhere to live here',
     );
   }
 

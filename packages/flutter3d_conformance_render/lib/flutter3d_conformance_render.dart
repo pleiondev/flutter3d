@@ -43,7 +43,6 @@
 library;
 
 import 'package:flutter3d_conformance/plugins.dart' show PluginCheckOutcome;
-import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Flutter3dPlugin;
 import 'package:test/test.dart';
@@ -51,23 +50,31 @@ import 'package:test/test.dart';
 import 'src/render_checks.dart';
 
 export 'src/render_checks.dart'
-    show PluginRenderPoints, checkPluginRender, pluginRenderCheckNames;
+    show
+        PluginRenderPoints,
+        RenderCheckDevice,
+        RenderCheckMaterials,
+        checkPluginRender,
+        pluginRenderCheckNames;
 
 /// The render checks of [points] as tests, one a check, for the plugin
-/// [create] makes on the devices [device] makes, named for [backend].
+/// [create] makes on the devices [device] opens, named for [backend].
 ///
-/// A declined check is reported as skipped with its reason.
+/// [materials] is [checkPluginRender]'s: the plugin's stages loaded for a
+/// GPU backend. A declined check is reported as skipped with its reason.
 void runPluginRenderConformance(
   Flutter3dPlugin Function() create, {
-  required GraphicsDevice Function() device,
+  required RenderCheckDevice device,
   required PluginRenderPoints points,
   required String backend,
+  RenderCheckMaterials? materials,
 }) {
   late final Future<List<PluginCheckOutcome>> outcomes = checkPluginRender(
     create,
     device: device,
     points: points,
     backend: backend,
+    materials: materials,
   );
   for (final check in pluginRenderCheckNames) {
     test('$check on $backend', () async {

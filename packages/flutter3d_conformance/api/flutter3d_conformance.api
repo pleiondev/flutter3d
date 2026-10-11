@@ -120,7 +120,7 @@ bool refusesResource(Object? Function() call)
 
 void require(bool condition, String message)
 
-void runDeviceConformance({required String backend, required DeviceFactory makeDevice, Future<OwnShaderSection?> Function()? ownShaders})
+void runDeviceConformance({required String backend, required DeviceFactory makeDevice, Future<OwnShaderSection?> Function()? ownShaders, List<ConformanceCheck>? checks})
 
 List<ConformanceCheck> get shaderChecks
 

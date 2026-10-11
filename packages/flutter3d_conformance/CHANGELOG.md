@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **A backend runs the tier it has reached.** `runDeviceConformance(checks:)`
+  takes the checks to run, `conformanceChecks` when left out: a backend
+  that does not draw yet runs every check but `shaderChecks`, and adds them
+  once it does.
+- **A check a device cannot be asked is a skip, never a pass.** Every check
+  declines through `decline(device, why)`, which names the backend: the
+  stencil, cube, mip-viewport, reflection and compressed-format checks no
+  longer return early and report green on a device without the feature,
+  and the compute, kernel, field, sharing, multiview and float-filter
+  checks no longer build the exception by hand without the backend's name.
+  A backend's suite shows these as skipped with the reason where it showed
+  them passed.
 - **A headset's two views reach their own layers.** `xrChecks`, part of
   `conformanceChecks`: two views drawn a pass each land in their own layers
   of an array image, two views copied in as the projection layer copies

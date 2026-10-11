@@ -154,12 +154,12 @@ Future<void> checkPrimitiveTypesAreDrawnOrRefused(GraphicsDevice device) async {
   ]) {
     final count = painted[type];
     if (count == null) continue;
-    // Half the filled area, not a tenth of it, and the slack is for [point]
-    // alone: `debug_line.vert` writes no `gl_PointSize`, which ES leaves
-    // undefined, so a driver is entitled to draw three points of some size
-    // nobody chose. Three points at any size a driver would pick stay well
-    // under half a triangle, and the substitution this is looking for lands
-    // exactly on the filled count rather than near it.
+    // Half the filled area: two line segments across the target are the
+    // largest honest answer, and the substitution this is looking for lands
+    // exactly on the filled count rather than near it. `debug_line.vert`
+    // writes `gl_PointSize = 1.0` on Impeller and GLES, so a point is one
+    // pixel wherever the size is honoured; a tighter bound for [point] alone
+    // waits for a run of every backend on a tree with that write in it.
     require(
       count * 2 < filled!,
       'PrimitiveType.${type.name} drew $count pixels where a filled triangle '

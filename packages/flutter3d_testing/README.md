@@ -86,6 +86,26 @@ same bytes twice. There is no driver, clock or thread to disagree, which means
 any difference is a change and not noise. Raise `tolerance` only when something
 has been measured to move, and say why in the call.
 
+## On another device
+
+`renderFrame`, `testReplay` and `expectReplayMatches` take `device:`, the
+function that opens a device at a size, in the shape every backend's `open`
+has. The frame is drawn there instead of on the software rasteriser:
+
+```dart
+final frame = await renderFrame(
+  width: 320,
+  height: 180,
+  device: WebGpuDevice.open,
+  build: buildCrypt,
+);
+```
+
+A frame's device is disposed once its pixels are read; a replay opens one
+for the whole run. A test that keeps its own device calls `drawOnce` with a
+`Renderer` made on it. This is also how a backend written outside this
+repository draws the engine's frames in its own suite.
+
 ## What it does not do
 
 It does not compare a software frame against a GPU one. This repository keeps
@@ -96,7 +116,8 @@ tolerance. See the note at the top of
 
 References a game records here show what the software backend draws. That is
 still the right thing to regress against, because a change that alters the
-picture alters it on both.
+picture alters it on both. Goldens drawn with `device:` are that backend's:
+keep each backend's set in a directory of its own.
 
 ---
 

@@ -30,7 +30,9 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
   // nothing about one, the way a backend without a compressed format is not
   // asked to sample it. What it is held to instead is drawing no silhouettes,
   // which is the renderer's side of the same answer.
-  if (!device.features.has(DeviceFeature.stencil)) return;
+  if (!device.features.has(DeviceFeature.stencil)) {
+    decline(device, 'has no stencil, so no stencil test is asked of it');
+  }
 
   const size = 16;
   final vertex = device.shaders['DebugLineVertex'];
@@ -197,7 +199,9 @@ Future<void> checkStencilKeepsWhatItShould(GraphicsDevice device) async {
 /// `CompareFunction.never` behind — a test that rejects everything — and the
 /// second configures no stencil at all and expects its draw to land.
 Future<void> checkPassStartsWithStencilOff(GraphicsDevice device) async {
-  if (!device.features.has(DeviceFeature.stencil)) return;
+  if (!device.features.has(DeviceFeature.stencil)) {
+    decline(device, 'has no stencil, so no pass can leave a test behind');
+  }
 
   const size = 8;
   final vertex = device.shaders['DebugLineVertex'];

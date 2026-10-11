@@ -158,6 +158,12 @@ final class ConformanceDeclinedException extends CapabilityException {
 /// Ends the check with no verdict: [device] cannot be asked this, and [why]
 /// says what it answered.
 ///
+/// **The one way a check refuses to answer**, since 1.0. A check that
+/// returned early on a missing feature was counted as a pass, and one that
+/// built a [ConformanceDeclinedException] by hand left out which backend
+/// declined; every check here declines through this, and the package's own
+/// test holds every check file to it.
+///
 /// [why] is a sentence about the capability, not about the check — "answers
 /// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
 /// read on its own, beside a check name, by somebody holding a phone.
@@ -218,15 +224,26 @@ typedef ConformanceCheck = ({
 /// nothing may be reported green. A [ConformanceDeclinedException] thrown while the
 /// device is being made skips the check with the sentence it carries, and
 /// every other exception is still a failure.
+///
+/// **[checks] is the tier a backend has reached**, [conformanceChecks] when
+/// left out. A backend from outside this repository passes the checks that
+/// need no shader first — clears, uploads, readback, the capability report
+/// and every refusal — and adds [shaderChecks] once it draws; the null
+/// backend in `examples/flutter3d_backend_null` runs
+/// `conformanceChecks.where((c) => !shaderChecks.contains(c))`. The loaded
+/// bundle's check is added to [checks] when [ownShaders] is given.
 void runDeviceConformance({
   required String backend,
   required DeviceFactory makeDevice,
   Future<OwnShaderSection?> Function()? ownShaders,
+  List<ConformanceCheck>? checks,
 }) {
-  final checks = ownShaders == null
-      ? conformanceChecks
-      : conformanceChecksWith(ownShaders);
-  for (final check in checks) {
+  final run = <ConformanceCheck>[
+    ...?checks,
+    if (checks == null) ...conformanceChecks,
+    if (ownShaders != null) ...loadedBundleChecks(ownShaders),
+  ];
+  for (final check in run) {
     test('$backend: ${check.name}', () async {
       final GraphicsDevice device;
       try {

@@ -1,5 +1,6 @@
 /// `flutter3d create plugin`: a new plugin package, as files, for each of the
-/// five kinds decision 20 of `tasks/0.9-plugins.md` names.
+/// five kinds decision 20 of `tasks/0.9-plugins.md` names, and a graphics
+/// backend written from `examples/flutter3d_backend_null`.
 ///
 /// **Text, not a directory copied off disk.** The game templates live in the
 /// editor's asset bundle because a running editor reads them; a plugin
@@ -25,7 +26,12 @@ import 'package:flutter3d_editor_core/flutter3d_editor_core.dart'
 /// a sixth kind is a minor release, and a `switch` somebody wrote against
 /// five would stop compiling on it.
 final class PluginKind {
-  const PluginKind._(this.name, this.about, {required this.simulates});
+  const PluginKind._(
+    this.name,
+    this.about, {
+    required this.simulates,
+    this.isPlugin = true,
+  });
 
   /// A pass of its own at a render anchor, switched like the engine's steps.
   static const PluginKind renderStep = PluginKind._(
@@ -64,18 +70,31 @@ final class PluginKind {
     simulates: false,
   );
 
-  /// The five, in the order `--list` prints them.
+  /// A graphics backend: a `GraphicsDevice` an application registers with
+  /// its device registry, started from the null backend in
+  /// `examples/flutter3d_backend_null` under the package's own name. Not a
+  /// `Flutter3dPlugin` ([isPlugin] is false): it is opened, not installed.
+  static const PluginKind backend = PluginKind._(
+    'backend',
+    'a graphics backend with no GPU yet, which passes conformance and grows '
+        'into one for another API',
+    simulates: false,
+    isPlugin: false,
+  );
+
+  /// The six, in the order `--list` prints them.
   static const List<PluginKind> values = <PluginKind>[
     renderStep,
     effect,
     genre,
     element,
     tool,
+    backend,
   ];
 
   /// The kind called [name], as `--kind` and `plugin.create` spell it.
   ///
-  /// Throws an [ArgumentError] naming all five for any other word.
+  /// Throws an [ArgumentError] naming all six for any other word.
   static PluginKind named(String name) {
     for (final kind in values) {
       if (kind.name == name) return kind;
@@ -88,8 +107,12 @@ final class PluginKind {
   }
 
   /// The word on the command line: `render-step`, `effect`, `genre`,
-  /// `element`, `tool`.
+  /// `element`, `tool`, `backend`.
   final String name;
+
+  /// Whether the package is a `Flutter3dPlugin` that discovery finds by its
+  /// pubspec marker and an engine installs; false for a [backend].
+  final bool isPlugin;
 
   /// One line, for `--list` and a tool's description.
   final String about;
@@ -115,6 +138,7 @@ Map<String, String> pluginTemplate({
   required PluginKind kind,
 }) {
   final package = packageName(name);
+  if (kind == PluginKind.backend) return _backendTemplate(package);
   final pascal = _pascal(package);
   final words = <String, String>{
     'name': package,
@@ -151,6 +175,59 @@ Map<String, String> pluginTemplate({
     'CHANGELOG.md': fill(_changelog),
     '.gitignore': _gitignore,
   };
+}
+
+/// The files of a backend called [package]: the null backend of
+/// `examples/flutter3d_backend_null`, file for file, with its names in
+/// place of the example's.
+///
+/// **Written from the example, not beside it.** The library and the tests
+/// below are the example's own text with `flutter3d_backend_null` as
+/// `{{name}}`, `Null` as `{{stem}}`, `null` as `{{label}}` and `nullSection`
+/// as `{{lowerStem}}Section`, and `plugin_template_test.dart` compares them
+/// with the example, which passes conformance in CI: a backend made from
+/// the template starts from that one.
+Map<String, String> _backendTemplate(String package) {
+  final label = _backendLabel(package);
+  final stem = _pascal(label);
+  final words = <String, String>{
+    'name': package,
+    'label': label,
+    'stem': stem,
+    'lowerStem': '${stem[0].toLowerCase()}${stem.substring(1)}',
+  };
+  String fill(String text) => text.replaceAllMapped(
+    RegExp(r'\{\{(\w+)\}\}'),
+    (Match m) => words[m[1]] ?? m[0]!,
+  );
+  return <String, String>{
+    'pubspec.yaml': fill(_backendPubspec),
+    'analysis_options.yaml': _analysisOptions,
+    'lib/$package.dart': fill(_backendLibrary),
+    'lib/src/${label}_device.dart': fill(_backendDevice),
+    'lib/src/${label}_pass.dart': fill(_backendPass),
+    'lib/src/${label}_texels.dart': fill(_backendTexels),
+    'test/conformance_test.dart': fill(_backendConformance),
+    'test/${label}_device_test.dart': fill(_backendDeviceTest),
+    'README.md': fill(_backendReadme),
+    'CHANGELOG.md': fill(_backendChangelog),
+    '.gitignore': _gitignore,
+  };
+}
+
+/// What a backend's classes and files are named after: [package] without
+/// the engine's prefix and without the word backend, so `flutter3d_metal`
+/// and `metal_backend` are both `metal` and declare `MetalDevice`.
+String _backendLabel(String package) {
+  final bare = switch (package) {
+    final p when p.startsWith('flutter3d_backend_') && p.length > 18 =>
+      p.substring(18),
+    final p when p.startsWith('flutter3d_') && p.length > 10 => p.substring(10),
+    final p => p,
+  };
+  return bare.endsWith('_backend') && bare.length > 8
+      ? bare.substring(0, bare.length - 8)
+      : bare;
 }
 
 /// `my_glow` as `MyGlow`.
@@ -882,5 +959,1234 @@ void main() {
       registries: (String? backend) => <PluginRegistry>[McpTools()],
     ),
   );
+}
+''';
+// ----------------------------------------------------------------- backend
+
+const String _backendPubspec = '''
+name: {{name}}
+description: "A flutter3d graphics backend, started from the null backend: a device that keeps textures in memory and passes the conformance suite."
+version: 0.1.0
+# What a catalogue of backends is read by; not `flutter3d-plugin`, since a
+# backend is opened through a device registry rather than installed.
+topics:
+  - flutter3d-backend
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter3d_hardware: ^1.0.0-rc.1
+  flutter3d_shaders: ^1.0.0-rc.1
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  flutter3d_conformance: ^1.0.0-rc.1
+  flutter3d_core: ^1.0.0-rc.1
+  test: ^1.25.0
+  vector_math: ^2.2.0
+''';
+
+const String _backendReadme = '''
+# {{name}}
+
+A flutter3d graphics backend, started from the null backend
+(`examples/flutter3d_backend_null` in the engine's repository) by
+`flutter3d create plugin --kind backend`.
+
+As written, `{{stem}}Device` has no GPU: it keeps textures in memory,
+clears, uploads, overwrites, copies and reads them back, and refuses every
+pipeline at its first draw. It already passes every conformance check but
+the shader tier.
+
+## Using it
+
+```dart
+final registry = DeviceRegistry<Object>();
+register{{stem}}Backend(registry);
+final device = await registry.open(width: 320, height: 180);
+```
+
+## Conformance
+
+```bash
+dart test
+```
+
+`test/conformance_test.dart` runs `flutter3d_conformance` on the device.
+Grow it into a backend for your API one step at a time:
+
+1. Draw: compile the engine's stages (`compileStage` in
+   `package:flutter3d_shaders/compile.dart` gives SPIR-V and your
+   language's text), answer them from `shaders`, bind by `stageBindings`
+   (`package:flutter3d_shaders/backend.dart`), and stop refusing
+   pipelines. Then run `shaderChecks` as well.
+2. Report each `DeviceFeature` as you implement it: the capability check
+   fails on one reported and not done, and on one done and not reported.
+3. Compile materials: `{{stem}}MaterialCompiler` writes your section of a
+   shader bundle.
+
+The guide for a backend's author is
+https://flutter3d.pleion.dev/core/backends/.
+''';
+
+const String _backendChangelog = '''
+## 0.1.0
+
+- **The first release.** Created by `flutter3d create plugin --kind backend`.
+''';
+const String _backendLibrary = r'''
+/// A flutter3d graphics backend with no GPU: the reference a backend from
+/// outside the engine's repository is written from.
+///
+///     final registry = DeviceRegistry<Object>();
+///     register{{stem}}Backend(registry);
+///     final device = await registry.open(width: 320, height: 180);
+///
+/// It keeps textures in memory, clears, uploads and reads them back, and
+/// refuses every pipeline at its first draw, so the engine's renderer runs
+/// on it and a frame is the clear colour. It reaches the engine through
+/// published libraries alone: `flutter3d_hardware` for the device contract
+/// and its handles, `flutter3d_shaders/backend.dart` for the material
+/// compiler, and nothing under another package's `src/`.
+library;
+
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter3d_foundation/flutter3d_foundation.dart'
+    show Registration;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/backend.dart';
+
+import 'src/{{label}}_device.dart';
+
+export 'src/{{label}}_device.dart';
+export 'src/{{label}}_pass.dart';
+export 'src/{{label}}_texels.dart';
+
+/// Adds the {{label}} backend to [registry], and its material compiler to
+/// [compilers] when given; the registration takes both out again.
+///
+/// Last added, first tried, as every backend added to a registry is;
+/// [asFallback] makes it the one tried when nothing else opens.
+Registration register{{stem}}Backend(
+  DeviceRegistry<Object> registry, {
+  MaterialCompilerRegistry? compilers,
+  bool asFallback = false,
+}) {
+  final backend = registry.addBackend(
+    {{stem}}Device.name,
+    {{stem}}Device.open,
+    asFallback: asFallback,
+  );
+  final compiler = compilers?.register(const {{stem}}MaterialCompiler());
+  return Registration(() {
+    compiler?.cancel();
+    backend.cancel();
+  });
+}
+
+/// What the build and `RuntimeShaders` ask to turn a material into this
+/// backend's section of a shader bundle.
+///
+/// The section is the material's stage names, as JSON: a device that
+/// compiles nothing needs nothing more to answer them by name. A backend
+/// over a real API writes its compiled stages here instead, from
+/// [MaterialCompileRequest.stages] (the material as GLSL) or from
+/// `compileStage` in `package:flutter3d_shaders/compile.dart`.
+final class {{stem}}MaterialCompiler extends MaterialCompiler {
+  const {{stem}}MaterialCompiler();
+
+  @override
+  String get backend => {{stem}}Device.name;
+
+  /// [{{lowerStem}}Section], which no other backend's compiler may take.
+  @override
+  String get bundleSection => {{lowerStem}}Section;
+
+  @override
+  bool get compilesAtRunTime => true;
+
+  @override
+  MaterialCompileResult compile(MaterialCompileRequest request) =>
+      MaterialCompileResult(
+        section: ByteData.sublistView(
+          utf8.encode(
+            jsonEncode(<String>[
+              for (final stage in request.stages) stage.name,
+            ]),
+          ),
+        ),
+      );
+}
+''';
+
+const String _backendDevice = r'''
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/backend.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+
+import '{{label}}_pass.dart';
+import '{{label}}_texels.dart';
+
+/// A [GraphicsDevice] with no GPU and no rasteriser: it keeps textures in
+/// memory, clears, uploads, overwrites and reads them back, and refuses
+/// every pipeline at its first draw.
+///
+/// **What a backend is, with the drawing taken out.** Every member here is
+/// one a backend for Vulkan, Metal, Direct3D or a server renderer writes
+/// too, against the same published libraries: the handles come from
+/// `package:flutter3d_hardware/backend.dart`, a pass is a [PassEncoder]
+/// with the [CommandEncoder] mixin, and what the device cannot do it says
+/// through [features] and refuses by name. The engine's renderer runs on
+/// it, a frame is the clear colour, and each pipeline the frame draws with
+/// is reported once on [pipelineRefusals] and skipped.
+///
+/// Opened as every backend is, with [open], so `DeviceRegistry.addBackend`,
+/// `flutter3d_testing`'s `renderFrame(device:)` and the conformance suite
+/// take it as they take the four in the engine's repository.
+final class {{stem}}Device extends GraphicsDevice {
+  {{stem}}Device._();
+
+  /// Opens a device. The size is the one every backend is opened at; a
+  /// device with no surface keeps none, and draws each pass at the size of
+  /// its target.
+  static Future<{{stem}}Device> open({
+    required int width,
+    required int height,
+  }) async => {{stem}}Device._();
+
+  /// The name a refusal from this device carries.
+  static const String name = '{{label}}';
+
+  @override
+  String get backendName => name;
+
+  /// Little beyond the base contract: texture-to-texture copies, and 32-bit
+  /// float targets, which it holds as it holds every other. A capability is
+  /// reported when the device does it, and refused by name when asked of it
+  /// otherwise; a backend grows this set as it grows, and the conformance
+  /// suite holds each answer true both ways.
+  @override
+  final DeviceFeatures features = DeviceFeatures(const <DeviceFeature>{
+    DeviceFeature.textureCopy,
+    DeviceFeature.float32Renderable,
+  });
+
+  /// The defaults, with no compute: this device has no compute pass.
+  @override
+  final DeviceLimits limits = const DeviceLimits(
+    maxColorAttachments: 4,
+    maxSampleCount: 1,
+    maxComputeWorkgroupStorageSize: 0,
+    maxComputeInvocationsPerWorkgroup: 0,
+    maxComputeWorkgroupSizeX: 0,
+    maxComputeWorkgroupSizeY: 0,
+    maxComputeWorkgroupSizeZ: 0,
+    maxComputeWorkgroupsPerDimension: 0,
+  );
+
+  /// The formats this device holds: the eight-bit colours an image arrives
+  /// in, the half and full float colours the engine renders in, and depth.
+  /// Each is held as four floats a texel, so any of them clears, uploads and
+  /// reads back.
+  static const Set<TextureFormat> heldFormats = <TextureFormat>{
+    TextureFormat.r8g8b8a8UNormInt,
+    TextureFormat.b8g8r8a8UNormInt,
+    TextureFormat.r16g16b16a16Float,
+    TextureFormat.r32g32b32a32Float,
+    TextureFormat.r32Float,
+    TextureFormat.d32Float,
+  };
+
+  @override
+  TextureFormatSupport textureFormatSupport(TextureFormat format) =>
+      switch (format) {
+        TextureFormat.d32Float => const TextureFormatSupport(
+          sampled: true,
+          renderable: true,
+          depthStencil: true,
+        ),
+        _ when heldFormats.contains(format) => const TextureFormatSupport(
+          sampled: true,
+          renderable: true,
+        ),
+        _ => TextureFormatSupport.none,
+      };
+
+  @override
+  TextureFormat get defaultColorFormat => TextureFormat.r8g8b8a8UNormInt;
+
+  @override
+  TextureFormat get defaultDepthStencilFormat => TextureFormat.d32Float;
+
+  @override
+  TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
+
+  @override
+  FramebufferOrigin get framebufferOrigin => FramebufferOrigin.topLeft;
+
+  @override
+  DepthRange get depthRange => DepthRange.zeroToOne;
+
+  @override
+  int get preferredSampleCount => 1;
+
+  // ------------------------------------------------------------- shaders
+
+  /// Every stage the engine asks for, by name, compiled to nothing: the
+  /// renderer is built on this device as on any other, and the pipelines it
+  /// links are refused when they draw.
+  @override
+  final ShaderLibrary shaders = {{stem}}ShaderLibrary();
+
+  /// A bundle is decoded, so bytes that are not one are refused the way
+  /// every backend refuses them, and its stages are answered by name. The
+  /// section this backend's compiler writes, when the bundle carries one,
+  /// adds the materials compiled for it.
+  @override
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async =>
+      {{stem}}LoadedShaderLibrary(ShaderBundle.decode(bytes));
+
+  @override
+  PipelineHandle createPipeline(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutDescriptor? layout,
+  }) => wrapPipeline(
+    owner: this,
+    backend: Object(),
+    name: '${vertex.name}+${fragment.name}',
+  );
+
+  // ------------------------------------------------------------ textures
+
+  final Expando<{{stem}}Texels> _texels = Expando<{{stem}}Texels>('texels');
+
+  /// The texels behind [texture], which this device made.
+  {{stem}}Texels texelsOf(TextureHandle texture) {
+    debugCheckLive(texture, '{{stem}}Device');
+    final texels = _texels[texture];
+    if (texels == null) {
+      throw ArgumentError.value(texture, 'texture', 'was not made by $name');
+    }
+    return texels;
+  }
+
+  TextureHandle _make({
+    required int width,
+    required int height,
+    required TextureFormat format,
+    int layers = 1,
+    int levels = 1,
+    StorageMode storageMode = StorageMode.devicePrivate,
+    TextureType type = TextureType.texture2D,
+  }) {
+    if (!heldFormats.contains(format)) {
+      throw refuseResource(
+        'a ${format.name} texture',
+        '$name holds ${heldFormats.map((f) => f.name).join(', ')}',
+      );
+    }
+    final texels = {{stem}}Texels(
+      width: width,
+      height: height,
+      layers: layers,
+      levels: levels,
+    );
+    final texture = wrapTexture(
+      owner: this,
+      backend: texels,
+      width: width,
+      height: height,
+      format: format,
+      storageMode: storageMode,
+      type: type,
+      mipLevelCount: levels,
+    );
+    _texels[texture] = texels;
+    return texture;
+  }
+
+  /// A flat texture of one of [heldFormats], to draw into, overwrite or
+  /// copy. Every other shape is refused by the feature it needs; writing
+  /// one with `writeTexture` needs `DeviceFeature.textureWrites`, which this
+  /// device does not report.
+  @override
+  TextureHandle createTexture(TextureDescriptor descriptor) {
+    // A volume is filled by `writeTexture` alone, so it is refused by that
+    // first; the layered shapes a pass can draw into are refused by their
+    // own feature.
+    final shape = switch (descriptor.dimension) {
+      TextureDimension.d2 => null,
+      TextureDimension.d2Array => DeviceFeature.textureArrays,
+      TextureDimension.cube => DeviceFeature.cubeTextures,
+      TextureDimension.cubeArray => DeviceFeature.cubeArrayTextures,
+      _ => DeviceFeature.textureWrites,
+    };
+    if (shape != null) throw refuse(shape);
+    if (descriptor.usage.contains(TextureUsage.storage)) {
+      throw refuse(DeviceFeature.storageTextures);
+    }
+    if (descriptor.sampleCount > 1) {
+      throw refuse(DeviceFeature.offscreenMultisample);
+    }
+    return _make(
+      width: descriptor.width,
+      height: descriptor.height,
+      format: descriptor.format,
+      storageMode: descriptor is RenderTargetDescriptor
+          ? descriptor.storageMode
+          : StorageMode.devicePrivate,
+    );
+  }
+
+  /// Refused: a storage buffer by compute, which it needs and this device
+  /// does not have, and any other by `DeviceFeature.buffers`.
+  @override
+  StorageBuffer createBuffer(
+    BufferDescriptor descriptor, {
+    ByteData? contents,
+  }) => throw refuse(
+    descriptor.usage.contains(BufferUsage.storage)
+        ? DeviceFeature.compute
+        : DeviceFeature.buffers,
+  );
+
+  @override
+  TransferEncoder beginTransferPass({String? label}) => {{stem}}Transfer(this);
+
+  @override
+  TextureHandle createCubeRenderTarget({
+    required int size,
+    required TextureFormat format,
+    int mipLevels = 1,
+  }) => throw refuse(DeviceFeature.cubeTextures);
+
+  @override
+  TextureHandle createCubeTextureFromPixels({
+    required int size,
+    required TextureFormat format,
+    required List<ByteData> faces,
+    List<List<ByteData>>? mipLevels,
+  }) => throw refuse(DeviceFeature.cubeTextures);
+
+  @override
+  TextureHandle createTextureFromPixels({
+    required int width,
+    required int height,
+    required TextureFormat format,
+    required ByteData pixels,
+    List<ByteData>? mipLevels,
+  }) {
+    if (mipLevels != null && mipLevels.isNotEmpty) {
+      throw refuse(DeviceFeature.manualMipmaps);
+    }
+    final expected = width * height * format.bytesPerTexel;
+    if (format.bytesPerTexel == 0 || pixels.lengthInBytes != expected) {
+      throw refuseResource(
+        'createTextureFromPixels',
+        'a ${width}x$height ${format.name} texture takes $expected bytes and '
+            '${pixels.lengthInBytes} were given',
+      );
+    }
+    final texture = _make(
+      width: width,
+      height: height,
+      format: format,
+      storageMode: StorageMode.hostVisible,
+    );
+    texelsOf(texture).decode(format, pixels, layer: 0, level: 0);
+    return texture;
+  }
+
+  @override
+  Future<void> overwriteTexture(
+    TextureHandle target,
+    ByteData rgba, {
+    ScreenRect? region,
+    int mipLevel = 0,
+  }) async {
+    if (!readbackFormats.contains(target.format)) {
+      throw UnsupportedError(
+        'overwriteTexture: TextureFormat.${target.format.name} is not one of '
+        'readbackFormats',
+      );
+    }
+    if (mipLevel != 0) {
+      throw UnsupportedError(
+        'overwriteTexture: mip level $mipLevel is refused; only the base '
+        'level (0) may be overwritten.',
+      );
+    }
+    final rect = region ?? ScreenRect.of(target);
+    if (rect.x < 0 ||
+        rect.y < 0 ||
+        rect.x + rect.width > target.width ||
+        rect.y + rect.height > target.height) {
+      throw ArgumentError(
+        'overwriteTexture: $rect does not fit inside a '
+        '${target.width}x${target.height} texture',
+      );
+    }
+    if (rgba.lengthInBytes != rect.width * rect.height * 4) {
+      throw ArgumentError(
+        'overwriteTexture: ${rgba.lengthInBytes} bytes does not match '
+        '${rect.width}x${rect.height} RGBA8',
+      );
+    }
+    texelsOf(target).decodeRegion(target.format, rgba, rect);
+  }
+
+  @override
+  void releaseTexture(TextureHandle texture) => _texels[texture] = null;
+
+  // ------------------------------------------------------------ geometry
+
+  final Expando<Uint8List> _bytes = Expando<Uint8List>('geometry');
+
+  @override
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
+    final copy = Uint8List.fromList(
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
+    final buffer = wrapGeometry(
+      backend: copy,
+      offsetInBytes: 0,
+      lengthInBytes: copy.length,
+      release: releaseGeometry,
+    );
+    _bytes[buffer] = copy;
+    return buffer;
+  }
+
+  @override
+  void overwriteGeometry(
+    GeometryBuffer target,
+    int offsetInBytes,
+    ByteData bytes,
+  ) {
+    debugCheckLive(target, 'overwriteGeometry');
+    final held = target.backend;
+    if (held is! Uint8List) {
+      throw ArgumentError.value(target, 'target', 'was not made by $name');
+    }
+    final at = target.offsetInBytes + offsetInBytes;
+    if (offsetInBytes < 0 ||
+        offsetInBytes + bytes.lengthInBytes > target.lengthInBytes) {
+      throw ArgumentError(
+        'overwriteGeometry: $offsetInBytes + ${bytes.lengthInBytes} does not '
+        'fit inside a ${target.lengthInBytes}-byte buffer',
+      );
+    }
+    held.setRange(
+      at,
+      at + bytes.lengthInBytes,
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
+  }
+
+  @override
+  void releaseGeometry(GeometryBuffer geometry) => _bytes[geometry] = null;
+
+  // -------------------------------------------------------------- frames
+
+  @override
+  void beginFrame() {}
+
+  /// At once: a pass is done by the time it is submitted.
+  @override
+  void onFrameComplete(void Function() whenDone) => whenDone();
+
+  /// Clears what the pass clears, and hands back a pass that refuses every
+  /// pipeline it draws with.
+  @override
+  CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
+    descriptor
+      ..checkAttachmentLimit(limits.maxColorAttachments, backend: name)
+      ..checkFeatures(features, backend: name);
+    for (final color in descriptor.colors) {
+      if (color.loadAction != LoadAction.clear) continue;
+      final clear = color.clearValue;
+      texelsOf(color.texture).fill(
+        layer: color.layer + color.face,
+        level: color.mipLevel,
+        r: clear?.x ?? 0.0,
+        g: clear?.y ?? 0.0,
+        b: clear?.z ?? 0.0,
+        a: clear?.w ?? 0.0,
+      );
+    }
+    final depth = descriptor.depth;
+    if (depth != null && depth.loadAction == LoadAction.clear) {
+      final value = depth.clearValue;
+      texelsOf(depth.texture).fill(
+        layer: depth.layer + depth.face,
+        level: depth.mipLevel,
+        r: value,
+        g: value,
+        b: value,
+        a: value,
+      );
+    }
+    return {{stem}}Pass(this);
+  }
+
+  /// The texels as they are now: the copy is taken when it is asked for,
+  /// so a pass submitted after the call is not in it.
+  @override
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
+    final texels = texelsOf(texture);
+    if (readbackConverts(texture, region: region)) {
+      return Future<ByteData>.value(
+        texels.encode(TextureFormat.r8g8b8a8UNormInt, ScreenRect.of(texture)),
+      );
+    }
+    final rect = readbackRegionOf(texture, region);
+    return Future<ByteData>.value(texels.encode(texture.format, rect));
+  }
+
+  // ------------------------------------------------------------ lifetime
+
+  bool _disposed = false;
+
+  /// Whether [dispose] has run.
+  bool get isDisposed => _disposed;
+
+  @override
+  void dispose() => _disposed = true;
+}
+
+/// Every stage name, answered with a handle that compiles to nothing.
+final class {{stem}}ShaderLibrary with ShaderLibrary {
+  final Map<String, ShaderHandle> _handles = <String, ShaderHandle>{};
+
+  @override
+  ShaderHandle? operator [](String name) => _handles.putIfAbsent(
+    name,
+    () => wrapShader(
+      backend: name,
+      name: name,
+      release: (ShaderHandle h) => forgetShader(_handles, h),
+    ),
+  );
+}
+
+/// A loaded bundle's stages by name, kept across a reload that keeps them.
+final class {{stem}}LoadedShaderLibrary with ShaderLibrary, LoadedShaderLibrary {
+  {{stem}}LoadedShaderLibrary(ShaderBundle bundle)
+    : _bundle = bundle,
+      _names = _namesIn(bundle);
+
+  ShaderBundle _bundle;
+  Set<String> _names;
+  final Map<String, ShaderHandle> _handles = <String, ShaderHandle>{};
+
+  /// The stages [bundle] claims, and the materials in this backend's own
+  /// section: what `{{stem}}MaterialCompiler` wrote, a JSON list of names.
+  static Set<String> _namesIn(ShaderBundle bundle) {
+    final section = bundle.section({{lowerStem}}Section);
+    return <String>{
+      ...bundle.names,
+      if (section != null)
+        ...(jsonDecode(
+                  utf8.decode(
+                    section.buffer.asUint8List(
+                      section.offsetInBytes,
+                      section.lengthInBytes,
+                    ),
+                  ),
+                )
+                as List<Object?>)
+            .cast<String>(),
+    };
+  }
+
+  @override
+  String get name => _bundle.name;
+
+  @override
+  ShaderHandle? operator [](String name) => _names.contains(name)
+      ? _handles.putIfAbsent(
+          name,
+          () => wrapShader(
+            backend: name,
+            name: name,
+            release: (ShaderHandle h) => forgetShader(_handles, h),
+          ),
+        )
+      : null;
+
+  /// Takes [bytes] in place of the bundle, unless it drops a stage already
+  /// handed out, which is refused naming it.
+  @override
+  void refresh(ByteData bytes) {
+    final bundle = ShaderBundle.decode(bytes);
+    final names = _namesIn(bundle);
+    final dropped = _handles.keys.where((n) => !names.contains(n));
+    if (dropped.isNotEmpty) {
+      throw ShaderBundleException(
+        name: bundle.name,
+        reason: 'it no longer has ${dropped.join(', ')}, already in use',
+      );
+    }
+    _bundle = bundle;
+    _names = names;
+  }
+}
+
+/// The id of the {{label}} backend's section of a shader bundle.
+const String {{lowerStem}}Section = '{{label}}';
+''';
+
+const String _backendPass = r'''
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/backend.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+
+import '{{label}}_device.dart';
+
+/// A render pass of the {{label}} backend: it takes every state a pass takes,
+/// refuses by name what the device does not report, and skips each draw,
+/// reporting its pipeline as refused once.
+///
+/// **Only the members without a body are here.** Every feature-gated member
+/// of [PassEncoder] (indirect draws, storage buffers, the blend constant,
+/// bundles) has a default that refuses with the feature named, which is
+/// this device's answer; a backend that has the feature overrides it.
+final class {{stem}}Pass extends PassEncoder with CommandEncoder {
+  {{stem}}Pass(this.device);
+
+  final {{stem}}Device device;
+
+  PipelineHandle? _pipeline;
+  bool _submitted = false;
+
+  void _open(String operation) {
+    if (_submitted) {
+      throw StateError('$operation: the pass was already submitted');
+    }
+  }
+
+  /// Refuses with [feature] named, unless the device reports it.
+  void _need(DeviceFeature feature) =>
+      device.features.require(feature, backend: {{stem}}Device.name);
+
+  @override
+  void setViewport(ScreenRect rect) => _open('setViewport');
+
+  @override
+  void setScissor(ScreenRect rect) => _open('setScissor');
+
+  @override
+  void setPrimitiveType(PrimitiveType type) => _open('setPrimitiveType');
+
+  /// A fill is taken; edges are refused, since this device reports no
+  /// wireframe and a refused line mode is never quietly filled.
+  @override
+  void setPolygonMode(PolygonMode mode) {
+    _open('setPolygonMode');
+    if (mode == PolygonMode.line) _need(DeviceFeature.wireframe);
+  }
+
+  @override
+  void setCullMode(CullMode mode) => _open('setCullMode');
+
+  @override
+  void setWindingOrder(WindingOrder order) => _open('setWindingOrder');
+
+  @override
+  void setDepthWrite({required bool enabled}) => _open('setDepthWrite');
+
+  @override
+  void setDepthCompare(CompareFunction compare) => _open('setDepthCompare');
+
+  @override
+  void setStencil(StencilState front, {StencilState? back}) =>
+      _need(DeviceFeature.stencil);
+
+  @override
+  void setStencilReference(int value) => _need(DeviceFeature.stencil);
+
+  /// A blend that reads the constant or a second output, or takes a minimum
+  /// or a maximum, is refused by the feature it needs.
+  @override
+  void setBlend(BlendState? state, {int attachment = 0}) {
+    _open('setBlend');
+    if (state == null) return;
+    if (state.usesBlendColor) _need(DeviceFeature.blendConstant);
+    if (state.usesDualSource) _need(DeviceFeature.dualSourceBlending);
+    if (state.usesMinMax) _need(DeviceFeature.minMaxBlend);
+  }
+
+  @override
+  void bindPipeline(PipelineHandle pipeline) {
+    _open('bindPipeline');
+    debugCheckLive(pipeline, 'bindPipeline');
+    _pipeline = pipeline;
+  }
+
+  @override
+  void bindVertexBuffer(
+    GeometryBuffer buffer,
+    int vertexCount, {
+    int slot = 0,
+  }) {
+    _open('bindVertexBuffer');
+    debugCheckLive(buffer, 'bindVertexBuffer');
+  }
+
+  @override
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
+      _open('bindVertexData');
+
+  @override
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    _open('bindIndexBuffer');
+    debugCheckLive(buffer, 'bindIndexBuffer');
+  }
+
+  @override
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
+      _open('bindIndexData');
+
+  /// True: with no compiled stage there is nothing to reflect, so every
+  /// block is taken, as a backend without reflection takes it.
+  @override
+  bool bindUniformBlock(
+    ShaderHandle shader,
+    String blockName,
+    Map<String, Float32List> members,
+  ) {
+    _open('bindUniformBlock');
+    return true;
+  }
+
+  /// True, for the reason [bindUniformBlock] gives. A sampler asking for a
+  /// comparison, a level clamp or a border is refused by the feature it
+  /// needs, none of which this device reports.
+  @override
+  bool bindTexture(
+    ShaderHandle shader,
+    String slot,
+    TextureHandle texture, {
+    SamplerDescriptor? sampler,
+  }) {
+    _open('bindTexture');
+    debugCheckLive(texture, 'bindTexture');
+    if (sampler != null && sampler.usesExtendedState) {
+      if (sampler.compare != null) _need(DeviceFeature.samplerCompare);
+      if (sampler.borderColor != null) _need(DeviceFeature.samplerBorderColor);
+      _need(DeviceFeature.samplerLodClamp);
+    }
+    return true;
+  }
+
+  @override
+  void clearBindings() => _open('clearBindings');
+
+  /// Skipped, and the pipeline reported refused the first time it draws:
+  /// this device rasterises nothing, and no rebuild changes that.
+  @override
+  void draw({int instanceCount = 1, int firstIndex = 0, int? indexCount}) {
+    _open('draw');
+    final pipeline = _pipeline;
+    if (pipeline == null) {
+      throw StateError('draw: no pipeline is bound');
+    }
+    if (device.pipelineRefusals.isRefused(pipeline)) return;
+    device.pipelineRefusals.report(
+      pipeline,
+      PipelineRefusedException(
+        pipeline: pipeline.name,
+        backend: {{stem}}Device.name,
+        reason: PipelineRefusalReason.other,
+        detail: 'this backend rasterises nothing',
+      ),
+      retry: false,
+    );
+  }
+
+  @override
+  void submit() {
+    _open('submit');
+    _submitted = true;
+  }
+}
+
+/// The {{label}} backend's copies: texture to texture, which it does at once,
+/// and the rest refused by their features through [TransferEncoder]'s own
+/// defaults, since it has no buffers.
+final class {{stem}}Transfer extends TransferEncoder {
+  {{stem}}Transfer(this.device);
+
+  final {{stem}}Device device;
+
+  @override
+  void copyTextureToTexture(
+    TextureCopyLocation source,
+    TextureCopyLocation destination, {
+    required int width,
+    required int height,
+    int depthOrArrayLayers = 1,
+  }) {
+    if (source.texture.format != destination.texture.format) {
+      throw ArgumentError(
+        'copyTextureToTexture: ${source.texture.format.name} into '
+        '${destination.texture.format.name}; a copy keeps its format',
+      );
+    }
+    for (var layer = 0; layer < depthOrArrayLayers; layer++) {
+      device
+          .texelsOf(destination.texture)
+          .copyFrom(
+            device.texelsOf(source.texture),
+            from: TextureCopyLocation(
+              source.texture,
+              mipLevel: source.mipLevel,
+              x: source.x,
+              y: source.y,
+              z: source.z + layer,
+            ),
+            to: TextureCopyLocation(
+              destination.texture,
+              mipLevel: destination.mipLevel,
+              x: destination.x,
+              y: destination.y,
+              z: destination.z + layer,
+            ),
+            width: width,
+            height: height,
+          );
+    }
+  }
+
+  @override
+  void submit() {}
+}
+''';
+
+const String _backendTexels = r'''
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+
+/// What a texture of the {{label}} backend holds: four floats a texel, for each
+/// layer and level, whatever its format.
+///
+/// One representation for every format the device holds, so a clear, an
+/// upload and a readback are each written once. A backend over a real API
+/// keeps its texture in that API instead; this is the part of a backend
+/// such an API does for it.
+final class {{stem}}Texels {
+  {{stem}}Texels({
+    required this.width,
+    required this.height,
+    required int layers,
+    required int levels,
+  }) : _levels = <List<Float32List>>[
+         for (var layer = 0; layer < layers; layer++)
+           <Float32List>[
+             for (var level = 0; level < levels; level++)
+               Float32List(_side(width, level) * _side(height, level) * 4),
+           ],
+       ];
+
+  final int width;
+  final int height;
+  final List<List<Float32List>> _levels;
+
+  /// The width of [level].
+  int widthAt(int level) => _side(width, level);
+
+  /// A side of [level], halved per level and never below one texel.
+  static int _side(int base, int level) =>
+      base >> level < 1 ? 1 : base >> level;
+
+  Float32List _at(int layer, int level) {
+    RangeError.checkValidIndex(layer, _levels, 'layer');
+    RangeError.checkValidIndex(level, _levels[layer], 'level');
+    return _levels[layer][level];
+  }
+
+  /// Every texel of [layer] at [level] set to one colour: what a clear does,
+  /// whatever the scissor says.
+  void fill({
+    required int layer,
+    required int level,
+    required double r,
+    required double g,
+    required double b,
+    required double a,
+  }) {
+    final texels = _at(layer, level);
+    for (var i = 0; i < texels.length; i += 4) {
+      texels
+        ..[i] = r
+        ..[i + 1] = g
+        ..[i + 2] = b
+        ..[i + 3] = a;
+    }
+  }
+
+  /// [bytes], laid out as [format], into the whole of [layer] at [level].
+  void decode(
+    TextureFormat format,
+    ByteData bytes, {
+    required int layer,
+    required int level,
+  }) {
+    final w = widthAt(level);
+    _decodeInto(
+      format,
+      bytes,
+      ScreenRect(width: w, height: _at(layer, level).length ~/ 4 ~/ w),
+      _at(layer, level),
+      w,
+    );
+  }
+
+  /// [bytes], eight-bit [format], into [rect] of the base level.
+  void decodeRegion(TextureFormat format, ByteData bytes, ScreenRect rect) =>
+      _decodeInto(format, bytes, rect, _at(0, 0), width);
+
+  void _decodeInto(
+    TextureFormat format,
+    ByteData bytes,
+    ScreenRect rect,
+    Float32List into,
+    int rowLength,
+  ) {
+    final size = format.bytesPerTexel;
+    for (var y = 0; y < rect.height; y++) {
+      for (var x = 0; x < rect.width; x++) {
+        final from = (y * rect.width + x) * size;
+        final to = ((rect.y + y) * rowLength + rect.x + x) * 4;
+        final rgba = _read(format, bytes, from);
+        into.setRange(to, to + 4, rgba);
+      }
+    }
+  }
+
+  /// A [width] by [height] box of [source], from [from], written at [to]:
+  /// what a texture-to-texture copy does.
+  void copyFrom(
+    {{stem}}Texels source, {
+    required TextureCopyLocation from,
+    required TextureCopyLocation to,
+    required int width,
+    required int height,
+  }) {
+    final reading = source._at(from.z, from.mipLevel);
+    final writing = _at(to.z, to.mipLevel);
+    final readRow = source.widthAt(from.mipLevel);
+    final writeRow = widthAt(to.mipLevel);
+    for (var y = 0; y < height; y++) {
+      final at = ((from.y + y) * readRow + from.x) * 4;
+      writing.setRange(
+        ((to.y + y) * writeRow + to.x) * 4,
+        ((to.y + y) * writeRow + to.x + width) * 4,
+        reading,
+        at,
+      );
+    }
+  }
+
+  /// [rect] of the base level of the first layer, laid out as [format]:
+  /// eight-bit RGBA or BGRA, row zero at the top.
+  ByteData encode(TextureFormat format, ScreenRect rect) {
+    final texels = _at(0, 0);
+    final out = Uint8List(rect.width * rect.height * 4);
+    final swap = format == TextureFormat.b8g8r8a8UNormInt;
+    int byte(double v) => (v.clamp(0.0, 1.0) * 255.0).round();
+    for (var y = 0; y < rect.height; y++) {
+      for (var x = 0; x < rect.width; x++) {
+        final from = ((rect.y + y) * width + rect.x + x) * 4;
+        final to = (y * rect.width + x) * 4;
+        out
+          ..[to] = byte(texels[from + (swap ? 2 : 0)])
+          ..[to + 1] = byte(texels[from + 1])
+          ..[to + 2] = byte(texels[from + (swap ? 0 : 2)])
+          ..[to + 3] = byte(texels[from + 3]);
+      }
+    }
+    return out.buffer.asByteData();
+  }
+}
+
+/// One texel of [format] at [at] in [bytes], as four floats.
+List<double> _read(TextureFormat format, ByteData bytes, int at) {
+  double unorm(int i) => bytes.getUint8(at + i) / 255.0;
+  double half(int i) =>
+      _halfToDouble(bytes.getUint16(at + i * 2, Endian.little));
+  double single(int i) => bytes.getFloat32(at + i * 4, Endian.little);
+  return switch (format) {
+    TextureFormat.r8g8b8a8UNormInt => <double>[
+      unorm(0),
+      unorm(1),
+      unorm(2),
+      unorm(3),
+    ],
+    TextureFormat.b8g8r8a8UNormInt => <double>[
+      unorm(2),
+      unorm(1),
+      unorm(0),
+      unorm(3),
+    ],
+    TextureFormat.r16g16b16a16Float => <double>[
+      half(0),
+      half(1),
+      half(2),
+      half(3),
+    ],
+    TextureFormat.r32g32b32a32Float => <double>[
+      single(0),
+      single(1),
+      single(2),
+      single(3),
+    ],
+    TextureFormat.r32Float ||
+    TextureFormat.d32Float => <double>[single(0), 0.0, 0.0, 1.0],
+    _ => throw ArgumentError.value(format, 'format', 'is not held here'),
+  };
+}
+
+/// An IEEE half-precision float, from its sixteen bits.
+double _halfToDouble(int bits) {
+  final sign = (bits & 0x8000) != 0 ? -1.0 : 1.0;
+  final exponent = (bits >> 10) & 0x1f;
+  final mantissa = bits & 0x3ff;
+  return switch (exponent) {
+    0 => sign * mantissa * math.pow(2, -24),
+    0x1f => mantissa == 0 ? sign * double.infinity : double.nan,
+    _ => sign * (1 + mantissa / 1024) * math.pow(2, exponent - 15),
+  };
+}
+''';
+
+const String _backendConformance = r'''
+/// The {{label}} backend, held to what `flutter3d_hardware` requires.
+///
+///     dart test test/conformance_test.dart
+///
+/// **Every check but the shader tier.** This device draws nothing, so the
+/// checks that read back a drawn picture are a backend's next step, not
+/// this one's: everything else (clears, uploads, readback, copies, the
+/// capability report held true both ways, and every refusal) passes or
+/// declines saying why.
+library;
+
+import 'package:{{name}}/{{name}}.dart';
+import 'package:flutter3d_conformance/flutter3d_conformance.dart';
+
+void main() => runDeviceConformance(
+  backend: {{stem}}Device.name,
+  makeDevice: {{stem}}Device.open,
+  checks: conformanceChecks.where((c) => !shaderChecks.contains(c)).toList(),
+);
+''';
+
+const String _backendDeviceTest = r'''
+/// The {{label}} backend from the engine's side: opened through a registry, a
+/// material compiled for it, a bundle loaded on it, and the renderer
+/// drawing a frame there.
+///
+///     dart test test/{{label}}_device_test.dart
+library;
+
+import 'dart:typed_data';
+
+import 'package:{{name}}/{{name}}.dart';
+import 'package:flutter3d_core/flutter3d_core.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_shaders/backend.dart';
+import 'package:test/test.dart';
+import 'package:vector_math/vector_math.dart';
+
+void main() {
+  test('a registry opens it, and the registration takes it out', () async {
+    final registry = DeviceRegistry<Object>();
+    final compilers = MaterialCompilerRegistry();
+    final registration = register{{stem}}Backend(registry, compilers: compilers);
+    expect(registry.backendNames, <String>[{{stem}}Device.name]);
+    expect(compilers.forBackend({{stem}}Device.name), isA<{{stem}}MaterialCompiler>());
+    expect(await registry.open(width: 8, height: 8), isA<{{stem}}Device>());
+
+    registration.cancel();
+    expect(registry.backendNames, isEmpty);
+    expect(compilers.forBackend({{stem}}Device.name), isNull);
+  });
+
+  test(
+    'a material its compiler wrote is answered by a bundle it loads',
+    () async {
+      // Mutation: answer only the bundle's stage list, and the material the
+      // section carries is not found.
+      final compiled = const {{stem}}MaterialCompiler().compile(
+        const MaterialCompileRequest(
+          name: 'glow',
+          from: 'glow.f3dmat',
+          source: 'material glow {}',
+          stages: <MaterialStageSource>[
+            MaterialStageSource(name: 'glow', fragment: true, glsl: ''),
+          ],
+        ),
+      );
+      final bundle = ShaderBundle(
+        name: 'plugin',
+        sdk: '',
+        stages: const <ShaderBundleStage>[
+          ShaderBundleStage('PlainVertex', fragment: false),
+        ],
+        sections: <String, ByteData>{{{lowerStem}}Section: compiled.section},
+      );
+      final device = await {{stem}}Device.open(width: 8, height: 8);
+      final library = await device.loadShaders(bundle.encode());
+      expect(library['PlainVertex'], isNotNull);
+      expect(library['glow'], isNotNull);
+      expect(library['missing'], isNull);
+    },
+  );
+
+  test('the engine draws a frame on it, and each pipeline it draws with is '
+      'told refused once', () async {
+    // Mutation: report a refusal at every draw rather than once, and the
+    // second frame tells the same pipelines again.
+    final device = await {{stem}}Device.open(width: 32, height: 24);
+    final renderer = Renderer.create(device: device);
+    final camera = CameraNode()..lookAt(Vector3(0.0, 0.0, -1.0));
+    final scene = Scene()
+      ..add(camera)
+      ..add(
+        MeshNode(
+          DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1)).build()),
+          RenderMaterial(name: 'box'),
+        )..setPosition(0.0, 0.0, -4.0),
+      );
+    FrameResult frame() => renderer.render(
+      width: 32,
+      height: 24,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: camera)],
+    );
+
+    final first = frame();
+    expect(first.pipelineRefusals, isNotEmpty);
+    expect(first.pipelineRefusals.map((r) => r.backend).toSet(), <String>{
+      {{stem}}Device.name,
+    });
+    final pixels = await device.readback(first.frame);
+    expect(pixels.lengthInBytes, 32 * 24 * 4);
+
+    expect(frame().pipelineRefusals, isEmpty);
+    renderer.dispose();
+    device.dispose();
+  });
 }
 ''';

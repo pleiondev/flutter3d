@@ -55,9 +55,9 @@ Future<void> checkSharedTextureCopies(GraphicsDevice device) async {
 Future<void> checkZeroCopyRefusedByName(GraphicsDevice device) async {
   if (device.features.has(DeviceFeature.sharedTextures) &&
       device.features.has(DeviceFeature.sharedFences)) {
-    throw const ConformanceDeclinedException(
-      'this device shares textures and fences, so zero copy with itself is '
-      'not refused',
+    decline(
+      device,
+      'shares textures and fences, so zero copy with itself is not refused',
     );
   }
   try {

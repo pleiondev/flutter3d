@@ -363,7 +363,7 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
     // Not a failure: the interface says to ask, and a device that answers false
     // is entitled to. What would be a failure is answering true and then not
     // doing it, which is what everything below checks.
-    return;
+    decline(device, 'has no cube textures, so no face is sampled');
   }
 
   const size = 4;
