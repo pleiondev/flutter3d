@@ -76,6 +76,12 @@ void main() {
       // What the project's plugins brought, and their importers.
       'plugins',
       'import',
+      // The experiment document beside the level.
+      'experiment_open',
+      'experiment_list',
+      'experiment_edit',
+      'experiment_undo',
+      'experiment_save',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),

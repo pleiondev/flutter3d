@@ -22,7 +22,8 @@ const String editorMcpVersion = '1.0.0-rc.1';
 /// first release would look for a 1.0 and 1.1 that never shipped.
 ///
 /// 1.1.0 with `plugin.list` and `asset.import`, the editor's plugin
-/// contract seen by an agent.
+/// contract seen by an agent, and the `experiment.*` tools that edit an
+/// experiment document beside the level.
 const String editorMcpSchemaVersion = '1.1.0';
 
 /// What each of [editorTools] is published as, `area.verb`, and what it does
@@ -40,6 +41,12 @@ const Map<String, ToolName> editorToolNames = <String, ToolName>{
   'createPrefab': ToolName('prefab.create', ToolHints.writes),
   'delete': ToolName('selection.delete', ToolHints.writes),
   'duplicate': ToolName('selection.duplicate', ToolHints.writes),
+  'experiment_edit': ToolName('experiment.edit', ToolHints.writes),
+  'experiment_list': ToolName('experiment.list', ToolHints.reads),
+  'experiment_open': ToolName('experiment.open', ToolHints.writes),
+  // Writes over the experiment's file, or one at the path it is given.
+  'experiment_save': ToolName('experiment.save', ToolHints.destroys),
+  'experiment_undo': ToolName('experiment.undo', ToolHints.writes),
   'generate': ToolName('kit.place', ToolHints.writes),
   'generate_level': ToolName('level.generate', ToolHints.destroys),
   // Writes the importer's files into the project and places in the level.
@@ -203,6 +210,11 @@ everything else does. Deleting renumbers what follows it, so call
 command the editor knows by name, a plugin's (`<plugin id>.<name>`)
 included; `plugin.list` says what the project's plugins brought, and each
 plugin command is a tool of its own too.
+
+An experiment (`.f3d.experiment`: a level, substances, parameters, probes
+and a scenario of steps with expected readings) is edited beside the
+level: `experiment.open` it, then `experiment.edit` one value at a time,
+`experiment.undo` and `experiment.save`.
 
 `level.validate` says what is wrong with the document as the game would see
 it, and is worth calling before `level.save`. `history.undo` goes back sixty-four steps.

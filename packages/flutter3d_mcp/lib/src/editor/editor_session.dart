@@ -68,6 +68,145 @@ final class EditorSession {
   /// command by the same door as a built-in one.
   final EditorPieces pieces;
 
+  /// The experiment document open beside the level, or null for none: what
+  /// the `experiment.*` tools edit. One at a time, opened inside [root].
+  ExperimentEditing? experiment;
+
+  /// Opens the `.f3d.experiment` at [path], inside [root], in place of the
+  /// one open before; refused, with the reader's words, for one it does not
+  /// open.
+  Answer openExperiment(String path) {
+    final (path: inside, :refused) = root.tryResolve(path);
+    if (inside == null) return (did: false, says: refused!);
+    final file = File(inside);
+    if (!file.existsSync()) return (did: false, says: 'there is no $path');
+    try {
+      experiment = ExperimentEditing.parse(
+        file.readAsStringSync(),
+        path: inside,
+      );
+    } on Exception catch (error) {
+      return (did: false, says: '$path does not open: $error');
+    }
+    return (did: true, says: experimentListing());
+  }
+
+  /// The open experiment, one line per thing in it: its words, substances,
+  /// parameters, probes, and each step with what it sets, runs and expects.
+  String experimentListing() {
+    final open = experiment;
+    if (open == null) return 'no experiment is open: call experiment.open';
+    final document = open.document;
+    String quantity(Object? written) => switch (written) {
+      {'value': final Object value, 'unit': final Object unit} =>
+        '$value $unit',
+      final Object other => '$other',
+      null => '—',
+    };
+    String when(Object? present, String said) => present == null ? '' : said;
+    String parameterRow(Map<Object?, Object?> row) {
+      final from = when(row['min'], ' from ${quantity(row['min'])}');
+      final to = when(row['max'], ' to ${quantity(row['max'])}');
+      return 'parameter ${row['id']} = ${quantity(row['value'])}$from$to';
+    }
+
+    String stepRow(int index, Map<Object?, Object?> row) {
+      final sets = switch (row['set']) {
+        final Map<Object?, Object?> set =>
+          ': set ${<String>[for (final MapEntry(:key, :value) in set.entries) '$key ${quantity(value)}'].join(', ')}',
+        _ => '',
+      };
+      final runs = when(row['run'], ', run ${quantity(row['run'])}');
+      String reading(Map<Object?, Object?> it) =>
+          '${it['probe']} ${quantity(it['value'])} ± '
+          '${quantity(it['tolerance'])}';
+      final expects = switch (row['expect']) {
+        final List<Object?> expect =>
+          ', expect ${expect.whereType<Map<Object?, Object?>>().map(reading).join(', ')}',
+        _ => '',
+      };
+      return 'step $index ${row['name']}$sets$runs$expects';
+    }
+
+    final json = document.toJson();
+    final steps = switch (json['scenario']) {
+      {'steps': final List<Object?> steps} => steps,
+      _ => const <Object?>[],
+    };
+    final title = when(document.title, ' "${document.title}"');
+    final changed = open.isDirty ? ' (changed)' : '';
+    final heading =
+        'experiment ${document.name}$title, level ${document.level}, '
+        'profile ${document.profile}$changed';
+    return <String>[
+      heading,
+      for (final substance in document.substances)
+        'substance ${substance.id}${when(substance.role, ' as ${substance.role}')}',
+      for (final parameter
+          in (json['parameters'] as List<Object?>?) ?? const <Object?>[])
+        if (parameter case final Map<Object?, Object?> row) parameterRow(row),
+      for (final probe in document.probes)
+        'probe ${probe.id}${when(probe.on, ' on ${probe.on}')}',
+      for (final (index, step) in steps.indexed)
+        if (step case final Map<Object?, Object?> row) stepRow(index, row),
+    ].join('\n');
+  }
+
+  /// Makes the edit [json] names, with its arguments, on the open
+  /// experiment: one step of its undo, or the reader's refusal.
+  Answer editExperiment(Map<String, Object?> json) {
+    final open = experiment;
+    if (open == null) {
+      return (did: false, says: 'no experiment is open: call experiment.open');
+    }
+    final edit = ExperimentEdit.fromJson(json);
+    if (edit == null) {
+      return (
+        did: false,
+        says:
+            '${json['edit']} cannot be read from those arguments; the edits '
+            'are ${experimentEditNames.join(', ')}',
+      );
+    }
+    final refused = open.run(edit);
+    return refused == null
+        ? (did: true, says: edit.says)
+        : (did: false, says: refused);
+  }
+
+  /// Takes back the open experiment's last edit, or makes the last undone
+  /// one again with [redo].
+  Answer undoExperiment({bool redo = false}) {
+    final open = experiment;
+    if (open == null) {
+      return (did: false, says: 'no experiment is open: call experiment.open');
+    }
+    final said = redo ? open.redo() : open.undo();
+    return said == null
+        ? (did: false, says: 'nothing to ${redo ? 'redo' : 'undo'}')
+        : (did: true, says: '${redo ? 'redid' : 'undid'} $said');
+  }
+
+  /// Writes the open experiment, to [path] inside [root] or over the file
+  /// it was read from.
+  Answer saveExperiment(String? path) {
+    final open = experiment;
+    if (open == null) {
+      return (did: false, says: 'no experiment is open: call experiment.open');
+    }
+    final String to;
+    if (path == null) {
+      to = open.path!;
+    } else {
+      final (path: inside, :refused) = root.tryResolve(path);
+      if (inside == null) return (did: false, says: refused!);
+      to = inside;
+    }
+    File(to).writeAsStringSync('${open.write()}\n');
+    if (to == open.path) open.saved();
+    return (did: true, says: 'written to $to');
+  }
+
   /// What this editor writes into `generatedBy` when it takes ownership of a
   /// copy. The application writes `apps/flutter3d_editor` for the same reason:
   /// a document should name what last wrote it.
