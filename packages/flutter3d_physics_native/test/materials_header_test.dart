@@ -126,30 +126,27 @@ void main() {
     expect(() => NativeLiquidProperties.of(peat), throwsArgumentError);
   });
 
-  test("a law in temperature is a table in the header, the law's points", () {
+  test('a law in temperature is its value at the reference state in the '
+      'header, and nothing more', () {
     final header = generateMaterialsHeader();
-    final viscosity = Materials.water.fluid!.viscosity! as TableLaw;
-    String list(List<double> values) => values
-        .map((v) => 'F3D_R(${v.toString().contains('.') ? v : '$v.0'})')
-        .join(', ');
+    // Mutation: write a table of a law's points again, or a law's value at
+    // another state, and the header says more than the core reads.
+    final viscosity = Materials.water.fluid!.viscosity!;
+    expect(viscosity, isA<TableLaw>());
+    expect(
+      header,
+      contains('#define F3D_MAT_WATER_VISCOSITY F3D_R(${viscosity.value})\n'),
+    );
+    expect(Materials.mercury.fluid!.viscosity, isA<FormulaLaw>());
+    expect(header, isNot(contains('_TABLE')));
+    expect(header, contains('#define F3D_DEFAULT_FRICTION F3D_R(0.6)'));
     expect(
       header,
       contains(
-        '#define F3D_MAT_WATER_VISCOSITY_TABLE_N ${viscosity.xs.length}\n'
-        '#define F3D_MAT_WATER_VISCOSITY_TABLE_X ${list(viscosity.xs)}\n'
-        '#define F3D_MAT_WATER_VISCOSITY_TABLE_Y ${list(viscosity.ys)}\n',
+        '#define F3D_PRESET_DEFAULT_EMISSIVITY '
+        'F3D_R(${MaterialCatalog.defaultEmissivity})',
       ),
     );
-    // A fluid's formula is sampled across its range, with its reference
-    // state among the points.
-    final mercury = Materials.mercury.fluid!.viscosity!;
-    expect(mercury, isA<FormulaLaw>());
-    expect(header, contains('#define F3D_MAT_MERCURY_VISCOSITY_TABLE_N 18'));
-    // Nothing that does not change with temperature has a table, and a
-    // mechanical law stays a scalar for the core.
-    expect(header, isNot(contains('F3D_MAT_WATER_BULK_MODULUS_TABLE')));
-    expect(header, isNot(contains('F3D_MAT_WATER_DENSITY_TABLE')));
-    expect(header, contains('#define F3D_DEFAULT_FRICTION F3D_R(0.6)'));
   });
 
   test('σ is one number on both sides', () {

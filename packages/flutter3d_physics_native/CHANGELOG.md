@@ -1,13 +1,14 @@
 ## 1.0.0-rc.1
 
-- **The core's header carries the whole catalogue, and tables for its
-  laws.** `f3d_materials.g.h` defines every built-in material's values at
-  its reference state, as before for the 33 it had and now for all 238;
-  each thermal or fluid property that changes with temperature also has a
-  `…_TABLE_N`, `…_TABLE_X` and `…_TABLE_Y` for the core to interpolate by
-  body temperature. `F3D_DEFAULT_FRICTION` and the `F3D_PRESET_DEFAULT_*`
-  values every material preset starts from are written there too. The
-  values the core already read are unchanged to the bit.
+- **The core's header carries the whole catalogue, at its reference
+  state.** `f3d_materials.g.h` defines every built-in material's values at
+  its reference state, as before for the 33 it had and now for all 238.
+  The core evaluates no law: a property that changes with temperature in
+  Dart is its reference value in C, whatever a body's temperature.
+  `F3D_DEFAULT_FRICTION` and the `F3D_PRESET_DEFAULT_*` values every
+  material preset starts from (`MaterialCatalog`'s defaults) are written
+  there too, and `f3d_material_preset` reads them. The values the core
+  already read are unchanged to the bit.
 - **`NativeLiquidProperties.of`, `NativeLiquidHeat.of` and
   `NativeMaterial.of` read a material's laws at its reference state**
   (`PropertyLaw.value`), as the catalogue's properties are laws now.

@@ -12,23 +12,22 @@
 /// radiates, 9.81 where a world is made. A structure rule runs `--check`, so
 /// a number changed on one side and not the other does not get in.
 ///
-/// **Scalars for every group, tables for the two the core evaluates.** Each
-/// property of a built-in becomes `F3D_MAT_<NAME>_<FIELD>`, its value at the
-/// entry's reference state, the name and field in upper snake case
-/// (`f3d.oliveOil`'s viscosity is `F3D_MAT_OLIVE_OIL_VISCOSITY`). A thermal
-/// or fluid property whose law changes with temperature also becomes a
-/// table, `…_TABLE_N`, `…_TABLE_X` (K) and `…_TABLE_Y`, initialiser lists the
-/// core's interpolator reads by body temperature: a `TableLaw`'s own points,
-/// or a formula sampled at [_samples] points across its valid range with the
-/// reference state among them. Lists and colours stay in Dart. A plugin's
-/// material is not here: the core has it from the view that is made of it
-/// (`NativeLiquidProperties.of`, `NativeMaterial.of`) when the thing that
-/// needs it is made.
+/// **The value at the reference state, for every group.** Each property of
+/// a built-in becomes `F3D_MAT_<NAME>_<FIELD>`, its law's value at the
+/// entry's reference state (`PropertyLaw.value`), the name and field in
+/// upper snake case (`f3d.oliveOil`'s viscosity is
+/// `F3D_MAT_OLIVE_OIL_VISCOSITY`). The core evaluates no law: a property
+/// that changes with temperature in Dart is this one number in C, whatever
+/// a body's temperature, until the core has an evaluator of its own. Lists
+/// and colours stay in Dart. A plugin's material is not here: the core has
+/// it from the view that is made of it (`NativeLiquidProperties.of`,
+/// `NativeMaterial.of`) when the thing that needs it is made.
 ///
 /// **The core's own defaults are here too**, so the Dart views and the C
-/// presets can read one number: [defaultFriction] and the values every
+/// presets read one number: [defaultFriction] and the values every
 /// `F3dMaterial` preset starts from before its entry is laid over it
-/// ([presetDefaults]).
+/// ([presetDefaults]), each defined, with its source, on
+/// `MaterialCatalog`.
 library;
 
 import 'dart:io';
@@ -38,26 +37,19 @@ import 'package:flutter3d_matter/flutter3d_matter.dart';
 /// Where the header goes, from the package root.
 const String headerPath = 'csrc/src/f3d_materials.g.h';
 
-/// How many points a formula law is sampled at for the core's table.
-const int _samples = 17;
-
 /// The coefficient of friction of a body whose material says none
 /// (`MaterialCatalog.defaultFriction`).
 const double defaultFriction = MaterialCatalog.defaultFriction;
 
 /// What every core material preset starts from, before its catalogue entry
-/// is laid over it, as `F3D_PRESET_DEFAULT_<NAME>`: a surface's emissivity,
-/// the 0.9 of most rough surfaces (Incropera and colleagues, Fundamentals of
-/// Heat and Mass Transfer, table A.11); a conductivity of one watt per metre
-/// kelvin; a stiff solid's modulus and Poisson's ratio, of the order of glass
-/// and stone (Ashby, Materials Selection in Mechanical Design, chart 1); and
-/// the inert preset's specific heat, a kilojoule per kilogram kelvin.
+/// is laid over it, as `F3D_PRESET_DEFAULT_<NAME>`: `MaterialCatalog`'s
+/// defaults, whose documentation gives their sources.
 const Map<String, double> presetDefaults = <String, double>{
-  'EMISSIVITY': 0.9,
-  'CONDUCTIVITY': 1.0,
-  'YOUNGS_MODULUS': 5e10,
-  'POISSON_RATIO': 0.25,
-  'INERT_SPECIFIC_HEAT': 1000.0,
+  'EMISSIVITY': MaterialCatalog.defaultEmissivity,
+  'CONDUCTIVITY': MaterialCatalog.defaultConductivity,
+  'YOUNGS_MODULUS': MaterialCatalog.defaultYoungsModulus,
+  'POISSON_RATIO': MaterialCatalog.defaultPoissonRatio,
+  'INERT_SPECIFIC_HEAT': MaterialCatalog.defaultSpecificHeat,
 };
 
 /// The header's text.
@@ -103,67 +95,16 @@ String generateMaterialsHeader() {
         '/* ${material.id}: ${material.name}, at '
         '${_literal(material.temperature)} K. */',
       );
-    final tables = StringBuffer();
     for (final group in material.groups) {
       for (final MapEntry(key: field, value: law) in group.laws.entries) {
-        final macro = 'F3D_MAT_${name}_${_snake(field)}';
-        out.writeln(_define(macro, law.value));
-        if (group is ThermalProperties || group is FluidProperties) {
-          _table(tables, macro, material, law);
-        }
+        out.writeln(_define('F3D_MAT_${name}_${_snake(field)}', law.value));
       }
     }
-    out.write(tables);
   }
   out
     ..writeln()
     ..writeln('#endif');
   return out.toString();
-}
-
-/// [law] as a table the core interpolates, when it changes with
-/// temperature: its points, or the formula sampled.
-void _table(
-  StringBuffer out,
-  String macro,
-  PhysicalMaterial material,
-  PropertyLaw law,
-) {
-  final List<double> xs, ys;
-  switch (law) {
-    case TableLaw(:final input) when input.id == MaterialState.temperatureId:
-      xs = law.xs;
-      ys = law.ys;
-    case FormulaLaw(:final inputs)
-        when inputs.length == 1 &&
-            inputs.values.single.id == MaterialState.temperatureId &&
-            inputs.values.single.low != null &&
-            inputs.values.single.high != null:
-      final input = inputs.values.single;
-      final low = input.low!, high = input.high!;
-      final points = <double>{
-        for (var i = 0; i < _samples; i++)
-          low + (high - low) * i / (_samples - 1),
-        if (material.temperature > low && material.temperature < high)
-          material.temperature,
-      }.toList()..sort();
-      xs = points;
-      ys = <double>[
-        for (final t in points) law.at(MaterialState.at(temperature: t)),
-      ];
-    default:
-      return;
-  }
-  out
-    ..writeln('#define ${macro}_TABLE_N ${xs.length}')
-    ..writeln(
-      '#define ${macro}_TABLE_X '
-      '${xs.map((x) => 'F3D_R(${_literal(x)})').join(', ')}',
-    )
-    ..writeln(
-      '#define ${macro}_TABLE_Y '
-      '${ys.map((y) => 'F3D_R(${_literal(y)})').join(', ')}',
-    );
 }
 
 String _define(String name, double value) =>
