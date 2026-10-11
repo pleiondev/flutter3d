@@ -34,9 +34,15 @@
 ///   and [BinaryStorage] keep a document where each platform keeps such
 ///   things, and an [Issue] is handed back rather than thrown.
 ///
+/// * **XR and AR.** [XrSession] is the one boundary to a headset's or a
+///   phone's runtime, and `Flutter3dView(xr:)` drives one: the runtime's
+///   display time as the loop's clock, its poses on the tape, its views as
+///   the frame's, and what was drawn back to it as layers ([XrDriver]).
+///
 /// `package:flutter3d_app/native.dart` holds the one piece that needs a
 /// filesystem, off this barrel so a `dart:io` import never stops a web build
-/// compiling.
+/// compiling, and `package:flutter3d_app/xr_testing.dart` the session a test
+/// drives with no headset.
 library;
 
 export 'src/backend_native.dart'
@@ -78,3 +84,8 @@ export 'src/widget_surface/widget_surface.dart';
 export 'src/widget_surface/widget_surface_pipeline.dart';
 export 'src/widget_surface/widget_surface_visuals.dart';
 export 'src/widget_surface/widget_texture.dart';
+export 'src/xr/xr_anchor.dart';
+export 'src/xr/xr_driver.dart';
+export 'src/xr/xr_layers.dart';
+export 'src/xr/xr_session.dart';
+export 'src/xr/xr_swapchain.dart';
