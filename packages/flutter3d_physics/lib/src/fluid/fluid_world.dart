@@ -1,3 +1,5 @@
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:vector_math/vector_math.dart';
 
 import '../physics_backend.dart';
@@ -36,7 +38,15 @@ final class FluidWorld {
     this.floor,
     FluidSolver? solver,
     PhysicsBackend backend = const DartPhysics(),
+    this.profile = SimulationProfile.deterministic,
   }) : solver = solver ?? backend.fluid;
+
+  /// What the steps promise about their numbers. Under a profile that
+  /// allows adaptive steps, what floats is pushed by its own equation
+  /// integrated through the step (`FloatingBody.push`), in Dart whatever
+  /// the [solver]; the waves, the streams, the pipes and the particles step
+  /// as they do under the deterministic profile, which is the default.
+  final SimulationProfile profile;
 
   /// Metres per second squared, shared with whoever else falls.
   final Vector3 gravity;
@@ -108,7 +118,13 @@ final class FluidWorld {
     for (final liquid in bodies) {
       var displaced = 0.0;
       for (final f in floating) {
-        displaced += f.push(liquid, dt, gravity, solver: solver);
+        displaced += f.push(
+          liquid,
+          dt,
+          gravity,
+          solver: solver,
+          profile: profile,
+        );
       }
       liquid.displaced = displaced;
     }

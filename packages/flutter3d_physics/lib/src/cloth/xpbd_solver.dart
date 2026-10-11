@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import '../collision_shape.dart';
+import 'accurate_cloth.dart';
 import 'cloth_collision.dart';
 import 'cloth_mesh.dart';
 import 'cloth_settings.dart';
@@ -33,6 +34,10 @@ void stepCloth(
   double dt, {
   List<ClothObstacle> obstacles = const [],
 }) {
+  if (settings.profile.allowsAdaptiveSteps) {
+    stepClothAccurately(mesh, settings, dt, obstacles: obstacles);
+    return;
+  }
   if (dt <= 0 || settings.substeps <= 0) return;
   final subDt = dt / settings.substeps;
   final n = mesh.particleCount;
@@ -50,7 +55,7 @@ void stepCloth(
       : null;
   final thickness = settings.selfCollisionThickness ?? mesh.meanRestEdge;
   final self = settings.selfCollision && thickness > 0.0 && n > 1
-      ? _SelfCollision(mesh, thickness, settings.selfCollisionFriction)
+      ? ClothSelfCollision(mesh, thickness, settings.selfCollisionFriction)
       : null;
   // Each particle's widest triangle as the sheet stands at the start of the
   // step, so a round obstacle keeps whole triangles outside it and not only
@@ -62,7 +67,7 @@ void stepCloth(
       obstacles.any(
         (o) => o.shape is CollisionSphere || o.shape is CollisionCapsule,
       )
-      ? _widestTriangles(mesh)
+      ? widestTriangles(mesh)
       : null;
 
   for (var sub = 0; sub < settings.substeps; sub++) {
@@ -227,7 +232,7 @@ void _applyWind(
     final relative = nx * rx + ny * ry + nz * rz;
     // Newtons per corner: half the cross product's length is the area, and
     // the force is split three ways.
-    final force = wind.drag * relative * (len * 0.5) / 3.0;
+    final force = wind.effectiveDrag * relative * (len * 0.5) / 3.0;
 
     _windOn(a, force, nx, ny, nz, relative, invMass, subDt, h2, predicted);
     _windOn(b, force, nx, ny, nz, relative, invMass, subDt, h2, predicted);
@@ -314,7 +319,7 @@ void _solveDistance(
 /// for an acute or right triangle, half the longest edge for an obtuse one,
 /// with a triangle folded flat onto a line left out. Only `+ - * /` and
 /// `sqrt`, so the same bits on every platform.
-Float64List _widestTriangles(ClothMesh mesh) {
+Float64List widestTriangles(ClothMesh mesh) {
   final p = mesh.positions;
   final t = mesh.triangles;
   final widest = Float64List(mesh.particleCount);
@@ -452,8 +457,8 @@ void _applyFriction(
 /// it, the rebuild is decided by the positions alone, and the cell key is
 /// built from 10-bit masks and shifts, which give the same bits on a 64-bit
 /// VM and in JavaScript's 32-bit bitwise ops.
-final class _SelfCollision {
-  _SelfCollision(ClothMesh mesh, this.thickness, this.friction)
+final class ClothSelfCollision {
+  ClothSelfCollision(ClothMesh mesh, this.thickness, this.friction)
     : n = mesh.particleCount,
       rest = mesh.restPositions,
       invMass = mesh.invMass,

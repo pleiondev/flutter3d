@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_matter/flutter3d_matter.dart'
+    show MaterialState, PhysicalMaterial;
+
 /// A grid of particles and the constraints between them, as flat arrays —
 /// the shape every hot loop in this package walks without an allocation.
 ///
@@ -97,6 +100,26 @@ final class ClothMesh {
       ? 0.0
       : structuralRestLength.reduce((a, b) => a + b) /
             structuralRestLength.length;
+
+  /// The mass of one particle of a grid ([ClothMesh.grid]) of [material]
+  /// [thickness] metres thick and [spacing] apart: the share of the sheet
+  /// each particle stands for, a square of [spacing] on a side, at the
+  /// material's density at [state] (`MechanicalProperties.density`). Throws
+  /// an [ArgumentError] for a material that says no density.
+  ///
+  /// Cotton (80 kg/m³ as a batting, the catalogue's figure) half a
+  /// millimetre thick and a grid ten centimetres apart is 0.4 g a particle.
+  static double particleMassOf(
+    PhysicalMaterial material, {
+    required double thickness,
+    required double spacing,
+    MaterialState state = MaterialState.standard,
+  }) {
+    final density =
+        material.mechanical?.density?.at(state) ??
+        (throw ArgumentError.value(material.id, 'material', 'says no density'));
+    return density * thickness * spacing * spacing;
+  }
 
   /// A flat `cols * rows` grid of particles, `spacing` apart, lying in the
   /// XZ plane at `y = height` before gravity does anything to it — the top

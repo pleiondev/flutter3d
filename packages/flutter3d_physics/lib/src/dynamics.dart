@@ -30,13 +30,31 @@
 /// would reach this step, as the native core's does; the sweep the
 /// character controller makes is not applied here. Stated rather than
 /// discovered, and the numbers are in `ARCHITECTURE.md` §10.
+///
+/// ## Two profiles
+///
+/// Under `SimulationProfile.deterministic`, the default, a step is the
+/// sequence above in float32 vectors, to the bits the native core's parity
+/// tests compare against. Under `SimulationProfile.accurate` each body's
+/// position and velocity are also kept in doubles, and a body nothing
+/// pushed on this step flies the step as its laws say: under gravity alone
+/// exactly (the parabola), and under [BodyForce]s by an adaptive
+/// Runge–Kutta integrator held to a relative error of 1e-10 inside the
+/// fixed step. A body in contact is solved as above and carried on in
+/// doubles; the contacts themselves, and a body's turning, are not held to
+/// analytic tests under either profile.
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:vector_math/vector_math.dart';
 
+import 'adaptive.dart';
+import 'body_force.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
@@ -116,7 +134,16 @@ final class Dynamics extends RigidDynamics {
   /// `world.properties` to the same world with that gravity, as a game
   /// setting its world would. A convenience for a world made only to drop
   /// something in; a game sets its world where it stages it.
-  Dynamics({required this.world, Vector3? gravity, this.iterations = 20}) {
+  ///
+  /// [profile] is what its steps promise about their numbers, the
+  /// deterministic profile unless a run asks for another (the library's
+  /// "Two profiles").
+  Dynamics({
+    required this.world,
+    Vector3? gravity,
+    this.iterations = 20,
+    this.profile = SimulationProfile.deterministic,
+  }) {
     if (gravity != null) {
       world.properties = world.properties.copyWith(gravity: gravity);
     }
@@ -124,6 +151,45 @@ final class Dynamics extends RigidDynamics {
 
   @override
   final CollisionWorld world;
+
+  /// What these steps promise about their numbers.
+  ///
+  /// Read by its capabilities, never by its name: a profile that
+  /// `usesDoublePrecision` keeps every body's state in doubles beside its
+  /// float32 collider, and one that also `allowsAdaptiveSteps` integrates a
+  /// body nothing pushes on through [forces] with steps of its own inside
+  /// the fixed one. A profile that allows adaptive steps but keeps float32
+  /// steps as the deterministic one does: adaptivity needs the doubles.
+  @override
+  final SimulationProfile profile;
+
+  /// Forces that are laws of a body's state, beside gravity: a planet's
+  /// pull, a spring, a field. Empty by default, and a world without any
+  /// steps to the bits it did before they existed.
+  final List<BodyForce> forces = <BodyForce>[];
+
+  bool get _exact => profile.usesDoublePrecision;
+
+  /// Each body's position and velocity in doubles, kept under a profile
+  /// that [_exact]: `x, y, z, vx, vy, vz`.
+  final Map<RigidBody, Float64List> _state = <RigidBody, Float64List>{};
+
+  /// Each body's integrator, which keeps the step it last took as the next
+  /// one's first guess.
+  final Map<RigidBody, DormandPrince> _integrators =
+      <RigidBody, DormandPrince>{};
+
+  /// [body]'s position and velocity in doubles, origin-local: `x, y, z,
+  /// vx, vy, vz` in a fresh list. Under a profile that keeps doubles, what
+  /// the body's float32 collider and velocity were rounded from; otherwise,
+  /// and for a body moved by hand since the last step, those float32
+  /// values widened.
+  Float64List exactStateOf(RigidBody body) {
+    final held = _exact ? _held32(body) : null;
+    if (held != null) return Float64List.fromList(held);
+    final p = body.position, v = body.velocity;
+    return Float64List.fromList(<double>[p.x, p.y, p.z, v.x, v.y, v.z]);
+  }
 
   /// Metres per second squared: the world's (`world.properties.gravity`),
   /// read every step, so a level set on the Moon drops its crates as it
@@ -208,6 +274,8 @@ final class Dynamics extends RigidDynamics {
   void remove(RigidBody body) {
     bodies.remove(body);
     _byCollider.remove(body.collider);
+    _state.remove(body);
+    _integrators.remove(body);
     world.remove(body.collider);
   }
 
@@ -252,10 +320,12 @@ final class Dynamics extends RigidDynamics {
       if (body.isAsleep && body.isMovable && _shouldWake(body)) body.wake();
     }
 
+    if (_exact) _syncState();
     final gravity = world.properties.gravity;
     _fell.clear();
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
+      if (forces.isNotEmpty) _pushByForces(body, dt);
       body.velocity.addScaled(gravity, dt);
       _fell.add(body);
     }
@@ -271,18 +341,22 @@ final class Dynamics extends RigidDynamics {
     }
     for (final body in bodies) {
       if (body.isAsleep || !body.isMovable) continue;
-      _scratch
-        ..setFrom(body.velocity)
-        ..scale(dt);
-      // A body nothing pushed on falls as the native core's four substeps
-      // have it fall, gravity added a quarter of the step at a time: three
-      // eighths of a step of gravity less than the whole of it at once. So
-      // the two cores reach a floor on the same step, and catch it there.
-      if (_fell.contains(body) && !_pushed.contains(body)) {
-        _scratch.addScaled(gravity, -_fallShortfall * dt * dt);
+      if (_exact) {
+        _moveExactly(body, gravity, dt);
+      } else {
+        _scratch
+          ..setFrom(body.velocity)
+          ..scale(dt);
+        // A body nothing pushed on falls as the native core's four substeps
+        // have it fall, gravity added a quarter of the step at a time: three
+        // eighths of a step of gravity less than the whole of it at once. So
+        // the two cores reach a floor on the same step, and catch it there.
+        if (_fell.contains(body) && !_pushed.contains(body)) {
+          _scratch.addScaled(gravity, -_fallShortfall * dt * dt);
+        }
+        (_moved[body] ??= Vector3.zero()).setFrom(_scratch);
+        body.collider.moveTo(body.position + _scratch);
       }
-      (_moved[body] ??= Vector3.zero()).setFrom(_scratch);
-      body.collider.moveTo(body.position + _scratch);
       // After the solve, like the position: the spin this step ends with is
       // the one the body turns by. Nothing for a body that cannot turn.
       body.integrateOrientation(dt);
@@ -310,6 +384,158 @@ final class Dynamics extends RigidDynamics {
 
   late final Pusher _pusher = Pusher(this);
 
+  /// [value] as a float32 holds it.
+  static double _f32(double value) {
+    _rounding[0] = value;
+    return _rounding[0];
+  }
+
+  static final Float32List _rounding = Float32List(1);
+
+  /// [body]'s doubles, each half of them taken again from the body's
+  /// float32 position or velocity where those no longer round from it: the
+  /// body was placed, pushed or given an impulse by something other than
+  /// this step, and what it was given is the state now.
+  Float64List _synced(RigidBody body) {
+    final p = body.position, v = body.velocity;
+    final s = _state[body];
+    if (s == null) {
+      return _state[body] = Float64List.fromList(<double>[
+        p.x,
+        p.y,
+        p.z,
+        v.x,
+        v.y,
+        v.z,
+      ]);
+    }
+    if (_f32(s[0]) != p.x || _f32(s[1]) != p.y || _f32(s[2]) != p.z) {
+      s
+        ..[0] = p.x
+        ..[1] = p.y
+        ..[2] = p.z;
+    }
+    if (_f32(s[3]) != v.x || _f32(s[4]) != v.y || _f32(s[5]) != v.z) {
+      s
+        ..[3] = v.x
+        ..[4] = v.y
+        ..[5] = v.z;
+    }
+    return s;
+  }
+
+  /// Every body's doubles, brought up to whatever was done to it since the
+  /// last step.
+  void _syncState() {
+    for (final body in bodies) {
+      _synced(body);
+    }
+  }
+
+  /// [body]'s doubles when this world keeps them and they still round to
+  /// its float32 values; null otherwise.
+  Float64List? _held32(RigidBody body) =>
+      _state.containsKey(body) ? _synced(body) : null;
+
+  /// The step's velocity change from [forces], where [body] stands at the
+  /// start of it: the whole of what they do under the deterministic
+  /// profile, and what the solver sees of them under the accurate one.
+  void _pushByForces(RigidBody body, double dt) {
+    final p = body.position, v = body.velocity;
+    final s = _exact ? _state[body] : null;
+    final context = BodyForceContext(body, step: dt)
+      ..moveTo(
+        0.0,
+        s?[0] ?? p.x,
+        s?[1] ?? p.y,
+        s?[2] ?? p.z,
+        s?[3] ?? v.x,
+        s?[4] ?? v.y,
+        s?[5] ?? v.z,
+      );
+    for (final force in forces) {
+      force.addForce(context);
+    }
+    final w = body.inverseMass * dt;
+    v.setValues(
+      v.x + context.forceX * w,
+      v.y + context.forceY * w,
+      v.z + context.forceZ * w,
+    );
+  }
+
+  /// Moves [body] through the step in doubles: along its laws when nothing
+  /// pushed on it, at the velocity the solver left it with when something
+  /// did.
+  void _moveExactly(RigidBody body, Vector3 gravity, double dt) {
+    final s = _state[body] ?? _synced(body);
+    if (_pushed.contains(body)) {
+      final v = body.velocity;
+      s
+        ..[3] = v.x
+        ..[4] = v.y
+        ..[5] = v.z
+        ..[0] += v.x * dt
+        ..[1] += v.y * dt
+        ..[2] += v.z * dt;
+    } else if (forces.isEmpty || !profile.allowsAdaptiveSteps) {
+      // Under a constant acceleration the parabola is the answer, to the
+      // rounding of the doubles: no integrator to hold to a tolerance.
+      final m = body.inverseMass;
+      final context = BodyForceContext(body, step: dt)
+        ..moveTo(0.0, s[0], s[1], s[2], s[3], s[4], s[5]);
+      for (final force in forces) {
+        force.addForce(context);
+      }
+      final ax = gravity.x + context.forceX * m;
+      final ay = gravity.y + context.forceY * m;
+      final az = gravity.z + context.forceZ * m;
+      final half = 0.5 * dt * dt;
+      s
+        ..[0] += s[3] * dt + ax * half
+        ..[1] += s[4] * dt + ay * half
+        ..[2] += s[5] * dt + az * half
+        ..[3] += ax * dt
+        ..[4] += ay * dt
+        ..[5] += az * dt;
+    } else {
+      _fly(body, s, gravity, dt);
+    }
+    final p = body.position;
+    (_moved[body] ??= Vector3.zero()).setValues(
+      _f32(s[0]) - p.x,
+      _f32(s[1]) - p.y,
+      _f32(s[2]) - p.z,
+    );
+    body.velocity.setValues(s[3], s[4], s[5]);
+    body.collider.moveTo(Vector3(s[0], s[1], s[2]));
+  }
+
+  /// Integrates [state] of [body] through [dt] under [gravity] and
+  /// [forces], adaptively.
+  void _fly(RigidBody body, Float64List state, Vector3 gravity, double dt) {
+    final m = body.inverseMass;
+    final gx = gravity.x, gy = gravity.y, gz = gravity.z;
+    final context = BodyForceContext(body, step: dt);
+    (_integrators[body] ??= DormandPrince()).integrate(state, 0.0, dt, (
+      double t,
+      Float64List y,
+      Float64List dy,
+    ) {
+      context.moveTo(t, y[0], y[1], y[2], y[3], y[4], y[5]);
+      for (final force in forces) {
+        force.addForce(context);
+      }
+      dy
+        ..[0] = y[3]
+        ..[1] = y[4]
+        ..[2] = y[5]
+        ..[3] = gx + context.forceX * m
+        ..[4] = gy + context.forceY * m
+        ..[5] = gz + context.forceZ * m;
+    });
+  }
+
   /// The world it steps in, `world.properties`, as JSON, and what the last
   /// step was in contact as: the warm starts held between steps were never
   /// part of a save, and the bodies step to the same bits without them —
@@ -319,22 +545,46 @@ final class Dynamics extends RigidDynamics {
   /// step tells its own phases against, so a run rewound reports the
   /// contacts the run it was saved from would, as the native core does
   /// from its snapshot.
+  ///
+  /// Under a profile that keeps doubles, each body's doubles too, in the
+  /// order of [bodies]: a run restored from them goes on from the state it
+  /// was saved in, not from its float32 rounding. The deterministic
+  /// profile's save is what it always was.
   @override
   Object? saveState() => <String, Object?>{
     'world': world.properties.toJson(),
     'contacts': _ledger.save(),
+    if (_exact)
+      'exact': <Object?>[
+        for (final body in bodies) _state[body]?.toList(growable: false),
+      ],
   };
 
   /// Puts the world's properties and the last step's contacts back as
   /// [saveState] wrote them, after the bodies' own restore; a save from
   /// before they were saved leaves the world as it is, and begins every
-  /// contact the next step finds.
+  /// contact the next step finds. Doubles saved for bodies this world does
+  /// not hold the same number of are left out, and the bodies go on from
+  /// their float32 state.
   @override
   void restoreState(Object? saved) {
     if (saved case {'world': final Map<String, Object?> properties}) {
       world.properties = WorldProperties.fromJson(properties);
     }
     _ledger.restore(saved is Map ? saved['contacts'] : null, world);
+    _state.clear();
+    _integrators.clear();
+    if (saved case {
+      'exact': final List<Object?> exact,
+    } when exact.length == bodies.length) {
+      for (var i = 0; i < exact.length; i++) {
+        if (exact[i] case final List<Object?> values when values.length == 6) {
+          _state[bodies[i]] = Float64List.fromList(<double>[
+            for (final value in values) (value! as num).toDouble(),
+          ]);
+        }
+      }
+    }
   }
 
   /// What the last step found in contact, begun, persisting or ended.
@@ -684,6 +934,12 @@ final class Dynamics extends RigidDynamics {
   /// falls in the core's four substeps than added whole: (n − 1) / 2n.
   static const double _fallShortfall = 3.0 / 8.0;
 
+  /// How much less of a step's gravity, times the step squared, a body
+  /// nothing pushes on falls than its velocity at the end of the step
+  /// carries it: [_fallShortfall] for the core's substeps, a half for the
+  /// parabola the accurate profile flies.
+  double get _shortfall => _exact ? 0.5 : _fallShortfall;
+
   /// Names a contact so the next step can recognise it.
   ///
   /// **By the world's own ids, not by `identityHashCode`**, which this used
@@ -753,13 +1009,13 @@ final class Dynamics extends RigidDynamics {
         // step — so nothing is frozen in mid-air and nothing gets a free step
         // of gravity because the corrector had pushed it clear.
         // Unpushed, a pair closes by less than its speed times the step —
-        // the fall the core's substeps take ([_fallShortfall]) — and the
+        // the fall the core's substeps take ([_shortfall]) — and the
         // speed allowed is the one that closes the gap by that reckoning.
         final separation = -pair.depth;
         var falls = _fell.contains(a) ? gravity.dot(pair.normal) : 0.0;
         if (b != null && _fell.contains(b)) falls -= gravity.dot(pair.normal);
         final target = separation > 0.0
-            ? -separation / dt + _fallShortfall * dt * falls
+            ? -separation / dt + _shortfall * dt * falls
             : pair.bounce;
         var lambda = (target - vn) / inverseSum;
 

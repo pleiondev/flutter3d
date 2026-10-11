@@ -391,15 +391,19 @@ final class ShooterHeadlessGame extends HeadlessGame {
         fixtures: staged.fixtures,
       );
     }
-    return _ShooterRun(staged);
+    return _ShooterRun(staged, world);
   }
 }
 
 /// A [Staged] shooter run, answering what a blind tool asks of one.
 final class _ShooterRun extends RestorableRun {
-  _ShooterRun(this.staged);
+  _ShooterRun(this.staged, this.world);
 
   final Staged staged;
+
+  /// The collision world the run is in, whose origin the player's float32
+  /// position is relative to.
+  final CollisionWorld world;
 
   @override
   void step(double dt) => staged.sim.step(dt);
@@ -413,14 +417,17 @@ final class _ShooterRun extends RestorableRun {
   @override
   RunOutcome get outcome => staged.sim.state.outcome;
 
+  /// The body's float32 position read against the world's origin, which the
+  /// loop moves with its own.
   @override
-  WorldPosition get position => staged.player.body.position.toWorldPosition();
+  WorldPosition get position =>
+      staged.player.body.position.toWorldPosition(origin: world.origin);
 
   @override
   WorldPosition get eye {
     final out = Vector3.zero();
     staged.player.eye(out);
-    return out.toWorldPosition();
+    return out.toWorldPosition(origin: world.origin);
   }
 
   @override

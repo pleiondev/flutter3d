@@ -4,6 +4,27 @@
 
 library package:flutter3d_physics/flutter3d_physics.dart
 
+abstract base class BodyForce
+  abstract void addForce(BodyForceContext context)
+  const BodyForce()
+
+final class BodyForceContext
+  BodyForceContext(this.body, {this.step = 0.0})
+  double get forceX
+  double get forceY
+  double get forceZ
+  double get time
+  double get vx
+  double get vy
+  double get vz
+  double get x
+  double get y
+  double get z
+  final RigidBody body
+  final double step
+  void add(double fx, double fy, double fz)
+  void moveTo(double time, double x, double y, double z, double vx, double vy, double vz)
+
 final class CharacterController
   CharacterController({required this.world, CollisionShape? shape, Vector3? position, this.tuning = const MovementSettings(), int layer = 1 << 1})
   Collider? get ground
@@ -65,6 +86,7 @@ final class ClothMesh
   final int particleCount
   final int rows
   late final double meanRestEdge
+  static double particleMassOf(PhysicalMaterial material, {required double thickness, required double spacing, MaterialState state = MaterialState.standard})
 
 final class ClothObstacle
   const ClothObstacle(this.shape, this.position)
@@ -72,9 +94,10 @@ final class ClothObstacle
   final Vector3 position
 
 final class ClothSettings
-  ClothSettings copyWith({double? gravity, int? substeps, int? iterations, double? distanceCompliance, double? bendCompliance, double? shearCompliance, double? damping, WindSettings? wind, double? collisionThickness, double? friction, bool? selfCollision, double? selfCollisionThickness, double? selfCollisionFriction, bool clearSelfCollisionThickness = false})
-  ClothSettings inWorld(WorldProperties world)
-  const ClothSettings({this.gravity = standardGravity, this.substeps = 8, this.iterations = 2, this.distanceCompliance = 0.0, this.bendCompliance = 1e-3, this.shearCompliance = 5e-2, this.damping = 0.02, this.wind = const WindSettings(), this.collisionThickness = 0.01, this.friction = 0.0, this.selfCollision = true, this.selfCollisionThickness, this.selfCollisionFriction = 0.1})
+  ClothSettings copyWith({SimulationProfile? profile, double? gravity, int? substeps, int? iterations, double? distanceCompliance, double? bendCompliance, double? shearCompliance, double? damping, WindSettings? wind, double? collisionThickness, double? friction, bool? selfCollision, double? selfCollisionThickness, double? selfCollisionFriction, bool clearSelfCollisionThickness = false})
+  ClothSettings inWorld(WorldProperties world, {PhysicalMaterial? material, MaterialState state = MaterialState.standard})
+  const ClothSettings({this.gravity = standardGravity, this.substeps = 8, this.iterations = 2, this.distanceCompliance = 0.0, this.bendCompliance = 1e-3, this.shearCompliance = 5e-2, this.damping = 0.02, this.wind = const WindSettings(), this.collisionThickness = 0.01, this.friction = 0.0, this.selfCollision = true, this.selfCollisionThickness, this.selfCollisionFriction = 0.1, this.profile = SimulationProfile.deterministic})
+  final SimulationProfile profile
   final WindSettings wind
   final bool selfCollision
   final double bendCompliance
@@ -335,7 +358,8 @@ final class DartPhysics extends PhysicsBackend
   const DartPhysics()
 
 final class Dynamics extends RigidDynamics
-  Dynamics({required this.world, Vector3? gravity, this.iterations = 20})
+  Dynamics({required this.world, Vector3? gravity, this.iterations = 20, this.profile = SimulationProfile.deterministic})
+  Float64List exactStateOf(RigidBody body)
   List<StepContact> get contacts
   Object? saveState()
   RigidBody add(RigidBody body)
@@ -348,7 +372,9 @@ final class Dynamics extends RigidDynamics
   double sleepSpeed
   double slop
   final CollisionWorld world
+  final List<BodyForce> forces
   final List<RigidBody> bodies
+  final SimulationProfile profile
   final int iterations
   int get bodyLookupsLastStep
   int positionIterations
@@ -373,17 +399,19 @@ final class FloatPush
 
 final class FloatingBody
   FloatingBody(this.body)
-  double push(LiquidBody liquid, double dt, Vector3 gravity, {FluidSolver solver = const DartFluid()})
+  double push(LiquidBody liquid, double dt, Vector3 gravity, {FluidSolver solver = const DartFluid(), SimulationProfile profile = SimulationProfile.deterministic})
   double submergedIn(LiquidBody liquid)
   final RigidBody body
 
 final class FluidMedium
+  FluidMedium at(MaterialState state)
   FluidMedium copyWith({String? name, double? density, double? viscosity, double? surfaceTension, double? contactAngle})
   String toString()
-  const FluidMedium({required this.name, required this.density, required this.viscosity, required this.surfaceTension, this.contactAngle = 0.0})
+  const FluidMedium({required this.name, required this.density, required this.viscosity, required this.surfaceTension, this.contactAngle = 0.0, this.material})
   double capillaryLength(double g)
   double get kinematicViscosity
   factory FluidMedium.of(PhysicalMaterial material, {double? contactAngle})
+  final PhysicalMaterial? material
   final String name
   final double contactAngle
   final double density
@@ -404,7 +432,7 @@ abstract base class FluidSolver
   void ringModes(ModeRinging ringing)
 
 final class FluidWorld
-  FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics()})
+  FluidWorld({required this.gravity, this.step = 1.0 / 240.0, this.particleSpacing = 0.002, this.floor, FluidSolver? solver, PhysicsBackend backend = const DartPhysics(), this.profile = SimulationProfile.deterministic})
   double get time
   double get volume
   final FluidSolver solver
@@ -414,6 +442,7 @@ final class FluidWorld
   final List<Pipe> pipes
   final Map<LiquidBody, Jet> jets
   final Map<String, ParticleFluid> particles
+  final SimulationProfile profile
   final Vector3 gravity
   final double particleSpacing
   final double step
@@ -512,11 +541,13 @@ abstract final class Layers
 
 final class LiquidBody with JetReceiver
   FluidMedium get medium
+  FluidMedium get mediumInState
   LiquidBody({required this.shape, required FluidMedium medium, required double volume, Map<String, double> concentrations = const {}, int surfaceCells = 40, int modes = 12, this.wallThickness = 0.0})
   List<LiquidLayer> drain(double amount)
   List<LiquidLayer> drawAt(Vector3 point, double amount)
   List<LiquidLayer> get layers
   List<double> layerTops()
+  MaterialState? state
   Spill step(double dt, {required Vector3 gravity, FluidSolver solver = const DartFluid()})
   Vector3 get up
   Vector3 load(Vector3 gravity)
@@ -776,6 +807,7 @@ final class RigidBody
 abstract base class RigidDynamics
   List<StepContact> get contacts
   Object? saveState()
+  SimulationProfile get profile
   abstract CollisionWorld get world
   abstract List<RigidBody> get bodies
   abstract RigidBody add(RigidBody body)
@@ -891,9 +923,11 @@ enum WedgeUphill
   int get axis
 
 final class WindSettings
-  WindSettings copyWith({double? velocityX, double? velocityY, double? velocityZ, double? drag})
+  WindSettings copyWith({double? velocityX, double? velocityY, double? velocityZ, double? drag, double? airDensity})
   bool get isNone
-  const WindSettings({this.velocityX = 0, this.velocityY = 0, this.velocityZ = 0, this.drag = 0.3})
+  const WindSettings({this.velocityX = 0, this.velocityY = 0, this.velocityZ = 0, this.drag = 0.3, this.airDensity = standardAirDensity})
+  double get effectiveDrag
+  final double airDensity
   final double drag
   final double velocityX
   final double velocityY
