@@ -1,5 +1,20 @@
 ## 1.0.0-rc.1
 
+- **`releasePipeline` deletes the program.** A pipeline's `dispose` gives
+  its GL program back once no other handle shares it (two layouts over one
+  pair, or one pair asked for twice, are one program), and the next
+  `createPipeline` of the pair links it again. It did nothing, and a
+  program lived as long as the device.
+- **The vertices of a skipped draw are skipped with it.** After a pipeline
+  the linker refused, `bindVertexBuffer` and `bindVertexData` threw "bind a
+  pipeline before binding vertices", failing the frame the refusal was
+  meant to save; they now return, as the draw and the uniform binds do.
+- **A storage buffer is refused by the feature its shape asks for**:
+  `compute` for the copy usages of `BufferUsage.standardStorage`,
+  `renderStageStorage` for a bare storage usage. Both were
+  `renderStageStorage`, and the capability check's compute probe failed.
+- **A debug point is one pixel.** The debug-line stage writes
+  `gl_PointSize`, which GLSL ES leaves undefined unwritten.
 - **Registers its material compiler beside the device.**
   `registerWebGlBackend(compilers:)` adds `WebGlSectionCompiler` to a
   `MaterialCompilerRegistry`: each stage of a material translated to

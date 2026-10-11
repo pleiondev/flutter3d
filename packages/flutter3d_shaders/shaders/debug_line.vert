@@ -19,4 +19,17 @@ out vec4 v_line_color;
 void main() {
   v_line_color = color;
   gl_Position = line_info.view_projection * vec4(position, 1.0);
+  // One pixel, the size WebGPU draws every point at. GLSL leaves the size of
+  // a point whose stage writes none undefined, and Metal took whatever it
+  // found: three points of a triangle covered more pixels than its fill,
+  // some runs and not others. Written where the target has the built-in:
+  // `impellerc` defines IMPELLER_GRAPHICS_BACKEND and a WebGL2 compile
+  // GL_ES, and never both. The road to WGSL has neither, and naga refuses
+  // PointSize, which WGSL does not have.
+#ifdef IMPELLER_GRAPHICS_BACKEND
+  gl_PointSize = 1.0;
+#endif
+#ifdef GL_ES
+  gl_PointSize = 1.0;
+#endif
 }

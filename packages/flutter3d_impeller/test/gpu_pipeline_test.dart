@@ -132,4 +132,26 @@ void main() {
     expect(isRefusedDraw(StateError('vertex slot 1 unbound')), isFalse);
     expect(isRefusedDraw(Exception('Failed to bind texture')), isFalse);
   });
+
+  test('a released pipeline drops what it linked and links nothing again', () {
+    // flutter_gpu has no dispose for a RenderPipeline, so giving one back is
+    // letting go of it. Mutation: leave `release` keeping `_linked`, and the
+    // linked object is still answered (and still held) after it.
+    final device = FakeBackend();
+    final handle = _handle(device);
+    final refusals = PipelineRefusals();
+    var builds = 0;
+    final pipeline = GpuPipeline<String>('MeshVertex+Pbr', () {
+      builds++;
+      return 'linked $builds';
+    });
+
+    expect(pipeline.linked(handle, refusals, deviceLost: false), 'linked 1');
+    expect(pipeline.isReleased, isFalse);
+    pipeline.release();
+    expect(pipeline.isReleased, isTrue);
+    expect(pipeline.linked(handle, refusals, deviceLost: false), isNull);
+    expect(builds, 1);
+    expect(refusals.drain(), isEmpty, reason: 'a release is not a refusal');
+  });
 }

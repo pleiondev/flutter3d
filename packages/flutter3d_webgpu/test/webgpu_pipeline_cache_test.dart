@@ -78,7 +78,11 @@ WebGpuPipelineSignature _signature({
   DepthBias depthBias = DepthBias.none,
   List<ColorWriteMask> writeMasks = const <ColorWriteMask>[],
   bool unclippedDepth = false,
+  Object? vertexModule,
+  Object? fragmentModule,
 }) => WebGpuPipelineSignature(
+  vertexModule: vertexModule,
+  fragmentModule: fragmentModule,
   depthBias: depthBias,
   writeMasks: writeMasks,
   unclippedDepth: unclippedDepth,
@@ -435,6 +439,74 @@ void main() {
       expect(cache.contains(_signature()), isFalse);
       expect(cache.get(_signature(), build), 'pipeline 2');
       expect(cache.get(_signature(layout: _perInstance), build), 'pipeline 1');
+    });
+
+    test('forgets every state of one pair and layout, and nothing else', () {
+      // What a released pipeline handle leaves behind: its pair and layout in
+      // whatever states the draws built them. Mutation: compare the modules
+      // by name, or leave the layout out, and another pair's or the
+      // instanced layout's pipelines go with it.
+      final mine = (Object(), Object());
+      final theirs = (Object(), Object());
+      String build() => 'built';
+      final cache = WebGpuPipelineCache<String>()
+        ..get(_signature(vertexModule: mine.$1, fragmentModule: mine.$2), build)
+        ..get(
+          _signature(
+            vertexModule: mine.$1,
+            fragmentModule: mine.$2,
+            cullMode: 'none',
+          ),
+          build,
+        )
+        ..get(
+          _signature(
+            vertexModule: mine.$1,
+            fragmentModule: mine.$2,
+            layout: _perInstance,
+          ),
+          build,
+        )
+        ..get(
+          _signature(vertexModule: theirs.$1, fragmentModule: theirs.$2),
+          build,
+        );
+      final forgotten = cache.forgetStages(
+        WebGpuStages(
+          vertexModule: mine.$1,
+          fragmentModule: mine.$2,
+          vertexLayout: webgpuVertexLayoutFingerprint(_perVertex),
+        ),
+      );
+      expect(forgotten, 2);
+      expect(cache.length, 2);
+    });
+  });
+
+  group('the holders', () {
+    test('free a pair and layout with the last handle, not the first', () {
+      // Two handles over one pair and layout draw from the same pipelines.
+      // Mutation: answer true from every `release`. The first handle given
+      // back takes the second's pipelines with it.
+      final vertex = Object();
+      final fragment = Object();
+      WebGpuStages stages(VertexLayoutDescriptor layout) => WebGpuStages(
+        vertexModule: vertex,
+        fragmentModule: fragment,
+        vertexLayout: webgpuVertexLayoutFingerprint(layout),
+      );
+      final holders = WebGpuPipelineHolders()
+        ..hold(stages(_perVertex))
+        ..hold(stages(_perVertex))
+        ..hold(stages(_perInstance));
+      expect(holders.release(stages(_perVertex)), isFalse);
+      expect(holders.release(stages(_perVertex)), isTrue);
+      // The pair is still held under the instanced layout, so the layouts
+      // its bind groups are made from stay.
+      expect(holders.holdsPair(stages(_perVertex)), isTrue);
+      expect(holders.release(stages(_perInstance)), isTrue);
+      expect(holders.holdsPair(stages(_perVertex)), isFalse);
+      expect(holders.length, 0);
     });
   });
 }

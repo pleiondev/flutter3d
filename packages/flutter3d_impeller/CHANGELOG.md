@@ -1,5 +1,17 @@
 ## 1.0.0-rc.1
 
+- **`releasePipeline` lets go of the linked pipeline.** flutter_gpu has no
+  dispose for a `RenderPipeline`, so a pipeline's `dispose` drops the
+  backend's reference to it and to the stages it would be linked from, and
+  links nothing again: the handle a renderer still holds in a field no
+  longer keeps them. It did nothing.
+- **A storage buffer is refused by the feature its shape asks for**:
+  `compute` for the copy usages of `BufferUsage.standardStorage`,
+  `renderStageStorage` for a bare storage usage. Both were
+  `renderStageStorage`, and the capability check's compute probe failed.
+- **A debug point is one pixel.** The debug-line stage writes
+  `gl_PointSize` under `impellerc`; Metal drew points of an undefined size
+  without it, and the primitive-type check failed in two runs of four.
 - **Breaking: `GpuRenderBackend.open` takes no `extraBundles`.** An
   application's own stages reach the renderer one way on every backend: a
   bundle loaded with `loadShaders` and handed to

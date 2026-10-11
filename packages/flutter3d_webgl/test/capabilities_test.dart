@@ -199,12 +199,23 @@ void main() {
         () => device.createQuerySet(QueryType.pipelineStatistics, 1),
         _refusing(DeviceFeature.pipelineStatisticsQuery),
       );
+      // A storage buffer needs compute or render-stage storage, and WebGL2
+      // has neither: the copy usages make it a compute pass's buffer, a bare
+      // storage usage a render stage's, and each is refused by its own
+      // feature, as conformance's probes for the two ask. Mutation: name
+      // renderStageStorage for both. The compute probe then fails on WebGL2.
       expect(
         () => device.createBuffer(
           const BufferDescriptor(
             lengthInBytes: 16,
             usage: BufferUsage.standardStorage,
           ),
+        ),
+        _refusing(DeviceFeature.compute),
+      );
+      expect(
+        () => device.createBuffer(
+          const BufferDescriptor(lengthInBytes: 16, usage: BufferUsage.storage),
         ),
         _refusing(DeviceFeature.renderStageStorage),
       );

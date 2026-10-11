@@ -9,6 +9,8 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d_conformance/flutter3d_conformance.dart'
+    show capabilityChecks;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show UnsupportedCapabilityException;
@@ -29,6 +31,14 @@ void main() {
     supportsIndependentBlend: independentBlend,
     maxColorAttachments: attachments,
     withhold: withhold,
+  );
+
+  Matcher refusing(DeviceFeature f) => throwsA(
+    isA<UnsupportedCapabilityException>().having(
+      (UnsupportedCapabilityException e) => e.feature,
+      'feature',
+      f,
+    ),
   );
 
   test('the pre-1.0 getters answer exactly what they answered before', () {
@@ -191,13 +201,6 @@ void main() {
     // or letting `bindUniformBytes` and `resolveTexture` answer at all.
     final rig = Rig();
     final pass = rig.pass();
-    Matcher refusing(DeviceFeature f) => throwsA(
-      isA<UnsupportedCapabilityException>().having(
-        (UnsupportedCapabilityException e) => e.feature,
-        'feature',
-        f,
-      ),
-    );
     expect(
       () => pass.setPolygonMode(PolygonMode.line),
       refusing(DeviceFeature.wireframe),
@@ -248,4 +251,37 @@ void main() {
       );
     },
   );
+
+  test('without compute and render-stage storage, a storage buffer is '
+      'refused by the feature its shape asks for', () async {
+    // WebGL2 and Impeller have neither, and conformance probes each with its
+    // own buffer: `standardStorage` for compute, a bare `storage` for a
+    // render stage. Mutation: name compute for both, as this did. The
+    // honesty check then fails on renderStageStorage, refused as compute.
+    final d = device(
+      withhold: const <DeviceFeature>[
+        DeviceFeature.compute,
+        DeviceFeature.renderStageStorage,
+      ],
+    );
+    expect(
+      () => d.createBuffer(
+        const BufferDescriptor(
+          lengthInBytes: 16,
+          usage: BufferUsage.standardStorage,
+        ),
+      ),
+      refusing(DeviceFeature.compute),
+    );
+    expect(
+      () => d.createBuffer(
+        const BufferDescriptor(lengthInBytes: 16, usage: BufferUsage.storage),
+      ),
+      refusing(DeviceFeature.renderStageStorage),
+    );
+    final honest = capabilityChecks.firstWhere(
+      (c) => c.name == 'every capability a device reports is honest',
+    );
+    await honest.run(d);
+  });
 }

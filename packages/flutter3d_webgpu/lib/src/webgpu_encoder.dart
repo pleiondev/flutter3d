@@ -765,7 +765,7 @@ abstract base class WebGpuRecorder extends PassEncoder {
       // put different code under one `vertex+fragment` string.
       vertexModule: pipeline.vertexModule,
       fragmentModule: pipeline.fragmentModule,
-      vertexLayout: webgpuVertexLayoutFingerprint(pipeline.layout),
+      vertexLayout: pipeline.layoutFingerprint,
       topology: gpuPrimitiveTopology(_primitive),
       stripIndexFormat: strip ? gpuIndexFormat(_indexType) : null,
       cullMode: gpuCullMode(_cull),
@@ -883,7 +883,7 @@ final class WebGpuDrawState {
       pipeline: pipeline.name,
       vertexModule: pipeline.vertexModule,
       fragmentModule: pipeline.fragmentModule,
-      vertexLayout: webgpuVertexLayoutFingerprint(pipeline.layout),
+      vertexLayout: pipeline.layoutFingerprint,
     ),
     stencilFront: stencilFront,
     stencilBack: stencilBack,
