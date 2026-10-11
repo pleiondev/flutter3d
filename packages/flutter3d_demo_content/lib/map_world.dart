@@ -60,6 +60,7 @@ library;
 
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d_elements/flutter3d_elements.dart'
     show Ballistics, Firebrands, Solid;
@@ -74,6 +75,8 @@ import 'package:flutter3d_sim/flutter3d_sim.dart'
     as sim
     show GameRandom, Heightfield;
 import 'package:vector_math/vector_math.dart';
+
+import 'src/map_channel.dart';
 
 /// A stone in the river: where, how far down it, m, how big, and the level
 /// of the bed it stands on.
@@ -225,6 +228,48 @@ final class MapWater {
 
   /// The level the pond is filled to, m: its painted shore.
   final double pondLevel;
+
+  /// [ground] with this river carved into it: its bed laid down the
+  /// course, rising to its banks, falling at its steps into the pools they
+  /// dig, lifted at its fords and humped over its stones — the bed the
+  /// water stands in ([MapWorld.bed]) — on a grid [cell] metres a side
+  /// over [ground]'s extent, [ground] as it was everywhere the river does
+  /// not reach.
+  ///
+  /// **The ground the map is drawn and walked on**, so the water runs in a
+  /// channel the ground has rather than in a bed of its own under the
+  /// grass. [cell] is the water's own unless given: the map's two-metre
+  /// grid cannot hold a bed three and a half metres wide. [halls] and
+  /// [seams] are the map's, as the match stands them: the ways between them
+  /// are where the river is forded. A [MapWorld] over a match standing on
+  /// this ground is given [ground] as its `uncarved`, so it lays the same
+  /// bed rather than one carved into the carving.
+  sim.Heightfield carve(
+    sim.Heightfield ground, {
+    required List<Building> halls,
+    required List<ResourceNode> seams,
+    double? cell,
+  }) {
+    final double step = cell ?? this.cell;
+    final channel = MapChannel(this, ground, halls, seams);
+    final int columns = (ground.width / step).round() + 1;
+    final int rows = (ground.depth / step).round() + 1;
+    final heights = Float32List(columns * rows);
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < columns; c++) {
+        final double x = ground.origin.x + c * step;
+        final double z = ground.origin.z + r * step;
+        heights[r * columns + c] = channel.bedAt(x, z, ground.heightAt(x, z));
+      }
+    }
+    return sim.Heightfield(
+      columns: columns,
+      rows: rows,
+      cellSize: step,
+      heights: heights,
+      origin: ground.origin.clone(),
+    );
+  }
 }
 
 /// The seam nearest [hall], on the ground plane: the one its crowd wears a
@@ -390,12 +435,18 @@ final class MapWorld {
   /// the map is staged and before anything of a save is put back into it,
   /// so a restore finds it there to fill. [viewer] is the side whose fog a
   /// fire or a stone has to be seen through to start.
+  ///
+  /// [uncarved] is the ground [simulation]'s was carved from, when the
+  /// match stands on [MapWater.carve]'s: the river is laid over it, so the
+  /// bed is the one carved and not one carved into the carving. Null for a
+  /// match on a ground with no channel in it.
   MapWorld(
     StrategySimulation simulation, {
     required this.water,
     required List<MapTree> trees,
     this.viewer = 0,
     WorldProperties? properties,
+    sim.Heightfield? uncarved,
   }) : _simulation = simulation,
        _field = simulation.ground,
        trees = List<MapTree>.unmodifiable(trees),
@@ -408,8 +459,13 @@ final class MapWorld {
       ..applyProperties(properties ?? WorldProperties.standard)
       ..wind = _windAt(0.0);
     _floor(_field);
-    _survey(simulation);
-    bed = _bed();
+    _channel = MapChannel(
+      water,
+      uncarved ?? _field,
+      simulation.buildings,
+      simulation.resources,
+    );
+    bed = _channel.bed();
     river = _pour();
     _settle();
     for (var i = 0; i < simulation.buildings.length; i++) {
@@ -455,14 +511,17 @@ final class MapWorld {
   /// The stones, the pieces and the brands in the air or on the ground.
   final List<MapPiece> pieces = <MapPiece>[];
 
+  /// The river's course, bed, fords and stones over the map.
+  late final MapChannel _channel;
+
   /// The stones laid in the river.
-  late final List<RiverStone> boulders;
+  List<RiverStone> get boulders => _channel.stones;
 
   /// Where the ways between the halls ford the river: the middle of each
   /// ford, on the ground.
   List<Vector3> get fords => <Vector3>[
-    for (final double down in _fords)
-      if (_pointAt(down) case final Vector2 p)
+    for (final double down in _channel.fords)
+      if (_channel.pointAt(down) case final Vector2 p)
         Vector3(p.x, _field.heightAt(p.x, p.y), p.y),
   ];
 
@@ -473,64 +532,6 @@ final class MapWorld {
   double get clock => _clock;
 
   // ----------------------------------------------------------------- numbers
-
-  /// Half the width of the river's bed, and of a ford's, m: where the bed
-  /// has risen [_shoulder] over its middle. The water runs a little wider,
-  /// as far as it is deep over the middle.
-  static const double _halfWide = 1.7, _fordHalfWide = 3.0;
-
-  /// How far over its middle the bed has risen at [_halfWide], m. It rises
-  /// as the square of the way out from the middle, a bed worn round, so the
-  /// water thins to nothing toward its edges and the edge is wherever the
-  /// bed comes up through it, not where a cell stops.
-  static const double _shoulder = 0.3;
-
-  /// The banks the bed rises to, how far over its middle, and how far they
-  /// run on flat past where it reaches them, m.
-  ///
-  /// **Higher than a step and the water over it.** Beside a step the water
-  /// above it stands over the banks of the run below by as much as the step
-  /// drops; banks a metre high let it out sideways there, off their outer
-  /// edge onto the grass, and the core threw it down as rows of drops in a
-  /// line beside the river like a fence.
-  static const double _bankHigh = 1.6, _bankWide = 1.0;
-
-  /// How far under the ground the middle of the bed is laid, m, so the
-  /// water down it stands only a hand over the grass round it.
-  static const double _sunk = 0.15;
-
-  /// The most the bed falls a metre down the course, taken along the grid,
-  /// m: the fall from one cell to the next, over the cell, may be no more
-  /// than this. The view draws two neighbouring cells as one surface when
-  /// they are less than four tenths of a cell apart, and as water falling
-  /// from one to the other past that, so a bed falling more steeply runs
-  /// water drawn as nothing at all. A quarter leaves room for the water's
-  /// own waves: at three tenths the runs between the falls were drawn torn,
-  /// cell by cell, wherever a wave stood up.
-  static const double _steepest = 0.25;
-
-  /// How far over the ground the bed is let stand before it falls back down
-  /// to it over a step, m. Where the ground falls more steeply than
-  /// [_steepest] the bed falls as steeply as it may and comes away from the
-  /// ground; at this much it drops in one step, and the core throws the
-  /// water off it as a sheet that churns the run below it white.
-  static const double _mostOver = 0.75;
-
-  /// The pool a fall digs at its foot: how much deeper than the run, m, and
-  /// how far down the course it shallows back to it. Landing on a run a
-  /// foot deep the water raced on thin and fast and stood up in a jump a
-  /// stride below, which the view cuts as a fall; in a pool it lands deep
-  /// and goes on slow.
-  static const double _plunge = 0.25, _plungeLong = 1.5;
-
-  /// How far a ford runs along the river either side of where the way
-  /// crosses it, at its full width, and how far past that it narrows back
-  /// to the river's, m; and how far its bar of gravel stands over the bed.
-  static const double _fordLong = 2.0, _fordTaper = 3.0, _fordBar = 0.15;
-
-  /// How far apart the stones in the river lie, m, and how far into it the
-  /// first one is.
-  static const double _stoneEvery = 4.5, _firstStone = 3.0;
 
   /// What a tree's crown and a roof's timber are as fire sees them: dry
   /// leaves, twigs and thatch — a loose bed of thin stalks, which the core's
@@ -602,27 +603,6 @@ final class MapWorld {
 
   // ------------------------------------------------------------------- state
 
-  /// The river's course from the spring into the pond, a point every half
-  /// metre or so; how far down it each point is, m; and the level its bed is
-  /// laid at down its middle there.
-  late final List<Vector2> _line;
-  late final List<double> _down, _level;
-
-  /// The pieces of [_line] the river falls over a step in: the bed is laid
-  /// at the level of the point above to halfway along, and of the point
-  /// below from there.
-  final Set<int> _steps = <int>{};
-
-  /// How far round the course the water's ground is shaped, and past that
-  /// left as the ground is drawn.
-  late final ({double x0, double z0, double x1, double z1}) _reach;
-
-  /// Where down [_line] the ways between the halls ford it, m.
-  final List<double> _fords = <double>[];
-
-  /// The ground as it is drawn at the middle of each of the water's cells.
-  late final List<double> _terrain;
-
   /// The trees by the [_lattice]-metre square they stand in, and those with
   /// no body yet.
   final Map<int, List<MapTree>> _byCell = <int, List<MapTree>>{};
@@ -691,49 +671,6 @@ final class MapWorld {
       ..setMaterial(ground, NativeMaterial.stone());
   }
 
-  /// The river's course laid over the map, its bed graded down it, its
-  /// fords laid where [simulation]'s ways cross it and its stones placed:
-  /// what [_bed] shapes and [_pour] fills.
-  ///
-  /// **The river runs in a bed nobody sees.** Left to the hillside as it
-  /// is, the water from the spring spread into a film a few millimetres
-  /// deep and ten metres wide, which from where the camera hangs is no water
-  /// at all. A river has worn itself a bed; this ground has not, and carving
-  /// one would put the water under the grass that is drawn over it. So the
-  /// water's own ground is shaped instead: a bed laid a hand under the grass
-  /// down the middle of the course, rising round on either side to banks
-  /// over it, which the water stands in four metres wide and a foot deep.
-  ///
-  /// **The view is given that bed, not the ground as it is drawn.** It ends
-  /// the water between a wet vertex and a dry one, as far across as the
-  /// depth passes nought, and over the bed the depth falls smoothly to
-  /// nought where the bed rises through the water: a shore as smooth as the
-  /// bed.
-  void _survey(StrategySimulation simulation) {
-    final MapWater w = water;
-    _terrain = <double>[
-      for (var j = 0; j < w.nz; j++)
-        for (var i = 0; i < w.nx; i++)
-          _field.heightAt(w.x0 + (i + 0.5) * w.cell, w.z0 + (j + 0.5) * w.cell),
-    ];
-    _line = _trace();
-    _down = <double>[0.0];
-    for (var k = 1; k < _line.length; k++) {
-      _down.add(_down.last + (_line[k] - _line[k - 1]).length);
-    }
-    _level = _grade();
-    final double out =
-        _fordHalfWide * math.sqrt(_bankHigh / _shoulder) + _bankWide;
-    _reach = (
-      x0: _line.map((Vector2 p) => p.x).reduce(math.min) - out,
-      z0: _line.map((Vector2 p) => p.y).reduce(math.min) - out,
-      x1: _line.map((Vector2 p) => p.x).reduce(math.max) + out,
-      z1: _line.map((Vector2 p) => p.y).reduce(math.max) + out,
-    );
-    _fords.addAll(_crossings(simulation));
-    boulders = _lay();
-  }
-
   /// The pond filled to its painted level over [bed], and the spring set
   /// running at the head of the river.
   NativeShallowLiquid _pour() {
@@ -767,273 +704,6 @@ final class MapWorld {
         rate: w.flow,
       );
     return liquid;
-  }
-
-  /// The course drawn through smoothly, a point every half metre or so.
-  List<Vector2> _trace() {
-    final List<Vector2> course = water.course;
-    final List<Vector2> p = <Vector2>[course.first, ...course, course.last];
-    const int pieces = 20;
-    final dense = <Vector2>[
-      for (var i = 1; i + 2 < p.length; i++)
-        for (var k = 0; k < pieces; k++)
-          _catmull(p[i - 1], p[i], p[i + 1], p[i + 2], k / pieces),
-      course.last,
-    ];
-    return dense.fold(<Vector2>[], (List<Vector2> kept, Vector2 q) {
-      if (kept.isEmpty || (q - kept.last).length >= water.cell) kept.add(q);
-      return kept;
-    });
-  }
-
-  /// The point [t] of the way from [b] to [c] on a curve through [a], [b],
-  /// [c] and [d].
-  static Vector2 _catmull(
-    Vector2 a,
-    Vector2 b,
-    Vector2 c,
-    Vector2 d,
-    double t,
-  ) =>
-      (b * 2.0 +
-          (c - a) * t +
-          (a * 2.0 - b * 5.0 + c * 4.0 - d) * (t * t) +
-          (b * 3.0 - a - c * 3.0 + d) * (t * t * t)) *
-      0.5;
-
-  /// The level of the bed down the middle of the course, point by point: a
-  /// hand under the ground, falling with it as long as it falls no more
-  /// steeply than [_steepest] lets the view draw, and where the ground
-  /// falls faster, falling that steeply until it stands [_mostOver] over the
-  /// ground and then dropping back to it in one step. Down the valley that
-  /// is the ground's own fall; down the bank into the pond it is a run of
-  /// short steep runs and small falls, as a stream comes down a hillside,
-  /// each fall with a pool dug at its foot.
-  List<double> _grade() {
-    final level = <double>[
-      _field.heightAt(_line.first.x, _line.first.y) - _sunk,
-    ];
-    for (var k = 1; k < _line.length; k++) {
-      final Vector2 step = _line[k] - _line[k - 1];
-      final double ground = _field.heightAt(_line[k].x, _line[k].y) - _sunk;
-      final double laid = math.min(
-        level.last,
-        math.max(
-          ground,
-          level.last - _steepest * step.length2 / (step.x.abs() + step.y.abs()),
-        ),
-      );
-      if (laid - ground > _mostOver) _steps.add(k);
-      level.add(laid - ground > _mostOver ? ground : laid);
-    }
-    return <double>[
-      for (var k = 0; k < level.length; k++)
-        level[k] -
-            _steps.fold<double>(0.0, (double most, int step) {
-              final double past = (_down[k] - _down[step]) / _plungeLong;
-              return past < 0.0 || past >= 1.0
-                  ? most
-                  : math.max(most, _plunge * (1.0 - past));
-            }),
-    ];
-  }
-
-  /// Where on the line, [down] metres from the spring.
-  Vector2 _pointAt(double down) {
-    final int k = _segmentAt(down);
-    final double t = (down - _down[k]) / (_down[k + 1] - _down[k]);
-    return _line[k] + (_line[k + 1] - _line[k]) * t.clamp(0.0, 1.0);
-  }
-
-  int _segmentAt(double down) {
-    var k = 0;
-    while (k + 2 < _line.length && _down[k + 1] < down) {
-      k++;
-    }
-    return k;
-  }
-
-  /// How much of a ford there is [down] metres down the line, nought to
-  /// one: all of it within [_fordLong] of where a way crosses, and less
-  /// and less over [_fordTaper] past that, along a half wave so the bar
-  /// rises out of the bed and the banks open out with no corner in either.
-  double _fordAt(double down) => _fords.fold(0.0, (double most, double at) {
-    final double past = ((down - at).abs() - _fordLong) / _fordTaper;
-    return math.max(
-      most,
-      past <= 0.0
-          ? 1.0
-          : past >= 1.0
-          ? 0.0
-          : 0.5 + 0.5 * Portable.cos(math.pi * past),
-    );
-  });
-
-  /// The stones in the river: one every [_stoneEvery] metres, a little to
-  /// one side of the middle and then the other, each a little bigger or
-  /// smaller than the last: the water parts round them, and where it is
-  /// slow they are what shows it moving. None on a step, where they would
-  /// stand in the falling sheet, none in the pond, and none in a ford.
-  List<RiverStone> _lay() => <RiverStone>[
-    for (var n = 0; _firstStone + n * _stoneEvery < _down.last - 2.0; n++)
-      ?_stoneAt(n),
-  ];
-
-  /// The [n]th stone down the river, if it has a place.
-  RiverStone? _stoneAt(int n) {
-    final double down = _firstStone + n * _stoneEvery;
-    final Vector2 middle = _pointAt(down);
-    final double level = _nearest(middle.x, middle.y).level;
-    final bool clear =
-        level > water.pondLevel &&
-        _fordAt(down) == 0.0 &&
-        _steps.every((int k) => (_down[k] - down).abs() > 1.2);
-    if (!clear) return null;
-    final Vector2 at = middle + _across(down) * (n.isEven ? 0.9 : -0.8);
-    return (
-      at: Vector3(at.x, level, at.y),
-      down: down,
-      size: 0.5 + 0.12 * Portable.sin(n * 2.3),
-      level: level,
-    );
-  }
-
-  /// Square to the line at [down], to its left.
-  Vector2 _across(double down) {
-    final int k = _segmentAt(down);
-    final Vector2 along = (_line[k + 1] - _line[k])..normalize();
-    return Vector2(along.y, -along.x);
-  }
-
-  /// How far `(x, z)` is from the line, how far down the line the nearest
-  /// point of it is, m, and the level of the bed's middle there: a step's
-  /// level above it to halfway along the step's piece, and below it past
-  /// that, so the step is a sharp edge square across the river.
-  ({double away, double down, double level}) _nearest(double x, double z) {
-    var nearest = double.infinity;
-    var down = 0.0, level = 0.0;
-    for (var k = 0; k + 1 < _line.length; k++) {
-      final double ax = _line[k].x, az = _line[k].y;
-      final double bx = _line[k + 1].x - ax, bz = _line[k + 1].y - az;
-      final double t = (((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz))
-          .clamp(0.0, 1.0);
-      final double dx = x - ax - bx * t, dz = z - az - bz * t;
-      final double d2 = dx * dx + dz * dz;
-      if (d2 < nearest) {
-        nearest = d2;
-        down = _down[k] + t * (_down[k + 1] - _down[k]);
-        level = _steps.contains(k + 1)
-            ? (t < 0.5 ? _level[k] : _level[k + 1])
-            : _level[k] + t * (_level[k + 1] - _level[k]);
-      }
-    }
-    return (away: math.sqrt(nearest), down: down, level: level);
-  }
-
-  /// The water's ground, cell by cell: the river's bed worn round down the
-  /// course and closed round at the spring, rising to banks either side,
-  /// widening and lifted to a bar where a way fords it, a stone standing in
-  /// it here and there, and the ground as it is drawn everywhere else.
-  List<double> _bed() {
-    final MapWater w = water;
-    return <double>[
-      for (var j = 0; j < w.nz; j++)
-        for (var i = 0; i < w.nx; i++)
-          _bedAt(
-            w.x0 + (i + 0.5) * w.cell,
-            w.z0 + (j + 0.5) * w.cell,
-            _terrain[i + j * w.nx],
-          ),
-    ];
-  }
-
-  double _bedAt(double x, double z, double ground) {
-    if (x < _reach.x0 || x > _reach.x1 || z < _reach.z0 || z > _reach.z1) {
-      return ground;
-    }
-    final (:away, :down, :level) = _nearest(x, z);
-    // A ford: the bed lifted a hand and worn wider and flatter, so the
-    // river spreads over it shallow and quick instead of keeping to its
-    // middle a foot deep.
-    final double ford = _fordAt(down);
-    final double half = _halfWide + (_fordHalfWide - _halfWide) * ford;
-    final double middle = level + _fordBar * ford;
-    final double across = away / half;
-    final double rise = _shoulder * across * across;
-    final double trough =
-        away < half * math.sqrt(_bankHigh / _shoulder) + _bankWide
-        ? middle + math.min(rise, _bankHigh)
-        : double.negativeInfinity;
-    // A stone: a round hump in the bed under the one drawn, a little lower
-    // than it, that the water runs round.
-    final double stone = boulders.fold(double.negativeInfinity, (
-      double most,
-      RiverStone b,
-    ) {
-      final double r = 0.8 * b.size;
-      final double dx = x - b.at.x, dz = z - b.at.z;
-      final double d2 = (dx * dx + dz * dz) / (r * r);
-      return d2 < 1.0
-          ? math.max(most, b.level + (0.1 + 0.6 * b.size) * (1.0 - d2))
-          : most;
-    });
-    final double bed = math.max(ground, math.max(trough, stone));
-    // Where the course runs out into the pond it is the pond's floor: banks
-    // standing out of it would be a pier, and held just under its surface
-    // they were a pale shelf, square at its corners.
-    return ground < water.pondLevel ? ground : bed;
-  }
-
-  /// Where the ways between the halls cross the river, m down it: the way
-  /// an army takes from each hall to each hall of another side, and the
-  /// path each hall's crowd wears to its seam.
-  List<double> _crossings(StrategySimulation simulation) {
-    final List<Building> halls = simulation.buildings;
-    Vector2 flat(Vector3 at) => Vector2(at.x, at.z);
-    final ways = <(Vector2, Vector2)>[
-      for (final Building a in halls)
-        for (final Building b in halls)
-          if (a.side < b.side) (flat(a.center), flat(b.center)),
-      for (final Building a in halls)
-        if (nearestSeam(a, simulation.resources) case final ResourceNode seam)
-          (flat(a.center), flat(seam.at)),
-    ];
-    double cross(Vector2 a, Vector2 b) => a.x * b.y - a.y * b.x;
-    final crossings = <double>[
-      for (final (Vector2 p, Vector2 q) in ways)
-        for (var k = 0; k + 1 < _line.length; k++)
-          if (_crossing(p, q - p, _line[k], _line[k + 1] - _line[k], cross)
-              case final double t)
-            _down[k] + t * (_down[k + 1] - _down[k]),
-    ]..sort();
-    // Not at the spring or the mouth, not on the falls, and one ford for
-    // ways that cross close together.
-    return <double>[
-      for (var i = 0; i < crossings.length; i++)
-        if (crossings[i] > _fordLong + 2.0 &&
-            crossings[i] < _down.last - _fordLong - 2.0 &&
-            _steps.every(
-              (int k) => (_down[k] - crossings[i]).abs() > _fordLong + 2.0,
-            ) &&
-            (i == 0 || crossings[i] - crossings[i - 1] > 3.0 * _fordLong))
-          crossings[i],
-    ];
-  }
-
-  /// How far along the line's piece from [a] by [ab] the way from [p] by
-  /// [pq] crosses it, nought to one, or null if it does not.
-  static double? _crossing(
-    Vector2 p,
-    Vector2 pq,
-    Vector2 a,
-    Vector2 ab,
-    double Function(Vector2, Vector2) cross,
-  ) {
-    final double turn = cross(pq, ab);
-    if (turn.abs() < 1e-9) return null;
-    final double u = cross(a - p, ab) / turn;
-    final double t = cross(a - p, pq) / turn;
-    return u >= 0.0 && u <= 1.0 && t >= 0.0 && t <= 1.0 ? t : null;
   }
 
   /// A minute of the river run before the match, so it opens with water
