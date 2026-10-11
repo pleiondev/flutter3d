@@ -1441,4 +1441,42 @@ List<EditorTool> get editorTools => <EditorTool>[
           apply: arguments['apply'] != false,
         ),
   ),
+  _told(
+    mcpTool(
+      name: 'plugins',
+      description:
+          'What the project\'s plugins brought to this editor: their commands '
+          'with the arguments each takes (each is also a tool of its own, '
+          '`<plugin id>.<name>`), the fields they hint for components, entity '
+          'kinds and materials, their gizmos, their importers and the kinds '
+          'of file they list.',
+      inputSchema: ObjectSchema(),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) =>
+        (did: true, says: session.pluginListing()),
+  ),
+  _told(
+    mcpTool(
+      name: 'import',
+      description:
+          'Bring a file into the project through the plugin importer its '
+          'suffix names: the files it writes land in the project, and what '
+          'it places in the level is one step of undo each. plugin.list '
+          'names the importers and the suffixes they read.',
+      inputSchema: ObjectSchema(
+        properties: <String, Schema>{
+          'path': StringSchema(
+            description: 'the file to import, inside the project',
+          ),
+          'at': _vector(
+            'where in the level what it places goes; leave out for the '
+            'importer\'s own choice',
+          ),
+        },
+        required: <String>['path'],
+      ),
+    ),
+    (EditorSession session, Map<String, Object?> arguments) => session
+        .importFile(arguments['path']! as String, at: _point(arguments, 'at')),
+  ),
 ];

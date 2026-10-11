@@ -73,6 +73,9 @@ void main() {
       'removeBehaviour',
       'setCutscene',
       'removeCutscene',
+      // What the project's plugins brought, and their importers.
+      'plugins',
+      'import',
     };
     expect(
       namesOf(editorTools).difference(editorCommandNames.toSet()),
