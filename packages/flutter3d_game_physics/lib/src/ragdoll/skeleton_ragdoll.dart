@@ -30,6 +30,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart'
 import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
     show
         BonePose,
+        JointTissue,
         NativeDynamics,
         NativeRagdoll,
         NativeWorld,
@@ -37,6 +38,7 @@ import 'package:flutter3d_physics_native/flutter3d_physics_native.dart'
         RagdollBend,
         RagdollBone,
         RagdollJoint,
+        RagdollSwing,
         turnBy;
 import 'package:vector_math/vector_math.dart';
 
@@ -96,6 +98,17 @@ final class RagdollProfile {
   /// forearm carries its hand, which lies inside it, and a shin its foot,
   /// which it carries. They add up to one. The thigh is 14.16 % of the body
   /// — it was 10.9 %, a third too light, before these were adopted.
+  ///
+  /// **Ranges are a table of normal motion** ([RagdollSwing]): the spine,
+  /// the neck, the shoulders and the hips swing as far forward, back and to
+  /// the side as the American Academy of Orthopaedic Surgeons' averages for
+  /// adults have them (*Joint Motion: Method of Measuring and Recording*,
+  /// AAOS, 1965; read in secondary tables that reproduce it, not in the
+  /// book). Symmetric cones of half a radian held the spine and the neck at
+  /// their limit in flexion, where a thoracolumbar spine bends forward three
+  /// times as far as back, and a body thrown back sat on its haunches; cones
+  /// about the T-pose let the upper arms point straight down behind a body
+  /// lying on its back and prop it up. Each value is beside its joint below.
   static const RagdollProfile quaternius = RagdollProfile(
     parts: <String, RagdollPart>{
       'Body': RagdollPart(
@@ -107,13 +120,13 @@ final class RagdollProfile {
         tailAt: <String>['Neck', 'Head'],
         radius: 0.085,
         share: SegmentMassShares.upperTrunk + SegmentMassShares.middleTrunk,
-        joint: RagdollBall(cone: 0.5, twistLower: -0.4, twistUpper: 0.4),
+        joint: _spine,
       ),
       'Head': RagdollPart(
         tailLength: (of: 'Torso', times: 0.9),
         radius: 0.07,
         share: SegmentMassShares.head,
-        joint: RagdollBall(cone: 0.6, twistLower: -0.7, twistUpper: 0.7),
+        joint: _neck,
       ),
       'UpperArm.L': _upperArm,
       'UpperArm.R': _upperArm,
@@ -131,7 +144,7 @@ final class RagdollProfile {
     tailAt: <String>['LowerArm.L', 'LowerArm.R'],
     radius: 0.035,
     share: SegmentMassShares.upperArm,
-    joint: RagdollBall(cone: 1.5, twistLower: -1.0, twistUpper: 1.0),
+    joint: _shoulder,
   );
   static const RagdollPart _lowerArmL = RagdollPart(
     tailAt: <String>['Fist.L', 'Middle3.L', 'Middle1.L'],
@@ -151,7 +164,7 @@ final class RagdollProfile {
     tailAt: <String>['LowerLeg.L', 'LowerLeg.R'],
     radius: 0.05,
     share: SegmentMassShares.thigh,
-    joint: RagdollBall(cone: 1.2, twistLower: -0.5, twistUpper: 0.5),
+    joint: _hip,
   );
   static const RagdollPart _lowerLeg = RagdollPart(
     tailLength: (of: 'UpperLeg.L', times: 1.2),
@@ -159,6 +172,54 @@ final class RagdollProfile {
     share: SegmentMassShares.shank + SegmentMassShares.foot,
     joint: _knee,
   );
+
+  /// The thoracolumbar spine, between the pelvis and the chest (AAOS):
+  /// flexion 80°, extension 25°, lateral flexion 35° to each side, rotation
+  /// 45° to each side.
+  static const RagdollJoint _spine = RagdollSwing(
+    flexion: 80.0 * _degree,
+    extension: 25.0 * _degree,
+    lateral: 35.0 * _degree,
+    twist: 45.0 * _degree,
+  );
+
+  /// The cervical spine, between the chest and the head (AAOS): flexion,
+  /// extension and lateral flexion 45° each, rotation 60° to each side.
+  static const RagdollJoint _neck = RagdollSwing(
+    flexion: 45.0 * _degree,
+    extension: 45.0 * _degree,
+    lateral: 45.0 * _degree,
+    twist: 60.0 * _degree,
+  );
+
+  /// The shoulder, from the arm hanging at the side (AAOS): flexion 180°,
+  /// extension 60°, abduction 180°, medial rotation 70° and lateral 90°.
+  /// Flexion and abduction stop at 160°, short of the half turn the core
+  /// measures a swing to; the twist takes the lesser rotation both ways.
+  /// Adduction across the body, 30°, is an estimate: the tables give none.
+  static const RagdollJoint _shoulder = RagdollSwing(
+    flexion: 160.0 * _degree,
+    extension: 60.0 * _degree,
+    lateral: 160.0 * _degree,
+    medial: 30.0 * _degree,
+    twist: 70.0 * _degree,
+    hangs: true,
+  );
+
+  /// The hip, from the leg hanging straight (AAOS): flexion 120°, extension
+  /// 20°, medial and lateral rotation 45° each. Abduction 40° and adduction
+  /// 20° are the AMA Guides' as the same tables give them, AAOS stating
+  /// none.
+  static const RagdollJoint _hip = RagdollSwing(
+    flexion: 120.0 * _degree,
+    extension: 20.0 * _degree,
+    lateral: 40.0 * _degree,
+    medial: 20.0 * _degree,
+    twist: 45.0 * _degree,
+    hangs: true,
+  );
+
+  static const double _degree = 3.141592653589793 / 180.0;
 
   /// A knee is a hinge: the rig binds it bent a little, which says the
   /// axis and the way it bends.
@@ -179,8 +240,9 @@ final class RagdollProfile {
 final class SkeletonRagdoll {
   /// [skeleton] gone limp in [world] from the pose it holds now, [mass]
   /// kilograms in all — the reference man's ([referenceBodyMass]) unless
-  /// given. [friction] is what every joint resists turning with, N·m; see
-  /// [NativeRagdoll]. [meshWorld] is the skinned mesh's world matrix, which
+  /// given. [tissue] is what every joint is made of; see [NativeRagdoll].
+  /// The profile's [RagdollSwing]s are measured against the figure's own
+  /// forward and up at bind, read off its skeleton as [lying] reads them. [meshWorld] is the skinned mesh's world matrix, which
   /// the skeleton's bind pose is in. With [previous] — every joint's world
   /// matrix [dt] seconds ago — the bodies keep the motion the animation had.
   SkeletonRagdoll({
@@ -191,7 +253,7 @@ final class SkeletonRagdoll {
     double mass = referenceBodyMass,
     List<Matrix4>? previous,
     double dt = 1.0 / 60.0,
-    double friction = 2.0,
+    JointTissue tissue = JointTissue.human,
     NativeDynamics? dynamics,
     int layer = 1,
     int mask = 0xffffffff,
@@ -317,7 +379,9 @@ final class SkeletonRagdoll {
       pose: now,
       velocity: velocity,
       spin: spin,
-      friction: friction,
+      tissue: tissue,
+      forward: _forwardAtBind,
+      up: _upAtBind,
       dynamics: dynamics,
       layer: layer,
       mask: mask,

@@ -32,9 +32,11 @@ where each bone meets its parent. The joints' limits are taken from the pose
 the bones are given in, so a ragdoll is built standing and only then moved
 into another pose with `place`. This one is not moved at all.
 
-Every joint resists turning with two newton metres by default. Without that
-friction a ragdoll lying on the floor never stops moving, because nothing
-slows a head rolling or a leg turning about its own length. The world takes
+Every joint is made of `JointTissue.human` by default: it damps the joint's
+turning, a newton metre for each radian a second, and gives a little past
+the end of its range. Without that damping a ragdoll lying on the floor
+never stops moving, because nothing slows a head rolling or a leg turning
+about its own length. The world takes
 eight substeps a step instead of four. With four, an arm hitting the edge of
 a step can swing past its cone for a step.
 

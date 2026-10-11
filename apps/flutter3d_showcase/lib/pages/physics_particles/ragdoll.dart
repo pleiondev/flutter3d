@@ -216,8 +216,8 @@ final class RagdollDemo extends ShowcaseDemo {
       world.setShape(block, NativeShape.box(half));
     }
     _world = world;
-    // Every joint resists turning with two newton metres, the default;
-    // without it a ragdoll on the floor never comes to rest.
+    // Every joint's tissue damps its turning, the default; without it a
+    // ragdoll on the floor never comes to rest.
     _doll = NativeRagdoll(world, _figure(_feet));
   }
   // #endregion world

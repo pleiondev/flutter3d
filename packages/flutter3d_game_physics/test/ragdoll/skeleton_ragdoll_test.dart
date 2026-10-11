@@ -235,6 +235,222 @@ void main() {
     }
   });
 
+  group("the Quaternius profile's ranges are a body's", () {
+    /// The hero turned by [turn] about x and lifted to [at], made a ragdoll
+    /// with the bodies named in [held] welded where they are.
+    Future<SkeletonRagdoll> heldUp(
+      double turn,
+      Vector3 at,
+      List<String> held,
+    ) async {
+      final h = await hero(at: at);
+      h.root.setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), turn));
+      final ragdoll = SkeletonRagdoll(
+        skeleton: h.skeleton,
+        meshWorld: h.mesh.worldMatrix,
+        world: dynamics.native,
+        dynamics: dynamics,
+      );
+      addTearDown(ragdoll.dispose);
+      final world = dynamics.native;
+      for (final name in held) {
+        final body = ragdoll.ragdoll.bodyOf(ragdoll.bodyNamed(name)!);
+        final anchor = world.addBody(
+          position: world.localPositionOf(body),
+          type: NativeBodyType.fixed,
+          mass: 0.0,
+        );
+        world.createJoint(
+          NativeJointType.fixed,
+          anchor,
+          body,
+          anchor: world.localPositionOf(body),
+        );
+      }
+      return ragdoll;
+    }
+
+    /// Which way bone [name] points now, from its head to its tail, as the
+    /// joint holding it measures it.
+    Vector3 along(SkeletonRagdoll ragdoll, String name) {
+      final index = ragdoll.bodyNamed(name)!;
+      final bone = ragdoll.ragdoll.bones[index];
+      final pose = ragdoll.ragdoll.poseOf(index);
+      return turnBy(
+        pose.orientation,
+        turnBy(bone.orientation.conjugated(), bone.tail - bone.head),
+      )..normalize();
+    }
+
+    test('the spine bends forward three times as far as back', () async {
+      // The pelvis held standing, the chest struck at its top forward, then
+      // back: how far the chest goes each way from the skeleton's own up —
+      // the pelvis to the head at bind, which a [RagdollSwing] is measured
+      // from, turned as the pelvis has turned since — in the plane the
+      // figure faces along (+z is ahead). AAOS: 80 degrees forward,
+      // 1.40 rad; 25 back, 0.44. Mutation: put back the symmetric cone of
+      // 0.5 rad — the chest stops at half a radian forward.
+      Future<double> most(double blow) async {
+        final ragdoll = await heldUp(0.0, Vector3(0.0, 1.0, 0.0), <String>[
+          'Body',
+        ]);
+        final bones = ragdoll.ragdoll.bones;
+        final pelvis = ragdoll.bodyNamed('Body')!;
+        final up = bones[ragdoll.bodyNamed('Head')!].head - bones[pelvis].head;
+        double lean(Vector3 d) => math.atan2(d.z, d.y);
+        double upright() => lean(
+          turnBy(
+            ragdoll.ragdoll.poseOf(pelvis).orientation *
+                bones[pelvis].orientation.conjugated(),
+            up,
+          ),
+        );
+        Vector3 at(String name) =>
+            ragdoll.ragdoll.poseOf(ragdoll.bodyNamed(name)!).position;
+        dynamics.native.applyImpulse(
+          ragdoll.ragdoll.bodyOf(ragdoll.bodyNamed('Torso')!),
+          Vector3(0.0, 0.0, blow),
+          at: at('Head'),
+        );
+        var most = 0.0;
+        for (var i = 0; i < 60; i++) {
+          dynamics.step(1.0 / 60.0);
+          final bent = (lean(along(ragdoll, 'Torso')) - upright()) * blow.sign;
+          most = bent > most ? bent : most;
+        }
+        ragdoll.dispose();
+        return most;
+      }
+
+      final forward = await most(20.0), back = await most(-20.0);
+      expect(forward, greaterThan(1.25), reason: '80 degrees is 1.40 rad');
+      expect(back, inInclusiveRange(0.35, 0.55), reason: '25 degrees');
+    });
+
+    test('lying on its back, its arms cannot hang straight down behind '
+        'it', () async {
+      // The trunk held lying face up a metre and a half above the floor,
+      // the T-pose arms let fall: they swing down behind the body until the
+      // shoulder's extension, 60 degrees from hanging at the side, stops
+      // them, and no arm hangs plumb — a plumb upper arm is the strut a
+      // body falling back props itself up on. Mutation: put back the
+      // shoulder's cone of 1.5 rad about the T-pose — the arms hang within
+      // a few degrees of plumb.
+      final ragdoll = await heldUp(
+        -math.pi / 2,
+        Vector3(0.0, 1.5, 0.0),
+        <String>['Body', 'Torso'],
+      );
+      var lowest = 0.0;
+      for (var i = 0; i < 120; i++) {
+        dynamics.step(1.0 / 60.0);
+        for (final side in <String>['L', 'R']) {
+          final d = along(ragdoll, 'UpperArm.$side');
+          lowest = d.y < lowest ? d.y : lowest;
+        }
+      }
+      // Plumb is -1; 60 degrees of extension, -0.87.
+      expect(lowest, greaterThan(-0.93));
+      expect(lowest, lessThan(-0.6), reason: 'and they do fall');
+    });
+  });
+
+  group('how it comes to lie', () {
+    /// The hero standing on the floor, made a ragdoll, leant by [lean] about
+    /// x and struck at the upper chest with [blow], N·s, then stepped until
+    /// it lies still.
+    Future<({SkeletonRagdoll ragdoll, Skeleton skeleton})> fall({
+      double lean = 0.0,
+      Vector3? blow,
+    }) async {
+      final h = await hero(at: Vector3(0.0, 0.02, 0.0));
+      h.root.setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), lean));
+      final ragdoll = SkeletonRagdoll(
+        skeleton: h.skeleton,
+        meshWorld: h.mesh.worldMatrix,
+        world: dynamics.native,
+        dynamics: dynamics,
+      );
+      addTearDown(ragdoll.dispose);
+      if (blow != null) {
+        // Where a shot lands: three quarters of the way up the chest bone,
+        // above the centre of mass, as `RagdollCorpses` strikes it.
+        final chest = ragdoll.bodyNamed('Torso')!;
+        final pose = ragdoll.ragdoll.poseOf(chest);
+        final bone = ragdoll.ragdoll.bones[chest];
+        final at =
+            pose.position +
+            turnBy(
+              pose.orientation,
+              turnBy(bone.orientation.conjugated(), bone.tail - bone.head),
+            ).scaled(0.75);
+        dynamics.native.applyImpulse(
+          ragdoll.ragdoll.bodyOf(chest),
+          blow,
+          at: at,
+        );
+      }
+      var steps = 0;
+      while (!ragdoll.ragdoll.isAsleep && steps < 900) {
+        dynamics.step(1.0 / 60.0);
+        steps++;
+      }
+      expect(ragdoll.ragdoll.isAsleep, isTrue, reason: 'awake after $steps');
+      ragdoll.apply();
+      return (ragdoll: ragdoll, skeleton: h.skeleton);
+    }
+
+    /// How far up from the pelvis to the head the body points: one standing
+    /// or sitting up, nought lying flat.
+    double upright(Skeleton s) {
+      final up = worldOf(named(s, 'Head')) - worldOf(named(s, 'Body'))
+        ..normalize();
+      return up.y;
+    }
+
+    test('thrown back on a flat floor, it ends lying, not sitting', () async {
+      // The killing blow of the crypt: the reference man thrown back at two
+      // metres a second, a little up. The figure faces +z, so back is -z.
+      // What the ranges above are for, end to end; from its bind pose the
+      // hero lay down under the old cones too, and the runner caught
+      // mid-stride in the crypt is `ragdoll_corpses_test` in the dungeon.
+      final fallen = await fall(
+        blow: Vector3(0.0, 0.25, -1.0)..scale(referenceBodyMass * 2.0),
+      );
+      final lying = fallen.ragdoll.lying();
+      expect(lying.faceUp, isTrue);
+      expect(upright(fallen.skeleton), lessThan(0.5), reason: 'not sitting');
+      expect(worldOf(named(fallen.skeleton, 'Head')).y, lessThan(0.35));
+    });
+
+    test('fallen straight back, it is not held up by its arms', () async {
+      // Leant back and let go, left and right alike: the T-pose arms come
+      // down on the floor beside it, not under it, and the chest lies on
+      // the floor. The shoulder's extension is held by the test above.
+      final fallen = await fall(lean: -0.6);
+      final s = fallen.skeleton;
+      expect(fallen.ragdoll.lying().faceUp, isTrue);
+      expect(upright(s), lessThan(0.5));
+      expect(worldOf(named(s, 'Torso')).y, lessThan(0.3), reason: 'chest');
+      for (final side in <String>['L', 'R']) {
+        final arm =
+            worldOf(named(s, 'LowerArm.$side')) -
+                  worldOf(named(s, 'UpperArm.$side'))
+              ..normalize();
+        expect(arm.y.abs(), lessThan(0.7), reason: 'the $side arm a strut');
+      }
+    });
+
+    test('fallen straight forward, it lies on its front, not on its '
+        'hands', () async {
+      final fallen = await fall(lean: 0.6);
+      final s = fallen.skeleton;
+      expect(fallen.ragdoll.lying().faceUp, isFalse);
+      expect(upright(s), lessThan(0.5));
+      expect(worldOf(named(s, 'Torso')).y, lessThan(0.3), reason: 'chest');
+    });
+  });
+
   test('it keeps the motion the animation had', () async {
     final h = await hero(at: Vector3(0.0, 0.1, 0.0));
     // A frame ago every joint stood 5 cm back along x: running at 3 m/s.

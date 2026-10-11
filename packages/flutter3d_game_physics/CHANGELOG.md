@@ -1,5 +1,15 @@
 ## 1.0.0-rc.1
 
+- **The Quaternius profile moves as a body does.** The spine, the neck,
+  the shoulders and the hips are `RagdollSwing`s with the American Academy
+  of Orthopaedic Surgeons' ranges of normal motion (the spine bends forward
+  80 degrees and back 25, where symmetric cones of half a radian held it at
+  its limit in flexion), measured from the anatomical position against the
+  figure's own forward and up, so T-pose arms are limited as arms hanging
+  at the side and cannot hang plumb behind a body on its back.
+  **Breaking:** `SkeletonRagdoll(friction:)` is gone for `tissue:`, a
+  `JointTissue`.
+
 - **The killing blow lands on the upper chest.** It landed at the chest
   bone's root, the small of the back below the centre of mass, where it
   knocked the hips out and sat a corpse down on its arms; now it turns the
