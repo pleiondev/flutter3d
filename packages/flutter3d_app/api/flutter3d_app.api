@@ -309,10 +309,11 @@ final class LoadingScreen extends StatelessWidget
   final String? message
 
 final class LoopSettings
-  LoopSettings copyWith({WorldTiming? timing, InputState? input, void Function(Vector2 out)? drainLook, double? originShift, SimulationPlacement? simulation, bool clearInput = false, bool clearDrainLook = false, bool clearOriginShift = false})
-  const LoopSettings({this.timing = const WorldTiming(), this.input, this.drainLook, this.originShift = defaultOriginShift, this.simulation = const SimulationPlacement.inline()})
+  LoopSettings copyWith({WorldTiming? timing, InputState? input, void Function(Vector2 out)? drainLook, double? originShift, SimulationPlacement? simulation, SimulationProfile? profile, bool clearInput = false, bool clearDrainLook = false, bool clearOriginShift = false})
+  const LoopSettings({this.timing = const WorldTiming(), this.input, this.drainLook, this.originShift = defaultOriginShift, this.simulation = const SimulationPlacement.inline(), this.profile = SimulationProfile.deterministic})
   final InputState? input
   final SimulationPlacement simulation
+  final SimulationProfile profile
   final WorldTiming timing
   final double? originShift
   final void Function(Vector2 out)? drainLook

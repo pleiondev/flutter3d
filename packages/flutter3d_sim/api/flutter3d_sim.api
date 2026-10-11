@@ -792,6 +792,7 @@ final class EngineLoop extends LoopRegistry
   set timeScale(double scale)
   void changeTiming(WorldTiming timing)
   void keep({required int window, int every = 1})
+  void republish()
   void resetClock()
   void restore(Snapshot snapshot)
   void rewindTo(int step, {Snapshot? state})
