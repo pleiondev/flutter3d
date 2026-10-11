@@ -19,7 +19,8 @@
 ///               u16 instructions  u16 result lane  u16 result width
 ///               u16 result dimension
 /// constants     f64 × constants
-/// dimensions    (i8 × 8 exponents in the order kg m s A K mol cd rad,
+/// dimensions    (i8 per base of `Dimension.bases`, in its order — 8 in
+///               version 1: kg m s A K mol cd rad,
 ///               u8 1 for a bool) × dimensions
 /// inputs        (u16 name length, UTF-8 name, u16 lane, u16 width,
 ///               u16 dimension) × inputs
@@ -180,27 +181,34 @@ final class _Dim {
     ], type.isBoolean);
   }
 
+  /// How many exponents a dimension stores: one per [Dimension.bases], in
+  /// their order. A build that names another base writes another format,
+  /// with [expressionBytecodeVersion] raised.
+  static final int count = Dimension.bases.length;
+
   final List<int> exponents;
   final bool boolean;
 
   bool get isNone => exponents.every((e) => e == 0);
 
   _Dim times(_Dim other, int sign) => _Dim(<int>[
-    for (var i = 0; i < 8; i++) exponents[i] + sign * other.exponents[i],
+    for (var i = 0; i < count; i++) exponents[i] + sign * other.exponents[i],
   ], false);
 
   _Dim scaled(int power) =>
       _Dim(<int>[for (final e in exponents) e * power], false);
 
-  static const _Dim none = _Dim(<int>[0, 0, 0, 0, 0, 0, 0, 0], false);
-  static const _Dim angle = _Dim(<int>[0, 0, 0, 0, 0, 0, 0, 1], false);
+  static final _Dim none = _Dim(List<int>.filled(count, 0), false);
+  static final _Dim angle = _Dim.of(
+    ExpressionType.float.withDimension(Dimension.angle),
+  );
 
   @override
   bool operator ==(Object other) =>
       other is _Dim &&
       other.boolean == boolean &&
       Iterable<int>.generate(
-        8,
+        count,
       ).every((i) => exponents[i] == other.exponents[i]);
 
   @override
@@ -292,9 +300,14 @@ final class ExpressionBytecode {
           (throw ArgumentError('no value for "${input.name}"')),
   ]);
 
+  /// The register file, allocated on the first run and reused by every
+  /// later one: every lane a run reads is written earlier in the same run
+  /// ([verify] holds a program to that), so nothing carries over.
+  late final Float64List _registers = Float64List(lanes);
+
   /// The value, given each of [inputs]' components in order.
   List<double> run(List<List<double>> slots) {
-    final r = Float64List(lanes);
+    final r = _registers;
     for (var i = 0; i < inputs.length; i++) {
       final input = inputs[i];
       final value = slots[i];
@@ -310,10 +323,11 @@ final class ExpressionBytecode {
       final a = code[pc + 3];
       final b = code[pc + 4];
       final c = code[pc + 5];
-      // The lane of operand `at` for lane `i`, spread when its flag is set.
-      int ia(int i) => flags & 1 != 0 ? a : a + i;
-      int ib(int i) => flags & 2 != 0 ? b : b + i;
-      int ic(int i) => flags & 4 != 0 ? c : c + i;
+      // How far each operand moves per lane: nought when its flag spreads
+      // one lane across the width.
+      final sa = flags & 1 != 0 ? 0 : 1;
+      final sb = flags & 2 != 0 ? 0 : 1;
+      final sc = flags & 4 != 0 ? 0 : 1;
       switch (op) {
         case ExpressionOp.loadConstant:
           for (var i = 0; i < width; i++) {
@@ -333,22 +347,41 @@ final class ExpressionBytecode {
           }
         case ExpressionOp.not:
           r[dst] = r[a] != 0 ? 0 : 1;
-        case ExpressionOp.add ||
-            ExpressionOp.subtract ||
-            ExpressionOp.multiply ||
-            ExpressionOp.divide ||
-            ExpressionOp.less ||
-            ExpressionOp.lessEqual ||
-            ExpressionOp.greater ||
-            ExpressionOp.greaterEqual ||
-            ExpressionOp.equal ||
-            ExpressionOp.notEqual ||
-            ExpressionOp.and ||
-            ExpressionOp.or:
-          final symbol = _operatorSymbols[op]!;
+        // Each operator as `expressionOperatorAt` computes it, written out
+        // under its own opcode: no symbol is looked up and no string is
+        // compared per lane.
+        case ExpressionOp.add:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = expressionOperatorAt(symbol, r[ia(i)], r[ib(i)]);
+            r[dst + i] = r[a + i * sa] + r[b + i * sb];
           }
+        case ExpressionOp.subtract:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = r[a + i * sa] - r[b + i * sb];
+          }
+        case ExpressionOp.multiply:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = r[a + i * sa] * r[b + i * sb];
+          }
+        case ExpressionOp.divide:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = r[a + i * sa] / r[b + i * sb];
+          }
+        case ExpressionOp.less:
+          r[dst] = r[a] < r[b] ? 1.0 : 0.0;
+        case ExpressionOp.lessEqual:
+          r[dst] = r[a] <= r[b] ? 1.0 : 0.0;
+        case ExpressionOp.greater:
+          r[dst] = r[a] > r[b] ? 1.0 : 0.0;
+        case ExpressionOp.greaterEqual:
+          r[dst] = r[a] >= r[b] ? 1.0 : 0.0;
+        case ExpressionOp.equal:
+          r[dst] = r[a] == r[b] ? 1.0 : 0.0;
+        case ExpressionOp.notEqual:
+          r[dst] = r[a] != r[b] ? 1.0 : 0.0;
+        case ExpressionOp.and:
+          r[dst] = r[a] != 0 && r[b] != 0 ? 1.0 : 0.0;
+        case ExpressionOp.or:
+          r[dst] = r[a] != 0 || r[b] != 0 ? 1.0 : 0.0;
         case ExpressionOp.select:
           for (var i = 0; i < width; i++) {
             r[dst + i] = r[a] != 0 ? r[b + i] : r[c + i];
@@ -376,77 +409,98 @@ final class ExpressionBytecode {
           }
         case ExpressionOp.mix:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = mixAt(r[ia(i)], r[ib(i)], r[ic(i)]);
+            r[dst + i] = mixAt(r[a + i * sa], r[b + i * sb], r[c + i * sc]);
           }
         case ExpressionOp.clamp:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = clampAt(r[ia(i)], r[ib(i)], r[ic(i)]);
+            r[dst + i] = clampAt(r[a + i * sa], r[b + i * sb], r[c + i * sc]);
           }
         case ExpressionOp.smoothstep:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = smoothstepAt(r[ia(i)], r[ib(i)], r[ic(i)]);
+            r[dst + i] = smoothstepAt(
+              r[a + i * sa],
+              r[b + i * sb],
+              r[c + i * sc],
+            );
           }
         case ExpressionOp.step:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = stepAt(r[ia(i)], r[ib(i)]);
+            r[dst + i] = stepAt(r[a + i * sa], r[b + i * sb]);
           }
         case ExpressionOp.pow:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = Portable.pow(r[ia(i)], r[ib(i)]);
+            r[dst + i] = Portable.pow(r[a + i * sa], r[b + i * sb]);
           }
         case ExpressionOp.min:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = minAt(r[ia(i)], r[ib(i)]);
+            r[dst + i] = minAt(r[a + i * sa], r[b + i * sb]);
           }
         case ExpressionOp.max:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = maxAt(r[ia(i)], r[ib(i)]);
+            r[dst + i] = maxAt(r[a + i * sa], r[b + i * sb]);
           }
         case ExpressionOp.atan2:
           for (var i = 0; i < width; i++) {
-            r[dst + i] = Portable.atan2(r[ia(i)], r[ib(i)]);
+            r[dst + i] = Portable.atan2(r[a + i * sa], r[b + i * sb]);
+          }
+        case ExpressionOp.abs:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = absAt(r[a + i]);
+          }
+        case ExpressionOp.sqrt:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = math.sqrt(r[a + i]);
+          }
+        case ExpressionOp.floor:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = floorAt(r[a + i]);
+          }
+        case ExpressionOp.fract:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = fractAt(r[a + i]);
+          }
+        case ExpressionOp.sin:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.sin(r[a + i]);
+          }
+        case ExpressionOp.cos:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.cos(r[a + i]);
+          }
+        case ExpressionOp.tan:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.tan(r[a + i]);
+          }
+        case ExpressionOp.asin:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.asin(r[a + i]);
+          }
+        case ExpressionOp.acos:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.acos(r[a + i]);
+          }
+        case ExpressionOp.atan:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.atan(r[a + i]);
+          }
+        case ExpressionOp.exp:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.exp(r[a + i]);
+          }
+        case ExpressionOp.log:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = Portable.log(r[a + i]);
+          }
+        case ExpressionOp.sign:
+          for (var i = 0; i < width; i++) {
+            r[dst + i] = signAt(r[a + i]);
           }
         default:
-          final f = _unary[op] ?? (throw StateError('no opcode $op'));
-          for (var i = 0; i < width; i++) {
-            r[dst + i] = f(r[a + i]);
-          }
+          throw StateError('no opcode $op');
       }
     }
     return <double>[for (var i = 0; i < resultWidth; i++) r[resultLane + i]];
   }
-
-  static const Map<int, String> _operatorSymbols = <int, String>{
-    ExpressionOp.add: '+',
-    ExpressionOp.subtract: '-',
-    ExpressionOp.multiply: '*',
-    ExpressionOp.divide: '/',
-    ExpressionOp.less: '<',
-    ExpressionOp.lessEqual: '<=',
-    ExpressionOp.greater: '>',
-    ExpressionOp.greaterEqual: '>=',
-    ExpressionOp.equal: '==',
-    ExpressionOp.notEqual: '!=',
-    ExpressionOp.and: '&&',
-    ExpressionOp.or: '||',
-  };
-
-  static final Map<int, double Function(double)> _unary =
-      <int, double Function(double)>{
-        ExpressionOp.abs: absAt,
-        ExpressionOp.sqrt: math.sqrt,
-        ExpressionOp.floor: floorAt,
-        ExpressionOp.fract: fractAt,
-        ExpressionOp.sin: Portable.sin,
-        ExpressionOp.cos: Portable.cos,
-        ExpressionOp.tan: Portable.tan,
-        ExpressionOp.asin: Portable.asin,
-        ExpressionOp.acos: Portable.acos,
-        ExpressionOp.atan: Portable.atan,
-        ExpressionOp.exp: Portable.exp,
-        ExpressionOp.log: Portable.log,
-        ExpressionOp.sign: signAt,
-      };
 
   // ----------------------------------------------------------- verifying
 
@@ -539,7 +593,10 @@ final class ExpressionBytecode {
           expect(x == y && out.boolean && width == 1, 'compares two units');
         case ExpressionOp.and || ExpressionOp.or:
           expect(
-            read(a, 1, 'a').boolean && read(b, 1, 'b').boolean && out.boolean,
+            read(a, 1, 'a').boolean &&
+                read(b, 1, 'b').boolean &&
+                out.boolean &&
+                width == 1,
             'is not of bools',
           );
         case ExpressionOp.select:
@@ -655,7 +712,7 @@ final class ExpressionBytecode {
         4 +
         16 +
         constants.length * 8 +
-        _dimensions.length * 9 +
+        _dimensions.length * (_Dim.count + 1) +
         <int>[
           for (final name in names) 8 + name.length,
         ].fold<int>(0, (a, b) => a + b) +
@@ -754,14 +811,17 @@ final class ExpressionBytecode {
       constants[i] = data.getFloat64(at, Endian.little);
       at += 8;
     }
-    need(dimensionCount * 9);
+    // The exponents, then the byte that says a bool.
+    final stride = _Dim.count + 1;
+    need(dimensionCount * stride);
     final dimensions = <_Dim>[
       for (var i = 0; i < dimensionCount; i++)
         _Dim(<int>[
-          for (var e = 0; e < 8; e++) data.getInt8(at + i * 9 + e),
-        ], data.getUint8(at + i * 9 + 8) != 0),
+          for (var e = 0; e < _Dim.count; e++)
+            data.getInt8(at + i * stride + e),
+        ], data.getUint8(at + i * stride + _Dim.count) != 0),
     ];
-    at += dimensionCount * 9;
+    at += dimensionCount * stride;
     final inputs = <ExpressionBytecodeInput>[];
     for (var i = 0; i < inputCount; i++) {
       final length = u16();
