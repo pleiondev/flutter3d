@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A recorded run keeps what its probes read.** `DemoRecording` attached to
+  a loop writes each step's probe readings into `Demo.probes`, stamped with
+  the step of its own tape, and drops those after a level swap with the
+  checkpoints; what arrived from outside (`InputState.feedExternal`) is on
+  the tape at its step, as `Demo.externalInputs` reads it back.
 - **A wall lets through what its material does not reflect.**
   `SoundOcclusion` reads the acoustic group of each obstacle's
   `Collider.material`: the mean absorption over 250–2 000 Hz where it is

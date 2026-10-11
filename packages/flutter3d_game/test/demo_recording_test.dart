@@ -349,6 +349,67 @@ void main() {
       );
     }
   });
+
+  test('a demo records what its probes read and what arrived from outside, '
+      'at the steps of its own tape', () {
+    final toy = _Toy();
+    final input = InputState();
+    final loop = _loopOf(toy, input)
+      ..probeSamplers.add(
+        'toy.x',
+        ProbeSampler.of((_) => Quantity(toy.x, Unit.meter)),
+      );
+    final gauge = loop.world.spawn();
+    loop.world.set<Probe>(
+      gauge,
+      Probe(
+        id: 'gauge',
+        quantity: 'toy.x',
+        unit: Unit.meter,
+        region: const ProbePoint(WorldPosition(0, 0, 0)),
+      ),
+    );
+    // The loop has run before the recording begins: a reading's step in the
+    // file is the tape's, not the loop's.
+    loop.runSteps(7);
+    final recording = DemoRecording(
+      level: 'assets/levels/toy.json',
+      levelHash: _level(1.0).digestHex,
+      start: toy.save(),
+      seed: 0,
+    )..attach(loop);
+    for (var step = 0; step < 6; step++) {
+      _play(input, step);
+      if (step.isEven) {
+        input.feedExternal(
+          ExternalStateInput.quantity(
+            'toy.wind',
+            Quantity(step.toDouble(), Unit.meterPerSecond),
+          ),
+        );
+      }
+      loop.runSteps(1);
+    }
+    recording.detach();
+    final file = _sent(recording);
+
+    // Mutation: leave `probes:` out of `demo()` and a run's chart is gone
+    // from its file; count the loop's steps and the file is refused.
+    expect(file.probes.map((r) => r.step), <int>[1, 2, 3, 4, 5, 6]);
+    expect(file.probes.last.value.single, toy.x);
+    expect(
+      <int>[
+        for (final (step, frame) in file.tape.frames.indexed)
+          if (frame.external.isNotEmpty) step,
+      ],
+      <int>[0, 2, 4],
+    );
+    expect(
+      file.tape.frames[4].external.single.quantity.value,
+      4.0,
+      reason: 'the external input comes back at its step',
+    );
+  });
 }
 
 /// A backend that is only its name: what the recording reads of it.

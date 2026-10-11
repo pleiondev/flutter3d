@@ -104,19 +104,23 @@ final class DemoRecording {
       ..add(DemoLevelSwap(step: at, level: next));
     checkpoints.forgetAfter(at);
     poses.forgetAfter(at);
+    _probes.removeWhere((reading) => reading.step > at);
     _loopChanges.removeWhere((change) => change.step > at);
     _events?.forgetAfter(at - 1);
     return true;
   }
 
   final List<LoopChange> _loopChanges = <LoopChange>[];
+  final List<ProbeReading> _probes = <ProbeReading>[];
   EventTrace? _events;
   EngineLoop? _loop;
   List<Registration> _observers = const <Registration>[];
 
-  /// Records through [loop]: its input into [recorder], each step's event
-  /// digest, and every change the loop journals — plugins switched, the
-  /// time scale, the step rate — at the step of this tape it was made at.
+  /// Records through [loop]: its input into [recorder] (what arrived from
+  /// outside included, `InputFrame.external`), each step's event digest,
+  /// what its probes read (`Demo.probes`), and every change the loop
+  /// journals — plugins switched, the time scale, the step rate — each at the
+  /// step of this tape it was made at.
   ///
   /// **The plugins' state is written first, at the step recording begins**,
   /// since the loop may have been running and switching for a while, and a
@@ -158,11 +162,23 @@ final class DemoRecording {
   void _observeStep(StepEventSummary summary) {
     if (summary.resimulated) return;
     // The recorder wrote this step's entry before it ran, so it is the last.
-    _events?.observe(
-      recorder.tape.steps - 1,
-      count: summary.count,
-      digest: summary.digest,
-    );
+    final ran = recorder.tape.steps;
+    _events?.observe(ran - 1, count: summary.count, digest: summary.digest);
+    // Read at the end of the step: stamped with the steps this tape has run,
+    // as a run file counts them, not the loop's own count.
+    for (final reading in _loop?.probeReadings ?? const <ProbeReading>[]) {
+      _probes.add(
+        ProbeReading(
+          probe: reading.probe,
+          step: ran,
+          value: reading.value,
+          unit: reading.unit,
+          kind: reading.kind,
+          quality: reading.quality,
+          field: reading.field,
+        ),
+      );
+    }
   }
 
   // Made at the boundary, before the step's entry is written: the change
@@ -191,6 +207,7 @@ final class DemoRecording {
     events: _events,
     simulation: simulation,
     poses: bodies == null ? null : poses.recorded,
+    probes: List<ProbeReading>.unmodifiable(_probes),
   );
 }
 
