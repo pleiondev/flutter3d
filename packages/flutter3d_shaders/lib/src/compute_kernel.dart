@@ -307,7 +307,8 @@ ShaderBundle kernelBundle(String name, Iterable<ComputeKernel> kernels) {
     name: name,
     sdk: '',
     stages: <ShaderBundleStage>[
-      for (final k in list) ShaderBundleStage(k.name, fragment: false),
+      for (final k in list)
+        ShaderBundleStage(k.name, kind: ShaderStageKind.compute),
     ],
     sections: <String, ByteData>{
       ShaderBundle.kernelSection: encodeKernelSection(<String, String>{

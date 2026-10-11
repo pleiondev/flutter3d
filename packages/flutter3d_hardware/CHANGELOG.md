@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A stage has a kind, and the bundle writes it.** `ShaderStageKind`
+  (`vertex`, `fragment`, `compute`) is an open class, so mesh, task and
+  ray stages can be added in a minor. `ShaderBundleStage` takes `kind:`
+  beside `fragment:`, which is now derived from it. F3SB version 2 writes a
+  stage's kind as its code, where version 1 wrote 1 for a fragment stage
+  and 0 for any other, so a 1.0 reader took a compute stage for a vertex
+  one; a version 1 bundle still reads as it did, and a kind code this
+  reader does not know is refused as stale.
 - **Breaking: `StageBindings` and `UniformMemberLayout` are classes.** Both
   were records, and a record cannot gain a field, so no binding kind
   (storage buffers, storage textures) and no array stride could be added

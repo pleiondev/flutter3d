@@ -32,18 +32,87 @@ import 'dart:typed_data';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show FormatSpec, ResourceException;
 
+/// What a stage runs as: a vertex, a fragment or a compute program.
+///
+/// **Open, so a stage kind can be added in a minor** (mesh, task and the ray
+/// stages are the ones in sight). A kind is a name and the byte a bundle
+/// writes for it; a reader meeting a code it does not know refuses the
+/// bundle as stale rather than taking it for another kind. Compare kinds by
+/// identity or `==`; a `switch` over them needs a wildcard.
+final class ShaderStageKind {
+  const ShaderStageKind._(this.name, this.code);
+
+  /// A program run once per vertex.
+  static const ShaderStageKind vertex = ShaderStageKind._('vertex', 0);
+
+  /// A program run once per fragment.
+  static const ShaderStageKind fragment = ShaderStageKind._('fragment', 1);
+
+  /// A compute kernel, dispatched rather than drawn.
+  static const ShaderStageKind compute = ShaderStageKind._('compute', 2);
+
+  /// Every kind this version names, in the order of their codes.
+  static const List<ShaderStageKind> values = <ShaderStageKind>[
+    vertex,
+    fragment,
+    compute,
+  ];
+
+  /// The kind called [name], or null when this version names none.
+  static ShaderStageKind? byName(String name) {
+    for (final kind in values) {
+      if (kind.name == name) return kind;
+    }
+    return null;
+  }
+
+  /// The kind a bundle writes as [code], or null when this version names
+  /// none: a bundle from a newer packer.
+  static ShaderStageKind? byCode(int code) {
+    for (final kind in values) {
+      if (kind.code == code) return kind;
+    }
+    return null;
+  }
+
+  /// The kind's stable name, as manifests and messages spell it.
+  final String name;
+
+  /// The byte [ShaderBundle.encode] writes for this kind. Fixed for good
+  /// once a kind ships: a bundle already built carries it.
+  final int code;
+
+  @override
+  String toString() => 'ShaderStageKind.$name';
+}
+
 /// One entry point a bundle claims to hold.
 final class ShaderBundleStage {
-  const ShaderBundleStage(this.name, {required this.fragment});
+  /// A stage of [kind]; without one, a fragment stage when [fragment] is
+  /// true and a vertex stage otherwise, as before kinds existed.
+  const ShaderBundleStage(
+    this.name, {
+    bool fragment = false,
+    ShaderStageKind? kind,
+  }) : assert(
+         kind == null || !fragment || identical(kind, ShaderStageKind.fragment),
+         'a stage named fragment and given another kind',
+       ),
+       kind =
+           kind ??
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex);
 
   /// The name the engine asks a [ShaderLibrary] for.
   final String name;
 
-  /// Whether this is a fragment stage; a vertex stage otherwise.
-  final bool fragment;
+  /// What the stage runs as.
+  final ShaderStageKind kind;
+
+  /// Whether this is a fragment stage.
+  bool get fragment => identical(kind, ShaderStageKind.fragment);
 
   @override
-  String toString() => '$name (${fragment ? 'fragment' : 'vertex'})';
+  String toString() => '$name (${kind.name})';
 }
 
 /// A loadable shader bundle: a name, the SDK it was compiled on, the stages it
@@ -74,7 +143,11 @@ final class ShaderBundle {
   /// every container version up to this one, and refuses a newer bundle with
   /// [ShaderBundleException.stale] set, which tells the caller that rebuilding
   /// cures it.
-  static const int formatVersion = 1;
+  ///
+  /// Version 2 writes a stage's kind as its [ShaderStageKind.code], so a
+  /// compute stage (and a kind a minor adds) is said rather than read as a
+  /// vertex stage; version 1 wrote 1 for a fragment stage and 0 for any other.
+  static const int formatVersion = 2;
 
   /// F3SB for a `FormatRegistry`.
   ///
@@ -197,8 +270,8 @@ final class ShaderBundle {
   /// The bytes, in the layout [decode] reads.
   ///
   /// Little-endian throughout. Strings are a `uint32` byte length and UTF-8;
-  /// a stage is a string and one byte, 1 for fragment; a section is a string
-  /// id, a `uint32` length and the bytes.
+  /// a stage is a string and one byte, its kind's [ShaderStageKind.code]; a
+  /// section is a string id, a `uint32` length and the bytes.
   ByteData encode() {
     final out = BytesBuilder(copy: false);
     void u8(int value) => out.addByte(value);
@@ -221,7 +294,7 @@ final class ShaderBundle {
     u32(stages.length);
     for (final stage in stages) {
       string(stage.name);
-      u8(stage.fragment ? 1 : 0);
+      u8(stage.kind.code);
     }
     u32(sections.length);
     for (final entry in sections.entries) {
@@ -239,7 +312,10 @@ final class ShaderBundle {
   ///
   /// Throws [ShaderBundleException] for anything that is not a bundle: the wrong
   /// magic, a version this reader does not know, a length that runs off the
-  /// end, or a string field that is not UTF-8. Refused rather than returning
+  /// end, or a string field that is not UTF-8. A stage kind this reader does
+  /// not know is refused as [ShaderBundleException.stale]: a newer packer
+  /// wrote it, and taking it for another kind would hand a device a program
+  /// of the wrong sort. Refused rather than returning
   /// null because the caller is a device being handed bytes it was told were
   /// shaders, and the two ways that can be wrong — not a bundle, and a bundle
   /// it cannot run — deserve the same exception with different words.
@@ -252,9 +328,10 @@ final class ShaderBundle {
       );
     }
     // Every container version up to this one: a later layout reads the older
-    // header the older way here, before the sections are taken. Version 1 is
-    // the only layout so far. Mutation: put back `!=` and bump the constant,
-    // and the v1 fixture under `test/fixtures/` is refused.
+    // header the older way here, before the sections are taken. Version 1
+    // wrote 1 for a fragment stage and 0 for the rest; version 2 writes the
+    // kind's code. Mutation: put back `!=` and bump the constant, and the v1
+    // fixture under `test/fixtures/` is refused.
     final version = reader.u32();
     if (version < 1 || version > formatVersion) {
       throw ShaderBundleException(
@@ -270,9 +347,30 @@ final class ShaderBundle {
     try {
       final sdk = reader.string();
       final stageCount = reader.u32();
+      ShaderBundleStage stage() {
+        final stageName = reader.string();
+        final code = reader.u8();
+        if (version == 1) {
+          return ShaderBundleStage(stageName, fragment: code == 1);
+        }
+        // Mutation: fall back to a vertex stage here, and a bundle with a
+        // kind this reader does not know links a program of the wrong sort.
+        final kind = ShaderStageKind.byCode(code);
+        if (kind == null) {
+          throw ShaderBundleException(
+            name: '',
+            reason:
+                'its stage "$stageName" is of kind $code, which this reader '
+                'does not know. It was packed by a newer flutter3d; rebuild '
+                'it with this one',
+            stale: true,
+          );
+        }
+        return ShaderBundleStage(stageName, kind: kind);
+      }
+
       final stages = <ShaderBundleStage>[
-        for (var i = 0; i < stageCount; i++)
-          ShaderBundleStage(reader.string(), fragment: reader.u8() == 1),
+        for (var i = 0; i < stageCount; i++) stage(),
       ];
       final sectionCount = reader.u32();
       final sections = <String, ByteData>{

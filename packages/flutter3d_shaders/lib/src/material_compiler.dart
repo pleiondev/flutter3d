@@ -6,22 +6,36 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show CapabilityException, Registration;
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ShaderStageKind;
 
 /// One stage a `.f3dmat` source becomes, as GLSL the engine's emitter wrote:
 /// the fragment stage, and a `vertex` block's two vertex stages.
 final class MaterialStageSource {
+  /// A stage of [kind]; without one, a fragment stage when [fragment] is
+  /// true and a vertex stage otherwise.
   const MaterialStageSource({
     required this.name,
-    required this.fragment,
+    bool fragment = false,
+    ShaderStageKind? kind,
     required this.glsl,
-  });
+  }) : assert(
+         kind == null || !fragment || identical(kind, ShaderStageKind.fragment),
+         'a stage named fragment and given another kind',
+       ),
+       kind =
+           kind ??
+           (fragment ? ShaderStageKind.fragment : ShaderStageKind.vertex);
 
   /// The entry point's name: the material's, or `<name>Vertex` and
   /// `<name>VertexSkinned` for its vertex stages.
   final String name;
 
+  /// What the stage runs as.
+  final ShaderStageKind kind;
+
   /// Whether this is a fragment stage.
-  final bool fragment;
+  bool get fragment => identical(kind, ShaderStageKind.fragment);
 
   /// The stage as GLSL 4.60, its `#include`s of the engine's headers left
   /// in place for [MaterialCompileRequest.engineSources] to resolve.

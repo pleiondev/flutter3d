@@ -20368,3 +20368,17 @@ entries:
       layout can carry a stride later. A literal `(offset: …, byteLength: …,
       elements: …, type: …)` becomes `UniformMemberLayout(offset: …, …)`,
       and `elements` may be left out for a member that is not an array.
+
+  - id: af3-shaders-RequiredShader-class
+    package: flutter3d_shaders
+    symbol: RequiredShader
+    kind: recordToClass
+    fields:
+      name: name
+      fragment: fragment
+    wave: 4
+    guidance: >-
+      `RequiredShader` is a class with the same `name` and `fragment`, and a
+      `kind` beside them that can say a stage other than vertex or fragment.
+      A literal `(name: …, fragment: …)` becomes `RequiredShader(name: …,
+      fragment: …)`.

@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **Breaking: `RequiredShader` is a class**, with the same `name` and
+  `fragment` and a `kind` beside them; a literal `(name: …, fragment: …)`
+  becomes `RequiredShader(name: …, fragment: …)`.
+- **A stage says its kind.** `MaterialStageSource` and `compileStage` take
+  a `ShaderStageKind` beside the `fragment` flag, which each still takes,
+  and `kernelBundle` claims its kernels as compute stages rather than as
+  vertex ones.
 - **A kernel's WGSL gives the Dart kernel's bytes on Dawn too.** Chrome
   compiles under Metal's relaxed math, which folds `0.0 + x`; a sum
   starting at zero then wrapped one `f3d_exact` straight in another, and

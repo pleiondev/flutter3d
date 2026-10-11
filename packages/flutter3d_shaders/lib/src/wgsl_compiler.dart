@@ -46,6 +46,9 @@ import 'dart:typed_data';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
 
+import 'package:flutter3d_hardware/flutter3d_hardware.dart'
+    show ShaderStageKind;
+
 import 'shader_target.dart';
 
 /// Where the two programs are, by name, resolved through `PATH`.
@@ -118,28 +121,40 @@ final class CompiledStage {
 /// what makes "std140 and WGSL's uniform address space lay this out the same
 /// way" a measurement.
 ///
+/// [kind] says what the stage runs as. Without it, [compute] and [fragment]
+/// say it as they always have: a compute stage when [compute] is true, a
+/// fragment stage when [fragment] is, and a vertex stage otherwise.
+///
 /// [target] [ShaderTarget.spirv] stops after glslang and hands back the
 /// SPIR-V alone. WGSL is read back through naga a second time, as before;
 /// the other languages are naga's to write and the backend's to load.
 CompiledStage compileStage(
   String glsl, {
   required String name,
-  required bool fragment,
+  bool fragment = false,
   bool compute = false,
+  ShaderStageKind? kind,
   ShaderTarget target = ShaderTarget.wgsl,
 }) {
+  final stage =
+      kind ??
+      (compute
+          ? ShaderStageKind.compute
+          : fragment
+          ? ShaderStageKind.fragment
+          : ShaderStageKind.vertex);
   final directory = Directory.systemTemp.createTempSync('flutter3d_wgsl_');
   try {
     // glslang picks the stage from the extension, so the extension is the
     // one place a compute stage (`H6`) differs from the other two here.
     final source = File(
       '${directory.path}/$name.'
-      '${_extensionOf(compute: compute, fragment: fragment)}',
+      '${_extensionOf(stage)}',
     )..writeAsStringSync(glsl);
     final spirv = '${directory.path}/$name.spv';
     final extension = switch (target) {
       // naga picks the GLSL stage from the extension, as glslang does.
-      ShaderTarget.glsl => _extensionOf(compute: compute, fragment: fragment),
+      ShaderTarget.glsl => _extensionOf(stage),
       _ => target.extension,
     };
     final translatedPath = extension == null
@@ -220,8 +235,16 @@ CompiledStage compileStage(
 }
 
 /// The extension glslang and naga read a GLSL stage's kind from.
-String _extensionOf({required bool compute, required bool fragment}) =>
-    compute ? 'comp' : (fragment ? 'frag' : 'vert');
+/// glslang's and naga's extension for [kind]; a kind neither tool takes is
+/// refused by name rather than compiled as another.
+String _extensionOf(ShaderStageKind kind) => switch (kind) {
+  ShaderStageKind.compute => 'comp',
+  ShaderStageKind.fragment => 'frag',
+  ShaderStageKind.vertex => 'vert',
+  _ => throw UnsupportedError(
+    'compileStage has no glslang stage for a ${kind.name} stage',
+  ),
+};
 
 /// `Offset` decorations per block, out of glslang's `-H` listing.
 ///
