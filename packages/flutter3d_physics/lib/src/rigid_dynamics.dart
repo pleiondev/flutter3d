@@ -15,6 +15,8 @@
 /// controller see, and after [step] they are where the bodies are.
 library;
 
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SimulationProfile;
 import 'package:vector_math/vector_math.dart';
 
 import 'collider.dart';
@@ -51,6 +53,11 @@ abstract base class RigidDynamics {
 
   /// One fixed step of [dt] seconds.
   void step(double dt);
+
+  /// What the steps promise about their numbers: the deterministic profile
+  /// by default, the only one a backend that says nothing keeps. [Dynamics]
+  /// steps under the one it was made with.
+  SimulationProfile get profile => SimulationProfile.deterministic;
 
   /// What the last [step] found in contact, and what stopped being: one
   /// [StepContact] a pair of colliders (and a face, for two that meet on

@@ -42,6 +42,7 @@
 /// depends on that package.
 library;
 
+export 'src/body_force.dart';
 export 'src/character_controller.dart';
 export 'src/character_mover.dart';
 export 'src/cloth/cloth_collision.dart';
