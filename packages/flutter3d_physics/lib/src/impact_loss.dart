@@ -4,6 +4,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_foundation/flutter3d_foundation.dart' show Portable;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
     show PhysicalMaterial, WorldProperties;
 
@@ -41,7 +42,7 @@ double restitutionOfLossFactor(double lossFactor) {
   }
   final zeta = lossFactor / 2.0;
   if (zeta >= 1.0) return 0.0;
-  return math.exp(-math.pi * zeta / math.sqrt(1.0 - zeta * zeta));
+  return Portable.exp(-math.pi * zeta / math.sqrt(1.0 - zeta * zeta));
 }
 
 /// Whether a contact in a world of [properties] reads its materials' loss

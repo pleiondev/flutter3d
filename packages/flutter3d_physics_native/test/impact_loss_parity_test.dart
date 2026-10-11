@@ -1,6 +1,6 @@
-/// A material's loss factor in both cores' contacts: two scenes built once
-/// through `RigidDynamics`, stepped by the reference and by the core, and
-/// held to one another and to the damped spring's restitution
+/// A material's loss factor in both cores' contacts: a drop and a head-on
+/// pair built once through `RigidDynamics`, stepped by the reference and by
+/// the core, and held to one another and to the damped spring's restitution
 /// (`restitutionOfLossFactor`) in a world that is not bit-exact; and, under
 /// the deterministic profile, the core stepping a world of lossy materials
 /// to the very bytes it steps the same world without them.
