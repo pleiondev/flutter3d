@@ -1,0 +1,7 @@
+{
+  "fmat": 1,
+  "name": "hatched",
+  "lighting": {"shader": "Hatch"},
+  "materialVersion": 1,
+  "parameters": {"ink": [0.25, 0.5, 0.75], "spacing": [8.0]}
+}

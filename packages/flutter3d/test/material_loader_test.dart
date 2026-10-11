@@ -276,4 +276,64 @@ void main() {
       },
     );
   });
+
+  // D45 on the render path: a material instance keeps the version it was
+  // written at, and the loader carries its values to the program's own.
+  // `hatch.f3dmat` is at version 2, which renamed `ink` to `inkColor` and
+  // halved `spacing`; the two `.fmat` fixtures were written at 1 and at 2.
+  group('lifts what a file sets to the material\'s version', () {
+    final program = parseMaterial(
+      File('test/fixtures/materials/hatch.f3dmat').readAsStringSync(),
+    );
+    Future<(RenderMaterial, List<String>)> load(String fixture) async {
+      final warnings = <String>[];
+      final material = await loadMaterial(
+        FileAssetSource('test/fixtures/materials/$fixture'),
+        device: FakeBackend(),
+        warnings: warnings,
+        programs: <String, MaterialProgram>{program.name: program},
+      );
+      return (material, warnings);
+    }
+
+    // Mutation: pass `document.parameters` through as written, and the
+    // version 1 file sets a member the stage does not have.
+    test(
+      'a file written at version 1 is carried through the updates',
+      () async {
+        final (material, warnings) = await load('hatch_at_1.fmat');
+        expect(material.parameters.keys.toSet(), <String>{
+          'inkColor',
+          'spacing',
+        });
+        expect(material.parameters['inkColor'], <double>[0.25, 0.5, 0.75]);
+        expect(material.parameters['spacing'], <double>[4.0]);
+        expect(warnings, isEmpty);
+      },
+    );
+
+    test('a file written at version 2 is read as written', () async {
+      final (material, warnings) = await load('hatch_at_2.fmat');
+      expect(material.parameters['inkColor'], <double>[0.25, 0.5, 0.75]);
+      expect(material.parameters['spacing'], <double>[4.0]);
+      expect(warnings, isEmpty);
+    });
+
+    test('a file from a newer version keeps its values, and says so', () async {
+      final path = _fileNamed(
+        'hatched.fmat',
+        '{"fmat": 1, "lighting": {"shader": "Hatch"}, "materialVersion": 3, '
+            '"parameters": {"inkColor": [1, 1, 1]}}',
+      );
+      final warnings = <String>[];
+      final material = await loadMaterial(
+        FileAssetSource(path),
+        device: FakeBackend(),
+        warnings: warnings,
+        programs: <String, MaterialProgram>{program.name: program},
+      );
+      expect(material.parameters['inkColor'], <double>[1, 1, 1]);
+      expect(warnings.single, contains('cannot be carried'));
+    });
+  });
 }

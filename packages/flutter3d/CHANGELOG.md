@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A material file is lifted to its material's version on load.**
+  `bindMaterial` and `loadMaterial` take `programs:`, the material-language
+  materials by name; when the model a `.fmat` is drawn with is one of them,
+  the parameters it sets are carried from its `materialVersion` (1 when it
+  names none) through the program's `updates`, as the level loader already
+  did. A value the program no longer has is left out, and a file from a
+  newer version keeps its values; each is a warning.
 - **Exports `WebDecodeWorker`**, so a web application starts the browser's
   decode worker (`WebDecodeWorker.use`) from the one import it loads models
   through.
