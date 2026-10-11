@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **A substance named by id is read from the catalogue.**
+  `LevelScene(materials:)` takes a `MaterialCatalog`, and a level material
+  naming what it is made of (`physicalMaterial`) takes from the substance's
+  optical group what the document leaves unsaid: a metal is drawn metallic
+  in its own reflectance, and the roughness is the middle of the range the
+  catalogue gives. An author's `metallic`, `baseColor` or `roughness` wins.
+  `LevelScene.substanceOf` finds the substance, and `materialFrom` takes it
+  as `substance:`.
+- **A level material's parameter values reach its material.**
+  `materialFrom` writes `LevelMaterial.parameters` into
+  `RenderMaterial.parameters` as the document gives them.
 - **A level light's strength reaches its node as it is.** A level's lights
   are candela and lux since level format 5, so `LevelScene.lightOf` no
   longer multiplies by the pre-1.0 unit, and a kind of level light it has no
