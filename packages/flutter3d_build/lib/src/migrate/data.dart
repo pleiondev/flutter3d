@@ -36,8 +36,7 @@ import 'package:flutter3d_core/flutter3d_core.dart'
         f3dsplatFormat,
         fmatFormat,
         pipelineFormat;
-import 'package:flutter3d_education/experiment.dart'
-    show experimentFormat;
+import 'package:flutter3d_education/experiment.dart' show experimentFormat;
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_hardware/shader_bundle.dart' show ShaderBundle;
 import 'package:flutter3d_hardware/trace.dart' show Trace;
@@ -95,75 +94,96 @@ const Map<String, List<FormatSpec>> formatsByPackage =
       'flutter3d_build': <FormatSpec>[AssetManifest.spec, convertReportFormat],
     };
 
-/// A format of the engine this command cannot load, and what reads it.
+/// A format of the engine this command cannot load, the version its
+/// package writes, and what reads it.
 typedef FormatOutOfReach = ({
   String id,
   String package,
+  int version,
   List<String> suffixes,
   String why,
 });
 
 /// The formats whose owning package this command cannot load. A test holds
 /// this list and [formatsByPackage] to every `FormatSpec` the repository
-/// declares.
+/// declares, and each version here to the one its package writes.
+///
+/// **Seven of the ten are at their first version**, so every file of them
+/// is current and there is nothing to lift: `f3d.actions`, `f3d.saveSlots`,
+/// `f3d.cloudSaves`, `f3d.telemetryConsent`, `f3d.track`, `f3d.ghostTape`
+/// and `f3d.conformance`. A file of one counts as current. **Three have an
+/// older version**, `f3d.settings`, `f3d.ghost` and `f3d.match`, and their
+/// lift chain lives beside a Flutter reader; a file of one below its version
+/// is named with the version it is at and left for the game, which lifts
+/// it on every read.
 const List<FormatOutOfReach> formatsOutOfReach = <FormatOutOfReach>[
   (
     id: 'f3d.settings',
     package: 'flutter3d_game',
+    version: 2,
     suffixes: <String>['.settings.json'],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.actions',
     package: 'flutter3d_game',
+    version: 1,
     suffixes: <String>['.actions.json'],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.saveSlots',
     package: 'flutter3d_game',
+    version: 1,
     suffixes: <String>[],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.cloudSaves',
     package: 'flutter3d_game',
+    version: 1,
     suffixes: <String>[],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.telemetryConsent',
     package: 'flutter3d_game',
+    version: 1,
     suffixes: <String>[],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.track',
     package: 'flutter3d_game_racing',
+    version: 1,
     suffixes: <String>['.track.json'],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.ghost',
     package: 'flutter3d_game_racing',
+    version: 2,
     suffixes: <String>['.ghost.json'],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.ghostTape',
     package: 'flutter3d_game_kit',
+    version: 1,
     suffixes: <String>['.best.json'],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.match',
     package: 'flutter3d_game_strategy',
+    version: 2,
     suffixes: <String>['.match.f3drun'],
     why: _flutterOwned,
   ),
   (
     id: 'f3d.conformance',
     package: 'flutter3d_conformance',
+    version: 1,
     suffixes: <String>['.conformance.json'],
     why:
         'a report of one conformance run, which nothing in a project reads '
@@ -349,6 +369,23 @@ int _longestSuffix(List<String> suffixes, String path) => suffixes
     .where(((FormatOutOfReach, int) match) => match.$2 > 0)
     .firstOrNull;
 
+/// The version [file], of [format], says it is at in its envelope; null for
+/// a file that is not such a document, or says no version.
+int? _versionOutOfReach(File file, FormatOutOfReach format) {
+  try {
+    return switch (jsonDecode(file.readAsStringSync())) {
+      {'format': final String id, 'version': final int version}
+          when id == format.id =>
+        version,
+      _ => null,
+    };
+  } on FormatException {
+    return null;
+  } on FileSystemException {
+    return null;
+  }
+}
+
 /// [document], a [spec] document written at [from], in the shape this build
 /// writes: lifted, in the envelope of [FormatSpec.version], its legacy
 /// version key gone and the rest of its keys after the envelope in the
@@ -404,7 +441,17 @@ DataMigration migrateData(
       final format,
       final length,
     ) when length > _longestSuffix(spec?.suffixes ?? const <String>[], path)) {
-      result.notCarried.add((path: path, why: '${format.id}: ${format.why}'));
+      final at = _versionOutOfReach(file, format);
+      if (at == format.version) {
+        result.current[format.id] = (result.current[format.id] ?? 0) + 1;
+      } else {
+        result.notCarried.add((
+          path: path,
+          why: at == null
+              ? '${format.id}: ${format.why}'
+              : '${format.id} v$at, below v${format.version}: ${format.why}',
+        ));
+      }
       continue;
     }
     if (spec == null) continue;
@@ -542,8 +589,11 @@ String generateDataGuide() {
         '`${away.id}`',
         suffixes(away.suffixes),
         '`${away.package}`',
-        'every version',
-        'left as it is: ${away.why == _flutterOwned ? 'its package needs Flutter, and the game reads every version' : away.why}',
+        away.version == 1 ? 'v1' : 'v1–v${away.version}',
+        away.version == 1
+            ? 'nothing to lift: v1 is its only version'
+            : 'left as it is below v${away.version}: '
+                  '${away.why == _flutterOwned ? 'its package needs Flutter, and the game lifts it on every read' : away.why}',
       ]),
   ];
   final loaded = formatsByPackage.values.fold(
