@@ -256,10 +256,50 @@ Finds a smaller set of lights that lights the level the way it is lit now. Every
 
 It refuses to overwrite a level that says it was generated; `--out` writes a copy that takes ownership of itself. The command is `flutter3d lights` (`dart run flutter3d_build:lights` is its alias), in `package:flutter3d_build/cli.dart`, which the build hook's library does not import, so the hook never compiles the optimizer, and a level is optimised only when somebody runs it.
 
+## The engine's shaders {#shaders}
+
+The same hook compiles the engine's shader stages for the project, with the `impellerc` of the Flutter SDK that builds it, into `flutter3d_generated/shaders/flutter3d.f3dshaders`. It holds the stages the project needs and no others. One bundle for every application was 8.5 MB in every binary, and two thirds of it was lighting models most games never draw with.
+
+A project needs:
+
+| | |
+|---|---|
+| The base | Always: the mesh, skinned, batched and lightmapped vertex stages, `Pbr` and `Unlit`, the shadow, sky, probe and post passes, and the x-ray, normals and mirror stages the renderer draws by itself when a setting or a node asks |
+| What its models light with | Read from the converted `.f3d` files: a glTF material with clear coat, sheen or anisotropy brings `pbrLayered` |
+| Impostors | When a rule in `flutter3d_assets.yaml` says `impostor: true` |
+| What its manifest lists | `shaders: [toon, lambert]` in `flutter3d_assets.yaml`, for lighting its code chooses (`RenderMaterial(lighting: LightingModel.toon)`), which a build cannot see |
+| What its plugins declare | `flutter3d_plugins: shaders: [toon]` in a plugin package's pubspec, or a map from a library to its needs so a library the application leaves out brings nothing |
+
+The engine's needs a project can name are `pbrLayered`, `blinnPhong`, `lambert`, `toon` and `impostor` (`ShaderStageNeed.engine`); a plugin names its own after its id, `acme.glow`. `shaders: full` writes every stage, as does `fullShaders: true` under `hooks: user_defines: flutter3d_build:` in `pubspec.yaml`, or `flutter3d shaders --full-shaders` by hand. The editor and the modeller carry every stage: they draw whatever a user opens, and they load the bundle `flutter3d_impeller` ships, which has all of them.
+
+A stage left out and asked for is a `MissingShaderStageException` when the renderer first draws with it. It names the stage and the need that brings it, which is the word to add under `shaders:`:
+
+```text
+the shader stage "Toon" is not in the bundle on Impeller: it comes with the
+need "toon": list it under "shaders:" in flutter3d_assets.yaml, or build with
+--full-shaders.
+```
+
+On `flutter3d_app`'s example the native bundle is 3.7 MB with 95 of 105 stages, against 8.5 MB for all of them, measured on 2026-10-11 with Flutter 3.47.0. `flutter3d shaders` writes the bundle by hand and prints its size, and `--json` says which stages and needs it holds.
+
+**The bundle is compiled for the SDK it runs on.** Its header carries the Dart that built it and its `EngineBundleStamp` section the engine revision. Impeller loads the project's bundle first and refuses one from another SDK with `ShaderBundleException(stale: true)`, naming the file and saying to build again; it never loads one that parses and draws something else. A project without the hook gets the bundle `flutter3d_impeller` ships, held to the same check, and is told to add the hook when its SDK is not the one that bundle was published with. The bundle written before stays beside the new one as `flutter3d.previous.f3dshaders`, for an application that reloads across the rebuild; anything older is removed.
+
+`flutter3d_generated/shaders/` needs its own line under `flutter: assets:`, for the reason the warning above gives. `init` adds it to a project that draws.
+
+### Plugins' materials {#plugin-materials}
+
+A package that marks plugins and keeps `.f3dmat` sources under its own `assets_src/` has every one compiled into the project, as `flutter3d_generated/shaders/<material>.f3dshaders`, for the SDK that builds the application. On Impeller a data plugin's material is found there by its name (`RuntimeShaders`' `prebuilt`); one the build did not write is off, with a `MissingShaderStageException` in `RuntimeShaders.refusals` that names it and the plugin.
+
+A plugin may still ship a bundle it compiled itself, as `flutter3d_effects` does with its water. It is tied to the SDK its author built with: a device refuses it with `ShaderBundleException(stale: true)` on any other, by name. A plugin's own loader asks for `EngineBundleStamp.projectMaterialAsset(name)` first and falls back to its shipped bundle, so the copy compiled for the application's SDK wins wherever the hook ran.
+
+`flutter3d doctor`, run in a project that draws, says whether `hook/build.dart` runs `buildAssets`, whether `pubspec.yaml` ships `flutter3d_generated/shaders/`, whether the bundle there was compiled on the Dart and engine revision that build the project now, and which installed plugin materials are not compiled in yet.
+
 ## When the hook fails
 
 | Symptom | Cause |
 |---|---|
+| `MissingShaderStageException` names a stage and a need | The project's bundle leaves that stage out. List the need under `shaders:` in `flutter3d_assets.yaml`, or build with every stage |
+| `ShaderBundleException` with `stale` set names `flutter3d_generated/shaders/flutter3d.f3dshaders` | The bundle was compiled on another SDK, after `flutter upgrade` without a build since. Build again |
 | `flutter analyze` says an asset directory does not exist | Expected on a fresh checkout: hooks run during a real build, never during `analyze`, and the declared directory has nothing in it yet. Build once |
 | `flutter analyze` says `hook/build.dart`'s own imports are not a dependency | `hook/` sits outside `test/`, where the analyzer does not look for `dev_dependencies:`. Excluded from analysis in `analysis_options.yaml`, the way generated platform folders already are |
 | A model that used to load throws in release | The generated `.f3d` is missing from the shipped bundle. Check that every subdirectory under `flutter3d_generated/` has its own `pubspec.yaml` line, and that the build ran with `flutter3d_build` as a real dependency, not added after the last build with no `flutter clean` since |

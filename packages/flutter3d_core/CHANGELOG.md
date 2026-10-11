@@ -1,5 +1,16 @@
 ## 1.0.0-rc.1
 
+- **A stage the bundle left out is refused by name.** `Renderer.create`,
+  and the first draw with a lighting model or a material's vertex stage the
+  bundle does not hold, throw `MissingShaderStageException` (from
+  `flutter3d_shaders`) naming the stage and the need that brings it, where
+  they threw a `StateError` that pointed at a build script. A project's
+  bundle holds the stages it needs since 1.0.
+- **A plugin's material reaches Impeller from the build.**
+  `RuntimeShaders(prebuilt:)` hands back the bundle the build compiled for a
+  material's name, and on Impeller the material is added from it; without
+  one it is off, and `RuntimeShaders.refusals` holds the
+  `MissingShaderStageException` that says so.
 - **A headset's views go to their layers in the frame graph.**
   `ProjectionLayerNode` runs last, reads the finished picture and gives it
   back unchanged, and copies each of `FrameContext.views` into its own

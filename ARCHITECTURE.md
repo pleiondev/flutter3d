@@ -81,8 +81,12 @@ Flutter GPU off unless the engine is given `--enable-flutter-gpu`, so
 GLES backend compiles our shaders as GLSL ES 1.00 and refuses the ones that
 read `gl_VertexID`. That was on Mesa's software rasteriser (llvmpipe), and a
 real GPU may behave otherwise. A Linux build that draws through Impeller
-needs that switch set by the runner, and full-screen passes that do not
-depend on `gl_VertexID`.
+needs that switch set by the runner. Since 1.0.0-rc.1 no stage reads a
+built-in index on that target: `lib/vertex_index.glsl` and
+`lib/instance_index.glsl` make it an attribute under
+`IMPELLER_TARGET_OPENGLES`, which the Impeller backend feeds from a buffer of
+0, 1, 2 … in a slot after the pipeline's own, and `tool/ci.sh` runs the
+conformance harness through Impeller under Xvfb on Linux.
 
 Android has been played on a real handset — the platformer on a Galaxy A55,
 where Impeller picked Vulkan by itself, rendered clean, and the on-screen
@@ -3665,7 +3669,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14269 tests** across 61 packages and 17 applications |
+| Unit tests | **14310 tests** across 61 packages and 17 applications |
 | Structure rules | 82, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

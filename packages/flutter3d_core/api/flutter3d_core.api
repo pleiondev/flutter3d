@@ -42,11 +42,12 @@ final class RuntimeRenderStep
 final class RuntimeShaders extends PluginRegistry
   Future<void> get settled
   LightingModel? lighting(String material)
+  Map<String, Flutter3dException> get refusals
   Map<String, String?> get statuses
   Registration addMaterial(String source, {required String from})
   Registration addRenderStep(RuntimeRenderStep step, RendererSteps into)
   RuntimeShaders forPlugin(PluginScope scope)
-  RuntimeShaders({required String? backend, required Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders, required Registration Function(ShaderLibrary library) addMaterials, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation, MaterialCompilerRegistry? compilers})
+  RuntimeShaders({required String? backend, required Future<LoadedShaderLibrary> Function(ByteData bundle) loadShaders, required Registration Function(ShaderLibrary library) addMaterials, Map<String, String>? engineSources, PackedStage? webGpuHost, int? webGpuFullscreenUvLocation, MaterialCompilerRegistry? compilers, Future<ByteData?> Function(String material)? prebuilt})
   String? get backend
 
 final class RuntimeShadersException extends CapabilityException

@@ -96,7 +96,7 @@ final class ToolFailedException extends ResourceException
 
 const ExternalTool blender = …
 
-const List<String> cliCommands = <String>['convert', 'create', 'init', 'plugins', 'migrate', 'lights', 'doctor', 'help']
+const List<String> cliCommands = <String>['convert', 'create', 'init', 'plugins', 'shaders', 'migrate', 'lights', 'doctor', 'help']
 
 Map<String, Object?> cliJson(String command, Map<String, Object?> body)
 
@@ -152,6 +152,8 @@ const String migrateUsage = …
 
 const String pluginsUsage = …
 
+List<DoctorCheck> projectShaderChecks(Directory project, {String? dart, String? engineRevision})
+
 Map<String, String> projectTemplate(String name)
 
 Future<int> runConvertCommand(List<String> arguments, {IOSink? out, IOSink? err})
@@ -161,6 +163,8 @@ int runDoctor(List<String> arguments, {IOSink? out})
 List<DoctorCheck> runDoctorChecks({ProcessProbe probe = _probe, String? Function(ExternalTool tool)? locate, String? dartVersion, Directory? project})
 
 Future<int> runFlutter3d(List<String> arguments)
+
+const String shadersUsage = …
 
 const ExternalTool usdcat = …
 
@@ -269,10 +273,11 @@ final class AssetLayout
 
 final class AssetManifest
   AssetRule? ruleFor(String relativePath)
-  const AssetManifest([this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[]])
+  const AssetManifest([this.rules = const <AssetRule>[], this.classes = const <DeviceClassBudget>[], this.shaders = ShaderSelection.none])
   factory AssetManifest.parse(String yamlText)
   final List<AssetRule> rules
   final List<DeviceClassBudget> classes
+  final ShaderSelection shaders
   static AssetManifest readFrom(Directory projectRoot)
   static const AssetManifest empty = AssetManifest()
   static const FormatSpec spec = FormatSpec(id: 'f3d.assets', version: formatVersion, suffixes: <String>['flutter3d_assets.yaml'], fixture: 'test/fixtures/v<N>/flutter3d_assets.yaml')
@@ -304,18 +309,21 @@ abstract base class BuildStep
   abstract FutureOr<void> run(BuildStepContext context)
   abstract String get name
   const BuildStep()
-  static const List<String> builtIn = <String>[models, materials, plugins]
+  static const List<String> builtIn = <String>[models, materials, plugins, shaders]
   static const String materials = 'materials'
   static const String models = 'models'
   static const String plugins = 'plugins'
+  static const String shaders = 'shaders'
 
 final class BuildStepContext
-  BuildStepContext({required this.projectRoot, this.sink, this.textures = TextureFamily.auto, this.deviceClasses})
+  BuildStepContext({required this.projectRoot, this.sink, this.textures = TextureFamily.auto, this.deviceClasses, this.fullShaders = false, this.shaderTarget = ShaderBuildTarget.any})
   IOSink get log
   final Directory projectRoot
   final IOSink? sink
   final List<DeviceClass>? deviceClasses
+  final ShaderBuildTarget shaderTarget
   final TextureFamily textures
+  final bool fullShaders
   late final AssetLayout layout
 
 final class BuildStepException extends ResourceException
@@ -438,11 +446,13 @@ base class PluginAuthorMcpServer extends ToolTableServer<PluginWorkshop, Answer>
 typedef PluginAuthorTool = OfferedTool<PluginWorkshop, Answer>;
 
 final class PluginDiscovery
-  const PluginDiscovery({required this.plugins, required this.readFiles, this.warnings = const <String>[], this.excluded = const <DiscoveredPlugin>[]})
+  const PluginDiscovery({required this.plugins, required this.readFiles, this.warnings = const <String>[], this.excluded = const <DiscoveredPlugin>[], this.packages = const <PluginPackage>[], this.dependencies = const <String>{}})
   final List<DiscoveredPlugin> excluded
   final List<DiscoveredPlugin> plugins
+  final List<PluginPackage> packages
   final List<String> readFiles
   final List<String> warnings
+  final Set<String> dependencies
 
 final class PluginDiscoveryException extends PluginException
   String toString()
@@ -460,6 +470,13 @@ final class PluginKind
   static const PluginKind genre = PluginKind._('genre', 'a step phase of its own between physics and elements, with a rule ' 'that scores and an event it publishes', simulates: true)
   static const PluginKind renderStep = PluginKind._('render-step', 'a full-screen pass at a render anchor, switched like a built-in step', simulates: false)
   static const PluginKind tool = PluginKind._('tool', 'an MCP tool published under the plugin\'s id', simulates: false)
+
+final class PluginPackage
+  String toString()
+  const PluginPackage({required this.name, required this.root, this.shaderNeeds = const <String>[]})
+  final List<String> shaderNeeds
+  final String name
+  final String root
 
 typedef PluginProcessResult = ({int exitCode, String stdout, String stderr});
 
@@ -487,6 +504,34 @@ final class PluginsFileReport
   final PluginDiscovery discovery
   final String path
   final bool written
+
+final class ShaderBuildReport
+  String get summary
+  const ShaderBuildReport({required this.ran, this.stages = const <String>[], this.totalStages = 0, this.bytes = 0, this.written = false, this.needs = const <String>[], this.full = false, this.materials = const <String>[], this.dependencies = const <String>[]})
+  final List<String> dependencies
+  final List<String> materials
+  final List<String> needs
+  final List<String> stages
+  final bool full
+  final bool ran
+  final bool written
+  final int bytes
+  final int totalStages
+
+final class ShaderBuildTarget
+  String toString()
+  final String name
+  final bool impeller
+  final bool webGl
+  static const ShaderBuildTarget any = ShaderBuildTarget._('any', impeller: true, webGl: true)
+  static const ShaderBuildTarget native = ShaderBuildTarget._('native', impeller: true, webGl: false)
+  static const ShaderBuildTarget web = ShaderBuildTarget._('web', impeller: false, webGl: true)
+
+final class ShaderSelection
+  const ShaderSelection({this.needs = const <String>[], this.full = false})
+  final List<String> needs
+  final bool full
+  static const ShaderSelection none = ShaderSelection()
 
 final class SourceFormatException extends Flutter3dFormatException
   String toString()
@@ -520,6 +565,8 @@ Future<F3dConversion> convertDocument(ModelDocument document, {void Function(Str
 Future<bool> convertOne(String inputPath, String outputPath, IOSink out, IOSink err, {TextureFamily textures = TextureFamily.auto, bool mips = true, List<double> lods = const <double>[], bool impostor = false, int? chunks, int impostorCell = 64, int? maxTextureSide, List<ModelDecoder> decoders = const <ModelDecoder>[]})
 
 Future<bool> convertSplat(String inputPath, String outputPath, IOSink out, IOSink err, {int leafCapacity = 512, int grid = 8})
+
+List<String> declaredShaderNeeds(Directory projectRoot, {PluginDiscovery? plugins})
 
 Future<ModelDocument> decodeModelFile(String path, {List<ModelDecoder> decoders = const <ModelDecoder>[], String? root})
 
@@ -591,7 +638,7 @@ String renderPluginsFile(List<DiscoveredPlugin> plugins)
 
 Future<AssetBuildReport> runAssetBuild(Directory projectRoot, {IOSink? log, TextureFamily textures = TextureFamily.auto, List<DeviceClass>? deviceClasses})
 
-Future<BuildStepsReport> runBuildSteps(Directory projectRoot, {Iterable<BuildStep> steps = const <BuildStep>[], IOSink? log, TextureFamily textures = TextureFamily.auto, List<DeviceClass>? deviceClasses})
+Future<BuildStepsReport> runBuildSteps(Directory projectRoot, {Iterable<BuildStep> steps = const <BuildStep>[], IOSink? log, TextureFamily textures = TextureFamily.auto, List<DeviceClass>? deviceClasses, bool fullShaders = false, ShaderBuildTarget shaderTarget = ShaderBuildTarget.any})
 
 Future<int> runConvert(List<String> arguments, {IOSink? out, IOSink? err, List<ModelDecoder> decoders = const <ModelDecoder>[]})
 
@@ -599,9 +646,13 @@ Future<int> runInit(List<String> arguments, {IOSink? out, IOSink? err, Directory
 
 MaterialBuildReport runMaterialBuild(Directory projectRoot, {IOSink? log, MaterialCompilers? compilers, ShaderSet? engine})
 
+ShaderBuildReport runShaderBuild(Directory projectRoot, {required PluginDiscovery plugins, IOSink? log, bool full = false, ShaderBuildTarget target = ShaderBuildTarget.any, MaterialCompilers? compilers, ShaderSet? engine, String? engineRevision})
+
 ({List<DiscoveredPlugin> kept, List<DiscoveredPlugin> excluded, List<String> warnings}) selectPlugins(List<DiscoveredPlugin> plugins, {List<PluginSelector> without = const <PluginSelector>[], Map<PluginSelector, String> set = const <PluginSelector, String>{}, List<PluginSelector> add = const <PluginSelector>[]})
 
 const String shaderBundleExtension = '.f3dshaders'
+
+List<String> shaderNeedsOf(String package, Map<Object?, Object?> pubspec, {Set<String> libraries = const <String>{}})
 
 const Set<String> splatExtensions = <String>{'.ply', '.spz'}
 

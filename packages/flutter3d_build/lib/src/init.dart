@@ -16,6 +16,9 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_shaders/flutter3d_shaders.dart'
+    show EngineBundleStamp;
+
 import 'build_assets.dart';
 import 'cli_contract.dart' show initUsage;
 import 'layout.dart';
@@ -121,14 +124,14 @@ List<InitStep> planInit(Directory projectRoot, {bool force = false}) {
   final basePubspecLines = withDependency ?? pubspecLines;
   final generatedEntries = <String>{
     ..._generatedAssetEntries(layout),
-    // D15: the engine's bundle and the plugins' materials the hook writes,
-    // in a directory of their own, for a project that draws.
+    // The engine's bundle and the plugins' materials the hook writes, in a
+    // directory of their own, for a project that draws.
     if (basePubspecLines.any(
       (line) => RegExp(
         r'^\s+flutter3d(_impeller|_webgl|_webgpu)?\s*:',
       ).hasMatch(line),
     ))
-      '- ${layout.generatedDir.path.split('/').last}/shaders/',
+      '- ${EngineBundleStamp.projectDirectory}',
   };
   final missingEntries = generatedEntries
       .where((entry) => !_hasTopLevelAssetEntry(basePubspecLines, entry))

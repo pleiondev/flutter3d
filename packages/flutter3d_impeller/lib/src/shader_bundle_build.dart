@@ -25,13 +25,14 @@ export 'shader_bundle_build_exception.dart';
 
 /// Where the compiled bundle lives inside this package, relative to its own
 /// root — the path `pubspec.yaml` lists under `flutter.assets` and the path
-/// `ShaderLibrary.fromAsset` loads at run time. One spelling, because the
-/// three have to agree.
+/// `loadEngineShaderLibrary` falls back to at run time. One spelling, because
+/// the three have to agree.
 const String bundlePath = 'assets/shaders/flutter3d.shaderbundle';
 
 /// Compiles `flutter3d_shaders`'s own manifest into
 /// `<packageRoot>/assets/shaders/flutter3d.shaderbundle` through
-/// `impellerc`, and returns the sources it read — the manifest and every
+/// `impellerc`, in the engine's container with the SDK it was compiled on
+/// ([stampedEngineBundle]), and returns the sources it read — the manifest and every
 /// GLSL file under `flutter3d_shaders/shaders/` — so a caller with a build
 /// hook's own dependency list can declare them.
 ///

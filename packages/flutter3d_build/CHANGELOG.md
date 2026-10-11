@@ -1,5 +1,38 @@
 ## 1.0.0-rc.1
 
+- **The build writes the engine's bundle with the stages the project
+  needs.** A fourth step of the hook's own, `BuildStep.shaders`, after the
+  plugin list: `runShaderBuild` compiles the base, the lighting the
+  converted models name, impostors when a rule bakes them, the needs
+  `flutter3d_assets.yaml` lists under `shaders:` (`ShaderSelection`) and the
+  ones each installed plugin declares under `flutter3d_plugins: shaders:`
+  (`PluginPackage.shaderNeeds`) into
+  `flutter3d_generated/shaders/flutter3d.f3dshaders`, with the
+  application's `impellerc`. `shaders: full`, the `fullShaders` user define
+  and `flutter3d shaders --full-shaders` write every stage. The bundle
+  written before is kept for a reload, older ones removed. 3.7 MB against
+  8.5 MB on `flutter3d_app`'s example.
+- **Every installed plugin's materials are compiled into the project.** A
+  plugin package's `assets_src/*.f3dmat` becomes
+  `flutter3d_generated/shaders/<material>.f3dshaders`, for the SDK that
+  builds the application.
+- **`flutter3d shaders`** runs that step by hand and prints the bundle's
+  size; `--target` picks the sections, `--json` reports the stages and
+  needs. `dart run flutter3d_build:shaders` is its alias.
+- **Breaking: `BuildStep.builtIn` and `cliCommands` each gain a name.**
+  `builtIn` is `[models, materials, plugins, shaders]`, so a project's step
+  can no longer be named `shaders`, and a step that names no neighbour runs
+  after the shaders; `cliCommands` lists `shaders` after `plugins`. Neither
+  existed at 0.8.
+- **`doctor` reads a project's shaders.** Whether `hook/build.dart` runs
+  `buildAssets`, whether the pubspec ships `flutter3d_generated/shaders/`,
+  whether the bundle there was compiled on the Dart and engine revision
+  that build the project now, and which plugin materials are not compiled
+  in yet (`projectShaderChecks`). `init` adds the asset line to a project
+  that draws.
+- **`PluginDiscovery` says where the plugin packages are.** `packages`
+  (`PluginPackage`: name, root, shader needs) and `dependencies`, every
+  package the application reaches.
 - **A conversion's report carries the model's author, licence and
   copyright.** `ConvertReport.author`, `license` and `copyright`, read from
   the document, and the same three keys, when present, in `--json` and

@@ -59,11 +59,14 @@ What sits behind each level:
 - **Windows.** CI builds the five games and the editor, and runs the native
   physics core's tests under MSVC. Nobody has played a game on Windows yet.
 - **Linux.** Every test suite in the repository runs here, and the `render`
-  job draws every golden scene through the CPU backend under Xvfb. Impeller
-  does not draw on Linux yet: the embedder keeps Flutter GPU off unless the
-  runner passes `--enable-flutter-gpu`, and with it on, Impeller's OpenGL ES
-  backend refuses the shaders that read `gl_VertexID`. A Linux game draws
-  through the CPU backend until that is fixed.
+  job draws every golden scene through the CPU backend under Xvfb. The
+  embedder keeps Flutter GPU off unless the engine is given
+  `--enable-flutter-gpu`, and Impeller's OpenGL ES backend refused the
+  shaders that read `gl_VertexID`; since 1.0.0-rc.1 no stage reads it on that
+  target (the index is an attribute there), and `tool/ci.sh` runs the
+  conformance harness through Impeller under Xvfb on every Linux run. Until
+  that run is green and a game has been played on a Linux desktop, a Linux
+  game draws through the CPU backend unless its runner turns Flutter GPU on.
 - **Web, WebGL2.** `flutter test --platform chrome` runs the conformance suite
   and the parity comparison in headless Chrome, and CI builds the dungeon demo
   with `--wasm`.
