@@ -127,12 +127,11 @@ extension _DecalPass on Renderer {
         ],
       ),
     );
-    pass
-      ..bindVertexBuffer(_fullscreenTriangle, 3)
-      ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
     passState.invalidatePipeline();
     // The stage bound last, so a run of draws through one stage binds its
-    // pipeline and its two buffers once.
+    // pipeline, its triangle and its two buffers once. The triangle after the
+    // pipeline: binding a pipeline clears what was bound before it, and on
+    // the software device a triangle bound first was a draw of nothing.
     ShaderHandle? bound;
     void useStage(ShaderHandle stage) {
       if (identical(stage, bound)) return;
@@ -144,6 +143,8 @@ extension _DecalPass on Renderer {
             stage,
           ),
         )
+        ..bindVertexBuffer(_fullscreenTriangle, 3)
+        ..bindIndexBuffer(_identityIndices(3), IndexType.int32, 3)
         ..bindTexture(
           stage,
           'surface_texture',

@@ -13,12 +13,13 @@ final class MaterialBuildException extends Flutter3dFormatException
   final int? line
 
 final class MaterialCompilers
-  const MaterialCompilers({required this.impellerc, required this.sdk, this.impellerIncludes = const <String>[], this.wgsl})
+  const MaterialCompilers({required this.impellerc, required this.sdk, this.impellerIncludes = const <String>[], this.wgsl, this.registry})
   final List<String> impellerIncludes
+  final MaterialCompilerRegistry? registry
   final String impellerc
   final String sdk
   final WgslStageCompiler? wgsl
-  static MaterialCompilers locate()
+  static MaterialCompilers locate({MaterialCompilerRegistry? registry})
 
 typedef WgslStageCompiler = CompiledStage Function(PreparedStage stage, {required String name, required bool fragment});
 

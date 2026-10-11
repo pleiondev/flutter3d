@@ -1,5 +1,14 @@
 ## 1.0.0-rc.1
 
+- **New: the render checks, `plugin_render.dart`.**
+  `runPluginRenderConformance` and `checkPluginRender` draw a plugin's
+  points in the frame on a backend, named by `PluginRenderPoints`: its
+  nodes run and stop with it, its lit model draws with every block and
+  texture of its slot table reaching the stage, its light type lights a
+  box on its own, its decal stage paints, its velocity reader runs after
+  the camera velocity, and its shadow producers run. A device that draws
+  no picture is held to the structure and the rest is declined. Depends
+  on `flutter3d_core` for the renderer.
 - **`viewport-beyond-target` is named among the features no call refuses**:
   a device without it is never handed such a viewport.
 - **`a pipeline the backend refuses skips its draws and is told once`.** A

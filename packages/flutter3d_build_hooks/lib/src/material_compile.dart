@@ -13,6 +13,15 @@
 /// author's machine, naming the file and the line, rather than a draw on a
 /// player's.
 ///
+/// **A backend's own compiler is asked too** (D26). [MaterialCompilers.registry]
+/// holds the `MaterialCompiler`s of the backends a build serves; each is
+/// handed the stages as GLSL, the engine's headers and the WebGPU stages
+/// already written, and its section goes into the bundle, a fifth backend's
+/// beside the three above or in place of one of them. A compiler that refuses
+/// a section this build already wrote leaves that section as it is, which is
+/// what Impeller's does, since `impellerc` runs here; one that refuses a
+/// section of its own fails the build with its sentence.
+///
 /// **The WebGPU section is the one allowed to be missing**: it needs
 /// glslangValidator and naga, which a machine may not have, and a backend's
 /// tooling must not become a requirement for everybody else's build. Without
@@ -29,6 +38,12 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show Flutter3dFormatException;
 import 'package:flutter3d_hardware/shader_bundle.dart';
+import 'package:flutter3d_shaders/backend.dart'
+    show
+        MaterialCompileException,
+        MaterialCompileRequest,
+        MaterialCompilerRegistry,
+        MaterialStageSource;
 import 'package:flutter3d_shaders/compile.dart';
 
 /// A material that did not build, and where.
@@ -86,6 +101,7 @@ final class MaterialCompilers {
     required this.sdk,
     this.impellerIncludes = const <String>[],
     this.wgsl,
+    this.registry,
   });
 
   /// `impellerc`'s path.
@@ -102,13 +118,17 @@ final class MaterialCompilers {
   /// carries no WebGPU section.
   final WgslStageCompiler? wgsl;
 
-  /// The compilers of the Flutter SDK this process runs under, and glslang
-  /// and naga from `PATH` when both answer.
+  /// The backends' own material compilers, each asked for its section after
+  /// the three this build writes itself; null for none.
+  final MaterialCompilerRegistry? registry;
+
+  /// The compilers of the Flutter SDK this process runs under, glslang and
+  /// naga from `PATH` when both answer, and [registry]'s.
   ///
   /// Throws [MaterialBuildException] when there is no `impellerc` — this
   /// process is not a Flutter SDK's Dart, or the SDK's artifacts were never
   /// downloaded.
-  static MaterialCompilers locate() {
+  static MaterialCompilers locate({MaterialCompilerRegistry? registry}) {
     final sdkRoot = flutterSdkRootFrom(Platform.resolvedExecutable);
     final name = Platform.isWindows ? 'impellerc.exe' : 'impellerc';
     final artifacts = '$sdkRoot/bin/cache/artifacts/engine';
@@ -133,6 +153,7 @@ final class MaterialCompilers {
       wgsl: _answers(glslangExecutable) && _answers(nagaExecutable)
           ? _compileWgsl
           : null,
+      registry: registry,
     );
   }
 }
@@ -291,6 +312,16 @@ ShaderBundle compileMaterial(
     }
   }
 
+  final ByteData webgl;
+  try {
+    webgl = encodeWebGlSection(vertex: webglVertex, fragment: webglFragment);
+  } on StageAgreementException catch (error) {
+    refused('the WebGL2 section', error.message);
+  }
+
+  // D21: the material's own blocks and textures, numbered after the
+  // engine's on WebGPU in the order its slot table lists them.
+  final table = MaterialSlotTable.of(program);
   final webgpu = switch (compilers.wgsl) {
     null => null,
     final compile => _webgpu(
@@ -301,8 +332,60 @@ ShaderBundle compileMaterial(
       compile,
       generated,
       refused,
+      ownBindings: <String>[
+        for (final block in table.blocks) block.name,
+        for (final texture in table.textures) texture.binding,
+      ],
     ),
   };
+
+  final sections = <String, ByteData>{
+    ShaderBundle.impellerSection: impeller,
+    ShaderBundle.webglSection: webgl,
+    ShaderBundle.webgpuSection: ?webgpu?.section,
+    // The source itself, for the backend that compiles nothing and for a
+    // runtime that builds the material's lighting model from it — `P8`.
+    // Under every stage's name, so the software backend can answer each.
+    ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
+      for (final stage in stages) stage.name: text,
+    }),
+  };
+
+  // D26: every backend the registry holds a compiler for, after the three
+  // above, so its section is the one the bundle carries.
+  if (compilers.registry case final registry?) {
+    final request = MaterialCompileRequest(
+      name: name,
+      from: source,
+      source: text,
+      stages: <MaterialStageSource>[
+        for (final stage in stages)
+          MaterialStageSource(
+            name: stage.name,
+            fragment: stage.fragment,
+            glsl: stage.glsl,
+          ),
+      ],
+      engineSources: engine.sources,
+      options: <String, Object?>{
+        // What WebGPU's compiler packs: the stages this build wrote as WGSL.
+        _webGpuStagesOption: ?webgpu?.stages,
+      },
+    );
+    for (final backend in registry.backends) {
+      final compiler = registry.forBackend(backend)!;
+      try {
+        sections[compiler.bundleSection] = compiler.compile(request).section;
+      } on MaterialCompileException catch (error) {
+        // A section this build wrote itself stays as written: Impeller's
+        // compiler refuses because `impellerc`, which it names, ran above.
+        if (sections.containsKey(compiler.bundleSection)) continue;
+        refused('the $backend compiler', error.message);
+      } on StageAgreementException catch (error) {
+        refused('the $backend compiler', error.message);
+      }
+    }
+  }
 
   // Nothing went wrong, so nothing needs opening.
   for (final file in generated.values) {
@@ -316,22 +399,13 @@ ShaderBundle compileMaterial(
       for (final stage in stages)
         ShaderBundleStage(stage.name, fragment: stage.fragment),
     ],
-    sections: <String, ByteData>{
-      ShaderBundle.impellerSection: impeller,
-      ShaderBundle.webglSection: encodeWebGlSection(
-        vertex: webglVertex,
-        fragment: webglFragment,
-      ),
-      ShaderBundle.webgpuSection: ?webgpu,
-      // The source itself, for the backend that compiles nothing and for a
-      // runtime that builds the material's lighting model from it — `P8`.
-      // Under every stage's name, so the software backend can answer each.
-      ShaderBundle.materialSection: encodeMaterialSection(<String, String>{
-        for (final stage in stages) stage.name: text,
-      }),
-    },
+    sections: sections,
   );
 }
+
+/// The option `WebGpuSectionCompiler` reads its stages from, as
+/// `RuntimeShaders` hands them over.
+const String _webGpuStagesOption = 'webGpuStages';
 
 /// One stage a source becomes.
 typedef _Stage = ({String name, bool fragment, String glsl});
@@ -377,15 +451,17 @@ ByteData _impeller(
   return bytes.buffer.asByteData();
 }
 
-ByteData _webgpu(
+/// The WebGPU section, and the stages it packs by name.
+({ByteData section, Map<String, PackedStage> stages}) _webgpu(
   List<_Stage> stages,
   String source,
   Map<String, String> resolved,
   ShaderSet engine,
   WgslStageCompiler compile,
   Map<String, File> generated,
-  Never Function(String, String) refused,
-) {
+  Never Function(String, String) refused, {
+  required List<String> ownBindings,
+}) {
   var current = stages.first.name;
   try {
     // Every stage of the source numbered together, and held to the
@@ -408,6 +484,7 @@ ByteData _webgpu(
         from: source,
         fragment: stage.fragment,
         varyingLocations: locations,
+        ownBindings: ownBindings,
       );
       final compiled = compile(
         prepared,
@@ -421,7 +498,12 @@ ByteData _webgpu(
       );
     }
     final document = wgslSectionDocument(vertex: vertex, fragment: fragment);
-    return Uint8List.fromList(utf8.encode(document)).buffer.asByteData();
+    return (
+      section: Uint8List.fromList(utf8.encode(document)).buffer.asByteData(),
+      stages: <String, PackedStage>{...vertex, ...fragment},
+    );
+  } on StageAgreementException catch (error) {
+    refused('the WebGPU section', error.message);
   } on WgslPrepareException catch (error) {
     refused('the WebGPU preparation of $current', error.message);
   } on WgslCompileException catch (error) {

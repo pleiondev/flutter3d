@@ -217,41 +217,24 @@ extension _ShadowPasses on Renderer {
     // ones that get drawn, and a tile refused last frame has to be at the
     // front of this one. The order changes no pixel — the tiles are disjoint
     // viewports — so a frame with no allowance draws what it always drew.
+    // Fitted first and drawn after, as the directional map is, so a
+    // technique's own producer can draw into what the engine fitted (D22):
+    // see [_fitCubeShadow].
+    final fits = _fitCubeShadow(slotCount);
     final tileCount = slotCount * Renderer._cubeFaces.length;
     for (var n = 0; n < tileCount; n++) {
       final tileIndex = (firstTile + n) % tileCount;
       final slot = tileIndex ~/ Renderer._cubeFaces.length;
       final face = tileIndex % Renderer._cubeFaces.length;
-      position.setValues(
-        _cubeLightData[slot * 4],
-        _cubeLightData[slot * 4 + 1],
-        _cubeLightData[slot * 4 + 2],
-      );
-      final range = _cubeLightData[slot * 4 + 3];
-      if (range <= 0.0) continue;
+      final fit = fits[slot];
+      if (fit == null) continue;
+      position.setFrom(fit.position);
+      final range = fit.range;
 
       _cubeLight[0] = position.x;
       _cubeLight[1] = position.y;
       _cubeLight[2] = position.z;
       _cubeLight[3] = range;
-
-      // A spot is a cube with five of its faces switched off: one column, aimed
-      // where the light aims, opened to the cone rather than to ninety degrees.
-      // Sharing the row rather than taking an atlas of its own is what keeps
-      // the lit shaders at the two samplers they already bind — a third would
-      // have to be declared by every one of them, and a declared sampler that
-      // nobody binds is a native crash on Metal rather than a black texture.
-      final spotTanHalf = _cubeLightAim[slot * 4 + 3];
-      final isSpot = spotTanHalf > 0.0;
-
-      final projection = PerspectiveProjection(
-        // `atan(tan(θ)) == θ`, so this is the cone's own opening angle taken
-        // the long way round — the tangent is what the shader and the filter
-        // want, and it is stored once rather than derived in three places.
-        fovY: isSpot ? 2.0 * math.atan(spotTanHalf) : math.pi / 2,
-        near: 0.05,
-        far: range,
-      ).toMatrix(1.0);
 
       // A spot casts into one column. The five beside it still hold what the
       // row's previous owner drew there, and `_computeFaceSignatures` gives
@@ -259,7 +242,7 @@ extension _ShadowPasses on Renderer {
       // means something if this loop visits them. It used to stop after the
       // first column, the scheduler recorded the other five as drawn, and
       // the stale picture stayed for as long as the spot held the row.
-      final casts = !isSpot || face == 0;
+      final casts = face < fit.shaderMatrices.length;
       final scheduled = tiles == null || tiles.contains(tileIndex);
       // `N3`: a scheduled tile the frame's allowance refuses is skipped
       // before its matrix is recorded, so the picture already in it is
@@ -272,40 +255,10 @@ extension _ShadowPasses on Renderer {
         // projects through it whatever this frame chose to redraw, and a
         // face left out of the schedule still holds a picture that has to
         // be read with the matrix that made it.
-        final vm.Vector3 faceAim;
-        final vm.Vector3 faceUp;
-        if (isSpot) {
-          faceAim = _spotAim
-            ..setValues(
-              _cubeLightAim[slot * 4],
-              _cubeLightAim[slot * 4 + 1],
-              _cubeLightAim[slot * 4 + 2],
-            );
-          // Chosen against the aim rather than fixed at +Y, because
-          // `Renderer._lookAt` of a straight-down spot with a +Y up vector
-          // is a cross product of two parallel vectors — a zero-length
-          // basis, and a matrix of NaN. A downlight is the single most
-          // ordinary spot there is, so the degenerate case here is the
-          // common one, not the exotic one.
-          faceUp = faceAim.y.abs() > 0.99
-              ? (_spotUp..setValues(0.0, 0.0, 1.0))
-              : (_spotUp..setValues(0.0, 1.0, 0.0));
-        } else {
-          (faceAim, faceUp) = Renderer._cubeFaces[face];
-        }
-        final faceView = Renderer._lookAt(position, position + faceAim, faceUp);
-        _cubeMatrix
-          ..setFrom(projection)
-          ..multiply(faceView);
+        _cubeMatrix.setFrom(fit.shaderMatrices[face]);
         final at = (slot * 6 + face) * 16;
         _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
-
-        // For drawing, in this backend's clip space. The stored value is a
-        // distance rather than a depth, so the convention cannot corrupt it
-        // — but the depth *test* between casters in a tile runs in clip
-        // space, and the lookup reads the tile through the unremapped
-        // matrix above.
-        _cubeDrawMatrix.setFrom(toDepthRange(_cubeMatrix, device.depthRange));
+        _cubeDrawMatrix.setFrom(fit.drawMatrices[face]);
       }
 
       if (!scheduled) continue;
@@ -541,6 +494,151 @@ extension _ShadowPasses on Renderer {
     }
     developer.Timeline.finishSync();
     return drawn > 0;
+  }
+
+  /// Every occupied row's faces: where the light is, how far it reaches, and
+  /// each face's matrix as the lit stages read it and as this device draws
+  /// with it — the half of [_renderCubeShadow] a technique's own producer
+  /// needs too (D22). Null for a row no light holds.
+  ///
+  /// Moved, not rewritten, from the tile loop: the same arithmetic in the
+  /// same order, so every matrix is the bits it was.
+  List<_CubeFit?> _fitCubeShadow(int slotCount) => <_CubeFit?>[
+    for (var slot = 0; slot < slotCount; slot++) _fitCubeRow(slot),
+  ];
+
+  _CubeFit? _fitCubeRow(int slot) {
+    final range = _cubeLightData[slot * 4 + 3];
+    if (range <= 0.0) return null;
+    final position = vm.Vector3(
+      _cubeLightData[slot * 4],
+      _cubeLightData[slot * 4 + 1],
+      _cubeLightData[slot * 4 + 2],
+    );
+
+    // A spot is a cube with five of its faces switched off: one column, aimed
+    // where the light aims, opened to the cone rather than to ninety degrees.
+    // Sharing the row rather than taking an atlas of its own is what keeps
+    // the lit shaders at the two samplers they already bind — a third would
+    // have to be declared by every one of them, and a declared sampler that
+    // nobody binds is a native crash on Metal rather than a black texture.
+    final spotTanHalf = _cubeLightAim[slot * 4 + 3];
+    final isSpot = spotTanHalf > 0.0;
+
+    final projection = PerspectiveProjection(
+      // `atan(tan(θ)) == θ`, so this is the cone's own opening angle taken
+      // the long way round — the tangent is what the shader and the filter
+      // want, and it is stored once rather than derived in three places.
+      fovY: isSpot ? 2.0 * math.atan(spotTanHalf) : math.pi / 2,
+      near: 0.05,
+      far: range,
+    ).toMatrix(1.0);
+
+    final shaderMatrices = <vm.Matrix4>[];
+    final drawMatrices = <vm.Matrix4>[];
+    for (
+      var face = 0;
+      face < (isSpot ? 1 : Renderer._cubeFaces.length);
+      face++
+    ) {
+      final vm.Vector3 faceAim;
+      final vm.Vector3 faceUp;
+      if (isSpot) {
+        faceAim = vm.Vector3(
+          _cubeLightAim[slot * 4],
+          _cubeLightAim[slot * 4 + 1],
+          _cubeLightAim[slot * 4 + 2],
+        );
+        // Chosen against the aim rather than fixed at +Y, because
+        // `Renderer._lookAt` of a straight-down spot with a +Y up vector
+        // is a cross product of two parallel vectors — a zero-length
+        // basis, and a matrix of NaN. A downlight is the single most
+        // ordinary spot there is, so the degenerate case here is the
+        // common one, not the exotic one.
+        faceUp = faceAim.y.abs() > 0.99
+            ? vm.Vector3(0.0, 0.0, 1.0)
+            : vm.Vector3(0.0, 1.0, 0.0);
+      } else {
+        (faceAim, faceUp) = Renderer._cubeFaces[face];
+      }
+      final faceView = Renderer._lookAt(position, position + faceAim, faceUp);
+      final shader = vm.Matrix4.copy(projection)..multiply(faceView);
+      shaderMatrices.add(shader);
+      // For drawing, in this backend's clip space. The stored value is a
+      // distance rather than a depth, so the convention cannot corrupt it
+      // — but the depth *test* between casters in a tile runs in clip
+      // space, and the lookup reads the tile through the unremapped
+      // matrix above.
+      drawMatrices.add(toDepthRange(shader, device.depthRange));
+    }
+    return _CubeFit(
+      position: position,
+      range: range,
+      shaderMatrices: shaderMatrices,
+      drawMatrices: drawMatrices,
+    );
+  }
+
+  /// Hands the moving cube atlas to the frame's technique's own producer,
+  /// when it has one (D22): every row fitted, the matrices recorded for the
+  /// lit stages, and the producer's node run where [_renderCubeShadow] would
+  /// have drawn. False, and nothing done, when the technique has none.
+  ///
+  /// The scheduler forgets what it drew, so the frame after the producer
+  /// goes draws every face of the engine's own again.
+  bool _produceCubeShadow({
+    required RenderFrame frame,
+    required ShadowSettings settings,
+    required int slotCount,
+  }) {
+    if (!settings.enabled || settings.strength <= 0.0 || slotCount <= 0) {
+      return false;
+    }
+    // The engine's own three produce nothing, so a frame drawn through one
+    // fits nothing here: the tile loop fits the rows it draws.
+    final technique = settings.directionalTechnique;
+    if (identical(technique, ShadowTechnique.pcf) ||
+        identical(technique, ShadowTechnique.pcss) ||
+        identical(technique, ShadowTechnique.evsm)) {
+      return false;
+    }
+    final fits = _fitCubeShadow(slotCount);
+    final producer = technique.cubeAtlasProducer(
+      ShadowProducerContext(
+        settings: settings,
+        camera: frame.view?.camera,
+        cubeAtlas: ShadowCubeAtlas(
+          atlas: _cubeShadow!,
+          depth: _cubeShadowDepth!,
+          tile: _cubeShadowTile,
+          lights: List<ShadowCubeLight>.unmodifiable(<ShadowCubeLight>[
+            for (final (row, fit) in fits.indexed)
+              if (fit != null)
+                ShadowCubeLight(
+                  row: row,
+                  position: fit.position.clone(),
+                  range: fit.range,
+                  viewProjections: List<vm.Matrix4>.unmodifiable(
+                    fit.drawMatrices,
+                  ),
+                ),
+          ]),
+        ),
+      ),
+    );
+    if (producer == null) return false;
+    for (final (row, fit) in fits.indexed) {
+      if (fit == null) continue;
+      for (final (face, matrix) in fit.shaderMatrices.indexed) {
+        final at = (row * 6 + face) * 16;
+        _cubeFaceMatrices.setRange(at, at + 16, matrix.storage);
+      }
+    }
+    _shadowFaceScheduler.reset();
+    producer.execute(frame);
+    // What the producer drew is defined, so the engine's next pass may load.
+    _cubeShadowCleared = true;
+    return true;
   }
 
   /// Everything that decides a texel of cascade [shaderMatrix]'s tile —
@@ -2408,4 +2506,27 @@ final class _ShadowFit {
 
   /// The engine's own matrices, unadjusted for the device.
   final List<vm.Matrix4> rawMatrices;
+}
+
+/// What [Renderer._fitCubeShadow] decided for one row of the cube atlas.
+final class _CubeFit {
+  const _CubeFit({
+    required this.position,
+    required this.range,
+    required this.shaderMatrices,
+    required this.drawMatrices,
+  });
+
+  /// Where the light is, in world space.
+  final vm.Vector3 position;
+
+  /// How far it reaches, in metres.
+  final double range;
+
+  /// Each face's matrix as the lit stages read it: six for a point light,
+  /// one for a spot.
+  final List<vm.Matrix4> shaderMatrices;
+
+  /// Each face's matrix as the device draws with it.
+  final List<vm.Matrix4> drawMatrices;
 }

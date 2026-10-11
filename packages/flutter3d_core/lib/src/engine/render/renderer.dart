@@ -7,8 +7,7 @@ import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_core/geometry.dart';
 import 'package:flutter3d_foundation/flutter3d_foundation.dart'
     show LinearColorVector;
-import 'package:flutter3d_hardware/backend.dart'
-    show SynchronousBufferReadback;
+import 'package:flutter3d_hardware/backend.dart' show SynchronousBufferReadback;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show
@@ -2872,8 +2871,6 @@ final class Renderer with RenderServices {
   final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
   final vm.Vector3 _shadowEye = vm.Vector3.zero();
   final vm.Vector3 _shadowAim = vm.Vector3.zero();
-  final vm.Vector3 _spotAim = vm.Vector3.zero();
-  final vm.Vector3 _spotUp = vm.Vector3.zero();
 
   /// How much wider than its cone a spot's shadow frustum is drawn.
   ///

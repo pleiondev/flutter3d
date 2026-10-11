@@ -1,5 +1,6 @@
 ## 1.0.0-rc.1
 
+<<<<<<< HEAD
 - **A material has a version of its own, and updates.** Material language
   version 3 reads `material Hatch version 3 { updates { 2: rename ink ->
   inkColor; 3: scale roughness 0.5; } … }`: `MaterialProgram.version` and
@@ -24,6 +25,23 @@
   and the colour. A material calls the sixteen `materialBuiltins`;
   `MaterialBuiltin.glsl` is `name`, the same word; the builtins compute
   on `Portable` maths.
+=======
+- **A technique's cube atlas producer is asked and run.** The `point
+  shadows` node fits every row first and hands the moving atlas to
+  `ShadowTechnique.cubeAtlasProducer` through
+  `ShadowProducerContext.cubeAtlas`: a `ShadowCubeAtlas` (the atlas, its
+  depth, the tile and `tileOf(row, face)`) with a `ShadowCubeLight` per
+  occupied row (its row, position, range and each face's matrix as the
+  device draws with it). The producer's node runs where the engine's
+  casters would have been drawn; the static bake stays the engine's, and
+  the engine draws every face again once the producer goes. A frame with
+  no producer draws the pictures it drew.
+- **A decal is painted on the software device again.** The decal pass
+  bound its full-screen triangle before the stage's pipeline, and a
+  pipeline bound clears what was bound before it, so on the software
+  device every decal draw drew nothing. The triangle is bound after the
+  pipeline, on every backend.
+>>>>>>> wave-2x3
 - **A skinning hook writes a buffer the scene draws.** `SkinningHook` names
   its `kernels` and `demand` and `record`s each claimed mesh into
   `SkinningContext.output`, a buffer of `FrameResourceIds.skinnedVertices`
