@@ -36,6 +36,7 @@
 
 #include <lib/material_maps.glsl>
 #include <lib/shadow.glsl>
+#include <lib/shading_constants.glsl>
 
 #ifdef F3D_LAYERED
 /// What a layered material adds to metal-rough — `M1`. A block of its own
@@ -132,7 +133,7 @@ uniform sampler2D scene_colour_texture;
 /// every light: the dielectric's reflectance head-on and at grazing, and the
 /// coat — how much, how rough, which way it faces, and what it leaves of what
 /// is under it.
-vec3 g_f0_dielectric = vec3(0.04);
+vec3 g_f0_dielectric = vec3(kDielectricF0);
 float g_f90 = 1.0;
 float g_coat = 0.0;
 float g_coat_roughness = 0.02;
@@ -158,7 +159,7 @@ float g_transmission = 0.0;
 float g_thickness = 0.0;
 vec3 g_transmittance = vec3(1.0);
 float g_iridescence = 0.0;
-vec3 g_irid_fresnel = vec3(0.04);
+vec3 g_irid_fresnel = vec3(kDielectricF0);
 
 /// Whether this is a thin pane over whatever is behind it — `M3`: a blended
 /// surface that transmits and has no volume. Light crosses a thin wall
@@ -239,7 +240,8 @@ void ReadLayers(Surface s) {
   // The coat is a dielectric of index 1.5, and what it reflects towards the
   // eye does not reach the layer under it: everything beneath is scaled by
   // what its Fresnel lets through.
-  float fc = 0.04 + 0.96 * pow(1.0 - g_coat_n_dot_v, 5.0);
+  float fc =
+      kDielectricF0 + (1.0 - kDielectricF0) * pow(1.0 - g_coat_n_dot_v, 5.0);
   g_coat_through = 1.0 - g_coat * fc;
 }
 
@@ -360,7 +362,9 @@ precision highp float;
 float CoatLobe(Surface s, LightSample light) {
   if (light.integrated > 0.5) {
     vec3 ltc = LtcRectangle(g_coat_n, s.v, g_coat_roughness, g_rect_corners);
-    return ltc.x * (0.04 * ltc.y + 0.96 * ltc.z) * frag_info.material.w /
+    return ltc.x *
+           (kDielectricF0 * ltc.y + (1.0 - kDielectricF0) * ltc.z) *
+           frag_info.material.w /
            max(light.n_dot_l, 1e-6);
   }
   float lobe = max(g_coat_roughness, kMinGgxRoughness);
@@ -369,7 +373,7 @@ float CoatLobe(Surface s, LightSample light) {
   float n_dot_h = max(dot(g_coat_n, light.h), 0.0);
   float d = D_GGX(n_dot_h, alpha);
   float vis = V_SmithGGXCorrelated(g_coat_n_dot_v, n_dot_l, alpha);
-  float f = 0.04 + 0.96 * pow(1.0 - light.v_dot_h, 5.0);
+  float f = kDielectricF0 + (1.0 - kDielectricF0) * pow(1.0 - light.v_dot_h, 5.0);
   return d * vis * f * frag_info.material.w * n_dot_l /
          max(light.n_dot_l, 1e-6);
 }
@@ -675,7 +679,7 @@ vec3 ShadeLight(Surface s, LightSample light) {
   vec3 f0 = mix(g_f0_dielectric, s.albedo, s.metallic);
   vec3 f90 = vec3(mix(g_f90, 1.0, s.metallic));
 #else
-  vec3 f0 = mix(vec3(0.04), s.albedo, s.metallic);
+  vec3 f0 = mix(vec3(kDielectricF0), s.albedo, s.metallic);
 #endif
   vec3 diffuseColor = s.albedo * (1.0 - s.metallic);
 
@@ -811,7 +815,7 @@ void main() {
     }
     vec3 reflected = reflect(-s.v, bent);
 #else
-    vec3 f0 = mix(vec3(0.04), s.albedo, metallic);
+    vec3 f0 = mix(vec3(kDielectricF0), s.albedo, metallic);
     vec3 reflected = reflect(-s.v, s.n);
 #endif
 
@@ -874,7 +878,8 @@ void main() {
                                       g_coat_roughness * levels)
                                .rgb;
     vec2 coatAb = EnvBrdf(g_coat_roughness, g_coat_n_dot_v);
-    coatAmbient = coatPrefiltered * (0.04 * coatAb.x + coatAb.y) * g_coat *
+    coatAmbient = coatPrefiltered * (kDielectricF0 * coatAb.x + coatAb.y) *
+                  g_coat *
                   frag_info.material.z * s.occlusion;
     sheenIncoming =
         textureLod(environment_texture, s.n, g_sheen_roughness * levels).rgb *
