@@ -20,6 +20,7 @@
 /// device. `test/frame_resources_test.dart` is what the handle bought.
 library;
 
+import 'package:flutter3d_fields/flutter3d_fields.dart' show FieldStorage;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 import 'frame_graph.dart';
@@ -373,6 +374,45 @@ final class FrameResources {
   final Map<ResourceVersion, StorageBuffer> _buffers =
       <ResourceVersion, StorageBuffer>{};
 
+  // ------------------------------------------------------------ fields, 1.0
+
+  /// Hands [field] in as the current version of [id], the field's own id:
+  /// a field resource, declared in a node's `writes` under that id like a
+  /// texture, so the graph orders the node that makes it (a `FieldUpload`,
+  /// a compute step stepping it on a device) before the nodes that read it
+  /// — a volume drawn from it, a step that samples it.
+  ///
+  /// The storage stays its provider's, as a buffer does: a frame carries a
+  /// field between the nodes that declared it and allocates nothing for it.
+  void provideField(ResourceId id, FieldStorage field) {
+    if (field.declaration.id != id.name) {
+      throw FrameGraphError(
+        'a pass provided field "${field.declaration.id}" as "${id.name}". A '
+        'field is a resource under its own id, which its readers name',
+      );
+    }
+    _fields[ResourceVersion(id, _writeVersionFor(id))] = field;
+  }
+
+  /// The field the node now running reads as [id]. Throws a
+  /// [FrameGraphError] when no node provided one.
+  FieldStorage field(ResourceId id) =>
+      tryField(id) ??
+      (throw FrameGraphError(
+        'a pass asked for the field "${id.name}", which no pass before it '
+        'provided. A field is provided by the node that writes it, with '
+        'FrameResources.provideField',
+      ));
+
+  /// The field the node now running reads as [id], or null when none was
+  /// provided: the reader of a field on a device that refused it goes on
+  /// without.
+  FieldStorage? tryField(ResourceId id) =>
+      _fields[ResourceVersion(id, _versionFor(id))];
+
+  final Map<ResourceVersion, FieldStorage> _fields =
+      <ResourceVersion, FieldStorage>{};
+
   /// The texture behind a frame *output*, once every node has run.
   ///
   /// The one read that legitimately happens outside a node, and the only one:
@@ -541,6 +581,7 @@ final class FrameResources {
   /// set of targets per attempt.
   void releaseAll() {
     _buffers.clear();
+    _fields.clear();
     // By identity rather than by version, because two versions of one name can
     // stand on the same texture when a pass modified it in place, and handing
     // one texture back twice corrupts the pool's idea of what it has lent.

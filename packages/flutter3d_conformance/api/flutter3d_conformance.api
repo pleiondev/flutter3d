@@ -102,6 +102,8 @@ Never decline(GraphicsDevice device, String why)
 
 Future<Uint8List> drawFuzzProgram(FuzzProgram program, DeviceFactory makeDevice)
 
+List<ConformanceCheck> get fieldResidenceChecks
+
 Future<double> fuzzDifference(int seed, {required DeviceFactory device, required DeviceFactory reference, int threshold = 8})
 
 Future<List<FuzzFinding>> fuzzSeed(int seed, DeviceFactory makeDevice)

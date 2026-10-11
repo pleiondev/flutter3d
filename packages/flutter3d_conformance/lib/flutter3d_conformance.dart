@@ -62,6 +62,7 @@ import 'src/compute_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/field_checks.dart';
+import 'src/field_residence_checks.dart';
 import 'src/geometry_overwrite_checks.dart';
 import 'src/loaded_bundle_checks.dart';
 import 'src/multisample_checks.dart';
@@ -80,6 +81,7 @@ import 'src/vertex_texture_checks.dart';
 
 export 'src/capability_checks.dart' show capabilityChecks, unprobedFeatures;
 export 'src/compute_checks.dart' show computeChecks;
+export 'src/field_residence_checks.dart' show fieldResidenceChecks;
 export 'src/fuzz/fuzz.dart'
     show
         FoldPowerOfTwo,
@@ -460,6 +462,9 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   // fallback every device has.
   ...multiviewChecks,
   ...sharingChecks,
+  // Since 1.0: a field held on a device, in a 3D texture or a storage
+  // buffer, or refused by the feature that is missing.
+  ...fieldResidenceChecks,
 ];
 
 /// [conformanceChecks] and the check that needs the backend's own shaders

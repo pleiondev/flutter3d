@@ -596,6 +596,14 @@ final class BoolCondition extends AnimationCondition
   const BoolCondition(super.parameter, {this.value = true})
   final bool value
 
+final class BufferField extends FieldStorage
+  BufferField(this.declaration, this.buffer, this.executor)
+  FieldResidence get residence
+  String toString()
+  final ComputeExecutor executor
+  final FieldDeclaration declaration
+  final StorageBuffer buffer
+
 extension BundledMaterialLooks on BundledMaterials
   RenderMaterial material(String name, {String? materialName})
 
@@ -1458,6 +1466,21 @@ final class FieldPass
   void dispose()
   void step(ShaderHandle kernel, {void Function(PassEncoder pass)? bind, String label = 'field step'})
 
+final class FieldUpload extends RenderNode
+  ComputeExecutor? get executor
+  FieldDeclaration get declaration
+  FieldResidenceException? get refusal
+  FieldResidenceException? place(ComputeExecutors executors)
+  FieldUpload(this.source)
+  List<ResourceId> get writes
+  RenderAnchor get defaultAnchor
+  ResourceId get id
+  String get name
+  bool get isSupported
+  final HostField source
+  void execute(RenderFrame frame)
+  void release()
+
 final class FileAssetSource extends AssetSource
   AssetUriResolver get resolveUri
   Future<Uint8List> read()
@@ -1709,6 +1732,8 @@ final class FrameResourceUse
   final int width
 
 final class FrameResources
+  FieldStorage field(ResourceId id)
+  FieldStorage? tryField(ResourceId id)
   FrameResources({required this.source, required this.graph, required this.frameWidth, required this.frameHeight, this.alias = false, this.onRetire, this.recordUses = false})
   List<FrameResourceUse> get uses
   ResourceOrigin? originOf(ResourceId id)
@@ -1732,6 +1757,7 @@ final class FrameResources
   void endNode(int index)
   void provide(ResourceId id, TextureHandle texture)
   void provideBuffer(ResourceId id, StorageBuffer buffer)
+  void provideField(ResourceId id, FieldStorage field)
   void releaseAll()
 
 final class FrameResult
@@ -5184,6 +5210,13 @@ final class TemporalSettings
   final double reactive
   final double sharpen
   final int sequenceLength
+
+final class Texture3DField extends FieldStorage
+  FieldResidence get residence
+  String toString()
+  Texture3DField(this.declaration, this.texture)
+  final FieldDeclaration declaration
+  final TextureHandle texture
 
 final class TextureBinding
   const TextureBinding({required this.imageIndex, this.texCoordSet = 0, this.sampling = const TextureSampling(), this.transform})

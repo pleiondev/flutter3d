@@ -1,5 +1,10 @@
 ## 1.0.0-rc.1
 
+- **A field on a device, held to the contract.** `fieldResidenceChecks`,
+  part of `conformanceChecks`: a 3D texture of a field's shape is made and
+  written, or refused with `DeviceFeature.texture3D` named; a field in a
+  storage buffer reads back bit for bit after it is made and after it is
+  written over.
 - **The render checks are a package of their own,
   `flutter3d_conformance_render`**, and this one no longer depends on
   `flutter3d_core`: a backend that runs the contract as a dev dependency
