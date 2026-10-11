@@ -135,6 +135,39 @@ final class GridSide
   static const GridSide south = GridSide._(2, 'south')
   static const GridSide west = GridSide._(0, 'west')
 
+final class JointGroup
+  String toString()
+  bool operator ==(Object other)
+  const JointGroup(this.name)
+  final String name
+  int get hashCode
+  static const JointGroup elbow = JointGroup('elbow')
+  static const JointGroup hip = JointGroup('hip')
+  static const JointGroup knee = JointGroup('knee')
+  static const JointGroup neck = JointGroup('neck')
+  static const JointGroup shoulder = JointGroup('shoulder')
+  static const JointGroup spine = JointGroup('spine')
+
+final class JointGroupStiffness
+  const JointGroupStiffness(this.group, {required this.flexion, required this.extension, required this.lateral, double? medial, required this.twist})
+  const JointGroupStiffness.uniform(this.group, double stiffness)
+  final JointGroup group
+  final double extension
+  final double flexion
+  final double lateral
+  final double medial
+  final double twist
+
+final class JointLimitStiffness
+  const JointLimitStiffness({this.growth = 0.0, this.lower = 0.0, this.upper = 0.0, this.forward = 0.0, this.back = 0.0, this.toSide = 0.0, this.fromSide = 0.0})
+  final double back
+  final double forward
+  final double fromSide
+  final double growth
+  final double lower
+  final double toSide
+  final double upper
+
 final class JointSwing
   const JointSwing({required this.neutral, required this.ahead, required this.forward, required this.back, required this.toSide, required this.fromSide})
   final Vector3 ahead
@@ -145,10 +178,13 @@ final class JointSwing
   final double toSide
 
 final class JointTissue
-  const JointTissue({required this.damping, required this.limitStiffness, required this.inelastic})
+  JointGroupStiffness? stiffnessOf(JointGroup? group)
+  const JointTissue({required this.damping, required this.limitStiffness, this.limitGrowth = 0.0, this.groups = const <JointGroupStiffness>[], required this.inelastic})
   double get limitRatio
   final InelasticProperties inelastic
+  final List<JointGroupStiffness> groups
   final double damping
+  final double limitGrowth
   final double limitStiffness
   static const JointTissue human = …
 
@@ -735,6 +771,7 @@ final class NativeWorld
   void setJointFriction(NativeJoint joint, double? torque)
   void setJointLength(NativeJoint joint, {required double length, required double least, required double most})
   void setJointLimitSoftness(NativeJoint joint, ({double stiffness, double ratio})? softness)
+  void setJointLimitStiffness(NativeJoint joint, JointLimitStiffness? stiffness)
   void setJointLimits(NativeJoint joint, ({double lower, double upper})? limits)
   void setJointMotor(NativeJoint joint, ({double speed, double maxForce})? motor)
   void setJointSpring(NativeJoint joint, ({double hertz, double damping})? spring)
@@ -793,13 +830,13 @@ final class ParticleForces
 typedef PhysicsStart = ({PhysicsBackend backend, String? fallbackBecause});
 
 final class RagdollBall extends RagdollJoint
-  const RagdollBall({required this.cone, required this.twistLower, required this.twistUpper})
+  const RagdollBall({required this.cone, required this.twistLower, required this.twistUpper, super.group})
   final double cone
   final double twistLower
   final double twistUpper
 
 final class RagdollBend extends RagdollJoint
-  const RagdollBend({this.most = 2.4, this.least = 0.05, required this.otherwise})
+  const RagdollBend({this.most = 2.4, this.least = 0.05, required this.otherwise, super.group})
   final RagdollJoint otherwise
   final double least
   final double most
@@ -816,16 +853,17 @@ final class RagdollBone
   final int parent
 
 final class RagdollHinge extends RagdollJoint
-  const RagdollHinge({required this.axis, required this.lower, required this.upper})
+  const RagdollHinge({required this.axis, required this.lower, required this.upper, super.group})
   final Vector3 axis
   final double lower
   final double upper
 
 abstract final class RagdollJoint
-  const RagdollJoint()
+  const RagdollJoint({this.group})
+  final JointGroup? group
 
 final class RagdollSwing extends RagdollJoint
-  const RagdollSwing({required this.flexion, required this.extension, required this.lateral, double? medial, required this.twist, this.hangs = false})
+  const RagdollSwing({required this.flexion, required this.extension, required this.lateral, double? medial, required this.twist, this.hangs = false, super.group})
   final bool hangs
   final double extension
   final double flexion
