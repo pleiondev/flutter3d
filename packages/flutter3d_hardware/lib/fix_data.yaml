@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 738a9d681d9e0807
+# table-stamp: 6e64643b0186ab4e
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -685,3 +685,22 @@ transforms:
         newElement:
           uris: ['package:flutter3d_hardware/flutter3d_hardware.dart']
           function: 'readbackRegionOf'
+  - title: 'flutter3d 1.0.0-rc.1: rc-hardware-TraceDraw-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_hardware/trace.dart']
+      constructor: ''
+      inClass: 'TraceDraw'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'instanceCount'
+        style: optional_named
+        argumentValue:
+          expression: '{% instanceCount %}'
+          variables:
+            instanceCount:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1

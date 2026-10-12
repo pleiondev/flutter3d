@@ -502,7 +502,7 @@ typedef FixDataProblem = (String, String);
               ),
           ];
           if (changes.length != e.changes.length) {
-            problems.add((e.id, 'a change is not rename/remove/add'));
+            problems.add((e.id, 'a change is not rename/remove/add/toNamed'));
             continue;
           }
           add(
@@ -563,13 +563,31 @@ String _transform({
   return out.toString();
 }
 
-/// [c] as a `dart fix` change; an added parameter without an `index:` of its
-/// own goes at [added], the number of additions before it.
+/// [c] as a `dart fix` change (two, for a `toNamed`); an added parameter
+/// without an `index:` of its own goes at [added], the number of additions
+/// before it.
 String? _parameterChange(Map<String, Object?> c, int added) {
   if (c['rename'] case final String old) {
     return "      - kind: 'renameParameter'\n"
         "        oldName: '$old'\n"
         "        newName: '${c['to']}'";
+  }
+  // A positional argument that became named: the named parameter added
+  // with the argument that was at `index` as its value, then that position
+  // removed. Both indices are the old call's.
+  if ((c['toNamed'], c['index']) case (final String name, final int index)) {
+    return "      - kind: 'addParameter'\n"
+        '        index: $index\n'
+        "        name: '$name'\n"
+        '        style: optional_named\n'
+        '        argumentValue:\n'
+        "          expression: '{% $name %}'\n"
+        '          variables:\n'
+        '            $name:\n'
+        "              kind: 'fragment'\n"
+        "              value: 'arguments[$index]'\n"
+        "      - kind: 'removeParameter'\n"
+        '        index: $index';
   }
   if (c.containsKey('remove')) {
     final which = c['remove'];

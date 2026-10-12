@@ -120,6 +120,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         case MigrationKind.rename:
           into(classRenames, r.type, r);
           continue;
+        case MigrationKind.parameters:
+          into(toNamedCreations, r.type, r);
+          into(toNamedCalls, r.member ?? r.type, r);
+          continue;
         case MigrationKind.rewrite ||
             MigrationKind.implementsToWith ||
             MigrationKind.manual:
@@ -177,6 +181,13 @@ final class _Scan extends RecursiveAstVisitor<void> {
 
   /// `rename` rules of a class, by its old name.
   final Map<String, List<MigrationRule>> classRenames =
+      <String, List<MigrationRule>>{};
+
+  /// `parameters` rules by the class whose constructor they are about, and
+  /// by the name of what is called (the class for its unnamed constructor).
+  final Map<String, List<MigrationRule>> toNamedCreations =
+      <String, List<MigrationRule>>{};
+  final Map<String, List<MigrationRule>> toNamedCalls =
       <String, List<MigrationRule>>{};
 
   /// The internal names this unit uses, by package, in the order met, and
@@ -255,6 +266,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
       ) when methodName == node) {
         for (final rule in regroups[name] ?? const <MigrationRule>[]) {
           if (_callMatches(node, rule)) _regroup(argumentList, rule);
+        }
+        for (final rule in toNamedCalls[name] ?? const <MigrationRule>[]) {
+          if (_callMatches(node, rule)) _toNamed(argumentList, rule);
         }
       }
       // `Old()` with no `new` or `const`, where `Old` is no name at all.
@@ -579,7 +593,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
                 MigrationKind.nullToThrow ||
                 MigrationKind.argument ||
                 MigrationKind.internal ||
-                MigrationKind.rename:
+                MigrationKind.rename ||
+                MigrationKind.parameters:
               break;
           }
         }
@@ -855,7 +870,44 @@ final class _Scan extends RecursiveAstVisitor<void> {
         _regroup(node.argumentList, rule);
       }
     }
+    for (final rule
+        in toNamedCreations[name.type.name.lexeme] ?? const <MigrationRule>[]) {
+      if (name.name?.name == rule.member && _ownedAs(name.type.element, rule)) {
+        _toNamed(node.argumentList, rule);
+      }
+    }
     super.visitInstanceCreationExpression(node);
+  }
+
+  /// The positional arguments of [arguments] at the places
+  /// [MigrationRule.fields] names, each passed by its new name where it
+  /// stands: `Gauge(r, 2)` is `Gauge(r, scale: 2)`. A call that also passes
+  /// one of those names already is a person's to untangle.
+  void _toNamed(ArgumentList arguments, MigrationRule rule) {
+    final positional = <Argument>[
+      for (final a in arguments.arguments)
+        if (a is! NamedArgument) a,
+    ];
+    final moved = <(Argument, String)>[
+      for (final (i, a) in positional.indexed)
+        if (rule.fields['$i'] case final name?) (a, name),
+    ];
+    if (moved.isEmpty) return;
+    final passed = <String>{
+      for (final a in arguments.arguments)
+        if (a is NamedArgument) a.name.lexeme,
+    };
+    if (moved.any(((Argument, String) m) => passed.contains(m.$2))) {
+      _add(rule, moved.first.$1);
+      return;
+    }
+    _add(
+      rule,
+      moved.first.$1,
+      edits: <MigrationEdit>[
+        for (final (a, name) in moved) MigrationEdit(a.offset, 0, '$name: '),
+      ],
+    );
   }
 
   /// The named arguments [MigrationRule.members] of [arguments] moved into

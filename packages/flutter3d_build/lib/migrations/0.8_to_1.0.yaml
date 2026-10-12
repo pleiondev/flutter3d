@@ -24,8 +24,11 @@
 #                     (and `migrate` adds the dependency it needs)
 #   parameters        `changes:` — a list of `rename:`/`to:`,       dart fix
 #                     `remove:`, `add:` with `named`, `required`,
-#                     `value:` (the argument old callers get)
-#   rewrite           `template:` with `{target}` for the receiver, flutter3d_lints
+#                     `value:` (the argument old callers get), and
+#                     `toNamed: <name>` with `index: <n>` for the
+#                     positional argument n that became named (also
+#                     flutter3d_lints, which writes `name: ` before it)
+#   rewrite          `template:` with `{target}` for the receiver, flutter3d_lints
 #                     `imports:` the libraries it names
 #   implementsToWith  a type that became a `base mixin class`:      flutter3d_lints
 #                     `implements X` becomes `with X` on a base class
@@ -20908,8 +20911,11 @@ entries:
   - id: rc-core-AdaptiveQuality-named
     package: flutter3d_core
     symbol: AdaptiveQuality.AdaptiveQuality
-    kind: manual
+    kind: parameters
     wave: 4
+    changes:
+      - toNamed: settings
+        index: 1
     guidance: >-
       The settings and the policy are named arguments, so the constructor
       can take another one: write `AdaptiveQuality(table, settings: …)`
@@ -20918,8 +20924,13 @@ entries:
   - id: rc-build-AssetManifest-named
     package: flutter3d_build
     symbol: AssetManifest.AssetManifest
-    kind: manual
+    kind: parameters
     wave: 4
+    changes:
+      - toNamed: rules
+        index: 0
+      - toNamed: classes
+        index: 1
     guidance: >-
       The rules, the device classes and the shader selection are named
       arguments: write `AssetManifest(rules: …, classes: …)` where they
@@ -20928,8 +20939,11 @@ entries:
   - id: rc-core-EnumHintValue-named
     package: flutter3d_core
     symbol: EnumHintValue.EnumHintValue
-    kind: manual
+    kind: parameters
     wave: 4
+    changes:
+      - toNamed: label
+        index: 1
     guidance: >-
       The label is a named argument: write `EnumHintValue('opaque',
       label: 'Opaque')` where the label was the second positional
@@ -20938,8 +20952,11 @@ entries:
   - id: rc-core-MaterialVariant-named
     package: flutter3d_core
     symbol: MaterialVariant.MaterialVariant
-    kind: manual
+    kind: parameters
     wave: 4
+    changes:
+      - toNamed: values
+        index: 1
     guidance: >-
       The values are a named argument: write `MaterialVariant('Rim',
       values: {…})` where the map was the second positional argument.
@@ -20947,8 +20964,11 @@ entries:
   - id: rc-hardware-TraceDraw-named
     package: flutter3d_hardware
     symbol: TraceDraw.TraceDraw
-    kind: manual
+    kind: parameters
     wave: 4
+    changes:
+      - toNamed: instanceCount
+        index: 1
     guidance: >-
       The instance count is a named argument, beside `firstIndex` and
       `indexCount`: write `TraceDraw(pass, instanceCount: n)` where it was
@@ -20957,8 +20977,11 @@ entries:
   - id: rc-particles-ParticleGravity-named
     package: flutter3d_particles
     symbol: ParticleGravity.ParticleGravity
-    kind: manual
+    kind: parameters
     wave: 4
+    changes:
+      - toNamed: acceleration
+        index: 0
     guidance: >-
       The acceleration is a named argument: write
       `ParticleGravity(acceleration: a)` where `a` was positional.
@@ -21482,8 +21505,12 @@ entries:
   - id: rc-model_core-ProjectLight-linearcolor
     package: flutter3d_model_core
     symbol: ProjectLight
-    kind: manual
+    kind: argument
     wave: 4
+    arguments: [color]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A project light's `color` is a `LinearColor`, as `LightNode.color`
       is: write `LinearColor(r, g, b)` where it took a `Vector3`, and read
@@ -21492,8 +21519,12 @@ entries:
   - id: rc-model_core-ColorTextureNode-linearcolor
     package: flutter3d_model_core
     symbol: ColorTextureNode
-    kind: manual
+    kind: argument
     wave: 4
+    arguments: [value]
+    types: [Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A colour node's `value` is a `LinearColor`, linear RGBA as before:
       write `LinearColor(r, g, b, a)` where it took a `Vector4`.
@@ -21501,8 +21532,12 @@ entries:
   - id: rc-model_core-CheckerTextureNode-linearcolor
     package: flutter3d_model_core
     symbol: CheckerTextureNode
-    kind: manual
+    kind: argument
     wave: 4
+    arguments: [colorA, colorB]
+    types: [Vector4]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A checker's `colorA` and `colorB` are `LinearColor`s, black and white
       by default as before: write `LinearColor(r, g, b, a)` where they took
@@ -21511,8 +21546,12 @@ entries:
   - id: rc-particles-SixWayMaterial-linearcolor
     package: flutter3d_particles
     symbol: SixWayMaterial
-    kind: manual
+    kind: argument
     wave: 4
+    arguments: [emission, ambient]
+    types: [Vector3]
+    template: 'LinearColor({components})'
+    imports: [package:flutter3d_foundation/flutter3d_foundation.dart]
     guidance: >-
       A six-way material's `emission` and `ambient` are `LinearColor`s,
       black by default as before, and can be set in place: write

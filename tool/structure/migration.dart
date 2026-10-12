@@ -66,41 +66,18 @@ const Map<String, List<String>> migrationKindsAlsoNeed = <String, List<String>>{
 };
 
 /// **The ceiling on `manual` entries.** What is left once the colour
-/// arguments, the renamed parameters and the gone statics became kinds the
-/// tools apply (`argument`, `rewrite`, `rename`): every one of them, with
-/// nothing allowlisted past it. A `manual` entry is a TODO in somebody's
-/// code; a break the kinds above can carry out uses them, and one that
-/// cannot is named in [manualAllowlist] with the reason, or the ceiling
-/// moves in a commit that says why.
+/// arguments, the renamed parameters, the gone statics and the positional
+/// arguments that became named became kinds the tools apply (`argument`,
+/// `rewrite`, `rename`, `parameters` with `toNamed`): every one of them,
+/// with nothing allowlisted past it. A `manual` entry is a TODO in
+/// somebody's code; a break the kinds above can carry out uses them, and
+/// one that cannot is named in [manualAllowlist] with the reason, or the
+/// ceiling moves in a commit that says why.
 const int manualCeiling = 308;
 
 /// `manual` entries past [manualCeiling], each with why no kind carries it
-/// out. Entry id to reason.
-const Map<String, String> manualAllowlist = <String, String>{
-  'rc-core-AdaptiveQuality-named': _positionalToNamed,
-  'rc-build-AssetManifest-named': _positionalToNamed,
-  'rc-core-EnumHintValue-named': _positionalToNamed,
-  'rc-core-MaterialVariant-named': _positionalToNamed,
-  'rc-hardware-TraceDraw-named': _positionalToNamed,
-  'rc-particles-ParticleGravity-named': _positionalToNamed,
-  'rc-model_core-ProjectLight-linearcolor': _vectorToColor,
-  'rc-model_core-ColorTextureNode-linearcolor': _vectorToColor,
-  'rc-model_core-CheckerTextureNode-linearcolor': _vectorToColor,
-  'rc-particles-SixWayMaterial-linearcolor': _vectorToColor,
-};
-
-/// Why a colour that became a `LinearColor` is carried by hand, as the
-/// colour entries above it are.
-const String _vectorToColor =
-    'a colour argument changes type from a vector to a linear colour; no '
-    'kind rewrites an argument\'s type yet';
-
-/// Why a constructor whose optional positional arguments became named is
-/// carried by hand: no kind moves an argument from a position to a name
-/// yet. When `parameters` learns to, these become `parameters` entries.
-const String _positionalToNamed =
-    'optional positional arguments become named ones, so the constructor '
-    'can grow; no kind moves an argument from a position to a name yet';
+/// out. Entry id to reason. Empty: the ceiling holds the whole count.
+const Map<String, String> manualAllowlist = <String, String>{};
 
 /// Words in what a person reads that belong to the work behind the release,
 /// not to the user: a wave, a plan file, a review's decision number.

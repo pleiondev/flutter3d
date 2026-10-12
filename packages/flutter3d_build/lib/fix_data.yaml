@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 738a9d681d9e0807
+# table-stamp: 6e64643b0186ab4e
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -80,3 +80,34 @@ transforms:
         newElement:
           uris: ['package:flutter3d_build/lightmap.dart']
           class: 'LightmapBaker'
+  - title: 'flutter3d 1.0.0-rc.1: rc-build-AssetManifest-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_build/flutter3d_build.dart']
+      constructor: ''
+      inClass: 'AssetManifest'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'rules'
+        style: optional_named
+        argumentValue:
+          expression: '{% rules %}'
+          variables:
+            rules:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0
+      - kind: 'addParameter'
+        index: 1
+        name: 'classes'
+        style: optional_named
+        argumentValue:
+          expression: '{% classes %}'
+          variables:
+            classes:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1

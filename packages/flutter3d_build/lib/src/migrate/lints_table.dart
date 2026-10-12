@@ -2,8 +2,9 @@
 /// migration tables: the entries the analyzer plugin and `dart run
 /// flutter3d_lints:migrate` check a resolved project against — `rewrite`,
 /// `implementsToWith`, `regroup`, `enumToClass`, `recordToClass`,
-/// `nullToThrow`, `argument`, `internal` and `manual` — and the `rename`s
-/// of a class, for the creation `dart fix` cannot reach (`const Old()`).
+/// `nullToThrow`, `argument`, `internal` and `manual` — the `rename`s of a
+/// class, for the creation `dart fix` cannot reach (`const Old()`), and the
+/// `parameters` entries whose positional arguments became named.
 ///
 /// The plugin cannot read this package's YAML (it does not depend on it, and
 /// the analysis server runs it apart from any project), so the table is
@@ -58,22 +59,47 @@ const Set<String> lintsKinds = <String>{
   'internal',
   'manual',
   'rename',
+  'parameters',
+};
+
+/// A `parameters` entry's positional arguments that became named, by their
+/// old index: what the scan names where a call still passes them by place.
+Map<String, String> toNamedOf(MigrationEntry e) => <String, String>{
+  for (final c in e.changes)
+    if ((c['toNamed'], c['index']) case (final String name, final int index))
+      '$index': name,
 };
 
 /// Whether [e] is one the plugin's table carries: a `rename` only when it
-/// renames a class, which is all the scan does with one.
+/// renames a class, which is all the scan does with one, and a `parameters`
+/// entry only for its positional arguments that became named, which
+/// `dart fix` does not reach (it offers no data-driven fix for an extra
+/// positional argument).
 bool _carried(MigrationEntry e) =>
     lintsKinds.contains(e.kind) &&
     (e.kind != 'rename' ||
         (e.member == null &&
             !e.symbol.contains(':') &&
             RegExp(r'^[A-Z]\w*$').hasMatch(e.to ?? '') &&
-            RegExp(r'^[A-Z]').hasMatch(e.topName)));
+            RegExp(r'^[A-Z]').hasMatch(e.topName))) &&
+    (e.kind != 'parameters' || toNamedOf(e).isNotEmpty);
 
 /// The anchor of [package]'s one line of `internal` names in the guide.
 String internalAnchor(String package) => 'internal-$package';
 
 String _flat(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+/// The member of a `parameters` entry's type the scan matches a call to:
+/// null for the unnamed constructor, which the table writes `Type.Type`.
+String? _calledMember(MigrationEntry e) =>
+    e.member == e.topName ? null : e.member;
+
+/// What a call of a `parameters` entry is written as: `Type` for the
+/// unnamed constructor, `Type.member` for the rest.
+String _callable(MigrationEntry e) => switch (_calledMember(e)) {
+  null => e.topName,
+  final member => '${e.topName}.$member',
+};
 
 /// What a diagnostic for [e] says, from [table].
 String _message(MigrationEntry e, MigrationTable table) {
@@ -106,6 +132,10 @@ String _message(MigrationEntry e, MigrationTable table) {
           '${e.to == null ? 'takes a value of another type' : 'is `${e.to}:`'} '
           'in ${table.to}.',
     'rename' => '`${e.topName}` is `${e.to}` in ${table.to}.',
+    'parameters' =>
+      '${toNamedOf(e).values.map((String a) => '`$a:`').join(', ')} of '
+          '`${_callable(e)}` ${toNamedOf(e).length == 1 ? 'is a named argument' : 'are named arguments'} '
+          'in ${table.to}, not a positional one.',
     _ => firstSentence(e.text),
   };
 }
@@ -126,6 +156,8 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
   final members = <String>[
     if (e.kind == 'regroup' || e.kind == 'argument')
       ...e.arguments
+    else if (e.kind == 'parameters')
+      ...toNamedOf(e).values
     else
       for (final m in (e.fields['members'] as List<Object?>?) ?? const []) '$m',
   ];
@@ -141,7 +173,7 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
       'argument' => (e.fields['on'] as String?) ?? e.topName,
       _ => e.topName,
     },
-    'member': ?e.member,
+    'member': ?(e.kind == 'parameters' ? _calledMember(e) : e.member),
     if (e.template != null) 'template': _flat(e.template!),
     if (e.imports.isNotEmpty) 'imports': e.imports,
     'switchOver': ?switchOver,
@@ -150,6 +182,7 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     'into': ?e.into,
     'options': ?e.options,
     if (e.kind == 'recordToClass') 'fields': e.fieldMap,
+    if (e.kind == 'parameters') 'fields': toNamedOf(e),
     'exception': ?e.exception,
     if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,
     if (e.types.isNotEmpty) 'types': e.types,

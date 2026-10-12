@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 738a9d681d9e0807
+# table-stamp: 6e64643b0186ab4e
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -1945,6 +1945,63 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'ExpressionSwizzle'
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-AdaptiveQuality-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      constructor: ''
+      inClass: 'AdaptiveQuality'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'settings'
+        style: optional_named
+        argumentValue:
+          expression: '{% settings %}'
+          variables:
+            settings:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-EnumHintValue-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      constructor: ''
+      inClass: 'EnumHintValue'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'label'
+        style: optional_named
+        argumentValue:
+          expression: '{% label %}'
+          variables:
+            label:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1
+  - title: 'flutter3d 1.0.0-rc.1: rc-core-MaterialVariant-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      constructor: ''
+      inClass: 'MaterialVariant'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'values'
+        style: optional_named
+        argumentValue:
+          expression: '{% values %}'
+          variables:
+            values:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1
   - title: 'flutter3d 1.0.0-rc.1: rc-core-ModelLightType-lighttype'
     date: 2026-10-08
     element:

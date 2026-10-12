@@ -3,7 +3,9 @@
 /// the TODO comments link to.
 library;
 
-import 'lints_table.dart' show internalAnchor;
+import 'dart:math' as math;
+
+import 'lints_table.dart' show internalAnchor, toNamedOf;
 import 'table.dart';
 
 /// The markers the generated part sits between in the guide's Markdown.
@@ -12,6 +14,10 @@ const String guideEnd = '<!-- migration-table:end -->';
 
 /// How an entry is carried out, in the guide's words.
 String howCarriedOut(MigrationEntry e) => switch (e.kind) {
+  // A positional argument that became named is written by `migrate`: `dart
+  // fix` has the change in `fix_data.yaml` and offers no fix for the extra
+  // positional argument a call is left with.
+  'parameters' when toNamedOf(e).isNotEmpty => '`migrate`',
   'rename' || 'moved' || 'parameters' => '`dart fix`',
   'rewrite' || 'implementsToWith' || 'import' => '`migrate`',
   'regroup' || 'recordToClass' || 'argument' => '`migrate`',
@@ -49,8 +55,24 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
     '`${e.symbol}` throws `${e.exception}` where it returned null: a null '
         'check beside a call becomes `try … on ${e.exception}`.',
   'argument' => _argument(e),
+  'parameters' when toNamedOf(e).isNotEmpty => _toNamed(e),
   _ => '',
 };
+
+/// A `parameters` entry's positional arguments that became named, in the
+/// guide's words: `Gauge(r, 2)` is `Gauge(r, scale: 2)`.
+String _toNamed(MigrationEntry e) {
+  final callable = e.member == e.topName ? e.topName : e.symbol;
+  final named = toNamedOf(e);
+  final last = named.keys.map(int.parse).reduce(math.max);
+  final before = <String>[for (var i = 0; i <= last; i++) 'x$i'];
+  final after = <String>[
+    for (final (i, x) in before.indexed)
+      if (named['$i'] case final name?) '$name: $x' else x,
+  ];
+  return '`$callable(${before.join(', ')})` is '
+      '`$callable(${after.join(', ')})`.';
+}
 
 /// An `argument` entry in the guide's words: the value as it was passed,
 /// and as it is passed now, with `x` for the value (or its components).

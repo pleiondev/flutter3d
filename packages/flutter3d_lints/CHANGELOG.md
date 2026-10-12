@@ -1,5 +1,12 @@
 ## 1.0.0-rc.1
 
+- **A positional argument that became named is named for you.** `migrate`
+  writes `settings: ` before the second argument of
+  `AdaptiveQuality(table, s)`, and the same for each constructor whose
+  optional positional arguments 1.0 made named (`AssetManifest`,
+  `EnumHintValue`, `MaterialVariant`, `TraceDraw`, `ParticleGravity`).
+  `dart fix` offers no fix for an extra positional argument, so this is
+  where it happens. A call that passes the name as well keeps a TODO.
 - **More of the move to 1.0 is written for you.** A colour passed as a
   `Vector3` or `Vector4` where 1.0 takes a `LinearColor` becomes one, as
   `LinearColor(r, g, b)` or `LinearColor.fromSrgb(r, g, b, a)` by how that

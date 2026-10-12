@@ -116,3 +116,20 @@ final class KindShade {
 abstract final class Board {
   static Table fill(Table into) => into..rows.add(1);
 }
+
+// ----------------------------------------------------------- parameters
+// 0.8: `Gauge(double reading, [double scale = 1])` and
+// `Sieve([int coarse = 4, int fine = 1])`, optional positional arguments
+// that became named.
+
+final class Gauge {
+  const Gauge(this.reading, {this.scale = 1});
+  final double reading;
+  final double scale;
+}
+
+final class Sieve {
+  const Sieve({this.coarse = 4, this.fine = 1});
+  final int coarse;
+  final int fine;
+}

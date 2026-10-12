@@ -49,6 +49,13 @@ enum MigrationKind {
   /// creation names it and the analyzer finds no type there (`const
   /// Old()`), which is the one place `dart fix`'s rename does not reach.
   rename,
+
+  /// Name the positional arguments a call of [MigrationRule.type] (or its
+  /// [MigrationRule.member]) still passes by place where they became named:
+  /// [MigrationRule.fields] maps each old index to the parameter's name.
+  /// `dart fix` has the same change and offers no fix for an extra
+  /// positional argument, so this is what carries it out.
+  parameters,
 }
 
 /// Which uses of a rule's name a [MigrationKind.manual] rule is about.
@@ -181,7 +188,8 @@ final class MigrationRule {
   final String? options;
 
   /// For [MigrationKind.recordToClass]: each record field (`$1`, `name`) to
-  /// the class's getter.
+  /// the class's getter. For [MigrationKind.parameters]: each old position
+  /// (`0`, `1`) to the name its argument is passed by now.
   final Map<String, String> fields;
 
   /// For [MigrationKind.nullToThrow]: what the call throws now.

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 738a9d681d9e0807
+# table-stamp: 6e64643b0186ab4e
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -101,3 +101,22 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'isLocated'
+  - title: 'flutter3d 1.0.0-rc.1: rc-particles-ParticleGravity-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_particles/flutter3d_particles.dart']
+      constructor: ''
+      inClass: 'ParticleGravity'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'acceleration'
+        style: optional_named
+        argumentValue:
+          expression: '{% acceleration %}'
+          variables:
+            acceleration:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0

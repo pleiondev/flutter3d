@@ -1,5 +1,13 @@
 ## 1.0.0-rc.1
 
+- **A migration table says which positional argument became named.** A
+  `parameters` change `toNamed: <name>` with `index: <n>` is written to
+  `fix_data.yaml` as the named parameter added with the argument that was
+  at `n`, then that place removed, and to the `flutter3d_lints` table,
+  which names the argument where a call still passes it by place. The six
+  constructors 0.8 code met that way, and the four colours that became a
+  `LinearColor` (`ProjectLight`, `ColorTextureNode`, `CheckerTextureNode`,
+  `SixWayMaterial`), are carried out now rather than left as TODOs.
 - **The shader build asks a backend from outside for its section.**
   `runShaderBuild(registry:)` takes the `MaterialCompilerRegistry` (or the
   one `MaterialCompilers` carries), and each compiler it holds for a
