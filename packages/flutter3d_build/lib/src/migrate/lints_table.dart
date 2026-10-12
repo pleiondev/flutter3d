@@ -226,6 +226,7 @@ Map<String, Object?> _rule(
     if (e.kind == 'rewrite' || e.kind == 'manual')
       'receiver': ?(e.fields['on'] as String?),
     if (e.kind == 'rewrite' && e.fields['static'] == true) 'throughClass': true,
+    if (e.kind == 'manual' && e.fields['async'] == true) 'awaits': true,
     if (e.kind != 'rename' || e.member != null)
       'renamedTo': ?renamed[e.topName],
     'exception': ?e.exception,

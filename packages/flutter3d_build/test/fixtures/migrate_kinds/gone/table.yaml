@@ -90,3 +90,11 @@ entries:
     kind: rewrite
     types: [Table]
     template: 'Board.pile(Pile({0})).table'
+  - id: kinds-Store-load
+    package: flutter3d_kinds
+    symbol: Store
+    kind: manual
+    members: [load]
+    async: true
+    guidance: >-
+      `load` is asynchronous: await it.

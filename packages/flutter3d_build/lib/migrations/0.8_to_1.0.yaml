@@ -2862,6 +2862,7 @@ entries:
     package: flutter3d_audio
     symbol: package:flutter3d_audio/testing.dart
     kind: manual
+    members: [soundTableIn]
     wave: 3
     guidance: >-
       `soundTableIn` was this repository's check of its demo games' sound
@@ -3373,6 +3374,7 @@ entries:
     symbol: SettingsFile
     kind: manual
     members: [read, write, clear]
+    async: true
     wave: 3
     guidance: >-
       `read`, `write` and `clear` are asynchronous, because `Storage` is.
@@ -3386,6 +3388,7 @@ entries:
     symbol: SaveFile
     kind: manual
     members: [read, write, clear]
+    async: true
     wave: 3
     guidance: >-
       `read`, `readRecord`, `write`, `writeRecord` and `clear` are
@@ -3397,6 +3400,7 @@ entries:
     symbol: DemoFile
     kind: manual
     members: [read, write, clear]
+    async: true
     wave: 3
     guidance: >-
       `read`, `write` and `clear` are asynchronous, because `Storage` is:
@@ -4052,6 +4056,7 @@ entries:
     package: flutter3d
     symbol: package:flutter3d/parity_scene.dart
     kind: internal
+    members: [ParityScene, buildParityScene, kParityGrid, parityGrid, paritySettingsFor]
     wave: 3
     instead: >-
       A backend's own tests import it from
@@ -4604,6 +4609,7 @@ entries:
     package: flutter3d_core
     symbol: package:flutter3d_core/parity_scene.dart
     kind: internal
+    members: [ParityScene, buildParityScene, kParityGrid, parityGrid, paritySettingsFor]
     wave: 3
     instead: >-
       A backend's own tests import it from

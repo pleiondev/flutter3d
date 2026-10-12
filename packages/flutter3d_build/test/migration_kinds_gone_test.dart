@@ -41,6 +41,8 @@ void main() {
       'kinds-Ledger-count',
       'kinds-Wrench',
       'kinds-Board-pile',
+      'kinds-Store-load',
+      'kinds-Store-load',
     ]);
     expect(manualOf(report), <String>[
       'kinds-roster:3',
@@ -50,6 +52,7 @@ void main() {
       'kinds-Shelf:29',
       'kinds-Dial-constructor:35',
       'kinds-Dial-constructor:37',
+      'kinds-Store-load:60',
     ]);
   });
 }

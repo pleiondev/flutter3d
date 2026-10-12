@@ -95,6 +95,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         case MigrationKind.internal:
           if (r.library) {
             internalByUri[r.type] = r;
+            // The names it listed are gone with it: each use gets its TODO.
+            for (final m in r.members) {
+              into(goneLibraryNames, m, r);
+            }
           } else {
             into(internalByName, r.type, r);
           }
@@ -172,8 +176,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
       <String, List<MigrationRule>>{};
   final Map<String, MigrationRule> internalByUri = <String, MigrationRule>{};
 
-  /// `manual` rules about a library gone whole, by each name it exported
-  /// that the rule lists: a use of one the resolver cannot find.
+  /// `manual` and `internal` rules about a library gone whole, by each name
+  /// it exported that the rule lists: a use of one the resolver cannot
+  /// find.
   final Map<String, List<MigrationRule>> goneLibraryNames =
       <String, List<MigrationRule>>{};
 
@@ -495,7 +500,14 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (rule.kind != MigrationKind.rewrite) {
       if (rule.kind == MigrationKind.manual &&
           rule.match == MigrationMatch.uses) {
-        _add(rule, node);
+        switch (rule.awaits ? _awaited(node) : null) {
+          case (true, _):
+            break;
+          case (false, final List<MigrationEdit> edits):
+            _add(rule, node, edits: edits);
+          case null:
+            _add(rule, node);
+        }
       }
       return;
     }
@@ -624,6 +636,37 @@ final class _Scan extends RecursiveAstVisitor<void> {
         MigrationEdit(whole.offset, whole.length, text),
         ..._importsFor(rule),
       ],
+    );
+  }
+
+  /// A call named by [node] of a member that answers a `Future` now: (true,
+  /// no edits) where it is awaited already, (false, the edits) that await
+  /// it inside an `async` body, null where that is not this scan's to write
+  /// (a body that is not `async`, a cascade).
+  (bool, List<MigrationEdit>)? _awaited(SimpleIdentifier node) {
+    final call = node.parent;
+    if (call is! MethodInvocation || call.methodName != node) return null;
+    final type = call.staticType;
+    if (type is! InterfaceType || !type.isDartAsyncFuture) return null;
+    if (call.parent is AwaitExpression) return (true, const <MigrationEdit>[]);
+    if (call.isCascaded) return null;
+    final body = call.thisOrAncestorOfType<FunctionBody>();
+    if (body == null || !body.isAsynchronous) return null;
+    final parent = call.parent;
+    final operand = switch (parent) {
+      PropertyAccess(:final target) => target == call,
+      MethodInvocation(:final target) => target == call,
+      IndexExpression(:final target) => target == call,
+      _ => false,
+    };
+    return (
+      false,
+      operand
+          ? <MigrationEdit>[
+              MigrationEdit(call.offset, 0, '(await '),
+              MigrationEdit(call.end, 0, ')'),
+            ]
+          : <MigrationEdit>[MigrationEdit(call.offset, 0, 'await ')],
     );
   }
 

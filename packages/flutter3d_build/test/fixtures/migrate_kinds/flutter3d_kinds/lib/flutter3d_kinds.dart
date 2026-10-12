@@ -171,6 +171,12 @@ final class KindLedger {
   final int tally;
 }
 
+// 0.8: `class Store { int load(); }`; asynchronous since.
+
+final class Store {
+  Future<int> load() async => 1;
+}
+
 // ----------------------------------------------------------- parameters
 // 0.8: `Gauge(double reading, [double scale = 1])` and
 // `Sieve([int coarse = 4, int fine = 1])`, optional positional arguments

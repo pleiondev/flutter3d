@@ -50,3 +50,12 @@ const Object wrench = Wrench();
 Table piled(Table table) => Board.pile(table);
 
 Pile kept(Pile pile) => Board.pile(pile);
+
+Future<int> loaded(Store store) async {
+  final n = store.load();
+  return n + store.load().bitLength;
+}
+
+void forget(Store store) {
+  store.load();
+}

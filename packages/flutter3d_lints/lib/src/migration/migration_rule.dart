@@ -107,6 +107,7 @@ final class MigrationRule {
     this.receiver,
     this.throughClass = false,
     this.renamedTo,
+    this.awaits = false,
   });
 
   /// A rule from the plain data `flutter3d_build`'s `lintsRules` writes:
@@ -149,6 +150,7 @@ final class MigrationRule {
       receiver: json['receiver'] as String?,
       throughClass: (json['throughClass'] as bool?) ?? false,
       renamedTo: json['renamedTo'] as String?,
+      awaits: (json['awaits'] as bool?) ?? false,
     );
   }
 
@@ -242,4 +244,9 @@ final class MigrationRule {
   /// renamed the class: `dart fix` renames the uses first, so the code the
   /// scan reads names the new class.
   final String? renamedTo;
+
+  /// For a [MigrationKind.manual] rule about members that became
+  /// asynchronous: a call of one inside an `async` body is awaited, which
+  /// is all it needs there; elsewhere the TODO stays.
+  final bool awaits;
 }
