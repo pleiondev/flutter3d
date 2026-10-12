@@ -1453,6 +1453,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
   final Map<String, List<MigrationRule>> hooks =
       <String, List<MigrationRule>>{};
 
+  /// Where a `hookContext` rule was already carried out. A hook's entry
+  /// and its engine implementations' entries (`ModelDecoder.decode`,
+  /// `GltfLoader.decode`) match the same call; the first one rewrites it.
+  final Set<int> _hooked = <int>{};
+
   /// An override of a hook that takes one context now: its parameters
   /// become the context, and each one it reads becomes a local read from
   /// the context's field, so the body is left as it was written.
@@ -1477,9 +1482,22 @@ final class _Scan extends RecursiveAstVisitor<void> {
     );
   }
 
+  /// The name the hook's declaration gives its one parameter now: what an
+  /// override names it too.
+  String? _hookParameterName(MethodDeclaration node, MigrationRule rule) {
+    final enclosing = node.declaredFragment?.element.enclosingElement;
+    if (enclosing is! InterfaceElement) return null;
+    for (final s in enclosing.allSupertypes) {
+      if (s.element.name != rule.type) continue;
+      final method = s.element.getMethod(node.name.lexeme);
+      if (method?.formalParameters case [final only]) return only.name;
+    }
+    return null;
+  }
+
   void _hookOverride(MethodDeclaration node, MigrationRule rule) {
     final parameters = node.parameters;
-    if (parameters == null) return;
+    if (parameters == null || !_hooked.add(parameters.offset)) return;
     final list = parameters.parameters;
     // Already one parameter of the context's type: migrated.
     if (list.length == 1 &&
@@ -1507,15 +1525,20 @@ final class _Scan extends RecursiveAstVisitor<void> {
         r'[A-Za-z_$][\w$]*',
       ).allMatches(bodyText).map((Match m) => m.group(0)!),
     };
+    // The hook's own name for its context first, so the override does not
+    // rename the parameter it overrides.
     final context = <String>[
+      ?_hookParameterName(node, rule),
       'context',
       'hookContext',
       'given',
     ].firstWhere((String n) => !taken.contains(n));
+    // A `$` before the name is an interpolation (`'$name.f3d'`), a use like
+    // any other; a `.` before it is another object's member.
     final used = <(String, String)>[
       for (final (name, field) in reads)
         if (RegExp(
-          '(?<![\\w\$.])${RegExp.escape(name)}(?![\\w\$])',
+          '(?<![\\w.])${RegExp.escape(name)}(?![\\w\$])',
         ).hasMatch(bodyText))
           (name, field),
     ];
@@ -1581,7 +1604,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// context's, each named by the field [MigrationRule.fields] maps it to.
   void _hookCall(ArgumentList arguments, MigrationRule rule) {
     final all = arguments.arguments;
-    if (all.isEmpty) return;
+    if (all.isEmpty || !_hooked.add(arguments.offset)) return;
     // Already one argument building the context: migrated.
     if (all.length == 1 && _text(all.single).startsWith('${rule.options}(')) {
       return;

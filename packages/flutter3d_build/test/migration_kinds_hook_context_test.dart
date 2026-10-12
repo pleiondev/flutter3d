@@ -36,11 +36,14 @@ void main() {
 
   // Six seconds with the migrator compiled; a cold `dart run` compiles it
   // first, which is what the three minutes are for.
-  test('an override takes the context and reads what it used from it; a '
-      'call builds the context', () async {
+  test('an override takes the context and reads what it used from it, an '
+      'interpolation included; a call builds the context', () async {
     final report = await migrateKindFixture('hookContext');
+    // The table's second entry for the same hook, as an engine
+    // implementation's entry is, matches every use the first one does and
+    // must rewrite none of them a second time.
     expect(appliedOf(report), <String>[
-      for (var i = 0; i < 5; i++) 'kinds-Sensor-sense',
+      for (var i = 0; i < 6; i++) 'kinds-Sensor-sense',
     ]);
     expect(manualOf(report), isEmpty);
   }, timeout: const Timeout(Duration(minutes: 3)));

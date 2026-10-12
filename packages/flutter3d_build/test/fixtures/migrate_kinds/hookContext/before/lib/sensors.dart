@@ -18,8 +18,18 @@ final class Nose extends Sensor {
 }
 
 final class Eye extends Sensor {
+  final List<String> seen = <String>[];
+
   @override
   void sense(String what, double amount, {bool loud = false}) {}
+}
+
+final class Log extends Sensor {
+  final List<String> lines = <String>[];
+
+  @override
+  void sense(String what, double amount, {bool loud = false}) =>
+      lines.add('$what at $amount');
 }
 
 void ring(Sensor sensor) {

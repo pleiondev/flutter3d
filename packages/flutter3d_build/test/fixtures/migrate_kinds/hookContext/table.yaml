@@ -13,3 +13,12 @@ entries:
       '0': what
       '1': amount
       loud: loud
+  - id: kinds-Sensor-sense-again
+    package: flutter3d_kinds
+    symbol: Sensor.sense
+    kind: hookContext
+    context: Sensing
+    fields:
+      '0': what
+      '1': amount
+      loud: loud
