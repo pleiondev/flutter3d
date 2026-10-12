@@ -81,6 +81,13 @@ final class MigrationEntry {
       for (final e in map.entries) '${e.key}': '${e.value}',
   };
 
+  /// An `argument`'s map from each member of the old type read off the
+  /// field (`x`) to the new type's (`r`): a read of `.x` becomes `.r`.
+  Map<String, String> get reads => <String, String>{
+    if (fields['reads'] case final Map<Object?, Object?> map)
+      for (final e in map.entries) '${e.key}': '${e.value}',
+  };
+
   /// The libraries a `rewrite`'s template needs in scope.
   List<String> get imports => <String>[
     for (final i in (fields['imports'] as List<Object?>?) ?? const <Object?>[])

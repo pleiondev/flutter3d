@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 59cf878f5ee23f54
+# table-stamp: 9c63f6f65c493e33
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -62,3 +62,13 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'identity'
+  - title: 'flutter3d 1.0.0-rc.1: corpus-stereo-HeadPose-constructor'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_stereo/flutter3d_stereo.dart']
+      constructor: ''
+      inClass: 'HeadPose'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'rotation'
+        newName: 'orientation'

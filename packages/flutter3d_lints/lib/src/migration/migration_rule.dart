@@ -63,6 +63,14 @@ enum MigrationKind {
   /// field [MigrationRule.fields] maps it to (by its old index, or its name
   /// for a named one); a call passes `Options(field: argument, …)`.
   hookContext,
+
+  /// The name [MigrationRule.type] is declared in another library since the
+  /// release: imported from [MigrationRule.imports] (and named
+  /// [MigrationRule.to] where it was renamed on the way) where the analyzer
+  /// finds no such name. `dart fix` carries the same move only in a file
+  /// that imports a library its fix names, not one that reached the name
+  /// through the project's own re-export.
+  moved,
 }
 
 /// Which uses of a rule's name a [MigrationKind.manual] rule is about.
@@ -103,6 +111,10 @@ final class MigrationRule {
     this.library = false,
     this.to,
     this.types = const <String>[],
+    this.receiver,
+    this.throughClass = false,
+    this.renamedTo,
+    this.awaits = false,
   });
 
   /// A rule from the plain data `flutter3d_build`'s `lintsRules` writes:
@@ -142,6 +154,10 @@ final class MigrationRule {
       library: (json['library'] as bool?) ?? false,
       to: json['to'] as String?,
       types: strings(json['types']),
+      receiver: json['receiver'] as String?,
+      throughClass: (json['throughClass'] as bool?) ?? false,
+      renamedTo: json['renamedTo'] as String?,
+      awaits: (json['awaits'] as bool?) ?? false,
     );
   }
 
@@ -169,8 +185,9 @@ final class MigrationRule {
   final String? member;
 
   /// For [MigrationKind.rewrite]: the replacement, with `{target}` for the
-  /// receiver (dropped with its dot when there is none) and `{0}`, `{1}`…
-  /// for the arguments of a call. For [MigrationKind.argument]: the value
+  /// receiver (dropped with its dot when there is none), `{0}`, `{1}`… for
+  /// the arguments of a call, `{arguments}` for all of them as written and
+  /// `{typeArguments}` for its type arguments. For [MigrationKind.argument]: the value
   /// written, with `{value}` for the old one and `{components}` for its
   /// components, as a vector's creation lists them or `v.x, v.y, …`.
   final String? template;
@@ -198,8 +215,10 @@ final class MigrationRule {
   /// For [MigrationKind.recordToClass]: each record field (`$1`, `name`) to
   /// the class's getter. For [MigrationKind.parameters]: each old position
   /// (`0`, `1`) to the name its argument is passed by now. For
-  /// [MigrationKind.hookContext]: each old parameter, by position or by
-  /// name for a named one, to the context's field that holds it.
+  /// [MigrationKind.argument]: each member of the old type read off the
+  /// field (`x`) to the new type's (`r`). For [MigrationKind.hookContext]:
+  /// each old parameter, by position or by name for a named one, to the
+  /// context's field that holds it.
   final Map<String, String> fields;
 
   /// For [MigrationKind.nullToThrow]: what the call throws now.
@@ -217,6 +236,27 @@ final class MigrationRule {
   final String? to;
 
   /// For [MigrationKind.argument]: the types (by name) of the values it
-  /// rewrites, the parameter's old ones. Empty for any value.
+  /// rewrites, the parameter's old ones; for [MigrationKind.rewrite], those
+  /// of a call's first argument, the only calls it rewrites. Empty for any
+  /// value.
   final List<String> types;
+
+  /// For a [MigrationKind.rewrite] of an extension's member: the type the
+  /// extension was on (`List`), whose values the gone member is matched on.
+  final String? receiver;
+
+  /// For a [MigrationKind.rewrite] of a static member that is an instance's
+  /// now: only a use named through the class is rewritten, since a use
+  /// through an instance is already 1.0 code.
+  final bool throughClass;
+
+  /// [type]'s name in the release migrated to, where a `rename` entry
+  /// renamed the class: `dart fix` renames the uses first, so the code the
+  /// scan reads names the new class.
+  final String? renamedTo;
+
+  /// For a [MigrationKind.manual] rule about members that became
+  /// asynchronous: a call of one inside an `async` body is awaited, which
+  /// is all it needs there; elsewhere the TODO stays.
+  final bool awaits;
 }

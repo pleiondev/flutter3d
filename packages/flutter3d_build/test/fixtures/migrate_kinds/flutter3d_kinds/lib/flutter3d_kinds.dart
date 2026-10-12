@@ -50,6 +50,18 @@ final class Span {
 
 Span spanOf(String text) => Span(0, text.length, label: text);
 
+// 0.8: `typedef Frame = ({int width, int height})`, and a frame with a
+// `depth` was a record of its own; the class takes it.
+
+final class Frame {
+  const Frame({required this.width, required this.height, this.depth = 0});
+  final int width;
+  final int height;
+  final int depth;
+}
+
+Frame frameOf(int side) => Frame(width: side, height: side);
+
 // ---------------------------------------------------------- nullToThrow
 // 0.8: `String? loadText(String path)`, null for a path that is not there.
 
@@ -93,6 +105,10 @@ final class LinearColor {
   static const LinearColor white = LinearColor(1, 1, 1);
 }
 
+extension LinearColorVector on LinearColor {
+  Vector3 toVector3() => Vector3(r, g, b);
+}
+
 final class Lamp {
   Lamp({this.glow = LinearColor.white, this.beam = 0.5});
   Lamp.tinted(LinearColor color) : glow = color, beam = 0.5;
@@ -115,7 +131,78 @@ final class KindShade {
 
 abstract final class Board {
   static Table fill(Table into) => into..rows.add(1);
+
+  // 0.8: `static Table pile(Table table)`.
+  static Pile pile(Pile pile) => pile;
 }
+
+final class Pile {
+  Pile(this.table);
+  final Table table;
+}
+
+// 0.8 also had `srgbColor(r, g, b, [a])`, which is `LinearColor.fromSrgb`
+// now; `extension Tally on List<Object>` with `has<T>()`; `Mode.touch`, a
+// static getter that is an instance's field now; `oldHelperGone()`, gone
+// with nothing to write instead; and `roster.dart`, a library gone whole
+// with its `Roster`.
+
+final class Mode {
+  const Mode({required this.touch});
+  factory Mode.ofPlatform() => const Mode(touch: false);
+  final bool touch;
+}
+
+// 0.8: `abstract interface class Shelf { int count(); }`, asynchronous
+// since.
+
+abstract base class Shelf {
+  const Shelf();
+  Future<int> count();
+}
+
+// 0.8: `Dial({int level = 0, String label = '', onTurn})`; the label is gone.
+
+final class Dial {
+  const Dial({this.level = 0, this.onTurn});
+  final int level;
+
+  /// 0.8: `void Function(int from, int to)`.
+  final void Function(int to)? onTurn;
+}
+
+// 0.8: `class Match`, which shadowed `dart:core`'s; `KindMatch` since.
+
+final class KindMatch {
+  const KindMatch();
+}
+
+// 0.8: `class Ledger { int get total; int get count; }`; `KindLedger` with
+// `sum` and `tally` since.
+
+final class KindLedger {
+  const KindLedger(this.sum, this.tally);
+  final int sum;
+  final int tally;
+}
+
+// 0.8: `class Store { int load(); bool save(); }`; asynchronous since, and
+// a save answers nothing.
+
+final class Store {
+  Future<int> load() async => 1;
+  Future<void> save() async {}
+}
+
+// 0.8 had two `Seat`s; this one is `KindSeat` since.
+
+final class KindSeat {
+  KindSeat();
+}
+
+// 0.8: `typedef Credit = ({String title, String licence})`.
+
+typedef Credit = ({String title, String license});
 
 // ----------------------------------------------------------- parameters
 // 0.8: `Gauge(double reading, [double scale = 1])` and
@@ -148,4 +235,11 @@ final class Sensing {
 abstract base class Sensor {
   const Sensor();
   void sense(Sensing sensing);
+}
+
+// 0.8: `Tap({int centre = 0})`, the parameter renamed since.
+
+final class Tap {
+  const Tap({this.center = 0});
+  final int center;
 }

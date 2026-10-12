@@ -11,3 +11,10 @@ entries:
     fields:
       $1: start
       $2: end
+  - id: kinds-Frame-class
+    package: flutter3d_kinds
+    symbol: Frame
+    kind: recordToClass
+    fields:
+      width: width
+      height: height

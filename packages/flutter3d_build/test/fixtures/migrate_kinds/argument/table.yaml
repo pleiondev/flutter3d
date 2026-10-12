@@ -11,6 +11,7 @@ entries:
     arguments: [glow]
     types: [Vector4]
     template: 'LinearColor.fromSrgb({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
     guidance: >-
       `glow` is a `LinearColor` assigned whole: `Vector4(r, g, b, a)` is
@@ -31,3 +32,10 @@ entries:
     to: beam
     template: '{value} * pi / 180'
     imports: ['dart:math show pi']
+  - id: kinds-LinearColor-as-vector
+    package: flutter3d_kinds
+    symbol: LinearColor
+    kind: rewrite
+    on: LinearColor
+    types: [Vector3, Vector4]
+    template: '{target}.to{type}()'
