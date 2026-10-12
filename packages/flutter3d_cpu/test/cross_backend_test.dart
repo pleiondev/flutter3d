@@ -202,9 +202,9 @@ const Map<String, double> _budgets = <String, double>{
   // backend and not the other. The stage itself agrees — the bundle's Dart
   // twin is the GLSL line for line — which is what a transcription is for.
   'loaded-shader': 0.52,
-  // 0.581% measured: the teapot on its floor with the exposure metered from
+  // 0.587% measured: the teapot on its floor with the exposure metered from
   // the frame. `shadow-teapot` is the same model on the same floor at the
-  // setting's exposure and sits at 0.454%, so the two meters — one reading a
+  // setting's exposure and sits at 0.458%, so the two meters — one reading a
   // GPU's luminance target, one a transcription's — asked for exposures a
   // sixteenth of a stop apart at most, which is the byte they encode in, and
   // the extra tenth of a percent is the floor's gradient crossing the channel
@@ -213,14 +213,17 @@ const Map<String, double> _budgets = <String, double>{
   'auto-exposure': 0.6,
   'cube-shadow-mover': 0.56,
   'cube-shadow-lit': 0.55,
-  'shadow-teapot': 0.52,
+  // 0.458% measured on the teapot tessellated from Newell's patches, all of
+  // it silhouette and the shadow's edge.
+  'shadow-teapot': 0.51,
   'particle-one': 0.45,
   'particles-none': 0.45,
   'cube-shadow-gap': 0.45,
   'view-model-point-shadow': 0.40,
   'view-model-overlay': 0.40,
   'lighting-unlit': 0.27,
-  'teapot-generated-normals': 0.27,
+  // 0.217% measured, the same silhouette without a shadow under it.
+  'teapot-generated-normals': 0.24,
   'lighting-normals': 0.26,
   'lighting-toon': 0.26,
   'bloom-sphere': 0.25,
@@ -276,9 +279,9 @@ const Map<String, double> _budgets = <String, double>{
   // 0.725% measured, on the silhouette: `shadow-teapot`'s edge magnified
   // by the barrel.
   'lens-distortion': 0.8,
-  // 0.778% measured: SMAA here smooths edges that Impeller has already
+  // 0.781% measured: SMAA here smooths edges that Impeller has already
   // multisampled, so the two smooth different steps by different amounts.
-  'smaa-teapot': 0.85,
+  'smaa-teapot': 0.86,
   'evsm-soft': 0.17,
   // 0.069% measured: the air right round a torch, where the light falls off
   // as one over the distance squared, is shadowed by one unfiltered tap of
