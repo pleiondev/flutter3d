@@ -166,9 +166,14 @@ breaks. A minor adds. A break comes only in a major, after a deprecation.
 Every public name is covered, with no experimental exceptions, and the
 snapshot in each package's `api/` is what a release is compared against.
 
-**The engine ships under one number.** The 58 packages of the shelf
-carry the same version, now the release candidate `1.0.0-rc.1`, and ask for
-`^1.0.0-rc.1` of each other. Among them are the packages the candidate
+**The engine ships under one major.minor.** The 58 packages of the shelf
+share a major and a minor, now the release candidate `1.0.0-rc.1`, and ask
+for `^1.0.0-rc.1` of each other. A minor or a major moves all of them
+together. A patch goes only to the package that needs it, so after 1.0.0
+`flutter3d_impeller` can be at 1.0.1 beside the rest at 1.0.0: every
+sibling's `^1.0.0` reaches it, and nobody downloads 59 unchanged packages
+for one fix. So read the shelf's number as `1.0`, and each package's own
+patch from its CHANGELOG. Among them are the packages the candidate
 brings: the game parts (`flutter3d_game_kit`, `flutter3d_game_physics`,
 `flutter3d_game_ui`, `flutter3d_camera`), `flutter3d_build_hooks`, the post-processing families (`flutter3d_post`), the
 foundation types every package shares (`flutter3d_foundation`), what a world
@@ -225,7 +230,8 @@ goes in, and its replacement, and a structure rule checks the wording.
 `flutter_gpu` is reached only from `flutter3d_impeller`. The hardware layer
 and the engine name no graphics API, and structure rules hold both. When a
 Flutter release changes `flutter_gpu`, the repair is a patch of
-`flutter3d_impeller`, and no other package's API changes. If that repair
+`flutter3d_impeller` alone (1.0.1 beside the rest at 1.0.0, as "Versions"
+above allows), and no other package's API or version changes. If that repair
 cannot compile against the older Flutter, the patch raises
 `flutter3d_impeller`'s own Flutter floor, which is the one exception to the
 rule above, and its CHANGELOG says so.

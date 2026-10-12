@@ -4666,7 +4666,11 @@ published and the CHANGELOG sections written for it are the 1.0.0-rc.1 ones. It
 moves the whole shelf for the reason 0.8.0 gave: `flutter3d_hardware` gives
 `PassEncoder.draw` a window of the bound indices and every `PassEncoder`
 `setAlphaToCoverage`, so every implementation of the interface changes with it.
-From here a minor adds and only a major breaks, and the interface packages
+From here a minor adds and only a major breaks. The shelf shares a
+major.minor rather than a full version: a minor or a major moves every
+package, and a patch goes only to the package that needs it
+(`flutter3d_impeller` 1.0.1 beside the rest at 1.0.0), which the migration
+rule's `onEngineNumber` accepts. The interface packages
 (`flutter3d_plugin_api`, `flutter3d_hardware`, the format schemas) keep numbers
 of their own that break more rarely than the engine's. `flutter3d_plugin_api`
 starts its line at 1.0.0; `flutter3d_hardware` starts on the shelf's number.

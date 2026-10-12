@@ -3525,6 +3525,33 @@ List<Finding> proveDetectorsWork() {
     'it does what the promise asks',
   );
 
+  // The engine's number is a major.minor: a patch of one package stays on
+  // it, a pre-release under a final release and another minor do not.
+  for (final (version, engine) in const <(String, String)>[
+    ('1.0.0-rc.1', '1.0.0-rc.1'),
+    ('1.0.1', '1.0.0'),
+    ('1.0.1', '1.0.0-rc.1'),
+  ]) {
+    quiet(
+      'the engine number',
+      onEngineNumber(version, engine),
+      '$version beside $engine',
+      'a patch goes to the one package that needs it',
+    );
+  }
+  for (final (version, engine) in const <(String, String)>[
+    ('1.0.0-rc.1', '1.0.0'),
+    ('1.1.0', '1.0.0'),
+    ('0.5.0', '1.0.0-rc.1'),
+    ('2.0.0', '1.0.0'),
+  ]) {
+    fires(
+      'the engine number',
+      !onEngineNumber(version, engine),
+      '$version beside $engine',
+    );
+  }
+
   // A policy document's revision line. The SECURITY.md of 0.x said "nothing
   // is published to pub.dev yet" for months after 0.4.0 went up, and ROADMAP
   // described a quarter that had closed.
@@ -3606,6 +3633,28 @@ List<Finding> proveDetectorsWork() {
   );
 
   return broken;
+}
+
+// ------------------------------------------------------- the engine's number
+
+/// Whether a package at [version] is on the engine's number [engine].
+///
+/// **The number is a major.minor, not a full version** (decided by Dmitrii
+/// on 2026-10-12). A patch goes to the one package that needs it, so
+/// `flutter3d_impeller` can be 1.0.1 beside the rest at 1.0.0, typically
+/// after a Flutter release changed `flutter_gpu`, and every sibling's
+/// `^1.0.0` still reaches it. Holding every package to the same full
+/// version would force 60 uploads for one fix. Off the number is a package
+/// another minor or major apart, or one the engine's caret cannot reach
+/// (a pre-release under a final release).
+bool onEngineNumber(String version, String engine) {
+  if (version == engine) return true;
+  final (v, e) = (parseVersion(version), parseVersion(engine));
+  return v != null &&
+      e != null &&
+      v.major == e.major &&
+      v.minor == e.minor &&
+      caretAdmits(engine, version);
 }
 
 // ------------------------------------------------------- a policy's revision

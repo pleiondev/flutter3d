@@ -5250,13 +5250,14 @@ List<Finding> _breaksHaveMigrations() {
     );
   }
 
-  // A published package off the engine's number is named with its own.
+  // A published package off the engine's number is named with its own. The
+  // number is a major.minor ([onEngineNumber] says why).
   if (index >= 0) {
     for (final MapEntry(key: name, value: dir) in _publishedPackages.entries) {
       final now = _pubspecVersionText(
         File('${dir.path}/pubspec.yaml').readAsStringSync(),
       );
-      if (now == null || now == table.to) continue;
+      if (now == null || onEngineNumber(now, table.to)) continue;
       if (table.versions[name] != '^$now') {
         found.add(
           Finding(

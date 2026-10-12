@@ -84,11 +84,14 @@ DMCA procedure, and a licence field on publishing. If the list is not done,
 the tag waits.
 
 From 1.0.0 the packages follow strict semver, and [SUPPORT.md](SUPPORT.md)
-says which releases get fixes and for how long.
+says which releases get fixes and for how long. They share a major.minor:
+a minor or a major moves all of them, and a patch goes only to the package
+that needs it, so a repair for a new `flutter_gpu` is `flutter3d_impeller`
+1.0.1 beside the rest at 1.0.0.
 
 ## 1.x
 
-Each minor adds and breaks nothing: its API diff has additions only, the
+Each minor moves the whole shelf, adds and breaks nothing: its API diff has additions only, the
 default `SimulationVersion` stays, goldens stay or the old look sits behind
 a setting, conformance passes on four backends, and the outside sample
 plugin builds.

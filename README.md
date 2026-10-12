@@ -16,8 +16,9 @@ backend: it is the one facade, re-exporting the renderer, the view and what a
 first game uses of the simulation, the physics and the audio. A program that
 only draws starts with [`flutter3d`](https://pub.dev/packages/flutter3d).
 All but
-`pad_input` and `pointer_lock` are the 1.0.0 set, one number for all; those
-two keep numbers of their own. It goes out first as a release
+`pad_input` and `pointer_lock` are the 1.0.0 set and share one major.minor;
+a patch goes only to the package that needs it. Those two keep numbers of
+their own. It goes out first as a release
 candidate, `1.0.0-rc.1`, so ask for `^1.0.0-rc.1`: that resolves against
 every other and admits 1.0.0 itself, which follows. Until then pub.dev keeps
 0.8.x as the default, and the candidate is opt-in. From 1.0.0 they follow
