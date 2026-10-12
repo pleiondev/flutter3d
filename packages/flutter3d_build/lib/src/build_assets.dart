@@ -370,6 +370,8 @@ TextureFamily _familyForTarget(BuildInput input) => familyForTargetOS(
 /// `package:hooks`' own `build()`.
 ///
 /// ```dart
+/// // The build runs these from dev_dependencies; nothing here ships.
+/// // ignore_for_file: depend_on_referenced_packages
 /// import 'package:flutter3d_build/flutter3d_build.dart';
 /// import 'package:hooks/hooks.dart';
 ///

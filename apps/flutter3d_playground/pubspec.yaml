@@ -1,0 +1,43 @@
+name: flutter3d_playground
+description: "The site's playground: a level or a prefab document in an editor, drawn as it is typed, with what is wrong with it said under the text."
+publish_to: 'none'
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The view: the device with its software fallback, the loop and the frame.
+  flutter3d_app: ^1.0.0-rc.1
+
+  # The scene graph, the orbit and the shapes the entity markers are.
+  flutter3d: ^1.0.0-rc.1
+
+  # The document: `Level`, `Prefab` and their expansion.
+  flutter3d_sim: ^1.0.0-rc.1
+
+  # A level turned into a scene: brushes into meshes, its lights into nodes.
+  flutter3d_level_scene: ^1.0.0-rc.1
+
+  # `Severity`, which a prefab issue carries.
+  flutter3d_foundation: ^1.0.0-rc.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A device with no GPU under it, so a test draws a document the way the
+  # page does.
+  flutter3d_cpu: ^1.0.0-rc.1
+
+  flutter_lints: ^6.0.0
+
+# **Only `web/` of the platform folders**: the page is this application's
+# web build, made by `site/tool/demos.sh playground`. `flutter create
+# --platforms=macos .` gives it a window as well.
+flutter:
+  uses-material-design: true

@@ -13,7 +13,9 @@ There are two editors. The level editor writes the level documents the games rea
 | The level editor | <https://flutter3d.pleion.dev/demo/editor/> | A page has no disk, so the documents live in the page: a level opens from a file you pick, saving downloads it, and a new project from a template downloads once as a `.zip`. Play cannot start a game; it attaches to one you run yourself, over the VM service address the game prints |
 | The model editor | <https://models.pleion.dev> | Saves into a cabinet the account keeps rather than to your disk; [Trying it](/modeler/demo/) has the rest |
 
-In a browser both draw through WebGPU, and through WebGL2 where the browser hands out no WebGPU adapter. Chrome is what they are checked on; Safari and Firefox are best effort.
+To read and write the level format without either editor, the [playground](/playground/) takes a level or a prefab document as text and draws it as you type, with what is wrong with it under the text.
+
+In a browser both editors draw through WebGPU, and through WebGL2 where the browser hands out no WebGPU adapter. Chrome is what they are checked on; Safari and Firefox are best effort.
 
 ## Built from source
 

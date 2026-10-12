@@ -5,8 +5,8 @@ Commands:
   convert   Bring models, materials and scenes from other tools in: glTF,
             OBJ, STL, PLY, USD, MaterialX, Unity prefabs and scenes, Godot
             scenes, and FBX and .blend through FBX2glTF or Blender.
-  create    A new project (create project <dir>) or plugin
-            (create plugin --kind <kind> --name <name>).
+  create    A new project (create project <dir> [--kind viewer|arcade]) or
+            plugin (create plugin --kind <kind> --name <name>).
   init      Wire the build hook into an existing project.
   plugins   Write lib/plugins.g.dart from the dependencies' plugin markers,
             or check that it is current (--check).
@@ -88,9 +88,16 @@ tool (FBX2glTF, Blender, usdcat) is not installed; 4 an output exists with
 different contents and --overwrite was not given.
 
 == create ==
-Usage: flutter3d create project <dir> [--name <package>]
+Usage: flutter3d create project <dir> [--kind <kind>] [--name <package>]
        flutter3d create plugin --kind <kind> --name <name> [--target <dir>]
        flutter3d create --list
+
+A project is one of:
+  scene    one lit sphere in a Scene3D, the default
+  viewer   a model a drag turns and a pinch or a scroll brings closer
+  arcade   a Flame game over a 3D layer, through flame_flutter3d
+The level genres (platformer, shooter, racing, strategy) are made by the
+level editor. --list prints the plugin kinds.
 
 Exits 3 when the target directory is not empty.
 

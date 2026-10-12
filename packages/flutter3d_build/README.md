@@ -31,7 +31,7 @@ flutter3d help
 ```
 
 One command for every tool here: `convert`, `create` (`create project <dir>`
-or `create plugin`), `init`, `plugins`, `migrate`, `lights` and `doctor`.
+with `--kind scene`, `viewer` or `arcade`, or `create plugin`), `init`, `plugins`, `migrate`, `lights` and `doctor`.
 Each also runs as `dart run flutter3d_build:<name>`, the same code.
 `flutter3d doctor` checks Dart and Flutter against the versions in
 SUPPORT.md and looks for the optional programs: impellerc, glslangValidator
