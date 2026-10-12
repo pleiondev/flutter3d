@@ -511,12 +511,14 @@ done
 
 # The examples written as from outside the repository: the outside sample
 # plugin, which holds the default simulation to a racing tape recorded
-# before fields and subsystems, and earns the plugin suite's badge; and the
+# before fields and subsystems, and earns the plugin suite's badge; the
 # reference backend, `flutter3d_backend_null`, which passes the conformance
 # suite on published libraries alone and is what `flutter3d create plugin
-# --kind backend` copies. The structure rule "the repository lists agree
-# with the workspace" holds every one of them to the workspace and to this
-# loop.
+# --kind backend` copies; and the cookbook, whose test builds each of its
+# twenty recipes and draws a frame of it on the software rasteriser. The
+# structure rule "the repository lists agree with the workspace" holds every
+# one of them to the workspace and to this loop, and the `analyze` step
+# above reads them as it reads every member.
 for example in examples/*/; do
   [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$example")" in_dir "$example" flutter test

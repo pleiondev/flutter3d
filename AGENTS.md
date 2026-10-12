@@ -6,7 +6,7 @@ or a review comment you will get.
 
 ## What this is
 
-A 3D engine for Flutter and the tools around it: 36 packages and 8 applications
+A 3D engine for Flutter and the tools around it: 61 packages and 17 applications
 in one pub workspace. `packages/flutter3d` is the renderer; `packages/flutter3d_
 mesh` and `packages/flutter3d_model_core` are the modeller's own topology and
 document; `apps/flutter3d_modeler` is the modeller. `ARCHITECTURE.md` is the map
@@ -23,7 +23,7 @@ row a change belongs to.
 
 ```sh
 dart analyze                      # in the packages you touched
-dart run tool/structure.dart      # 36 rules about how the tree is arranged
+dart run tool/structure.dart      # the rules about how the tree is arranged
 dart run tool/verify_plan.dart    # every finished row names something real
 ```
 

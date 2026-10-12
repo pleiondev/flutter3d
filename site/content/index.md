@@ -8,6 +8,8 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and five gam
 
 flutter3d is a renderer, a game layer, and six games built on them: a shooter, a platformer, a racing game and a strategy game, each with a genre package of its own, and two Flame games drawn in 3D, Meteor Yard and River Sortie. The platformer and the racer were built without changing a line in the shooter's engine packages.
 
+It is a game engine first. The same fixed step, probes and time source carry a virtual laboratory or a device's digital twin, and `flutter3d_education` carries a lesson into a learning platform over LTI 1.3: [laboratories and lessons](/education/) has the pendulum and the chemistry bench.
+
 **Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/) · [the strategy game](/strategy/demo/) · [Meteor Yard](/arcade/demo/) and [River Sortie](/river/demo/), two Flame games drawn in 3D. **Or try every capability, one page each, with live controls:** [the showcase](/showcase/). **What changed in each release**, with a link to the page that shows it: [the changelog](/changelog/).
 
 <div class="frameband">
@@ -28,8 +30,8 @@ flutter3d is a renderer, a game layer, and six games built on them: a shooter, a
 | | |
 |---|---|
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes: all 45 packages are on [pub.dev](https://pub.dev/publishers/pleion.dev/packages). Forty-two carry the release candidate 1.0.0-rc.1, so any `^1.0.0-rc.1` resolves against every other and admits 1.0.0 when it follows; from 1.0.0 they follow strict semver, and the candidate already does; `flutter3d_plugin_api` is on the candidate too, on a line of its own; `pad_input` and `pointer_lock` keep their own line at 0.5.0, `flame_multiplayer` at 0.2.0 and `flame_multiplayer_dashwire` at 0.1.1 |
-| Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
+| Published | All 60 packages go to [pub.dev](https://pub.dev/publishers/pleion.dev/packages). 58 of them are at the release candidate `1.0.0-rc.1`, so any `^1.0.0-rc.1` resolves against every other and admits 1.0.0 when it follows; `pad_input` and `pointer_lock` keep their own line at 0.5.0. Until 1.0.0, pub.dev's default is still 0.8.x, so ask for the constraint by name |
+| Stability | Strict semver from 1.0.0, and the candidate already keeps it: every public name is in a committed snapshot, and a break waits for a major. [What 1.0 is](/reference/what-1.0-is/) |
 
 ## Where to start
 
@@ -37,7 +39,17 @@ flutter3d is a renderer, a game layer, and six games built on them: a shooter, a
   <li><a href="/quickstart/">
     <span class="card-kind">15 minutes</span>
     <h3>Quickstart</h3>
-    <p>Resolve the workspace, build the shader bundle, and put a lit mesh on screen.</p>
+    <p>A new Flutter app, two packages from pub.dev, and a model on screen that you can turn.</p>
+  </a></li>
+  <li><a href="https://github.com/pleiondev/flutter3d/tree/main/examples/cookbook">
+    <span class="card-kind">Recipes</span>
+    <h3>Cookbook</h3>
+    <p>Twenty tasks, one file each: a GLB with a buy button, a level with physics, a twin fed by REST, a pendulum with a slider.</p>
+  </a></li>
+  <li><a href="/education/">
+    <span class="card-kind">Laboratories</span>
+    <h3>Labs and lessons</h3>
+    <p>A pendulum timed against its series, a chemistry bench, and lessons a learning platform launches over LTI.</p>
   </a></li>
   <li><a href="/first-project/">
     <span class="card-kind">An afternoon</span>
@@ -88,9 +100,30 @@ flutter3d is a renderer, a game layer, and six games built on them: a shooter, a
 
 All six run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout, at well under a frame a second for months, and [its demo page keeps the hunt](/racing/demo/). The cost turned out to be a cube shadow atlas sized from the sun's setting: four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
 
+## An agent in two minutes
+
+The level editor and the model editor are MCP servers, plain Dart over stdio, one document per process. Add `flutter3d_mcp` to a project with `flutter pub add dev:flutter3d_mcp:^1.0.0-rc.1`, and give your agent's host the two servers:
+
+```json
+{
+  "mcpServers": {
+    "flutter3d-level": {
+      "command": "dart",
+      "args": ["run", "flutter3d_mcp:editor_mcp", "assets/levels/first.json"]
+    },
+    "flutter3d-model": {
+      "command": "dart",
+      "args": ["run", "flutter3d_mcp:model_mcp", "assets_src/crate.f3dproj"]
+    }
+  }
+}
+```
+
+A project path that does not exist yet starts a fresh one, so the first thing to ask for can be a model. The model editor's `render` tool hands the agent a picture of what it did, and an edit made by an agent lands in the same undo history as one made by hand.
+
 ## The package split
 
-58 packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
+61 packages in all. The diagram shows the ones an application stands on, and each boundary in it is a rule that a check enforces.
 
 ```mermaid
 flowchart TB
@@ -143,7 +176,7 @@ flowchart TB
   simp --> physics
 ```
 
-Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 90 checks that read source text and run before a build.
+Three more packages are left out of the diagram on purpose, because none of them changes what an app may know. `pad_input` and `pointer_lock` are gamepad and mouse capture, read once per frame by `flutter3d_game`, and `flutter3d_conformance` is test-only: it is what a backend has to pass before it can appear in the table below. `flutter3d_app` makes one decision of its own, which device to open (web or native at compile time, and which of the two on each side at run time), so the conditional import an app needs is written once and not per project. [Assembling an application](/core/session/) walks through all of it with the real code that uses them. The rules the diagram states live outside any package, in `tool/structure.dart`: 91 checks that read source text and run before a build.
 
 Three of those rules hold the picture up:
 

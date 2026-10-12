@@ -171,7 +171,7 @@ share a major and a minor, now the release candidate `1.0.0-rc.1`, and ask
 for `^1.0.0-rc.1` of each other. A minor or a major moves all of them
 together. A patch goes only to the package that needs it, so after 1.0.0
 `flutter3d_impeller` can be at 1.0.1 beside the rest at 1.0.0: every
-sibling's `^1.0.0` reaches it, and nobody downloads 59 unchanged packages
+sibling's `^1.0.0` reaches it, and nobody downloads 57 unchanged packages
 for one fix. So read the shelf's number as `1.0`, and each package's own
 patch from its CHANGELOG. Among them are the packages the candidate
 brings: the game parts (`flutter3d_game_kit`, `flutter3d_game_physics`,

@@ -90,10 +90,10 @@ them in bulk, which is why step 5 above exists.
 
 ## GameLoop to EngineLoop
 
-<a id="gameloop-to-engineloop"></a>`GameLoop` still works in 1.0 and is
-deprecated until 2.0. `EngineLoop` replaces it: the fixed step runs as named
-systems in ordered phases, and plugins add theirs to the same loop. The
-change is a shape, not a rename, so no tool makes it for you:
+<a id="gameloop-to-engineloop"></a>`GameLoop` is gone in 1.0, and
+`EngineLoop` takes its place: the fixed step runs as named systems in ordered
+phases, and plugins add theirs to the same loop. The change is a shape
+rather than a rename, so no tool makes it for you:
 
 ```dart
 // 0.8
@@ -109,8 +109,8 @@ loop.frame(dt);
 ```
 
 `paused`, `alpha`, `playback`, `recorders`, `drainLook` and `longestFrame`
-keep their names. `EngineLoop` adds `world:` (a `WorldTiming`, the step rate
-and time scale) and `catchUp:` (what to do when a frame falls behind).
+keep their names. `EngineLoop` adds `timing:` (a `WorldTiming`, the step
+rate and time scale) and `catchUp:` (what to do when a frame falls behind).
 Their defaults are what `GameLoop` did. In a Flame game, `HasFixedStep` runs
 an `EngineLoop` already: read `engineLoop`, and register your step work in
 `installStepSystems`.

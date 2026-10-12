@@ -122,6 +122,10 @@ List<Rule> get allRules => <Rule>[
   ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
+    name: 'the documents agree on how many packages there are',
+    run: _packageCount,
+  ),
+  (
     name: 'SECURITY and ROADMAP are revised for the release the packages carry',
     run: _policiesRevised,
   ),
@@ -1405,6 +1409,112 @@ List<Finding> _ruleCount() {
   }
 
   found.addAll(_theTestingPageAddsUp(actual));
+  return found;
+}
+
+/// How many packages the documents say there are, against the workspace.
+///
+/// **Five documents, four different numbers, none of them right.** The
+/// README said 52 packages on pub.dev, SUPPORT 58 on the shelf, the
+/// packages page 58 in the workspace with 50 on the candidate, the home page
+/// 45 published, and AGENTS 36, on a day the workspace held 61, 60 of them
+/// published and 58 of those at the candidate's version. Each was right
+/// once, and nothing compared any of them with the tree.
+///
+/// Three numbers, each held by its own phrasings, because they are three
+/// facts: the workspace's packages (and its applications, when the sentence
+/// names both), the ones published (every package without `publish_to:
+/// none`), and the ones on the release line (published, at the version
+/// `flutter3d` carries). A page is held only to a claim it makes, in the
+/// phrasings below; "the two packages it needs" claims nothing.
+///
+/// Shown to fire by putting "52 packages" back into the README's first
+/// paragraph and watching it name the file and the 60 published.
+List<Finding> _packageCount() {
+  final workspace = packages;
+  String? versionOf(Directory package) =>
+      RegExp(r'^version:\s*(\S+)', multiLine: true)
+          .firstMatch(File('${package.path}/pubspec.yaml').readAsStringSync())
+          ?.group(1);
+  bool unpublished(Directory package) => RegExp(
+    r'''^publish_to:\s*['"]?none['"]?\s*$''',
+    multiLine: true,
+  ).hasMatch(File('${package.path}/pubspec.yaml').readAsStringSync());
+  final published = workspace.values.where((p) => !unpublished(p)).toList();
+  final engine = workspace['flutter3d'];
+  final release = engine == null ? null : versionOf(engine);
+  final onTheLine = published.where((p) => versionOf(p) == release).length;
+
+  final claims = <(RegExp, int, String)>[
+    (
+      _countPhrasing('# packages and # applications'),
+      workspace.length,
+      'in the workspace',
+    ),
+    (_countPhrasing('# packages in all'), workspace.length, 'in the workspace'),
+    (_countPhrasing(r'On pub\.dev: # packages'), published.length, 'published'),
+    (
+      _countPhrasing('# packages are to be published'),
+      published.length,
+      'published',
+    ),
+    // Capitalised: "covers all 61 packages" is a sentence about the
+    // workspace, and "All 60 packages on pub.dev" opens one about publishing.
+    (_countPhrasing('All # packages'), published.length, 'published'),
+    (_countPhrasing(r'# of them on pub\.dev'), published.length, 'published'),
+    (_countPhrasing('# of them are at'), onTheLine, 'at $release'),
+    (
+      _countPhrasing('# of them carry the release candidate'),
+      onTheLine,
+      'at $release',
+    ),
+    (_countPhrasing('The # packages of the shelf'), onTheLine, 'at $release'),
+  ];
+  final applications = _countPhrasing('# packages and # applications');
+
+  final found = <Finding>[];
+  for (final page in <File>[
+    for (final name in const <String>[
+      'README.md',
+      'SUPPORT.md',
+      'AGENTS.md',
+      'ARCHITECTURE.md',
+    ])
+      File('${repositoryRoot.path}/$name'),
+    ..._prosePages(),
+  ].where((File f) => f.existsSync())) {
+    final text = page.readAsStringSync();
+    final where = _inRepository(page);
+    for (final (pattern, actual, what) in claims) {
+      for (final match in pattern.allMatches(text)) {
+        final said = match.group(1)!;
+        if (int.tryParse(said) == null) {
+          found.add(_spelledOut(where, match.group(0)!, said));
+        } else if (int.parse(said) != actual) {
+          found.add(
+            Finding(
+              where,
+              'says "${match.group(0)}"; $actual packages are $what',
+            ),
+          );
+        }
+      }
+    }
+    for (final match in applications.allMatches(text)) {
+      final said = match.group(2)!;
+      if (int.tryParse(said) == null) {
+        found.add(_spelledOut(where, match.group(0)!, said));
+      } else if (int.parse(said) != apps.length) {
+        found.add(
+          Finding(
+            where,
+            'says "${match.group(0)}"; the workspace has ${apps.length} '
+            'applications',
+          ),
+        );
+      }
+    }
+  }
   return found;
 }
 
