@@ -420,6 +420,17 @@ keeps, and a draw binds by it; `uniformBlocks` gives every block's members,
 offsets and sizes as std140 laid them out. Both are generated after every
 shader change and both only grow in a minor.
 
+**Checked, not only promised.** `packages/flutter3d_shaders/api/flutter3d_shaders.abi`
+holds the whole ABI one fact a line: each entry point and its kind, each
+stage's blocks and samplers, each member with its offset, byte length,
+element count and type, and each engine vertex stage's inputs in order.
+The package's test keeps it current (`dart run tool/abi_snapshot.dart`
+writes it), and the structure rule *the shader ABI only grows* fails on any
+line of the base recorded at 1.0.0-rc.1 (`tool/api/abi_base/`) that is
+gone: a dropped stage, a removed or reordered member, a moved offset, a
+renumbered vertex input. Adding lines is a minor; a base is recorded again
+only at a major.
+
 ### The defines
 
 The engine's GLSL is compiled with these, each set by the stage that
