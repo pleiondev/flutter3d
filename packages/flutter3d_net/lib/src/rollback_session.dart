@@ -9,6 +9,7 @@ import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
     show Registration;
 
 import 'peer_wire.dart';
+import 'rollback_clock.dart';
 
 /// What one step ran on: the state before it, every slot's frame, and which
 /// of them were guesses.
@@ -109,7 +110,7 @@ final class RollbackSession<S> {
     this.onMessage,
     Duration Function()? elapsed,
   }) : localSlot = localSlot ?? wire.slot,
-       elapsed = elapsed ?? _monotonic,
+       elapsed = elapsed ?? rollbackClock,
        assert(players >= 2 && players <= 32, 'two to thirty-two machines'),
        assert(inputDelay >= 0, 'a negative delay would apply input early'),
        assert(maxRollbackFrames > 0, 'a window of nought corrects nothing'),
@@ -179,9 +180,6 @@ final class RollbackSession<S> {
   /// started with the first session unless the session is handed another,
   /// as a test hands one that moves by known amounts.
   final Duration Function() elapsed;
-
-  static final Stopwatch _clock = Stopwatch()..start();
-  static Duration _monotonic() => _clock.elapsed;
 
   /// Stops hearing the wire. The session sends nothing more once nobody
   /// calls [advance]; the wire stays open for whoever else listens.
