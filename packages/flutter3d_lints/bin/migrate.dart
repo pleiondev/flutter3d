@@ -279,6 +279,12 @@ void _hideNewNames(
     if (ours.isEmpty || (!theirs && !declaredHere)) continue;
     for (final d in ours) {
       if (d.combinators.any((Combinator c) => c is ShowCombinator)) continue;
+      // Hidden by an earlier pass already.
+      final hidden = d.combinators.whereType<HideCombinator>().any(
+        (HideCombinator c) =>
+            c.hiddenNames.any((SimpleIdentifier n) => n.name == name),
+      );
+      if (hidden) continue;
       (hides[d] ??= <String>{}).add(name);
     }
   }

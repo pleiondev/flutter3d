@@ -15,7 +15,10 @@
   it took (`members:`). The lints now carry `moved` names, member renames
   and parameter renames, for the places `dart fix` does not reach, and
   `migrate` runs their own rewrites once before `dart fix`, so a value of a
-  changed type is not met by an unrelated data-driven rename.
+  changed type is not met by an unrelated data-driven rename. Eleven
+  functions whose named parameters were renamed while their entries said
+  nothing changed (`impostorCard(centre:)`, the mesh simplifiers'
+  `isCancelled`, …) have `parameters` entries now.
 
 - **A migration table says which positional argument became named.** A
   `parameters` change `toNamed: <name>` with `index: <n>` is written to
@@ -50,7 +53,7 @@
   `open(width: 1280, height: 720)` rather than the second one twice; the
   lints run again while a pass rewrote something; and the colour, input
   and renamed-class entries are carried out rather than left as TODOs:
-  308 entries are left by hand, down from 361.
+  306 entries are left by hand, down from 361.
 - **`migrate --data` counts a file of a Flutter-owned format at its only
   version as current**, and names one of `f3d.settings`, `f3d.ghost` or
   `f3d.match` below its version with the version it is at, for the game to

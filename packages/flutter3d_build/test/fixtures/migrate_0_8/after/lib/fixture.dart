@@ -2,11 +2,11 @@
 // change the 1.0 migration carries out. `after/` is what
 // `dart run flutter3d_build:migrate` leaves of it.
 import 'package:flutter3d/flutter3d.dart' hide textureBytes;
-import 'package:flutter3d_core/flutter3d_core.dart' hide textureBytes;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'models.dart';
+import 'package:flutter3d_core/flutter3d_core.dart' hide textureBytes;
 
 /// `rewrite`: deprecated capability getters on a device.
 bool canDrawLines(GraphicsDevice device) => device.features.has(DeviceFeature.wireframe);
@@ -28,6 +28,7 @@ base class Passenger with Rider {
 // TODO(flutter3d-1.0): `GameLoop` is gone; `EngineLoop` runs the fixed step as phases of systems. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#sim-GameLoop
 /// `manual`: deprecated, and a shape rather than a rename.
 GameLoop loopFor(InputState input) =>
+    // TODO(flutter3d-1.0): `GameLoop` is gone; `EngineLoop` runs the fixed step as phases of systems. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#sim-GameLoop
     GameLoop(input: input, onStep: (double dt) {});
 
 /// The new name in the facade, against the project's own.

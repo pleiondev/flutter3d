@@ -235,6 +235,9 @@ Future<void> _migrate(
     for (final line in LineSplitter.split('${early.stdout}')) {
       if (!line.startsWith('{')) continue;
       final r = jsonDecode(line) as Map<String, Object?>;
+      report.hidden.addAll(
+        (r['hidden']! as List<Object?>).map((Object? h) => '$h'),
+      );
       for (final id in (r['applied']! as List<Object?>).map(
         (Object? a) => '$a',
       )) {
