@@ -29,7 +29,15 @@
 #                     positional argument n that became named (also
 #                     flutter3d_lints, which writes `name: ` before it)
 #   rewrite          `template:` with `{target}` for the receiver, flutter3d_lints
-#                     `imports:` the libraries it names
+#                     `{0}`, `{1}`… for a call's arguments,
+#                     `{arguments}` for all of them as written and
+#                     `{typeArguments}` for its type arguments;
+#                     `imports:` the libraries it names. A symbol
+#                     with no member is a top-level function; `on:`
+#                     the type a gone extension's member was on;
+#                     `static: true` for a static that is an
+#                     instance's member now, rewritten only where
+#                     it is named through the class
 #   implementsToWith  a type that became a `base mixin class`:      flutter3d_lints
 #                     `implements X` becomes `with X` on a base class
 #   regroup           named arguments that moved into an options    flutter3d_lints
@@ -51,7 +59,9 @@
 #                     with `{value}` for the old one and
 #                     `{components}` for a vector's; `types:` the
 #                     old types it rewrites, `on:` the class's 1.0
-#                     name where it was renamed. A value it cannot
+#                     name where it was renamed, `reads:` a map from
+#                     a member of the old type read off the field to
+#                     the new one's (`{x: r}`). A value it cannot
 #                     write once, and a read used as the old type,
 #                     keep the TODO
 #   internal          a name public at `from` that is the owning    flutter3d_lints
@@ -60,7 +70,9 @@
 #                     of the package, one line per package in the
 #                     guide. It names a top-level name or a library.
 #   manual            `guidance:` — the diagnostic and the TODO     flutter3d_lints
-#                     `migrate` leaves at each use. Their count is
+#                     `migrate` leaves at each use (for a library
+#                     gone whole, at its import and at each use of
+#                     the names `members:` lists). Their count is
 #                     held to a ceiling (`manualCeiling` in
 #                     `tool/structure/migration.dart`): prefer a kind
 #                     above, or allowlist the entry with a reason

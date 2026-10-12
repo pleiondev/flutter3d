@@ -1,7 +1,12 @@
 // Names 1.0 took away where `dart fix` cannot follow them: a class renamed
 // inside a creation the analyzer reads as no type at all (`const Shade()`),
-// and a static member that is gone (`Board.table()`), rewritten through its
-// class rather than through an instance.
+// a static member that is gone (`Board.table()`), rewritten through its
+// class rather than through an instance; a top-level function gone with all
+// its arguments handed on (`srgbColor(…)`); an extension's member gone
+// (`events.has<T>()`); a static getter that became an instance's field
+// (`Mode.touch`), rewritten only where it is named through the class; and,
+// where nothing can be written, a TODO at each use of a gone function and
+// of a gone library's names, on the line of the use.
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
 import 'package:test/test.dart';
 
@@ -20,7 +25,15 @@ void main() {
       'kinds-Shade',
       'kinds-Shade',
       'kinds-Board-table',
+      'kinds-srgbColor',
+      'kinds-srgbColor',
+      'kinds-Tally-has',
+      'kinds-Mode-touch',
     ]);
-    expect(manualOf(report), isEmpty);
+    expect(manualOf(report), <String>[
+      'kinds-roster:2',
+      'kinds-oldHelperGone:19',
+      'kinds-roster:20',
+    ]);
   });
 }

@@ -33,8 +33,9 @@ void main() {
     );
   });
 
-  test('literal, named and cascaded values are rewritten; a value of '
-      'another shape and a read of the old type keep a TODO', () async {
+  test('literal, named, cascaded and coalesced values are rewritten, and '
+      'a component read through its new name; a value of another shape '
+      'keeps a TODO', () async {
     final report = await migrateKindFixture('argument');
     expect(appliedOf(report), <String>[
       'kinds-Lamp-glow',
@@ -43,10 +44,9 @@ void main() {
       'kinds-Lamp-beamDegrees',
       'kinds-Lamp-glow',
       'kinds-Lamp-tinted',
+      'kinds-Lamp-glow',
+      'kinds-Lamp-glow',
     ]);
-    expect(manualOf(report), <String>[
-      'kinds-Lamp-glow:13',
-      'kinds-Lamp-glow:14',
-    ]);
+    expect(manualOf(report), <String>['kinds-Lamp-glow:13']);
   });
 }

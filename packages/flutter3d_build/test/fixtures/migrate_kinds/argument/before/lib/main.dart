@@ -13,3 +13,5 @@ void dim(Lamp lamp) {
   lamp.glow = warm * 0.5;
   print(lamp.glow.x);
 }
+
+Lamp relit(Lamp? old) => Lamp(glow: old?.glow ?? Vector4(0.5, 0.5, 0.5, 1.0));

@@ -124,6 +124,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
           into(toNamedCreations, r.type, r);
           into(toNamedCalls, r.member ?? r.type, r);
           continue;
+        case MigrationKind.manual when r.type.contains(':'):
+          for (final m in r.members) {
+            into(goneLibraryNames, m, r);
+          }
         case MigrationKind.rewrite ||
             MigrationKind.implementsToWith ||
             MigrationKind.manual:
@@ -156,6 +160,11 @@ final class _Scan extends RecursiveAstVisitor<void> {
   final Map<String, List<MigrationRule>> internalByName =
       <String, List<MigrationRule>>{};
   final Map<String, MigrationRule> internalByUri = <String, MigrationRule>{};
+
+  /// `manual` rules about a library gone whole, by each name it exported
+  /// that the rule lists: a use of one the resolver cannot find.
+  final Map<String, List<MigrationRule>> goneLibraryNames =
+      <String, List<MigrationRule>>{};
 
   /// `regroup` rules by the name of what is called: a function, a method,
   /// or the class of a constructor.
@@ -234,7 +243,25 @@ final class _Scan extends RecursiveAstVisitor<void> {
     // Above a declaration's doc comment, not inside it: a `//` line between
     // `///` and the declaration would part the comment from what it
     // documents.
-    final start = anchor.offset;
+    var start = anchor.offset;
+    // A use further down a statement that spans lines gets its TODO on the
+    // line above its own, where the reader of the error finds it: a line
+    // comment may stand between any two tokens, so long as the line starts
+    // with a token rather than inside a string.
+    if (_lineStart(at.offset) != _lineStart(start)) {
+      final line = _lineStart(at.offset);
+      final first = line + _indentOf(at.offset).length;
+      for (
+        Token? t = anchor.beginToken;
+        t != null && t.offset <= at.offset && !t.isEof;
+        t = t.next
+      ) {
+        if (t.offset == first) {
+          start = first;
+          break;
+        }
+      }
+    }
     final lineStart = _lineStart(start);
     final indent = RegExp(
       r'^[ \t]*',
@@ -255,6 +282,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
       if (internalByName[name] case final rules?
           when node.element == null && !_isQualifiedMember(node)) {
         _useInternal(rules.first, name, node);
+      }
+      if (goneLibraryNames[name] case final rules?
+          when node.element == null && !_isQualifiedMember(node)) {
+        _add(rules.first, node);
       }
       if (recordFields.contains(name)) _recordField(node);
       for (final rule in throwers[name] ?? const <MigrationRule>[]) {
@@ -293,6 +324,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
         node.parent is! NamedType) {
       final element = node.element;
       for (final rule in typeRules) {
+        if (rule.kind == MigrationKind.rewrite) {
+          if (_isTopLevelCall(node, rule)) _member(node, rule);
+          continue;
+        }
         if (rule.kind != MigrationKind.manual ||
             rule.match != MigrationMatch.uses ||
             rule.members.isNotEmpty) {
@@ -300,10 +335,30 @@ final class _Scan extends RecursiveAstVisitor<void> {
         }
         if (element is InterfaceElement || element is TypeAliasElement) {
           if (_ownedAs(element, rule)) _add(rule, node);
+        } else if (element == null && !_isQualifiedMember(node)) {
+          // Gone: a function or a class nothing declares any more, named
+          // where a value is.
+          _add(rule, node);
         }
       }
     }
     super.visitSimpleIdentifier(node);
+  }
+
+  /// Whether [node] is the name of a call of the top-level function [rule]
+  /// is about: the engine's, or one nothing declares any more.
+  bool _isTopLevelCall(SimpleIdentifier node, MigrationRule rule) {
+    if (rule.member != null) return false;
+    final parent = node.parent;
+    if (parent is! MethodInvocation || parent.methodName != node) return false;
+    final target = parent.target;
+    if (target != null &&
+        !(target is SimpleIdentifier && target.element is PrefixElement)) {
+      return false;
+    }
+    final element = node.element;
+    return element == null ||
+        (element.enclosingElement is LibraryElement && _ownedAs(element, rule));
   }
 
   bool _ownedAs(Element? element, MigrationRule rule) {
@@ -316,6 +371,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
   bool _isMemberOf(SimpleIdentifier node, MigrationRule rule) {
     final element = node.element;
     final receiver = _receiverType(node);
+    // An extension's member that is gone: matched on what it extended.
+    if (rule.receiver case final on?) {
+      return element == null && receiver != null && _isOrExtends(receiver, on);
+    }
     if (element != null) {
       if (!_ownedAs(element, rule)) return false;
       final enclosing = element.enclosingElement;
@@ -401,6 +460,9 @@ final class _Scan extends RecursiveAstVisitor<void> {
       }
       return;
     }
+    // A static that is an instance's member now: a use through an instance
+    // is 1.0 code already.
+    if (rule.throughClass && _classNamed(node) == null) return;
     final parent = node.parent;
     // An assignment is to a setter the rewrite does not describe.
     if (parent is AssignmentExpression ||
@@ -418,10 +480,19 @@ final class _Scan extends RecursiveAstVisitor<void> {
       Expression? target,
       bool nullAware,
       List<AstNode> args,
+      ArgumentList? argumentList,
+      TypeArgumentList? typeArguments,
     ) = switch (parent) {
       PrefixedIdentifier(:final prefix, :final identifier)
           when identifier == node =>
-        (parent, prefix, false, const <AstNode>[]),
+        (
+          parent,
+          prefix.element is PrefixElement ? null : prefix,
+          false,
+          const <AstNode>[],
+          null,
+          null,
+        ),
       PropertyAccess(:final target, :final propertyName, :final operator)
           when propertyName == node && target != null =>
         (
@@ -429,32 +500,60 @@ final class _Scan extends RecursiveAstVisitor<void> {
           target,
           operator.type == TokenType.QUESTION_PERIOD,
           const <AstNode>[],
+          null,
+          null,
         ),
       MethodInvocation(
         :final target,
         :final methodName,
         :final argumentList,
         :final operator,
+        :final typeArguments,
       )
           when methodName == node =>
         (
           parent,
-          target,
+          target is SimpleIdentifier && target.element is PrefixElement
+              ? null
+              : target,
           operator?.type == TokenType.QUESTION_PERIOD,
           <AstNode>[...argumentList.arguments],
+          argumentList,
+          typeArguments,
         ),
-      _ => (node, null, false, const <AstNode>[]),
+      _ => (node, null, false, const <AstNode>[], null, null),
     };
     // A cascade's receiver is not written where the rewrite needs it, and
     // a null-aware access changes the type the rewrite would produce.
+    var text = rule.template!;
+    // `{0}` names an argument by its place, which a named one has not.
     if (nullAware ||
         (whole is PropertyAccess && whole.isCascaded) ||
         (whole is MethodInvocation && whole.isCascaded) ||
-        args.any((AstNode a) => a is NamedArgument)) {
+        (RegExp(r'\{\d+\}').hasMatch(text) &&
+            args.any((AstNode a) => a is NamedArgument)) ||
+        (text.contains('{typeArguments}') && typeArguments == null)) {
       _add(rule, node);
       return;
     }
-    var text = rule.template!;
+    if (argumentList != null) {
+      text = text.replaceAll(
+        '{arguments}',
+        source.substring(
+          argumentList.leftParenthesis.end,
+          argumentList.rightParenthesis.offset,
+        ),
+      );
+    }
+    if (typeArguments != null) {
+      text = text.replaceAll(
+        '{typeArguments}',
+        source.substring(
+          typeArguments.leftBracket.end,
+          typeArguments.rightBracket.offset,
+        ),
+      );
+    }
     if (target == null) {
       text = text.replaceAll('{target}.', '').replaceAll('{target}', 'this');
     } else {
@@ -463,7 +562,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
     for (var i = 0; i < args.length; i++) {
       text = text.replaceAll('{$i}', _text(args[i]));
     }
-    if (RegExp(r'\{\d+\}').hasMatch(text)) {
+    if (RegExp(r'\{(\d+|arguments|typeArguments)\}').hasMatch(text)) {
       _add(rule, node);
       return;
     }
@@ -557,6 +656,10 @@ final class _Scan extends RecursiveAstVisitor<void> {
     if (internalByName[node.name.lexeme] case final rules?
         when node.element == null) {
       _useInternal(rules.first, node.name.lexeme, node);
+    }
+    if (goneLibraryNames[node.name.lexeme] case final rules?
+        when node.element == null && node.importPrefix == null) {
+      _add(rules.first, node);
     }
     final rules = byType[node.name.lexeme];
     if (rules != null) {
@@ -1311,22 +1414,50 @@ final class _Scan extends RecursiveAstVisitor<void> {
   /// value is of a type the rule rewrites.
   void _argument(Argument argument, MigrationRule rule) {
     final value = argument.argumentExpression;
-    if (!_typeFits(value, rule)) return;
+    final values = _valuesOfOldType(value, rule);
+    if (values.isEmpty) return;
     final edits = <MigrationEdit>[
       if ((rule.to, argument) case (final to?, NamedArgument(:final name)))
         MigrationEdit(name.offset, name.length, to),
     ];
     if (rule.template case final template?) {
-      final text = _valueText(template, value);
-      if (text == null) {
-        _add(rule, value);
-        return;
+      for (final v in values) {
+        final text = _valueText(template, v);
+        if (text == null) {
+          _add(rule, v);
+          return;
+        }
+        edits.add(MigrationEdit(v.offset, v.length, text));
       }
-      edits
-        ..add(MigrationEdit(value.offset, value.length, text))
-        ..addAll(_importsFor(rule));
+      edits.addAll(_importsFor(rule));
     }
     if (edits.isNotEmpty) _add(rule, argument, edits: edits);
+  }
+
+  /// The parts of [value] [rule] rewrites: [value] itself when it is of an
+  /// old type, or the branches of a `??` or a `?:` that are, where the
+  /// others are of the new type already (`old?.glow ?? Vector4(…)`).
+  List<Expression> _valuesOfOldType(Expression value, MigrationRule rule) {
+    if (_typeFits(value, rule)) return <Expression>[value];
+    if (rule.types.isEmpty) return const <Expression>[];
+    return switch (value) {
+      BinaryExpression(:final operator, :final leftOperand, :final rightOperand)
+          when operator.type == TokenType.QUESTION_QUESTION =>
+        <Expression>[
+          ..._valuesOfOldType(leftOperand, rule),
+          ..._valuesOfOldType(rightOperand, rule),
+        ],
+      ConditionalExpression(:final thenExpression, :final elseExpression) =>
+        <Expression>[
+          ..._valuesOfOldType(thenExpression, rule),
+          ..._valuesOfOldType(elseExpression, rule),
+        ],
+      ParenthesizedExpression(:final expression) => _valuesOfOldType(
+        expression,
+        rule,
+      ),
+      _ => const <Expression>[],
+    };
   }
 
   /// `x.field = value` with [field] renamed and the value rewritten.
@@ -1336,19 +1467,21 @@ final class _Scan extends RecursiveAstVisitor<void> {
     MigrationRule rule,
   ) {
     final value = node.rightHandSide;
-    if (!_typeFits(value, rule)) return;
+    final values = _valuesOfOldType(value, rule);
+    if (values.isEmpty) return;
     final edits = <MigrationEdit>[
       if (rule.to case final to?) MigrationEdit(field.offset, field.length, to),
     ];
     if (rule.template case final template?) {
-      final text = _valueText(template, value);
-      if (text == null) {
-        _add(rule, value);
-        return;
+      for (final v in values) {
+        final text = _valueText(template, v);
+        if (text == null) {
+          _add(rule, v);
+          return;
+        }
+        edits.add(MigrationEdit(v.offset, v.length, text));
       }
-      edits
-        ..add(MigrationEdit(value.offset, value.length, text))
-        ..addAll(_importsFor(rule));
+      edits.addAll(_importsFor(rule));
     }
     if (edits.isNotEmpty) _add(rule, node, edits: edits);
   }
@@ -1362,15 +1495,36 @@ final class _Scan extends RecursiveAstVisitor<void> {
       final PropertyAccess p when p.propertyName == node => p,
       _ => node,
     };
-    final used = switch (whole.parent) {
+    final outer = whole.parent;
+    final used = switch (outer) {
       PropertyAccess(:final target) => target == whole,
       MethodInvocation(:final target) => target == whole,
       PrefixedIdentifier(:final prefix) => prefix == whole,
       _ => false,
     };
     if (!used) return;
+    // `.x` of the old type, which the new one names otherwise: renamed
+    // where the analyzer finds no such member on the new type.
+    final SimpleIdentifier? read = switch (outer) {
+      PropertyAccess(:final propertyName) => propertyName,
+      PrefixedIdentifier(:final identifier) => identifier,
+      _ => null,
+    };
     for (final rule in rules) {
-      if (rule.types.isNotEmpty && _isMemberOf(node, rule)) _add(rule, node);
+      if (rule.types.isEmpty || !_isMemberOf(node, rule)) continue;
+      if (read != null && read.element == null) {
+        if (rule.fields[read.name] case final renamed?) {
+          _add(
+            rule,
+            read,
+            edits: <MigrationEdit>[
+              MigrationEdit(read.offset, read.length, renamed),
+            ],
+          );
+          continue;
+        }
+      }
+      _add(rule, node);
     }
   }
 

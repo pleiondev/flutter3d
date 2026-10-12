@@ -117,6 +117,18 @@ abstract final class Board {
   static Table fill(Table into) => into..rows.add(1);
 }
 
+// 0.8 also had `srgbColor(r, g, b, [a])`, which is `LinearColor.fromSrgb`
+// now; `extension Tally on List<Object>` with `has<T>()`; `Mode.touch`, a
+// static getter that is an instance's field now; `oldHelperGone()`, gone
+// with nothing to write instead; and `roster.dart`, a library gone whole
+// with its `Roster`.
+
+final class Mode {
+  const Mode({required this.touch});
+  factory Mode.ofPlatform() => const Mode(touch: false);
+  final bool touch;
+}
+
 // ----------------------------------------------------------- parameters
 // 0.8: `Gauge(double reading, [double scale = 1])` and
 // `Sieve([int coarse = 4, int fine = 1])`, optional positional arguments

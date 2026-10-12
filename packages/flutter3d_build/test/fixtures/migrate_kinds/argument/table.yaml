@@ -11,6 +11,7 @@ entries:
     arguments: [glow]
     types: [Vector4]
     template: 'LinearColor.fromSrgb({components})'
+    reads: {x: r, y: g, z: b, w: a}
     imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
     guidance: >-
       `glow` is a `LinearColor` assigned whole: `Vector4(r, g, b, a)` is

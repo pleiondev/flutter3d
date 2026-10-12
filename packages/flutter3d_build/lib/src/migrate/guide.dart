@@ -35,8 +35,8 @@ String _what(MigrationEntry e, MigrationTable table) => switch (e.kind) {
     'Names re-exported from `${e.symbol}` are imported from `${e.to}`.',
   'moved' => '`${e.symbol}` is imported from `${e.to}`.',
   'rewrite' =>
-    '`${e.symbol}` becomes '
-        '`${e.template!.replaceAll(RegExp(r'\s+'), ' ').replaceAll('{target}', 'x').trim()}`.',
+    '`${e.symbol}${e.template!.contains('{arguments}') ? '(…)' : ''}` becomes '
+        '`${e.template!.replaceAll(RegExp(r'\s+'), ' ').replaceAll('{target}', 'x').replaceAll('{arguments}', '…').replaceAll('{typeArguments}', 'T').trim()}`.',
   'implementsToWith' =>
     '`${e.topName}` is a base mixin class: `implements ${e.topName}` '
         'becomes `with ${e.topName}`, on a `base` class.',

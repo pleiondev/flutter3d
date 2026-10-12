@@ -1,7 +1,24 @@
 import 'package:flutter3d_kinds/flutter3d_kinds.dart';
+// TODO(flutter3d-1.0): The roster was one game's; copy it into your own code. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-roster
+import 'package:flutter3d_kinds/roster.dart';
 
 const Object shade = KindShade();
 
 final List<Object> both = <Object>[const KindShade(), KindShade()];
 
 Table rows() => Board.fill(Table())..rows.add(2);
+
+final LinearColor sky = LinearColor.fromSrgb(0.2, 0.4, 0.8);
+final LinearColor dusk = LinearColor.fromSrgb(0.9, 0.5, 0.3, 0.5);
+
+bool jumped(List<Object> events) => events.whereType<int>().isNotEmpty;
+
+bool touching(Mode mode) => Mode.ofPlatform().touch || mode.touch;
+
+int later() {
+  final total = 1 +
+      // TODO(flutter3d-1.0): `oldHelperGone` is gone; count by hand. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-oldHelperGone
+      oldHelperGone();
+  // TODO(flutter3d-1.0): The roster was one game's; copy it into your own code. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-roster
+  return total + Roster.size;
+}

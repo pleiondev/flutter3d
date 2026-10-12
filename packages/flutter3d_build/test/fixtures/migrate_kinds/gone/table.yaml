@@ -15,3 +15,34 @@ entries:
     kind: rewrite
     template: '{target}.fill(Table())'
     imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
+  - id: kinds-srgbColor
+    package: flutter3d_kinds
+    symbol: srgbColor
+    kind: rewrite
+    template: 'LinearColor.fromSrgb({arguments})'
+    imports: [package:flutter3d_kinds/flutter3d_kinds.dart]
+  - id: kinds-Tally-has
+    package: flutter3d_kinds
+    symbol: Tally.has
+    kind: rewrite
+    on: List
+    template: '{target}.whereType<{typeArguments}>().isNotEmpty'
+  - id: kinds-Mode-touch
+    package: flutter3d_kinds
+    symbol: Mode.touch
+    kind: rewrite
+    static: true
+    template: 'Mode.ofPlatform().touch'
+  - id: kinds-oldHelperGone
+    package: flutter3d_kinds
+    symbol: oldHelperGone
+    kind: manual
+    guidance: >-
+      `oldHelperGone` is gone; count by hand.
+  - id: kinds-roster
+    package: flutter3d_kinds
+    symbol: package:flutter3d_kinds/roster.dart
+    kind: manual
+    members: [Roster]
+    guidance: >-
+      The roster was one game's; copy it into your own code.

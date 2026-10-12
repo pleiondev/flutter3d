@@ -110,7 +110,7 @@ String _message(MigrationEntry e, MigrationTable table) {
           'in with `with` and is `base`, `final` or `sealed` itself.',
     'rewrite' when e.text.isEmpty =>
       '`${e.symbol}` is deprecated in ${table.to}; the fix asks the same '
-          'receiver `${_flat(e.template!).replaceAll('{target}.', '').replaceAll('{target}', 'it').replaceAll('{0}', '…')}` '
+          'receiver `${_flat(e.template!).replaceAll('{target}.', '').replaceAll('{target}', 'it').replaceAll('{0}', '…').replaceAll('{arguments}', '…').replaceAll('{typeArguments}', 'T')}` '
           'instead.',
     'internal' =>
       '`${e.symbol}` was ${e.package}\'s own and is not exported since '
@@ -183,6 +183,9 @@ Map<String, Object?> _rule(MigrationEntry e, MigrationTable table) {
     'options': ?e.options,
     if (e.kind == 'recordToClass') 'fields': e.fieldMap,
     if (e.kind == 'parameters') 'fields': toNamedOf(e),
+    if (e.kind == 'argument' && e.reads.isNotEmpty) 'fields': e.reads,
+    if (e.kind == 'rewrite') 'receiver': ?(e.fields['on'] as String?),
+    if (e.kind == 'rewrite' && e.fields['static'] == true) 'throughClass': true,
     'exception': ?e.exception,
     if (e.kind == 'argument' || e.kind == 'rename') 'to': ?e.to,
     if (e.types.isNotEmpty) 'types': e.types,
