@@ -12,6 +12,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game_physics/ragdoll.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotRestoreContext;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -178,7 +180,7 @@ void main() {
     for (var i = 0; i < 30; i++) {
       corpses.step(1.0 / 60.0);
     }
-    part.restore(saved, part.version);
+    part.restore(SnapshotRestoreContext(saved, version: part.version));
 
     // Mutation: restore nothing, and the second lies dead beside itself
     // standing again.

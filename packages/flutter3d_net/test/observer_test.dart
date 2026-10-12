@@ -19,7 +19,10 @@ final class _Tank {
   static final ComponentCodec<_Tank> codec = ComponentCodec<_Tank>.of(
     id: 'test.tank',
     encode: (tank) => tank.level,
-    decode: (data, _) => data is num ? _Tank(data.toDouble()) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is num ? _Tank(data.toDouble()) : null;
+    },
   );
 }
 

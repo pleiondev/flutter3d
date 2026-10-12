@@ -186,7 +186,8 @@ final class RagdollCorpses with ActorCorpses {
         capture: () =>
             <int>[for (final actor in _ragdolls.keys) actor.entity.packed]
               ..sort(),
-        restore: (data, _) {
+        restore: (context) {
+          final data = context.data;
           final lying = <int>{
             if (data is List<Object?>)
               for (final entity in data)

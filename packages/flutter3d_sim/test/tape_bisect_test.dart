@@ -36,14 +36,20 @@ final class _Toy {
         ComponentCodec<_Position>.of(
           id: 'Position',
           encode: (p) => p.x,
-          decode: (d, _) => d is num ? _Position(d.toDouble()) : null,
+          decode: (context) {
+            final d = context.data;
+            return d is num ? _Position(d.toDouble()) : null;
+          },
         ),
       )
       ..components.register<_Health>(
         ComponentCodec<_Health>.of(
           id: 'Health',
           encode: (h) => h.hp,
-          decode: (d, _) => d is num ? _Health(d.toInt()) : null,
+          decode: (context) {
+            final d = context.data;
+            return d is num ? _Health(d.toInt()) : null;
+          },
         ),
       );
     entities = <Entity>[for (var i = 0; i < 3; i++) world.spawn()];

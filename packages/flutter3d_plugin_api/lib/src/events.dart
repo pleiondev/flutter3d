@@ -120,7 +120,7 @@ abstract base class EventCodec<T extends BusEvent> {
   /// A codec made of two functions.
   const factory EventCodec.of({
     required Object? Function(T event) encode,
-    required T? Function(Object? data, int version) decode,
+    required T? Function(EventDecodeContext context) decode,
     int version,
   }) = _FunctionEventCodec<T>;
 
@@ -130,9 +130,9 @@ abstract base class EventCodec<T extends BusEvent> {
   /// [event] as plain values.
   Object? encode(T event);
 
-  /// The event [data] describes, written at [version]; null when it cannot
-  /// be read.
-  T? decode(Object? data, int version);
+  /// The event the context's `data` describes, written at its `version`;
+  /// null when it cannot be read.
+  T? decode(EventDecodeContext context);
 
   /// [event] encoded, when it is a [T]: for a registry that holds codecs of
   /// many types under one name each.
@@ -150,13 +150,29 @@ final class _FunctionEventCodec<T extends BusEvent> extends EventCodec<T> {
   final int version;
 
   final Object? Function(T event) _encode;
-  final T? Function(Object? data, int version) _decode;
+  final T? Function(EventDecodeContext context) _decode;
 
   @override
   Object? encode(T event) => _encode(event);
 
   @override
-  T? decode(Object? data, int version) => _decode(data, version);
+  T? decode(EventDecodeContext context) => _decode(context);
+}
+
+/// What [EventCodec.decode] is handed: an event's data and the version it
+/// was written at.
+///
+/// **One object, so a minor can hand a codec more** — the step the event
+/// was published at, the plugin that declared it — without breaking a codec
+/// written against 1.0.
+final class EventDecodeContext {
+  const EventDecodeContext(this.data, {required this.version});
+
+  /// The event as [EventCodec.encode] wrote it: plain values.
+  final Object? data;
+
+  /// The [EventCodec.version] it was written at.
+  final int version;
 }
 
 /// An event type, declared so tools can list what a game says.

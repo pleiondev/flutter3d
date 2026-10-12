@@ -456,8 +456,10 @@ void main() {
           ComponentCodec<_Suspicion>.of(
             id: 'suspicion',
             encode: (_Suspicion value) => value.level,
-            decode: (Object? data, int _) =>
-                _Suspicion((data! as num).toDouble()),
+            decode: (context) {
+              final data = context.data;
+              return _Suspicion((data! as num).toDouble());
+            },
           ),
         )
         ..set(walker.entity, _Suspicion(0.75));

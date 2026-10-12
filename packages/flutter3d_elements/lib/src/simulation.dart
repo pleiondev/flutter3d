@@ -1015,10 +1015,13 @@ final class ElementsSimulation {
   SnapshotPart snapshotPart({String id = 'elements'}) => SnapshotPart.of(
     id: id,
     capture: saveElements,
-    restore: (data, _) => restoreElements(switch (data) {
-      final Map<Object?, Object?> map => map.cast<String, Object?>(),
-      _ => const <String, Object?>{},
-    }),
+    restore: (context) {
+      final data = context.data;
+      restoreElements(switch (data) {
+        final Map<Object?, Object?> map => map.cast<String, Object?>(),
+        _ => const <String, Object?>{},
+      });
+    },
   );
 
   EventRegistry? _bus;

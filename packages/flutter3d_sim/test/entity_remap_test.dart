@@ -22,7 +22,10 @@ EcsWorld _world() => EcsWorld()
     ComponentCodec<_Health>.of(
       id: 'health',
       encode: (_Health h) => h.value,
-      decode: (Object? data, int _) => _Health((data! as num).toDouble()),
+      decode: (context) {
+        final data = context.data;
+        return _Health((data! as num).toDouble());
+      },
     ),
   );
 

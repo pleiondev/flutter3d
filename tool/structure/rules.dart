@@ -5813,9 +5813,12 @@ List<Finding> _noNewInterfaces() {
   return found;
 }
 
-/// Every method of a published `abstract base class` — the shape of every
-/// hook an outside author implements — takes at most one parameter, or is
-/// named in [hookParametersAllowed] with the reason it may take more.
+/// Every method of a published hook — an abstract class or a mixin, the
+/// shapes an outside author extends or mixes in ([isHookHeader]) — takes
+/// at most one parameter, and so does
+/// every function type such a hook's members take and every public typedef
+/// of one, or it is named in [hookParametersAllowed] with the reason it may
+/// take more.
 ///
 /// **Amendment 2 of the field review.** A hook's method that takes a list
 /// of parameters can never gain one: a parameter added in a minor breaks
@@ -5827,10 +5830,18 @@ List<Finding> _noNewInterfaces() {
 ///
 /// **It reads the snapshots**, as the interface rule does: a hook behind a
 /// `src/` path nobody exports is nobody's to implement. Getters, setters,
-/// operators, constructors, factories and static members are not hooks. An
+/// operators, constructors, factories and static members are not hooks,
+/// but a function type any of them takes is read as one. An
 /// entry is `Class.member`, or `Class` for every member of a class; one
 /// that names nothing any snapshot declares fails too. The hooks that still
 /// take a list are [hookParametersPending], a list that only shrinks.
+///
+/// **A callback is a hook too.** `ComponentCodec.of(decode:)` hands the
+/// author's function the same list `decode` takes, so a method converted to
+/// one context with its factory's callback left alone would still be a
+/// shape that cannot grow; and a mixin class or a mixin is implemented as
+/// often as a base class (`CollisionListener` is the hook a game overrides
+/// most). Both escaped the first version of this rule.
 ///
 /// Mutation: give `ShadowTechnique.kernelFor` a second parameter, regenerate
 /// the snapshot, and this names it.
@@ -5839,34 +5850,34 @@ List<Finding> _hooksTakeOneContext() {
   final seen = <String>{};
   final offending = <String>{};
   for (final entry in _publishedSnapshots.entries) {
-    for (final library in parseApi(entry.value).values) {
-      for (final MapEntry(key: name, value: block)
-          in library.declarations.entries) {
-        if (!block.header.startsWith('abstract base class ')) continue;
-        seen.add(name);
-        for (final member in block.members) {
-          final method = hookMethodIn(member);
-          if (method == null) continue;
-          seen.add('$name.${method.name}');
-          if (method.parameters <= 1) continue;
-          offending.add(name);
-          if (hookParametersAllowed.containsKey(name) ||
-              hookParametersAllowed.containsKey('$name.${method.name}') ||
-              hookParametersPending.containsKey(name)) {
-            continue;
-          }
-          found.add(
-            Finding(
-              '${entry.key}/api/${entry.key}.api',
-              '`$name.${method.name}` takes ${method.parameters} parameters. '
-                  'A hook an outside author implements takes one context '
-                  'object that can gain members, so a minor can hand it more '
-                  'without breaking an implementation; give it one, or say '
-                  'in `hookParametersAllowed` why it cannot',
-            ),
-          );
-        }
+    final hooks = wideHooksIn(entry.value);
+    seen.addAll(hooks.seen);
+    for (final (:type, :member, :parameters, :callback) in hooks.wide) {
+      final key = member.isEmpty ? type : '$type.$member';
+      offending.add(type);
+      // A class named whole is allowed its methods, not the callbacks it
+      // takes: those an outside author writes even where the engine
+      // implements the class, so each is named for itself.
+      if ((!callback && hookParametersAllowed.containsKey(type)) ||
+          hookParametersAllowed.containsKey(key) ||
+          hookParametersPending.containsKey(type)) {
+        continue;
       }
+      found.add(
+        Finding(
+          '${entry.key}/api/${entry.key}.api',
+          callback
+              ? '`$key` takes a function of $parameters parameters. A '
+                    'callback an outside author writes takes one context '
+                    'object that can gain members, like a hook does; give it '
+                    'one, or say in `hookParametersAllowed` why it cannot'
+              : '`$key` takes $parameters parameters. A hook an outside '
+                    'author implements takes one context object that can '
+                    'gain members, so a minor can hand it more without '
+                    'breaking an implementation; give it one, or say in '
+                    '`hookParametersAllowed` why it cannot',
+        ),
+      );
     }
   }
   for (final name in hookParametersAllowed.keys) {
@@ -5875,7 +5886,7 @@ List<Finding> _hooksTakeOneContext() {
       Finding(
         'tool/structure/repository.dart',
         '`hookParametersAllowed` names `$name`, which no snapshot declares as '
-            'an abstract base class or one of its methods. Take the entry out',
+            'a hook, one of its members or a typedef. Take the entry out',
       ),
     );
   }

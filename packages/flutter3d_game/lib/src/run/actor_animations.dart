@@ -168,7 +168,7 @@ final class AnimationMarkerPassed extends GameEvent {
           e.state,
           e.marker,
         ],
-        decode: (Object? data, int version) => null,
+        decode: (_) => null,
       );
 
   final Actor actor;

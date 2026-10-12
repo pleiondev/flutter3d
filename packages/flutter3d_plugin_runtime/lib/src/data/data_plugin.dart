@@ -473,7 +473,9 @@ final class DataPluginDocument {
           if (registry?[key] case final DataSection reader)
             key: DataPluginSection(
               reader: reader,
-              section: reader.read(json[key], context),
+              section: reader.read(
+                DataSectionRead(json[key], context: context),
+              ),
             ),
     };
 
@@ -628,7 +630,7 @@ final class DataPluginLoader {
               value: DataPluginSection(:reader, :section),
             )
             in document.sections.entries)
-          name: reader.load(section, context),
+          name: reader.load(DataSectionLoad(section, context: context)),
       };
     } on Flutter3dFormatException catch (error) {
       throw DataPluginFormatException(error.message);
@@ -802,7 +804,8 @@ final class DataPlugin extends Flutter3dPlugin {
         SnapshotPart.of(
           id: id,
           capture: save,
-          restore: (data, _) {
+          restore: (context) {
+            final data = context.data;
             if (data is Map) restore(data.cast<String, Object?>());
           },
         ),
@@ -835,7 +838,9 @@ final class DataPlugin extends Flutter3dPlugin {
     );
     for (final MapEntry(key: name, value: DataPluginSection(:reader))
         in document.sections.entries) {
-      reader.install(host, _sections[name]!, context);
+      reader.install(
+        DataSectionInstall(_sections[name]!, host: host, context: context),
+      );
     }
   }
 

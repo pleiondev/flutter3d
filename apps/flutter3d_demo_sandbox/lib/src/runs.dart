@@ -35,7 +35,8 @@ final class SandboxRuns {
       SnapshotPart.of(
         id: runPart,
         capture: () => run.state().data,
-        restore: (Object? data, int _) {
+        restore: (context) {
+          final data = context.data;
           if (data is Map) run.restore(Snapshot(data.cast<String, Object?>()));
         },
       ),

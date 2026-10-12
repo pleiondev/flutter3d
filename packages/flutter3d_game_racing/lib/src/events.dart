@@ -57,7 +57,7 @@ final class LapCompleted extends RacerEvent {
   /// Its codec: the car's index. Reads back as null; see the library doc.
   static final EventCodec<LapCompleted> codec = EventCodec<LapCompleted>.of(
     encode: (LapCompleted e) => e.racer.index,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   @override
@@ -74,7 +74,7 @@ final class BestLapSet extends RacerEvent {
   /// Its codec: the car's index. Reads back as null; see the library doc.
   static final EventCodec<BestLapSet> codec = EventCodec<BestLapSet>.of(
     encode: (BestLapSet e) => e.racer.index,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   @override
@@ -92,7 +92,7 @@ final class CheckpointPassed extends RacerEvent {
   static final EventCodec<CheckpointPassed> codec =
       EventCodec<CheckpointPassed>.of(
         encode: (CheckpointPassed e) => e.racer.index,
-        decode: (Object? data, int version) => null,
+        decode: (_) => null,
       );
 
   @override
@@ -112,7 +112,7 @@ final class WentWrongWay extends RacerEvent {
   /// Its codec: the car's index. Reads back as null; see the library doc.
   static final EventCodec<WentWrongWay> codec = EventCodec<WentWrongWay>.of(
     encode: (WentWrongWay e) => e.racer.index,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   @override
@@ -132,7 +132,7 @@ final class LeftTheRoad extends RacerEvent {
   /// Its codec: the car's index. Reads back as null; see the library doc.
   static final EventCodec<LeftTheRoad> codec = EventCodec<LeftTheRoad>.of(
     encode: (LeftTheRoad e) => e.racer.index,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   @override
@@ -149,7 +149,7 @@ final class Respawned extends RacerEvent {
   /// Its codec: the car's index. Reads back as null; see the library doc.
   static final EventCodec<Respawned> codec = EventCodec<Respawned>.of(
     encode: (Respawned e) => e.racer.index,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   @override
@@ -166,7 +166,7 @@ final class RacerFinished extends RacerEvent {
   /// Its codec: the car's index. Reads back as null; see the library doc.
   static final EventCodec<RacerFinished> codec = EventCodec<RacerFinished>.of(
     encode: (RacerFinished e) => e.racer.index,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   @override
@@ -187,8 +187,10 @@ final class CountdownTicked extends GameEvent {
   static final EventCodec<CountdownTicked> codec =
       EventCodec<CountdownTicked>.of(
         encode: (CountdownTicked e) => e.remaining,
-        decode: (Object? data, int version) =>
-            data is int ? CountdownTicked(data) : null,
+        decode: (context) {
+          final data = context.data;
+          return data is int ? CountdownTicked(data) : null;
+        },
       );
 
   /// How many lights are left, counting down to zero.
@@ -208,7 +210,7 @@ final class RaceStarted extends GameEvent {
   /// Its codec: nothing to write. Reads back whole.
   static final EventCodec<RaceStarted> codec = EventCodec<RaceStarted>.of(
     encode: (RaceStarted e) => null,
-    decode: (Object? data, int version) => const RaceStarted(),
+    decode: (_) => const RaceStarted(),
   );
 
   @override
@@ -225,7 +227,7 @@ final class RaceFinished extends GameEvent {
   /// Its codec: nothing to write. Reads back whole.
   static final EventCodec<RaceFinished> codec = EventCodec<RaceFinished>.of(
     encode: (RaceFinished e) => null,
-    decode: (Object? data, int version) => const RaceFinished(),
+    decode: (_) => const RaceFinished(),
   );
 
   @override
@@ -259,7 +261,7 @@ final class SectorCompleted extends RacerEvent {
           e.time,
           e.delta,
         ],
-        decode: (Object? data, int version) => null,
+        decode: (_) => null,
       );
 
   /// Which sector, counting from nought at the line.
@@ -294,7 +296,7 @@ final class DriftScored extends RacerEvent {
   /// Reads back as null; see the library doc.
   static final EventCodec<DriftScored> codec = EventCodec<DriftScored>.of(
     encode: (DriftScored e) => <Object?>[e.racer.index, e.score, e.seconds],
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   /// What it was worth. Grows with how far sideways and how fast.

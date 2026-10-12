@@ -576,7 +576,9 @@ void main() {
           ],
         };
         const context = DataSectionContext(plugin: 'boats');
-        final section = editorSection.read(written, context);
+        final section = editorSection.read(
+          DataSectionRead(written, context: context),
+        );
         expect(editorSection.name, 'editor');
         // Mutation: write the entity kinds back under `kinds`.
         expect(
@@ -584,16 +586,22 @@ void main() {
           jsonDecode(jsonEncode(written)),
         );
         expect(
-          () => editorSection.read(<String, Object?>{'components': 3}, context),
+          () => editorSection.read(
+            DataSectionRead(<String, Object?>{
+              'components': 3,
+            }, context: context),
+          ),
           throwsA(isA<Flutter3dFormatException>()),
         );
 
         final pieces = EditorPieces();
         final notes = <String>[];
         editorSection.install(
-          _Host(pieces, _Scope('boats', 0)),
-          section,
-          DataSectionContext(plugin: 'boats', note: notes.add),
+          DataSectionInstall(
+            section,
+            host: _Host(pieces, _Scope('boats', 0)),
+            context: DataSectionContext(plugin: 'boats', note: notes.add),
+          ),
         );
         expect(pieces.hints.components.single.id, 'boats.buoyancy');
         expect(pieces.hints.entityKinds.single.type, 'boat');
@@ -601,9 +609,11 @@ void main() {
 
         // An engine with no editor leaves the section out and says so.
         editorSection.install(
-          _Host(null, _Scope('boats', 0)),
-          section,
-          DataSectionContext(plugin: 'boats', note: notes.add),
+          DataSectionInstall(
+            section,
+            host: _Host(null, _Scope('boats', 0)),
+            context: DataSectionContext(plugin: 'boats', note: notes.add),
+          ),
         );
         expect(notes.single, contains('no editor'));
       },

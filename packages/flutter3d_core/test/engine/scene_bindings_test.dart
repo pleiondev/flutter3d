@@ -68,7 +68,9 @@ void main() {
     expect(renderDataSections, contains(bindingsSection));
     final renderer = Renderer.create(device: FakeBackend());
     final context = const DataSectionContext(plugin: 'acme_forge');
-    final read = bindingsSection.read(<Object?>[_heat.toJson()], context);
+    final read = bindingsSection.read(
+      DataSectionRead(<Object?>[_heat.toJson()], context: context),
+    );
     expect(bindingsSection.write(read), <Object?>[_heat.toJson()]);
     PluginManager(
       loop: _Loop(),
@@ -76,7 +78,9 @@ void main() {
       registries: <PluginRegistry>[renderer.renderSteps],
     ).installAll(<Flutter3dPlugin>[
       _Plugin('acme_forge', (host) {
-        bindingsSection.install(host, read, context);
+        bindingsSection.install(
+          DataSectionInstall(read, host: host, context: context),
+        );
       }),
     ]);
     expect(renderer.sceneBindings.bindings.single.component, 'acme_forge.heat');

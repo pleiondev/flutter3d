@@ -56,7 +56,9 @@ void main() {
   test('its codec reads back every field, and refuses a phase it cannot '
       'name', () {
     final codec = ContactEvent.codec;
-    final back = codec.decode(codec.encode(_event()), codec.version)!;
+    final back = codec.decode(
+      EventDecodeContext(codec.encode(_event()), version: codec.version),
+    )!;
     expect(
       <Object?>[
         back.bodyA,
@@ -86,8 +88,14 @@ void main() {
     // A later build's phase is not one this build hands on as another.
     final later = List<Object?>.of(codec.encode(_event())! as List<Object?>);
     later[5] = 'slide';
-    expect(codec.decode(later, codec.version), isNull);
-    expect(codec.decode('not a contact', 1), isNull);
+    expect(
+      codec.decode(EventDecodeContext(later, version: codec.version)),
+      isNull,
+    );
+    expect(
+      codec.decode(EventDecodeContext('not a contact', version: 1)),
+      isNull,
+    );
   });
 
   test('a genre shares it: declared on the engine with its codec', () {

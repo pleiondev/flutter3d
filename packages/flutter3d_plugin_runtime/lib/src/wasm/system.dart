@@ -219,20 +219,23 @@ final class WasmTrapped extends BusEvent {
       event.step,
       event.message,
     ],
-    decode: (data, _) => switch (data) {
-      [
-        final String plugin,
-        final String system,
-        final int step,
-        final String message,
-      ] =>
-        WasmTrapped(
-          plugin: plugin,
-          system: system,
-          step: step,
-          message: message,
-        ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [
+          final String plugin,
+          final String system,
+          final int step,
+          final String message,
+        ] =>
+          WasmTrapped(
+            plugin: plugin,
+            system: system,
+            step: step,
+            message: message,
+          ),
+        _ => null,
+      };
     },
   );
 

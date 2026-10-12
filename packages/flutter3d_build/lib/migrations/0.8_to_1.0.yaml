@@ -15670,7 +15670,7 @@ entries:
       plugin acts on is the loop's. In `setUp`, put the application's state
       in `loop.world`, or add a part for it —
       `loop.snapshots.add(SnapshotPart.of(id: 'my.world', capture: world.save,
-      restore: (data, _) => world.load(data)))` — and the checks capture,
+      restore: (context) => world.load(context.data)))` — and the checks capture,
       restore and digest it through `EngineLoop.snapshots`, the path a
       rollback takes. `hasWorld` is gone: a loop whose snapshots hold
       nothing is a run with no world.
@@ -15891,7 +15891,7 @@ entries:
       `world.register<T>('name', encode: e, decode: d)` was a second door to
       the world's component registry with no version. Register a codec:
       `world.components.register<T>(ComponentCodec<T>.of(id: 'name',
-      encode: e, decode: (data, version) => d(data)))`, adding `version:`
+      encode: e, decode: (context) => d(context.data)))`, adding `version:`
       when the shape changes and `published: true` for what the view reads.
       The id is the same name, so a save written before reads back.
 

@@ -100,7 +100,9 @@ abstract final class ActorCodecs {
   static final InPlaceCodec<Body> body = InPlaceCodec<Body>.of(
     id: 'body',
     encode: (value) => value.controller.save(),
-    restore: (value, data, _) {
+    restore: (context) {
+      final value = context.value;
+      final data = context.data;
       if (data is Map) value.controller.restore(data.cast<String, Object?>());
     },
   );
@@ -109,7 +111,9 @@ abstract final class ActorCodecs {
   static final InPlaceCodec<Vitality> vitality = InPlaceCodec<Vitality>.of(
     id: 'vitality',
     encode: (value) => value.health.save(),
-    restore: (value, data, _) {
+    restore: (context) {
+      final value = context.value;
+      final data = context.data;
       if (data is Map) value.health.restore(data.cast<String, Object?>());
     },
   );
@@ -122,7 +126,8 @@ abstract final class ActorCodecs {
       'turnRate': value.turnRate,
       'eyeFraction': value.eyeFraction,
     },
-    decode: (data, _) {
+    decode: (context) {
+      final data = context.data;
       if (data is! Map) return null;
       final row = data.cast<String, Object?>();
       return Facing(
@@ -137,7 +142,9 @@ abstract final class ActorCodecs {
   static final InPlaceCodec<Physical> physical = InPlaceCodec<Physical>.of(
     id: 'physical',
     encode: (value) => value.body.save(),
-    restore: (value, data, _) {
+    restore: (context) {
+      final value = context.value;
+      final data = context.data;
       if (data is Map) value.body.restore(data.cast<String, Object?>());
     },
   );
@@ -151,7 +158,7 @@ abstract final class ActorCodecs {
       'steppedUp': value.controller.steppedUp,
       'grounded': value.controller.isGrounded,
     },
-    restore: (_, _, _) {},
+    restore: (_) {},
   );
 
   /// The brain's own state. Restored in place: a brain is code as much as
@@ -159,7 +166,9 @@ abstract final class ActorCodecs {
   static final InPlaceCodec<Thinking> thinking = InPlaceCodec<Thinking>.of(
     id: 'thinking',
     encode: (value) => value.brain.save(),
-    restore: (value, data, _) {
+    restore: (context) {
+      final value = context.value;
+      final data = context.data;
       if (data is Map) value.brain.restore(data.cast<String, Object?>());
     },
   );

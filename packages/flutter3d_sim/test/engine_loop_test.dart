@@ -54,7 +54,10 @@ final class _Ping extends BusEvent {
 
   static final EventCodec<_Ping> codec = EventCodec<_Ping>.of(
     encode: (event) => event.value,
-    decode: (data, _) => data is int ? _Ping(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Ping(data) : null;
+    },
   );
 
   @override

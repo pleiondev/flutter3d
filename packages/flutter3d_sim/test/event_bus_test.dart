@@ -18,7 +18,10 @@ final class _Landed extends BusEvent {
 
   static final EventCodec<_Landed> codec = EventCodec<_Landed>.of(
     encode: (event) => event.x,
-    decode: (data, _) => data is int ? _Landed(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Landed(data) : null;
+    },
   );
 
   @override
@@ -33,7 +36,7 @@ final class _Echo extends BusEvent {
 
   static final EventCodec<_Echo> codec = EventCodec<_Echo>.of(
     encode: (_) => null,
-    decode: (_, _) => const _Echo(),
+    decode: (_) => const _Echo(),
   );
 
   @override
@@ -45,7 +48,7 @@ final class _Coin extends GameEvent {
 
   static final EventCodec<_Coin> codec = EventCodec<_Coin>.of(
     encode: (_) => null,
-    decode: (_, _) => const _Coin(),
+    decode: (_) => const _Coin(),
   );
 
   @override

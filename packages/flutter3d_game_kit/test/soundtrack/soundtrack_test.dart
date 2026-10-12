@@ -40,11 +40,14 @@ final class _Jumped extends BusEvent {
   /// A step event is declared with its codec.
   static final EventCodec<_Jumped> codec = EventCodec<_Jumped>.of(
     encode: (event) => <double>[event.at.x, event.at.y, event.at.z],
-    decode: (data, _) => switch (data) {
-      [final num x, final num y, final num z] => _Jumped(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z] => _Jumped(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+        ),
+        _ => null,
+      };
     },
   );
 

@@ -86,46 +86,49 @@ final class ContactEvent extends GameEvent {
       e.relativeVelocity.y,
       e.relativeVelocity.z,
     ],
-    decode: (Object? data, int version) => switch (data) {
-      [
-        final int bodyA,
-        final int bodyB,
-        final int feature,
-        final String? materialA,
-        final String? materialB,
-        final String phase,
-        final num px,
-        final num py,
-        final num pz,
-        final num nx,
-        final num ny,
-        final num nz,
-        final num impulse,
-        final num vx,
-        final num vy,
-        final num vz,
-        ...,
-      ] =>
-        switch (ContactPhase.byName(phase)) {
-          final ContactPhase phase => ContactEvent(
-            bodyA: bodyA,
-            bodyB: bodyB,
-            feature: feature,
-            materialA: materialA,
-            materialB: materialB,
-            phase: phase,
-            point: Vector3(px.toDouble(), py.toDouble(), pz.toDouble()),
-            normal: Vector3(nx.toDouble(), ny.toDouble(), nz.toDouble()),
-            impulse: impulse.toDouble(),
-            relativeVelocity: Vector3(
-              vx.toDouble(),
-              vy.toDouble(),
-              vz.toDouble(),
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [
+          final int bodyA,
+          final int bodyB,
+          final int feature,
+          final String? materialA,
+          final String? materialB,
+          final String phase,
+          final num px,
+          final num py,
+          final num pz,
+          final num nx,
+          final num ny,
+          final num nz,
+          final num impulse,
+          final num vx,
+          final num vy,
+          final num vz,
+          ...,
+        ] =>
+          switch (ContactPhase.byName(phase)) {
+            final ContactPhase phase => ContactEvent(
+              bodyA: bodyA,
+              bodyB: bodyB,
+              feature: feature,
+              materialA: materialA,
+              materialB: materialB,
+              phase: phase,
+              point: Vector3(px.toDouble(), py.toDouble(), pz.toDouble()),
+              normal: Vector3(nx.toDouble(), ny.toDouble(), nz.toDouble()),
+              impulse: impulse.toDouble(),
+              relativeVelocity: Vector3(
+                vx.toDouble(),
+                vy.toDouble(),
+                vz.toDouble(),
+              ),
             ),
-          ),
-          null => null,
-        },
-      _ => null,
+            null => null,
+          },
+        _ => null,
+      };
     },
   );
 

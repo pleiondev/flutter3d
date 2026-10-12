@@ -269,7 +269,8 @@ final class _GenrePart<S extends Object> extends SnapshotPart {
   }
 
   @override
-  void restore(Object? data, int version) {
+  void restore(SnapshotRestoreContext context) {
+    final data = context.data;
     final run = genre.simulation;
     if (run == null || data is! Map) return;
     genre.restoreSimulation(run, Snapshot(data.cast<String, Object?>()));

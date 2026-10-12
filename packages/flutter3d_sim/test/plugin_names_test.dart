@@ -77,7 +77,10 @@ final Map<String, void Function(PluginHost host, String name)> _registries =
             ComponentCodec<_Health>.of(
               id: name,
               encode: (health) => health.points,
-              decode: (data, _) => data is int ? _Health(data) : null,
+              decode: (context) {
+                final data = context.data;
+                return data is int ? _Health(data) : null;
+              },
             ),
           ),
       'an event': (host, name) => host.events.declare<_Hurt>(name),
@@ -90,7 +93,7 @@ final Map<String, void Function(PluginHost host, String name)> _registries =
       'an assimilation': (host, name) =>
           host.loop.addAssimilation(name, Assimilation.of((_) {})),
       'a snapshot part': (host, name) => host.registry<SnapshotRegistry>().add(
-        SnapshotPart.of(id: name, capture: () => null, restore: (_, _) {}),
+        SnapshotPart.of(id: name, capture: () => null, restore: (_) {}),
       ),
       'an entity kind': (host, name) =>
           host.registry<EntityKinds>().add(_Crate(name)),
@@ -149,7 +152,7 @@ void main() {
       () => _install(
         'acme',
         (h) => h.registry<SnapshotRegistry>().add(
-          SnapshotPart.of(id: 'acme', capture: () => null, restore: (_, _) {}),
+          SnapshotPart.of(id: 'acme', capture: () => null, restore: (_) {}),
         ),
       ),
       returnsNormally,

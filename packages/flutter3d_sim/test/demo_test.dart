@@ -592,6 +592,9 @@ final class _Count {
   static final ComponentCodec<_Count> codec = ComponentCodec<_Count>.of(
     id: 'test.count',
     encode: (count) => count.value,
-    decode: (data, _) => data is int ? _Count(data) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is int ? _Count(data) : null;
+    },
   );
 }

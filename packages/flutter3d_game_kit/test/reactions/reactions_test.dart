@@ -30,12 +30,15 @@ final class _Landed extends BusEvent {
       event.at.z,
       event.hard,
     ],
-    decode: (data, _) => switch (data) {
-      [final num x, final num y, final num z, final bool hard] => _Landed(
-        Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
-        hard: hard,
-      ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [final num x, final num y, final num z, final bool hard] => _Landed(
+          Vector3(x.toDouble(), y.toDouble(), z.toDouble()),
+          hard: hard,
+        ),
+        _ => null,
+      };
     },
   );
 

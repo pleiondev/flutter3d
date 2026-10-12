@@ -41,7 +41,8 @@ EcsWorld _world() {
       ComponentCodec<_Position>.of(
         id: 'position',
         encode: (_Position p) => <double>[p.x, p.y],
-        decode: (Object? data, int _) {
+        decode: (context) {
+          final data = context.data;
           final row = data! as List;
           return _Position(
             (row[0] as num).toDouble(),
@@ -54,7 +55,10 @@ EcsWorld _world() {
       ComponentCodec<_Name>.of(
         id: 'name',
         encode: (_Name n) => n.value,
-        decode: (Object? data, int _) => _Name(data! as String),
+        decode: (context) {
+          final data = context.data;
+          return _Name(data! as String);
+        },
       ),
     );
 }
@@ -311,7 +315,7 @@ void main() {
           ComponentCodec<_Visual>.of(
             id: 'name',
             encode: (_Visual v) => '',
-            decode: (Object? data, int _) => _Visual(Object()),
+            decode: (_) => _Visual(Object()),
           ),
         ),
         throwsA(isA<ArgumentError>()),

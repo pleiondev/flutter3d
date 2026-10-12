@@ -573,7 +573,8 @@ const String _runPart = 'hollow.run';
 SnapshotPart _runPartOf(HollowRun run) => SnapshotPart.of(
   id: _runPart,
   capture: () => run.save().data,
-  restore: (Object? data, int _) {
+  restore: (context) {
+    final data = context.data;
     if (data is Map) run.restore(Snapshot(data.cast<String, Object?>()));
   },
 );

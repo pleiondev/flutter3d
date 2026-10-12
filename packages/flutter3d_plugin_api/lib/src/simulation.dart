@@ -36,14 +36,15 @@ final class WorldPositionCodec extends ComponentCodec<WorldPosition> {
   Object? encode(WorldPosition value) => <double>[value.x, value.y, value.z];
 
   @override
-  WorldPosition? decode(Object? data, int version) => switch (data) {
-    [final num x, final num y, final num z] => WorldPosition(
-      x.toDouble(),
-      y.toDouble(),
-      z.toDouble(),
-    ),
-    _ => null,
-  };
+  WorldPosition? decode(ComponentDecodeContext context) =>
+      switch (context.data) {
+        [final num x, final num y, final num z] => WorldPosition(
+          x.toDouble(),
+          y.toDouble(),
+          z.toDouble(),
+        ),
+        _ => null,
+      };
 }
 
 /// One step-channel event as the view receives it: encoded by its declared
@@ -83,8 +84,9 @@ final class PublishedEvent {
 
   /// The event, read back through [codec]; null when [codec] cannot read it
   /// or it carried no data (absent).
-  T? decode<T extends BusEvent>(EventCodec<T> codec) =>
-      version == 0 ? null : codec.decode(data, version);
+  T? decode<T extends BusEvent>(EventCodec<T> codec) => version == 0
+      ? null
+      : codec.decode(EventDecodeContext(data, version: version));
 
   @override
   String toString() => '$name at step $step #$sequence';
@@ -182,7 +184,9 @@ final class PublishedState {
   T? read<T extends Object>(ComponentCodec<T> codec, Entity entity) {
     final rows = components[codec.id];
     if (rows == null || !rows.containsKey(entity)) return null;
-    return codec.decode(rows[entity], codec.version);
+    return codec.decode(
+      ComponentDecodeContext(rows[entity], version: codec.version),
+    );
   }
 
   /// This state as plain values — lists, maps of strings, numbers, strings,
@@ -362,16 +366,19 @@ final class OriginShifted extends BusEvent {
       <double>[shift.from.x, shift.from.y, shift.from.z],
       <double>[shift.to.x, shift.to.y, shift.to.z],
     ],
-    decode: (data, _) => switch (data) {
-      [
-        [final num fx, final num fy, final num fz],
-        [final num tx, final num ty, final num tz],
-      ] =>
-        OriginShifted(
-          from: WorldPosition(fx.toDouble(), fy.toDouble(), fz.toDouble()),
-          to: WorldPosition(tx.toDouble(), ty.toDouble(), tz.toDouble()),
-        ),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        [
+          [final num fx, final num fy, final num fz],
+          [final num tx, final num ty, final num tz],
+        ] =>
+          OriginShifted(
+            from: WorldPosition(fx.toDouble(), fy.toDouble(), fz.toDouble()),
+            to: WorldPosition(tx.toDouble(), ty.toDouble(), tz.toDouble()),
+          ),
+        _ => null,
+      };
     },
   );
 

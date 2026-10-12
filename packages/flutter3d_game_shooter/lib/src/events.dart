@@ -49,7 +49,7 @@ final class ShotFired extends GameEvent {
       e.from.y,
       e.from.z,
     ],
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   final WeaponDef weapon;
@@ -86,7 +86,7 @@ final class ShotLanded extends GameEvent {
       e.hit.damage,
       e.hit.didStrikeSomething,
     ],
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   final ShotHit hit;
@@ -109,8 +109,10 @@ final class PlayerHurt extends GameEvent {
   /// Its codec: the amount. Reads back whole.
   static final EventCodec<PlayerHurt> codec = EventCodec<PlayerHurt>.of(
     encode: (PlayerHurt e) => e.amount,
-    decode: (Object? data, int version) =>
-        data is num ? PlayerHurt(data.toDouble()) : null,
+    decode: (context) {
+      final data = context.data;
+      return data is num ? PlayerHurt(data.toDouble()) : null;
+    },
   );
 
   /// How much health the step cost, always above zero.
@@ -133,7 +135,7 @@ final class PlayerDied extends GameEvent {
   /// Its codec: nothing to carry. Reads back whole.
   static final EventCodec<PlayerDied> codec = EventCodec<PlayerDied>.of(
     encode: (PlayerDied e) => null,
-    decode: (Object? data, int version) => const PlayerDied(),
+    decode: (_) => const PlayerDied(),
   );
 
   @override
@@ -151,7 +153,7 @@ final class SecretFound extends GameEvent {
   /// secret is a live part of a level and not a value.
   static final EventCodec<SecretFound> codec = EventCodec<SecretFound>.of(
     encode: (SecretFound e) => e.secret.name,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   final Secret secret;
@@ -185,11 +187,14 @@ final class MechanismUsed extends GameEvent {
       },
       e.outcome.message,
     ],
-    decode: (Object? data, int version) => switch (data) {
-      ['activated', _] => const MechanismUsed(Activated()),
-      ['refused', final String message] => MechanismUsed(Refused(message)),
-      ['nothingToDo', _] => const MechanismUsed(NothingToDo()),
-      _ => null,
+    decode: (context) {
+      final data = context.data;
+      return switch (data) {
+        ['activated', _] => const MechanismUsed(Activated()),
+        ['refused', final String message] => MechanismUsed(Refused(message)),
+        ['nothingToDo', _] => const MechanismUsed(NothingToDo()),
+        _ => null,
+      };
     },
   );
 

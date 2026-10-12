@@ -19,7 +19,7 @@ final class ActorHurt extends GameEvent {
   /// actor is a live part of a world and not a value.
   static final EventCodec<ActorHurt> codec = EventCodec<ActorHurt>.of(
     encode: (ActorHurt e) => <Object?>[e.actor.ordinal, e.amount, e.staggered],
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   final Actor actor;
@@ -63,7 +63,7 @@ final class ActorDied extends GameEvent {
   /// Its codec: the actor's ordinal. Reads back as null, as [ActorHurt]'s.
   static final EventCodec<ActorDied> codec = EventCodec<ActorDied>.of(
     encode: (ActorDied e) => e.actor.ordinal,
-    decode: (Object? data, int version) => null,
+    decode: (_) => null,
   );
 
   final Actor actor;

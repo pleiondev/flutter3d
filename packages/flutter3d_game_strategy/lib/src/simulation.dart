@@ -96,7 +96,10 @@ final class StrategySimulation {
       ComponentCodec<StrategyUnit>.of(
         id: 'unit',
         encode: _writeUnit,
-        decode: (data, _) => _readUnit(data),
+        decode: (context) {
+          final data = context.data;
+          return _readUnit(data);
+        },
       ),
     );
     _bake();

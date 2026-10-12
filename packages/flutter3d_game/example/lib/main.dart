@@ -70,7 +70,7 @@ final class Landed extends BusEvent {
     'speed': event.speed,
   };
 
-  static Landed? _decode(Object? data, int version) => switch (data) {
+  static Landed? _decode(EventDecodeContext context) => switch (context.data) {
     {'speed': final num speed} => Landed(speed.toDouble()),
     _ => null,
   };

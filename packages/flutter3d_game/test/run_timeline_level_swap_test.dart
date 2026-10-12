@@ -59,7 +59,8 @@ EngineLoop _loopOf(_Walker walker, InputState input, RewindBuffer rewind) {
       SnapshotPart.of(
         id: 'walker',
         capture: () => walker.save().data,
-        restore: (Object? data, int _) {
+        restore: (context) {
+          final data = context.data;
           if (data is Map) {
             walker.restore(Snapshot(data.cast<String, Object?>()));
           }

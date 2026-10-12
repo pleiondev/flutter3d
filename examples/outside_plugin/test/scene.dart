@@ -37,7 +37,8 @@ void dropBall(EngineLoop loop, {double height = 0.6}) {
         'ball': ball.save(),
         'dynamics': dynamics.saveState(),
       },
-      restore: (Object? data, int _) {
+      restore: (context) {
+        final data = context.data;
         final saved = data! as Map<String, Object?>;
         ball.restore(saved['ball']! as Map<String, Object?>);
         dynamics.restoreState(saved['dynamics']);

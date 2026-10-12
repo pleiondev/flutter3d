@@ -6,6 +6,8 @@ library;
 
 import 'package:flutter3d_foundation/flutter3d_foundation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
+    show SnapshotRestoreContext;
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -42,7 +44,7 @@ void main() {
     world.moveOriginTo(const WorldPosition(50.0, 0.0, 0.0));
     expect(wall.position.x, closeTo(50.0, 1e-9));
 
-    part.restore(captured, part.version);
+    part.restore(SnapshotRestoreContext(captured, version: part.version));
     expect(world.origin, WorldPosition.origin);
     expect(wall.position.x, closeTo(100.0, 1e-9));
   });

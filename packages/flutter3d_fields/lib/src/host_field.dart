@@ -181,7 +181,8 @@ final class HostField extends FieldStorage {
   SnapshotPart get snapshotPart => SnapshotPart.of(
     id: 'field:${declaration.id}',
     capture: () => List<double>.of(values),
-    restore: (Object? data, int version) {
+    restore: (context) {
+      final data = context.data;
       if (data is! List || data.length != values.length) {
         throw StateError(
           'the snapshot of field "${declaration.id}" is not '

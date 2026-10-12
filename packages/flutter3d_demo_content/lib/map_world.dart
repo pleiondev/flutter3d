@@ -817,7 +817,11 @@ final class MapWorld {
       InPlaceCodec<MapWorld>.of(
         id: 'map world',
         encode: (map) => map._save(),
-        restore: (map, data, _) => map._restore(data),
+        restore: (context) {
+          final map = context.value;
+          final data = context.data;
+          map._restore(data);
+        },
       ),
     );
     entities.set<MapWorld>(entities.spawn(), this);

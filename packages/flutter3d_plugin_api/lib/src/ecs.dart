@@ -95,7 +95,7 @@ abstract base class ComponentCodec<T extends Object> {
   const factory ComponentCodec.of({
     required String id,
     required Object? Function(T value) encode,
-    required T? Function(Object? data, int version) decode,
+    required T? Function(ComponentDecodeContext context) decode,
     int version,
   }) = _FunctionCodec<T>;
 
@@ -110,10 +110,10 @@ abstract base class ComponentCodec<T extends Object> {
   /// [value] as plain values.
   Object? encode(T value);
 
-  /// A component built from [data], written at [version]. Null when the row
-  /// cannot be read — the component is then not restored, as a component this
-  /// build does not know is not.
-  T? decode(Object? data, int version);
+  /// A component built from the context's `data`, written at its
+  /// `version`. Null when the row cannot be read — the component is then
+  /// not restored, as a component this build does not know is not.
+  T? decode(ComponentDecodeContext context);
 
   /// The component type this codec writes, for a registry that files codecs
   /// by type.
@@ -135,13 +135,46 @@ final class _FunctionCodec<T extends Object> extends ComponentCodec<T> {
   final int version;
 
   final Object? Function(T value) _encode;
-  final T? Function(Object? data, int version) _decode;
+  final T? Function(ComponentDecodeContext context) _decode;
 
   @override
   Object? encode(T value) => _encode(value);
 
   @override
-  T? decode(Object? data, int version) => _decode(data, version);
+  T? decode(ComponentDecodeContext context) => _decode(context);
+}
+
+/// What [ComponentCodec.decode] is handed: a row's data and the version it
+/// was written at.
+///
+/// **One object, so a minor can hand a codec more** — the entity the row
+/// belongs to, the plugin that wrote it — without breaking a codec written
+/// against 1.0.
+final class ComponentDecodeContext {
+  const ComponentDecodeContext(this.data, {required this.version});
+
+  /// The row as [ComponentCodec.encode] wrote it: plain values.
+  final Object? data;
+
+  /// The [ComponentCodec.version] the row was written at.
+  final int version;
+}
+
+/// What [InPlaceCodec.restoreInto] is handed: the component already there,
+/// the row to write into it, and the version the row was written at.
+///
+/// One object, for the reason [ComponentDecodeContext] gives.
+final class ComponentRestoreContext<T extends Object> {
+  const ComponentRestoreContext(this.value, this.data, {required this.version});
+
+  /// The component on the entity, which the row is written into.
+  final T value;
+
+  /// The row as [ComponentCodec.encode] wrote it: plain values.
+  final Object? data;
+
+  /// The [ComponentCodec.version] the row was written at.
+  final int version;
 }
 
 /// A codec for a component that owns something live — a body in a collision
@@ -158,16 +191,28 @@ abstract base class InPlaceCodec<T extends Object> extends ComponentCodec<T> {
   const factory InPlaceCodec.of({
     required String id,
     required Object? Function(T value) encode,
-    required void Function(T value, Object? data, int version) restore,
+    required void Function(ComponentRestoreContext<T> context) restore,
     int version,
   }) = _FunctionInPlaceCodec<T>;
 
-  /// Writes [data], encoded at [version], into [value].
-  void restoreInto(T value, Object? data, int version);
+  /// Writes the context's `data`, encoded at its `version`, into its
+  /// `value`.
+  void restoreInto(ComponentRestoreContext<T> context);
+
+  /// [restoreInto] with [context] typed for this codec: for a registry that
+  /// holds codecs of many component types as `InPlaceCodec<Object>`, whose
+  /// context names its value as an `Object`.
+  void restoreAny(ComponentRestoreContext<Object> context) => restoreInto(
+    ComponentRestoreContext<T>(
+      context.value as T,
+      context.data,
+      version: context.version,
+    ),
+  );
 
   /// Null: a component of this kind is never built from data alone.
   @override
-  T? decode(Object? data, int version) => null;
+  T? decode(ComponentDecodeContext context) => null;
 }
 
 final class _FunctionInPlaceCodec<T extends Object> extends InPlaceCodec<T> {
@@ -185,14 +230,13 @@ final class _FunctionInPlaceCodec<T extends Object> extends InPlaceCodec<T> {
   final int version;
 
   final Object? Function(T value) _encode;
-  final void Function(T value, Object? data, int version) _restore;
+  final void Function(ComponentRestoreContext<T> context) _restore;
 
   @override
   Object? encode(T value) => _encode(value);
 
   @override
-  void restoreInto(T value, Object? data, int version) =>
-      _restore(value, data, version);
+  void restoreInto(ComponentRestoreContext<T> context) => _restore(context);
 }
 
 /// One registered component type, as a tool lists it.
@@ -417,7 +461,7 @@ abstract base class SnapshotPart {
   const factory SnapshotPart.of({
     required String id,
     required Object? Function() capture,
-    required void Function(Object? data, int version) restore,
+    required void Function(SnapshotRestoreContext context) restore,
     int version,
     int? Function()? digest,
   }) = _FunctionPart;
@@ -432,8 +476,9 @@ abstract base class SnapshotPart {
   /// The part's state as plain values.
   Object? capture();
 
-  /// Puts back what [capture] wrote, at [version].
-  void restore(Object? data, int version);
+  /// Puts back what [capture] wrote: the context's `data`, written at its
+  /// `version`.
+  void restore(SnapshotRestoreContext context);
 
   /// A number that differs when this part's state does; null lets the
   /// registry digest [capture]'s output, which is always right and sometimes
@@ -464,17 +509,31 @@ final class _FunctionPart extends SnapshotPart {
   final int version;
 
   final Object? Function() _capture;
-  final void Function(Object? data, int version) _restore;
+  final void Function(SnapshotRestoreContext context) _restore;
   final int? Function()? _digest;
 
   @override
   Object? capture() => _capture();
 
   @override
-  void restore(Object? data, int version) => _restore(data, version);
+  void restore(SnapshotRestoreContext context) => _restore(context);
 
   @override
   int? digest() => _digest?.call();
+}
+
+/// What [SnapshotPart.restore] is handed: what the part's [SnapshotPart.capture]
+/// wrote, and the version it wrote it at.
+///
+/// One object, for the reason [ComponentDecodeContext] gives.
+final class SnapshotRestoreContext {
+  const SnapshotRestoreContext(this.data, {required this.version});
+
+  /// What [SnapshotPart.capture] wrote: plain values.
+  final Object? data;
+
+  /// The [SnapshotPart.version] it was written at.
+  final int version;
 }
 
 /// Every [SnapshotPart] of one engine, in registration order, and the one

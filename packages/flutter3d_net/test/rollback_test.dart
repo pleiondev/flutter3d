@@ -172,11 +172,8 @@ _play(
 
 void main() {
   test('two peers 120ms apart with 5% loss converge on the same digests', () {
-    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(
-      delaySteps: 7,
-      lossRate: 0.05,
-      seed: 20260912,
-    );
+    final LoopbackPair(first: transportA, second: transportB) =
+        LoopbackWire.pair(delaySteps: 7, lossRate: 0.05, seed: 20260912);
     final result = _play(
       (transportA, transportB),
       steps: 600,
@@ -205,10 +202,8 @@ void main() {
   test(
     'a frame rewritten in flight on one side gives a desync, named by step',
     () {
-      final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(
-        delaySteps: 7,
-        seed: 5,
-      );
+      final LoopbackPair(first: transportA, second: transportB) =
+          LoopbackWire.pair(delaySteps: 7, seed: 5);
       const lieAtStep = 50;
       final result = _play(
         (_LyingTransport(transportA, lieAtStep: lieAtStep), transportB),
@@ -243,7 +238,8 @@ void main() {
     // first and is corrected once the real frame lands — exercising
     // `RollbackSession.receive`'s rollback path on nearly every step, rather than
     // on none of them by accident of favourable timing.
-    final LoopbackPair(first: transportA, second: transportB) = LoopbackWire.pair(delaySteps: 9, seed: 1);
+    final LoopbackPair(first: transportA, second: transportB) =
+        LoopbackWire.pair(delaySteps: 9, seed: 1);
     final result = _play(
       (transportA, transportB),
       steps: 400,
@@ -261,7 +257,10 @@ void main() {
 
   test('two engine loops kept in step by EngineRollback settle on the same '
       'state, rewound through their snapshots', () {
-    final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(delaySteps: 5, seed: 3);
+    final LoopbackPair(first: wireA, second: wireB) = LoopbackWire.pair(
+      delaySteps: 5,
+      seed: 3,
+    );
     final digests = <DigestTrace>[DigestTrace(), DigestTrace()];
     final rollbacks = <EngineRollback>[];
     for (final slot in <int>[0, 1]) {
@@ -272,9 +271,12 @@ void main() {
           ComponentCodec<_Walked>.of(
             id: 'test.walked',
             encode: (w) => <int>[w.a, w.b],
-            decode: (data, _) => switch (data) {
-              [final num a, final num b] => _Walked(a.toInt(), b.toInt()),
-              _ => null,
+            decode: (context) {
+              final data = context.data;
+              return switch (data) {
+                [final num a, final num b] => _Walked(a.toInt(), b.toInt()),
+                _ => null,
+              };
             },
           ),
         )

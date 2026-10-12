@@ -182,7 +182,10 @@ final class Blackboard {
   static final ComponentCodec<Blackboard> codec = ComponentCodec<Blackboard>.of(
     id: 'blackboard',
     encode: (value) => value.toJson(),
-    decode: (data, _) => fromJson(data),
+    decode: (context) {
+      final data = context.data;
+      return fromJson(data);
+    },
   );
 
   /// Reads a board back. Throws a [SnapshotFormatException] when [data] is

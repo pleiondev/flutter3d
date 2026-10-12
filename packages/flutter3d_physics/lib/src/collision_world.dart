@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_matter/flutter3d_matter.dart';
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart'
-    show SnapshotPart, WorldPosition;
+    show SnapshotPart, SnapshotRestoreContext, WorldPosition;
 import 'package:vector_math/vector_math.dart';
 
 import 'character_mover.dart';
@@ -1092,7 +1092,8 @@ final class _CollisionOriginPart extends SnapshotPart {
   }
 
   @override
-  void restore(Object? data, int version) {
+  void restore(SnapshotRestoreContext context) {
+    final data = context.data;
     if (data case [final num x, final num y, final num z]) {
       world.moveOriginTo(
         WorldPosition(x.toDouble(), y.toDouble(), z.toDouble()),

@@ -120,7 +120,8 @@ final class Warming extends Subsystem {
       for (final MapEntry(:key, :value) in _pending.entries)
         <Object?>[key, value],
     ],
-    restore: (Object? data, int version) {
+    restore: (context) {
+      final data = context.data;
       _pending.clear();
       for (final entry in (data! as List<Object?>).cast<List<Object?>>()) {
         _pending[entry[0]! as int] = (entry[1]! as num).toDouble();

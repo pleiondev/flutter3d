@@ -131,7 +131,8 @@ final class Snapshots extends SnapshotRegistry {
     // origin before the bodies written in it.
     for (final first in <bool>[true, false]) {
       for (final (part, data, version) in read) {
-        if (part.restoresFirst == first) part.restore(data, version);
+        if (part.restoresFirst == first)
+          part.restore(SnapshotRestoreContext(data, version: version));
       }
     }
   }
@@ -186,7 +187,8 @@ final class WorldSnapshotPart extends SnapshotPart {
   int? digest() => StateDigest.of(world.save());
 
   @override
-  void restore(Object? data, int version) {
+  void restore(SnapshotRestoreContext context) {
+    final data = context.data;
     if (data is Map) world.restore(data.cast<String, Object?>());
   }
 }

@@ -18,7 +18,10 @@ EcsWorld _world() => EcsWorld()
     ComponentCodec<_Health>.of(
       id: 'Health',
       encode: (h) => h.hp,
-      decode: (d, _) => d is num ? _Health(d.toInt()) : null,
+      decode: (context) {
+        final d = context.data;
+        return d is num ? _Health(d.toInt()) : null;
+      },
     ),
   );
 

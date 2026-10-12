@@ -419,12 +419,17 @@ final class EcsWorld extends SimWorld {
             // Nothing there means this world does not have that actor, which
             // is the documented edge of what a snapshot restores.
             final present = store.values[index];
-            if (present != null) codec.restoreInto(present, row.value, version);
+            if (present != null)
+              codec.restoreAny(
+                ComponentRestoreContext(present, row.value, version: version),
+              );
             continue;
           }
           // Null means the decoder could not read this row, and the component
           // is simply not restored.
-          final value = codec.decode(row.value, version);
+          final value = codec.decode(
+            ComponentDecodeContext(row.value, version: version),
+          );
           if (value != null) store.values[index] = value;
         }
       }
@@ -441,7 +446,12 @@ final class EcsWorld extends SimWorld {
         _resources.remove(store.type);
         continue;
       }
-      final value = codec.decode(resources[codec.id], versionOf(codec.id));
+      final value = codec.decode(
+        ComponentDecodeContext(
+          resources[codec.id],
+          version: versionOf(codec.id),
+        ),
+      );
       if (value != null) _resources[store.type] = value;
     }
     if (resources is Map) {
@@ -450,7 +460,12 @@ final class EcsWorld extends SimWorld {
         if (type == null || _resources.containsKey(type)) continue;
         final codec = _stores[type]?.codec;
         if (codec == null || codec is InPlaceCodec<Object>) continue;
-        final value = codec.decode(entry.value, versionOf('${entry.key}'));
+        final value = codec.decode(
+          ComponentDecodeContext(
+            entry.value,
+            version: versionOf('${entry.key}'),
+          ),
+        );
         if (value != null) _resources[type] = value;
       }
     }

@@ -43,7 +43,8 @@ final class ProjectileSystem {
         ComponentCodec<InFlight>.of(
           id: 'inFlight',
           encode: (value) => value.toJson(),
-          decode: (data, _) {
+          decode: (context) {
+            final data = context.data;
             try {
               return InFlight.fromJson(data);
             } on SnapshotFormatException {
@@ -57,9 +58,12 @@ final class ProjectileSystem {
         ComponentCodec<FiredBy>.of(
           id: 'firedBy',
           encode: (value) => _ownerKey(value.collider),
-          decode: (data, _) => switch (_ownerNamed(data)) {
-            final Collider owner => FiredBy(owner),
-            null => null,
+          decode: (context) {
+            final data = context.data;
+            return switch (_ownerNamed(data)) {
+              final Collider owner => FiredBy(owner),
+              null => null,
+            };
           },
         ),
       );

@@ -44,7 +44,9 @@ final class _EditorSection extends DataSection {
   String get name => 'editor';
 
   @override
-  Object read(Object? written, DataSectionContext context) {
+  Object read(DataSectionRead step) {
+    final written = step.written;
+    final context = step.context;
     if (written is! Map) {
       throw DocumentFormatException(
         'plugin "${context.plugin}": "editor" is a map of components, '
@@ -84,7 +86,10 @@ final class _EditorSection extends DataSection {
   }
 
   @override
-  void install(PluginHost host, Object section, DataSectionContext context) {
+  void install(DataSectionInstall step) {
+    final host = step.host;
+    final section = step.section;
+    final context = step.context;
     final contents = section as EditorSectionContents;
     final hints = host.maybeRegistry<EditorHintRegistry>();
     if (hints == null) {
