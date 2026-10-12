@@ -5,8 +5,8 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 1743 places,
-361 of them left to you; 380 are backend internals no application called.
+only in a major version. To get there, 0.8's API changed in 1836 places,
+371 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
 `flutter3d_build/lib/migrations/0.8_to_1.0.yaml`, so they agree about what
@@ -1603,7 +1603,7 @@ carried out:
 - <a id="4a-particles-ParticleGlow-located"></a>**`ParticleGlow.located`** (`dart fix`). `ParticleGlow.located` is `isLocated`. A boolean getter reads as a question in 1.0: it starts with is, has, can, uses, supports, did or was, as Effective Dart asks. The value is the same under the new name.
 - <a id="particles-ParticleGradient-color"></a>**`ParticleGradient`** (by hand). `ParticleGradient.constant` and `.linear` take `LinearColor`s; see `particles-ParticleEffect-color`. `sampleInto` still writes a `Vector4`.
 - <a id="particles-ParticleGravity"></a>**`ParticleGravity`** (by hand). `const ParticleGravity()` with no argument now falls by the world's gravity (`standardGravity` for a system without a world) instead of the fixed number 0.8 defaulted to, and `acceleration` is `double?`, null for that case. Pass 0.8's number to keep the old look as a look; read `acceleration ?? -standardGravity` where a number was read.
-- <a id="rc-particles-ParticleGravity-named"></a>**`ParticleGravity.ParticleGravity`** (by hand). The acceleration is a named argument: write `ParticleGravity(acceleration: -9.8)` where it was positional.
+- <a id="rc-particles-ParticleGravity-named"></a>**`ParticleGravity.ParticleGravity`** (by hand). The acceleration is a named argument: write `ParticleGravity(acceleration: a)` where `a` was positional.
 - <a id="4a-particles-ParticleSpin-ParticleSpin"></a>**`ParticleSpin.ParticleSpin`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-particles-ParticleSpin-randomiseStart"></a>**`ParticleSpin.randomiseStart`** (`dart fix`). `ParticleSpin.randomiseStart` is `randomizeStart`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="rc-particles-ParticleSystem-at"></a>**`ParticleSystem`** (nothing to do). `burst`, `emit` and `emitTimed` call their positional place `at` where it was `origin`, and say it is in scene space; no call names a positional parameter. A place in the world goes in through the new `burstInWorld`, `emitInWorld` and `emitTimedInWorld`.

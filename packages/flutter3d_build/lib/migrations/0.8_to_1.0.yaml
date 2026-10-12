@@ -20408,10 +20408,10 @@ entries:
     to: ExpressionConstant
     wave: 4
     guidance: >-
-      `MaterialConstant` was a second name of `ExpressionConstant`, the expression
-      language's own, and `MaterialType` is also a Flutter widget's name:
-      the type is spelled once now, `ExpressionConstant`, from
-      `flutter3d_foundation`, which the facades export.
+      `MaterialConstant` was a second name of `ExpressionConstant`, the
+      expression language's own, and `MaterialType` is also a Flutter
+      widget's name: the type is spelled once now, `ExpressionConstant`,
+      from `flutter3d_foundation`, which the facades export.
 
   - id: rc-core-MaterialConstruct-rename
     package: flutter3d_core
@@ -20420,10 +20420,10 @@ entries:
     to: ExpressionConstruct
     wave: 4
     guidance: >-
-      `MaterialConstruct` was a second name of `ExpressionConstruct`, the expression
-      language's own, and `MaterialType` is also a Flutter widget's name:
-      the type is spelled once now, `ExpressionConstruct`, from
-      `flutter3d_foundation`, which the facades export.
+      `MaterialConstruct` was a second name of `ExpressionConstruct`, the
+      expression language's own, and `MaterialType` is also a Flutter
+      widget's name: the type is spelled once now, `ExpressionConstruct`,
+      from `flutter3d_foundation`, which the facades export.
 
   - id: rc-core-MaterialExpression-rename
     package: flutter3d_core
@@ -20561,7 +20561,7 @@ entries:
     wave: 4
     guidance: >-
       The acceleration is a named argument: write
-      `ParticleGravity(acceleration: -9.8)` where it was positional.
+      `ParticleGravity(acceleration: a)` where `a` was positional.
 
   - id: rc-core-MaterialInput-type-typed
     package: flutter3d_core
@@ -20782,7 +20782,11 @@ entries:
     exception: Flutter3dException
     wave: 4
     guidance: >-
-      It throws where it answered null, saying why: an `ImageFormatException` for bytes it cannot read, a `Ktx2FormatException` for a KTX2 file this build cannot open, a `DeviceResourceException` for a texture the device refuses. Catch `Flutter3dException` where a missing texture was fine.
+      It throws where it answered null, saying why: an
+      `ImageFormatException` for bytes it cannot read, a
+      `Ktx2FormatException` for a KTX2 file this build cannot open, a
+      `DeviceResourceException` for a texture the device refuses. Catch
+      `Flutter3dException` where a missing texture was fine.
 
   - id: rc-core-uploadRgba8-throws
     package: flutter3d_core
@@ -20791,7 +20795,8 @@ entries:
     exception: DeviceResourceException
     wave: 4
     guidance: >-
-      It throws the device's `DeviceResourceException` where it answered null for a texture the device refused.
+      It throws the device's `DeviceResourceException` where it answered
+      null for a texture the device refused.
 
   - id: rc-mesh-ArrayModifier-fromJson-throws
     package: flutter3d_mesh
@@ -20800,7 +20805,9 @@ entries:
     exception: ModifierFormatException
     wave: 4
     guidance: >-
-      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+      It throws a `ModifierFormatException` naming the field where it
+      answered null; `modifierFromJson` still answers null for a modifier it
+      skips.
 
   - id: rc-mesh-BooleanModifier-fromJson-throws
     package: flutter3d_mesh
@@ -20809,7 +20816,9 @@ entries:
     exception: ModifierFormatException
     wave: 4
     guidance: >-
-      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+      It throws a `ModifierFormatException` naming the field where it
+      answered null; `modifierFromJson` still answers null for a modifier it
+      skips.
 
   - id: rc-mesh-MirrorModifier-fromJson-throws
     package: flutter3d_mesh
@@ -20818,7 +20827,9 @@ entries:
     exception: ModifierFormatException
     wave: 4
     guidance: >-
-      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+      It throws a `ModifierFormatException` naming the field where it
+      answered null; `modifierFromJson` still answers null for a modifier it
+      skips.
 
   - id: rc-mesh-SmoothModifier-fromJson-throws
     package: flutter3d_mesh
@@ -20827,7 +20838,9 @@ entries:
     exception: ModifierFormatException
     wave: 4
     guidance: >-
-      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+      It throws a `ModifierFormatException` naming the field where it
+      answered null; `modifierFromJson` still answers null for a modifier it
+      skips.
 
   - id: rc-mesh-SubdivisionModifier-fromJson-throws
     package: flutter3d_mesh
@@ -20836,7 +20849,9 @@ entries:
     exception: ModifierFormatException
     wave: 4
     guidance: >-
-      It throws a `ModifierFormatException` naming the field where it answered null; `modifierFromJson` still answers null for a modifier it skips.
+      It throws a `ModifierFormatException` naming the field where it
+      answered null; `modifierFromJson` still answers null for a modifier it
+      skips.
 
   - id: rc-model_core-BrushSample-fromJson-throws
     package: flutter3d_model_core
@@ -20845,7 +20860,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-PaintMirror-fromJson-throws
     package: flutter3d_model_core
@@ -20854,7 +20870,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-PaintSample-fromJson-throws
     package: flutter3d_model_core
@@ -20863,7 +20880,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-ShapeDriver-fromJson-throws
     package: flutter3d_model_core
@@ -20872,7 +20890,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-SimulationCache-fromJson-throws
     package: flutter3d_model_core
@@ -20881,7 +20900,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-SkinWeightsBlob-fromJson-throws
     package: flutter3d_model_core
@@ -20890,7 +20910,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-JobRequest-fromJson-throws
     package: flutter3d_model_core
@@ -20899,7 +20920,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-model_core-JobResult-fromJson-throws
     package: flutter3d_model_core
@@ -20908,7 +20930,8 @@ entries:
     exception: ProjectFormatException
     wave: 4
     guidance: >-
-      It throws a `ProjectFormatException` naming the field where it answered null for JSON it could not read.
+      It throws a `ProjectFormatException` naming the field where it
+      answered null for JSON it could not read.
 
   - id: rc-game_shooter-InFlight-fromJson-throws
     package: flutter3d_game_shooter
@@ -20917,7 +20940,9 @@ entries:
     exception: SnapshotFormatException
     wave: 4
     guidance: >-
-      It throws a `SnapshotFormatException` for a row with no blast or no position, where it answered null; the component codec still leaves such a rocket out of a restore.
+      It throws a `SnapshotFormatException` for a row with no blast or no
+      position, where it answered null; the component codec still leaves
+      such a rocket out of a restore.
 
   # ---- One type for one concept: a severity, a kind of light, a pose and a
   # colour.
@@ -20930,7 +20955,9 @@ entries:
     name: Severity
     wave: 4
     guidance: >-
-      A mesh check, an export and a level's validation speak one severity, `Severity` from `flutter3d_foundation`, with `note`, `warning` and `error` and the same wire words.
+      A mesh check, an export and a level's validation speak one severity,
+      `Severity` from `flutter3d_foundation`, with `note`, `warning` and
+      `error` and the same wire words.
 
   - id: rc-model_core-ExportSeverity-severity
     package: flutter3d_model_core
@@ -20940,7 +20967,9 @@ entries:
     name: Severity
     wave: 4
     guidance: >-
-      A mesh check, an export and a level's validation speak one severity, `Severity` from `flutter3d_foundation`, with the same `warning` and `error`.
+      A mesh check, an export and a level's validation speak one severity,
+      `Severity` from `flutter3d_foundation`, with the same `warning` and
+      `error`.
 
   - id: rc-sim-LevelIssueSeverity-severity
     package: flutter3d_sim
@@ -20950,7 +20979,9 @@ entries:
     name: Severity
     wave: 4
     guidance: >-
-      A mesh check, an export and a level's validation speak one severity, `Severity` from `flutter3d_foundation`, with the same `warning` and `error`.
+      A mesh check, an export and a level's validation speak one severity,
+      `Severity` from `flutter3d_foundation`, with the same `warning` and
+      `error`.
 
   - id: rc-core-LightType-foundation
     package: flutter3d_core
@@ -20960,7 +20991,9 @@ entries:
     name: LightType
     wave: 4
     guidance: >-
-      `LightType` is `flutter3d_foundation`'s, so a level, a modeller project and a model file hold the same kinds the scene does, `area` and a plugin's own among them; the facades export it as before.
+      `LightType` is `flutter3d_foundation`'s, so a level, a modeller
+      project and a model file hold the same kinds the scene does, `area`
+      and a plugin's own among them; the facades export it as before.
 
   - id: rc-core-ModelLightType-lighttype
     package: flutter3d_core
@@ -20981,7 +21014,8 @@ entries:
     name: LightType
     wave: 4
     guidance: >-
-      A level's lights are the scene's kinds, `LightType` from `flutter3d_foundation`, with the same words, and `area` too.
+      A level's lights are the scene's kinds, `LightType` from
+      `flutter3d_foundation`, with the same words, and `area` too.
 
   - id: rc-model_core-ProjectLightType-lighttype
     package: flutter3d_model_core
@@ -20991,7 +21025,8 @@ entries:
     name: LightType
     wave: 4
     guidance: >-
-      A project's lights are the scene's kinds, `LightType` from `flutter3d_foundation`, with the same words, and `area` too.
+      A project's lights are the scene's kinds, `LightType` from
+      `flutter3d_foundation`, with the same words, and `area` too.
 
   - id: rc-stereo-HeadPose-rigidpose
     package: flutter3d_stereo
@@ -21001,7 +21036,9 @@ entries:
     name: RigidPose
     wave: 4
     guidance: >-
-      A tracked head is the engine's one pose, `RigidPose` from `flutter3d_foundation`: `orientation` where it said `rotation`, and `RigidPose.identity()` for `HeadPose.still()`.
+      A tracked head is the engine's one pose, `RigidPose` from
+      `flutter3d_foundation`: `orientation` where it said `rotation`, and
+      `RigidPose.identity()` for `HeadPose.still()`.
 
   - id: rc-stereo-HeadPose-rotation-orientation
     package: flutter3d_stereo

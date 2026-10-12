@@ -15,7 +15,6 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_app/xr_testing.dart';
 import 'package:flutter3d_core/flutter3d_core.dart'
     show EnvironmentDepth, EnvironmentDepthNode;
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_matter/flutter3d_matter.dart'
     show GeoOrigin, WorldProperties;

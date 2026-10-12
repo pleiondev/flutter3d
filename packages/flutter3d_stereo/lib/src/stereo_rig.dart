@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show RigidPose;
 
 /// Which eye.
 ///
