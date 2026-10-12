@@ -378,10 +378,10 @@ final class Handle
   Vector3 get max
   Vector3 get min
   const Handle({required this.kind, required this.index, required this.center, required this.size, required this.tint, this.volume = false})
+  final LinearColor tint
   final Piece kind
   final Vector3 center
   final Vector3 size
-  final Vector3 tint
   final bool volume
   final int index
 
@@ -466,17 +466,17 @@ final class ListedPiece
 final class Look
   const Look({this.model, this.size, this.tint, this.parts = const <Part>[]})
   factory Look.fromJson(Map<String, Object?> json)
+  final LinearColor? tint
   final List<Part> parts
   final String? model
   final Vector3? size
-  final Vector3? tint
 
 final class Looks
   Iterable<String> get types
+  LinearColor? tintFor(EntityDef entity)
   List<Part> partsFor(EntityDef entity)
   String? modelFor(EntityDef entity)
   Vector3? sizeFor(EntityDef entity)
-  Vector3? tintFor(EntityDef entity)
   bool get isEmpty
   const Looks(this._byType)
   factory Looks.parse(String text)
@@ -516,17 +516,17 @@ final class OutlineGroup
 final class PaletteEntry
   String toString()
   const PaletteEntry(this.type, {this.label, this.tint, this.properties = const <String, Object?>{}})
+  final LinearColor? tint
   final Map<String, Object?> properties
   final String type
   final String? label
-  final Vector3? tint
 
 final class Part
   const Part({required this.shape, required this.at, required this.size, required this.radius, required this.height, required this.pitch, required this.color, required this.glows})
   factory Part.fromJson(Map<String, Object?> json)
+  final LinearColor color
   final String shape
   final Vector3 at
-  final Vector3 color
   final Vector3 size
   final bool glows
   final double height
@@ -575,10 +575,10 @@ final class PlacePrefab extends EditorCommand
 final class Placeable
   String get label
   const Placeable({required this.kind, required this.what, required this.count, required this.tint, this.properties = const <String, Object?>{}, this._label})
+  final LinearColor tint
   final Map<String, Object?> properties
   final Piece kind
   final String what
-  final Vector3 tint
   final int count
 
 abstract base class PluginCommand extends DocumentCommand
@@ -771,7 +771,7 @@ final class UnpackPrefab extends EditorCommand
   bool apply(Editing editing)
   const UnpackPrefab()
 
-Vector3 atLeast(Vector3 color, double floor)
+LinearColor atLeast(LinearColor color, double floor)
 
 Map<String, ActiveBinding> bindingsInLevel(Level level)
 
@@ -843,7 +843,7 @@ num roundNumber(num value, int digits)
 
 Map<String, Uint8List> scaffold({required Template template, required String project, required Map<String, Uint8List> sources})
 
-Vector3 tintFor(String type)
+LinearColor tintFor(String type)
 
 List<LightView> viewsAlong(List<GhostFrame> poses, {int count = 8, int around = 1, double eyeHeight = lightViewEyeHeight})
 

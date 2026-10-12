@@ -6,7 +6,6 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_core/data_plugins.dart' show runtimeMaterialBundle;
 import 'package:flutter3d_core/flutter3d_core.dart';
-import 'package:flutter3d_core/formats.dart';
 import 'package:flutter3d_hardware/backend.dart' show wrapShader, wrapTexture;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';

@@ -1619,19 +1619,20 @@ final class LevelLight
   static const double defaultIntensity = 5790.583578
 
 final class LevelMaterial
-  LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, this.parameters = const <String, List<double>>{}, this.materialVersion, this.physicalMaterial, Map<String, Object?> source = const <String, Object?>{}})
+  LevelMaterial({LinearColor? baseColor, this.roughness = 0.85, this.metallic = 0.0, this.emissive, this.emissiveStrength = 0.0, this.texelsPerMeter = 1.0, this.albedo, this.normal, this.orm, this.fmat, this.depthLayer = 0, MaterialParameters? parameters, this.materialVersion, this.physicalMaterial, Map<String, Object?> source = const <String, Object?>{}})
   Map<String, Object?> toJson()
-  Vector4 get storedBaseColor
+  SrgbColor get storedBaseColor
   bool get hasMaps
   factory LevelMaterial.fromJson(Map<String, Object?> json)
   final LinearColor baseColor
-  final Map<String, List<double>> parameters
+  final LinearColor? emissive
+  final MaterialParameters parameters
   final String? albedo
   final String? fmat
   final String? normal
   final String? orm
   final String? physicalMaterial
-  final double emissive
+  final double emissiveStrength
   final double metallic
   final double roughness
   final double texelsPerMeter

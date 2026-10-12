@@ -179,8 +179,9 @@ final class LevelElements {
     final glow = liquid.glow;
     if (glow != null) look.glow = glow;
     final sun = _sun;
-    if (sun != null)
+    if (sun != null) {
       look.sun(along: sun.along, light: sun.light.toLinearColor());
+    }
     // Metal mirrors the fog dimly, water brighter towards its horizon.
     look.sky(
       zenith: (pool.molten ? _fog : _fog * 2.0).toLinearColor(),

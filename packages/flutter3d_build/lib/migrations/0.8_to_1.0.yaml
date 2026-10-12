@@ -24548,3 +24548,12 @@ entries:
       every input a version 1 source could read is `since: 1`, which is what
       the fix writes. Give an input a translator of your own adds the version
       that brings it.
+
+  - id: fixr-editor_core-Looks-tintFor
+    package: flutter3d_editor_core
+    symbol: Looks.tintFor
+    kind: none
+    reason: >-
+      The call is unchanged and so is the tint a look gives; only its type
+      is, a `LinearColor?` whose channels are `r`, `g` and `b`, which is what
+      a gizmo's `tint` now takes as it is.

@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b8f2ddc7e4f00a38
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -2058,3 +2058,16 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'colourSpace'
         newName: 'colorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: fixr-core-MaterialInput-since'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      constructor: ''
+      inClass: 'MaterialInput'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'since'
+        style: required_named
+        argumentValue:
+          expression: '1'

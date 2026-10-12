@@ -282,7 +282,7 @@ final class MaterialParameters {
   MaterialParameters.over(
     Map<String, Float32List> values, {
     MaterialParameterSchema? schema,
-  }) : _schema = schema,
+  }) : _schema = schema, // ignore: prefer_initializing_formals
        _values = values;
 
   /// [values] copied, each by name as [setNamed] takes it: [schema]'s

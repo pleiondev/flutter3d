@@ -608,13 +608,11 @@ final class BufferField extends FieldStorage
 extension BundledMaterialLooks on BundledMaterials
   RenderMaterial material(String name, {String? materialName})
 
-extension BundledMaterialSchemas on BundledMaterials
-  MaterialParameterSchema schema(String name)
-
 final class BundledMaterials
   LightingModel operator [](String name)
-  Map<String, Float32List> parameters(String name)
   MaterialFileState state(String name)
+  MaterialParameterSchema schema(String name)
+  MaterialParameters parameters(String name)
   factory BundledMaterials.read(ByteData bytes)
   final Map<String, LightingModel> lighting
   final Map<String, MaterialBindings> stages
@@ -1586,6 +1584,7 @@ abstract base class FrameContext
   FrameContext({required this.device, required this.services, required this.settings, required this.width, required this.height, this.view, this.frameIndex = 0, this.time = 0.0, this.origin = WorldPosition.origin, List<FrameView>? views, this.viewIndex = 0})
   FrameView? get frameView
   ResourceId perView(ResourceId id)
+  double get nitsPerHdrUnit
   final GraphicsDevice device
   final RenderServices services
   final RenderSettings settings
@@ -1887,14 +1886,16 @@ final class FullscreenDraw
   final TextureHandle target
 
 final class FullscreenEffect extends RenderNode
-  FullscreenEffect.overlay({required this.name, required this.shader, this.enabled = true, this.textures = const <String, TextureHandle>{}, this.uniforms = const <String, Map<String, Float32List>>{}, this.sourceSlot = 'scene_texture', this.sampler = SamplerDescriptor.linearClamp, this.readsSurface = false})
-  FullscreenEffect.present({required this.name, required this.shader, this.enabled = true, this.textures = const <String, TextureHandle>{}, this.uniforms = const <String, Map<String, Float32List>>{}, this.sourceSlot = 'scene_texture', this.sampler = SamplerDescriptor.linearClamp, this.readsSurface = false})
+  FullscreenEffect.overlay({required this.name, required this.shader, this.enabled = true, this.textures = const <String, TextureHandle>{}, this.uniforms = const <String, Map<String, Float32List>>{}, this.sourceSlot = 'scene_texture', this.sampler = SamplerDescriptor.linearClamp, this.readsSurface = false, this.parameters})
+  FullscreenEffect.present({required this.name, required this.shader, this.enabled = true, this.textures = const <String, TextureHandle>{}, this.uniforms = const <String, Map<String, Float32List>>{}, this.sourceSlot = 'scene_texture', this.sampler = SamplerDescriptor.linearClamp, this.readsSurface = false, this.parameters})
   List<ResourceId> get reads
   List<ResourceId> get writes
   Map<String, Map<String, Float32List>> uniforms
   Map<String, TextureHandle> textures
   bool enabled
   bool get isActive
+  factory FullscreenEffect.material(BundledMaterials materials, String stage, {required String name, required ShaderHandle shader, bool present = false, bool enabled = true, Map<String, TextureHandle> textures = const <String, TextureHandle>{}, MaterialParameters? parameters, SamplerDescriptor sampler = SamplerDescriptor.linearClamp})
+  final MaterialParameters? parameters
   final RenderAnchor defaultAnchor
   final SamplerDescriptor sampler
   final ShaderHandle shader
@@ -2328,6 +2329,7 @@ final class LightTypes extends PluginRegistry
   List<LightTypeHook> get hooks
   Registration register(LightTypeHook hook)
   int codeOf(LightType type)
+  int? codeNamed(String name)
   static const int firstPluginCode = 16
 
 final class LightingModel
@@ -2336,7 +2338,8 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}, this.lightTypeMembers = const <String, String>{}})
+  final Map<String, String> lightTypeMembers
   final MaterialSlotTable slots
   final Set<VertexStageVariant> vertexVariants
   final String label
@@ -2498,13 +2501,16 @@ final class MaterialAlphaMode
   static const MaterialAlphaMode opaque = MaterialAlphaMode._('opaque')
 
 final class MaterialBindings
-  LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
+  LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true, Set<VertexStageVariant>? vertexVariants})
   bool get usesMaterialParameters
-  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none})
+  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none, this.textureBindings = const <String>[], this.vertexVariants = const <VertexStageVariant>{}, this.lightTypes = const <String, String>{}})
+  final List<String> textureBindings
   final Map<String, List<double>> uniforms
+  final Map<String, String> lightTypes
   final MaterialFileState state
   final MaterialSlotTable slots
   final MaterialStageKind kind
+  final Set<VertexStageVariant> vertexVariants
   final String name
   final String? vertexShaderName
   final bool readsSurfaceBuffer
@@ -2649,10 +2655,11 @@ abstract final class MaterialHintKind
   const MaterialHintKind()
 
 final class MaterialInput
-  const MaterialInput(this.name, this.type, this.glsl)
+  const MaterialInput(this.name, this.type, this.glsl, {required this.since})
   final ExpressionType type
   final String glsl
   final String name
+  final int since
 
 final class MaterialInputRef extends ExpressionVariable
   MaterialInputRef(this.input)
@@ -2701,39 +2708,15 @@ final class MaterialParameter
   final String name
   final bool uniform
 
-final class MaterialParameterException extends Flutter3dFormatException
-  String toString()
-  const MaterialParameterException(this.message)
-  final String message
-
-final class MaterialParameterSchema
-  Iterable<ParameterDeclaration> get declarations
-  Iterable<String> get names
-  MaterialParameterSchema(Iterable<ParameterDeclaration> declarations)
-  ParameterDeclaration? operator [](String name)
-  factory MaterialParameterSchema.fromProgram(MaterialProgram program)
-
-final class MaterialParameters
-  Float32List? named(String name)
-  Map<String, Float32List> get uniforms
-  MaterialParameters({this.schema})
-  MaterialParameters.over(Map<String, Float32List> values, {this.schema})
-  String toString()
-  T? valueOf<T extends Object>(ParameterKey<T> key)
-  bool get isEmpty
-  final MaterialParameterSchema? schema
-  int get version
-  void remove(String name)
-  void set<T extends Object>(ParameterKey<T> key, T value)
-  void setNamed(String name, Object value)
-
 final class MaterialProgram
   Map<String, List<double>> lift(Map<String, List<double>> values, {required int from})
   MaterialParameter? parameter(String name)
+  MaterialParameterSchema get schema
   String? get vertexStageName
   bool get isLit
+  bool get readsLightRow
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[]})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
   final (int, int) workgroupSize
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
@@ -2743,6 +2726,7 @@ final class MaterialProgram
   final List<MaterialStatement>? vertex
   final List<MaterialTextureSlot> textures
   final List<MaterialUpdate> updates
+  final Map<String, String> lightTypes
   final MaterialFileState state
   final MaterialStageKind kind
   final Set<String> inputsUsed
@@ -3539,38 +3523,6 @@ final class PanoramaFormatException extends Flutter3dFormatException
   const PanoramaFormatException(this.message)
   final String message
 
-final class ParameterDeclaration
-  String toString()
-  const ParameterDeclaration(this.name, {required this.components, required this.defaultValue, this.isUniform = true, this.unit})
-  final List<double> defaultValue
-  final String name
-  final Unit? unit
-  final bool isUniform
-  final int components
-
-final class ParameterKey<T extends Object>
-  String toString()
-  bool operator ==(Object other)
-  const ParameterKey(this.name, this.type, {this.unit})
-  final ParameterType<T> type
-  final String name
-  final Unit? unit
-  int get hashCode
-
-abstract base class ParameterType<T extends Object>
-  String toString()
-  abstract T read(Float32List floats)
-  abstract void write(T value, Float32List out)
-  const ParameterType(this.name, this.components)
-  final String name
-  final int components
-  static const ParameterType<LinearColor> color = _ColorType()
-  static const ParameterType<LinearColor> colorWithAlpha = _ColorAlphaType()
-  static const ParameterType<Vector2> vec2 = _Vector2Type()
-  static const ParameterType<Vector3> vec3 = _Vector3Type()
-  static const ParameterType<Vector4> vec4 = _Vector4Type()
-  static const ParameterType<double> float = _FloatType()
-
 final class ParameterWrite
   String toString()
   bool get wasWritten
@@ -4072,7 +4024,7 @@ final class RenderMaterial
   MaterialBlendMode blendMode
   MaterialExtensions? extensions
   RenderMaterial copy()
-  RenderMaterial({this.name, this.lighting = LightingModel.pbr, LinearColor baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.albedo, this.albedoSampler, this.normal, this.normalSampler, this.normalScale = 1.0, this.metallicRoughness, this.metallicRoughnessSampler, this.occlusion, this.occlusionSampler, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissiveSampler, this.emissive = LinearColor.black, this.emissiveStrength = defaultEmissiveStrength, this.alphaMode = MaterialAlphaMode.opaque, this.alphaCutoff = 0.5, this.alphaToCoverage = false, this.doubleSided = false, this.fogged = true, this.extensions, this.coatMap, this.coatMapSampler, this.sheenMap, this.sheenMapSampler, Map<MaterialMap, TextureTransform>? textureTransforms, this.drawBucket = 0, this.depthWrite, this.depthCompare, this.parameterBlock = 'MaterialParams', Map<String, Float32List>? parameters, Map<String, TextureHandle>? extraTextures, this.blendMode = MaterialBlendMode.alpha, this.depthLayer = 0, this.effectsDepth = false, this.physicalMaterial})
+  RenderMaterial({this.name, this.lighting = LightingModel.pbr, LinearColor baseColor = LinearColor.white, this.metallic = 0.0, this.roughness = 0.5, this.albedo, this.albedoSampler, this.normal, this.normalSampler, this.normalScale = 1.0, this.metallicRoughness, this.metallicRoughnessSampler, this.occlusion, this.occlusionSampler, this.occlusionStrength = 1.0, this.emissiveTexture, this.emissiveSampler, this.emissive = LinearColor.black, this.emissiveStrength = defaultEmissiveStrength, this.alphaMode = MaterialAlphaMode.opaque, this.alphaCutoff = 0.5, this.alphaToCoverage = false, this.doubleSided = false, this.fogged = true, this.extensions, this.coatMap, this.coatMapSampler, this.sheenMap, this.sheenMapSampler, Map<MaterialMap, TextureTransform>? textureTransforms, this.drawBucket = 0, this.depthWrite, this.depthCompare, this.parameterBlock = 'MaterialParams', MaterialParameters? parameters, Map<String, TextureHandle>? extraTextures, this.blendMode = MaterialBlendMode.alpha, this.depthLayer = 0, this.effectsDepth = false, this.physicalMaterial})
   SamplerDescriptor? albedoSampler
   SamplerDescriptor? coatMapSampler
   SamplerDescriptor? emissiveSampler
@@ -4105,8 +4057,8 @@ final class RenderMaterial
   factory RenderMaterial.impostor({String? name, required TextureHandle albedo, required TextureHandle normalDepth})
   factory RenderMaterial.polyline({String? name, required double viewportWidth, required double viewportHeight})
   final Map<MaterialMap, TextureTransform> textureTransforms
-  final Map<String, Float32List> parameters
   final Map<String, TextureHandle> extraTextures
+  final MaterialParameters parameters
   final String parameterBlock
   final String? name
   int depthLayer
@@ -5670,7 +5622,9 @@ String deviceClassPath(String path, DeviceClass deviceClass)
 
 String emitMaterialFragment(MaterialProgram program)
 
-String emitMaterialVertex(MaterialProgram program, {bool skinned = false})
+String emitMaterialVertex(MaterialProgram program, {bool skinned = false, bool instanced = false, bool lightmapped = false})
+
+Map<String, String> emitMaterialVertexStages(MaterialProgram program)
 
 Uint8List encodeAstc4x4(Rgba8Image image)
 
@@ -5782,6 +5736,8 @@ bool isBasisUniversalKtx2(Uint8List bytes)
 
 bool isBinaryStl(Uint8List bytes)
 
+bool isEngineBlockName(String name)
+
 bool isF3dFile(Uint8List bytes)
 
 bool isFmat(Uint8List bytes)
@@ -5820,11 +5776,13 @@ bool looksLikeAsciiStl(Uint8List bytes)
 
 bool looksLikeSpz(Uint8List bytes)
 
-const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap')]
+const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap', since: 2)]
+
+const Map<String, int> materialBuiltinVersions = …
 
 const List<ExpressionBuiltin> materialBuiltins = …
 
-const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct'), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect')]
+const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct', since: 2), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect', since: 2)]
 
 const List<MaterialInput> materialComputeInputs = …
 
@@ -5838,7 +5796,7 @@ MaterialExtensions? materialExtensionsFromJson(Map<String, Object?> extensions, 
 
 Map<String, Object?> materialExtensionsToJson(MaterialExtensions e, {required Object? Function(TextureBinding binding) texture})
 
-const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', ExpressionType.vec2, 'v_uv'), MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth')]
+const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', ExpressionType.vec2, 'v_uv', since: 2), MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth', since: 2)]
 
 const List<MaterialInput> materialInputs = …
 
@@ -5848,17 +5806,25 @@ const int materialLanguageStagesVersion = 2
 
 const int materialLanguageUpdatesVersion = 3
 
+const int materialLanguageVariantsVersion = 3
+
 const int materialLanguageVersion = 3
 
 const List<MaterialInput> materialLightInputs = …
 
-const MaterialInput materialLitInput = MaterialInput('lit', ExpressionType.vec3, 'lit')
+MaterialInput materialLightTypeInput(String name)
+
+String materialLightTypeMember(String name)
+
+const MaterialInput materialLitInput = MaterialInput('lit', ExpressionType.vec3, 'lit', since: 1)
 
 const String materialNothingBehind = '1000000.0'
 
 const String materialOwnTexturePrefix = 'material_'
 
 const String materialParametersBlock = 'MaterialParams'
+
+const Set<String> materialReservedBlockNames = …
 
 const List<MaterialInput> materialSceneInputs = …
 
@@ -5869,6 +5835,10 @@ const List<String> materialTextureBindings = <String>['base_color_texture', 'nor
 const List<MaterialInput> materialVertexInputs = …
 
 const List<MaterialInput> materialVertexOutputs = …
+
+Map<VertexStageVariant, String> materialVertexVariantStages(MaterialProgram program)
+
+Set<VertexStageVariant> materialVertexVariants(MaterialProgram program)
 
 const int maxPayload = payloadMask
 
@@ -6237,8 +6207,9 @@ typedef AssetUriResolver = Future<Uint8List> Function(AssetRequest request);
 
 final class BundledMaterials
   LightingModel operator [](String name)
-  Map<String, Float32List> parameters(String name)
   MaterialFileState state(String name)
+  MaterialParameterSchema schema(String name)
+  MaterialParameters parameters(String name)
   factory BundledMaterials.read(ByteData bytes)
   final Map<String, LightingModel> lighting
   final Map<String, MaterialBindings> stages
@@ -6732,7 +6703,8 @@ final class LightingModel
   bool get usesLightList
   bool get usesPointShadow
   bool get usesShadowMap
-  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}})
+  const LightingModel(this.label, this.shaderName, {this.vertexShaderName, this.usesFragInfo = true, this.usesAlbedoTexture = true, this.usesMaterialMaps = true, this.usesMetallicRoughnessMap = true, this.usesMaterialParameters = true, this.usesMetallic = false, this.usesEnvironment = false, this._usesLightList, this._usesFogInfo, this.vertexStageMorphs = true, this.usesSceneDepth = false, this.vertexStageInDepthPasses = false, this.slots = MaterialSlotTable.none, this.vertexVariants = const <VertexStageVariant>{}, this.lightTypeMembers = const <String, String>{}})
+  final Map<String, String> lightTypeMembers
   final MaterialSlotTable slots
   final Set<VertexStageVariant> vertexVariants
   final String label
@@ -6772,13 +6744,16 @@ final class LightingModels extends PluginRegistry
   static final LightingModels shipped
 
 final class MaterialBindings
-  LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true})
+  LightingModel lightingModel({required String label, required String shaderName, String? vertexShaderName, bool vertexStageMorphs = true, Set<VertexStageVariant>? vertexVariants})
   bool get usesMaterialParameters
-  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none})
+  const MaterialBindings({required this.name, required this.usesAlbedoTexture, required this.usesMaterialMaps, required this.usesMetallicRoughnessMap, required this.usesMetallic, this.usesLightList = false, this.uniforms = const <String, List<double>>{}, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.usesSceneDepth = false, this.readsSurfaceBuffer = false, this.vertexShaderName, this.slots = MaterialSlotTable.none, this.textureBindings = const <String>[], this.vertexVariants = const <VertexStageVariant>{}, this.lightTypes = const <String, String>{}})
+  final List<String> textureBindings
   final Map<String, List<double>> uniforms
+  final Map<String, String> lightTypes
   final MaterialFileState state
   final MaterialSlotTable slots
   final MaterialStageKind kind
+  final Set<VertexStageVariant> vertexVariants
   final String name
   final String? vertexShaderName
   final bool readsSurfaceBuffer
@@ -6915,10 +6890,11 @@ abstract final class MaterialHintKind
   const MaterialHintKind()
 
 final class MaterialInput
-  const MaterialInput(this.name, this.type, this.glsl)
+  const MaterialInput(this.name, this.type, this.glsl, {required this.since})
   final ExpressionType type
   final String glsl
   final String name
+  final int since
 
 final class MaterialInputRef extends ExpressionVariable
   MaterialInputRef(this.input)
@@ -6970,10 +6946,12 @@ final class MaterialParameter
 final class MaterialProgram
   Map<String, List<double>> lift(Map<String, List<double>> values, {required int from})
   MaterialParameter? parameter(String name)
+  MaterialParameterSchema get schema
   String? get vertexStageName
   bool get isLit
+  bool get readsLightRow
   bool get readsSceneDepth
-  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[]})
+  const MaterialProgram({required this.name, required this.parameters, required this.textures, required this.body, required this.inputsUsed, this.light, this.languageVersion = materialLanguageFirstVersion, this.kind = MaterialStageKind.surface, this.state = MaterialFileState.none, this.vertex, this.ambient, this.composite, this.workgroupSize = (8, 8), this.version = firstMaterialVersion, this.updates = const <MaterialUpdate>[], this.lightTypes = const <String, String>{}})
   final (int, int) workgroupSize
   final List<MaterialParameter> parameters
   final List<MaterialStatement> body
@@ -6983,6 +6961,7 @@ final class MaterialProgram
   final List<MaterialStatement>? vertex
   final List<MaterialTextureSlot> textures
   final List<MaterialUpdate> updates
+  final Map<String, String> lightTypes
   final MaterialFileState state
   final MaterialStageKind kind
   final Set<String> inputsUsed
@@ -7742,7 +7721,9 @@ MaterialBindings describeMaterial(MaterialProgram program)
 
 String emitMaterialFragment(MaterialProgram program)
 
-String emitMaterialVertex(MaterialProgram program, {bool skinned = false})
+String emitMaterialVertex(MaterialProgram program, {bool skinned = false, bool instanced = false, bool lightmapped = false})
+
+Map<String, String> emitMaterialVertexStages(MaterialProgram program)
 
 Uint8List encodeAstc4x4(Rgba8Image image)
 
@@ -7820,6 +7801,8 @@ bool isBasisUniversalKtx2(Uint8List bytes)
 
 bool isBinaryStl(Uint8List bytes)
 
+bool isEngineBlockName(String name)
+
 bool isF3dFile(Uint8List bytes)
 
 bool isFmat(Uint8List bytes)
@@ -7850,11 +7833,13 @@ bool looksLikeAsciiStl(Uint8List bytes)
 
 bool looksLikeSpz(Uint8List bytes)
 
-const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap')]
+const List<MaterialInput> materialAmbientInputs = <MaterialInput>[MaterialInput('lightmap', ExpressionType.vec3, 'f3d_lightmap', since: 2)]
+
+const Map<String, int> materialBuiltinVersions = …
 
 const List<ExpressionBuiltin> materialBuiltins = …
 
-const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct'), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect')]
+const List<MaterialInput> materialCompositeInputs = <MaterialInput>[MaterialInput('direct', ExpressionType.vec3, 'f3d_direct', since: 2), MaterialInput('indirect', ExpressionType.vec3, 'f3d_indirect', since: 2)]
 
 const List<MaterialInput> materialComputeInputs = …
 
@@ -7868,7 +7853,7 @@ MaterialExtensions? materialExtensionsFromJson(Map<String, Object?> extensions, 
 
 Map<String, Object?> materialExtensionsToJson(MaterialExtensions e, {required Object? Function(TextureBinding binding) texture})
 
-const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', ExpressionType.vec2, 'v_uv'), MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth')]
+const List<MaterialInput> materialFullscreenInputs = <MaterialInput>[MaterialInput('uv', ExpressionType.vec2, 'v_uv', since: 2), MaterialInput('sceneDepth', ExpressionType.float, 'f3d_scene_depth', since: 2)]
 
 const List<MaterialInput> materialInputs = …
 
@@ -7878,17 +7863,25 @@ const int materialLanguageStagesVersion = 2
 
 const int materialLanguageUpdatesVersion = 3
 
+const int materialLanguageVariantsVersion = 3
+
 const int materialLanguageVersion = 3
 
 const List<MaterialInput> materialLightInputs = …
 
-const MaterialInput materialLitInput = MaterialInput('lit', ExpressionType.vec3, 'lit')
+MaterialInput materialLightTypeInput(String name)
+
+String materialLightTypeMember(String name)
+
+const MaterialInput materialLitInput = MaterialInput('lit', ExpressionType.vec3, 'lit', since: 1)
 
 const String materialNothingBehind = '1000000.0'
 
 const String materialOwnTexturePrefix = 'material_'
 
 const String materialParametersBlock = 'MaterialParams'
+
+const Set<String> materialReservedBlockNames = …
 
 const List<MaterialInput> materialSceneInputs = …
 
@@ -7899,6 +7892,10 @@ const List<String> materialTextureBindings = <String>['base_color_texture', 'nor
 const List<MaterialInput> materialVertexInputs = …
 
 const List<MaterialInput> materialVertexOutputs = …
+
+Map<VertexStageVariant, String> materialVertexVariantStages(MaterialProgram program)
+
+Set<VertexStageVariant> materialVertexVariants(MaterialProgram program)
 
 SplatCloud mergeSplats(List<SplatCloud> parts, {required Vector3 center, required double half, required int grid})
 

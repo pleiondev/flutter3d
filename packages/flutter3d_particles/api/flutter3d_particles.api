@@ -182,7 +182,7 @@ final class Particle
   final Vector3 position
   final Vector3 velocity
   final Vector3 wind
-  final Vector4 color
+  final Vector4 linearRgba
 
 abstract base class ParticleAffector
   abstract void apply(ParticleStep step)

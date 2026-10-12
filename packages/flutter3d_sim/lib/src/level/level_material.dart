@@ -66,7 +66,7 @@ final class LevelMaterial {
   /// colours too, and how bright it shines is [emissiveStrength].
   final LinearColor? emissive;
 
-  /// How brightly the surface glows: a plain multiple of
+  /// How brightly the surface glows, a ratio: a plain multiple of
   /// `RenderMaterial.defaultEmissiveStrength`, as a level has always stored
   /// it. Zero is not lit. The document's `emissive` key, unchanged, so a
   /// level reads and writes the number it did.

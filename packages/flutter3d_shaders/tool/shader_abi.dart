@@ -42,8 +42,13 @@ String shaderAbiSnapshot(String packageRoot) {
     for (final MapEntry(key: stage, value: blocks) in uniformBlocks.entries)
       for (final MapEntry(key: block, value: members) in blocks.entries)
         for (final MapEntry(key: member, value: layout) in members.entries)
-          'stage $stage block $block member $member ${layout.offset} '
-              '${layout.byteLength} ${layout.elements} ${layout.type}',
+          <Object>[
+            'stage $stage block $block member $member',
+            layout.offset,
+            layout.byteLength,
+            layout.elements,
+            layout.type,
+          ].join(' '),
     ..._vertexInputs(packageRoot),
   ]..sort();
   return '$shaderAbiHeader\n${lines.join('\n')}\n';

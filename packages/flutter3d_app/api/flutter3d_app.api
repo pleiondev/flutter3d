@@ -321,13 +321,13 @@ final class LoopSettings
 
 final class Material3D extends StatefulWidget
   State<Material3D> createState()
-  const Material3D({super.key, this.lighting = LightingModel.pbr, this.baseColor, this.metallic, this.roughness, this.emissive, this.emissiveStrength, this.albedo, this.normal, this.metallicRoughness, this.occlusion, this.emissiveTexture, this.alphaMode, this.alphaCutoff, this.doubleSided, this.parameters = const <String, List<double>>{}, this.name, this.onCreated, this.children = const <Widget>[]})
+  const Material3D({super.key, this.lighting = LightingModel.pbr, this.baseColor, this.metallic, this.roughness, this.emissive, this.emissiveStrength, this.albedo, this.normal, this.metallicRoughness, this.occlusion, this.emissiveTexture, this.alphaMode, this.alphaCutoff, this.doubleSided, this.parameters, this.name, this.onCreated, this.children = const <Widget>[]})
   final LightingModel lighting
   final LinearColor? baseColor
   final LinearColor? emissive
   final List<Widget> children
-  final Map<String, List<double>> parameters
   final MaterialAlphaMode? alphaMode
+  final MaterialParameters? parameters
   final String? name
   final TextureHandle? albedo
   final TextureHandle? emissiveTexture
@@ -354,8 +354,10 @@ final class MaterialProgramStage extends CpuFragmentShader
 final class MaterialVertexStage extends CpuVertexShaderByIndex
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out)
   Vector4 runAt(int vertexIndex, int instanceIndex, Float32List a, ShaderBindings bindings, Float32List out)
-  const MaterialVertexStage(this.program, {this.skinned = false})
+  const MaterialVertexStage(this.program, {this.skinned = false, this.instanced = false, this.lightmapped = false})
   final MaterialProgram program
+  final bool instanced
+  final bool lightmapped
   final bool skinned
   int get varyingCount
 
