@@ -54,9 +54,19 @@ function scalar(text) {
   return t.replace(/\s+#.*$/, '');
 }
 
+// A folded or literal block (`description: >-` and the indented lines under
+// it) is read as its lines joined by spaces, which is what pub.dev shows for
+// a folded one. Before this the catalogue printed `>-` as the description.
 function topLevel(pubspec, key) {
-  const m = pubspec.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'));
-  return m ? scalar(m[1]) : undefined;
+  const m = pubspec.match(new RegExp(`^${key}:[ \\t]*(.*)$`, 'm'));
+  if (!m) return undefined;
+  if (!/^[>|][-+]?$/.test(m[1].trim())) return scalar(m[1]);
+  const rest = pubspec.slice(m.index + m[0].length + 1).split('\n');
+  const end = rest.findIndex((l) => /^\S/.test(l));
+  return (end < 0 ? rest : rest.slice(0, end))
+    .map((l) => l.trim())
+    .filter((l) => l !== '')
+    .join(' ');
 }
 
 function flutter3dBlock(pubspec) {

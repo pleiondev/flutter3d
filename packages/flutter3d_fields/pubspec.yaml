@@ -2,7 +2,7 @@ name: flutter3d_fields
 description: >-
   The contract for a 3D grid of quantities that the simulation, the renderer
   and audio share, and for a solver that declares what it reads and writes.
-  Plain Dart over the plugin contract.
+  Plain Dart.
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

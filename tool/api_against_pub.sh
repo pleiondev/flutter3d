@@ -31,6 +31,16 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
+# `dart pub global activate` puts the tool in pub's cache and leaves the PATH
+# to the shell's profile, which a fresh terminal or a CI step may not read. On
+# 2026-10-12 it was installed (0.23.2) and this script still said it was not,
+# because `~/.pub-cache/bin` was not on the PATH. Looking there as well keeps
+# "skipped" for a machine that really has no tool.
+PUB_BIN="${PUB_CACHE:-$HOME/.pub-cache}/bin"
+if ! command -v dart-apitool >/dev/null 2>&1 && [ -x "$PUB_BIN/dart-apitool" ]; then
+  PATH="$PUB_BIN:$PATH"
+fi
+
 if ! command -v dart-apitool >/dev/null 2>&1; then
   echo "api against pub.dev: skipped, dart-apitool is not installed."
   echo "  Install it with \`dart pub global activate dart_apitool\` to compare"

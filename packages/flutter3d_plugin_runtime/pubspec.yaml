@@ -1,5 +1,5 @@
 name: flutter3d_plugin_runtime
-description: "Plugins loaded while a game runs: data plugins read from a .f3dplugin document, each section by the subsystem that owns it, and sandboxed Wasm modules stepped by a deterministic interpreter, each held to the permissions its manifest declares and the application grants."
+description: "Plugins loaded while a game runs: data plugins read from a .f3dplugin document, and sandboxed Wasm modules on a deterministic interpreter, held to the permissions granted."
 version: 1.0.0-rc.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
