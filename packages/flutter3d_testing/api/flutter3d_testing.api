@@ -38,7 +38,11 @@ final class PacingReport
   final int worstFrame
   int get frames
 
-typedef QualityMeasurement = ({QualitySetting setting, double cost, double flip});
+final class QualityMeasurement
+  const QualityMeasurement({required this.setting, required this.cost, required this.flip})
+  final QualitySetting setting
+  final double cost
+  final double flip
 
 typedef QualityScene = ({Scene scene, RenderView view, RenderSettings settings}) Function(GraphicsDevice device);
 

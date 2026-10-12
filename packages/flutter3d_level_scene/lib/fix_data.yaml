@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b153394c0b5d9a36
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -39,7 +39,7 @@ transforms:
   - title: 'flutter3d 1.0.0-rc.1: editor_core-LevelBatching (LevelBatching)'
     date: 2026-10-08
     element:
-      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      uris: ['package:flutter3d_editor_core/flutter3d_editor_core.dart']
       class: 'LevelBatching'
     changes:
       - kind: 'replacedBy'
@@ -56,16 +56,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
           function: 'meshDataOf'
-  - title: 'flutter3d 1.0.0-rc.1: app-package-flutter3d_editor_core-flutter3d_editor_core-dart (LevelBatching)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d_app/flutter3d_app.dart']
-      class: 'LevelBatching'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_level_scene/flutter3d_level_scene.dart']
-          class: 'LevelBatching'
   - title: 'flutter3d 1.0.0-rc.1: app-package-flutter3d_editor_core-flutter3d_editor_core-dart (meshDataOf)'
     date: 2026-10-08
     element:

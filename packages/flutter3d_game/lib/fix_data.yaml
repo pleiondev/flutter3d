@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b153394c0b5d9a36
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -153,3 +153,22 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'GameSettings'
+  - title: 'flutter3d 1.0.0-rc.1: game-ActorVisuals-sync-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_game/flutter3d_game.dart']
+      method: 'sync'
+      inClass: 'ActorVisuals'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'alpha'
+        style: optional_named
+        argumentValue:
+          expression: '{% alpha %}'
+          variables:
+            alpha:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0

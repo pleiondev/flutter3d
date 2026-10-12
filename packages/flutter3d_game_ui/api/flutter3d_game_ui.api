@@ -68,7 +68,7 @@ final class ReelShot
   final String name
   int get frames
 
-class ShareStrip extends StatefulWidget
+final class ShareStrip extends StatefulWidget
   State<ShareStrip> createState()
   const ShareStrip({super.key, this.onShare, required this.onOpen, this.shareLabel, this.codeHint, this.openLabel})
   final Future<String> Function()? onShare
@@ -89,7 +89,7 @@ final class AccessibilitySection extends SettingsSection
   Widget build(SettingsSectionContext section)
   const AccessibilitySection()
 
-class ActionBindingsSection extends StatelessWidget
+final class ActionBindingsSection extends StatelessWidget
   Widget build(BuildContext context)
   const ActionBindingsSection({super.key, required this.map, required this.waitingFor, required this.onRebind, required this.onReset, this.waitingPart, this.conflicts = const <BindingConflict>[], this.onTuning, this.actionLabel})
   final ActionMap map
@@ -115,7 +115,7 @@ final class ActionPhotoControls extends PhotoControls
 
 typedef Announce = void Function(String sentence);
 
-class AutomapPainter extends CustomPainter
+final class AutomapPainter extends CustomPainter
   bool shouldRepaint(AutomapPainter old)
   const AutomapPainter({required this.automap, required this.position, required this.yaw, required this.metersAcross, required this.floor, required this.wall, required this.player, required this.backdrop})
   double scaleFor(Size size)
@@ -129,7 +129,7 @@ class AutomapPainter extends CustomPainter
   final double yaw
   void paint(Canvas canvas, Size size)
 
-class AutomapView extends StatelessWidget
+final class AutomapView extends StatelessWidget
   Widget build(BuildContext context)
   const AutomapView({super.key, required this.automap, required this.position, required this.yaw, this.metersAcross = 40.0, this.floor, this.wall, this.player, this.backdrop})
   final Automap automap
@@ -191,7 +191,7 @@ final class CreditLedger
   const CreditLedger(this.models)
   final List<Credit> models
 
-class CreditsSection extends StatelessWidget
+final class CreditsSection extends StatelessWidget
   Widget build(BuildContext context)
   const CreditsSection({super.key, required this.credits, this.heading, this.footnote})
   final List<Credit> credits
@@ -206,7 +206,7 @@ final class CutsceneOverlay extends StatefulWidget
   final VoidCallback onSkip
   final double fade
 
-class EndingSheet extends StatelessWidget
+final class EndingSheet extends StatelessWidget
   Widget build(BuildContext context)
   const EndingSheet({super.key, required this.title, required this.tallies, required this.credits, required this.again, this.creditsHeading, this.creditsFootnote, this.titleColor, this.backdrop = 0.86, this.valueStyle = defaultValueStyle, this.aside, this.trailing = const <Widget>[]})
   final Color? titleColor
@@ -357,14 +357,14 @@ final class GamepadSection extends SettingsSection
   final bool isConnected
   static const double maxDeadZone = 0.4
 
-class HudBanner extends StatelessWidget
+final class HudBanner extends StatelessWidget
   Widget build(BuildContext context)
   const HudBanner(this.text, {super.key, this.color, this.fontSize = 18})
   final Color? color
   final String text
   final double fontSize
 
-class HudLine extends StatelessWidget
+final class HudLine extends StatelessWidget
   Widget build(BuildContext context)
   const HudLine({super.key, required this.label, required this.value, this.accent = false, this.accentColor})
   final Color? accentColor
@@ -372,12 +372,12 @@ class HudLine extends StatelessWidget
   final String value
   final bool accent
 
-class HudPanel extends StatelessWidget
+final class HudPanel extends StatelessWidget
   Widget build(BuildContext context)
   const HudPanel({super.key, required this.children})
   final List<Widget> children
 
-class HudTally extends StatelessWidget
+final class HudTally extends StatelessWidget
   Widget build(BuildContext context)
   const HudTally({super.key, required this.label, required this.value, this.style = const HudTallyStyle()})
   final HudTallyStyle style
@@ -421,7 +421,7 @@ final class LicenseRecord
   final List<LicenseEntry> entries
   final String text
 
-class MiniMap extends StatelessWidget
+final class MiniMap extends StatelessWidget
   Widget build(BuildContext context)
   const MiniMap({super.key, required this.outline, required this.markers, this.size = 150, this.playerColor, this.othersColor})
   final Color? othersColor
@@ -430,7 +430,7 @@ class MiniMap extends StatelessWidget
   final List<Vector2> outline
   final double size
 
-class MiniMapPainter extends CustomPainter
+final class MiniMapPainter extends CustomPainter
   Offset? place(Vector2 point, Size size)
   bool shouldRepaint(MiniMapPainter old)
   const MiniMapPainter({required this.outline, required this.markers, this.playerColor, this.othersColor, this.trackColor})
@@ -458,7 +458,7 @@ final class MouseSection extends SettingsSection
   Widget build(SettingsSectionContext section)
   const MouseSection()
 
-class PhotoBar extends StatelessWidget
+final class PhotoBar extends StatelessWidget
   Widget build(BuildContext context)
   const PhotoBar({required this.mode, super.key})
   final PhotoMode mode
@@ -497,7 +497,7 @@ final class PhotoSteerContext
   Vector2? look
   double dt
 
-class PrivacySection extends StatefulWidget
+final class PrivacySection extends StatefulWidget
   State<PrivacySection> createState()
   const PrivacySection({super.key, required this.consents, this.onChanged})
   final Consents consents
@@ -544,7 +544,7 @@ final class RolesApart
   final double within
   static ColorVisionDeficiency? deficiencyOf(GameSettings config)
 
-class SettingsOverlay extends StatelessWidget
+final class SettingsOverlay extends StatelessWidget
   Widget build(BuildContext context)
   const SettingsOverlay({super.key, required this.settings, required this.sections, required this.opening, this.canOpen = true})
   final GameSettingsController settings
@@ -552,7 +552,7 @@ class SettingsOverlay extends StatelessWidget
   final bool canOpen
   final void Function() opening
 
-class SettingsPanel extends StatelessWidget
+final class SettingsPanel extends StatelessWidget
   Widget build(BuildContext context)
   const SettingsPanel({super.key, required this.settings, required this.sections})
   final GameSettingsController settings
@@ -569,7 +569,7 @@ final class SettingsSectionContext
   final GameSettingsController settings
   final SettingsState state
 
-class ShareStrip extends StatefulWidget
+final class ShareStrip extends StatefulWidget
   State<ShareStrip> createState()
   const ShareStrip({super.key, this.onShare, required this.onOpen, this.shareLabel, this.codeHint, this.openLabel})
   final Future<String> Function()? onShare
@@ -578,7 +578,7 @@ class ShareStrip extends StatefulWidget
   final String? openLabel
   final String? shareLabel
 
-class Speedometer extends StatelessWidget
+final class Speedometer extends StatelessWidget
   Widget build(BuildContext context)
   const Speedometer({super.key, required this.metersPerSecond})
   final double metersPerSecond
@@ -597,7 +597,7 @@ final class SpokenEvents extends Flutter3dPlugin
   void install(PluginHost host)
   void uninstall(PluginHost host)
 
-class SteeringBand extends StatefulWidget
+final class SteeringBand extends StatefulWidget
   State<SteeringBand> createState()
   const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis, this.label})
   final AxisAction? axis
@@ -614,7 +614,7 @@ final class StereoHudPanel<T extends Object> extends StatelessWidget
   final ValueListenable<T?> reading
   final Widget Function(BuildContext context, T reading) builder
 
-class TallyView extends StatelessWidget
+final class TallyView extends StatelessWidget
   Widget build(BuildContext context)
   const TallyView({super.key, required this.tally, this.valueStyle = EndingSheet.defaultValueStyle})
   final EndingTally tally
@@ -626,7 +626,7 @@ final class TapToRestart extends StatelessWidget
   final String? label
   final VoidCallback onRestart
 
-class TitleSheet extends StatelessWidget
+final class TitleSheet extends StatelessWidget
   Widget build(BuildContext context)
   const TitleSheet({super.key, required this.title, required this.tagline, required this.lines, required this.credits, required this.prompt, this.notice, this.onBegin, this.creditsFootnote})
   final List<Credit> credits
@@ -644,7 +644,7 @@ final class TouchAction
   final GameAction action
   final String label
 
-class TouchButton extends StatefulWidget
+final class TouchButton extends StatefulWidget
   State<TouchButton> createState()
   const TouchButton({super.key, required this.state, required this.action, required this.label, this.radius = 34.0})
   const TouchButton.pedal({super.key, required this.state, required this.action, required this.label, double width = 84.0, double height = 108.0})
@@ -654,7 +654,7 @@ class TouchButton extends StatefulWidget
   final String label
   final double radius
 
-class TouchControls extends StatelessWidget
+final class TouchControls extends StatelessWidget
   Widget build(BuildContext context)
   const TouchControls({super.key, required this.state, required this.buttons, this.toggles = const <TouchToggle>[], this.slots = const <TouchSlot>[], this.current = -1, this.corner, this.stickRadius = 64.0, this.buttonRadius = 34.0, this.margin = 28.0, this.stickAction = DualAxisAction.move})
   final DualAxisAction stickAction
@@ -668,7 +668,7 @@ class TouchControls extends StatelessWidget
   final double stickRadius
   final int current
 
-class TouchDrive extends StatelessWidget
+final class TouchDrive extends StatelessWidget
   Widget build(BuildContext context)
   const TouchDrive({super.key, required this.state, required this.steerLeft, required this.steerRight, required this.throttle, required this.brake, this.handbrake, this.corner, this.throttleLabel, this.brakeLabel, this.handbrakeLabel, this.steer})
   final AxisAction? steer
@@ -688,7 +688,7 @@ final class TouchSlot
   final String label
   final bool owned
 
-class TouchSlots extends StatelessWidget
+final class TouchSlots extends StatelessWidget
   Widget build(BuildContext context)
   const TouchSlots({super.key, required this.state, required this.slots, required this.current, this.width = 62.0, this.height = 34.0, this.spacing = 8.0})
   final InputState state
@@ -698,7 +698,7 @@ class TouchSlots extends StatelessWidget
   final double width
   final int current
 
-class TouchStick extends StatefulWidget
+final class TouchStick extends StatefulWidget
   State<TouchStick> createState()
   const TouchStick({super.key, required this.state, this.radius = 64.0, this.action = DualAxisAction.move, this.label})
   final DualAxisAction action
@@ -706,7 +706,7 @@ class TouchStick extends StatefulWidget
   final String? label
   final double radius
 
-class TouchToggle extends StatelessWidget
+final class TouchToggle extends StatelessWidget
   Widget build(BuildContext context)
   const TouchToggle({super.key, required this.label, required this.on, required this.onTap, this.radius = 30.0})
   final String label
@@ -768,7 +768,7 @@ Future<String?> syncBeforeBegin(BuildContext context, SaveSync? sync)
 
 library package:flutter3d_game_ui/hud.dart
 
-class AutomapPainter extends CustomPainter
+final class AutomapPainter extends CustomPainter
   bool shouldRepaint(AutomapPainter old)
   const AutomapPainter({required this.automap, required this.position, required this.yaw, required this.metersAcross, required this.floor, required this.wall, required this.player, required this.backdrop})
   double scaleFor(Size size)
@@ -782,7 +782,7 @@ class AutomapPainter extends CustomPainter
   final double yaw
   void paint(Canvas canvas, Size size)
 
-class AutomapView extends StatelessWidget
+final class AutomapView extends StatelessWidget
   Widget build(BuildContext context)
   const AutomapView({super.key, required this.automap, required this.position, required this.yaw, this.metersAcross = 40.0, this.floor, this.wall, this.player, this.backdrop})
   final Automap automap
@@ -794,14 +794,14 @@ class AutomapView extends StatelessWidget
   final double metersAcross
   final double yaw
 
-class HudBanner extends StatelessWidget
+final class HudBanner extends StatelessWidget
   Widget build(BuildContext context)
   const HudBanner(this.text, {super.key, this.color, this.fontSize = 18})
   final Color? color
   final String text
   final double fontSize
 
-class HudLine extends StatelessWidget
+final class HudLine extends StatelessWidget
   Widget build(BuildContext context)
   const HudLine({super.key, required this.label, required this.value, this.accent = false, this.accentColor})
   final Color? accentColor
@@ -809,12 +809,12 @@ class HudLine extends StatelessWidget
   final String value
   final bool accent
 
-class HudPanel extends StatelessWidget
+final class HudPanel extends StatelessWidget
   Widget build(BuildContext context)
   const HudPanel({super.key, required this.children})
   final List<Widget> children
 
-class HudTally extends StatelessWidget
+final class HudTally extends StatelessWidget
   Widget build(BuildContext context)
   const HudTally({super.key, required this.label, required this.value, this.style = const HudTallyStyle()})
   final HudTallyStyle style
@@ -828,7 +828,7 @@ final class HudTallyStyle
   final double labelSize
   final double valueSize
 
-class MiniMap extends StatelessWidget
+final class MiniMap extends StatelessWidget
   Widget build(BuildContext context)
   const MiniMap({super.key, required this.outline, required this.markers, this.size = 150, this.playerColor, this.othersColor})
   final Color? othersColor
@@ -837,7 +837,7 @@ class MiniMap extends StatelessWidget
   final List<Vector2> outline
   final double size
 
-class MiniMapPainter extends CustomPainter
+final class MiniMapPainter extends CustomPainter
   Offset? place(Vector2 point, Size size)
   bool shouldRepaint(MiniMapPainter old)
   const MiniMapPainter({required this.outline, required this.markers, this.playerColor, this.othersColor, this.trackColor})
@@ -861,7 +861,7 @@ final class MomentHints<E>
   final List<MomentHint<E>> hints
   void forget()
 
-class Speedometer extends StatelessWidget
+final class Speedometer extends StatelessWidget
   Widget build(BuildContext context)
   const Speedometer({super.key, required this.metersPerSecond})
   final double metersPerSecond
@@ -898,7 +898,7 @@ final class KeyPhotoControls extends PhotoControls
   final double? turnRate
   void steer(PhotoSteerContext context)
 
-class PhotoBar extends StatelessWidget
+final class PhotoBar extends StatelessWidget
   Widget build(BuildContext context)
   const PhotoBar({required this.mode, super.key})
   final PhotoMode mode
@@ -960,7 +960,7 @@ final class CreditLedger
   const CreditLedger(this.models)
   final List<Credit> models
 
-class CreditsSection extends StatelessWidget
+final class CreditsSection extends StatelessWidget
   Widget build(BuildContext context)
   const CreditsSection({super.key, required this.credits, this.heading, this.footnote})
   final List<Credit> credits
@@ -975,7 +975,7 @@ final class CutsceneOverlay extends StatefulWidget
   final VoidCallback onSkip
   final double fade
 
-class EndingSheet extends StatelessWidget
+final class EndingSheet extends StatelessWidget
   Widget build(BuildContext context)
   const EndingSheet({super.key, required this.title, required this.tallies, required this.credits, required this.again, this.creditsHeading, this.creditsFootnote, this.titleColor, this.backdrop = 0.86, this.valueStyle = defaultValueStyle, this.aside, this.trailing = const <Widget>[]})
   final Color? titleColor
@@ -1019,7 +1019,7 @@ final class LicenseRecord
   final List<LicenseEntry> entries
   final String text
 
-class TallyView extends StatelessWidget
+final class TallyView extends StatelessWidget
   Widget build(BuildContext context)
   const TallyView({super.key, required this.tally, this.valueStyle = EndingSheet.defaultValueStyle})
   final EndingTally tally
@@ -1031,7 +1031,7 @@ final class TapToRestart extends StatelessWidget
   final String? label
   final VoidCallback onRestart
 
-class TitleSheet extends StatelessWidget
+final class TitleSheet extends StatelessWidget
   Widget build(BuildContext context)
   const TitleSheet({super.key, required this.title, required this.tagline, required this.lines, required this.credits, required this.prompt, this.notice, this.onBegin, this.creditsFootnote})
   final List<Credit> credits
@@ -1049,7 +1049,7 @@ final class AccessibilitySection extends SettingsSection
   Widget build(SettingsSectionContext section)
   const AccessibilitySection()
 
-class ActionBindingsSection extends StatelessWidget
+final class ActionBindingsSection extends StatelessWidget
   Widget build(BuildContext context)
   const ActionBindingsSection({super.key, required this.map, required this.waitingFor, required this.onRebind, required this.onReset, this.waitingPart, this.conflicts = const <BindingConflict>[], this.onTuning, this.actionLabel})
   final ActionMap map
@@ -1088,7 +1088,7 @@ final class MouseSection extends SettingsSection
   Widget build(SettingsSectionContext section)
   const MouseSection()
 
-class PrivacySection extends StatefulWidget
+final class PrivacySection extends StatefulWidget
   State<PrivacySection> createState()
   const PrivacySection({super.key, required this.consents, this.onChanged})
   final Consents consents
@@ -1103,7 +1103,7 @@ final class RebindRequest
   int get hashCode
   static const RebindRequest cancel = RebindRequest._cancel()
 
-class SettingsOverlay extends StatelessWidget
+final class SettingsOverlay extends StatelessWidget
   Widget build(BuildContext context)
   const SettingsOverlay({super.key, required this.settings, required this.sections, required this.opening, this.canOpen = true})
   final GameSettingsController settings
@@ -1111,7 +1111,7 @@ class SettingsOverlay extends StatelessWidget
   final bool canOpen
   final void Function() opening
 
-class SettingsPanel extends StatelessWidget
+final class SettingsPanel extends StatelessWidget
   Widget build(BuildContext context)
   const SettingsPanel({super.key, required this.settings, required this.sections})
   final GameSettingsController settings
@@ -1295,7 +1295,7 @@ abstract final class Wcag
 
 library package:flutter3d_game_ui/touch.dart
 
-class SteeringBand extends StatefulWidget
+final class SteeringBand extends StatefulWidget
   State<SteeringBand> createState()
   const SteeringBand({super.key, required this.state, required this.left, required this.right, this.width = 220.0, this.height = 72.0, this.axis, this.label})
   final AxisAction? axis
@@ -1312,7 +1312,7 @@ final class TouchAction
   final GameAction action
   final String label
 
-class TouchButton extends StatefulWidget
+final class TouchButton extends StatefulWidget
   State<TouchButton> createState()
   const TouchButton({super.key, required this.state, required this.action, required this.label, this.radius = 34.0})
   const TouchButton.pedal({super.key, required this.state, required this.action, required this.label, double width = 84.0, double height = 108.0})
@@ -1322,7 +1322,7 @@ class TouchButton extends StatefulWidget
   final String label
   final double radius
 
-class TouchControls extends StatelessWidget
+final class TouchControls extends StatelessWidget
   Widget build(BuildContext context)
   const TouchControls({super.key, required this.state, required this.buttons, this.toggles = const <TouchToggle>[], this.slots = const <TouchSlot>[], this.current = -1, this.corner, this.stickRadius = 64.0, this.buttonRadius = 34.0, this.margin = 28.0, this.stickAction = DualAxisAction.move})
   final DualAxisAction stickAction
@@ -1336,7 +1336,7 @@ class TouchControls extends StatelessWidget
   final double stickRadius
   final int current
 
-class TouchDrive extends StatelessWidget
+final class TouchDrive extends StatelessWidget
   Widget build(BuildContext context)
   const TouchDrive({super.key, required this.state, required this.steerLeft, required this.steerRight, required this.throttle, required this.brake, this.handbrake, this.corner, this.throttleLabel, this.brakeLabel, this.handbrakeLabel, this.steer})
   final AxisAction? steer
@@ -1356,7 +1356,7 @@ final class TouchSlot
   final String label
   final bool owned
 
-class TouchSlots extends StatelessWidget
+final class TouchSlots extends StatelessWidget
   Widget build(BuildContext context)
   const TouchSlots({super.key, required this.state, required this.slots, required this.current, this.width = 62.0, this.height = 34.0, this.spacing = 8.0})
   final InputState state
@@ -1366,7 +1366,7 @@ class TouchSlots extends StatelessWidget
   final double width
   final int current
 
-class TouchStick extends StatefulWidget
+final class TouchStick extends StatefulWidget
   State<TouchStick> createState()
   const TouchStick({super.key, required this.state, this.radius = 64.0, this.action = DualAxisAction.move, this.label})
   final DualAxisAction action
@@ -1374,7 +1374,7 @@ class TouchStick extends StatefulWidget
   final String? label
   final double radius
 
-class TouchToggle extends StatelessWidget
+final class TouchToggle extends StatelessWidget
   Widget build(BuildContext context)
   const TouchToggle({super.key, required this.label, required this.on, required this.onTap, this.radius = 30.0})
   final String label

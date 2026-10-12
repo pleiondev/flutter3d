@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b153394c0b5d9a36
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -401,3 +401,60 @@ transforms:
         newElement:
           uris: ['package:flutter3d_sim/flutter3d_sim.dart']
           typedef: 'GhostFrame'
+  - title: 'flutter3d 1.0.0-rc.1: sim-SnapshotFields-number-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'number'
+      inExtension: 'SnapshotFields'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'orElse'
+        style: optional_named
+        argumentValue:
+          expression: '{% orElse %}'
+          variables:
+            orElse:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1
+  - title: 'flutter3d 1.0.0-rc.1: sim-SnapshotFields-integer-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'integer'
+      inExtension: 'SnapshotFields'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'orElse'
+        style: optional_named
+        argumentValue:
+          expression: '{% orElse %}'
+          variables:
+            orElse:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1
+  - title: 'flutter3d 1.0.0-rc.1: sim-Tally-add-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_sim/flutter3d_sim.dart']
+      method: 'add'
+      inClass: 'Tally'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'howMany'
+        style: optional_named
+        argumentValue:
+          expression: '{% howMany %}'
+          variables:
+            howMany:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1

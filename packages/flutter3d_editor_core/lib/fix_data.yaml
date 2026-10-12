@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b153394c0b5d9a36
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -126,3 +126,22 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'piecesOf'
+  - title: 'flutter3d 1.0.0-rc.1: editor_core-DocumentText-compact-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_app/flutter3d_app.dart', 'package:flutter3d_editor_core/flutter3d_editor_core.dart']
+      method: 'compact'
+      inClass: 'DocumentText'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'depth'
+        style: optional_named
+        argumentValue:
+          expression: '{% depth %}'
+          variables:
+            depth:
+              kind: 'fragment'
+              value: 'arguments[1]'
+      - kind: 'removeParameter'
+        index: 1

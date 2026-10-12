@@ -201,7 +201,7 @@ final class ParticleColorGradient extends ParticleAffector
   void apply(ParticleStep step)
 
 final class ParticleColorOverLife extends ParticleAffector
-  const ParticleColorOverLife(this._from, this._to)
+  const ParticleColorOverLife(LinearColor this._from, LinearColor this._to)
   void apply(ParticleStep step)
 
 final class ParticleContributor extends PassContributor

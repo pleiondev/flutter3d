@@ -5,7 +5,7 @@
 library package:flutter3d_editor_play/attach.dart
 
 final class AttachedRun with PlayedGame
-  AttachedRun(this.vmService, {this._connect = connectVmService})
+  AttachedRun(this.vmService, {ConnectVmService this._connect = connectVmService})
   Future<String?> hotRestart()
   Future<String?> hotSwap()
   Future<void> dispose()
@@ -75,7 +75,7 @@ final class Watched<T>
   Future<void> close()
   Stream<T> get changes
   T get value
-  Watched(this._value)
+  Watched(T this._value)
   set value(T next)
 
 List<T> appendCapped<T>(List<T> items, T item, int limit)
@@ -99,7 +99,7 @@ String vmServiceWebSocket(String uri)
 library package:flutter3d_editor_play/flutter3d_editor_play.dart
 
 final class AttachedRun with PlayedGame
-  AttachedRun(this.vmService, {this._connect = connectVmService})
+  AttachedRun(this.vmService, {ConnectVmService this._connect = connectVmService})
   Future<String?> hotRestart()
   Future<String?> hotSwap()
   Future<void> dispose()
@@ -127,7 +127,7 @@ final class FlutterDevice
   final bool emulator
 
 final class FlutterRun with PlayedGame
-  FlutterRun({required this.projectRoot, this.device, this._start = _startFlutter, this._kill = _killFlutter, this._connect = connectVmService})
+  FlutterRun({required this.projectRoot, this.device, StartFlutter this._start = _startFlutter, KillFlutter this._kill = _killFlutter, ConnectVmService this._connect = connectVmService})
   Future<String?> hotRestart()
   Future<String?> hotSwap()
   Future<void> dispose()
@@ -200,7 +200,7 @@ final class Watched<T>
   Future<void> close()
   Stream<T> get changes
   T get value
-  Watched(this._value)
+  Watched(T this._value)
   set value(T next)
 
 List<T> appendCapped<T>(List<T> items, T item, int limit)
@@ -263,7 +263,7 @@ final class FakeGame
   static Map<String, String> flutterTool()
   static const String isolateId = 'isolates/1'
   void logs(String message)
-  void posts(String kind, [Map<String, Object?> data = const <String, Object?>{}, int time = 0])
+  void posts(String kind, {Map<String, Object?> data = const <String, Object?>{}, int time = 0})
   void prints(String text)
 
 AttachedRun fakeAttachedRun(FakeGame game, {String uri = 'ws://game/ws'})

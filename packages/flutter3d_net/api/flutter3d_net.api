@@ -74,7 +74,15 @@ final class ObserverSnapshot
   static const ObserverSnapshot delta = ObserverSnapshot._('delta')
   static const ObserverSnapshot full = ObserverSnapshot._('full')
 
-typedef PartySeat = ({PeerWire wire, int slot, int size, String code, Future<void> full, WebSocketTransport socket, String? owner});
+final class PartySeat
+  const PartySeat({required this.wire, required this.slot, required this.size, required this.code, required this.full, required this.socket, this.owner})
+  final Future<void> full
+  final PeerWire wire
+  final String code
+  final String? owner
+  final WebSocketTransport socket
+  final int size
+  final int slot
 
 final class PeerBytes
   const PeerBytes({required this.from, required this.bytes})
@@ -215,7 +223,7 @@ final class SnapshotDivergence
 final class WebSocketTransport extends PeerWire
   Future<String?> get closed
   Future<void> close()
-  WebSocketTransport(this._channel)
+  WebSocketTransport(WebSocketChannel this._channel)
   WireState get state
   static Future<WebSocketTransport> connect(Uri uri)
   void send(PeerSend context)

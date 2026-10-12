@@ -29,7 +29,7 @@ final class ActorSystemComponent extends Component with FixedStepUpdate, StepClo
   void unfollow(StepFollower follower)
   void update(double dt)
 
-class AtmosphereComponent extends Component
+base class AtmosphereComponent extends Component
   Atmosphere current
   AtmosphereComponent({required this.cycle, this.sun, this.time = 0.0, this.rate = 1.0})
   FogSettings get fog
@@ -120,7 +120,7 @@ final class CameraSyncController
   void advance(double dt)
   void captureRest()
 
-class CellGridComponent extends Object3dComponent
+base class CellGridComponent extends Object3dComponent
   (int, int) cellAt(Vector2 at)
   CellGridComponent({required this.grid, required this.device, required super.scene, required super.plane, required this.material, this.depth, this.color, this.instanced = false, this.hitboxes = false, super.position, super.elevation})
   Vector2 centerOf(int column, int row)
@@ -136,7 +136,7 @@ class CellGridComponent extends Object3dComponent
   void onMount()
   void onRemove()
 
-class CharacterBodyComponent extends Object3dComponent with CollisionCallbacks, FixedStepUpdate implements StepFollower
+base class CharacterBodyComponent extends Object3dComponent with CollisionCallbacks, FixedStepUpdate implements StepFollower
   CharacterBodyComponent({required this.body, required super.node, required super.scene, required super.plane, this.drive, this.stepper, this.removeFrom, super.size, super.anchor, super.priority})
   final CharacterController body
   final CollisionWorld? removeFrom
@@ -245,7 +245,7 @@ final class FlameInputBridge
   void bindButton(ButtonComponent button, GameAction action)
   void onDragUpdate(DragUpdateEvent event)
 
-class Flutter3dFlameWidget extends StatelessWidget
+final class Flutter3dFlameWidget extends StatelessWidget
   Widget build(BuildContext context)
   const Flutter3dFlameWidget({super.key, required this.game, this.camera, this.buildScene, this.existing, this.onRendererReady, this.onTick, this.clearColor, this.settings, this.width = 1280, this.height = 720, this.overlayBuilderMap, this.initialActiveOverlays, this.focusNode, this.autofocus = true})
   final ({GraphicsDevice device, Renderer renderer})? existing
@@ -270,7 +270,7 @@ enum GridHeading
   final int dx
   final int dy
 
-class GridMover extends Component with FixedStepUpdate
+base class GridMover extends Component with FixedStepUpdate
   (int, int) get cell
   GridHeading heading
   GridHeading wanted
@@ -334,7 +334,7 @@ mixin HasFlutter3d<W extends World> on FlameGame<W>
   void redraw3d()
   void replaceScene3d(Scene next)
 
-class InstancedActorComponent extends Component implements StepFollower
+base class InstancedActorComponent extends Component implements StepFollower
   InstanceHandle? get slot
   InstancedActorComponent({required this.actor, required this.batch, this.stepper, this.removesFrom, this.lift = 0.0, super.priority})
   final Actor actor
@@ -347,7 +347,7 @@ class InstancedActorComponent extends Component implements StepFollower
   void rememberPlace()
   void update(double dt)
 
-class InstancedObject3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
+base class InstancedObject3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
   Aabb3? get drawnBounds3d
   InstanceHandle? get slot
   InstancedObject3dComponent({required this.batch, required this.plane, this.elevation = 0.0, this.color, this.space, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
@@ -364,7 +364,7 @@ class InstancedObject3dComponent extends PositionComponent with HasVisibility im
   void removeFromParent()
   void updateTree(double dt)
 
-class InstancedPoseComponent extends Component
+base class InstancedPoseComponent extends Component
   InstancedPoseComponent({required this.batch, required this.place, super.priority})
   final InstancedMeshNode batch
   final bool Function(Vector3 at) place
@@ -372,7 +372,7 @@ class InstancedPoseComponent extends Component
   void onRemove()
   void update(double dt)
 
-class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate
+base class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate
   KinematicBodyComponent({required this.collider, required super.node, required super.scene, required super.plane, this.removeFrom, super.elevation, super.position, super.size, super.anchor, super.angle, super.children, super.priority = BridgePriority.kinematic, super.key})
   final Collider collider
   final CollisionWorld? removeFrom
@@ -381,7 +381,7 @@ class KinematicBodyComponent extends Object3dComponent with FixedStepUpdate
   void onRemove()
   void updateTree(double dt)
 
-class MeshFlipbookComponent extends Component
+base class MeshFlipbookComponent extends Component
   MeshFlipbookComponent({required this.node, required this.frames, this.framesPerSecond = 2.0})
   double framesPerSecond
   final List<MeshGeometry> frames
@@ -390,7 +390,7 @@ class MeshFlipbookComponent extends Component
   void onMount()
   void update(double dt)
 
-class Model3dComponent extends PositionComponent
+base class Model3dComponent extends PositionComponent
   @protected Future<void> buildScene(GraphicsDevice device)
   @visibleForTesting static Future<GraphicsDevice> Function({required int width, required int height}) openSharedDevice
   @visibleForTesting ui.Image? get frameImage
@@ -412,7 +412,7 @@ class Model3dComponent extends PositionComponent
   void render(ui.Canvas canvas)
   void update(double dt)
 
-class ModelAnimationComponent extends Component
+base class ModelAnimationComponent extends Component
   ModelAnimationComponent(this.player, {this.crossFade = 0.15, String? start})
   String? get current
   bool has(String name)
@@ -421,13 +421,13 @@ class ModelAnimationComponent extends Component
   final double crossFade
   void update(double dt)
 
-class Move3dEffect extends ComponentEffect<Node3dComponent>
+base class Move3dEffect extends ComponentEffect<Node3dComponent>
   Move3dEffect.by(Vector3 offset, super.controller, {super.onComplete, super.key})
   Move3dEffect.to(Vector3 destination, super.controller, {super.onComplete, super.key})
   void apply(double progress)
   void onStart()
 
-class Node3dComponent extends Component with HasVisibility implements OpacityProvider, Drawn3d
+base class Node3dComponent extends Component with HasVisibility implements OpacityProvider, Drawn3d
   Aabb3? get drawnBounds3d
   LinearColor tint
   Node3dComponent({required this.node, required this.scene, Vector3? position, Quaternion? rotation, Vector3? scale, super.children, super.priority, super.key})
@@ -441,7 +441,7 @@ class Node3dComponent extends Component with HasVisibility implements OpacityPro
   void onRemove()
   void updateTree(double dt)
 
-class Object3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
+base class Object3dComponent extends PositionComponent with HasVisibility implements OpacityProvider, Bridged3d
   Aabb3? get drawnBounds3d
   LinearColor tint
   Object3dComponent({required this.node, required this.scene, required this.plane, this.direction = SyncDirection.sceneToFlame, this.elevation = 0.0, this.owns = const <DeviceMesh>[], this.space, this.follows, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
@@ -466,7 +466,7 @@ class Object3dComponent extends PositionComponent with HasVisibility implements 
   void update(double dt)
   void updateTree(double dt)
 
-class Particles3dComponent extends Component
+base class Particles3dComponent extends Component
   Particles3dComponent({required this.system, required this.plane})
   final BridgePlane plane
   final ParticleSystem system
@@ -527,7 +527,7 @@ final class PointerTrack extends PositionComponent with PointerMoveCallbacks, Ta
   void onTapDown(TapDownEvent event)
   void onTapUp(TapUpEvent event)
 
-class ProjectedViewfinder extends Viewfinder
+base class ProjectedViewfinder extends Viewfinder
   ProjectedViewfinder({required this.projector, required this.plane})
   Rect computeVisibleRect()
   Vector2 globalToLocal(Vector2 point, {Vector2? output})
@@ -536,7 +536,7 @@ class ProjectedViewfinder extends Viewfinder
   final BridgeProjector projector
   void update(double dt)
 
-class RigidBodyComponent extends Object3dComponent with CollisionCallbacks implements StepFollower
+base class RigidBodyComponent extends Object3dComponent with CollisionCallbacks implements StepFollower
   RigidBodyComponent({required this.body, required super.node, required super.scene, required super.plane, this.stepper, this.removeFrom, super.direction, super.elevation, super.position, super.size, super.anchor, super.angle, super.scale, super.children, super.priority, super.key})
   final PhysicsStepComponent? stepper
   final RigidBody body
@@ -548,18 +548,18 @@ class RigidBodyComponent extends Object3dComponent with CollisionCallbacks imple
   void teleport(Vector3 to)
   void update(double dt)
 
-class Rotate3dEffect extends ComponentEffect<Node3dComponent>
+base class Rotate3dEffect extends ComponentEffect<Node3dComponent>
   Rotate3dEffect.by(Vector3 axis, this.angle, super.controller, {super.onComplete, super.key})
   final Vector3 axis
   final double angle
   void apply(double progress)
 
-class Scale3dEffect extends ComponentEffect<Node3dComponent>
+base class Scale3dEffect extends ComponentEffect<Node3dComponent>
   Scale3dEffect.to(Vector3 scale, super.controller, {super.onComplete, super.key})
   void apply(double progress)
   void onStart()
 
-class SpriteBillboardComponent extends Object3dComponent
+base class SpriteBillboardComponent extends Object3dComponent
   Future<void> onLoad()
   Sprite get currentSprite
   SpriteBillboardComponent({Sprite? sprite, SpriteAnimation? animation, required this.device, required super.scene, required super.plane, BillboardAtlas? atlas, this.cardHeight = 1.0, this.upright = true, this.faces, this.removeOnFinish = false, this.smooth = false, super.position, super.elevation, super.priority})
@@ -605,7 +605,7 @@ final class Tap3dProbe
   final BridgeProjector projector
   final Vector2 screen
 
-class Taps3dComponent extends PositionComponent with TapCallbacks, HasGameReference<HasFlutter3d>
+base class Taps3dComponent extends PositionComponent with TapCallbacks, HasGameReference<HasFlutter3d>
   Tap3dCallbacks? nearestAt(Vector2 screen)
   Taps3dComponent({super.priority})
   bool containsLocalPoint(Vector2 point)
@@ -614,7 +614,7 @@ class Taps3dComponent extends PositionComponent with TapCallbacks, HasGameRefere
   void onTapDown(TapDownEvent event)
   void onTapUp(TapUpEvent event)
 
-class TiledWorld3d extends PositionComponent
+base class TiledWorld3d extends PositionComponent
   Future<void> onLoad()
   TiledWorld3d({required this.map, required this.device, required this.scene, required this.plane, required this.material, this.cell = 1.0, this.spawn, super.position})
   final BridgePlane plane
@@ -626,12 +626,12 @@ class TiledWorld3d extends PositionComponent
   final double cell
   final engine.RenderMaterial Function(TileLayer layer) material
 
-class TintEffect extends ComponentEffect<Component>
+base class TintEffect extends ComponentEffect<Component>
   TintEffect(LinearColor color, super.controller, {super.onComplete, super.key})
   void apply(double progress)
   void onStart()
 
-class TrailComponent extends Component
+base class TrailComponent extends Component
   LineStripNode? get line
   TrailComponent({this.spacing = 0.5, this.length = 48, this.width = 3.0, this.color = LinearColor.white})
   double? breakAt
@@ -645,7 +645,7 @@ class TrailComponent extends Component
   void reset()
   void update(double dt)
 
-class TransparentFlameGame extends FlameGame
+base class TransparentFlameGame extends FlameGame
   Color backgroundColor()
 
 mixin UpdatesAtRoot on Component
@@ -678,7 +678,7 @@ final class ViewFraming extends CameraFraming
   final double stiffness
   void frame(FramingStep step)
 
-class WrapSpace extends Component
+base class WrapSpace extends Component
   Iterable<Aabb3> ghostBoundsOf(Object3dComponent owner)
   Vector2 shortestWay(Vector2 from, Vector2 to)
   Vector2 wrap(Vector2 point)

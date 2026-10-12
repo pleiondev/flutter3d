@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b153394c0b5d9a36
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -146,16 +146,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'Ktx2SupercompressionScheme'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialInput)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialInput'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialInput'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialInputRef)'
     date: 2026-10-08
     element:
@@ -166,16 +156,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'MaterialInputRef'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialLet)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialLet'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialLet'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialLocalRef)'
     date: 2026-10-08
     element:
@@ -196,16 +176,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           class: 'MaterialParamRef'
-  - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialReturn)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'MaterialReturn'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/formats.dart']
-          class: 'MaterialReturn'
   - title: 'flutter3d 1.0.0-rc.1: flutter3d-package-flutter3d_core-formats-dart (MaterialSample)'
     date: 2026-10-08
     element:
@@ -646,16 +616,6 @@ transforms:
         newElement:
           uris: ['package:flutter3d_core/formats.dart']
           function: 'zlibInflate'
-  - title: 'flutter3d 1.0.0-rc.1: core-AbsolutePixels (AbsolutePixels)'
-    date: 2026-10-08
-    element:
-      uris: ['package:flutter3d/flutter3d.dart']
-      class: 'AbsolutePixels'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['package:flutter3d_core/flutter3d_core.dart']
-          class: 'AbsolutePixels'
   - title: 'flutter3d 1.0.0-rc.1: core-ClusterDraws (ClusterDraws)'
     date: 2026-10-08
     element:
@@ -2058,3 +2018,41 @@ transforms:
       - kind: 'renameParameter'
         oldName: 'colourSpace'
         newName: 'colorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: core-AnimationPlayer-play-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      method: 'play'
+      inClass: 'AnimationPlayer'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'index'
+        style: optional_named
+        argumentValue:
+          expression: '{% index %}'
+          variables:
+            index:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0
+  - title: 'flutter3d 1.0.0-rc.1: core-ShadowFaceScheduler-recordDrawn-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      method: 'recordDrawn'
+      inClass: 'ShadowFaceScheduler'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'only'
+        style: optional_named
+        argumentValue:
+          expression: '{% only %}'
+          variables:
+            only:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0

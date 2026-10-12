@@ -212,7 +212,7 @@ final class ExpressionType
   final bool isBoolean
   final int components
   int get hashCode
-  static ExpressionType measuring(Unit unit, [int components = 1])
+  static ExpressionType measuring(Unit unit, {int components = 1})
   static const ExpressionType boolean = ExpressionType('bool', 1, isBoolean: true)
   static const ExpressionType float = ExpressionType('float', 1)
   static const ExpressionType texture = ExpressionType('texture', 0)
@@ -440,7 +440,7 @@ final class ShaderCompileException extends Flutter3dFormatException
   String get message
   String toString()
   String? get excerpt
-  const ShaderCompileException({required this.shader, required this.backend, required this.log, this.stage, this.target, this._line, this._column, this._excerpt, this.diagnostics = const <ShaderDiagnostic>[], this.cause})
+  const ShaderCompileException({required this.shader, required this.backend, required this.log, this.stage, this.target, int? this._line, int? this._column, String? this._excerpt, this.diagnostics = const <ShaderDiagnostic>[], this.cause})
   final List<ShaderDiagnostic> diagnostics
   final Object? cause
   final String backend
@@ -612,7 +612,7 @@ final class ExpressionBytecodeException extends Flutter3dFormatException
   final String message
 
 final class ExpressionBytecodeInput
-  const ExpressionBytecodeInput(this.name, this.lane, this.width, this._dim)
+  const ExpressionBytecodeInput(this.name, this.lane, this.width, int this._dim)
   final String name
   final int lane
   final int width
@@ -642,7 +642,7 @@ base class ExpressionParser
   ExpressionToken expectToken(String kind, String what)
   ExpressionToken get current
   List<Expression> arguments()
-  Never fail(String message, [ExpressionToken? where])
+  Never fail(String message, {ExpressionToken? where})
   bool skipIf(String kind)
   bool skipWordIf(String word)
   final ExpressionScope scope

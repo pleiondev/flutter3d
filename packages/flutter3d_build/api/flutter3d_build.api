@@ -415,7 +415,10 @@ final class DiscoveredPlugin
   final String import
   final String package
 
-typedef F3dConversion = ({ModelDocument document, Uint8List bytes});
+final class F3dConversion
+  const F3dConversion({required this.document, required this.bytes})
+  final ModelDocument document
+  final Uint8List bytes
 
 final class F3dRoundTripException extends Flutter3dFormatException
   String get message
@@ -494,7 +497,11 @@ final class PluginPackage
   final String name
   final String root
 
-typedef PluginProcessResult = ({int exitCode, String stdout, String stderr});
+final class PluginProcessResult
+  const PluginProcessResult({required this.exitCode, required this.stdout, required this.stderr})
+  final String stderr
+  final String stdout
+  final int exitCode
 
 typedef PluginProcessRunner = Future<PluginProcessResult> Function(String executable, List<String> arguments, String workingDirectory);
 

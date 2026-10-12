@@ -92,7 +92,7 @@ final class FireLights
 
 final class FireView
   FireSteps steps
-  FireView({required this._world, required GraphicsDevice device, required this._scene, required Renderer renderer, this.detail = FireDetail.full, this.lights = const FireLights.clusters(), this.smokeAlbedo = 0.66})
+  FireView({required NativeWorld this._world, required GraphicsDevice device, required Scene this._scene, required Renderer renderer, this.detail = FireDetail.full, this.lights = const FireLights.clusters(), this.smokeAlbedo = 0.66})
   List<(String, int, int)> get wanted
   List<LightNode> get firelight
   Scene get scene
@@ -193,7 +193,7 @@ final class LiquidView
   Float32List get sheetVertices
   Float32List get surfaceVertices
   LiquidSteps steps
-  LiquidView({required this._world, required this.liquid, required List<double> ground, required GraphicsDevice device, required Scene scene, required RenderMaterial look, this.detail = LiquidDetail.full, this.mist, NativeLiquidProperties? properties})
+  LiquidView({required NativeWorld this._world, required this.liquid, required List<double> ground, required GraphicsDevice device, required Scene scene, required RenderMaterial look, this.detail = LiquidDetail.full, this.mist, NativeLiquidProperties? properties})
   List<(String, int, int)> get wanted
   List<SceneNode> get nodes
   final LiquidDetail detail
@@ -209,7 +209,7 @@ final class LiquidView
   static double cloudDepth(double shadow, double spread)
   static double dropShadow({required double volume, required double diameter})
   void dispose()
-  void update([double dt = 1.0 / 60.0])
+  void update({double dt = 1.0 / 60.0})
 
 final class MistSettings
   MistSettings copyWith({double? share, double? droplet, bool clearShare = false})
@@ -219,7 +219,7 @@ final class MistSettings
   final double? share
 
 final class PhysicsHearing
-  PhysicsHearing(this._world, {required this.fireScale, required this.fallScale, required this.splashScale})
+  PhysicsHearing(NativeWorld this._world, {required this.fireScale, required this.fallScale, required this.splashScale})
   final HearingScale fallScale
   final HearingScale fireScale
   final HearingScale splashScale

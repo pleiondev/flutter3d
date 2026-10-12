@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 1b1fdb1a84369bfe
+# table-stamp: b153394c0b5d9a36
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -40,3 +40,22 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'webGpuEngineShaders'
+  - title: 'flutter3d 1.0.0-rc.1: webgpu-WebGpuDevice-debugDrainErrors-named'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_webgpu/flutter3d_webgpu_web.dart']
+      method: 'debugDrainErrors'
+      inClass: 'WebGpuDevice'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'where'
+        style: optional_named
+        argumentValue:
+          expression: '{% where %}'
+          variables:
+            where:
+              kind: 'fragment'
+              value: 'arguments[0]'
+      - kind: 'removeParameter'
+        index: 0

@@ -6,7 +6,6 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 import 'models.dart';
-import 'package:flutter3d_core/flutter3d_core.dart' hide textureBytes;
 
 /// `rewrite`: deprecated capability getters on a device.
 bool canDrawLines(GraphicsDevice device) => device.features.has(DeviceFeature.wireframe);

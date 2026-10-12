@@ -76,7 +76,7 @@ final class Ghost
   static void haunt(List<MeshNode> meshes, RenderMaterial look)
 
 final class GhostNote
-  String say([String languageCode = 'en'])
+  String say({String languageCode = 'en'})
   String toString()
   final GhostNote? because
   final String id
@@ -282,7 +282,7 @@ final class Ghost
   static void haunt(List<MeshNode> meshes, RenderMaterial look)
 
 final class GhostNote
-  String say([String languageCode = 'en'])
+  String say({String languageCode = 'en'})
   String toString()
   final GhostNote? because
   final String id
