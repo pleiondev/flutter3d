@@ -60,6 +60,8 @@ final class Frame {
   final int depth;
 }
 
+Frame frameOf(int side) => Frame(width: side, height: side);
+
 // ---------------------------------------------------------- nullToThrow
 // 0.8: `String? loadText(String path)`, null for a path that is not there.
 
@@ -184,10 +186,12 @@ final class KindLedger {
   final int tally;
 }
 
-// 0.8: `class Store { int load(); }`; asynchronous since.
+// 0.8: `class Store { int load(); bool save(); }`; asynchronous since, and
+// a save answers nothing.
 
 final class Store {
   Future<int> load() async => 1;
+  Future<void> save() async {}
 }
 
 // 0.8 had two `Seat`s; this one is `KindSeat` since.

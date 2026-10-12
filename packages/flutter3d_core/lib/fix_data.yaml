@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 32ec45f040af80cf
+# table-stamp: 980c3e18aee2cfcd
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -1392,6 +1392,15 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'SplatColorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: 4a-core-impostorCard'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart']
+      function: 'impostorCard'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
   - title: 'flutter3d 1.0.0-rc.1: 4a-core-specialiseMaterial'
     date: 2026-10-08
     element:
@@ -2010,3 +2019,42 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'LightType'
+  - title: 'flutter3d 1.0.0-rc.1: corpus-core-buildPolyline-names'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/geometry.dart']
+      function: 'buildPolyline'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colours'
+        newName: 'colors'
+      - kind: 'renameParameter'
+        oldName: 'colour'
+        newName: 'color'
+  - title: 'flutter3d 1.0.0-rc.1: corpus-core-mergeSplats-names'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      function: 'mergeSplats'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'centre'
+        newName: 'center'
+  - title: 'flutter3d 1.0.0-rc.1: corpus-core-parseSplatPly-names'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      function: 'parseSplatPly'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colourSpace'
+        newName: 'colorSpace'
+  - title: 'flutter3d 1.0.0-rc.1: corpus-core-parseSplatSpz-names'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d/flutter3d.dart', 'package:flutter3d_core/flutter3d_core.dart', 'package:flutter3d_core/formats.dart']
+      function: 'parseSplatSpz'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'colourSpace'
+        newName: 'colorSpace'

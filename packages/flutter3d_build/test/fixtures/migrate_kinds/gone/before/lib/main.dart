@@ -54,6 +54,8 @@ Pile kept(Pile pile) => Board.pile(pile);
 
 Future<int> loaded(Store store) async {
   final n = store.load();
+  final saved = store.save();
+  print(saved);
   return n + store.load().bitLength;
 }
 

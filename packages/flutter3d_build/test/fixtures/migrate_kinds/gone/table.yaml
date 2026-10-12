@@ -94,7 +94,7 @@ entries:
     package: flutter3d_kinds
     symbol: Store
     kind: manual
-    members: [load]
+    members: [load, save]
     async: true
     guidance: >-
       `load` is asynchronous: await it.

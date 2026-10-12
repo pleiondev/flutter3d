@@ -21,7 +21,8 @@
 //   rewritten only where it passes the old one;
 // * a call of a member that became asynchronous, awaited in an `async` body
 //   (a test's callback made `async` for it, and a function that returns
-//   nothing, which keeps a TODO), and elsewhere a TODO at the
+//   nothing, which keeps a TODO; a call that answers nothing now keeps one
+//   where its value was held), and elsewhere a TODO at the
 //   call and at each read of the variable that holds it;
 // * and where nothing can be written, a TODO on the line of each use of a
 //   gone function or a gone library's names, at each override of a type
@@ -64,6 +65,7 @@ void main() {
       'kinds-Store-load',
       'kinds-Store-load',
       'kinds-Store-load',
+      'kinds-Store-load',
       'kinds-Ledger-count',
       'kinds-Credit-licence',
       'kinds-Credit-licence',
@@ -85,10 +87,12 @@ void main() {
       'kinds-Dial-constructor:35',
       'kinds-Dial-constructor:37',
       'kinds-Dial-constructor:38',
-      'kinds-Store-load:61',
-      'kinds-Store-load:62',
+      'kinds-Store-load:57',
+      'kinds-Store-load:58',
       'kinds-Store-load:63',
-      'kinds-Store-load:68',
+      'kinds-Store-load:64',
+      'kinds-Store-load:65',
+      'kinds-Store-load:70',
     ]);
   });
 }

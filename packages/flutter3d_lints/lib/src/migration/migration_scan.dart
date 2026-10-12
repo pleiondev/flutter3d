@@ -533,7 +533,13 @@ final class _Scan extends RecursiveAstVisitor<void> {
             break;
           case (false, final List<MigrationEdit> edits, final bool todo):
             _add(rule, node, edits: edits);
-            if (todo) _addTodo(rule, node);
+            // A call that answered a value and answers nothing now (a write
+            // that said whether it took): its value is a person's to drop.
+            final answersNothing =
+                _answersNothing(node) &&
+                node.parent?.parent is VariableDeclaration;
+            if (todo || answersNothing) _addTodo(rule, node);
+            if (answersNothing) _readsOfHeldFuture(node, rule);
           case null:
             _add(rule, node);
             if (rule.awaits) _readsOfHeldFuture(node, rule);
@@ -748,6 +754,17 @@ final class _Scan extends RecursiveAstVisitor<void> {
         todo: _todoFor(rule, at),
       ),
     );
+  }
+
+  /// Whether the call named by [node] answers a `Future<void>`.
+  static bool _answersNothing(SimpleIdentifier node) {
+    final type = node.parent is MethodInvocation
+        ? (node.parent! as MethodInvocation).staticType
+        : null;
+    return type is InterfaceType &&
+        type.isDartAsyncFuture &&
+        type.typeArguments.length == 1 &&
+        type.typeArguments.single is VoidType;
   }
 
   /// A call that answers a `Future` now, held in a local variable where it
@@ -1887,6 +1904,31 @@ final class _Scan extends RecursiveAstVisitor<void> {
   void visitVariableDeclaration(VariableDeclaration node) {
     final value = node.initializer;
     final list = node.parent;
+    // A variable written with the record type its value had, where the
+    // value is the class that record became: the class's name.
+    final given = value?.staticType;
+    final written = list is VariableDeclarationList ? list.type : null;
+    if (written is RecordTypeAnnotation &&
+        list is VariableDeclarationList &&
+        list.variables.length == 1 &&
+        given is InterfaceType) {
+      for (final rule
+          in records[given.element.name] ?? const <MigrationRule>[]) {
+        if (!_ownedAs(given.element, rule)) continue;
+        _add(
+          rule,
+          written,
+          edits: <MigrationEdit>[
+            MigrationEdit(
+              written.offset,
+              written.length,
+              given.element.name ?? '',
+            ),
+          ],
+        );
+        break;
+      }
+    }
     if (value != null &&
         valueConversions.isNotEmpty &&
         list is VariableDeclarationList &&

@@ -10545,11 +10545,14 @@ entries:
   - id: 4a-core-impostorCard
     package: flutter3d_core
     symbol: impostorCard
-    kind: none
+    kind: parameters
     wave: 4
-    reason: >-
-      Only a type its declaration names was renamed; that rename's own fix
-      carries every use.
+    changes:
+      - rename: centre
+        to: center
+    guidance: >-
+      American spelling in identifiers: `impostorCard(centre:)` is
+      `impostorCard(center:)`, the same point.
 
   # mergeSplats changed: SplatCloud mergeSplats(List<SplatCloud> parts, {required Vector3 centre, required double half, required int grid}) -> SplatCloud mergeSplat…
   - id: 4a-core-mergeSplats
@@ -22083,3 +22086,139 @@ entries:
     guidance: >-
       No positional `bool` in 1.0: `setDepthWrite(false)` is
       `setDepthWrite(enabled: false)`.
+
+  - id: corpus-stereo-HeadPose-constructor
+    package: flutter3d_stereo
+    symbol: HeadPose.HeadPose
+    kind: parameters
+    changes:
+      - rename: rotation
+        to: orientation
+    guidance: >-
+      A pose's turn is `orientation`, as `RigidPose` names it:
+      `HeadPose(rotation: q, position: p)` is
+      `RigidPose(orientation: q, position: p)`.
+
+  - id: corpus-core-buildPolyline-names
+    package: flutter3d_core
+    symbol: buildPolyline
+    kind: parameters
+    changes:
+      - rename: colours
+        to: colors
+      - rename: colour
+        to: color
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `colours:` is `colors:`, `colour:` is `color:`, the same values.
+
+  - id: corpus-core-mergeSplats-names
+    package: flutter3d_core
+    symbol: mergeSplats
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `centre:` is `center:`, the same values.
+
+  - id: corpus-core-parseSplatPly-names
+    package: flutter3d_core
+    symbol: parseSplatPly
+    kind: parameters
+    changes:
+      - rename: colourSpace
+        to: colorSpace
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `colourSpace:` is `colorSpace:`, the same values.
+
+  - id: corpus-core-parseSplatSpz-names
+    package: flutter3d_core
+    symbol: parseSplatSpz
+    kind: parameters
+    changes:
+      - rename: colourSpace
+        to: colorSpace
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `colourSpace:` is `colorSpace:`, the same values.
+
+  - id: corpus-mesh-projectBrush-names
+    package: flutter3d_mesh
+    symbol: projectBrush
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `centre:` is `center:`, the same values.
+
+  - id: corpus-mesh-simplifyMesh-names
+    package: flutter3d_mesh
+    symbol: simplifyMesh
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-mesh-simplifyMeshWithAttributes-names
+    package: flutter3d_mesh
+    symbol: simplifyMeshWithAttributes
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-mesh-simplifyMeshWithAttributesMeasured-names
+    package: flutter3d_mesh
+    symbol: simplifyMeshWithAttributesMeasured
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-mesh-unwrapMesh-names
+    package: flutter3d_mesh
+    symbol: unwrapMesh
+    kind: parameters
+    changes:
+      - rename: isCancelled
+        to: isCanceled
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `isCancelled:` is `isCanceled:`, the same values.
+
+  - id: corpus-model_core-bakeImpostor-names
+    package: flutter3d_model_core
+    symbol: bakeImpostor
+    kind: parameters
+    changes:
+      - rename: centre
+        to: center
+      - rename: fovYRadians
+        to: fovY
+    guidance: >-
+      Public names are spelled the American way and say what they hold:
+      `centre:` is `center:`, `fovYRadians:` is `fovY:`, the same values.
+
+  - id: corpus-testing-replayPacing-limit
+    package: flutter3d_testing
+    symbol: replayPacing
+    kind: argument
+    arguments: [limitMillis]
+    to: limit
+    template: '{value} / 1000'
+    guidance: >-
+      A pacing report keeps seconds: `limitMillis: 50` is `limit: 50 / 1000`.

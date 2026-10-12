@@ -38,3 +38,8 @@ int later() {
   final f = (width: 1, height: 2);
   return takes(f);
 }
+
+int kept() {
+  final ({int width, int height}) f = frameOf(2);
+  return f.width;
+}

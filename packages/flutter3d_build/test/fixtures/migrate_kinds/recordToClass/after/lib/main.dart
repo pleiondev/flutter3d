@@ -39,3 +39,8 @@ int later() {
   final f = Frame(width: 1, height: 2);
   return takes(f);
 }
+
+int kept() {
+  final Frame f = frameOf(2);
+  return f.width;
+}

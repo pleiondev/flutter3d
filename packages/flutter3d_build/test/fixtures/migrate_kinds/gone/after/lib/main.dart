@@ -63,6 +63,10 @@ Pile kept(Pile pile) => Board.pile(pile);
 
 Future<int> loaded(Store store) async {
   final n = await store.load();
+  // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
+  final saved = await store.save();
+  // TODO(flutter3d-1.0): `load` is asynchronous: await it. See https://flutter3d.pleion.dev/reference/migrating-to-1.0/#kinds-Store-load
+  print(saved);
   return n + (await store.load()).bitLength;
 }
 
