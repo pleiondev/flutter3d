@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **A debug-line point is one pixel on Metal too.** The stage wrote its
+  point size under a macro `impellerc` never defines, so Metal drew points
+  at whatever size it found; it is written under the target macros the
+  compiler does define.
 - **`countGlslBindings` answers a `GlslBindingCount`** (new), a class
   with `textures` and `uniformBlocks`, rather than a record that could
   never count one more kind of binding.

@@ -297,13 +297,14 @@ void main() {
   // a point whose stage writes none undefined, and Metal took whatever it
   // found: three points of a triangle covered more pixels than its fill,
   // some runs and not others. Written where the target has the built-in:
-  // `impellerc` defines IMPELLER_GRAPHICS_BACKEND and a WebGL2 compile
-  // GL_ES, and never both. The road to WGSL has neither, and naga refuses
-  // PointSize, which WGSL does not have.
-#ifdef IMPELLER_GRAPHICS_BACKEND
+  // `impellerc` defines IMPELLER_TARGET_METAL, _OPENGLES or _VULKAN for the
+  // target it is compiling (and never IMPELLER_GRAPHICS_BACKEND, which this
+  // once asked for, so Metal went on drawing points at whatever size it
+  // found), and a WebGL2 compile defines GL_ES. The road to WGSL has none of
+  // them, and naga refuses PointSize, which WGSL does not have.
+#if defined(IMPELLER_TARGET_METAL) || defined(IMPELLER_TARGET_OPENGLES) || defined(IMPELLER_TARGET_VULKAN)
   gl_PointSize = 1.0;
-#endif
-#ifdef GL_ES
+#elif defined(GL_ES)
   gl_PointSize = 1.0;
 #endif
 }
