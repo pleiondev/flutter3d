@@ -177,7 +177,30 @@ const List<MaterialInput> materialLightInputs = <MaterialInput>[
   MaterialInput('nDotL', ExpressionType.float, 'light.n_dot_l', since: 1),
   MaterialInput('nDotH', ExpressionType.float, 'light.n_dot_h', since: 1),
   MaterialInput('vDotH', ExpressionType.float, 'light.v_dot_h', since: 1),
+  // Version 3: the light's type code, the first `vec4`'s `w` of its row
+  // (directional 0, point 1, spot 2, area 3, a plugin's own from 16), and
+  // the row's last `vec4`, which a plugin's `LightTypeHook` packs.
+  MaterialInput('lightKind', ExpressionType.float, 'f3d_light_kind', since: 3),
+  MaterialInput(
+    'lightParams',
+    ExpressionType.vec4,
+    'f3d_light_params',
+    since: 3,
+  ),
 ];
+
+/// What a `light` block's `lighttype tube = acme.tube;` declaration reads
+/// as `tube`: one while the block shades a light of that type, nought
+/// otherwise — version 3. The code is the renderer's, handed out in
+/// registration order, so the material binds it by the type's name
+/// ([materialLightTypeMember]) and the renderer fills the member.
+MaterialInput materialLightTypeInput(String name) =>
+    MaterialInput(name, ExpressionType.float, 'f3d_is_$name', since: 3);
+
+/// The `MaterialParams` member a `lighttype` declaration named [name]
+/// holds its type's code in: what `LightingModel.lightTypeMembers` maps to
+/// the type's name, and the renderer fills from `LightTypes.codeNamed`.
+String materialLightTypeMember(String name) => 'f3d_lighttype_$name';
 
 /// What a fragment body of version 2 reads of the scene behind it — item 9
 /// of `tasks/1.0-scope-additions.md`, for soft edges, fog and water.
@@ -214,6 +237,13 @@ const List<MaterialInput> materialSceneInputs = <MaterialInput>[
 /// first texture coordinate, the vertex colour, and `origin`, the model
 /// transform's translation — where the object stands, so a field of grass
 /// sways out of step blade by blade.
+///
+/// **On an instanced draw** (version 3) `position` and `objectNormal` are in
+/// the node's space after the instance's transform, `world` after both,
+/// `color` is the vertex's own (the instance's colour multiplies it after
+/// the block), and `instance` is the instance's four numbers. On a
+/// lightmapped draw `color` is white: the attribute holds the lightmap's
+/// coordinate there.
 const List<MaterialInput> materialVertexInputs = <MaterialInput>[
   MaterialInput('position', ExpressionType.vec3, 'f3d_position', since: 2),
   MaterialInput(
@@ -226,6 +256,9 @@ const List<MaterialInput> materialVertexInputs = <MaterialInput>[
   MaterialInput('normal', ExpressionType.vec3, 'f3d_normal', since: 2),
   MaterialInput('uv', ExpressionType.vec2, 'texcoord', since: 2),
   MaterialInput('color', ExpressionType.vec4, 'color', since: 2),
+  // Version 3: an instance's own four numbers on an instanced draw
+  // (`InstancedMeshNode.setInstanceData`), nought on every other.
+  MaterialInput('instance', ExpressionType.vec4, 'f3d_instance', since: 3),
   MaterialInput(
     'origin',
     ExpressionType.vec3,
@@ -794,6 +827,12 @@ final class MaterialRemoveUpdate extends MaterialUpdate {
 /// file written before the line existed.
 const int materialLanguageFirstVersion = 1;
 
+/// The version from which a `vertex` block is drawn on instanced and
+/// lightmapped draws too, as `<name>VertexInstanced` and
+/// `<name>VertexLightmapped`, and reads `instance`. An older source keeps
+/// the engine's stages for those draws, as it always had.
+const int materialLanguageVariantsVersion = 3;
+
 /// The version of a material that says none (`material Hatch { … }` rather
 /// than `material Hatch version 3 { … }`), and of an instance that
 /// predates material versions. A material's versions count from it.
@@ -843,9 +882,24 @@ final class MaterialProgram {
     this.workgroupSize = (8, 8),
     this.version = firstMaterialVersion,
     this.updates = const <MaterialUpdate>[],
+    this.lightTypes = const <String, String>{},
   });
 
   final String name;
+
+  /// Each `lighttype` declaration, version 3: the name the `light` block
+  /// reads (one for a light of that type) to the light type's name
+  /// (`acme.tube`).
+  final Map<String, String> lightTypes;
+
+  /// Whether the `light` block reads the light's row beyond what the
+  /// engine samples: `lightKind`, `lightParams` or a `lighttype` — version
+  /// 3. Its lights are gathered through the material's own loop, which
+  /// hands a plugin's light type to the block rather than skipping it.
+  bool get readsLightRow =>
+      lightTypes.isNotEmpty ||
+      inputsUsed.contains('lightKind') ||
+      inputsUsed.contains('lightParams');
 
   /// What the source declares a draw may set, or folds: each `uniform` and
   /// `param`, with its width and default. A source says no unit yet, so
@@ -1068,6 +1122,7 @@ MaterialProgram specializeMaterial(
     workgroupSize: program.workgroupSize,
     version: program.version,
     updates: program.updates,
+    lightTypes: program.lightTypes,
   );
 }
 

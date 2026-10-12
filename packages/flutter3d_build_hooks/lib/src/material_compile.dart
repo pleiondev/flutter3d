@@ -251,24 +251,16 @@ ShaderBundle compileMaterial(
     );
   }
   final specialised = specializeMaterial(program, MaterialVariant(name));
-  final vertexName = program.vertexStageName;
 
   // The stages the source becomes: the fragment stage under the material's
-  // name, and with a `vertex` block its two vertex stages — version 2.
+  // name, and with a `vertex` block its vertex stages — the plain and the
+  // skinned from version 2, the instanced and the lightmapped from 3.
   final stages = <_Stage>[
     (name: name, fragment: true, glsl: emitMaterialFragment(specialised)),
-    if (vertexName != null) ...<_Stage>[
-      (
-        name: vertexName,
-        fragment: false,
-        glsl: emitMaterialVertex(specialised),
-      ),
-      (
-        name: '${vertexName}Skinned',
-        fragment: false,
-        glsl: emitMaterialVertex(specialised, skinned: true),
-      ),
-    ],
+    for (final MapEntry(key: stage, value: glsl) in emitMaterialVertexStages(
+      specialised,
+    ).entries)
+      (name: stage, fragment: false, glsl: glsl),
   ];
 
   Never refused(String what, String message) =>

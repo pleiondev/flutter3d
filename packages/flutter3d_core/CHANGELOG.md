@@ -1,5 +1,24 @@
 ## 1.0.0-rc.1
 
+- **A lighting model written in the material language sees a plugin's
+  light type.** Version 3's `light` block reads `lightKind` and
+  `lightParams` (new inputs), names a type with `lighttype tube =
+  acme.tube;` and reads `tube` as one for a light of it; such a block
+  gathers through the material's own loop, which hands it the lights code
+  16 and up that the engine's stages skip. `LightingModel.lightTypeMembers`,
+  `MaterialBindings.lightTypes`, `MaterialProgram.lightTypes` and
+  `readsLightRow`, and `LightTypes.codeNamed` are new; the renderer fills
+  each type's code.
+- **A material's `vertex` block is drawn on instanced and lightmapped draws
+  too.** From material language version 3 the build and `RuntimeShaders`
+  emit `<name>VertexInstanced` and `<name>VertexLightmapped`
+  (`emitMaterialVertex(instanced:, lightmapped:)` and
+  `emitMaterialVertexStages`, new), the block reads the instance's four
+  numbers as `instance`, `MaterialBindings.vertexVariants` (new) lists the
+  halves, `BundledMaterials` lists only those its bundle carries, and the
+  depth and shadow passes draw an instanced caster through the material's
+  instanced half. A version 2 source keeps the engine's stages for those
+  draws.
 - **A full-screen stage written in the material language binds what it
   declares.** `FullscreenEffect.material(materials, stage, …)` (new) seeds
   its `MaterialParams` at the source's defaults as

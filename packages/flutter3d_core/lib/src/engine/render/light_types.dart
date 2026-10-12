@@ -105,6 +105,16 @@ final class LightTypes extends PluginRegistry {
         _ => 3,
       };
 
+  /// The code the light type called [name] (`acme.tube`) is packed with,
+  /// or null when no hook packs one of that name: what a material's
+  /// `lighttype` declaration is filled with.
+  int? codeNamed(String name) {
+    for (final entry in _store.entries) {
+      if (entry.hook.type.name == name) return entry.code;
+    }
+    return null;
+  }
+
   _LightTypeEntry? _entryOf(LightType type) {
     for (final entry in _store.entries) {
       if (identical(entry.hook.type, type)) return entry;

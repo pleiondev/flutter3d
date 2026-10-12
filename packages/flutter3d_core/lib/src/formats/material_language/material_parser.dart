@@ -367,6 +367,21 @@ bool isEngineBlockName(String name) =>
     name.startsWith('F3d') ||
     name.endsWith('Info');
 
+/// Names the instanced and lightmapped vertex stages declare, which a `let`
+/// in a `vertex` block of version 3 cannot take: those stages are emitted
+/// from version 3 on, so a version 2 source keeps every name it had.
+const Set<String> _variantReservedNames = <String>{
+  'i_row0',
+  'i_row1',
+  'i_row2',
+  'i_color',
+  'i_data',
+  'ApplyMorphInstanced',
+  'F3dInstanceIndex',
+  'morph_instance_weights',
+  'MorphInstanceInfo',
+};
+
 /// Names a version 2 stage declares besides [_reservedNames]: the blocks and
 /// samplers a full-screen stage, a compute kernel and the scene's depth are
 /// read through.
@@ -442,6 +457,7 @@ final class _Parser extends ExpressionParser {
       );
 
   final List<MaterialParameter> parameters = <MaterialParameter>[];
+  final Map<String, String> lightTypes = <String, String>{};
   final List<MaterialTextureSlot> textures = <MaterialTextureSlot>[];
   final Map<String, ExpressionType> locals = <String, ExpressionType>{};
 
@@ -590,6 +606,11 @@ final class _Parser extends ExpressionParser {
         parseParameter(uniform: true);
       } else if (skipWordIf('texture')) {
         parseTexture();
+      } else if (word == 'lighttype' &&
+          surface &&
+          version >= materialLanguageUpdatesVersion) {
+        position++;
+        parseLightType();
       } else if (word == 'fragment' && kind != MaterialStageKind.compute) {
         position++;
         if (body != null) fail('a material has one fragment body.');
@@ -757,6 +778,41 @@ final class _Parser extends ExpressionParser {
       kind: kind,
       state: state,
       workgroupSize: workgroup,
+      lightTypes: Map<String, String>.unmodifiable(lightTypes),
+    );
+  }
+
+  /// `lighttype tube = acme.tube;` — version 3: a name the `light` block
+  /// reads as one while it shades a light of that type, and a member of
+  /// `MaterialParams` the renderer fills with the type's code.
+  void parseLightType() {
+    final nameToken = expectToken('name', 'the name the light block reads');
+    checkFreeName(nameToken);
+    expectToken('=', '"=" after the name');
+    final parts = <String>[expectToken('name', 'a light type\'s name').text];
+    while (skipIf('.')) {
+      parts.add(expectToken('name', 'the rest of the light type\'s name').text);
+    }
+    expectToken(';', '";" after the light type');
+    final type = parts.join('.');
+    if (parts.length < 2) {
+      fail(
+        '"$type" is not a light type of a plugin\'s own: those are named '
+        '<pluginId>.<name>, and the engine\'s own four are told apart by '
+        'lightKind (0 to 3)',
+        nameToken,
+      );
+    }
+    lightTypes[nameToken.text] = type;
+    // The code, as a member of `MaterialParams` the renderer fills; minus
+    // one, which matches no light, where no hook packs the type.
+    parameters.add(
+      MaterialParameter(
+        materialLightTypeMember(nameToken.text),
+        ExpressionType.float,
+        const <double>[-1],
+        uniform: true,
+      ),
     );
   }
 
@@ -1355,7 +1411,12 @@ final class _Parser extends ExpressionParser {
             (version >= materialLanguageStagesVersion &&
                 (name.startsWith('f3d_') ||
                     _version2ReservedNames.contains(name))) ||
-            (body.isVertex && _vertexReservedNames.contains(name))) {
+            (body.isVertex && _vertexReservedNames.contains(name)) ||
+            (body.isVertex &&
+                version >= materialLanguageVariantsVersion &&
+                _variantReservedNames.contains(name)) ||
+            (version >= materialLanguageUpdatesVersion &&
+                name == 'F3dLightRow')) {
           fail(
             '"$name" is a name the generated shader already uses — GLSL, '
             '`surface.glsl` or the emitter itself — so a binding of it would '
@@ -1486,6 +1547,9 @@ final class _Parser extends ExpressionParser {
           MaterialStageKind.compute => kernelBlock,
           _ => fragmentBlock,
         };
+    if (inLight && lightTypes.containsKey(name)) {
+      return MaterialInputRef(materialLightTypeInput(name));
+    }
     for (final input in body.inputs) {
       if (input.name == name && input.since <= version) {
         inputsUsed.add(name);

@@ -532,11 +532,17 @@ the engine's later types take codes below 16. A light type of a plugin's own
 (`LightTypeHook`, registered with `LightTypes`) takes a code from 16 up,
 handed out once per renderer in registration order, and its hook fills the
 row. **The engine's lit stages skip a light whose code is 16 or more**; a
-lighting model of the plugin's own reads the code and the row in its
-`light` block (the inputs `lightKind` and `lightParams`, the row's last
-`vec4`) and computes its own falloff. The skip and the two inputs are part
-of the next shader change of the backends, which is where the engine's
-stages are compiled.
+lighting model of the plugin's own written in the material language reads
+the code and the row in its `light` block, from version 3: `lightKind` (the
+code) and `lightParams` (the row's last `vec4`). Such a block gathers its
+lights through the material's own loop, which hands it a plugin's light
+with the direction to it, n·l and its colour times its intensity, and no
+falloff or shadow of the engine's: the block computes its own from
+`lightParams`. Because codes are handed out per renderer, a material names
+its types instead, `lighttype tube = acme.tube;`, and its block reads `tube`
+as one for a light of that type; the renderer fills the code
+(`LightTypes.codeNamed`, `LightingModel.lightTypeMembers`), minus one where
+no hook packs the type.
 
 ### Vertex layouts
 
@@ -547,7 +553,13 @@ instance's rows, colour and four numbers in a second buffer stepped per
 instance (`MeshVertexLayouts.instanced`); its lightmapped half,
 `<name>Lightmapped`, the level's baked coordinate. A material lists the
 halves it ships (`LightingModel.vertexVariants`); the others are drawn
-through the engine's.
+through the engine's. A `vertex` block written in the material language
+ships all four from version 3 (`<name>VertexInstanced`,
+`<name>VertexLightmapped`), each with the engine's inputs in the engine's
+order, and the depth and shadow passes draw an instanced caster through its
+instanced half; an older source's instanced and lightmapped draws keep the
+engine's stages, as they always had. These layouts are frozen within 1.x:
+a stage built against 1.0 reads the same attributes at the same places.
 
 ### Decal stages
 

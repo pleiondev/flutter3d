@@ -463,6 +463,10 @@ final class Renderer with RenderServices {
   final Expando<Float32List> _slotDefaults = Expando<Float32List>(
     'slot default',
   );
+
+  /// The floats each `lighttype` member of a material is bound at, by the
+  /// member's name: one per name, written with the code before each draw.
+  final Map<String, Float32List> _lightTypeCodes = <String, Float32List>{};
   final Set<_ViewState> _allViewStates = <_ViewState>{};
 
   /// How many [render] calls a view's state outlives the last one that drew

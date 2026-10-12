@@ -1509,8 +1509,19 @@ extension _MeshEncode on Renderer {
     PassEncoder encoder,
     ShaderHandle stage,
     RenderMaterial material,
-    Map<String, Float32List> parameters,
+    Map<String, Float32List> given,
   ) {
+    // Version 3: a `lighttype` member holds the code this renderer gave the
+    // type, written over whatever the material holds.
+    final codes = material.lighting.lightTypeMembers;
+    final parameters = codes.isEmpty
+        ? given
+        : <String, Float32List>{
+            ...given,
+            for (final MapEntry(key: member, value: type) in codes.entries)
+              member: (_lightTypeCodes[member] ??= Float32List(1))
+                ..[0] = (lightTypes.codeNamed(type) ?? -1).toDouble(),
+          };
     final blocks = material.lighting.slots.blocks;
     if (blocks.isEmpty) {
       encoder.bindUniformBlock(stage, material.parameterBlock, parameters);

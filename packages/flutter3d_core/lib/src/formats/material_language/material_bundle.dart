@@ -29,7 +29,20 @@ final class BundledMaterials {
   BundledMaterials._(this.bundle, this._bindings, this.stages)
     : lighting = <String, LightingModel>{
         for (final MapEntry(key: name, value: bindings) in _bindings.entries)
-          name: bindings.lightingModel(label: name, shaderName: name),
+          // Only the halves this bundle carries: one built before they
+          // were made keeps the engine's stages for those draws rather
+          // than asking for a stage it has not got.
+          name: bindings.lightingModel(
+            label: name,
+            shaderName: name,
+            vertexVariants: <VertexStageVariant>{
+              for (final variant in bindings.vertexVariants)
+                if (bundle.names.contains(
+                  '${bindings.vertexShaderName}${variant.suffix}',
+                ))
+                  variant,
+            },
+          ),
       };
 
   /// Reads [bytes], a bundle as `GraphicsDevice.loadShaders` takes it.

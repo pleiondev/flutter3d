@@ -50,8 +50,9 @@ String generateMaterialAccessors(
     ..writeln("import 'package:vector_math/vector_math.dart';");
   for (final program in programs) {
     final uniforms = <MaterialParameter>[
+      // A `lighttype`'s member is the renderer's to fill, not the game's.
       for (final parameter in program.parameters)
-        if (parameter.uniform) parameter,
+        if (parameter.uniform && !parameter.name.startsWith('f3d_')) parameter,
     ];
     if (uniforms.isEmpty) continue;
     final type = materialAccessorName(program.name);

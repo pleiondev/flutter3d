@@ -170,10 +170,10 @@ ShaderBundle runtimeMaterialBundle(
     );
   }
   final fullscreen = program.kind == MaterialStageKind.fullscreen;
-  final vertexName = program.vertexStageName;
-  final vertexNames = <String>[
-    if (vertexName != null) ...<String>[vertexName, '${vertexName}Skinned'],
-  ];
+  final vertexStages = emitMaterialVertexStages(
+    specializeMaterial(program, MaterialVariant(name)),
+  );
+  final vertexNames = vertexStages.keys.toList();
   final material = encodeMaterialSection(<String, String>{
     name: source,
     for (final vertex in vertexNames) vertex: source,
@@ -216,11 +216,7 @@ ShaderBundle runtimeMaterialBundle(
     final specialised = specializeMaterial(program, MaterialVariant(name));
     final glsl = <String, String>{
       name: emitMaterialFragment(specialised),
-      for (final stage in vertexNames)
-        stage: emitMaterialVertex(
-          specialised,
-          skinned: stage.endsWith('Skinned'),
-        ),
+      ...vertexStages,
     };
     for (final MapEntry(key: stage, value: text) in glsl.entries) {
       final String resolved;
@@ -259,15 +255,9 @@ ShaderBundle runtimeMaterialBundle(
               fragment: true,
               glsl: emitMaterialFragment(specialised),
             ),
-            for (final stage in vertexNames)
-              MaterialStageSource(
-                name: stage,
-                fragment: false,
-                glsl: emitMaterialVertex(
-                  specialised,
-                  skinned: stage.endsWith('Skinned'),
-                ),
-              ),
+            for (final MapEntry(key: stage, value: glsl)
+                in vertexStages.entries)
+              MaterialStageSource(name: stage, fragment: false, glsl: glsl),
           ],
           options: <String, Object?>{
             'webGpuHost': ?webGpuHost,
@@ -308,12 +298,9 @@ ShaderBundle runtimeMaterialBundle(
       try {
         webgl = translateGlsl(glsl, engineSources, from: from, fragment: true);
         vertex = <String, String>{
-          for (final stage in vertexNames)
+          for (final MapEntry(key: stage, value: glsl) in vertexStages.entries)
             stage: translateGlsl(
-              emitMaterialVertex(
-                specialised,
-                skinned: stage.endsWith('Skinned'),
-              ),
+              glsl,
               engineSources,
               from: from,
               fragment: false,
