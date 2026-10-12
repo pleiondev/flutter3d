@@ -39,6 +39,8 @@ Homepage: **<https://flutter3d.pleion.dev>** · API reference:
 `ARCHITECTURE.md` at the repository root explains how all of it fits together
 and why.
 
+[API.md](API.md) maps the public API for applications and games, area by area.
+
 What works today:
 
 - a CPU-side geometry layer with no GPU dependency: vertex layouts, `MeshData`,

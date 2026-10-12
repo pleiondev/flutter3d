@@ -17,6 +17,8 @@ without the plugin changing.
 - `PublishedState` and `PublishedEvent` are what a step publishes for the
   view, and `SimulationVersion` names the simulation a run was played by.
 
+[API.md](API.md) is the whole plugin and extension API, every registry and hook.
+
 The loop and the bus are implemented by `EngineLoop` in `flutter3d_sim`,
 which also declares the handle a view holds of a simulation
 (`SimulationHandle`) and the named questions a plugin answers
