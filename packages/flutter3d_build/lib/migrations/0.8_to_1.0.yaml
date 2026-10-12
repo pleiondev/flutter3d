@@ -21957,12 +21957,62 @@ entries:
       A colour the engine hands out is a `LinearColor` where it was a vector:
       `.w` of it is `.a`.
 
-  - id: corpus-foundation-LinearColor-scale
+  - id: corpus-foundation-LinearColor-vector
     package: flutter3d_foundation
-    symbol: LinearColor.scale
+    symbol: LinearColor
     kind: manual
     on: LinearColor
+    members: [scale, '-', '+', '*']
     guidance: >-
       A colour the engine hands out is a `LinearColor`, a value, where it was
-      a vector changed in place: `color.scale(f)` is `holder.color =
-      color.scaled(f)` on whatever held it.
+      a vector: `color.scale(f)` changed it in place and is `holder.color =
+      color.scaled(f)` on whatever held it; vector arithmetic on two colours
+      is on `toVector3()` or `toVector4()` of each, or on their channels.
+
+  - id: corpus-app-Storage-calls
+    package: flutter3d_app
+    symbol: Storage
+    kind: manual
+    members: [read, write, remove]
+    async: true
+    guidance: >-
+      `read`, `write` and `remove` are asynchronous: await them, inside an
+      `async` function. A write the platform refused throws a
+      `StorageException` where it answered `false`.
+
+  - id: corpus-testing-FramePacing-millis
+    package: flutter3d_testing
+    symbol: FramePacing.millis
+    kind: rewrite
+    template: '{target}.seconds.map((double s) => s * 1000).toList()'
+    guidance: >-
+      A pacing report keeps seconds, as every time in the engine is:
+      `millis` is `seconds` times a thousand.
+
+  - id: corpus-testing-FramePacing-limitMillis
+    package: flutter3d_testing
+    symbol: FramePacing.limitMillis
+    kind: rewrite
+    template: '({target}.limit * 1000)'
+    guidance: >-
+      A pacing report keeps seconds: `limitMillis` is `limit` times a
+      thousand.
+
+  - id: corpus-testing-FramePacing-even
+    package: flutter3d_testing
+    symbol: FramePacing.even
+    kind: rename
+    to: isEven
+    guidance: >-
+      A boolean getter reads as a question in 1.0: `even` is `isEven`.
+
+  - id: corpus-testing-FramePacing-seconds
+    package: flutter3d_testing
+    symbol: FramePacing
+    kind: manual
+    members: [p50, p99, max, of]
+    guidance: >-
+      A pacing report keeps seconds where it kept milliseconds: `p50`, `p99`
+      and `max` are seconds, and `PacingReport.of(seconds, limit: 0.05)`
+      takes seconds where `FramePacing.of(millis, limitMillis: 50)` took
+      milliseconds.

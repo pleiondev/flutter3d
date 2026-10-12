@@ -1,5 +1,7 @@
 // The `recordToClass` kind: `.$1` and `.$2` of a record that became a class
-// are the class's getters; a destructuring pattern is left to a person.
+// are the class's getters; a record built where the class is expected, with
+// its fields, is a creation of it; a destructuring pattern is left to a
+// person.
 import 'package:flutter3d_build/src/migrate/guide.dart';
 import 'package:flutter3d_build/src/migrate/lints_table.dart';
 import 'package:test/test.dart';
@@ -18,9 +20,15 @@ void main() {
     );
   });
 
-  test('positional fields become getters; destructuring gets a TODO', () async {
+  test('positional fields become getters, a record where the class goes is '
+      'a creation; destructuring gets a TODO', () async {
     final report = await migrateKindFixture('recordToClass');
-    expect(appliedOf(report), <String>['kinds-Span-class', 'kinds-Span-class']);
+    expect(appliedOf(report), <String>[
+      'kinds-Span-class',
+      'kinds-Span-class',
+      'kinds-Frame-class',
+      'kinds-Frame-class',
+    ]);
     expect(manualOf(report), <String>['kinds-Span-class:11']);
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

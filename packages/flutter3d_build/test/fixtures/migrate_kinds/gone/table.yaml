@@ -98,3 +98,18 @@ entries:
     async: true
     guidance: >-
       `load` is asynchronous: await it.
+  - id: kinds-Seat
+    package: flutter3d_kinds
+    symbol: Seat
+    kind: rename
+    to: KindSeat
+  - id: kinds2-Seat
+    package: flutter3d_kinds
+    symbol: Seat
+    kind: rename
+    to: ToolSeat
+  - id: kinds-Wheel-rolling
+    package: flutter3d_kinds
+    symbol: Wheel.rolling
+    kind: rename
+    to: isRolling

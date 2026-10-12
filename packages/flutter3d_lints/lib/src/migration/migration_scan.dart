@@ -398,7 +398,7 @@ final class _Scan extends RecursiveAstVisitor<void> {
         (element.enclosingElement is LibraryElement && _ownedAs(element, rule));
   }
 
-  bool _ownedAs(Element? element, MigrationRule rule) {
+  bool _ownedAs(Element? element, MigrationRule? rule) {
     final package = _packageOf(element);
     return package != null && ownedPackage(package);
   }
@@ -810,6 +810,12 @@ final class _Scan extends RecursiveAstVisitor<void> {
       }
     }
     _shadowedRename(node);
+    _renameOverrides(node);
+    // A renamed class in a type, as in a creation: before `dart fix`, which
+    // picks one rename by name where two classes had it.
+    if (node.element == null && node.importPrefix == null) {
+      _renameClass(node.name, node);
+    }
     super.visitNamedType(node);
   }
 
@@ -982,6 +988,39 @@ final class _Scan extends RecursiveAstVisitor<void> {
   }
 
   // -------------------------------------------------------------- imports
+
+  /// An operator the left operand's type no longer has, which a rule
+  /// about that type lists: `a - b` of two colours that were vectors.
+  @override
+  void visitBinaryExpression(BinaryExpression node) {
+    final type = node.leftOperand.staticType;
+    if (node.element == null && type is InterfaceType) {
+      final op = node.operator.lexeme;
+      for (final rule in <MigrationRule>[
+        ...?byMember[op],
+        ...?byListedMember[op],
+      ]) {
+        final on = rule.receiver ?? rule.renamedTo ?? rule.type;
+        if (rule.kind == MigrationKind.manual && _isOrExtends(type, on)) {
+          _add(rule, node);
+          break;
+        }
+      }
+    }
+    super.visitBinaryExpression(node);
+  }
+
+  @override
+  void visitExportDirective(ExportDirective node) {
+    // A library gone whole, re-exported by the project's own barrel.
+    if (node.uri.stringValue case final uri?) {
+      for (final rule in byType[uri] ?? const <MigrationRule>[]) {
+        if (rule.kind == MigrationKind.manual) _add(rule, node);
+      }
+      if (internalByUri[uri] case final rule?) _add(rule, node);
+    }
+    super.visitExportDirective(node);
+  }
 
   @override
   void visitImportDirective(ImportDirective node) {
@@ -1236,6 +1275,75 @@ final class _Scan extends RecursiveAstVisitor<void> {
         edits: <MigrationEdit>[MigrationEdit(node.offset, node.length, getter)],
       );
     }
+  }
+
+  /// A record built where the class it became is expected — returned from
+  /// a function that answers it, assigned to a variable of it, passed for
+  /// a parameter of it — with the class's own fields: a creation of it.
+  @override
+  void visitRecordLiteral(RecordLiteral node) {
+    final type = node.staticType;
+    if (type is RecordType &&
+        type.positionalFields.isEmpty &&
+        type.namedFields.isNotEmpty &&
+        !node.isConst) {
+      final names = <String>{for (final f in type.namedFields) f.name};
+      final expected = _expectedType(node);
+      if (expected is InterfaceType) {
+        for (final rule
+            in records[expected.element.name] ?? const <MigrationRule>[]) {
+          final same =
+              rule.fields.length == names.length &&
+              rule.fields.entries.every(
+                (MapEntry<String, String> f) =>
+                    f.key == f.value && names.contains(f.key),
+              );
+          if (same && _ownedAs(expected.element, rule)) {
+            _add(
+              rule,
+              node,
+              edits: <MigrationEdit>[
+                MigrationEdit(node.offset, 0, expected.element.name ?? ''),
+              ],
+            );
+            break;
+          }
+        }
+      }
+    }
+    super.visitRecordLiteral(node);
+  }
+
+  /// The type the place [node] stands in asks for, a `Future`'s unwrapped:
+  /// a function's return type, a variable's, a parameter's.
+  DartType? _expectedType(Expression node) {
+    AstNode at = node;
+    while (at.parent is ParenthesizedExpression) {
+      at = at.parent!;
+    }
+    final parent = at.parent;
+    final DartType? type = switch (parent) {
+      ReturnStatement() || ExpressionFunctionBody() => switch (at
+          .thisOrAncestorOfType<FunctionBody>()
+          ?.parent) {
+        FunctionExpression(:final parent?) => switch (parent) {
+          FunctionDeclaration(:final returnType?) => returnType.type,
+          _ => null,
+        },
+        MethodDeclaration(:final returnType?) => returnType.type,
+        _ => null,
+      },
+      VariableDeclaration(:final declaredFragment?) =>
+        declaredFragment.element.type,
+      _ when at is Expression => at.correspondingParameter?.type,
+      _ => null,
+    };
+    if (type is InterfaceType &&
+        (type.isDartAsyncFuture || type.isDartAsyncFutureOr) &&
+        type.typeArguments.isNotEmpty) {
+      return type.typeArguments.first;
+    }
+    return type;
   }
 
   @override
@@ -1518,6 +1626,14 @@ final class _Scan extends RecursiveAstVisitor<void> {
     for (final a in unmatched) {
       _add(rules.first, a);
     }
+    // And on the call's name, where the analyzer names a parameter it now
+    // requires.
+    switch (node.parent) {
+      case InstanceCreationExpression(:final constructorName):
+        _add(rules.first, constructorName);
+      case MethodInvocation(:final methodName):
+        _add(rules.first, methodName);
+    }
   }
 
   /// The class whose constructor or method [list] is passed to, by name.
@@ -1611,7 +1727,8 @@ final class _Scan extends RecursiveAstVisitor<void> {
     final fits = <MigrationRule>[
       for (final r in rules)
         if (r.to case final to?
-            when scope?.lookup(to).getter is InterfaceElement)
+            when scope?.lookup(to).getter is InterfaceElement &&
+                !_hiddenFrom(name.lexeme, to))
           r,
     ];
     if (fits case [final rule]) {
@@ -1627,6 +1744,71 @@ final class _Scan extends RecursiveAstVisitor<void> {
     for (final rule in rules) {
       _add(rule, at);
     }
+  }
+
+  /// The members a class declares under an old name of a member of [type],
+  /// which it extends, implements or mixes in: renamed with it, since
+  /// `dart fix` renames the uses and leaves an implementer's declaration,
+  /// which then no longer implements anything.
+  void _renameOverrides(NamedType type) {
+    final clause = type.parent;
+    if (clause is! ExtendsClause &&
+        clause is! ImplementsClause &&
+        clause is! WithClause) {
+      return;
+    }
+    final declaration = clause?.parent;
+    if (declaration is! ClassDeclaration) return;
+    final body = declaration.body;
+    if (body is! BlockClassBody) return;
+    final element = type.element;
+    if (element is! InterfaceElement || !_ownedAs(element, null)) return;
+    final declared = <String>{
+      for (final m in body.members.whereType<MethodDeclaration>())
+        m.name.lexeme,
+    };
+    for (final member in body.members.whereType<MethodDeclaration>()) {
+      for (final rule
+          in memberRenames[member.name.lexeme] ?? const <MigrationRule>[]) {
+        final to = rule.to;
+        if (to == null ||
+            declared.contains(to) ||
+            !_isOfRule(element.thisType, rule)) {
+          continue;
+        }
+        _add(
+          rule,
+          member,
+          edits: <MigrationEdit>[
+            MigrationEdit(member.name.offset, member.name.length, to),
+          ],
+        );
+        break;
+      }
+    }
+  }
+
+  /// Whether an engine import that brings [to] hides [old] (or [to]): two
+  /// classes renamed from one old name (`Pose`, the animation's and the
+  /// simulation's), and the file hid the one it did not mean.
+  bool _hiddenFrom(String old, String to) {
+    for (final d in unit.directives.whereType<ImportDirective>()) {
+      final library = d.libraryImport?.importedLibrary;
+      final uri = d.uri.stringValue ?? '';
+      if (library == null ||
+          !uri.startsWith('package:') ||
+          !ownedPackage(uri.substring(8).split('/').first) ||
+          library.exportNamespace.get2(to) == null) {
+        continue;
+      }
+      final hides = d.combinators.whereType<HideCombinator>().any(
+        (HideCombinator c) => c.hiddenNames.any(
+          (SimpleIdentifier n) => n.name == old || n.name == to,
+        ),
+      );
+      if (hides) return true;
+    }
+    return false;
   }
 
   /// A name that moved to another library, met where the analyzer finds

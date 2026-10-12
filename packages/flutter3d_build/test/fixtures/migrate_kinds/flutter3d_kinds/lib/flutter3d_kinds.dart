@@ -50,6 +50,14 @@ final class Span {
 
 Span spanOf(String text) => Span(0, text.length, label: text);
 
+// 0.8: `typedef Frame = ({int width, int height})`.
+
+final class Frame {
+  const Frame({required this.width, required this.height});
+  final int width;
+  final int height;
+}
+
 // ---------------------------------------------------------- nullToThrow
 // 0.8: `String? loadText(String path)`, null for a path that is not there.
 
@@ -175,6 +183,12 @@ final class KindLedger {
 
 final class Store {
   Future<int> load() async => 1;
+}
+
+// 0.8 had two `Seat`s; this one is `KindSeat` since.
+
+final class KindSeat {
+  KindSeat();
 }
 
 // ----------------------------------------------------------- parameters

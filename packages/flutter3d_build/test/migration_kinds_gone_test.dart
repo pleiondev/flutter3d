@@ -43,6 +43,10 @@ void main() {
       'kinds-Board-pile',
       'kinds-Store-load',
       'kinds-Store-load',
+      'kinds-Seat',
+      'kinds2-Seat',
+      'kinds2-Seat',
+      'kinds-Wheel-rolling',
     ]);
     expect(manualOf(report), <String>[
       'kinds-roster:3',

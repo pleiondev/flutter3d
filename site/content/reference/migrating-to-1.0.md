@@ -222,7 +222,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 1863 entries from 0.8.5 to 1.0.0-rc.1, 304 by hand: 216 `migrate`, 304 by hand, 370 nothing to do, 486 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 1868 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 218 `migrate`, 306 by hand, 370 nothing to do, 487 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -440,6 +440,7 @@ carried out:
 - <a id="app-SceneSurface"></a>**`SceneSurface`** (by hand). `SceneSurface` is a `StatefulWidget` now, so it can own the frame callback it takes as `onFrame`. Building one is unchanged; a class that extended it and overrode `build` has to wrap a `SceneSurface` in a widget of its own instead.
 - <a id="2f-app-SceneSurface-final"></a>**`SceneSurface`** (nothing to do). The widget is a `final class`: a widget is composed, not subclassed, so a build method that wraps a `SceneSurface` is unchanged. A class that extended it builds one instead.
 - <a id="app-Storage"></a>**`Storage`** (by hand). `Storage` is asynchronous and an `abstract base class`. `read` answers `Future<String?>`, `write` a `Future<void>` that throws a `StorageException` when the platform refused, and `remove` a `Future<void>`: await them, and catch `StorageException` where a refused write used to be `false`. An implementation is written `extends Storage` with `async` overrides; a test can use `MemoryStorage` instead of its own.
+- <a id="corpus-app-Storage-calls"></a>**`Storage`** (by hand). `read`, `write` and `remove` are asynchronous: await them, inside an `async` function. A write the platform refused throws a `StorageException` where it answered `false`.
 - <a id="app-TerrainTiles"></a>**`TerrainTiles`** (nothing to do). Only the engine's material type in its signature changed: `Material` is `RenderMaterial` (`core-Material-RenderMaterial` renames it).
 - <a id="4a-app-TerrainTiles-TerrainTiles"></a>**`TerrainTiles.TerrainTiles`** (`dart fix`). American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
 - <a id="4a-app-TerrainTiles-metresPerTexture"></a>**`TerrainTiles.metresPerTexture`** (`dart fix`). `TerrainTiles.metresPerTexture` is `metersPerTexture`. American spelling in identifiers, as Flutter and Dart use: the old British name is gone, and the new one means the same.
@@ -970,7 +971,7 @@ carried out:
 
 ### `flutter3d_foundation`
 
-- <a id="corpus-foundation-LinearColor-scale"></a>**`LinearColor.scale`** (by hand). A colour the engine hands out is a `LinearColor`, a value, where it was a vector changed in place: `color.scale(f)` is `holder.color = color.scaled(f)` on whatever held it.
+- <a id="corpus-foundation-LinearColor-vector"></a>**`LinearColor`** (by hand). A colour the engine hands out is a `LinearColor`, a value, where it was a vector: `color.scale(f)` changed it in place and is `holder.color = color.scaled(f)` on whatever held it; vector arithmetic on two colours is on `toVector3()` or `toVector4()` of each, or on their channels.
 - <a id="corpus-foundation-LinearColor-w"></a>**`LinearColor.w`** (`migrate`). `LinearColor.w` becomes `x.a`. A colour the engine hands out is a `LinearColor` where it was a vector: `.w` of it is `.a`.
 - <a id="corpus-foundation-LinearColor-x"></a>**`LinearColor.x`** (`migrate`). `LinearColor.x` becomes `x.r`. A colour the engine hands out is a `LinearColor` where it was a vector: `.x` of it is `.r`.
 - <a id="corpus-foundation-LinearColor-y"></a>**`LinearColor.y`** (`migrate`). `LinearColor.y` becomes `x.g`. A colour the engine hands out is a `LinearColor` where it was a vector: `.y` of it is `.g`.
@@ -1856,6 +1857,10 @@ carried out:
 ### `flutter3d_testing`
 
 - <a id="testing-FramePacing"></a>**`FramePacing`** (`dart fix`). `FramePacing` is `PacingReport`. `flutter3d_core` has a `FramePacing` of its own, the renderer's pacing policy, so the replay's statistics are `PacingReport`, with the same members.
+- <a id="corpus-testing-FramePacing-seconds"></a>**`FramePacing`** (by hand). A pacing report keeps seconds where it kept milliseconds: `p50`, `p99` and `max` are seconds, and `PacingReport.of(seconds, limit: 0.05)` takes seconds where `FramePacing.of(millis, limitMillis: 50)` took milliseconds.
+- <a id="corpus-testing-FramePacing-even"></a>**`FramePacing.even`** (`dart fix`). `FramePacing.even` is `isEven`. A boolean getter reads as a question in 1.0: `even` is `isEven`.
+- <a id="corpus-testing-FramePacing-limitMillis"></a>**`FramePacing.limitMillis`** (`migrate`). `FramePacing.limitMillis` becomes `(x.limit * 1000)`. A pacing report keeps seconds: `limitMillis` is `limit` times a thousand.
+- <a id="corpus-testing-FramePacing-millis"></a>**`FramePacing.millis`** (`migrate`). `FramePacing.millis` becomes `x.seconds.map((double s) => s * 1000).toList()`. A pacing report keeps seconds, as every time in the engine is: `millis` is `seconds` times a thousand.
 - <a id="rc-testing-FrameSubject-class"></a>**`FrameSubject`** (`migrate`). `FrameSubject` is a class: `.scene` is `.scene`, `.camera` is `.camera`; a destructuring pattern is yours to rewrite. `FrameSubject` is a class with the same `scene` and `camera`: return `FrameSubject(scene: …, camera: …)` where a builder or a replay subject returned the record.
 - <a id="testing-MaterialProgramStage"></a>**`MaterialProgramStage`** (`dart fix`). `MaterialProgramStage` is imported from `package:flutter3d_app/flutter3d_app.dart`.
 - <a id="rc-testing-RenderedFrame-class"></a>**`RenderedFrame`** (`migrate`). `RenderedFrame` is a class: `.pixels` is `.pixels`, `.width` is `.width`, `.height` is `.height`, `.drawCalls` is `.drawCalls`; a destructuring pattern is yours to rewrite. `RenderedFrame` is a class with the same `pixels`, `width`, `height` and `drawCalls`: build one with `RenderedFrame(…)` where a test built the record.

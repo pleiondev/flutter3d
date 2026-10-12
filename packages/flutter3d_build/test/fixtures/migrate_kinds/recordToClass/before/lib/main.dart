@@ -11,3 +11,9 @@ int start(String text) {
   final (first, _, label: _) = spanOf(text);
   return first;
 }
+
+Frame framed(int w) => (width: w, height: w * 2);
+
+Future<Frame> later(int w) async {
+  return (width: w, height: w);
+}

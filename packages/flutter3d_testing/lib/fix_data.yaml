@@ -1,6 +1,6 @@
 # Generated from flutter3d_build/lib/migrations/*.yaml by
 # `dart run tool/generate_migrations.dart` in flutter3d_build. Do not edit.
-# table-stamp: 5cc32b4419b4f5f9
+# table-stamp: 10085ee50794ff7c
 #
 # Read by `dart fix` and the IDE: see "A break comes with its migration"
 # in CONTRIBUTING.md.
@@ -14,3 +14,12 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'PacingReport'
+  - title: 'flutter3d 1.0.0-rc.1: corpus-testing-FramePacing-even'
+    date: 2026-10-08
+    element:
+      uris: ['package:flutter3d_testing/flutter3d_testing.dart']
+      getter: 'even'
+      inClass: 'FramePacing'
+    changes:
+      - kind: 'rename'
+        newName: 'isEven'

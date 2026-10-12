@@ -104,8 +104,18 @@ Future<void> main(List<String> args) async {
       _scan(result, work, rules, automaticOnly: automaticOnly);
     }
   }
+  // The project's own package is not the engine's, whatever its name.
+  final pubspec = File('$normalised${Platform.pathSeparator}pubspec.yaml');
+  final self = pubspec.existsSync()
+      ? RegExp(
+          r'^name:\s*(\S+)',
+          multiLine: true,
+        ).firstMatch(pubspec.readAsStringSync())?.group(1)
+      : null;
   for (final MapEntry(key: path, value: names) in work.hide.entries) {
-    if (units[path] case final unit?) _hideNewNames(unit, names, work);
+    if (units[path] case final unit?) {
+      _hideNewNames(unit, names, work, self: self);
+    }
   }
   for (final MapEntry(key: path, value: uris) in work.imports.entries) {
     if (units[path] case final unit?) _addImports(unit, uris, work);
@@ -235,7 +245,12 @@ void _scan(
 /// Hides [names] on the flutter3d imports of library [unit] that bring
 /// them, where the clash is with the project's own code: a name 1.0 began
 /// to export that the project already had.
-void _hideNewNames(ResolvedUnitResult unit, Set<String> names, _Work work) {
+void _hideNewNames(
+  ResolvedUnitResult unit,
+  Set<String> names,
+  _Work work, {
+  String? self,
+}) {
   final hides = <ImportDirective, Set<String>>{};
   final imports = unit.unit.directives.whereType<ImportDirective>().toList();
   for (final name in names) {
@@ -250,7 +265,7 @@ void _hideNewNames(ResolvedUnitResult unit, Set<String> names, _Work work) {
       final package = uri.startsWith('package:')
           ? uri.substring(8).split('/').first
           : '';
-      if (ownedPackage(package)) {
+      if (ownedPackage(package) && package != self) {
         ours.add(d);
       } else {
         theirs = true;
