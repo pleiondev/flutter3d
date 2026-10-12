@@ -123,7 +123,7 @@ A room lit only by bulbs needs the camera opened up, as a photographer would: `R
 
 ## Shadows, bloom and tone mapping {.step}
 
-What every frame is drawn with is one `RenderSettings`, handed to `Scene3D`:
+What every frame is drawn with is one `RenderSettings`, handed to `Scene3D` in its `view:` group, as `Flutter3dView` takes it:
 
 ```dart
 static const RenderSettings look = RenderSettings(
@@ -139,7 +139,7 @@ static const RenderSettings look = RenderSettings(
   ),
 );
 
-// Scene3D(settings: look, children: ...)
+// Scene3D(view: const ViewSettings(settings: look), children: ...)
 ```
 
 Three tiles of 1024 cover a scene far better than one of 4096, so prefer a smaller tile *and* cascades.
@@ -172,7 +172,7 @@ The file is read once, when the widget is first built, on a background isolate. 
 
 ## Tap on something {.step}
 
-A tap on the `Scene3D` is a ray through the camera, and the nearest surface under the finger answers, whether or not it listens. `Mesh3D.onTap` gives where it landed; `Model3D.onTap` gives the part as well.
+A tap on the `Scene3D` is a ray through the camera, and the nearest surface under the finger answers, whether or not it listens. `Mesh3D.onTap` and `Model3D.onTap` both hand you the `HitResult`: where it landed, and on a model the part it landed on (`hit.node`).
 
 ```dart
 MeshNode? selected;
@@ -181,10 +181,12 @@ MeshNode? selected;
 onTap: (HitResult hit) => setState(() => selected = null),
 
 // On the robot:
-onTap: (MeshNode part, HitResult hit) => setState(() => selected = part),
+onTap: (HitResult hit) => setState(() => selected = hit.node),
 
 // And in Scene3D:
-settings: look.copyWith(highlighted: <SceneNode>[?selected]),
+view: ViewSettings(
+  settings: look.copyWith(highlighted: <SceneNode>[?selected]),
+),
 ```
 
 The `HitResult` is reused by the next tap. Copy anything that has to outlive the callback, as `hit.point.clone()`.
@@ -213,10 +215,10 @@ Particles3D(effect: sparks, perSecond: 200, position: tappedAt),
 
 ## What the frame cost {.step}
 
-`onFrame` is called before every frame with the seconds since the last one and what the renderer answered for the frame before:
+`onFrame` is called before every frame with the engine, the seconds since the last one and what the renderer answered for the frame before, the shape `Flutter3dView.onFrame` has:
 
 ```dart
-onFrame: (FrameInfo frame) {
+onFrame: (Flutter3dEngine engine, FrameInfo frame) {
   if (frame.result case final result?) {
     debugPrint('${result.drawCalls} draws, ${result.triangles} triangles, '
         '${result.cpuMicros} µs');
@@ -227,8 +229,10 @@ onFrame: (FrameInfo frame) {
 Turn on the debug overlay while you are still finding out where things are. All of it is drawn in one call:
 
 ```dart
-settings: look.copyWith(
-  debug: const DebugDrawSettings(bounds: true, lightGizmos: true, axes: true),
+view: ViewSettings(
+  settings: look.copyWith(
+    debug: const DebugDrawSettings(bounds: true, lightGizmos: true, axes: true),
+  ),
 ),
 ```
 
@@ -238,10 +242,10 @@ settings: look.copyWith(
 
 ## The engine under the widgets {.step}
 
-`Scene3D` hands you what it built once the device is open:
+`Scene3D` hands you what it built once the device is open, in `onSceneCreated` (named apart from the view's `onCreated`, which is handed the engine alone):
 
 ```dart
-onCreated: (Scene3DController scene) {
+onSceneCreated: (Scene3DController scene) {
   // The scene graph the widgets build into, and a node added by hand: a
   // shape builds its mesh on the CPU, and the device uploads it.
   scene.scene.add(

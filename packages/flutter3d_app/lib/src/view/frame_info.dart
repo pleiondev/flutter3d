@@ -15,7 +15,8 @@ import 'flutter3d_view.dart' show Flutter3dView;
 /// does not.
 ///
 /// ```dart
-/// Scene3D(onFrame: (FrameInfo frame) => spin += frame.seconds)
+/// Scene3D(onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
+///     spin += frame.seconds)
 /// ```
 final class FrameInfo {
   /// A frame [seconds] after the one before, with the renderer's [result]

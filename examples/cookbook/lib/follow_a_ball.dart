@@ -26,7 +26,7 @@ class _FollowABallState extends State<FollowABall> {
 
   @override
   Widget build(BuildContext context) => Scene3D(
-    onFrame: (frame) => bounce(frame.seconds),
+    onFrame: (_, frame) => bounce(frame.seconds),
     children: <Widget>[
       // The target follows on every build; distance and angle are the person's.
       OrbitCamera3D(target: ball.clone(), distance: 8.0),

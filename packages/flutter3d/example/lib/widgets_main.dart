@@ -47,10 +47,12 @@ class _WidgetsPageState extends State<WidgetsPage> {
     behavior: HitTestBehavior.opaque,
     onTap: () => setState(() => _polished = !_polished),
     child: Scene3D(
-      // Drawn when this page rebuilds; nothing here moves on its own.
-      continuous: false,
-      onCreated: widget.onCreated,
-      placeholder: const ColoredBox(key: Key('opening'), color: Colors.black),
+      view: const ViewSettings(
+        // Drawn when this page rebuilds; nothing here moves on its own.
+        continuous: false,
+        placeholder: ColoredBox(key: Key('opening'), color: Colors.black),
+      ),
+      onSceneCreated: widget.onCreated,
       children: <Widget>[
         Camera3D(position: Vector3(0.0, 1.2, 3.5), target: Vector3.zero()),
         // One point light and nothing else, so the falloff is the picture.

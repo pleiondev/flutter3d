@@ -8,8 +8,6 @@ library;
 import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
-import 'package:flutter3d_core/flutter3d_core.dart'
-    show SceneBindingContext, SceneNodeKind;
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
 import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -81,9 +79,8 @@ Widget _scene({
     width: 32,
     height: 24,
     child: Scene3D(
-      device: device,
-      presenter: _noPresenter,
-      onCreated: (controller) {
+      device: DeviceSettings(device: device, presenter: _noPresenter),
+      onSceneCreated: (controller) {
         controller.renderer.sceneBindings
           ..addKind(kind)
           ..add(

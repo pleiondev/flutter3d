@@ -50,14 +50,15 @@ Widget _scene(
       width: _width.toDouble(),
       height: _height.toDouble(),
       child: Scene3D(
-        device: device,
-        continuous: continuous,
-        presenter: _noPresenter,
-        onCreated: onCreated,
-        settings: const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-          look: LookSettings(dither: 0.0),
+        device: DeviceSettings(device: device, presenter: _noPresenter),
+        view: ViewSettings(
+          continuous: continuous,
+          settings: const RenderSettings(
+            bloom: BloomSettings(enabled: false),
+            look: LookSettings(dither: 0.0),
+          ),
         ),
+        onSceneCreated: onCreated,
         children: children,
       ),
     ),
@@ -104,6 +105,55 @@ void main() {
     expect(names, containsAll(<String>['a', 'b']));
     final b = controller.scene.meshes.firstWhere((m) => m.name == 'b');
     expect(b.parent?.name, 'group');
+  });
+
+  // Mutation: drop `loop:` or `plugins:` from the view Scene3D builds, or
+  // build its ViewSettings afresh instead of from `view`, and this fails.
+  testWidgets('the scene hands the view every group it was given', (
+    tester,
+  ) async {
+    const loop = LoopSettings(originShift: 500.0);
+    const plugins = PluginSettings();
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    final frames = <(Flutter3dEngine, FrameInfo)>[];
+    Scene3DController? controller;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Scene3D(
+          device: DeviceSettings(device: _device(), presenter: _noPresenter),
+          view: const ViewSettings(
+            resolution: ViewResolution.scaled(0.5),
+            warmUp: false,
+          ),
+          loop: loop,
+          plugins: plugins,
+          focusNode: focus,
+          restorationId: 'scene',
+          onSceneCreated: (c) => controller = c,
+          onFrame: (Flutter3dEngine engine, FrameInfo frame) =>
+              frames.add((engine, frame)),
+        ),
+      ),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final view = tester.widget<Flutter3dView>(find.byType(Flutter3dView));
+    final scene = tester.widget<Scene3D>(find.byType(Scene3D));
+    expect(view.loop, same(loop));
+    expect(view.plugins, same(plugins));
+    expect(view.focusNode, same(focus));
+    expect(view.restorationId, 'scene');
+    expect(view.view.resolution, same(scene.view.resolution));
+    expect(view.view.warmUp, isFalse);
+    // The scene draws its own views through its camera, over what was given.
+    expect(view.view.views, hasLength(1));
+    expect(controller, isNotNull);
+    expect(frames, isNotEmpty);
+    expect(frames.last.$1, same(controller!.engine));
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('a rebuild with the same keys keeps each node', (tester) async {

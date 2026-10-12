@@ -111,14 +111,16 @@ void main() {
           width: 8,
           height: 8,
           child: Scene3D(
-            device: CpuDevice(
-              width: 8,
-              height: 8,
-              shaders: CpuShaderLibrary(builtinCpuShaders()),
+            device: DeviceSettings(
+              device: CpuDevice(
+                width: 8,
+                height: 8,
+                shaders: CpuShaderLibrary(builtinCpuShaders()),
+              ),
+              presenter: _noPresenter,
             ),
-            continuous: false,
-            presenter: _noPresenter,
-            onCreated: (Scene3DController it) => controller = it,
+            view: const ViewSettings(continuous: false),
+            onSceneCreated: (Scene3DController it) => controller = it,
             children: <Widget>[
               Node3D(
                 key: const ValueKey<String>('left'),

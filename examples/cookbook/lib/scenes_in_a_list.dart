@@ -19,7 +19,7 @@ class ScenesInAList extends StatelessWidget {
         height: 160,
         child: Scene3D(
           // Nothing moves, so a frame only when the card is built.
-          continuous: false,
+          view: const ViewSettings(continuous: false),
           children: <Widget>[
             const Light3D.sun(),
             Material3D(

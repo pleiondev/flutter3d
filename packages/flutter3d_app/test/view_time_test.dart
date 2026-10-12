@@ -9,7 +9,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_app/flutter3d_app.dart';
 import 'package:flutter3d_hardware/testing.dart' show FakeBackend;
-import 'package:flutter3d_plugin_api/flutter3d_plugin_api.dart' show LoopPhase;
 import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -152,10 +151,12 @@ void main() {
           width: 32,
           height: 24,
           child: Scene3D(
-            device: FakeBackend(),
-            presenter: _noPresenter,
+            device: DeviceSettings(
+              device: FakeBackend(),
+              presenter: _noPresenter,
+            ),
             time: TimeSource.scaled(0.1),
-            onFrame: (frame) => seconds.add(frame.seconds),
+            onFrame: (_, frame) => seconds.add(frame.seconds),
           ),
         ),
       ),

@@ -20,14 +20,16 @@ class _RunnerAt60State extends State<RunnerAt60> {
 
   @override
   Widget build(BuildContext context) => Scene3D(
-    // Every other refresh on a 120 Hz screen, every one on 60 Hz.
-    frameRateCap: 60,
-    // Three quarters of the pixels, and the bloom a phone can skip.
-    settings: const RenderSettings(
-      renderScale: 0.75,
-      bloom: BloomSettings(enabled: false),
+    view: const ViewSettings(
+      // Every other refresh on a 120 Hz screen, every one on 60 Hz.
+      frameRateCap: 60,
+      // Three quarters of the pixels, and the bloom a phone can skip.
+      settings: RenderSettings(
+        renderScale: 0.75,
+        bloom: BloomSettings(enabled: false),
+      ),
     ),
-    onFrame: (frame) => setState(() => run += 6.0 * frame.seconds),
+    onFrame: (_, frame) => setState(() => run += 6.0 * frame.seconds),
     children: <Widget>[
       Camera3D(position: Vector3(0, 2.5, 5 - run), target: Vector3(0, 1, -run)),
       const Light3D.sun(),
