@@ -6105,12 +6105,10 @@ List<Finding> _pluginApiVersionMoves() {
   final current = _publishedSnapshots;
   final released = <String, String>{
     for (final MapEntry(key: name, value: dir) in _publishedPackages.entries)
-      if (git(<String>[
-            'show',
-            '$tag:${dir.path.substring(root.path.length + 1).replaceAll(Platform.pathSeparator, '/')}/api/$name.api',
-          ])
-          case final text?)
-        name: text,
+      name: ?git(<String>[
+        'show',
+        '$tag:${dir.path.substring(root.path.length + 1).replaceAll(Platform.pathSeparator, '/')}/api/$name.api',
+      ]),
   };
   final was = pluginApiVersionIn(released['flutter3d_plugin_api'] ?? '');
   final now = pluginApiVersionIn(current['flutter3d_plugin_api'] ?? '');

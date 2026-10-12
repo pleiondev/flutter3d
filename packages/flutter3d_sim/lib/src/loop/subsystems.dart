@@ -137,7 +137,8 @@ final class _LoopSubsystems extends SubsystemRegistry {
     // A profile is one simulation to every tape and hello by its name, so a
     // plugin's is named in its namespace, and a bare name is the engine's.
     if (_scope?.manifest case final manifest? when !manifest.isEngine) {
-      for (final profile in declaration.switchedOnBy ?? const []) {
+      for (final profile
+          in declaration.switchedOnBy ?? const <SimulationProfile>[]) {
         final problem = profile.name.contains('.')
             ? manifest.nameProblem(profile.name, what: 'the profile')
             : SimulationProfile.values.contains(profile)
