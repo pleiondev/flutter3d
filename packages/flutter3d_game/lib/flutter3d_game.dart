@@ -713,6 +713,7 @@ export 'package:flutter3d_physics/flutter3d_physics.dart'
     show Collider, CollisionWorld, RigidDynamics;
 export 'package:flutter3d_sim/flutter3d_sim.dart'
     show
+        ActionSet,
         EngineLoop,
         EntityDef,
         InputState,

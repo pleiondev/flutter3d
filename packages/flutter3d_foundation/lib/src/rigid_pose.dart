@@ -1,7 +1,6 @@
 /// Where a rigid thing is and which way it is turned.
 library;
 
-import 'package:flutter3d_foundation/flutter3d_foundation.dart' show DocumentFormatException;
 import 'package:vector_math/vector_math.dart';
 
 import 'formats.dart' show DocumentFormatException;
