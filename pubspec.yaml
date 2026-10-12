@@ -86,8 +86,8 @@ workspace:
   - packages/flutter3d_stereo/example
   - packages/pad_input
   - packages/pad_input/example
-  - packages/pointer_lock
-  - packages/pointer_lock/example
+  - packages/flutter3d_pointer_lock
+  - packages/flutter3d_pointer_lock/example
   - apps/flutter3d_demo_arcade
   - apps/flutter3d_demo_river
   - apps/flutter3d_demo_dungeon

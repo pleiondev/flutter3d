@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:pointer_lock/pointer_lock.dart';
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 
 /// How this build is played.
 ///
@@ -42,7 +42,7 @@ final class Playing {
   const Playing({required this.touch, required this.capturesPointer});
 
   /// The answers this platform gives: [touch] from the target platform,
-  /// [capturesPointer] from `pointer_lock`.
+  /// [capturesPointer] from `flutter3d_pointer_lock`.
   factory Playing.ofPlatform() {
     final touch =
         defaultTargetPlatform == TargetPlatform.android ||
@@ -55,7 +55,7 @@ final class Playing {
 
   /// Whether the pointer can be taken, so the mouse reports motion.
   ///
-  /// **Asked of `pointer_lock` rather than of a platform list**, because the
+  /// **Asked of `flutter3d_pointer_lock` rather than of a platform list**, because the
   /// list was a copy of that package's own support and the copy was wrong in
   /// both directions. It claimed Windows and Linux, where the plugin has no
   /// native side, so those builds captured nothing and — because this getter

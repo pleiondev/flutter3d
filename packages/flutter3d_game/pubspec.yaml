@@ -41,11 +41,12 @@ dependencies:
   flutter3d_core: ^1.0.0-rc.1
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
-  pointer_lock: ^0.5.0
+  flutter3d_pointer_lock: ^0.5.0
 
-  # Sticks, triggers and buttons. A device package, exactly as pointer_lock is:
-  # it knows nothing about actions or games, and `pad_input.dart` is the
-  # translator — the same shape `DesktopInput` has beside the keyboard.
+  # Sticks, triggers and buttons. A device package, exactly as
+  # flutter3d_pointer_lock is: it knows nothing about actions or games, and
+  # `pad_input.dart` is the translator — the same shape `DesktopInput` has
+  # beside the keyboard.
   pad_input: ^0.5.0
 
   # The simulation. Extracted because none of it imported Flutter and a

@@ -59,7 +59,7 @@ final size = fixedResolution ? const Size(960, 540) : screenSize;
 
 `flutter3d`, `flutter3d_sim`, `flutter3d_game` and a genre package. Import them
 by name, so the choice is visible in the pubspec. Nothing from another package
-is re-exported either: `pad_input` and `pointer_lock` are a game's devices, and
+is re-exported either: `pad_input` and `flutter3d_pointer_lock` are a game's devices, and
 the game names them.
 
 ## The shape of a main file

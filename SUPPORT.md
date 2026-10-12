@@ -158,7 +158,7 @@ run on Flutter's native platforms; most of the ones marked that way reach
 | `flame_multiplayer` | android, ios, linux, macos, web, windows |
 | `flame_multiplayer_dashwire` | android, ios, linux, macos, web, windows |
 | `pad_input` | android, ios, linux, macos, web, windows |
-| `pointer_lock` | linux, macos, web, windows |
+| `flutter3d_pointer_lock` | linux, macos, web, windows |
 
 The desktop-only packages are tools for the machine a game is made on: the
 build hook, the MCP servers an agent starts over stdio, the editor's Play
@@ -196,7 +196,7 @@ for now) and the file format schemas. Wasm plugin ABI 1 (`wasmPluginAbi` in
 the ABI it was written for, and only a change to what a module may import or
 export moves it. `flame_multiplayer` and `flame_multiplayer_dashwire`
 joined the shelf's number at `1.0.0-rc.1`, because they stand on
-`flutter3d_net` and break with it. `pad_input` and `pointer_lock` name no
+`flutter3d_net` and break with it. `pad_input` and `flutter3d_pointer_lock` name no
 sibling and keep their own lines below 1.0.
 
 **Which releases get fixes:**

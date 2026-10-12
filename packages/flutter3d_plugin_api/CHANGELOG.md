@@ -1,5 +1,8 @@
 ## 1.0.0-rc.1
 
+- **`PluginManifest.engineNamespaces` names `flutter3d_pointer_lock`**, the
+  name `pointer_lock` is published under from 0.4.3 on. The old name stays
+  in the set, so a recorded run that names it still reads as the engine's.
 - **Breaking: a codec, a snapshot part and a data section take one context
   each.** `ComponentCodec.decode`, `EventCodec.decode` and
   `SnapshotPart.restore` take a `ComponentDecodeContext`,

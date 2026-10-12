@@ -34,7 +34,7 @@ const Map<String, int> packageLayers = <String, int>{
   'flutter3d_lints': 0,
   'flutter3d_samples': 0,
   'pad_input': 0,
-  'pointer_lock': 0,
+  'flutter3d_pointer_lock': 0,
   // L1: the plugin contract and the graphics vocabulary, side by side, and
   // the model hub's client contract, which the renderer's core names.
   'flutter3d_plugin_api': 1,

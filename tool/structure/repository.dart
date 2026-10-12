@@ -471,7 +471,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
   'flutter3d_audio': 'display: a mix is recomputed once a frame',
   'flutter3d_audio_core': 'display: a mix is recomputed once a frame',
   'pad_input': 'a device, read once a frame',
-  'pointer_lock': 'a platform channel',
+  'flutter3d_pointer_lock': 'a platform channel',
   'flutter3d_build':
       'a build-time tool, not a step: `dart run flutter3d_build:convert` reads a '
       'wall clock to report how long a decode or an encode took a human '
@@ -1013,11 +1013,12 @@ boundaryEnumExempt = <String, Map<String, String>>{
         'closed for good, as `closedForGood` says: connected or not: a yes or '
         'a no, kept as two states for which way it changed',
   },
-  'pointer_lock/lib/src/pointer_lock_platform_interface.dart': <String, String>{
-    'CaptureState':
-        'closed for good, as `closedForGood` says: captured or released: a '
-        'yes or a no, kept as two states for who released it',
-  },
+  'flutter3d_pointer_lock/lib/src/pointer_lock_platform_interface.dart':
+      <String, String>{
+        'CaptureState':
+            'closed for good, as `closedForGood` says: captured or released: a '
+            'yes or a no, kept as two states for who released it',
+      },
 };
 
 /// Whole packages whose enums are all machinery, and the one reason each time.

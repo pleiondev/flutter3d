@@ -64,8 +64,8 @@ work in the sentence this replaces:
 **Windows and Linux are built, not played.** Every game and the editor has
 a `windows/` and a `linux/` runner, and the CI desktop job compiles each of
 them, which is also the only place the native sides of `pad_input` and
-`pointer_lock` are compiled: this repository is written on a Mac. Those
-sides only forward the platform's own numbers, and what the numbers mean —
+`flutter3d_pointer_lock` are compiled: this repository is written on a Mac.
+Those sides only forward the platform's own numbers, and what the numbers mean —
 XInput's stick y pointing up, the `xpad` driver's button order, a Linux
 trigger resting at −32767 — is read in Dart and tested there. Nobody has
 yet held a controller in front of either. Under Wayland the pointer cannot
@@ -73,7 +73,7 @@ be warped, so a captured mouse stops at the window's edge.
 
 **On Linux the games run, but not yet on Impeller.** All five games and the
 editor were built with Flutter 3.47.0 in an Ubuntu arm64 container, and the
-plugin libraries of `pad_input` and `pointer_lock` were compiled and
+plugin libraries of `pad_input` and `flutter3d_pointer_lock` were compiled and
 registered there. The dungeon ran under Xvfb, loaded its level and kept
 running. On that run Impeller would not start: the Linux embedder keeps
 Flutter GPU off unless the engine is given `--enable-flutter-gpu`, so
@@ -294,7 +294,7 @@ point of §3.3.
 | `flutter3d_mesh` | The editable half-edge mesh — `EditMesh`, its journal, its operations — that a model decodes into once somebody starts editing it |
 | `flutter3d_model_core` | The modeller's own document: `ModelProject`, commands, undo, `ExportReadiness`, its own project file ([§8.7](#87-the-project-file-and-three-undo-models)), and the rig algorithms it runs — bone-name mapping, rest-relative retargeting with a two-bone-IK foot lock, automatic skin weights — which read a rig as nodes and tracks and know nothing of a project — and the pictures of a project: `sceneFromProject`, `renderProject` for an agent's still, `RenderSnapshotJob` for a tiled, supersampled snapshot, each on a device the caller supplies. Plain Dart, for the identical Flutter-SDK-boundary reason `flutter3d_core` is |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
-| `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
+| `flutter3d_pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
 | `flame_flutter3d` | The bridge to Flame: Flame draws its own layer and the engine its own, with transforms, lifecycle, physics contacts, input and the actors reconciled between them |
 | `flame_flutter3d_audio` | Sound for a bridged Flame game: the audio scene as a component, silent until the player's first input, and loops that live as long as their component |
 | `flame_multiplayer` | Turns with a replay for the one watching, a ghost's latest word and a party's spectator, over `flutter3d_net`'s wire and rollback, which it re-exports. Versioned apart from the engine (0.x) |
@@ -3056,7 +3056,7 @@ on both; the only difference is that Apple counts a stick axis positive upwards
 while Android, the browser and this package count it downwards, and the sign is
 flipped in Dart, once, under a test.
 
-`pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
+`flutter3d_pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
 desktop platform and does not surface in a browser either. Two backends: a method
 channel on macOS, and the browser's own Pointer Lock API through static interop,
 chosen by conditional export the way `pad_input` chooses its gamepad. Three rules
@@ -3673,7 +3673,7 @@ storage.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **14650 tests** across 61 packages and 17 applications |
+| Unit tests | **14652 tests** across 61 packages and 17 applications |
 | Structure rules | 91, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -4690,8 +4690,8 @@ the third from a 0.8.0 that never left the workspace. `flame_flutter3d` and
 back to it.
 
 **0.8.0 was the shelf before it, and it fixed the hardware contract for the
-whole 0.8 line.** Every package but `pad_input` and `pointer_lock` was 0.8.0
-and asked for `^0.8.0` of its siblings, because `PassEncoder.bindTexture`
+whole 0.8 line.** Every package but `pad_input` and `pointer_lock` (published
+as `flutter3d_pointer_lock` from 0.4.3 on) was 0.8.0 and asked for `^0.8.0` of its siblings, because `PassEncoder.bindTexture`
 returns `bool` and every implementation of the interface changed with it.
 `GraphicsDevice`, `PassEncoder` and `CommandEncoder` are interfaces the backend
 packages implement on a caret range, so a member added in a patch would break
@@ -4754,9 +4754,11 @@ that being in the publishing order and being published are different things. It
 is one of the thirteen now.
 
 **Four packages keep lines of their own, and it is not an oversight.**
-`pad_input` and `pointer_lock` are plugins this repository vendors: neither
-names a sibling in its pubspec, and nothing in either is built against an
-engine release. They go from 0.4 to 0.5.0 for Windows and Linux, a feature on
+`pad_input` and `flutter3d_pointer_lock` are plugins this repository vendors:
+neither names a sibling in its pubspec, and nothing in either is built against
+an engine release. The second was published as `pointer_lock` up to 0.4.2+2
+and took the engine's prefix at 0.4.3, so that its name says what it was
+built for. They go from 0.4 to 0.5.0 for Windows and Linux, a feature on
 their own line, and their dependents ask for `^0.5.0`. `flame_multiplayer`
 names no package at all and `flame_multiplayer_dashwire` only it: the first
 takes 0.2.0 for parties of more than two, the second 0.1.1 because its
@@ -4791,7 +4793,7 @@ layer, the packages go in the order written, which puts a dev dependency in
 the same layer first:
 
 1. L0: `flutter3d_foundation`, `flutter3d_lints`, `flutter3d_samples`,
-   `pad_input`, `pointer_lock`
+   `pad_input`, `flutter3d_pointer_lock`
 2. L1: `flutter3d_hardware`, `flutter3d_plugin_api`, `flutter3d_hub`
 3. L2: `flutter3d_matter`, `flutter3d_shaders`, `flutter3d_fields`
 4. L3: `flutter3d_core`, `flutter3d_audio_core`, `flutter3d_cpu`,

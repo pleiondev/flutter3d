@@ -34,7 +34,7 @@ releases are supported.
 [`flutter3d_plugin_api`](https://pub.dev/packages/flutter3d_plugin_api) is on
 the candidate too, with an API version of its own that breaks more rarely
 still; [`pad_input`](https://pub.dev/packages/pad_input) and
-[`pointer_lock`](https://pub.dev/packages/pointer_lock) keep a line of their
+[`flutter3d_pointer_lock`](https://pub.dev/packages/flutter3d_pointer_lock) keep a line of their
 own at 0.5.0, since neither names a sibling. To work on the engine itself,
 see [Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
 [SECURITY.md](SECURITY.md).
@@ -108,7 +108,7 @@ tools are listed in the
 | [`packages/flutter3d_game_platformer`](packages/flutter3d_game_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
-| [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
+| [`packages/flutter3d_pointer_lock`](packages/flutter3d_pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
 | [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets, so a game built on it carries the decoders and not the 4.1 MB they were checked against |
 | [`packages/flutter3d_core`](packages/flutter3d_core) | The renderer with no Flutter SDK behind it, and two libraries it draws from that import on their own: `geometry.dart` (vertex layouts, mesh data, shape generators, tangents, morph targets, ray intersections) and `formats.dart` (`ModelDocument` and its materials, glTF/GLB, OBJ, STL, USDZ, `.f3d`, `.fmat`, and an FBX decoder that refuses with a reason). Plain Dart, so a modeller's document layer or a tool an agent starts can read a mesh or a `.glb` without a window |
 | [`packages/flutter3d_hardware`](packages/flutter3d_hardware) | The abstraction over graphics APIs: a device, an encoder, a pass. Its vocabulary is its own and names no API, so a fourth backend changes no user code. Plain Dart |
@@ -179,7 +179,7 @@ too.
 
 ## Coming from 0.8
 
-1.0 changed the 0.8 API in 2009 places, 306 of them left to you; 380 are
+1.0 changed the 0.8 API in 2011 places, 306 of them left to you; 380 are
 backend internals no application called. One command does the rest:
 
 ```bash
@@ -263,14 +263,14 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-There are 14650 tests across 61 packages and 17 applications. The
+There are 14652 tests across 61 packages and 17 applications. The
 only ones that need a GPU are the Impeller half of the golden set. The other
 half is rendered by the software backend, which is what makes 96 scenes
 checkable in a headless run.
 
 Several steps run in a browser. `flutter test --platform chrome` covers the two
 web backends, `flutter3d_app`'s browser half and the browser half of
-`pointer_lock`, and one step compiles a game to WebAssembly, since a platform
+`flutter3d_pointer_lock`, and one step compiles a game to WebAssembly, since a platform
 counts as supported here only if its build actually runs. The WebGPU backend
 gets something from this that no other backend does: Chrome has a real WebGPU
 device inside `flutter test`, so the WebGPU conformance run is a test rather

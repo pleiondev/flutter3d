@@ -94,7 +94,7 @@ for name in names:
     #
     # **Only the ones this package reaches, not all of them.** An override is a
     # dependency as far as the solver is concerned, so overriding every sibling
-    # handed each plain package `pointer_lock`, which needs the Flutter SDK —
+    # handed each plain package `flutter3d_pointer_lock`, which needs the Flutter SDK —
     # and on a machine without one, which is the machine this check is for,
     # every package failed for a reason none of them had. A developer's laptop
     # has Flutter on the PATH and never saw it.

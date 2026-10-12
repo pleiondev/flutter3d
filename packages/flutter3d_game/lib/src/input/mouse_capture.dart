@@ -1,7 +1,7 @@
 /// The captured mouse, in the game layer's own words.
 ///
 /// **Why the game has its own type for it.** The capture itself is
-/// `pointer_lock`, a package on its own version line below 1.0 that may
+/// `flutter3d_pointer_lock`, a package on its own version line below 1.0 that may
 /// change its API in any minor. `DesktopInput` named its `PointerLock` in its
 /// constructor, so such a change would have reached every game that passed
 /// one. [MouseCapture.platform] is now where the input reaches the plugin;
@@ -10,7 +10,7 @@ library;
 
 import 'dart:ui' show Offset;
 
-import 'package:pointer_lock/pointer_lock.dart';
+import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';
 
 /// Taking the pointer, so the mouse reports motion instead of moving a
 /// cursor, and giving it back.
@@ -46,7 +46,7 @@ abstract base class MouseCapture {
   Future<void> release();
 }
 
-/// The platform's capture, through `pointer_lock`.
+/// The platform's capture, through `flutter3d_pointer_lock`.
 final class _PlatformCapture extends MouseCapture {
   _PlatformCapture(this._lock);
 

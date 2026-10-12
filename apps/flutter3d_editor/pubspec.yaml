@@ -94,7 +94,7 @@ dependencies:
     path: ../../packages/flutter3d_sim
 
   # **The first plugin here that was not written here, and it is asked one
-  # question.** There are two others — `pad_input` and `pointer_lock` — and both
+  # question.** There are two others — `pad_input` and `flutter3d_pointer_lock` — and both
   # are packages in this repository, whose platform code can be read and fixed
   # in the same checkout. This one comes off pub.dev, and what it buys is the
   # thing no amount of Dart can produce: the system's own open panel, which is

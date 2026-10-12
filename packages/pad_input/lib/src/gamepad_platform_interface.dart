@@ -5,7 +5,7 @@ import 'platform_default.dart';
 
 /// Whether a pad is attached.
 ///
-/// Two states rather than a bool, for the reason `pointer_lock`'s
+/// Two states rather than a bool, for the reason `flutter3d_pointer_lock`'s
 /// `CaptureState` has two: the interesting part is *which way* it changed. A
 /// game that sees `disconnected` has to release whatever the pad was holding,
 /// and a game that sees `connected` may want to say so on screen.
@@ -46,7 +46,7 @@ abstract base class GamepadPlatform extends PlatformInterface {
   /// A **whitelist**, never try-and-see: asking the channel and catching the
   /// failure means every unsupported platform pays a `MissingPluginException`
   /// at first use, and a listener that has already been attached cannot be
-  /// un-attached. `pointer_lock` learnt this and says so.
+  /// un-attached. `flutter3d_pointer_lock` learnt this and says so.
   bool get isSupported;
 
   /// Attaching and detaching, as it happens.

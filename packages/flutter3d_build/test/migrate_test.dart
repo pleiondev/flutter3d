@@ -98,6 +98,34 @@ void main() {
         expect(e.text, isNot(contains('TODO')), reason: e.id);
       }
     });
+
+    test('the shipped table moves pointer_lock to its published name', () {
+      // Mutation: drop `pointer_lock` from `renamed:`. The dependency stays
+      // on a package whose 0.5.0 is never published, and `pub get` fails.
+      final shipped = MigrationTable.parse(
+        File('lib/migrations/0.8_to_1.0.yaml').readAsStringSync(),
+      );
+      final notes = <String>[];
+      expect(
+        migratePubspec(
+          'name: my_game\ndependencies:\n  pointer_lock: ^0.4.0\n',
+          shipped,
+          notes: notes,
+        ),
+        'name: my_game\ndependencies:\n  flutter3d_pointer_lock: ^0.5.0\n',
+      );
+      expect(notes, isEmpty);
+      expect(
+        migrateDirectives(
+          "import 'package:pointer_lock/pointer_lock.dart';\n"
+          "import 'package:pointer_lock/src/platform_default.dart';\n",
+          uris: shipped.importMoves,
+          packages: shipped.renamedPackages,
+        ),
+        "import 'package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart';\n"
+        "import 'package:flutter3d_pointer_lock/src/platform_default.dart';\n",
+      );
+    });
   });
 
   group('the pubspec', () {

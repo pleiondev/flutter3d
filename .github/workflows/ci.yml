@@ -401,7 +401,7 @@ jobs:
   # dungeon demo does not.
   #
   # And the other four games, whose runners are the dungeon's renamed. Every
-  # game reaches `pad_input` and `pointer_lock` through `flutter3d_game`, so
+  # game reaches `pad_input` and `flutter3d_pointer_lock` through `flutter3d_game`, so
   # this is also the only place their XInput, Raw Input, joystick and GDK
   # sides are compiled at all.
   desktop:
@@ -527,7 +527,7 @@ jobs:
   # macOS-only and nothing compiled it.** `tool/golden.sh` runs `flutter run -d
   # macos` and is the only way any of the three reference sets can be
   # re-recorded; `flutter3d_ui`'s storage branches on the platform; `pad_input`
-  # and `pointer_lock` have Swift under them that Linux never sees. A build that
+  # and `flutter3d_pointer_lock` have Swift under them that Linux never sees. A build that
   # only ever ran on ubuntu could not say whether any of it still compiled.
   #
   # Analysis and the structure scan rather than `tool/ci.sh`: the browser steps

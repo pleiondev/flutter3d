@@ -174,7 +174,7 @@ that means the wrong thing is worse than a pad that does not answer.
 
 It knows nothing about games: it has no actions, bindings or vocabulary. The
 code that turns `face.south` into "jump" belongs beside the keyboard's
-equivalent in the game layer, for the same reason `pointer_lock` reports deltas
+equivalent in the game layer, for the same reason `flutter3d_pointer_lock` reports deltas
 and lets its caller decide what they mean.
 
 The following are deliberately absent. None has a consumer, and each would
@@ -198,7 +198,7 @@ test shows. That holds for the platform channel and not for anything above it,
 so everything above it is tested: the dead zone in both directions, the
 trigger's travel, a disconnection zeroing before it announces itself, and the
 button vocabulary's own spelling. `test/gamepad_test.dart` supplies a fake
-platform, as `pointer_lock` does.
+platform, as `flutter3d_pointer_lock` does.
 
 The browser's mapping table is tested too, separately from the browser. The
 seventeen button indices and four axis indices live in

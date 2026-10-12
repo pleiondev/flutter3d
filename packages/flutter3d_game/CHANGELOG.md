@@ -1,5 +1,9 @@
 ## 1.0.0-rc.1
 
+- **Mouse capture comes from `flutter3d_pointer_lock`**, the name
+  `pointer_lock` is published under from 0.4.3 on; the dependency is
+  `flutter3d_pointer_lock: ^0.5.0`. An app that named `pointer_lock` itself
+  moves with `dart run flutter3d_build:migrate`.
 - **Breaking: `ActorAnimations` takes the engine's stride contexts.** Its
   `strideOf`, `gesture` and `restore` take an `ActorStride`, an
   `ActorGesture` and an `ActorStridesRestore`, the one context

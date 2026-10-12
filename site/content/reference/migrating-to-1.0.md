@@ -5,7 +5,7 @@ description: Move a project written against flutter3d 0.8 to 1.0.0-rc.1, with on
 # Migrating from 0.8 to 1.0
 
 1.0 is the release the engine promises to keep: from it on, a break comes
-only in a major version. To get there, 0.8's API changed in 2009 places,
+only in a major version. To get there, 0.8's API changed in 2011 places,
 306 of them left to you; 380 are backend internals no application called.
 The rest a program carries out for you, and three
 tools share the work. All three read one table,
@@ -40,7 +40,8 @@ migration has moved the constraints.
 
 1. **Dependencies.** Every dependency on a flutter3d package moves to
    `^1.0.0-rc.1`, or to the package's own number for the few that are
-   versioned apart (`pad_input`, `pointer_lock`, `flame_multiplayer`). Path
+   versioned apart (`pad_input`, `flutter3d_pointer_lock`). A renamed package
+   is renamed in the pubspec (`pointer_lock` is `flutter3d_pointer_lock`). Path
    and git dependencies are left alone and listed.
 2. **Imports** of libraries that moved to another package are rewritten.
 3. `flutter pub get` (or `dart pub get` for a plain Dart package).
@@ -222,7 +223,7 @@ carried out:
 
 <!-- migration-table:start -->
 
-*Generated from `flutter3d_build/lib/migrations/` — 2009 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 346 `migrate`, 306 by hand, 370 nothing to do, 500 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
+*Generated from `flutter3d_build/lib/migrations/` — 2011 entries from 0.8.5 to 1.0.0-rc.1, 306 by hand: 348 `migrate`, 306 by hand, 370 nothing to do, 500 `dart fix`, 380 gone internal, 107 `migrate`, with a TODO.*
 
 ### `flame_flutter3d`
 
@@ -2059,6 +2060,8 @@ carried out:
 
 ### `pointer_lock`
 
+- <a id="5-pointer_lock-library"></a>**`package:pointer_lock/pointer_lock.dart`** (`migrate`). `package:pointer_lock/pointer_lock.dart` is `package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart`. `pointer_lock` is published as `flutter3d_pointer_lock` from 0.4.3 on, with the same API: `PointerLock`, `PointerLockPlatform` and `CaptureState` keep their names. The dependency in `pubspec.yaml` changes with the import: `pointer_lock: ^0.4.0` becomes `flutter3d_pointer_lock: ^0.5.0`, which `migrate` writes for you.
+- <a id="5-pointer_lock-src"></a>**`package:pointer_lock/src/`** (`migrate`). `package:pointer_lock/src/` is `package:flutter3d_pointer_lock/src/`. What was under `pointer_lock`'s `lib/src/` is under `flutter3d_pointer_lock`'s, file for file. Importing it was never the public API; the main library above is.
 - <a id="4a-pointer_lock-PointerLock-takeDelta"></a>**`PointerLock.takeDelta`** (`dart fix`). `PointerLock.takeDelta` is `drainDelta`. Creation and teardown verbs follow one convention in 1.0: create (synchronous), open (a device or a session), load (an asset), decode (bytes), parse (text), dispose (teardown), close (a connection or a stream), and drain for a read that empties what it reads. The behaviour is the same under the new name.
 
 <!-- migration-table:end -->

@@ -11,7 +11,7 @@
 /// underneath that command: replaying a genre's own simulation from a
 /// `.f3drun` cannot be a plain `dart run` script regardless of which package
 /// eventually hosts it, because every genre package depends on Flutter
-/// (`pointer_lock` alone pulls in `dart:ui` for `Offset`) — measured by
+/// (`flutter3d_pointer_lock` alone pulls in `dart:ui` for `Offset`) — measured by
 /// trying it, the same way `wg-00` measures rather than assumes. `flutter
 /// test` is the shape that already works for headless rendering in this
 /// repository (`frame_test.dart`), so the two pieces `--video` and `--check`

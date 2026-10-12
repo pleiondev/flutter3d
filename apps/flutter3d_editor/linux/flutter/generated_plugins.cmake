@@ -4,8 +4,8 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_linux
+  flutter3d_pointer_lock
   pad_input
-  pointer_lock
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

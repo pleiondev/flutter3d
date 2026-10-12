@@ -5,10 +5,10 @@
 import FlutterMacOS
 import Foundation
 
+import flutter3d_pointer_lock
 import pad_input
-import pointer_lock
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  Flutter3dPointerLockPlugin.register(with: registry.registrar(forPlugin: "Flutter3dPointerLockPlugin"))
   GamepadPlugin.register(with: registry.registrar(forPlugin: "GamepadPlugin"))
-  PointerLockPlugin.register(with: registry.registrar(forPlugin: "PointerLockPlugin"))
 }

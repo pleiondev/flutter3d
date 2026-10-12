@@ -115,8 +115,8 @@ guide: https://flutter3d.pleion.dev/reference/migrating-to-1.0/
 packages:
   constraint: ^1.0.0-rc.1
   versions:
+    flutter3d_pointer_lock: ^0.5.0
     pad_input: ^0.5.0
-    pointer_lock: ^0.5.0
   renamed:
     flutter3d_addon_access: flutter3d_game_ui
     flutter3d_addon_atmosphere: flutter3d_post
@@ -145,6 +145,7 @@ packages:
     flutter3d_lti: flutter3d_education
     flutter3d_mcp_kit: flutter3d_mcp
     flutter3d_model_mcp: flutter3d_mcp
+    pointer_lock: flutter3d_pointer_lock
   removed:
 
 entries:
@@ -24387,3 +24388,25 @@ entries:
       The extension is gone with the drained buffer; its two members' own
       entries (`sim-StepEvents`, `corpus-sim-StepEvents-count`) rewrite each
       call to `whereType`.
+
+  - id: 5-pointer_lock-library
+    kind: import
+    from: package:pointer_lock/pointer_lock.dart
+    to: package:flutter3d_pointer_lock/flutter3d_pointer_lock.dart
+    wave: 5
+    guidance: >-
+      `pointer_lock` is published as `flutter3d_pointer_lock` from 0.4.3 on,
+      with the same API: `PointerLock`, `PointerLockPlatform` and
+      `CaptureState` keep their names. The dependency in `pubspec.yaml`
+      changes with the import: `pointer_lock: ^0.4.0` becomes
+      `flutter3d_pointer_lock: ^0.5.0`, which `migrate` writes for you.
+
+  - id: 5-pointer_lock-src
+    kind: import
+    from: package:pointer_lock/src/
+    to: package:flutter3d_pointer_lock/src/
+    wave: 5
+    guidance: >-
+      What was under `pointer_lock`'s `lib/src/` is under
+      `flutter3d_pointer_lock`'s, file for file. Importing it was never the
+      public API; the main library above is.

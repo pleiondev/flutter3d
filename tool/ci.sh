@@ -424,13 +424,13 @@ step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter te
 # that table is the one file in the package both platforms have to agree about.
 step "test flutter3d_webgpu (browser)" in_dir packages/flutter3d_webgpu flutter test --platform chrome
 
-# **The same trap, one package over.** `pointer_lock` grew a web backend — the
+# **The same trap, one package over.** `flutter3d_pointer_lock` grew a web backend — the
 # browser has had `requestPointerLock` all along and this package was answering
 # "unsupported" for it — and its tests are `@TestOn('browser')` for the reason
 # the WebGL ones are: `dart:js_interop` is not a library the VM has. The loop
 # above skips them and reports the package green off its platform-agnostic
 # files.
-step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
+step "test flutter3d_pointer_lock (browser)" in_dir packages/flutter3d_pointer_lock flutter test --platform chrome
 
 # **The package whose whole job is a choice, asked to make it on the platform
 # where there is now more than one answer.** The backend choice, now part of

@@ -333,6 +333,7 @@ final class PluginManifest {
     'flutter3d_physics_native',
     'flutter3d_plugin_api',
     'flutter3d_plugin_runtime',
+    'flutter3d_pointer_lock',
     'flutter3d_post',
     'flutter3d_samples',
     'flutter3d_shaders',

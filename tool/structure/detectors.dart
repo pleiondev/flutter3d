@@ -2620,11 +2620,11 @@ List<Finding> proveDetectorsWork() {
     '| Package | Platforms |\n'
     '|---|---|\n'
     '| `flutter3d_webgl` | web |\n'
-    '| `pointer_lock` | linux, macos, web, windows |\n',
+    '| `flutter3d_pointer_lock` | linux, macos, web, windows |\n',
   );
   fires(
     'support table',
-    rows['pointer_lock']?.length == 4 &&
+    rows['flutter3d_pointer_lock']?.length == 4 &&
         (rows['flutter3d_webgl']?.join(',') ?? '') == 'web',
     'two rows of a package table',
   );
